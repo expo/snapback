@@ -75,6 +75,15 @@ pub(crate) struct ResolvedScopedToken {
     pub expires_at_ms: u64,
 }
 
+pub(crate) struct RetainedServiceAuthority<'a> {
+    pub actor_user_id: &'a str,
+    pub credential_id: &'a str,
+    pub credential_generation: u64,
+    pub grant_id: &'a str,
+    pub token_id: &'a str,
+    pub effective_user_id: Option<&'a str>,
+}
+
 struct StoredScopedToken {
     token_id: String,
     grant_id: String,
@@ -551,6 +560,50 @@ impl LocalDatabase {
                 expires_at_ms: expires_at_ms as u64,
             })
         })
+    }
+
+    /// Revalidate a retained live authority without retaining or recovering
+    /// its bearer. Every durable and carrier coordinate must still name the
+    /// same live rows; token churn elsewhere on the grant is irrelevant.
+    pub(crate) fn retained_service_authority_is_live(
+        &mut self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<bool> {
+        self.observe_agent_authorization_clock(now_ms)?;
+        let credential_generation = i64::try_from(authority.credential_generation)
+            .map_err(|_| agent_credential_state_corrupt())?;
+        let now_ms = i64::try_from(now_ms).map_err(|_| auth_clock_rollback())?;
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT 1
+                 FROM _auth_grant_tokens AS t
+                 JOIN _auth_grants AS g ON g.id = t.grant_id
+                 JOIN _auth_agent_credentials AS c ON c.id = t.credential_id
+                 JOIN _auth_users AS u ON u.id = g.actor_user_id
+                 WHERE t.id = ?1 AND t.grant_id = ?2
+                   AND t.credential_id = ?3 AND t.credential_generation = ?4
+                   AND g.actor_user_id = ?5 AND g.effective_user_id IS ?6
+                   AND t.revoked_at_ms IS NULL AND t.expires_at_ms > ?7
+                   AND g.revoked_at_ms IS NULL
+                   AND (g.expires_at_ms IS NULL OR g.expires_at_ms > ?7)
+                   AND c.revoked_at_ms IS NULL AND c.generation = ?4
+                   AND c.user_id = ?5
+                   AND u.kind = 'agent' AND u.deactivated_at_ms IS NULL",
+                params![
+                    authority.token_id,
+                    authority.grant_id,
+                    authority.credential_id,
+                    credential_generation,
+                    authority.actor_user_id,
+                    authority.effective_user_id,
+                    now_ms,
+                ],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some())
     }
 
     pub(super) fn observe_agent_authorization_clock(&mut self, now_ms: u64) -> SnapbackResult<()> {
@@ -1245,6 +1298,77 @@ mod tests {
             .unwrap();
         assert_eq!(resolved.grant_id, "grant-a");
         assert_eq!(resolved.actor_user_id, "agent-a");
+    }
+
+    #[test]
+    fn retained_live_validation_checks_exact_carrier_and_committed_durable_state() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        let now = 1_000;
+        let credential = db
+            .issue_initial_agent_credential("agent-a", now, &random)
+            .unwrap()
+            .secret;
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('user-a', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                params![now as i64],
+            )
+            .unwrap();
+        seed_expiring_grant(&db, "grant-live", now, now + 10_000);
+        let issued = db
+            .mint_scoped_token(&credential, "grant-live", Some(5_000), now, &random)
+            .unwrap();
+        let resolved = db.resolve_scoped_token(&issued.secret, now + 1).unwrap();
+
+        assert!(
+            db.retained_service_authority_is_live(
+                RetainedServiceAuthority {
+                    actor_user_id: &resolved.actor_user_id,
+                    credential_id: &resolved.credential_id,
+                    credential_generation: resolved.credential_generation,
+                    grant_id: &resolved.grant_id,
+                    token_id: &resolved.token_id,
+                    effective_user_id: resolved.effective_user_id.as_deref(),
+                },
+                now + 1,
+            )
+            .unwrap()
+        );
+        assert!(
+            !db.retained_service_authority_is_live(
+                RetainedServiceAuthority {
+                    actor_user_id: &resolved.actor_user_id,
+                    credential_id: &resolved.credential_id,
+                    credential_generation: resolved.credential_generation,
+                    grant_id: &resolved.grant_id,
+                    token_id: "another-token",
+                    effective_user_id: resolved.effective_user_id.as_deref(),
+                },
+                now + 1,
+            )
+            .unwrap()
+        );
+
+        db.revoke_grant_for_user("user-a", "grant-live", now + 2)
+            .unwrap();
+        assert!(
+            !db.retained_service_authority_is_live(
+                RetainedServiceAuthority {
+                    actor_user_id: &resolved.actor_user_id,
+                    credential_id: &resolved.credential_id,
+                    credential_generation: resolved.credential_generation,
+                    grant_id: &resolved.grant_id,
+                    token_id: &resolved.token_id,
+                    effective_user_id: resolved.effective_user_id.as_deref(),
+                },
+                now + 2,
+            )
+            .unwrap()
+        );
     }
 
     #[test]

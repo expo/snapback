@@ -994,6 +994,10 @@ impl PreparedAuthority {
 }
 
 impl RetainedLiveAuthority {
+    pub(crate) fn resolved(&self) -> &ResolvedAppAuthority {
+        &self.resolved
+    }
+
     pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {
         self.active_mode == authority.active_mode
             && self.profile == authority.profile
@@ -1349,7 +1353,9 @@ fn source_allows_authority(
             AuthMode::Dev => matches!(resolved, ResolvedAppAuthority::Anonymous),
             AuthMode::Sessions => matches!(
                 resolved,
-                ResolvedAppAuthority::Anonymous | ResolvedAppAuthority::Session { .. }
+                ResolvedAppAuthority::Anonymous
+                    | ResolvedAppAuthority::Session { .. }
+                    | ResolvedAppAuthority::ServicePrincipal { .. }
             ),
         },
         InvocationSource::AuthRefresh
@@ -1372,16 +1378,20 @@ fn source_allows_authority(
         InvocationSource::LiveInitialQuery
         | InvocationSource::StandaloneAcknowledgement
         | InvocationSource::ConnectionClose
-        | InvocationSource::EphemeralRegister
-        | InvocationSource::EphemeralPublish
-        | InvocationSource::EphemeralDelete
-        | InvocationSource::EphemeralSubscribe
-        | InvocationSource::EphemeralUnsubscribe
         | InvocationSource::LiveResume
         | InvocationSource::LiveUnsubscribe
         | InvocationSource::LiveSupersede
         | InvocationSource::LiveStream
-        | InvocationSource::OutboxDrain => ordinary,
+        | InvocationSource::OutboxDrain => {
+            ordinary
+                || (mode == AuthMode::Sessions
+                    && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
+        }
+        InvocationSource::EphemeralRegister
+        | InvocationSource::EphemeralPublish
+        | InvocationSource::EphemeralDelete
+        | InvocationSource::EphemeralSubscribe
+        | InvocationSource::EphemeralUnsubscribe => ordinary,
         InvocationSource::LocalQuery
         | InvocationSource::LocalMutation
         | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,
@@ -1389,7 +1399,12 @@ fn source_allows_authority(
         | InvocationSource::HostOperationFunctionRun
         | InvocationSource::HostOperationMutationDryRun => admin,
         InvocationSource::Cron => matches!(resolved, ResolvedAppAuthority::System),
-        InvocationSource::LiveRerun => allow_inherited_live_rerun && ordinary,
+        InvocationSource::LiveRerun => {
+            allow_inherited_live_rerun
+                && (ordinary
+                    || (mode == AuthMode::Sessions
+                        && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. })))
+        }
         InvocationSource::NestedMutation => false,
     }
 }
@@ -1914,7 +1929,10 @@ mod tests {
                 InvocationSource::BootstrapHandshake => matches!(
                     (mode, kind),
                     (AuthMode::Dev, Kind::Anonymous)
-                        | (AuthMode::Sessions, Kind::Anonymous | Kind::Session)
+                        | (
+                            AuthMode::Sessions,
+                            Kind::Anonymous | Kind::Session | Kind::Service
+                        )
                 ),
                 InvocationSource::AuthRefresh
                 | InvocationSource::AuthLogout
@@ -1934,16 +1952,19 @@ mod tests {
                 InvocationSource::LiveInitialQuery
                 | InvocationSource::StandaloneAcknowledgement
                 | InvocationSource::ConnectionClose
-                | InvocationSource::EphemeralRegister
-                | InvocationSource::EphemeralPublish
-                | InvocationSource::EphemeralDelete
-                | InvocationSource::EphemeralSubscribe
-                | InvocationSource::EphemeralUnsubscribe
                 | InvocationSource::LiveResume
                 | InvocationSource::LiveUnsubscribe
                 | InvocationSource::LiveSupersede
                 | InvocationSource::LiveStream
-                | InvocationSource::OutboxDrain => ordinary,
+                | InvocationSource::OutboxDrain => {
+                    ordinary
+                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                }
+                InvocationSource::EphemeralRegister
+                | InvocationSource::EphemeralPublish
+                | InvocationSource::EphemeralDelete
+                | InvocationSource::EphemeralSubscribe
+                | InvocationSource::EphemeralUnsubscribe => ordinary,
                 InvocationSource::LocalQuery
                 | InvocationSource::LocalMutation
                 | InvocationSource::LocalAction => mode == AuthMode::Dev && ordinary,

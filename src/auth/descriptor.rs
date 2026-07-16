@@ -7,6 +7,7 @@
 use crate::auth::invocation::{PreparedAuthority, ResolvedAppAuthority};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AUTHORITY_DESCRIPTOR_MAX_SESSION_GENERATION, AuthorityDescriptor};
+use sha2::{Digest, Sha256};
 use uuid::Uuid;
 
 pub const AUTHORITY_DESCRIPTOR_VERSION: u32 = 1;
@@ -45,14 +46,21 @@ pub fn descriptor_for_resolved_authority(
             generation,
             ..
         } => (authority_instance_id.clone(), *generation),
-        ResolvedAppAuthority::ServicePrincipal { .. } => {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                "auth",
-                "queued replay is unavailable for service-principal authority",
-            )
-            .with_details(serde_json::json!({ "capability": "queuedReplay" })));
-        }
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            credential_id,
+            credential_generation,
+            grant_id,
+            ..
+        } => (
+            service_authority_instance_id(
+                actor_user_id,
+                credential_id,
+                *credential_generation,
+                grant_id,
+            ),
+            0,
+        ),
         ResolvedAppAuthority::Anonymous
         | ResolvedAppAuthority::DevImpersonation { .. }
         | ResolvedAppAuthority::AdminBypass { .. }
@@ -68,6 +76,34 @@ pub fn descriptor_for_resolved_authority(
         authority_instance_id,
         session_generation,
     })
+}
+
+/// Derive one opaque, stable descriptor from the durable service-principal
+/// axis. The token id is deliberately absent: queued work survives routine
+/// scoped-token churn, while rotation, recredentialing, actor replacement,
+/// and grant replacement all produce another descriptor.
+///
+/// The UUIDv7 layout is retained for wire-schema compatibility. Its bits are
+/// an opaque SHA-256 digest, not a timestamp-bearing identifier.
+fn service_authority_instance_id(
+    actor_user_id: &str,
+    credential_id: &str,
+    credential_generation: u64,
+    grant_id: &str,
+) -> String {
+    let mut digest = Sha256::new();
+    digest.update(b"snapback.service-authority.v1");
+    for value in [actor_user_id, credential_id, grant_id] {
+        digest.update((value.len() as u64).to_be_bytes());
+        digest.update(value.as_bytes());
+    }
+    digest.update(credential_generation.to_be_bytes());
+    let hash = digest.finalize();
+    let mut bytes = [0_u8; 16];
+    bytes.copy_from_slice(&hash[..16]);
+    bytes[6] = (bytes[6] & 0x0f) | 0x70;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    Uuid::from_bytes(bytes).to_string()
 }
 
 /// Validate a descriptor before any settlement lookup or application effect.
@@ -164,6 +200,19 @@ mod tests {
         .unwrap()
     }
 
+    fn service(token_id: &str, generation: u64, grant_id: &str) -> ResolvedAppAuthority {
+        ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-a".to_owned(),
+            credential_id: "credential-a".to_owned(),
+            credential_generation: generation,
+            grant_id: grant_id.to_owned(),
+            token_id: token_id.to_owned(),
+            effective_user_id: Some("user-a".to_owned()),
+            scopes: Vec::new(),
+            token_expires_at_ms: 10_000,
+        }
+    }
+
     #[test]
     fn session_descriptor_uses_opaque_session_instance_and_generation() {
         let authority = prepared(
@@ -197,6 +246,27 @@ mod tests {
         let descriptor = descriptor_for_authority(&authority, INCARNATION).unwrap();
         assert_eq!(descriptor.authority_instance_id, INCARNATION);
         assert_eq!(descriptor.session_generation, 0);
+    }
+
+    #[test]
+    fn service_descriptor_survives_token_churn_but_not_durable_axis_changes() {
+        let first = descriptor_for_resolved_authority(&service("token-a", 3, "grant-a"), INCARNATION)
+            .unwrap();
+        let replacement_token =
+            descriptor_for_resolved_authority(&service("token-b", 3, "grant-a"), INCARNATION)
+                .unwrap();
+        let rotated =
+            descriptor_for_resolved_authority(&service("token-c", 4, "grant-a"), INCARNATION)
+                .unwrap();
+        let replaced_grant =
+            descriptor_for_resolved_authority(&service("token-d", 3, "grant-b"), INCARNATION)
+                .unwrap();
+
+        assert_eq!(first, replacement_token);
+        assert_ne!(first.authority_instance_id, rotated.authority_instance_id);
+        assert_ne!(first.authority_instance_id, replaced_grant.authority_instance_id);
+        assert!(canonical_uuid_v7(&first.authority_instance_id).is_ok());
+        assert_eq!(first.session_generation, 0);
     }
 
     #[test]

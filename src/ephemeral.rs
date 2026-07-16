@@ -310,6 +310,9 @@ pub(crate) enum ConnectionEffectAuthority {
         session_id: Arc<str>,
         generation: u64,
     },
+    ServicePrincipal {
+        token_id: Arc<str>,
+    },
 }
 
 impl ConnectionEffectFence {
@@ -336,6 +339,20 @@ impl ConnectionEffectFence {
             authority: ConnectionEffectAuthority::Session {
                 session_id: session_id.into(),
                 generation,
+            },
+        }
+    }
+
+    pub(crate) fn service_principal(
+        authorization_stream_incarnation: impl Into<Arc<str>>,
+        connection_grant_id: impl Into<Arc<str>>,
+        token_id: impl Into<Arc<str>>,
+    ) -> Self {
+        Self {
+            authorization_stream_incarnation: authorization_stream_incarnation.into(),
+            connection_grant_id: connection_grant_id.into(),
+            authority: ConnectionEffectAuthority::ServicePrincipal {
+                token_id: token_id.into(),
             },
         }
     }
@@ -1151,6 +1168,7 @@ fn retained_effect_fence_backing_bytes(effect_fence: &ConnectionEffectFence) -> 
         .saturating_add(match &effect_fence.authority {
             ConnectionEffectAuthority::Anonymous => 0,
             ConnectionEffectAuthority::Session { session_id, .. } => arc_allocation(session_id),
+            ConnectionEffectAuthority::ServicePrincipal { token_id } => arc_allocation(token_id),
         })
 }
 

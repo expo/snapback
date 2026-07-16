@@ -4,10 +4,10 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '../../../packages/snapback-contract/auth-coordinator.mjs';
-import { SnapbackClient } from '../client.mjs';
+import { AgentAuthorityFence, SnapbackClient } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 16 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 17 });
 const originalFetch = globalThis.fetch;
 const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
@@ -16,6 +16,10 @@ const SESSION_ID = '018f0d90-7b25-7a22-8c33-445566778899';
 const USER_ID = '018f0d90-7b26-7a22-8c33-445566778899';
 const BEARER_SENTINEL = 'sbs_HANDSHAKE_SUCCESS_SENTINEL_MUST_NOT_ESCAPE';
 const NUMERIC_BEARER_SENTINEL = '2915031750813250';
+const AGENT_CREDENTIAL_ID = '018f0d90-7b27-7a22-8c33-445566778899';
+const AGENT_GRANT_ID = '018f0d90-7b28-7a22-8c33-445566778899';
+const AGENT_TOKEN_A = '018f0d90-7b29-7a22-8c33-445566778899';
+const AGENT_TOKEN_B = '018f0d90-7b2a-7a22-8c33-445566778899';
 const PROTOCOL_HEADERS = {
   authClient: 'x-snapback-auth-client-protocol',
   authInvalidation: 'x-snapback-auth-invalidation-protocol',
@@ -119,6 +123,32 @@ const coordinatedClient = async ({ bearerToken = null, ...options } = {}) => {
   }
   return new SnapbackClient('http://stub', { ...options, authCoordinator: coordinator });
 };
+
+const agentHandshake = () => {
+  const value = handshake({ activeMode: 'sessions' });
+  value.clientProtocols.authInvalidation = 1;
+  value.clientProtocols.authorityDescriptor = 1;
+  value.availability.authScopedLive.minimumAuthInvalidationProtocol = 1;
+  value.availability.retainedReads = {
+    available: false,
+    minimumAuthInvalidationProtocol: 1,
+    minimumAuthorizedLeaseProtocol: 1,
+    reason: 'SNAPBACK_AUTH_POLICY_UNAVAILABLE',
+  };
+  value.availability.queuedReplay.minimumAuthorityDescriptorProtocol = 1;
+  value.authorityDescriptor.sessionGeneration = 0;
+  return value;
+};
+
+const agentCredential = (tokenId, bearerToken, overrides = {}) => ({
+  actorUserId: USER_ID,
+  credentialId: AGENT_CREDENTIAL_ID,
+  credentialGeneration: 3,
+  grantId: AGENT_GRANT_ID,
+  tokenId,
+  bearerToken,
+  ...overrides,
+});
 
 try {
   await suite.check('dev rediscovers before every online operation and preserves legacy body authority', async () => {
@@ -416,7 +446,7 @@ try {
     return { rejectedAxes: cases.length };
   });
 
-  await suite.check('auth-client protocol 1 is coordinator-only and cannot be suppressed', async () => {
+  await suite.check('auth-client protocol 1 requires an explicit custody owner and cannot be suppressed', async () => {
     const error = await assertThrows(
       () => new SnapbackClient('http://stub', { authClientProtocol: 1 }),
       undefined,
@@ -424,7 +454,7 @@ try {
     );
     assert(error instanceof TypeError, 'the invalid construction is a caller type error');
     assert(
-      error.message.includes('requires AuthCoordinator custody'),
+      error.message.includes('requires browser or agent authority custody'),
       'the refusal names the missing custody owner',
     );
 
@@ -442,6 +472,61 @@ try {
     assertEqual(observedHeaders[PROTOCOL_HEADERS.authClient], '1');
     assertEqual(observedHeaders[PROTOCOL_HEADERS.authorityDescriptor], undefined);
     return { rejectedUncoordinated: true, coordinatedOffer: 1 };
+  });
+
+  await suite.check('agent custody preserves durable replay across token churn and fences stale carrier work', async () => {
+    const calls = [];
+    let releaseQuery;
+    let queryEntered;
+    const queryStarted = new Promise((resolve) => { queryEntered = resolve; });
+    const queryRelease = new Promise((resolve) => { releaseQuery = resolve; });
+    globalThis.fetch = async (url, init) => {
+      const path = new URL(url).pathname;
+      calls.push({ path, init });
+      if (path === '/auth/session') return response(agentHandshake());
+      if (path === '/query/listTodos') {
+        queryEntered();
+        await queryRelease;
+        return response({ rows: [{ id: 'stale' }] });
+      }
+      if (path === '/mutation/updateTodo') return response({ result: 'settled' });
+      throw new Error(`unexpected path ${path}`);
+    };
+
+    const authority = new AgentAuthorityFence(agentCredential(AGENT_TOKEN_A, 'agent-token-a'));
+    const db = new SnapbackClient('http://stub', {
+      agentAuthority: authority,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      clientStoreId: 'agent_store',
+    });
+    const established = await db.authSession();
+    assertEqual(established.authorityDescriptor.authorityInstanceId, AUTHORITY);
+
+    const staleQuery = db.query('listTodos');
+    await queryStarted;
+    db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b'));
+    releaseQuery();
+    const staleError = await assertThrows(() => staleQuery);
+    assertEqual(staleError.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+
+    const mutation = await db.mutate('updateTodo', { clientMutationId: 'agent-cm-1' });
+    assertEqual(mutation.result, 'settled');
+    const mutationCall = calls.find(({ path }) => path === '/mutation/updateTodo');
+    assertEqual(mutationCall.init.headers.authorization, 'Bearer agent-token-b');
+    assertEqual(
+      JSON.parse(mutationCall.init.body).authorityDescriptor.authorityInstanceId,
+      AUTHORITY,
+      'replacement tokens for one durable grant retain its replay axis',
+    );
+
+    const beforeGrantChange = authority.capture();
+    db.replaceAgentCredential(agentCredential(AGENT_TOKEN_A, 'other-grant-token', {
+      grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
+    }));
+    assert(!authority.isCurrent(beforeGrantChange), 'a changed durable grant invalidates prior work');
+    assertEqual(authority.authorityDescriptor, null, 'a changed durable grant must rebind its descriptor');
+    return { requests: calls.length, staleCarrierRefused: true };
   });
 
   await suite.check('exactly offered echoes still project on every axis', async () => {

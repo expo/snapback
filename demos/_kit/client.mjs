@@ -23,6 +23,9 @@ import {
   validateAuthorizationInvalidationConnection,
   validateScopeId,
 } from '../../packages/snapback-contract/auth-invalidation.mjs';
+import { AgentAuthorityFence } from './agent-authority.mjs';
+
+export { AgentAuthorityFence } from './agent-authority.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -910,19 +913,28 @@ export class SnapbackClient {
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
     authCoordinator = null,
+    agentAuthority = null,
     clientStoreId = processClientStoreId,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
-    if (authCoordinator && bearerToken !== null) {
-      throw new TypeError('bearerToken cannot bypass AuthCoordinator custody; use authExchange()');
+    if (authCoordinator && agentAuthority) {
+      throw new TypeError('AuthCoordinator and AgentAuthorityFence are mutually exclusive');
     }
-    if (authClientProtocol === 1 && !authCoordinator) {
-      throw new TypeError('authClientProtocol v1 requires AuthCoordinator custody');
+    if (agentAuthority !== null && !(agentAuthority instanceof AgentAuthorityFence)) {
+      throw new TypeError('agentAuthority must be an AgentAuthorityFence');
     }
-    if (authCoordinator && authClientProtocol === null) authClientProtocol = 1;
+    if ((authCoordinator || agentAuthority) && bearerToken !== null) {
+      throw new TypeError('bearerToken cannot bypass browser or agent custody');
+    }
+    if (authClientProtocol === 1 && !authCoordinator && !agentAuthority) {
+      throw new TypeError('authClientProtocol v1 requires browser or agent authority custody');
+    }
+    if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
     this.bearerToken = bearerToken;
     this.authCoordinator = authCoordinator;
+    this.agentAuthority = agentAuthority;
+    this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
     this.__liveQueryAllocator = allocatorForClientStore(clientStoreId);
     this.authProtocols = Object.freeze({
@@ -991,14 +1003,14 @@ export class SnapbackClient {
   authSession({ force = false } = {}) {
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
     if (!force && this.__authSessionLastSuccessful) {
-      if (!this.authCoordinator) return Promise.resolve(this.__authSessionLastSuccessful);
+      if (!this.authorityFence) return Promise.resolve(this.__authSessionLastSuccessful);
       try {
-        const capture = this.authCoordinator.capture();
+        const capture = this.authorityFence.capture();
         if (
           this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
           && this.__authSessionCapture?.authorityKey === capture.authorityKey
         ) {
-          return this.authCoordinator.compareAndCommit(capture, () => (
+          return this.authorityFence.compareAndCommit(capture, () => (
             this.__authSessionLastSuccessful
           )).then((committed) => {
             if (!committed.committed) throw staleAuthorityError();
@@ -1013,7 +1025,9 @@ export class SnapbackClient {
     const cacheGeneration = this.__authSessionCacheGeneration;
     const operation = this.authCoordinator
       ? this.#coordinatedAuthSession({ cacheGeneration })
-      : this.#uncoordinatedAuthSession({ cacheGeneration });
+      : this.agentAuthority
+        ? this.#agentAuthSession({ cacheGeneration })
+        : this.#uncoordinatedAuthSession({ cacheGeneration });
     let pending;
     pending = Promise.resolve(operation).finally(() => {
       if (this.__authSessionInFlight === pending) this.__authSessionInFlight = null;
@@ -1049,14 +1063,61 @@ export class SnapbackClient {
     }
   }
 
+  async #agentAuthSession({ cacheGeneration }) {
+    const capture = this.agentAuthority.capture();
+    const credential = this.agentAuthority.credentialFor(capture);
+    try {
+      const offer = this.#authSessionOffer();
+      const session = await this.#trackedFetchJson(
+        'GET',
+        '/auth/session',
+        undefined,
+        this.#authOfferHeaders(true, credential.bearer, offer),
+      );
+      const projected = this.#validateAuthSession(session, credential.bearer, offer);
+      this.agentAuthority.bindHandshake(capture, projected.authorityDescriptor);
+      const committed = await this.agentAuthority.compareAndCommit(capture, () => (
+        this.#cacheAuthSession(projected, capture, cacheGeneration)
+      ));
+      if (!committed.committed) throw staleAuthorityError();
+      return committed.value;
+    } catch (error) {
+      if (
+        this.__authSessionCacheGeneration === cacheGeneration
+        && !isUnavailableAuthTransport(error)
+      ) this.clearAuthSession();
+      throw error;
+    }
+  }
+
   setBearerToken(token) {
-    if (this.authCoordinator) {
-      throw new TypeError('setBearerToken cannot bypass AuthCoordinator; use authExchange() or authRefresh()');
+    if (this.authCoordinator || this.agentAuthority) {
+      throw new TypeError('setBearerToken cannot bypass browser or agent custody');
     }
     if (token === this.bearerToken) return;
     this.bearerToken = token ?? null;
     this.clearAuthSession();
     this.__connectionGrants.clear();
+  }
+
+  replaceAgentCredential(credential) {
+    if (!this.agentAuthority) {
+      throw new TypeError('replaceAgentCredential requires AgentAuthorityFence custody');
+    }
+    this.__authTransportGeneration = safeNextCounter(
+      this.__authTransportGeneration,
+      'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
+      'auth transport generation',
+    );
+    for (const controller of this.__authControllers) controller.abort(staleAuthorityError());
+    for (const stream of this.__rawLiveStreams) stream.close();
+    for (const manager of this.__liveStreamManagers?.values?.() ?? []) manager.close();
+    const capture = this.agentAuthority.replaceCredential(credential);
+    this.clearAuthSession();
+    this.__connectionGrants.clear();
+    this.__laneConsumers.clear();
+    this.__liveStreamManagers?.clear?.();
+    return capture;
   }
 
   clearAuthSession() {
@@ -1071,7 +1132,7 @@ export class SnapbackClient {
   }
 
   captureAuthority() {
-    return this.authCoordinator?.capture?.() ?? null;
+    return this.authorityFence?.capture?.() ?? null;
   }
 
   authorityCaptureFor(value) {
@@ -1112,9 +1173,9 @@ export class SnapbackClient {
       add(AUTHORIZED_LEASE_PROTOCOL_HEADER, offer.authorizedLease);
     }
     const bearer = bearerOverride === undefined
-      ? this.authCoordinator
+      ? this.authorityFence
         ? (() => {
-            try { return this.authCoordinator.credentialFor(this.authCoordinator.capture()).bearer; }
+            try { return this.authorityFence.credentialFor(this.authorityFence.capture()).bearer; }
             catch { return null; }
           })()
         : this.bearerToken
@@ -1432,7 +1493,7 @@ export class SnapbackClient {
   /// Record a receipt into the bounded kit ring and notify listeners.
   recordReceipt(receipt, capture = receipt?.[AUTHORITY_CAPTURE] ?? null) {
     if (!receipt || typeof receipt !== 'object') return receipt;
-    if (this.authCoordinator && (!capture || !this.authCoordinator.isCurrent(capture))) {
+    if (this.authorityFence && (!capture || !this.authorityFence.isCurrent(capture))) {
       return receipt;
     }
     this.__receiptRing.push(receipt);
@@ -1497,9 +1558,9 @@ export class SnapbackClient {
     let bearerUsed = null;
     const transportGeneration = this.__authTransportGeneration;
     try {
-      if (this.authCoordinator) {
-        await this.authCoordinator.synchronize();
-        try { capture = this.authCoordinator.capture(); } catch { /* bootstrap handshake below */ }
+      if (this.authorityFence) {
+        await this.authorityFence.synchronize();
+        try { capture = this.authorityFence.capture(); } catch { /* bootstrap handshake below */ }
       }
       if (
         !admin
@@ -1515,10 +1576,10 @@ export class SnapbackClient {
         const unavailable = authAvailabilityError(session);
         if (unavailable) throw unavailable;
       }
-      if (this.authCoordinator) {
+      if (this.authorityFence) {
         // authSession may have bootstrapped or transitioned custody.
-        capture = this.authCoordinator.capture();
-        bearerUsed = this.authCoordinator.credentialFor(capture).bearer;
+        capture = this.authorityFence.capture();
+        bearerUsed = this.authorityFence.credentialFor(capture).bearer;
       }
 
       const sessionsMode = session?.activeMode === 'sessions';
@@ -1549,28 +1610,28 @@ export class SnapbackClient {
         ...(sessionsMode ? this.#sessionRequestHeaders(
           path,
           requestBody,
-          this.authCoordinator ? bearerUsed : undefined,
+          this.authorityFence ? bearerUsed : undefined,
         ) : {}),
         ...(headers ?? {}),
       };
       const result = await this.#trackedFetchJson(method, path, wireBody, merged);
-      if (!this.authCoordinator) return result;
+      if (!this.authorityFence) return result;
       if (
         transportGeneration !== this.__authTransportGeneration
-        || !this.authCoordinator.isCurrent(capture)
+        || !this.authorityFence.isCurrent(capture)
       ) throw staleAuthorityError();
-      const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+      const committed = await this.authorityFence.compareAndCommit(capture, () => (
         markAuthorityCapture(result, capture)
       ));
       if (!committed.committed) throw staleAuthorityError();
       return committed.value;
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
-      if (this.authCoordinator && capture) markAuthorityCapture(error, capture);
-      if (this.authCoordinator && capture && !this.authCoordinator.isCurrent(capture)) {
+      if (this.authorityFence && capture) markAuthorityCapture(error, capture);
+      if (this.authorityFence && capture && !this.authorityFence.isCurrent(capture)) {
         throw staleAuthorityError();
       }
-      if (this.authCoordinator && capture && error?.receipt) {
+      if (this.authorityFence && capture && error?.receipt) {
         markAuthorityCapture(error.receipt, capture);
       }
       if (this.authCoordinator && capture && SUPERSEDED_AUTH_CODES.has(code)) {
@@ -2129,7 +2190,7 @@ export class SnapbackClient {
 
   async publishEphemeral(ref, { connectionId, scope = {}, value, ttlMs = null, userId, permissions = [], sessionId = null, ownerUserId = null, customKey = null } = {}) {
     const collection = collectionName(ref);
-    const operationCapture = this.authCoordinator?.capture?.() ?? null;
+    const operationCapture = this.authorityFence?.capture?.() ?? null;
     try {
       const outcome = await this.#withGrant(connectionId, (grant) => this.#req('POST', '/ephemeral/publish', {
         collection,
@@ -2328,7 +2389,7 @@ export class SnapbackClient {
       .then((session) => {
         const unavailable = authAvailabilityError(session);
         if (unavailable) throw unavailable;
-        authorityCapture = this.authCoordinator?.capture?.() ?? null;
+        authorityCapture = this.authorityFence?.capture?.() ?? null;
         return this.connectionGrant(connectionId);
       })
       .then((grant) => {
@@ -2341,7 +2402,7 @@ export class SnapbackClient {
           const update = JSON.parse(await websocketText(event.data));
           if (
             authorityCapture
-            && !this.authCoordinator?.isCurrent?.(authorityCapture)
+            && !this.authorityFence?.isCurrent?.(authorityCapture)
           ) throw staleAuthorityError();
           if (update?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
             const error = liveTerminalAuthError(update);
@@ -2947,8 +3008,8 @@ export class SnapbackClient {
       if (disposed || paused || !update || typeof update !== 'object') return;
       const updateCapture = update[AUTHORITY_CAPTURE] ?? handleAuthorityCapture;
       if (
-        client.authCoordinator
-        && (!updateCapture || !client.authCoordinator.isCurrent(updateCapture))
+        client.authorityFence
+        && (!updateCapture || !client.authorityFence.isCurrent(updateCapture))
       ) return;
       if (update.kind === LIVE_DURABLE_KINDS.AUTHORIZATION_INVALIDATION) {
         try {
@@ -3864,7 +3925,7 @@ class LiveStreamManager {
     const grantPromise = this.client.authSession({ force: true }).then((session) => {
       const unavailable = authAvailabilityError(session);
       if (unavailable) throw unavailable;
-      const authorityCapture = this.client.authCoordinator?.capture?.() ?? null;
+      const authorityCapture = this.client.authorityFence?.capture?.() ?? null;
       return (refreshGrant
         ? this.client.refreshConnectionGrant(this.connectionId)
         : this.client.connectionGrant(this.connectionId))
@@ -3949,7 +4010,7 @@ class LiveStreamManager {
       }
       if (
         this.authorityCapture
-        && !this.client.authCoordinator?.isCurrent?.(this.authorityCapture)
+        && !this.client.authorityFence?.isCurrent?.(this.authorityCapture)
       ) {
         this.#loseSocket(ws, staleAuthorityError());
         return;
@@ -4351,8 +4412,8 @@ export class EphemeralOverlay {
   #consume(envelope) {
     const capture = envelope?.[AUTHORITY_CAPTURE] ?? this.authorityCapture;
     if (
-      this.client.authCoordinator
-      && (!capture || !this.client.authCoordinator.isCurrent(capture))
+      this.client.authorityFence
+      && (!capture || !this.client.authorityFence.isCurrent(capture))
     ) return 'stale_authority';
     const result = this.apply(envelope);
     for (const capture of this.__drainCaptures) capture.push(result);
@@ -4374,8 +4435,8 @@ export class EphemeralOverlay {
     this.__preSnapshotOverflowed = false;
     const snapshotCapture = snapshot?.[AUTHORITY_CAPTURE] ?? null;
     if (
-      this.client.authCoordinator
-      && (!snapshotCapture || !this.client.authCoordinator.isCurrent(snapshotCapture))
+      this.client.authorityFence
+      && (!snapshotCapture || !this.client.authorityFence.isCurrent(snapshotCapture))
     ) throw staleAuthorityError();
     this.authorityCapture = snapshotCapture;
     const snapshotResult = this.apply(snapshot);

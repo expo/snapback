@@ -35,6 +35,7 @@ receipt, and auth behavior rather than reimplementing HTTP.
     authorityDescriptorProtocol = 1,
     authorizedLeaseProtocol = null,
     authCoordinator = null,
+    agentAuthority = null,
     clientStoreId = processClientStoreId,
 ```
 
@@ -43,6 +44,16 @@ development/operations methods. In sessions mode, pass an
 `AuthCoordinator`; do not also pass `bearerToken`, because that would
 bypass coordinator custody. `clientStoreId` binds authorization and retained
 query namespaces to one durable client store.
+
+CLI and daemon agents use `AgentAuthorityFence`, not the browser
+`AuthCoordinator`. Construct it from the scoped-token mint response plus its
+actor id, then pass it as `agentAuthority` with
+`authInvalidationProtocol: 1`. Replace an expiring token only through
+`replaceAgentCredential(...)`: the fence preserves the durable
+actor/credential-generation/grant axis, invalidates the old token carrier, and
+forces a fresh handshake before more work can publish. A changed grant or
+credential generation clears the bound descriptor, so queued work from the
+predecessor cannot migrate to the successor authority.
 
 Start app boot with `health()`, then
 `ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions
@@ -118,7 +129,7 @@ intent so source additions cannot hide as “advanced” APIs:
 
 | Area | Methods |
 | --- | --- |
-| Construction/static helpers | `constructor`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
+| Construction/static helpers | `constructor`, `AgentAuthorityFence`, `SnapbackClient.auth`, `SnapbackClient.roomPermission` |
 | Discovery | `health`, `inspect` |
 | App/admin lifecycle | `ensureApp`, `loadSchema`, `loadFunctions`, `ensureEphemeralCollections`, `reset`, `seed`, `cronTick` |
 | Function calls | `query`, `authorizedLeaseQuery`, `mutate`, `action`, `acknowledgeMutations` |
@@ -126,7 +137,7 @@ intent so source additions cannot hide as “advanced” APIs:
 | Ephemeral | `subscribeEphemeral`, `publishEphemeral`, `deleteEphemeral`, `unsubscribeEphemeral` |
 | Connections/drains | `connectionGrant`, `refreshConnectionGrant`, `disconnect`, `drainEnvelopes`, `drainConnection`, `drainUpdates`, `registerDurableConsumer`, `registerEphemeralConsumer` |
 | Receipts | `recordReceipt`, `receipts`, `onReceipt` |
-| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
+| Session/auth | `authSession`, `authRequestCode`, `authExchange`, `authRefresh`, `authLogout`, `closeAuth`, `setBearerToken`, `replaceAgentCredential`, `clearAuthSession`, `currentAuthorityDescriptor`, `currentAuthorizationScope`, `captureAuthority`, `authorityCaptureFor`, `registerAuthBarrierParticipant` |
 
 The overlay returned by `subscribeEphemeral` and the live handle returned by
 `liveQuery` are separate owned objects with their own methods and disposal

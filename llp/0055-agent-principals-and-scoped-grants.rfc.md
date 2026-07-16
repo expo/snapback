@@ -5,7 +5,16 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (ENG-24917 G6 close-out: codegen derives the
+**Revised:** 2026-07-16 (ENG-24919 G8 close-out: scoped-token handshakes now
+issue an opaque queued-replay descriptor over the durable actor/credential
+generation/grant tuple while excluding token churn; grant-backed live carries
+an exact token-bearing connection-effect fence, revalidates retained authority
+against the protected catalog on every rerun, expires and revokes through the
+terminal notifier, and purges only the ended carrier's topology; the headless
+agent fence preserves that durable tuple across token replacement, rejects
+stale carrier callbacks, and ACK settlement is descriptor-scoped so a second
+grant of the same effective user cannot acknowledge guessed ids). 2026-07-16
+(ENG-24917 G6 close-out: codegen derives the
 `authorityCreating` marker for declared permission-backing writes; exact scope
 consent is carried into the runtime writer; membership and raw
 permission-backing effects enforce the authoritative dynamic gate, including
@@ -480,8 +489,8 @@ It joins the sealed enumeration in the same dated LLP 0053 amendment as the
 others, alongside the handler-facing projections.
 
 **Replay, queues, and stores — after LLP 0039 item 7.** Queued/replayed
-service-principal work is **unavailable until item 7**. When item 7 is
-active, settlement requires **both**: (a) equality on the **durable
+service-principal work is available only when item 7 and descriptor protocol 1
+are active. Settlement requires **both**: (a) equality on the **durable
 authority axis** `(actorUserId, credentialId, credentialGeneration,
 grantId)` — `tokenId` is recorded for audit but **never compared**, because
 tokens are 1-hour carriers that routinely expire and cap-evict, and keying
@@ -492,10 +501,13 @@ carrier-vs-authority precedent: session refresh preserves queued mutations);
 current-generation, the principal not deactivated, and the scope entry not
 terminally invalidated. Tuple equality alone would let work settle after a
 revocation; both halves are required. (`tokenId` *does* belong in the
-*connection* tuple — a connection opens with one token and dies with it.)
-A hygiene rotation therefore strands queued work as well as dropping
-connections — stated, not left to inference. Before item 7, agent clients are
-online-only and the kit refuses offline enqueue under `servicePrincipal`.
+*connection* tuple — a connection opens with one token and dies with it.) The
+shipped descriptor is an opaque UUIDv7-shaped SHA-256 projection of the four
+durable coordinates, never of `tokenId`; the descriptor reveals no bearer and
+does not treat its digest bits as a timestamp. A hygiene rotation therefore
+strands queued work as well as dropping connections — stated, not left to
+inference. Before item 7, agent clients are online-only and the kit refuses
+offline enqueue under `servicePrincipal`.
 
 ### Plane boundary
 
@@ -1845,11 +1857,60 @@ survives. Rotation and `revoke-self` terminalize every live carrier belonging to
 the ended credential family. The terminal frame uses the newly registered
 `SNAPBACK_AUTH_SCOPED_TOKEN_INVALID` code with reason `revoked`.
 
-This checkpoint does not enable grant-backed live registration: connection acts
-under `servicePrincipal` remain admission-refused until G8/item 6 supplies the
-agent client fence. It closes G3's mid-connection rotation and cap-eviction
-obligations without claiming G7's broader grant/lifecycle transitions or G8's
-live query and queued-settlement surface.
+At this checkpoint grant-backed live registration was still admission-refused;
+the later G8 checkpoint below replaces that temporary refusal. G3 closed the
+mid-connection rotation and cap-eviction obligations without claiming G7's
+broader grant/lifecycle transitions or G8's live-query and queued-settlement
+surface.
+
+## Grant-backed live and queued replay
+
+G8 landed on 2026-07-16. `GET /auth/session` accepts a current scoped token and
+issues the same closed authority-descriptor protocol used by session clients.
+The service-principal descriptor is stable across token mint, expiry, and cap
+eviction, but changes when the actor, credential id, credential generation, or
+grant changes. Every queued mutation still resolves a live scoped token first;
+function preparation then checks the current immutable scope entry, and only
+after those gates does descriptor comparison or settlement lookup run.
+Standalone acknowledgement uses the same live-token resolution and durable
+descriptor ownership without creating an application effect.
+
+Grant-backed live connection effects carry the authorization-stream
+incarnation, never-reused connection-grant id, and exact `tokenId`. Initial
+subscribe and every retained rerun validate the actor, effective user,
+credential id and generation, grant, token, principal activation, and both
+grant/token deadlines directly against the protected catalog without retaining
+the bearer. That rerun check precedes both full queries and delta fanout, closing
+the interval between a durable revocation commit and asynchronous topology
+cleanup. Scoped-token expiry owns a socket deadline and publishes the same
+terminal code with reason `expired`.
+
+Grant revoke and bulk revoke-by-actor project their committed token-id witnesses
+through the terminal lifecycle just like rotation, cap eviction, and
+`revoke-self`. Registry removal, exact-fence room/outbox purge, live-subscription
+topology purge, and terminal `delete` notification therefore share one carrier
+cut. Two tokens on one durable grant have distinct effect fences: ending token A
+removes only A's connections and query instances; token B continues to act.
+Retained/offline service-principal reads remain refused as the v1 plane boundary
+requires.
+
+The headless kit now has a separate `AgentAuthorityFence`; it does not reuse the
+browser `AuthCoordinator`. Its custody record names the explicit
+`(actorUserId, credentialId, credentialGeneration, grantId)` durable tuple and
+the current `(tokenId, carrierGeneration)` live axis. Every HTTP result, raw or
+managed socket frame, live update, receipt, and overlay publication is marked
+with the captured carrier and compare-and-committed before exposure. Token
+replacement increments the carrier generation, closes transports, and clears
+connection grants; when the durable tuple is unchanged, the server-issued
+authority descriptor remains bound and queued replay continues. A tuple change
+increments the durable epoch and clears the descriptor before any successor
+work. Protocol-v1 construction without either browser custody or this agent
+custody remains refused.
+
+Queued acknowledgement is authorized on the same opaque descriptor axis as
+settlement, not merely on the effective-user fingerprint. This matters for two
+grants delegated to the same effective user: knowledge of another grant's
+opaque client-mutation id cannot acknowledge or delete its settlement row.
 
 ## Implementation checkpoint: G6 authority-creating effects (2026-07-16)
 

@@ -853,6 +853,28 @@ impl LocalDatabase {
         auth_fingerprint: &str,
         ids: &[String],
     ) -> SnapbackResult<u64> {
+        self.acknowledge_client_mutations_inner(auth_fingerprint, None, ids)
+    }
+
+    pub(crate) fn acknowledge_client_mutations_for_authority(
+        &mut self,
+        auth_fingerprint: &str,
+        authority_instance_id: &str,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
+        self.acknowledge_client_mutations_inner(
+            auth_fingerprint,
+            Some(authority_instance_id),
+            ids,
+        )
+    }
+
+    fn acknowledge_client_mutations_inner(
+        &mut self,
+        auth_fingerprint: &str,
+        authority_instance_id: Option<&str>,
+        ids: &[String],
+    ) -> SnapbackResult<u64> {
         if ids.len() > CLIENT_MUTATION_ACK_MAX_IDS {
             return Err(SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_ACK_LIMIT_EXCEEDED",
@@ -892,8 +914,9 @@ impl LocalDatabase {
                        length(CAST(input_fingerprint AS BLOB)) +
                        length(CAST(output_json AS BLOB))
                      FROM _snapback_client_mutations
-                     WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2",
-                    params![id, auth_fingerprint],
+                     WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
+                       AND (?3 IS NULL OR authority_instance_id = ?3)",
+                    params![id, auth_fingerprint, authority_instance_id],
                     |row| row.get::<_, u64>(0),
                 )
                 .optional()?;
@@ -902,8 +925,9 @@ impl LocalDatabase {
             };
             let removed = tx.execute(
                 "DELETE FROM _snapback_client_mutations
-                 WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2",
-                params![id, auth_fingerprint],
+                 WHERE client_mutation_id = ?1 AND auth_fingerprint = ?2
+                   AND (?3 IS NULL OR authority_instance_id = ?3)",
+                params![id, auth_fingerprint, authority_instance_id],
             )? as u64;
             deleted = deleted.saturating_add(removed);
             if removed > 0 {

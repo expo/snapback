@@ -1026,13 +1026,13 @@ enum BoundGrantAuthority {
         deadline_ms: u64,
         publication: FencedPublication,
     },
-    /// A finite-only G5 carrier. The connection can be minted and resumed,
-    /// but every connection act refuses before an effect fence is produced;
-    /// G6 replaces that refusal with live validation and the carrier-axis
-    /// invalidation machinery.
+    /// A scoped-token carrier. Durable authority is retained separately from
+    /// the exact token and connection grant so routine token churn does not
+    /// change queued-work ownership while ending this carrier purges only its
+    /// own live effects.
     ///
-    /// @ref LLP 0055#plane-boundary — scoped tokens address connection open,
-    /// while grant-backed live registration remains unavailable until item 6.
+    /// @ref LLP 0055#grant-backed-live-and-queued-replay — grant-backed live
+    ///   uses durable and carrier axes with exact-token terminal propagation.
     ServicePrincipal {
         authorization_stream_incarnation: String,
         authority: ResolvedAppAuthority,
@@ -1122,9 +1122,15 @@ impl BoundGrantAuthority {
                 session_id.clone(),
                 *generation,
             ),
-            Self::ServicePrincipal { .. } => {
-                unreachable!("G5 service-principal connections cannot own live effects")
-            }
+            Self::ServicePrincipal {
+                authorization_stream_incarnation,
+                token_id,
+                ..
+            } => crate::ephemeral::ConnectionEffectFence::service_principal(
+                authorization_stream_incarnation.clone(),
+                grant_id.to_owned(),
+                token_id.clone(),
+            ),
         }
     }
 
@@ -1243,6 +1249,7 @@ impl BoundGrantAuthority {
                 authorization_stream_incarnation: authorization_stream_incarnation.clone(),
                 session_id: None,
                 generation: None,
+                service_token_id: None,
             },
             Self::Session {
                 authorization_stream_incarnation,
@@ -1255,9 +1262,11 @@ impl BoundGrantAuthority {
                 authorization_stream_incarnation: authorization_stream_incarnation.clone(),
                 session_id: Some(session_id.clone()),
                 generation: Some(*generation),
+                service_token_id: None,
             },
             Self::ServicePrincipal {
                 authorization_stream_incarnation,
+                token_id,
                 ..
             } => BoundConnectionTerminalCapture {
                 connection_id,
@@ -1265,6 +1274,7 @@ impl BoundGrantAuthority {
                 authorization_stream_incarnation: authorization_stream_incarnation.clone(),
                 session_id: None,
                 generation: None,
+                service_token_id: Some(token_id.clone()),
             },
         }
     }
@@ -1380,12 +1390,17 @@ pub(crate) struct BoundConnectionTerminalCapture {
     pub(crate) authorization_stream_incarnation: String,
     pub(crate) session_id: Option<String>,
     pub(crate) generation: Option<u64>,
+    pub(crate) service_token_id: Option<String>,
 }
 
 impl BoundConnectionTerminalCapture {
     fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
-        match (&self.session_id, self.generation) {
-            (Some(session_id), Some(generation)) => {
+        match (
+            &self.session_id,
+            self.generation,
+            &self.service_token_id,
+        ) {
+            (Some(session_id), Some(generation), None) => {
                 crate::ephemeral::ConnectionEffectFence::session(
                     self.authorization_stream_incarnation.clone(),
                     self.grant_id.clone(),
@@ -1393,11 +1408,18 @@ impl BoundConnectionTerminalCapture {
                     generation,
                 )
             }
-            (None, None) => crate::ephemeral::ConnectionEffectFence::anonymous(
+            (None, None, Some(token_id)) => {
+                crate::ephemeral::ConnectionEffectFence::service_principal(
+                    self.authorization_stream_incarnation.clone(),
+                    self.grant_id.clone(),
+                    token_id.clone(),
+                )
+            }
+            (None, None, None) => crate::ephemeral::ConnectionEffectFence::anonymous(
                 self.authorization_stream_incarnation.clone(),
                 self.grant_id.clone(),
             ),
-            _ => unreachable!("terminal capture preserves complete session authority"),
+            _ => unreachable!("terminal capture preserves one complete authority class"),
         }
     }
 }
@@ -1513,11 +1535,32 @@ impl AuthTerminalLifecycle {
     }
 
     pub(crate) fn terminate_service_tokens(&self, token_ids: &[String], close_by: Instant) {
+        self.terminate_service_tokens_for_reason(
+            token_ids,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            close_by,
+        );
+    }
+
+    fn expire_service_tokens(&self, token_ids: &[String], close_by: Instant) {
+        self.terminate_service_tokens_for_reason(
+            token_ids,
+            crate::live_wire::LiveAuthErrorReason::Expired,
+            close_by,
+        );
+    }
+
+    fn terminate_service_tokens_for_reason(
+        &self,
+        token_ids: &[String],
+        reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
         let captures = self.connections.invalidate_service_tokens(token_ids);
         self.terminalize_captures(
             captures,
             crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid,
-            crate::live_wire::LiveAuthErrorReason::Revoked,
+            reason,
             close_by,
         );
     }
@@ -2752,15 +2795,15 @@ impl ConnectionRegistry {
         };
         let resolved = match &bound {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
-            BoundGrantAuthority::ServicePrincipal { .. } => {
-                return Err(ApiError::from(
-                    SnapbackError::error(
-                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                        "auth",
-                        "grant-backed live and connection operations are unavailable until the agent live fence is ready",
-                    )
-                    .with_details(json!({ "capability": "grantBackedLive" })),
-                ))
+            BoundGrantAuthority::ServicePrincipal {
+                authority,
+                deadline_ms,
+                ..
+            } => {
+                if *deadline_ms <= epoch_now_ms {
+                    return Err(ApiError::from(bound.stale_error()));
+                }
+                authority.clone()
             }
             BoundGrantAuthority::Session {
                 authorization_stream_incarnation,
@@ -4152,7 +4195,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             )
             .with_session_overlay(SessionModeOverlay {
                 path_policy: None,
-                credential_resolution: Some(CredentialResolution::OptionalSessionBearer),
+                credential_resolution: Some(CredentialResolution::OptionalSessionOrScopedToken),
                 invocation_authority: Some(InvocationAuthority::ResolvedCaller),
                 legacy_body_policy: None,
                 effect_policy: None,
@@ -7320,13 +7363,17 @@ async fn auth_grant_revoke(
     }
     let now_ms = provider.now_ms();
     let effect_authority = authority.clone();
-    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+    let revocation = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("grant revocation transaction")?;
         snapback
             .auth_database_mut()
             .revoke_grant_for_user(&user_id, &grant_id, now_ms)
     })
     .await?;
+    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+        &revocation.token_ids,
+        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -7345,13 +7392,17 @@ async fn auth_grants_revoke_by_actor(
     }
     let now_ms = provider.now_ms();
     let effect_authority = authority.clone();
-    let _revocation = with_snapback(&runtime.snapback, move |snapback| {
+    let revocation = with_snapback(&runtime.snapback, move |snapback| {
         let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
         snapback
             .auth_database_mut()
             .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
     })
     .await?;
+    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+        &revocation.token_ids,
+        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -12181,6 +12232,22 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     };
     let mut safety_net = interval(Duration::from_millis(heartbeat_ms));
     safety_net.tick().await; // consume the immediate first tick
+    let (service_token_id, mut service_expiry) = match &connection_act.bound {
+        BoundGrantAuthority::ServicePrincipal {
+            token_id,
+            deadline_ms,
+            ..
+        } => {
+            let delay_ms = deadline_ms.saturating_sub(now_millis());
+            (
+                Some(token_id.clone()),
+                Some(Box::pin(tokio::time::sleep(Duration::from_millis(delay_ms)))),
+            )
+        }
+        BoundGrantAuthority::Anonymous { .. } | BoundGrantAuthority::Session { .. } => {
+            (None, None)
+        }
+    };
 
     // Flush anything enqueued before (or racing) registration under one short
     // managed root. The HTTP upgrade root ends with the 101 response; it is
@@ -12425,6 +12492,21 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         None
                     },
                 }
+            }
+            _ = async {
+                match service_expiry.as_mut() {
+                    Some(expiry) => expiry.as_mut().await,
+                    None => std::future::pending::<()>().await,
+                }
+            } => {
+                if let Some(token_id) = service_token_id.as_ref() {
+                    runtime.auth_terminal_lifecycle.expire_service_tokens(
+                        std::slice::from_ref(token_id),
+                        Instant::now()
+                            + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+                    );
+                }
+                break 'stream;
             }
             _ = waker.notified() => {
                 if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
@@ -16058,6 +16140,21 @@ mod tests {
     #[tokio::test]
     async fn settlement_acknowledgement_uses_prepared_authority_not_body_identity() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Dev);
+        let prepared = |user_id: &str| {
+            InvocationGate::prepare_admitted_authority(
+                InvocationSource::StandaloneAcknowledgement,
+                AuthMode::Dev,
+                ServerProfile::Test,
+                state.auth_admission_controller().admit_dev().unwrap(),
+                &WireAuthorityFields::default(),
+                ResolvedAppAuthority::DevImpersonation {
+                    user_id: user_id.to_owned(),
+                    roles: Vec::new(),
+                    local_dev_only: true,
+                },
+            )
+            .unwrap()
+        };
         let retained_auth = AuthInput {
             principal: None,
             session_id: None,
@@ -16067,10 +16164,25 @@ mod tests {
             auth: retained_auth.clone(),
             ..HandlerInput::default()
         };
-        let identity = ClientMutationIdentity::new(
+        let retained_authority = prepared("settlement-owner");
+        let authority_instance_id = super::with_snapback(&state.snapback, move |snapback| {
+            let incarnation = snapback
+                .auth_database_mut()
+                .ensure_authorization_stream_incarnation()
+                .expect("authorization stream incarnation");
+            crate::auth::descriptor::descriptor_for_authority(
+                &retained_authority,
+                incarnation.as_str(),
+            )
+                .expect("prepared authority descriptor")
+                .authority_instance_id
+        })
+        .await;
+        let identity = ClientMutationIdentity::for_authority(
             "cm_prepared_authority_ack",
             "settlement-test",
             &retained_input,
+            authority_instance_id,
         );
         let retained_id = identity.id.clone();
         super::with_snapback(&state.snapback, move |snapback| {
@@ -16088,21 +16200,6 @@ mod tests {
         })
         .await;
 
-        let prepared = |user_id: &str| {
-            InvocationGate::prepare_admitted_authority(
-                InvocationSource::StandaloneAcknowledgement,
-                AuthMode::Dev,
-                ServerProfile::Test,
-                state.auth_admission_controller().admit_dev().unwrap(),
-                &WireAuthorityFields::default(),
-                ResolvedAppAuthority::DevImpersonation {
-                    user_id: user_id.to_owned(),
-                    roles: Vec::new(),
-                    local_dev_only: true,
-                },
-            )
-            .unwrap()
-        };
         let Json(wrong) = super::acknowledge_mutations(
             State(state.snapback.clone()),
             Extension(prepared("different-owner")),
@@ -18153,6 +18250,12 @@ mod tests {
                      ) VALUES('fn:allowed', 'query', 0, 1, 0)",
                     [],
                 )?;
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:liveItems', 'liveQuery', 0, 1, 0)",
+                    [],
+                )?;
                 Ok(())
             })?;
             db.create_agent_principal(
@@ -18179,7 +18282,7 @@ mod tests {
                      ) VALUES('carrier-grant', 'carrier-agent', 'carrier-user', ?1, ?2, ?3,
                               NULL, 'test', NULL, NULL, ?2)",
                     rusqlite::params![
-                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false}]"#,
+                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
                         now_ms as i64,
                         (now_ms + 60_000) as i64,
                     ],
@@ -18202,9 +18305,30 @@ mod tests {
         .unwrap();
 
         let connection_router = super::app(state.clone());
+        let handshake = connection_router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-authority-descriptor-protocol", "1")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(handshake.status(), StatusCode::OK);
+        let handshake = response_json(handshake).await;
+        assert_eq!(handshake["authorityDescriptor"]["descriptorVersion"], 1);
+        assert_eq!(handshake["authorityDescriptor"]["sessionGeneration"], 0);
+
         let opened = connection_router
             .clone()
-            .oneshot(connection_open_request(Some(&token), json!({})))
+            .oneshot(connection_open_request(
+                Some(&token),
+                json!({ "authInvalidationProtocol": 1 }),
+            ))
             .await
             .unwrap();
         assert_eq!(opened.status(), StatusCode::OK);
@@ -18215,7 +18339,44 @@ mod tests {
         let opened = response_json(opened).await;
         let connection_id = opened["connectionId"].as_str().unwrap();
         let connection_token = opened["connectionToken"].as_str().unwrap();
+        assert_eq!(opened["authorizationInvalidation"]["protocolVersion"], 1);
         state.connections.lock().assert_grant_indexes_consistent();
+
+        let subscribed = connection_router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/live/liveItems/subscribe")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-auth-invalidation-protocol", "1")
+                    .body(Body::from(
+                        serde_json::to_vec(&json!({
+                            "connection_id": connection_id,
+                            "input": { "args": {} },
+                            "authorizationNamespace": {
+                                "clientStoreId": "agent-store",
+                                "queryKey": "liveItems:{}",
+                                "queryInstanceId": 1,
+                            },
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let subscribed_status = subscribed.status();
+        let subscribed = response_json(subscribed).await;
+        assert_eq!(
+            subscribed_status,
+            StatusCode::OK,
+            "unexpected service live response: {subscribed}"
+        );
+        assert_eq!(subscribed["snapshot"]["rows"][0]["value"], "predecessor-visible");
+        assert!(subscribed["authorizationScope"].is_object());
 
         let wrong_open = connection_router
             .clone()
@@ -18240,15 +18401,10 @@ mod tests {
             )
             .await
             .unwrap();
-        assert_eq!(live.status(), StatusCode::SERVICE_UNAVAILABLE);
-        let live = response_json(live).await;
         assert_eq!(
-            live["diagnostic"]["code"],
-            "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
-        );
-        assert_eq!(
-            live["diagnostic"]["details"]["capability"],
-            "grantBackedLive"
+            live.status(),
+            StatusCode::BAD_REQUEST,
+            "service-principal live reaches the WebSocket protocol extractor"
         );
 
         let router = super::router_from_registrations(
@@ -18354,6 +18510,65 @@ mod tests {
         assert_eq!(
             response_json(stale).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+
+        let (grant_id, bound_token_id) = {
+            let registry = state.connections.lock();
+            let record = registry.grants.get(connection_id).expect("service grant");
+            let BoundGrantAuthority::ServicePrincipal { token_id, .. } = &record.authority else {
+                panic!("service connection retains exact token")
+            };
+            (record.grant_id.clone(), token_id.clone())
+        };
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, waker) = notifier
+            .register_bound(connection_id, grant_id)
+            .expect("register exact service socket");
+        let revocation = with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().revoke_grant_for_user(
+                "carrier-user",
+                "carrier-grant",
+                super::now_millis(),
+            )
+        })
+        .await
+        .unwrap();
+        assert_eq!(revocation.token_ids, vec![bound_token_id]);
+        state.auth_terminal_lifecycle.terminate_service_tokens(
+            &revocation.token_ids,
+            Instant::now() + Duration::from_secs(5),
+        );
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("grant revocation wakes the exact service socket");
+        let terminal = notifier
+            .terminal_if_current(connection_id, generation)
+            .expect("grant revocation installs a terminal frame");
+        assert_eq!(
+            terminal.code,
+            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
+        );
+        assert_eq!(
+            terminal.reason,
+            crate::live_wire::LiveAuthErrorReason::Revoked
+        );
+        assert!(
+            state
+                .connections
+                .prepare_act(
+                    connection_id,
+                    Some(connection_token),
+                    state.auth_coordinator.as_deref(),
+                    false,
+                    super::now_millis(),
+                    Instant::now(),
+                )
+                .is_err(),
+            "revoked service carrier cannot act"
+        );
+        assert!(
+            !state.read.connection_has_auth_scoped_live(connection_id),
+            "terminal propagation purges the service subscription topology"
         );
 
         let mut hosted = state;
@@ -23322,6 +23537,27 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    fn synthetic_service_bound(token_id: &str) -> BoundGrantAuthority {
+        let (authorization_stream_incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        BoundGrantAuthority::ServicePrincipal {
+            authorization_stream_incarnation,
+            authority: ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent-a".to_owned(),
+                credential_id: "credential-a".to_owned(),
+                credential_generation: 1,
+                grant_id: "durable-grant-a".to_owned(),
+                token_id: token_id.to_owned(),
+                effective_user_id: Some("user-a".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: u64::MAX,
+            },
+            token_id: token_id.to_owned(),
+            deadline_ms: u64::MAX,
+            publication,
+        }
+    }
+
     /// ENG-23442 — grant semantics: adopted suggestions, collision minting,
     /// prod minting, and token verification outcomes.
     #[test]
@@ -24346,6 +24582,69 @@ globalThis.__snapbackHandlers = {
             response_json(throttled).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_THROTTLED"
         );
+    }
+
+    #[tokio::test]
+    async fn service_token_terminalization_is_carrier_exact_within_one_durable_grant() {
+        let state = AppState::detached(LocalSnapback::memory().unwrap());
+        let open = |connection_id: &str, token_id: &str| {
+            state
+                .connections
+                .open_prepared(super::ConnectionOpenAttempt::new(
+                    Some(connection_id.to_owned()),
+                    None,
+                    true,
+                    synthetic_connection_authority(synthetic_service_bound(token_id)),
+                    super::now_millis(),
+                    Instant::now(),
+                    None,
+                ))
+                .unwrap()
+        };
+        let first = open("service-carrier-a", "token-a");
+        let second = open("service-carrier-b", "token-b");
+        let notifier = state.ephemeral.delivery_notifier();
+        let (first_generation, first_waker) = notifier
+            .register_bound(&first.grant.connection_id, first.grant_id.clone())
+            .unwrap();
+        let (second_generation, _) = notifier
+            .register_bound(&second.grant.connection_id, second.grant_id.clone())
+            .unwrap();
+
+        state.auth_terminal_lifecycle.terminate_service_tokens(
+            &["token-a".to_owned()],
+            Instant::now() + Duration::from_secs(5),
+        );
+        tokio::time::timeout(Duration::from_secs(1), first_waker.notified())
+            .await
+            .expect("exact carrier wakes");
+        assert!(
+            notifier
+                .terminal_if_current(&first.grant.connection_id, first_generation)
+                .is_some()
+        );
+        assert!(
+            notifier
+                .terminal_if_current(&second.grant.connection_id, second_generation)
+                .is_none(),
+            "sibling token on the same durable grant remains live"
+        );
+        let second_act = state
+            .connections
+            .prepare_act(
+                &second.grant.connection_id,
+                Some(&second.grant.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("sibling carrier remains current");
+        assert!(matches!(
+            second_act.resolved,
+            ResolvedAppAuthority::ServicePrincipal { ref token_id, .. } if token_id == "token-b"
+        ));
+        state.connections.lock().assert_grant_indexes_consistent();
     }
 
     #[tokio::test]

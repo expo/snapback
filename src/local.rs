@@ -2309,6 +2309,45 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Revalidate the durable and carrier axes before every retained live
+    /// computation. Session authority is fenced by the projection; service
+    /// authority is checked directly against the protected catalog without
+    /// recovering or retaining its bearer.
+    fn prepare_live_rerun_authority(
+        &mut self,
+        retained: &RetainedLiveAuthority,
+        admission: AdmissionLease,
+    ) -> SnapbackResult<PreparedAuthority> {
+        if let ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            credential_id,
+            credential_generation,
+            grant_id,
+            token_id,
+            effective_user_id,
+            ..
+        } = retained.resolved()
+            && !self.db.retained_service_authority_is_live(
+                crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                    actor_user_id,
+                    credential_id,
+                    credential_generation: *credential_generation,
+                    grant_id,
+                    token_id,
+                    effective_user_id: effective_user_id.as_deref(),
+                },
+                now_millis(),
+            )?
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "the retained service-principal authority is no longer current",
+            ));
+        }
+        retained.prepare_rerun(admission)
+    }
+
     /// Cloneable process-local admission authority for HTTP composition.
     // Retained as the direct LocalSnapback embedding seam; the production
     // router currently obtains the same controller from its ReadLane.
@@ -3343,8 +3382,26 @@ impl LocalSnapback {
     ) -> SnapbackResult<u64> {
         authority.validate_admission("client mutation acknowledgement")?;
         let auth = authority.canonical_auth_input();
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
         let _effect = authority.effect_guard("client mutation acknowledgement transaction")?;
-        self.acknowledge_client_mutations(&auth, ids)
+        let current = self.db.acknowledge_client_mutations_for_authority(
+            &auth_fingerprint(&auth),
+            &descriptor.authority_instance_id,
+            ids,
+        )?;
+        let legacy = self.db.acknowledge_client_mutations_for_authority(
+            &legacy_auth_fingerprint(&auth),
+            &descriptor.authority_instance_id,
+            ids,
+        )?;
+        current.checked_add(legacy).ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_RETENTION_STATE_INVALID",
+                "storage",
+                "acknowledged settlement count overflowed across auth aliases",
+            )
+        })
     }
 
     /// Administrative recovery for settlements whose original client can no
@@ -4526,6 +4583,10 @@ impl LocalSnapback {
         let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
         let retained_authority = authority.retain_live_owner()?;
+        self.prepare_live_rerun_authority(
+            &retained_authority,
+            authority.admission_lease().clone(),
+        )?;
         let publication_authority = authority.clone();
         // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — an
         // auth-scoped live subscription is admitted only when its connection
@@ -5574,9 +5635,10 @@ impl LocalSnapback {
         }
 
         if self.resume_requires_resnapshot(&subscription, &input.recorded_permission_epochs) {
-            let rerun = subscription
-                .authority
-                .prepare_rerun(authority.admission_lease().clone())?;
+            let rerun = self.prepare_live_rerun_authority(
+                &subscription.authority,
+                authority.admission_lease().clone(),
+            )?;
             let query = self.invoke_query_with_dependencies_prepared(
                 &subscription.function,
                 subscription.input.clone(),
@@ -7984,9 +8046,8 @@ impl LocalSnapback {
         mut episode: RetryEpisode,
     ) -> Result<QueryInvocation, AuthorizationResolutionFailure> {
         loop {
-            match subscription
-                .authority
-                .prepare_rerun(admission.clone())
+            match self
+                .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                 .and_then(|authority| {
                     self.invoke_query_with_dependencies_prepared(
                         &subscription.function,
@@ -8868,6 +8929,17 @@ impl LocalSnapback {
         self.live_delivery.last_skipped += skipped as usize;
 
         for (subscription, delta_plan) in affected {
+            if let Err(error) =
+                self.prepare_live_rerun_authority(&subscription.authority, admission.clone())
+            {
+                self.fail_subscription_fanout(
+                    &subscription,
+                    "live_authority_ended",
+                    error,
+                    admission,
+                )?;
+                continue;
+            }
             if let Some(plan) = &delta_plan {
                 match self.try_live_delta_fanout(&subscription, plan, changes, admission)? {
                     Some(DeltaFanout::Delivered) => {
@@ -8913,9 +8985,8 @@ impl LocalSnapback {
                     }
                 }
             } else {
-                match subscription
-                    .authority
-                    .prepare_rerun(admission.clone())
+                match self
+                    .prepare_live_rerun_authority(&subscription.authority, admission.clone())
                     .and_then(|authority| {
                         self.invoke_query_with_dependencies_prepared(
                             &subscription.function,
@@ -9173,14 +9244,13 @@ impl LocalSnapback {
     /// equals the fresh result's ids. Catches any op-application drift.
     #[cfg(debug_assertions)]
     fn debug_assert_delta_membership_converges(
-        &self,
+        &mut self,
         subscription: &LiveSubscription,
         query_dep_index: usize,
         admission: &AdmissionLease,
     ) {
-        let Ok(fresh) = subscription
-            .authority
-            .prepare_rerun(admission.clone())
+        let Ok(fresh) = self
+            .prepare_live_rerun_authority(&subscription.authority, admission.clone())
             .and_then(|authority| {
                 self.invoke_query_with_dependencies_prepared(
                     &subscription.function,
@@ -11750,6 +11820,39 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    fn service_mutation_authority(
+        token_id: &str,
+        credential_generation: u64,
+        grant_id: &str,
+    ) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            InvocationSource::HttpMutation,
+            crate::manifest::AuthMode::Sessions,
+            ServerProfile::Test,
+            1,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent-a".to_owned(),
+                credential_id: "credential-a".to_owned(),
+                credential_generation,
+                grant_id: grant_id.to_owned(),
+                token_id: token_id.to_owned(),
+                effective_user_id: Some("user-a".to_owned()),
+                scopes: vec![crate::auth::invocation::ResolvedGrantScope::from_exact(
+                    crate::storage::auth_grants::ExactGrantScope {
+                        function_id: "fn:hostInsert".to_owned(),
+                        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                        basis: 0,
+                        authority_creating: false,
+                    },
+                )],
+                token_expires_at_ms: u64::MAX,
+            },
+        )
+        .expect("prepare service authority")
+    }
+
     #[test]
     fn dynamic_ephemeral_registration_preserves_permission_projection_closure() {
         let mut snapback = LocalSnapback::memory().expect("memory snapback");
@@ -11885,6 +11988,82 @@ globalThis.__snapbackHandlers = {
             "authority_instance_mismatch"
         );
         assert_eq!(snapback.durable_version(), Some(1));
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
+        const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
+        let mut snapback = guarded_snapback();
+        let first = service_mutation_authority("token-a", 1, "grant-a");
+        let descriptor = crate::auth::descriptor::descriptor_for_resolved_authority(
+            first.resolved(),
+            INCARNATION,
+        )
+        .expect("service descriptor");
+
+        let first_result = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_service_token_churn".to_owned()),
+                Some(descriptor.clone()),
+                "http",
+                service_mutation_authority("token-b", 1, "grant-a"),
+            )
+            .0
+            .expect("replacement token settles queued work");
+        let duplicate = snapback
+            .invoke_mutation_recording_with_authority_descriptor(
+                "hostInsert",
+                input(),
+                Some("cm_service_token_churn".to_owned()),
+                Some(descriptor.clone()),
+                "http",
+                service_mutation_authority("token-c", 1, "grant-a"),
+            )
+            .0
+            .expect("another token reads the durable settlement");
+        assert_eq!(duplicate.result, first_result.result);
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(
+            snapback
+                .acknowledge_client_mutations_with_authority(
+                    &service_mutation_authority("token-x", 1, "grant-b"),
+                    &["cm_service_token_churn".to_owned()],
+                )
+                .unwrap(),
+            0,
+            "another durable grant cannot acknowledge this settlement"
+        );
+        assert_eq!(
+            snapback
+                .acknowledge_client_mutations_with_authority(
+                    &service_mutation_authority("token-y", 1, "grant-a"),
+                    &["cm_service_token_churn".to_owned()],
+                )
+                .unwrap(),
+            1,
+            "token churn on the same durable grant can acknowledge"
+        );
+
+        for authority in [
+            service_mutation_authority("token-d", 2, "grant-a"),
+            service_mutation_authority("token-e", 1, "grant-b"),
+        ] {
+            let result = snapback
+                .invoke_mutation_recording_with_authority_descriptor(
+                    "hostInsert",
+                    input(),
+                    Some("cm_service_drift".to_owned()),
+                    Some(descriptor.clone()),
+                    "http",
+                    authority,
+                )
+                .0
+                .expect_err("durable authority drift is stale");
+            assert_eq!(result.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+        }
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
     }
 
