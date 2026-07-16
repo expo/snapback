@@ -35,3 +35,6 @@ diffs: every change is confined to bundle/input/schema identity hashes, with no
 schema, function, capability, or operation semantic drift. The dependent All
 Aboard Cloudflare deployment identity was regenerated too. A post-commit
 regeneration is clean.
+The required-surface production build also refreshed the Cursors Contract web
+bundle against those regenerated inputs; its new content-addressed assets are
+committed with the artifact update.
