@@ -78,6 +78,7 @@ run node demos/_kit/tests/server-process-lifecycle.mjs
 # stamp every subsequent Snapback Cargo unit with the checkout identity that
 # acceptance will verify.
 run env SNAPBACK_BOOTSTRAP_CHECK="${SNAPBACK_BOOTSTRAP_CHECK:-0}" scripts/bootstrap-ibex-runtime
+run node tests/ibex_bootstrap_v0.mjs
 run node scripts/check-toolchain-authority.mjs
 stamp_snapback_build_identity
 run cargo clippy --all-targets -- -D warnings

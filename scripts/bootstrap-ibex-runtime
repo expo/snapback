@@ -155,7 +155,9 @@ copy_peer_artifacts() {
             copy_dir_contents "$PEER_IBEX/tools/hermes" "$VENDOR_IBEX/tools/hermes"
             ;;
     esac
+}
 
+link_peer_cli() {
     local peer_bin=""
     if [ -x "$PEER_IBEX/target/debug/ibex" ]; then
         peer_bin="$PEER_IBEX/target/debug/ibex"
@@ -255,6 +257,11 @@ fi
 # code (also emitted by scripts/ibex-doctor and demos/_kit/server-process.mjs)
 # so bootstrap, doctor, and the demo runner all report one code for this state.
 has_target_artifacts "$VENDOR_IBEX" || fail "SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING: prepared Ibex/Hermes artifacts are still incomplete under $VENDOR_IBEX after copy/download; run scripts/ibex-doctor for a read-only diagnosis, or set SNAPBACK_IBEX_CHECKOUT=/path/to/ibex to reuse a complete prepared checkout"
+
+# The CLI is an independent optional capability. Link it even when the Hermes
+# artifacts were already prepared, since that fast path does not call
+# copy_peer_artifacts (ENG-25178).
+link_peer_cli
 
 if [ "$RUN_CHECK" != "0" ]; then
     # @ref LLP 0010#native-runtime-bootstrap -- validate with a real link + launch,
