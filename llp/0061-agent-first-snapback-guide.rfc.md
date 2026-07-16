@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-07-16 (r10 — ENG-25111 implemented Phase 2b as the resource-first `snapback mcp` stdio server: manifest, flat guide, and every manifest-named page are build-bound read-only resources; each carries the same guide hash/build commit; the consistency check validates exact resource membership and page hashes; host-operation tools remain explicitly absent). 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -97,8 +97,9 @@ Two things are Snapback-shaped rather than copied:
 2. **The server is the first out-of-repo distribution channel.** Out-of-repo
    authors talk to a running Snapback server, so the guide's out-of-repo
    projections go through surfaces Snapback owns or has designed: the admin
-   console (LLP 0017, shipped) and the MCP surface (LLP 0042, **Draft and not
-   yet implemented**). Phase 1 is therefore honest about its audience: the
+   console (LLP 0017, shipped) and the MCP surface (LLP 0042; the read-only
+   guide resource slice is shipped, while host-operation tools remain Draft).
+   Phase 1 is therefore honest about its audience: the
    corpus serves authors working in or adjacent to a Snapback checkout;
    the first out-of-repo channel is the **served guide** (§Design 4a, r4):
    every server build embeds the corpus and serves it — pages plus a
@@ -507,10 +508,11 @@ Discovery wiring, in order of leverage:
    projection.
 5. **The served guide (§4a)** — the always-available channel: any running
    server hands an agent the corpus, version-matched to the build.
-6. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
-   surface lands, it re-serves the §4a embedded corpus as read-only MCP
-   resources, inheriting the identity handshake — consumers surface
-   hash/build mismatches rather than silently combining versions.
+6. **MCP guide resources (implemented 2026-07-16).** `snapback mcp` re-serves
+   the §4a embedded corpus as read-only MCP resources, inheriting the identity
+   handshake — consumers surface hash/build mismatches rather than silently
+   combining versions. This resource-first slice exposes no tools and does not
+   claim LLP 0042's broader host-operation surface.
 6. **Admin console (LLP 0017)** — a docs tab rendering the same tree from
    the manifest, following the console's existing built-snapshot pattern
    for where the bytes live. Renderer reuse per §Relationship
@@ -600,10 +602,13 @@ the flat bytes and hash; and `operating.served-guide` is shipped with all
 three routes classified in the surface map. This slice remains independent
 of LLP 0042.
 
-**Phase 2b — MCP projection.**
-When the LLP 0042 surface lands: re-serve the §4a embedded corpus as
-versioned read-only MCP resources, inheriting the identity handshake;
-extend `guide-consistency` to verify the projection against the manifest.
+**Phase 2b — MCP projection — implemented 2026-07-16 (ENG-25111).**
+`snapback mcp` re-serves the §4a embedded manifest, flat corpus, and every
+manifest-named page as versioned read-only resources over stdio. Resource
+metadata repeats the guide hash and build commit, and `guide-consistency`
+verifies the exact projection membership and page hashes against the manifest.
+The server advertises no tools; LLP 0042's host-operation projection remains a
+separate implementation slice.
 
 **Phase 3 — admin console rendering.**
 Implemented 2026-07-16 (ENG-25112). The Docs tab consumes the served generated

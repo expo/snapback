@@ -19,6 +19,7 @@ pub mod diagnostic;
 pub mod ephemeral;
 pub mod exec_guard;
 pub mod guide;
+pub mod guide_mcp;
 pub mod host_ops;
 pub mod identity;
 pub mod instance_lock;

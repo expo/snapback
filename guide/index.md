@@ -3,7 +3,7 @@ title: The Snapback Guide
 id: meta.index
 order: 1
 audience: agent-first
-capabilities: [operating.served-guide]
+capabilities: [operating.served-guide, operating.guide-mcp]
 authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game]
 status: current
@@ -31,6 +31,13 @@ carry `x-snapback-guide-content-sha256` and
 `x-snapback-server-build-commit`, so a consumer can refuse to combine cached
 guide bytes with a different server build. Building Snapback itself is a
 different job — that's `AGENTS.md` and the LLP corpus, not this guide.
+
+For MCP clients, run `snapback mcp`. The read-only server exposes the same
+manifest, flat projection, and manifest-named pages at stable
+`snapback-guide://` resource URIs. Every resource repeats the guide content
+hash and build commit in MCP metadata; read the manifest first and refuse to
+combine resources whose identities differ. This resource-only command exposes
+no mutation or host-operation tools.
 
 **Start every task here:** check the
 [capability index](./capabilities.md) first — it lists everything Snapback

@@ -600,6 +600,9 @@ pub enum HostCommand {
         #[command(subcommand)]
         command: AuthCommand,
     },
+    /// Serve the build-bound Snapback Guide as read-only MCP resources over
+    /// stdio. This is the resource-first Phase 2b slice; it exposes no tools.
+    Mcp,
 }
 
 #[derive(clap::Subcommand)]
@@ -772,6 +775,7 @@ pub async fn run_from_env() -> anyhow::Result<()> {
             AuthCommand::Backup { db, output } => auth_backup(&db, &output).await,
             AuthCommand::Restore { from, db } => auth_restore(&from, &db),
         },
+        Some(HostCommand::Mcp) => crate::guide_mcp::run_stdio(),
     }
 }
 

@@ -15,6 +15,7 @@ import {
   buildManifest,
   checkCapabilityIndex,
   checkFreshness,
+  checkGuideMcpProjection,
   checkLinks,
   checkReachability,
   checkSnippets,
@@ -49,6 +50,7 @@ if (runAll && index) {
   let manifestStale = false;
   try {
     const actual = JSON.parse(readFileSync(join(root, MANIFEST_PATH), 'utf8'));
+    checkGuideMcpProjection(root, actual, errors);
     const strip = ({ buildIdentity, ...rest }) => rest;
     manifestStale = JSON.stringify(strip(actual)) !== JSON.stringify(strip(expected));
   } catch {

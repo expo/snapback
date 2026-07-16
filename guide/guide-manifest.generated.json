@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8"
+    "commit": "89feda8309cc92043f2174ca754828d85bf67736"
   },
   "nav": {
     ".": [
@@ -486,7 +486,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
-      "sha256": "3c2f426b162e286f59657cca3fa634807650336798e4f1555ba9df6d085d6748",
+      "sha256": "907614c86425bb2894216fbcbfa06a41fa01f9d9f74027b0799e6714ce1b7c16",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -783,7 +783,8 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "operating.served-guide"
+        "operating.served-guide",
+        "operating.guide-mcp"
       ],
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
@@ -797,7 +798,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
-      "sha256": "36cc04e06df309e95aee68d6c22d28f09747631cd8d2157c9568a3923a528408",
+      "sha256": "b57007e462222c58584653d5c3397a8a735143034029402d55207d2a3248c4f6",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1261,6 +1262,7 @@
       "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
+      "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
       "operating.secrets-config",
@@ -1281,5 +1283,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "88f6c3f7e7401564d696921c70c8c2b136b3f7ef880831dcb1d656dbfc6fc808"
+  "contentHash": "1090b16eaa2afa545f3e5840c103a0d888e97430a0d2259b0ff100330efce079"
 }

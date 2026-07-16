@@ -11,6 +11,9 @@ export const MANIFEST_PATH = join(GUIDE_DIR, 'guide-manifest.generated.json');
 export const FLAT_PATH = join(GUIDE_DIR, 'guide-flat.generated.md');
 export const CAPABILITIES_PATH = join(GUIDE_DIR, 'capabilities.md');
 export const INDEX_PATH = join(GUIDE_DIR, 'index.md');
+export const GUIDE_MCP_MANIFEST_URI = 'snapback-guide://manifest';
+export const GUIDE_MCP_FLAT_URI = 'snapback-guide://flat';
+export const GUIDE_MCP_PAGE_URI_PREFIX = 'snapback-guide://page/';
 const CLASSED_LANGS = new Set(['js', 'mjs', 'ts', 'tsx', 'json', 'contract']);
 const MATURITY_RANK = { 'design-only': 0, partial: 1, shipped: 2 };
 const CAPABILITIES_SIZE_BUDGET_BYTES = 32768;
@@ -21,6 +24,44 @@ const MIN_HOST_OPS = 10;
 
 export function repoRoot() {
   return resolve(dirname(new URL(import.meta.url).pathname), '..');
+}
+
+// LLP 0061 Phase 2b: the runtime derives this exact read-only catalog from
+// the embedded manifest. Keeping the consistency-side projection explicit
+// verifies stable URI uniqueness, manifest membership, and exact page hashes
+// without introducing a second generated resource registry.
+export function checkGuideMcpProjection(root, manifest, errors) {
+  const resources = [
+    { uri: GUIDE_MCP_MANIFEST_URI, path: MANIFEST_PATH },
+    { uri: GUIDE_MCP_FLAT_URI, path: FLAT_PATH },
+  ];
+  const pages = Object.entries(manifest?.pages ?? {}).sort(([leftId, left], [rightId, right]) =>
+    Number(left.order ?? Number.MAX_SAFE_INTEGER) - Number(right.order ?? Number.MAX_SAFE_INTEGER) ||
+    leftId.localeCompare(rightId),
+  );
+  for (const [id, page] of pages) {
+    resources.push({ uri: `${GUIDE_MCP_PAGE_URI_PREFIX}${id}`, path: page.path, sha256: page.sha256 });
+  }
+  const uris = new Set();
+  for (const resource of resources) {
+    if (uris.has(resource.uri)) errors.push(`guide MCP projection repeats resource URI ${resource.uri}`);
+    uris.add(resource.uri);
+    const absolute = join(root, resource.path ?? '');
+    if (!existsSync(absolute)) {
+      errors.push(`guide MCP resource ${resource.uri} references missing ${resource.path}`);
+      continue;
+    }
+    if (resource.sha256) {
+      const actual = createHash('sha256').update(readFileSync(absolute)).digest('hex');
+      if (actual !== resource.sha256) {
+        errors.push(`guide MCP resource ${resource.uri} does not match manifest sha256`);
+      }
+    }
+  }
+  if (resources.length !== pages.length + 2) {
+    errors.push('guide MCP projection must contain exactly manifest + flat + every manifest page');
+  }
+  return resources;
 }
 
 export function listGuidePages(root) {
