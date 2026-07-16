@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: 0a123a4e3ec13784f64aa4a4e787906877853acf
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -61,7 +61,7 @@ with the Snapback label and `guide-gap` in the title.
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | GAP (owner: ccheever, review: 2026-08-15) |
 | operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | GAP (owner: ccheever, review: 2026-08-15) |
-| operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | design-only | — (LLP 0061 §4a; routes land with Phase 2a) | llp/0061 | GAP (owner: ccheever, review: 2026-08-15) |
+| operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness | tests, acceptance, harness | local | shipped | `createSuite` in demos/_kit/harness.mjs | llp/0010, llp/0012 | testing/acceptance.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | GAP (owner: ccheever, review: 2026-08-15) |
 
@@ -85,6 +85,9 @@ here (or listed here but gone from the code).
 | /_snapback/admin/ | operating.admin-console |
 | /_snapback/admin/setup | operating.secrets-config |
 | /_snapback/admin/{*path} | operating.admin-console |
+| /_snapback/guide | operating.served-guide |
+| /_snapback/guide/flat.md | operating.served-guide |
+| /_snapback/guide/{*path} | operating.served-guide |
 | /_snapback/api/admin-secret-read/mint | notAuthorFacing (operator data-read lease, LLP 0058) |
 | /_snapback/api/app/reset | backend.seed |
 | /_snapback/api/auth/mailbox | auth.sessions |

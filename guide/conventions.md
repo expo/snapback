@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: 0a123a4e3ec13784f64aa4a4e787906877853acf
+reviewed-commit: HEAD
 ---
 
 # Guide conventions
@@ -143,6 +143,13 @@ frontmatter, content hashes, capability join, per-snippet status, and the
 build identity the corpus was verified against. Never hand-edit it; every
 later projection (MCP, admin console, CLI) consumes the manifest rather than
 re-parsing the tree.
+
+The same command emits [`guide-flat.generated.md`](./guide-flat.generated.md):
+the capability index first, then every page exactly once in manifest nav
+order. Its SHA-256 is the manifest's `contentHash`. The guide checker rejects
+either generated file when stale. At server compile time, `build.rs` restamps
+the embedded manifest's `buildIdentity.commit` to the exact binary build; the
+checked source manifest remains the corpus-generation record.
 
 ## Freshness
 

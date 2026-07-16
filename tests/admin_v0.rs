@@ -57,6 +57,8 @@ async fn root_path_serves_yaml_instance_status() {
     assert!(body.contains("  loadedTables: 1"));
     assert!(body.contains("  loadedFunctions: 2"));
     assert!(body.contains("  adminConsole: \"/_snapback/admin\""));
+    assert!(body.contains("  guide: \"/_snapback/guide\""));
+    assert!(body.contains("  flatGuide: \"/_snapback/guide/flat.md\""));
     assert!(body.contains("  healthJson: \"/_snapback/api/health\""));
     assert!(body.contains("  inspectJson: \"/_snapback/api/inspect\""));
     assert!(body.contains("Open on loopback"));
@@ -98,6 +100,9 @@ async fn root_negotiates_html_for_browsers() {
     );
     assert!(body.contains("Open admin console"));
     assert!(body.contains("href=\"/_snapback/admin\""));
+    assert!(body.contains("Building on Snapback?"));
+    assert!(body.contains("href=\"/_snapback/guide\""));
+    assert!(body.contains("href=\"/_snapback/guide/flat.md\""));
     assert!(
         body.contains("aria-hidden=\"true\""),
         "button icon is embedded"
@@ -151,6 +156,8 @@ async fn root_negotiates_json_and_markdown() {
     assert_eq!(body["statusKind"], "snapbackInstanceStatus");
     assert_eq!(body["counts"]["loadedTables"], 1);
     assert_eq!(body["links"]["adminConsole"], "/_snapback/admin");
+    assert_eq!(body["links"]["guide"], "/_snapback/guide");
+    assert_eq!(body["links"]["flatGuide"], "/_snapback/guide/flat.md");
     assert_eq!(body["app"]["id"], "local-app");
     assert!(
         body["app"].get("name").is_none(),
@@ -171,6 +178,8 @@ async fn root_negotiates_json_and_markdown() {
     assert!(body.starts_with("# Snapback local server"));
     assert!(body.contains("- target: `local-dev-sqlite-ibex`"));
     assert!(body.contains("[Admin console](/_snapback/admin)"));
+    assert!(body.contains("[Snapback Guide](/_snapback/guide)"));
+    assert!(body.contains("[Flat Snapback Guide](/_snapback/guide/flat.md)"));
 }
 
 /// `?format=` beats the `Accept` header so the HTML page can link to the

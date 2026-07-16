@@ -6,7 +6,9 @@
 import { writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  FLAT_PATH,
   MANIFEST_PATH,
+  buildFlatGuide,
   buildManifest,
   checkCapabilityIndex,
   checkSnippets,
@@ -26,5 +28,8 @@ if (errors.length > 0) {
   process.exit(1);
 }
 const manifest = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
+const flat = buildFlatGuide(root, manifest, pageInfo);
 writeFileSync(join(root, MANIFEST_PATH), `${JSON.stringify(manifest, null, 2)}\n`);
+writeFileSync(join(root, FLAT_PATH), flat);
 console.log(`[guide-manifest] wrote ${MANIFEST_PATH} (${Object.keys(manifest.pages).length} pages)`);
+console.log(`[guide-manifest] wrote ${FLAT_PATH} (${Buffer.byteLength(flat)} bytes)`);

@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -94,7 +94,7 @@ Two things are Snapback-shaped rather than copied:
    property is "this ran", one level stronger than the Exact guide's "this
    compiled" (other snippet classes carry the weaker properties §Design 3
    assigns them).
-2. **The server is a natural distribution channel — later.** Out-of-repo
+2. **The server is the first out-of-repo distribution channel.** Out-of-repo
    authors talk to a running Snapback server, so the guide's out-of-repo
    projections go through surfaces Snapback owns or has designed: the admin
    console (LLP 0017, shipped) and the MCP surface (LLP 0042, **Draft and not
@@ -488,9 +488,10 @@ Snapback server build **embeds the guide corpus and serves it**:
   Registering the routes forces their own classification in the
   capability-index surface map via the §3 join — the guide must document
   the routes that serve the guide.
-- Shipped surface lands with an acceptance witness (a suite asserting the
-  flat projection and hash header against a `--memory` server); until
-  then the capability row `operating.served-guide` is design-only.
+- The shipped surface carries an acceptance witness: the suite asserts the
+  flat projection, manifest identity, and hash header against the real
+  `snapback --memory` serve path; `operating.served-guide` is therefore
+  classified as shipped.
 
 Discovery wiring, in order of leverage:
 
@@ -503,9 +504,13 @@ Discovery wiring, in order of leverage:
    at `guide/`" row.
 3. **`demos/_kit` README** — created in Phase 1 (the kit has none today)
    with a pointer, since every demo author lands there.
-4. **The served guide (§4a)** — the always-available channel: any running
+4. **The instance home (`GET /`).** Every negotiated rendering advertises the
+   guide index and flat projection; browsers get an explicit human/agent note,
+   while YAML/JSON/Markdown clients get the same URLs in the public `links`
+   projection.
+5. **The served guide (§4a)** — the always-available channel: any running
    server hands an agent the corpus, version-matched to the build.
-5. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
+6. **MCP surface (LLP 0042 — Draft, not yet implemented).** When the 0042
    surface lands, it re-serves the §4a embedded corpus as read-only MCP
    resources, inheriting the identity handshake — consumers surface
    hash/build mismatches rather than silently combining versions.
@@ -588,14 +593,15 @@ those pages land, leaving a pointer stub in the same change (0365 §6's
 standing rule, adopted here as the standing rule for any future
 author-facing doc a guide page replaces).
 
-**Phase 2a — the served guide (§Design 4a; r4).**
-One slice, independent of LLP 0042: `generate-guide-manifest.mjs` also
-emits `guide/guide-flat.generated.md` (staleness-checked like the
-manifest); `build.rs` embeds the corpus; the three `/_snapback/guide`
-routes land with their LLP 0031 registration, hash/build-identity
-response headers, an acceptance witness against a `--memory` server, and
-the `operating.served-guide` capability row flipping design-only →
-shipped with the routes classified in the surface map.
+**Phase 2a — the served guide (§Design 4a; r4) — implemented 2026-07-15 (ENG-25102).**
+`generate-guide-manifest.mjs` emits `guide/guide-flat.generated.md`
+(staleness-checked like the manifest); `build.rs` embeds the corpus and
+restamps the embedded manifest to the exact server build; the
+three `/_snapback/guide` routes carry their LLP 0031 registration and
+hash/build-identity response headers; memory-server acceptance witnesses
+the flat bytes and hash; and `operating.served-guide` is shipped with all
+three routes classified in the surface map. This slice remains independent
+of LLP 0042.
 
 **Phase 2b — MCP projection.**
 When the LLP 0042 surface lands: re-serve the §4a embedded corpus as

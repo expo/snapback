@@ -1,0 +1,257 @@
+//! ENG-25102 acceptance: the same in-memory server constructed by `--memory`
+//! serves the build-embedded guide, including the complete flat projection and
+//! the two cache/version identity headers.
+
+use axum::body::{Body, to_bytes};
+use axum::http::{Request, StatusCode, header};
+use serde_json::Value;
+use sha2::{Digest, Sha256};
+use snapback::admin::AppState;
+use snapback::guide::{FLAT_PATH, GUIDE_CONTENT_SHA256, INDEX_PATH};
+use snapback::local::LocalSnapback;
+use snapback::server::{
+    GUIDE_BUILD_COMMIT_HEADER, GUIDE_CONTENT_HASH_HEADER, ResponseSensitivity, RouteClass,
+    RoutePolicy, app, route_registry,
+};
+use std::collections::BTreeSet;
+use std::io::Read;
+use std::process::Stdio;
+use std::time::{Duration, Instant};
+use tower::ServiceExt;
+
+fn memory_server() -> snapback::server::SnapbackApp {
+    app(AppState::detached(
+        LocalSnapback::memory().expect("in-memory served-guide server"),
+    ))
+}
+
+async fn get(path: &str) -> axum::response::Response {
+    memory_server()
+        .oneshot(
+            Request::builder()
+                .uri(path)
+                .body(Body::empty())
+                .expect("guide request"),
+        )
+        .await
+        .expect("guide response")
+}
+
+fn header<'a>(response: &'a axum::response::Response, name: &str) -> &'a str {
+    response
+        .headers()
+        .get(name)
+        .unwrap_or_else(|| panic!("missing response header {name}"))
+        .to_str()
+        .expect("ASCII guide identity header")
+}
+
+fn sha256_hex(bytes: &[u8]) -> String {
+    Sha256::digest(bytes)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect()
+}
+
+/// The ticket's black-box witness: exercise the real CLI serve path with the
+/// exact `--memory` flag, an OS-assigned port, and its readiness handshake.
+#[tokio::test]
+async fn cli_memory_server_serves_the_build_bound_flat_guide() {
+    let temp = tempfile::tempdir().expect("served-guide CLI tempdir");
+    let ready_file = temp.path().join("ready.json");
+    let mut child = tokio::process::Command::new(env!("CARGO_BIN_EXE_snapback"))
+        .args([
+            "--port",
+            "0",
+            "--memory",
+            "--ready-file",
+            ready_file.to_str().expect("UTF-8 temp path"),
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .expect("spawn snapback --memory");
+
+    let deadline = Instant::now() + Duration::from_secs(15);
+    let server_url = loop {
+        if let Ok(text) = std::fs::read_to_string(&ready_file)
+            && let Ok(ready) = serde_json::from_str::<Value>(&text)
+            && ready["ready"] == true
+        {
+            break ready["serverUrl"]
+                .as_str()
+                .expect("ready descriptor serverUrl")
+                .to_owned();
+        }
+        if let Some(status) = child.try_wait().expect("poll snapback --memory") {
+            panic!("snapback --memory exited before readiness: {status}");
+        }
+        assert!(
+            Instant::now() < deadline,
+            "snapback --memory readiness timeout"
+        );
+        tokio::time::sleep(Duration::from_millis(25)).await;
+    };
+
+    let request_url = format!("{server_url}/_snapback/guide/flat.md");
+    let served = tokio::task::spawn_blocking(move || {
+        let response = ureq::get(&request_url)
+            .call()
+            .expect("GET served guide from snapback --memory");
+        let status = response.status();
+        let content_hash = response
+            .header(GUIDE_CONTENT_HASH_HEADER)
+            .expect("guide hash header")
+            .to_owned();
+        let build_commit = response
+            .header(GUIDE_BUILD_COMMIT_HEADER)
+            .expect("guide build header")
+            .to_owned();
+        let mut body = Vec::new();
+        response
+            .into_reader()
+            .read_to_end(&mut body)
+            .expect("read served flat guide");
+        (status, content_hash, build_commit, body)
+    })
+    .await
+    .expect("join served-guide HTTP request");
+
+    child.start_kill().expect("stop snapback --memory");
+    let _ = child.wait().await;
+
+    assert_eq!(served.0, 200);
+    assert_eq!(served.1, GUIDE_CONTENT_SHA256);
+    assert_eq!(
+        served.2,
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+    );
+    assert_eq!(served.3, include_bytes!("../guide/guide-flat.generated.md"));
+}
+
+/// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
+/// one request returns the manifest-ordered corpus and its build binding.
+#[tokio::test]
+async fn memory_server_serves_flat_projection_with_manifest_identity() {
+    let response = get("/_snapback/guide/flat.md").await;
+    assert_eq!(response.status(), StatusCode::OK);
+    assert_eq!(
+        response.headers()[header::CONTENT_TYPE],
+        "text/markdown; charset=utf-8"
+    );
+    assert_eq!(
+        header(&response, GUIDE_CONTENT_HASH_HEADER),
+        GUIDE_CONTENT_SHA256
+    );
+    assert_eq!(
+        header(&response, GUIDE_BUILD_COMMIT_HEADER),
+        option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")
+    );
+
+    let bytes = to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("read embedded flat guide");
+    assert_eq!(
+        bytes.as_ref(),
+        include_bytes!("../guide/guide-flat.generated.md")
+    );
+    assert_eq!(sha256_hex(&bytes), GUIDE_CONTENT_SHA256);
+
+    let manifest: Value =
+        serde_json::from_str(include_str!("../guide/guide-manifest.generated.json"))
+            .expect("generated guide manifest JSON");
+    assert_eq!(manifest["contentHash"], GUIDE_CONTENT_SHA256);
+}
+
+#[tokio::test]
+async fn index_and_individual_build_embedded_files_are_public_read_only() {
+    let index = get("/_snapback/guide").await;
+    assert_eq!(index.status(), StatusCode::OK);
+    assert_eq!(
+        header(&index, GUIDE_CONTENT_HASH_HEADER),
+        GUIDE_CONTENT_SHA256
+    );
+    assert_eq!(
+        to_bytes(index.into_body(), usize::MAX)
+            .await
+            .unwrap()
+            .as_ref(),
+        include_bytes!("../guide/index.md")
+    );
+
+    let page = get("/_snapback/guide/getting-started/your-first-backend.md").await;
+    assert_eq!(page.status(), StatusCode::OK);
+    assert_eq!(
+        page.headers()[header::CONTENT_TYPE],
+        "text/markdown; charset=utf-8"
+    );
+    assert_eq!(
+        header(&page, GUIDE_CONTENT_HASH_HEADER),
+        GUIDE_CONTENT_SHA256
+    );
+
+    let manifest = get("/_snapback/guide/guide-manifest.generated.json").await;
+    assert_eq!(manifest.status(), StatusCode::OK);
+    assert_eq!(
+        manifest.headers()[header::CONTENT_TYPE],
+        "application/json; charset=utf-8"
+    );
+    let manifest_commit = header(&manifest, GUIDE_BUILD_COMMIT_HEADER).to_owned();
+    let manifest_body: Value = serde_json::from_slice(
+        &to_bytes(manifest.into_body(), usize::MAX)
+            .await
+            .expect("read embedded manifest"),
+    )
+    .expect("embedded manifest JSON");
+    assert_eq!(manifest_body["buildIdentity"]["commit"], manifest_commit);
+
+    assert_eq!(
+        get("/_snapback/guide/eval-runs/2026-07-15/realtime.md")
+            .await
+            .status(),
+        StatusCode::NOT_FOUND
+    );
+    assert_eq!(
+        get("/_snapback/guide/not-a-page.md").await.status(),
+        StatusCode::NOT_FOUND
+    );
+}
+
+#[test]
+fn guide_routes_are_registered_system_static_public_projections() {
+    let guide_routes = route_registry()
+        .into_iter()
+        .filter(|route| route.path.starts_with("/_snapback/guide"))
+        .collect::<Vec<_>>();
+    assert_eq!(
+        guide_routes
+            .iter()
+            .map(|route| route.path)
+            .collect::<BTreeSet<_>>(),
+        BTreeSet::from([
+            "/_snapback/guide",
+            "/_snapback/guide/flat.md",
+            "/_snapback/guide/{*path}",
+        ])
+    );
+    for route in guide_routes {
+        assert_eq!(route.method, "GET");
+        assert_eq!(route.class, RouteClass::SystemStatic);
+        assert_eq!(route.path_policy, RoutePolicy::Public);
+        assert_eq!(
+            route.response_sensitivity,
+            ResponseSensitivity::PublicProjection
+        );
+    }
+
+    assert_eq!(
+        snapback::guide::file(INDEX_PATH).unwrap().bytes,
+        include_bytes!("../guide/index.md")
+    );
+    assert_eq!(
+        snapback::guide::file(FLAT_PATH).unwrap().bytes,
+        include_bytes!("../guide/guide-flat.generated.md")
+    );
+}

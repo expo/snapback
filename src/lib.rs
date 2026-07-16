@@ -18,6 +18,7 @@ pub mod data_tier;
 pub mod diagnostic;
 pub mod ephemeral;
 pub mod exec_guard;
+pub mod guide;
 pub mod host_ops;
 pub mod identity;
 pub mod instance_lock;

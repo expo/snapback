@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0a123a4e3ec13784f64aa4a4e787906877853acf"
+    "commit": "61f759520ddbfa6c7f1d161d62acd90d60d320b6"
   },
   "nav": {
     ".": [
@@ -181,8 +181,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
-      "sha256": "7fa955b134507f418d1d7b5e102bfc3344e92e4faefad7d2a446463cbcc68a58",
+      "reviewedCommit": "HEAD",
+      "sha256": "ea0718edfa05e2f85de4f14b4bb4bbbc2b0222967b2b83c68e96f5de5cbcf337",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -290,8 +290,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
-      "sha256": "1136e87a32593b047af4da86fb4ce9da592668d5129731bc5560b018892b3584",
+      "reviewedCommit": "HEAD",
+      "sha256": "02e3d409adce123505df08a01313f16e97cfb1bb7f5feeec36ed9aa234fe1bb8",
       "snippets": []
     },
     "getting-started.the-authoring-loop": {
@@ -403,7 +403,9 @@
         "all"
       ],
       "maturity": "shipped",
-      "capabilities": [],
+      "capabilities": [
+        "operating.served-guide"
+      ],
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0000-snapback.explainer.md"
@@ -415,8 +417,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
-      "sha256": "821854f1eccb5c7025f98932ec542f3de9bed101817ade59c418de69c6f8762e",
+      "reviewedCommit": "HEAD",
+      "sha256": "2a149501a68b337fdb7b70aa21295e98eb33bdd876fc39dc34cc6c0b986104b2",
       "snippets": []
     },
     "realtime.live-queries": {
@@ -579,8 +581,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "0a123a4e3ec13784f64aa4a4e787906877853acf",
-      "sha256": "c66f5ea051867fc972f35a2eb5cbaeab46752c76c3c6ff97a3565bcbdc893ed7",
+      "reviewedCommit": "HEAD",
+      "sha256": "9f8e25ddb1efea387599f63d60e7e2c67d0397bc935ac99d19b7d8bb83fda0bd",
       "snippets": []
     },
     "testing.acceptance": {
@@ -639,6 +641,7 @@
       "clients.optimistic-overlays",
       "clients.react",
       "operating.inspect",
+      "operating.served-guide",
       "operating.server-lifecycle",
       "realtime.durable-push",
       "realtime.ephemeral",
@@ -657,12 +660,12 @@
       "operating.diagnostics",
       "operating.host-ops",
       "operating.secrets-config",
-      "operating.served-guide",
       "sync.offline"
     ]
   },
   "surfaces": {
-    "routes": 65,
+    "routes": 68,
     "hostOps": 13
-  }
+  },
+  "contentHash": "2080332bf2c23e95b70ccfb513b17774ad54e2be193afaf193a6ac9920f07bbc"
 }

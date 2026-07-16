@@ -9,7 +9,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
+  FLAT_PATH,
   MANIFEST_PATH,
+  buildFlatGuide,
   buildManifest,
   checkCapabilityIndex,
   checkFreshness,
@@ -43,15 +45,23 @@ if (runAll || flags.has('--consistency')) {
 
 if (runAll && index) {
   const expected = buildManifest(root, pageInfo, snippetRecords, index, surfaces);
-  let stale = false;
+  const expectedFlat = buildFlatGuide(root, expected, pageInfo);
+  let manifestStale = false;
   try {
     const actual = JSON.parse(readFileSync(join(root, MANIFEST_PATH), 'utf8'));
     const strip = ({ buildIdentity, ...rest }) => rest;
-    stale = JSON.stringify(strip(actual)) !== JSON.stringify(strip(expected));
+    manifestStale = JSON.stringify(strip(actual)) !== JSON.stringify(strip(expected));
   } catch {
-    stale = true;
+    manifestStale = true;
   }
-  if (stale) errors.push(`${MANIFEST_PATH}: stale or missing — run node scripts/generate-guide-manifest.mjs`);
+  if (manifestStale) errors.push(`${MANIFEST_PATH}: stale or missing — run node scripts/generate-guide-manifest.mjs`);
+  let flatStale = false;
+  try {
+    flatStale = readFileSync(join(root, FLAT_PATH), 'utf8') !== expectedFlat;
+  } catch {
+    flatStale = true;
+  }
+  if (flatStale) errors.push(`${FLAT_PATH}: stale or missing — run node scripts/generate-guide-manifest.mjs`);
 }
 
 for (const line of infos) console.log(`[guide-check] info: ${line}`);

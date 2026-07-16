@@ -3,14 +3,14 @@ title: The Snapback Guide
 id: meta.index
 order: 1
 audience: agent-first
-capabilities: []
+capabilities: [operating.served-guide]
 authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md]
 examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game]
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: 0a123a4e3ec13784f64aa4a4e787906877853acf
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -22,11 +22,15 @@ scales to zero and back up: schema and functions, server-authoritative
 data, live queries, ephemeral realtime, auth, and the client arms — taught
 intent-first, with code that ran in CI.
 
-**Audience:** agents (primarily) and humans (secondarily) working **in or
-adjacent to a Snapback checkout**. There is no out-of-repo distribution
-channel yet (LLP 0061 §Design 4); everything here assumes you can read this
-repository. Building Snapback itself is a different job — that's
-`AGENTS.md` and the LLP corpus, not this guide.
+**Audience:** agents (primarily) and humans (secondarily) building on
+Snapback. In a checkout, read this corpus directly. Outside a checkout, a
+running Snapback server exposes the same build-bound corpus at
+`GET /_snapback/guide`, individual paths below that prefix, and the complete
+single-request projection at `GET /_snapback/guide/flat.md`. Those responses
+carry `x-snapback-guide-content-sha256` and
+`x-snapback-server-build-commit`, so a consumer can refuse to combine cached
+guide bytes with a different server build. Building Snapback itself is a
+different job — that's `AGENTS.md` and the LLP corpus, not this guide.
 
 **Start every task here:** check the
 [capability index](./capabilities.md) first — it lists everything Snapback

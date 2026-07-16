@@ -3233,7 +3233,8 @@ impl MutationResponse {
 pub enum RouteClass {
     /// An operation an app client may call; lives at the server root.
     AppData,
-    /// Static console shell/assets under `/_snapback/admin*`; public presentation only.
+    /// Public, read-only system presentation under a reserved namespace: the
+    /// console shell/assets and the build-bound served guide.
     SystemStatic,
     /// A system API operation under `/_snapback/api/*`; admin-gated.
     SystemApi,
@@ -3591,16 +3592,21 @@ impl RouteSpec {
                 return fail("app-data route escaped the root namespace");
             }
             RouteClass::SystemStatic => {
-                if !self.path.starts_with("/_snapback/admin")
+                let approved_projection = (self.path.starts_with("/_snapback/admin")
+                    && self.response_sensitivity == ResponseSensitivity::StaticPublic)
+                    || (self.path.starts_with("/_snapback/guide")
+                        && self.response_sensitivity == ResponseSensitivity::PublicProjection);
+                if !approved_projection
                     || self.path_policy != RoutePolicy::Public
                     || self.credential_resolution != CredentialResolution::None
                     || self.invocation_authority != InvocationAuthority::None
                     || self.legacy_body_policy != LegacyBodyPolicy::NotApplicable
                     || self.effect_policy != EffectPolicy::None
-                    || self.response_sensitivity != ResponseSensitivity::StaticPublic
                     || self.session_overlay != SessionModeOverlay::NONE
                 {
-                    return fail("system-static entries must be inert public assets");
+                    return fail(
+                        "system-static entries must be inert public console assets or guide projections",
+                    );
                 }
             }
             RouteClass::SystemApi => {
@@ -3977,6 +3983,59 @@ pub(crate) const fn system_static_route(method: &'static str, path: &'static str
         LegacyBodyPolicy::NotApplicable,
         ResponseSensitivity::StaticPublic,
     )
+}
+
+const fn served_guide_route(path: &'static str) -> RouteSpec {
+    RouteSpec::new(
+        "GET",
+        path,
+        RouteClass::SystemStatic,
+        RoutePolicy::Public,
+        CredentialResolution::None,
+        InvocationAuthority::None,
+        LegacyBodyPolicy::NotApplicable,
+        ResponseSensitivity::PublicProjection,
+    )
+}
+
+pub const GUIDE_CONTENT_HASH_HEADER: &str = "x-snapback-guide-content-sha256";
+pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
+
+fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
+    let mut response = Response::new(Body::from(file.bytes));
+    let headers = response.headers_mut();
+    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(file.content_type));
+    headers.insert(
+        HeaderName::from_static(GUIDE_CONTENT_HASH_HEADER),
+        HeaderValue::from_static(crate::guide::GUIDE_CONTENT_SHA256),
+    );
+    headers.insert(
+        HeaderName::from_static(GUIDE_BUILD_COMMIT_HEADER),
+        HeaderValue::from_static(option_env!("SNAPBACK_BUILD_GIT_COMMIT").unwrap_or("unknown")),
+    );
+    response
+}
+
+fn embedded_guide_path(path: &str) -> Response {
+    crate::guide::file(path)
+        .map(embedded_guide_response)
+        .unwrap_or_else(|| StatusCode::NOT_FOUND.into_response())
+}
+
+/// The served-guide root is an alias for the embedded `guide/index.md` bytes.
+///
+/// @ref LLP 0061#4-distribution-and-discovery — served-guide §4a:
+/// checkout-independent, build-bound access to the authoring corpus.
+async fn served_guide_index() -> Response {
+    embedded_guide_path(crate::guide::INDEX_PATH)
+}
+
+async fn served_guide_flat() -> Response {
+    embedded_guide_path(crate::guide::FLAT_PATH)
+}
+
+async fn served_guide_page(Path(path): Path<String>) -> Response {
+    embedded_guide_path(&path)
 }
 
 /// The app-data route registrations. Each handler literal appears only here;
@@ -4429,6 +4488,18 @@ fn system_route_registrations() -> Vec<RegisteredRoute> {
     let write =
         |path, sensitivity| system_api_route("POST", path, RoutePolicy::AdminWrite, sensitivity);
     vec![
+        RegisteredRoute::new(
+            served_guide_route("/_snapback/guide"),
+            get(served_guide_index),
+        ),
+        RegisteredRoute::new(
+            served_guide_route("/_snapback/guide/flat.md"),
+            get(served_guide_flat),
+        ),
+        RegisteredRoute::new(
+            served_guide_route("/_snapback/guide/{*path}"),
+            get(served_guide_page),
+        ),
         // @ref LLP 0057#routes-operations-and-dtos — capture plaintext is an
         // exact operator-only projection requiring both AdminWrite and the
         // independent, process-bound impersonation capability.
@@ -9234,6 +9305,8 @@ struct CapabilitiesStatus {
 #[serde(rename_all = "camelCase")]
 struct LinksStatus {
     admin_console: String,
+    guide: String,
+    flat_guide: String,
     health_json: String,
     inspect_json: String,
 }
@@ -9318,6 +9391,8 @@ fn instance_status(inspect: &InspectState, ctx: &ServerContext) -> InstanceStatu
         },
         links: LinksStatus {
             admin_console: "/_snapback/admin".to_owned(),
+            guide: "/_snapback/guide".to_owned(),
+            flat_guide: "/_snapback/guide/flat.md".to_owned(),
             health_json: "/_snapback/api/health".to_owned(),
             inspect_json: "/_snapback/api/inspect".to_owned(),
         },
@@ -9422,6 +9497,11 @@ fn instance_home_yaml(status: &InstanceStatus) -> String {
         "  adminConsole: {}\n",
         yaml_string(&status.links.admin_console)
     ));
+    out.push_str(&format!("  guide: {}\n", yaml_string(&status.links.guide)));
+    out.push_str(&format!(
+        "  flatGuide: {}\n",
+        yaml_string(&status.links.flat_guide)
+    ));
     out.push_str(&format!(
         "  healthJson: {}\n",
         yaml_string(&status.links.health_json)
@@ -9516,6 +9596,14 @@ fn instance_home_markdown(status: &InstanceStatus) -> String {
         "- [Admin console]({})\n",
         status.links.admin_console
     ));
+    out.push_str(&format!(
+        "- [Snapback Guide]({}) — for humans and agents browsing by topic\n",
+        status.links.guide
+    ));
+    out.push_str(&format!(
+        "- [Flat Snapback Guide]({}) — the complete guide in one request for agent clients\n",
+        status.links.flat_guide
+    ));
     out.push_str(&format!("- [Health JSON]({})\n", status.links.health_json));
     out.push_str(&format!(
         "- [Inspect JSON]({})\n",
@@ -9543,11 +9631,25 @@ fn instance_home_html(status: &InstanceStatus) -> String {
         .replace("__SNAPBACK_MARK__", SNAPBACK_MARK_SVG)
         .replace("__LOCK_ICON__", LOCK_ICON_SVG)
         .replace("__HERO__", &instance_home_hero(status))
+        .replace("__GUIDE_NOTE__", &instance_home_guide_note(status))
         .replace("__FACTS__", &instance_home_facts(status))
         .replace(
             "__DETAILS_YAML__",
             &html_escape(&instance_home_yaml(status)),
         )
+}
+
+/// Keep guide discovery on the zero-toolchain instance home while the guide
+/// bytes themselves remain build-bound system-static projections.
+///
+/// @ref LLP 0061#4-distribution-and-discovery — a running server is the
+/// checkout-independent guide discovery and distribution channel.
+fn instance_home_guide_note(status: &InstanceStatus) -> String {
+    format!(
+        "<strong>Building on Snapback?</strong> Read the <a href=\"{}\">Snapback Guide</a>. Agent clients can load the <a href=\"{}\">complete flat guide</a> in one request.",
+        html_escape(&status.links.guide),
+        html_escape(&status.links.flat_guide)
+    )
 }
 
 /// App-branded hero when the manifest declares an identity, Snapback-branded
@@ -24623,8 +24725,9 @@ globalThis.__snapbackHandlers = {
 
     /// LLP 0031 §The invariant — the declared registry holds the boundary: every
     /// app-data entry is a root path, every system entry is under the reserved
-    /// prefix, every system-api entry is admin-gated, static console entries are
-    /// public presentation, and no privileged operation lives at the root.
+    /// prefix, every system-api entry is admin-gated, static console/guide
+    /// entries are public presentation, and no privileged operation lives at
+    /// the root.
     #[test]
     fn s1_route_registry_matches_the_invariant() {
         let registry = route_registry();
@@ -24659,8 +24762,9 @@ globalThis.__snapbackHandlers = {
                 }
                 RouteClass::SystemStatic => {
                     assert!(
-                        route.path.starts_with("/_snapback/admin"),
-                        "system-static must be console shell/assets: {}",
+                        route.path.starts_with("/_snapback/admin")
+                            || route.path.starts_with("/_snapback/guide"),
+                        "system-static must be console or guide presentation: {}",
                         route.path
                     );
                     assert_eq!(

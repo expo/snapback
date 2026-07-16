@@ -94,6 +94,17 @@
   .actions a.primary svg { width: 16px; height: 16px; stroke-width: 2.2; flex: 0 0 auto; }
   .actions a.primary:hover { filter: brightness(1.05); }
 
+  .guide-note {
+    margin: 0 0 24px;
+    padding: 12px 14px;
+    max-width: 760px;
+    color: var(--muted);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+  .guide-note strong { color: var(--text); }
+
   .facts { padding-bottom: 26px; }
   .facts h2 {
     margin: 0 0 10px;
@@ -175,6 +186,9 @@ __HERO__
   <section class="actions">
     <a class="primary" href="/_snapback/admin">__LOCK_ICON__<span>Open admin console</span></a>
   </section>
+  <aside class="guide-note" aria-label="Snapback Guide">
+    __GUIDE_NOTE__
+  </aside>
   <section class="facts">
     <h2>Instance properties</h2>
 __FACTS__
