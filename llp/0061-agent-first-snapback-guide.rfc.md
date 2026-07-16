@@ -5,7 +5,7 @@
 **Systems:** Docs, Developer experience, Tooling, Client integration, API, Testing
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-15
-**Revised:** 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
+**Revised:** 2026-07-16 (r9 — ENG-25113 completed the reciprocal Exact seam: both corpora use `repo(<repository>):<path>`, Exact's `data.snapback` external-authority row points back to this guide without a fake local witness, and Snapback's checker now validates the generic form.) 2026-07-16 (r8 — ENG-25112 implemented optional Phase 3: the Contract admin console has a Docs tab whose navigation comes from the served generated manifest, whose page reads must match the manifest response's content-hash/build-commit identity, and whose console-owned Markdown block renderer emits text leaves only. The conditional dependency check found `@exact/markdown` source in the sibling Exact workspace but no supported published dependency in the admin package set, so this uses the RFC's pattern-reuse branch rather than creating a source-tree dependency.) 2026-07-15 (r7 — the public, content-negotiated instance home at `/` now advertises the guide index to humans and the one-request flat projection to agent clients in its HTML and machine-readable renderings.) 2026-07-15 (r6 — ENG-25102 implemented Phase 2a: the generator emits and hash-stamps the capability-first flat projection; `build.rs` embeds the checked corpus with eval evidence excluded; the LLP 0031 registry serves index, files, and `flat.md` with content-hash/build-commit headers; memory-server acceptance pins the bytes and identity; and the capability row is shipped for out-of-repo readers.) 2026-07-15 (r5 — implementation program filed: ENG-25100
 (umbrella) + ENG-25101 (eval intents 2–3, the formal Phase 1 exit),
 ENG-25102 (Phase 2a served guide), ENG-25103–25110 (the eight GAP-page
 issues), ENG-25111 (Phase 2b MCP, blocked on ENG-25102 + the LLP 0042
@@ -252,18 +252,15 @@ a shared dependency (rule of three).
   generated bindings — including the connection-state and
   generated-mutation-binding material diary 0010 could only get from source,
   and the React/DataProvider arm (LLP 0005's three-surface story).
-- **Phase 1 links one direction only:** Snapback's client-authoring rows
-  point at the Exact guide by versioned reference. The reciprocal row in
-  Exact's capability registry is Exact-side work with an Exact-side owner —
-  it is filed as a coordination item under the 0365 implementation program
-  rather than asserted here, because 0365's registry requires a local
-  surface witness and representing a Snapback-owned capability there is a
-  design question for that registry's owner. Until it lands, the seam is
-  one-way and this RFC says so.
+- **The seam is reciprocal (ENG-25113, 2026-07-16):** Snapback's
+  client-authoring rows point at the Exact guide, and Exact's
+  `data.snapback` external-authority row points back to this guide. Exact LLP
+  0365 makes that row a distinct class with no local witness or local page,
+  so it cannot weaken the local-witness rule for Exact-owned capability.
 - Cross-repo references name the repository explicitly and degrade honestly:
   an agent with both checkouts resolves them as paths; an agent without gets
-  prose naming the repo and document. The exact link form is the one
-  conventions question worth coordinating upstream early (§Open questions).
+  prose naming the repo and document. Both corpora use
+  `repo(<repository>):<repo-root-relative-path>`.
 
 **Styling/rendering:** if and when the Snapback guide gets a rendered form,
 the preference is to reuse the Exact guide app's machinery (the

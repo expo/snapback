@@ -81,12 +81,14 @@ Two classes, checked:
   frontmatter and the `repo:` scheme inline
   (`[LLP 0008](repo:llp/0008-local-first-sync-and-realtime.rfc.md)`). They
   must exist in the repo.
-- **Cross-repo references** (the Exact guide seam) name the repository in
-  prose and may use `repo(exact):` inline
-  (`[the Exact guide](repo(exact):guide/index.md)`). They resolve only
-  when the sibling checkout exists; the checker warns rather than fails when
-  it is absent. The seam is one-directional from Snapback for now
-  (LLP 0061 §Relationship).
+- **Cross-repository references** use the shared
+  `repo(<repository>):<repo-root-relative-path>` form, for example
+  `[the Exact guide](repo(exact):guide/index.md)`. The repository token is
+  lowercase ASCII (`[a-z0-9._-]+`); the path is relative, contains no `..`,
+  and may carry a heading anchor. When a sibling checkout is present the
+  checker verifies the path; without one it degrades honestly rather than
+  claiming the remote bytes were checked. Exact uses the same convention and
+  points its `data.snapback` external-authority row back to this guide.
 
 ## Code snippets
 

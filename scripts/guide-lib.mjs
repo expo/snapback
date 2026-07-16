@@ -176,15 +176,22 @@ export function checkSnippets(root, pageBodies, errors) {
 
 export function checkLinks(root, pageBodies, errors, warnings) {
   const graph = new Map();
-  const exactRoot = resolve(root, '..', 'exact');
   for (const [path, body] of pageBodies) {
     const outgoing = [];
-    for (const m of body.matchAll(/\]\((repo\(exact\):[^)\s]+|[^)\s]+)\)/g)) {
+    for (const m of body.matchAll(/\]\(((?:repo\([^)]+\):)?[^)\s]+)\)/g)) {
       const target = m[1];
       if (/^(https?:|mailto:|#)/.test(target)) continue;
-      if (target.startsWith('repo(exact):')) {
-        const p = join(exactRoot, target.slice('repo(exact):'.length));
-        if (existsSync(exactRoot) && !existsSync(p)) {
+      const crossRepo = /^repo\(([a-z0-9][a-z0-9._-]*)\):(.+)$/.exec(target);
+      if (crossRepo) {
+        const [, repository, repoPathWithAnchor] = crossRepo;
+        const repoPath = repoPathWithAnchor.split('#')[0];
+        if (!repoPath || repoPath.startsWith('/') || repoPath.includes('..')) {
+          errors.push(`${path}: invalid cross-repo reference: ${target}`);
+          continue;
+        }
+        const siblingRoot = resolve(root, '..', repository);
+        const p = join(siblingRoot, repoPath);
+        if (existsSync(siblingRoot) && !existsSync(p)) {
           warnings.push(`${path}: cross-repo reference missing in sibling checkout: ${target}`);
         }
         continue;
