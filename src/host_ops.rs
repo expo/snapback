@@ -575,6 +575,7 @@ fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
             principal: None,
             session_id: None,
             user_id: request.user_id.clone(),
+            ..crate::manifest::AuthInput::default()
         },
         read_set: Vec::new(),
         correlation: None,

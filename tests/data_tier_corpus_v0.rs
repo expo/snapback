@@ -197,6 +197,7 @@ fn data_tier_corpus_cases_pass_on_the_host_evaluator() {
                 principal: None,
                 session_id: None,
                 user_id: case.auth_user_id.clone(),
+                ..AuthInput::default()
             },
             ctx_ledger: case.ctx_ledger.clone(),
             ..HandlerInput::default()

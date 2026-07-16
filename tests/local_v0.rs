@@ -806,6 +806,7 @@ fn permission_epoch_scope_failure_rejects_before_any_write() {
             principal: None,
             session_id: None,
             user_id: None,
+            ..AuthInput::default()
         },
         read_set: Vec::new(),
         correlation: None,
@@ -3050,6 +3051,7 @@ fn auth(user_id: &str) -> AuthInput {
         principal: Some(user_id.to_owned()),
         session_id: None,
         user_id: Some(user_id.to_owned()),
+        ..AuthInput::default()
     }
 }
 

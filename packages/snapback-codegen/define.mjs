@@ -28,6 +28,9 @@ const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const AUTHORIZATION_DIMENSIONS = new Set([
   'userId',
+  'kind',
+  'actorKind',
+  'isDelegated',
   'sessionId',
   'provider',
   'roles',
@@ -291,6 +294,9 @@ function expectExpr(value, where) {
 
 export const arg = (path) => ({ __expr: true, Arg: path });
 export const authUserId = () => ({ __expr: true, kind: 'AuthUserId' });
+export const authKind = () => ({ __expr: true, kind: 'AuthKind' });
+export const authActorKind = () => ({ __expr: true, kind: 'AuthActorKind' });
+export const authIsDelegated = () => ({ __expr: true, kind: 'AuthIsDelegated' });
 export const lit = (value) => ({ __expr: true, Literal: value });
 export const bindingRef = (name) => ({ __expr: true, Binding: name });
 export const runtimeId = () => ({ __expr: true, kind: 'RuntimeId' });

@@ -154,6 +154,7 @@ fn input(user: &str) -> HandlerInput {
             principal: Some(user.to_owned()),
             session_id: None,
             user_id: Some(user.to_owned()),
+            ..AuthInput::default()
         },
         ..HandlerInput::default()
     }

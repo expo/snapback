@@ -3020,6 +3020,7 @@ mod membership_bridge_tests {
                 principal: Some("alice".to_owned()),
                 user_id: Some("alice".to_owned()),
                 session_id: None,
+                ..AuthInput::default()
             },
             ..HandlerInput::default()
         }

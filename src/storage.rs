@@ -1810,6 +1810,12 @@ impl LocalDatabase {
         }
 
         let mut bindings = BTreeMap::new();
+        let direct_input = input.auth.direct_authorization_baseline().map(|auth| {
+            let mut direct = input.clone();
+            direct.auth = auth;
+            direct
+        });
+        let mut direct_bindings = direct_input.as_ref().map(|_| BTreeMap::new());
         let mut changes = Vec::new();
         let mut read_dependencies: Vec<CapturedReadDependency> = Vec::new();
         // Every host-generated id in answer order — the IR half of the
@@ -1833,7 +1839,11 @@ impl LocalDatabase {
                     enforce_protected_resource_insert_guard(&schema, &table.name)?;
                     let id = next_id()?;
                     if let Some(binding) = bind_id_as {
-                        bindings.insert(binding.clone(), Value::String(id.clone()));
+                        let value = Value::String(id.clone());
+                        bindings.insert(binding.clone(), value.clone());
+                        if let Some(direct) = direct_bindings.as_mut() {
+                            direct.insert(binding.clone(), value);
+                        }
                     }
 
                     let row = eval_value_map(values, input, &bindings, now_ms, &next_id)?;
@@ -1969,6 +1979,9 @@ impl LocalDatabase {
                     read_dependencies.push(dependency);
                     match document {
                         Some(row) => {
+                            if let Some(direct) = direct_bindings.as_mut() {
+                                direct.insert(bind_as.clone(), row.clone());
+                            }
                             bindings.insert(bind_as.clone(), row);
                         }
                         None => {
@@ -1985,12 +1998,24 @@ impl LocalDatabase {
                                 })));
                             }
                             bindings.insert(bind_as.clone(), Value::Null);
+                            if let Some(direct) = direct_bindings.as_mut() {
+                                direct.insert(bind_as.clone(), Value::Null);
+                            }
                         }
                     }
                 }
                 MutationStep::Guard { cond, else_error } => {
-                    let value = eval_expr(cond, input, &bindings, now_ms, Some(&next_id))?;
-                    if !crate::value_expr::truthy(&value) {
+                    let admitted = eval_authorization_decision_values(
+                        cond,
+                        input,
+                        &bindings,
+                        direct_bindings.as_ref(),
+                        now_ms,
+                        Some(&next_id),
+                    )?
+                    .iter()
+                    .all(crate::value_expr::truthy);
+                    if !admitted {
                         return Err(SnapbackError::error(
                             else_error.clone(),
                             "handler",
@@ -2000,7 +2025,27 @@ impl LocalDatabase {
                     }
                 }
                 MutationStep::Let { bind_as, expr } => {
+                    let projection_dependent = direct_bindings.as_ref().is_some_and(|direct| {
+                        value_expr_depends_on_projection(expr, &bindings, direct)
+                    });
+                    if projection_dependent && expr.uses_runtime_intrinsic() {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+                            "auth",
+                            "actor-aware authorization bindings cannot depend on runtime clock or id inputs",
+                        ));
+                    }
                     let value = eval_expr(expr, input, &bindings, now_ms, Some(&next_id))?;
+                    if let (Some(direct_input), Some(direct_bindings)) =
+                        (direct_input.as_ref(), direct_bindings.as_mut())
+                    {
+                        let direct_value = if projection_dependent {
+                            eval_expr(expr, direct_input, direct_bindings, now_ms, Some(&next_id))?
+                        } else {
+                            value.clone()
+                        };
+                        direct_bindings.insert(bind_as.clone(), direct_value);
+                    }
                     bindings.insert(bind_as.clone(), value);
                 }
                 MutationStep::DeleteWhere { table, filter } => {
@@ -2021,6 +2066,7 @@ impl LocalDatabase {
                         &scan_plan,
                         input,
                         &bindings,
+                        direct_bindings.as_ref(),
                         now_ms,
                         Some(&next_id),
                         None,
@@ -3006,6 +3052,7 @@ pub(crate) fn query_on_with_storage_limit(
         plan,
         input,
         &BTreeMap::new(),
+        None,
         now_millis(),
         None,
         Some(storage_limit),
@@ -4869,6 +4916,7 @@ fn build_query_sql(
     plan: &QueryPlan,
     input: &HandlerInput,
     bindings: &BTreeMap<String, Value>,
+    direct_bindings: Option<&BTreeMap<String, Value>>,
     now_ms: u64,
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
     sql_limit: Option<usize>,
@@ -4884,63 +4932,98 @@ fn build_query_sql(
         match filter.op {
             FilterOp::Eq => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
-                validate_query_filter_value(table, &filter.field, &value)?;
-                add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
-                values.push(json_to_sql_value(&value, field_type)?);
-                where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
+                for value in eval_authorization_decision_values(
+                    &filter.value,
+                    input,
+                    bindings,
+                    direct_bindings,
+                    now_ms,
+                    runtime_id,
+                )? {
+                    if value.is_null()
+                        && authorization_expr_depends_on_projection(
+                            &filter.value,
+                            input,
+                            bindings,
+                            direct_bindings,
+                        )
+                    {
+                        where_parts.push("1 = 0".to_owned());
+                        continue;
+                    }
+                    validate_query_filter_value(table, &filter.field, &value)?;
+                    add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
+                    values.push(json_to_sql_value(&value, field_type)?);
+                    where_parts.push(format!("{} = ?", quote_ident(&filter.field)?));
+                }
             }
             FilterOp::In => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
-                let Some(items) = value.as_array() else {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
-                        "query",
-                        format!(
-                            "query filter {}.{} In expects an array",
-                            table.name, filter.field
-                        ),
-                    )
-                    .with_detail("field", Value::String(filter.field.clone()))
-                    .with_detail("op", Value::String("In".to_owned()))
-                    .with_detail("value", value));
-                };
-                in_items = in_items.saturating_add(items.len());
-                if in_items > QUERY_MAX_IN_ITEMS {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
-                        "query",
-                        format!(
-                            "query In operands contain {in_items} total items; maxInItems is {QUERY_MAX_IN_ITEMS}"
-                        ),
-                    )
-                    .with_detail("maxInItems", QUERY_MAX_IN_ITEMS as u64));
-                }
-                if matches!(field_type, Some(FieldType::Json)) {
-                    validate_query_filter_value(table, &filter.field, &Value::Null)?;
-                }
-                add_query_filter_bindings(&mut filter_bindings, items.len(), &filter.field)?;
-                if items.is_empty() {
-                    where_parts.push("1 = 0".to_owned());
-                } else {
-                    for item in items {
-                        validate_query_filter_value(table, &filter.field, item)?;
-                        values.push(json_to_sql_value(item, field_type)?);
+                for value in eval_authorization_decision_values(
+                    &filter.value,
+                    input,
+                    bindings,
+                    direct_bindings,
+                    now_ms,
+                    runtime_id,
+                )? {
+                    if value.is_null()
+                        && authorization_expr_depends_on_projection(
+                            &filter.value,
+                            input,
+                            bindings,
+                            direct_bindings,
+                        )
+                    {
+                        where_parts.push("1 = 0".to_owned());
+                        continue;
                     }
-                    let placeholders = (0..items.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
-                    where_parts.push(format!(
-                        "{} IN ({placeholders})",
-                        quote_ident(&filter.field)?
-                    ));
+                    let Some(items) = value.as_array() else {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_QUERY_FILTER_VALUE_INVALID",
+                            "query",
+                            format!(
+                                "query filter {}.{} In expects an array",
+                                table.name, filter.field
+                            ),
+                        )
+                        .with_detail("field", Value::String(filter.field.clone()))
+                        .with_detail("op", Value::String("In".to_owned()))
+                        .with_detail("value", value));
+                    };
+                    in_items = in_items.saturating_add(items.len());
+                    if in_items > QUERY_MAX_IN_ITEMS {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_QUERY_IN_ITEMS_EXCEEDED",
+                            "query",
+                            format!(
+                                "query In operands contain {in_items} total items; maxInItems is {QUERY_MAX_IN_ITEMS}"
+                            ),
+                        )
+                        .with_detail("maxInItems", QUERY_MAX_IN_ITEMS as u64));
+                    }
+                    if matches!(field_type, Some(FieldType::Json)) {
+                        validate_query_filter_value(table, &filter.field, &Value::Null)?;
+                    }
+                    add_query_filter_bindings(&mut filter_bindings, items.len(), &filter.field)?;
+                    if items.is_empty() {
+                        where_parts.push("1 = 0".to_owned());
+                    } else {
+                        for item in items {
+                            validate_query_filter_value(table, &filter.field, item)?;
+                            values.push(json_to_sql_value(item, field_type)?);
+                        }
+                        let placeholders =
+                            (0..items.len()).map(|_| "?").collect::<Vec<_>>().join(", ");
+                        where_parts.push(format!(
+                            "{} IN ({placeholders})",
+                            quote_ident(&filter.field)?
+                        ));
+                    }
                 }
             }
             FilterOp::Lt | FilterOp::Lte | FilterOp::Gt | FilterOp::Gte => {
                 let field_type = field_type(table, &filter.field);
-                let value = eval_expr(&filter.value, input, bindings, now_ms, runtime_id)?;
-                validate_query_filter_value(table, &filter.field, &value)?;
-                add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
-                values.push(json_to_sql_value(&value, field_type)?);
                 let op = match filter.op {
                     FilterOp::Lt => "<",
                     FilterOp::Lte => "<=",
@@ -4948,7 +5031,30 @@ fn build_query_sql(
                     FilterOp::Gte => ">=",
                     FilterOp::Eq | FilterOp::In => unreachable!("handled above"),
                 };
-                where_parts.push(format!("{} {op} ?", quote_ident(&filter.field)?));
+                for value in eval_authorization_decision_values(
+                    &filter.value,
+                    input,
+                    bindings,
+                    direct_bindings,
+                    now_ms,
+                    runtime_id,
+                )? {
+                    if value.is_null()
+                        && authorization_expr_depends_on_projection(
+                            &filter.value,
+                            input,
+                            bindings,
+                            direct_bindings,
+                        )
+                    {
+                        where_parts.push("1 = 0".to_owned());
+                        continue;
+                    }
+                    validate_query_filter_value(table, &filter.field, &value)?;
+                    add_query_filter_bindings(&mut filter_bindings, 1, &filter.field)?;
+                    values.push(json_to_sql_value(&value, field_type)?);
+                    where_parts.push(format!("{} {op} ?", quote_ident(&filter.field)?));
+                }
             }
         }
     }
@@ -5508,11 +5614,119 @@ fn eval_expr(
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
+        auth_kind: input.auth.authorization_kind.as_deref(),
+        auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: Some(bindings),
         now_ms: Some(now_ms),
         runtime_id: Some(runtime_id.unwrap_or(&default_id)),
     };
     crate::value_expr::eval_value_expr(expr, &env).map_err(|error| error.into_snapback())
+}
+
+/// Evaluate one host-owned declarative authorization decision under the
+/// delegated projection and its sealed direct-human baseline. Closed IR lets
+/// actor-independent decisions reuse the identical answer; actor-aware nodes
+/// are evaluated twice and callers intersect the resulting constraints.
+/// Runtime intrinsics are refused before evaluation so the second projection
+/// cannot allocate a second id or observe a different clock.
+// @ref LLP 0055#resolved-authority-serviceprincipal — single execution, per-decision double authorization, stricter answer wins.
+fn eval_authorization_decision_values(
+    expr: &ValueExpr,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    direct_bindings: Option<&BTreeMap<String, Value>>,
+    now_ms: u64,
+    runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
+) -> SnapbackResult<Vec<Value>> {
+    let is_actor_aware = authorization_expr_depends_on_projection(
+        expr,
+        input,
+        bindings,
+        direct_bindings,
+    );
+    if input.auth.authorization_is_delegated
+        && is_actor_aware
+        && expr.uses_runtime_intrinsic()
+    {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
+            "auth",
+            "actor-aware authorization decisions cannot depend on runtime clock or id inputs",
+        ));
+    }
+    let delegated = eval_expr(expr, input, bindings, now_ms, runtime_id)?;
+    if !input.auth.authorization_is_delegated || !is_actor_aware {
+        return Ok(vec![delegated]);
+    }
+    let mut direct = input.clone();
+    direct.auth = input
+        .auth
+        .direct_authorization_baseline()
+        .expect("delegated authorization input has a direct baseline");
+    Ok(vec![
+        delegated,
+        eval_expr(
+            expr,
+            &direct,
+            direct_bindings.unwrap_or(bindings),
+            now_ms,
+            runtime_id,
+        )?,
+    ])
+}
+
+fn authorization_expr_depends_on_projection(
+    expr: &ValueExpr,
+    input: &HandlerInput,
+    bindings: &BTreeMap<String, Value>,
+    direct_bindings: Option<&BTreeMap<String, Value>>,
+) -> bool {
+    input.auth.authorization_is_delegated
+        && direct_bindings.map_or_else(
+            || expr.uses_actor_projection(),
+            |direct| value_expr_depends_on_projection(expr, bindings, direct),
+        )
+}
+
+fn value_expr_depends_on_projection(
+    expr: &ValueExpr,
+    bindings: &BTreeMap<String, Value>,
+    direct_bindings: &BTreeMap<String, Value>,
+) -> bool {
+    match expr {
+        ValueExpr::AuthActorKind | ValueExpr::AuthIsDelegated => true,
+        ValueExpr::Binding(name) => bindings.get(name) != direct_bindings.get(name),
+        ValueExpr::Field { base, .. } => {
+            value_expr_depends_on_projection(base, bindings, direct_bindings)
+        }
+        ValueExpr::Binary { left, right, .. } => {
+            value_expr_depends_on_projection(left, bindings, direct_bindings)
+                || value_expr_depends_on_projection(right, bindings, direct_bindings)
+        }
+        ValueExpr::Unary { expr, .. } => {
+            value_expr_depends_on_projection(expr, bindings, direct_bindings)
+        }
+        ValueExpr::If { cond, then, r#else } => {
+            value_expr_depends_on_projection(cond, bindings, direct_bindings)
+                || value_expr_depends_on_projection(then, bindings, direct_bindings)
+                || value_expr_depends_on_projection(r#else, bindings, direct_bindings)
+        }
+        ValueExpr::Concat(values) | ValueExpr::Call { args: values, .. } => values
+            .iter()
+            .any(|value| value_expr_depends_on_projection(value, bindings, direct_bindings)),
+        ValueExpr::Record { fields } => fields
+            .values()
+            .any(|value| value_expr_depends_on_projection(value, bindings, direct_bindings)),
+        ValueExpr::Arg(_)
+        | ValueExpr::Args
+        | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::Literal(_)
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow
+        | ValueExpr::MembershipExists(_) => false,
+    }
 }
 
 fn timestamp_to_sql_millis(value: u64) -> SnapbackResult<i64> {
@@ -5786,6 +6000,7 @@ impl MembershipWriter {
                 principal: principal.clone(),
                 session_id: None,
                 user_id: principal,
+                ..AuthInput::default()
             },
             ..HandlerInput::default()
         }
@@ -8344,6 +8559,181 @@ mod guarded_commit_tests {
         db
     }
 
+    #[test]
+    fn delegated_host_decisions_intersect_actor_aware_rules_with_direct_baseline() {
+        let delegated = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("effective-user".to_owned()),
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), Some("agent"), true),
+            ..HandlerInput::default()
+        };
+        let direct = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("effective-user".to_owned()),
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), None, false),
+            ..HandlerInput::default()
+        };
+        let mut query_db = database();
+        query_db
+            .seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![
+                        Map::from_iter([("title".to_owned(), json!("delegated"))]),
+                        Map::from_iter([("title".to_owned(), json!("direct"))]),
+                    ],
+                )]),
+            })
+            .expect("seed actor-aware query rows");
+
+        let actor_aware_query = QueryPlan {
+            table: "items".to_owned(),
+            filters: vec![crate::manifest::FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::If {
+                    cond: Box::new(ValueExpr::AuthIsDelegated),
+                    then: Box::new(ValueExpr::Literal(json!("delegated"))),
+                    r#else: Box::new(ValueExpr::Literal(json!("direct"))),
+                },
+            }],
+            order: Vec::new(),
+            limit: None,
+            membership_filters: Vec::new(),
+            indexed_by: None,
+        };
+        assert!(
+            query_db
+                .query(&actor_aware_query, &delegated)
+                .expect("run intersected delegated query")
+                .rows
+                .is_empty(),
+            "delegated and direct row constraints are intersected"
+        );
+        assert_eq!(
+            query_db
+                .query(&actor_aware_query, &direct)
+                .expect("run direct query")
+                .rows
+                .len(),
+            1
+        );
+
+        let disjunctive_query = QueryPlan {
+            filters: vec![crate::manifest::FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::In,
+                value: ValueExpr::If {
+                    cond: Box::new(ValueExpr::AuthIsDelegated),
+                    then: Box::new(ValueExpr::Literal(json!(["direct", "delegated"]))),
+                    r#else: Box::new(ValueExpr::Literal(json!(["direct"]))),
+                },
+            }],
+            ..actor_aware_query.clone()
+        };
+        let intersected = query_db
+            .query(&disjunctive_query, &delegated)
+            .expect("intersect a disjunctive delegated row rule")
+            .rows;
+        assert_eq!(intersected.len(), 1, "the delegated disjunct cannot widen the row set");
+        assert_eq!(intersected[0]["title"], "direct");
+        assert_eq!(intersected.len(), 1, "aggregate count derives only from admitted rows");
+        assert_eq!(
+            intersected
+                .iter()
+                .map(|row| row["title"].clone())
+                .collect::<Vec<_>>(),
+            vec![json!("direct")],
+            "a projection cannot recover the excluded row"
+        );
+        let opaque = json!({ "opaque": &intersected });
+        assert_eq!(opaque["opaque"].as_array().map(Vec::len), Some(1));
+        assert_eq!(
+            opaque["opaque"][0]["title"], "direct",
+            "opaque results are still derived from the intersected row set"
+        );
+
+        let actor_only_query = QueryPlan {
+            filters: vec![crate::manifest::FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::AuthActorKind,
+            }],
+            ..actor_aware_query.clone()
+        };
+        assert!(
+            query_db
+                .query(&actor_only_query, &delegated)
+                .expect("a missing direct actor fails closed instead of widening")
+                .rows
+                .is_empty()
+        );
+
+        let actor_only = ValueExpr::Binary {
+            op: crate::manifest::BinaryOp::Eq,
+            left: Box::new(ValueExpr::AuthActorKind),
+            right: Box::new(ValueExpr::Literal(json!("agent"))),
+        };
+        let delegated_disjunction = ValueExpr::Binary {
+            op: crate::manifest::BinaryOp::Or,
+            left: Box::new(ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left: Box::new(ValueExpr::AuthUserId),
+                right: Box::new(ValueExpr::Literal(json!("somebody-else"))),
+            }),
+            right: Box::new(ValueExpr::AuthIsDelegated),
+        };
+        let negated_actor = ValueExpr::Unary {
+            op: crate::manifest::UnaryOp::Not,
+            expr: Box::new(ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left: Box::new(ValueExpr::AuthActorKind),
+                right: Box::new(ValueExpr::Literal(json!("agent"))),
+            }),
+        };
+        for (name, cond) in [
+            ("actor-only", actor_only),
+            ("delegated-disjunction", delegated_disjunction),
+            ("negated-actor", negated_actor),
+        ] {
+            let mut db = database();
+            let plan = MutationPlan {
+                steps: vec![MutationStep::Guard {
+                    cond,
+                    else_error: "TEST_AUTH_RULE_DENIED".to_owned(),
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            };
+            let error = db
+                .execute_mutation(&plan, &delegated)
+                .expect_err("the direct baseline must veto delegated-only authority");
+            assert_eq!(error.diagnostic.code, "TEST_AUTH_RULE_DENIED", "{name}");
+        }
+
+        let mut db = database();
+        let aliased_actor_rule = MutationPlan {
+            steps: vec![
+                MutationStep::Let {
+                    bind_as: "delegated".to_owned(),
+                    expr: ValueExpr::AuthIsDelegated,
+                },
+                MutationStep::Guard {
+                    cond: ValueExpr::Binding("delegated".to_owned()),
+                    else_error: "TEST_AUTH_RULE_DENIED".to_owned(),
+                },
+            ],
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let error = db
+            .execute_mutation(&aliased_actor_rule, &delegated)
+            .expect_err("binding aliases cannot hide actor dependence from a trusted guard");
+        assert_eq!(error.diagnostic.code, "TEST_AUTH_RULE_DENIED");
+    }
+
     fn permission_schema(permission_fields: Option<Vec<&str>>) -> SchemaManifest {
         let mut schema = schema();
         let table = &mut schema.tables[0];
@@ -9173,6 +9563,7 @@ mod guarded_commit_tests {
                 principal: Some("legacy-user".to_owned()),
                 session_id: Some("legacy-session".to_owned()),
                 user_id: Some("legacy-user".to_owned()),
+                ..crate::manifest::AuthInput::default()
             },
             ..HandlerInput::default()
         };

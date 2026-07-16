@@ -1073,7 +1073,12 @@ fn validate_authority_independent(function: &FunctionDefinition) -> SnapbackResu
 
 fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
     match value {
-        ValueExpr::AuthUserId | ValueExpr::RuntimeId | ValueExpr::RuntimeNow => true,
+        ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
+        | ValueExpr::RuntimeId
+        | ValueExpr::RuntimeNow => true,
         ValueExpr::Arg(_) | ValueExpr::Args | ValueExpr::Binding(_) | ValueExpr::Literal(_) => {
             false
         }
@@ -1102,9 +1107,10 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
 }
 
 /// Closed caller-authority dimensions that a query result may depend on.
-/// Retention v1 accepts exactly `userId`; spelling the rejected dimensions is
-/// still important because a manifest must describe why it is online-only
-/// rather than silently erasing session/provider/opaque dependence.
+/// Retention v1 accepts `userId` plus the effective principal `kind`, which is
+/// an immutable function of that identity; spelling the rejected dimensions
+/// is still important because a manifest must describe why it is online-only
+/// rather than silently erasing actor/session/provider/opaque dependence.
 ///
 /// @ref LLP 0053#retained-and-offline-authorization — retained rows survive a
 ///   same-user session replacement, so every other authority dimension is
@@ -1115,6 +1121,9 @@ fn value_expr_uses_authority_or_ambient_input(value: &ValueExpr) -> bool {
 #[serde(rename_all = "camelCase")]
 pub enum AuthorizationInputDimension {
     UserId,
+    Kind,
+    ActorKind,
+    IsDelegated,
     SessionId,
     Provider,
     Roles,
@@ -1152,6 +1161,9 @@ fn validate_protected_value_expr(
         ValueExpr::Arg(_)
         | ValueExpr::Args
         | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
         | ValueExpr::Binding(_)
         | ValueExpr::Literal(_) => Ok(()),
         ValueExpr::Field { base, .. } => validate_protected_value_expr(function, base),
@@ -1231,6 +1243,15 @@ fn host_plan_authorization_dimensions(
         match value {
             ValueExpr::AuthUserId => {
                 dimensions.insert(AuthorizationInputDimension::UserId);
+            }
+            ValueExpr::AuthKind => {
+                dimensions.insert(AuthorizationInputDimension::Kind);
+            }
+            ValueExpr::AuthActorKind => {
+                dimensions.insert(AuthorizationInputDimension::ActorKind);
+            }
+            ValueExpr::AuthIsDelegated => {
+                dimensions.insert(AuthorizationInputDimension::IsDelegated);
             }
             ValueExpr::Arg(_)
             | ValueExpr::Args
@@ -1341,7 +1362,13 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
         ));
     }
 
-    if declared == BTreeSet::from([AuthorizationInputDimension::UserId]) {
+    if declared == BTreeSet::from([AuthorizationInputDimension::UserId])
+        || declared
+            == BTreeSet::from([
+                AuthorizationInputDimension::UserId,
+                AuthorizationInputDimension::Kind,
+            ])
+    {
         return Ok(());
     }
     Err(undeclarable_retention(function, "notUserIdOnly"))
@@ -1545,9 +1572,19 @@ impl FunctionDefinition {
     /// the authenticated user rather than to a session lease. Public,
     /// authority-independent results deliberately stay outside this path.
     pub(crate) fn is_user_scoped_retainable_query(&self) -> bool {
+        let dimensions = self
+            .authorization_dependence
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
         matches!(self.kind, FunctionKind::Query | FunctionKind::LiveQuery)
             && self.retainable
-            && self.authorization_dependence == [AuthorizationInputDimension::UserId]
+            && (dimensions == BTreeSet::from([AuthorizationInputDimension::UserId])
+                || dimensions
+                    == BTreeSet::from([
+                        AuthorizationInputDimension::UserId,
+                        AuthorizationInputDimension::Kind,
+                    ]))
     }
 }
 
@@ -2301,6 +2338,12 @@ pub enum ValueExpr {
     /// via `Field` (missing keys propagate null instead of failing).
     Args,
     AuthUserId,
+    /// Effective principal kind in the sealed authorization projection.
+    AuthKind,
+    /// Actor kind for delegated authority; null for direct and autonomous use.
+    AuthActorKind,
+    /// True only when an actor is exercising authority for another principal.
+    AuthIsDelegated,
     Binding(String),
     Literal(Value),
     RuntimeId,
@@ -2358,6 +2401,66 @@ pub enum ValueExpr {
     MembershipExists(Box<MembershipPredicate>),
 }
 
+impl ValueExpr {
+    pub(crate) fn uses_actor_projection(&self) -> bool {
+        match self {
+            Self::AuthActorKind | Self::AuthIsDelegated => true,
+            Self::Field { base, .. } => base.uses_actor_projection(),
+            Self::Binary { left, right, .. } => {
+                left.uses_actor_projection() || right.uses_actor_projection()
+            }
+            Self::Unary { expr, .. } => expr.uses_actor_projection(),
+            Self::If { cond, then, r#else } => {
+                cond.uses_actor_projection()
+                    || then.uses_actor_projection()
+                    || r#else.uses_actor_projection()
+            }
+            Self::Concat(values) | Self::Call { args: values, .. } => {
+                values.iter().any(Self::uses_actor_projection)
+            }
+            Self::Record { fields } => fields.values().any(Self::uses_actor_projection),
+            Self::Arg(_)
+            | Self::Args
+            | Self::AuthUserId
+            | Self::AuthKind
+            | Self::Binding(_)
+            | Self::Literal(_)
+            | Self::RuntimeId
+            | Self::RuntimeNow
+            | Self::MembershipExists(_) => false,
+        }
+    }
+
+    pub(crate) fn uses_runtime_intrinsic(&self) -> bool {
+        match self {
+            Self::RuntimeId | Self::RuntimeNow => true,
+            Self::Field { base, .. } => base.uses_runtime_intrinsic(),
+            Self::Binary { left, right, .. } => {
+                left.uses_runtime_intrinsic() || right.uses_runtime_intrinsic()
+            }
+            Self::Unary { expr, .. } => expr.uses_runtime_intrinsic(),
+            Self::If { cond, then, r#else } => {
+                cond.uses_runtime_intrinsic()
+                    || then.uses_runtime_intrinsic()
+                    || r#else.uses_runtime_intrinsic()
+            }
+            Self::Concat(values) | Self::Call { args: values, .. } => {
+                values.iter().any(Self::uses_runtime_intrinsic)
+            }
+            Self::Record { fields } => fields.values().any(Self::uses_runtime_intrinsic),
+            Self::Arg(_)
+            | Self::Args
+            | Self::AuthUserId
+            | Self::AuthKind
+            | Self::AuthActorKind
+            | Self::AuthIsDelegated
+            | Self::Binding(_)
+            | Self::Literal(_)
+            | Self::MembershipExists(_) => false,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum BinaryOp {
     Add,
@@ -2386,6 +2489,43 @@ pub struct AuthInput {
     pub principal: Option<String>,
     pub session_id: Option<String>,
     pub user_id: Option<String>,
+    /// Server-owned declarative-authorization facts. They never deserialize
+    /// from or serialize onto the legacy handler input wire.
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub authorization_kind: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub authorization_actor_kind: Option<String>,
+    #[serde(skip)]
+    #[schemars(skip)]
+    #[doc(hidden)]
+    pub authorization_is_delegated: bool,
+}
+
+impl AuthInput {
+    pub(crate) fn with_authorization_projection(
+        mut self,
+        kind: Option<&str>,
+        actor_kind: Option<&str>,
+        is_delegated: bool,
+    ) -> Self {
+        self.authorization_kind = kind.map(str::to_owned);
+        self.authorization_actor_kind = actor_kind.map(str::to_owned);
+        self.authorization_is_delegated = is_delegated;
+        self
+    }
+
+    pub(crate) fn direct_authorization_baseline(&self) -> Option<Self> {
+        self.authorization_is_delegated.then(|| {
+            let mut direct = self.clone();
+            direct.authorization_actor_kind = None;
+            direct.authorization_is_delegated = false;
+            direct
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]

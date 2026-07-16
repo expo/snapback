@@ -1605,6 +1605,9 @@ function serializeAccessPolicy(policy) {
 
 export function serializeExpr(expr) {
   if (expr.kind === 'AuthUserId') return 'AuthUserId';
+  if (expr.kind === 'AuthKind') return 'AuthKind';
+  if (expr.kind === 'AuthActorKind') return 'AuthActorKind';
+  if (expr.kind === 'AuthIsDelegated') return 'AuthIsDelegated';
   if (expr.kind === 'RuntimeId') return 'RuntimeId';
   if (expr.kind === 'RuntimeNow') return 'RuntimeNow';
   if (expr.kind === 'Args') return 'Args';
@@ -2338,6 +2341,9 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
 function collectAuthoredAuthorizationDimensions(expr, dimensions) {
   if (!expr || typeof expr !== 'object') return;
   if (expr.kind === 'AuthUserId') dimensions.add('userId');
+  if (expr.kind === 'AuthKind') dimensions.add('kind');
+  if (expr.kind === 'AuthActorKind') dimensions.add('actorKind');
+  if (expr.kind === 'AuthIsDelegated') dimensions.add('isDelegated');
   if ('Field' in expr) collectAuthoredAuthorizationDimensions(expr.Field.base, dimensions);
   if ('Binary' in expr) {
     collectAuthoredAuthorizationDimensions(expr.Binary.left, dimensions);
@@ -2420,7 +2426,8 @@ function validateProtectedAndRetainabilityDefinition(name, def, err) {
   const dependence = hostPlanAuthorizationDependence(def);
   const valid = def.authorityIndependent === true
     ? dependence.length === 0
-    : dependence.length === 1 && dependence[0] === 'userId';
+    : (dependence.length === 1 && dependence[0] === 'userId')
+      || (dependence.length === 2 && dependence[0] === 'kind' && dependence[1] === 'userId');
   if (!valid) {
     err(
       'SNAPBACK_AUTH_UNDECLARABLE_RETENTION',
@@ -2434,7 +2441,12 @@ function validateProtectedAndRetainabilityDefinition(name, def, err) {
 
 function authoredExprUsesAuthorityOrAmbientInput(expr) {
   if (!expr || typeof expr !== 'object') return false;
-  if (expr.kind === 'AuthUserId' || expr.kind === 'RuntimeId' || expr.kind === 'RuntimeNow') return true;
+  if (expr.kind === 'AuthUserId'
+    || expr.kind === 'AuthKind'
+    || expr.kind === 'AuthActorKind'
+    || expr.kind === 'AuthIsDelegated'
+    || expr.kind === 'RuntimeId'
+    || expr.kind === 'RuntimeNow') return true;
   if ('Field' in expr) return authoredExprUsesAuthorityOrAmbientInput(expr.Field.base);
   if ('Binary' in expr) {
     return authoredExprUsesAuthorityOrAmbientInput(expr.Binary.left)

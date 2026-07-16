@@ -58,6 +58,9 @@ pub const PINNED_FUNCTIONS: &[&str] = &[
 pub struct ExprEnv<'a> {
     pub args: &'a Value,
     pub auth_user_id: Option<&'a str>,
+    pub auth_kind: Option<&'a str>,
+    pub auth_actor_kind: Option<&'a str>,
+    pub auth_is_delegated: bool,
     pub bindings: Option<&'a BTreeMap<String, Value>>,
     pub now_ms: Option<u64>,
     /// Fresh-id source (`RuntimeId`). Pluggable because callers differ
@@ -129,6 +132,13 @@ fn eval_at_depth(expr: &ValueExpr, env: &ExprEnv<'_>, depth: usize) -> ExprResul
                     "handler requested auth.user_id but no user was supplied",
                 ))
             }),
+        ValueExpr::AuthKind => Ok(env
+            .auth_kind
+            .map_or(Value::Null, |kind| Value::String(kind.to_owned()))),
+        ValueExpr::AuthActorKind => Ok(env
+            .auth_actor_kind
+            .map_or(Value::Null, |kind| Value::String(kind.to_owned()))),
+        ValueExpr::AuthIsDelegated => Ok(Value::Bool(env.auth_is_delegated)),
         ValueExpr::Binding(name) => match env.bindings {
             None => Err(ExprError::Unanalyzable("Binding")),
             Some(bindings) => bindings.get(name).cloned().ok_or_else(|| {
@@ -676,6 +686,9 @@ fn validate_expr(expr: &ValueExpr, depth: usize) -> Result<(), SnapbackError> {
         ValueExpr::Arg(_)
         | ValueExpr::Args
         | ValueExpr::AuthUserId
+        | ValueExpr::AuthKind
+        | ValueExpr::AuthActorKind
+        | ValueExpr::AuthIsDelegated
         | ValueExpr::Binding(_)
         | ValueExpr::Literal(_)
         | ValueExpr::RuntimeId
@@ -745,6 +758,9 @@ mod tests {
         ExprEnv {
             args,
             auth_user_id: Some("user-1"),
+            auth_kind: Some("human"),
+            auth_actor_kind: None,
+            auth_is_delegated: false,
             bindings: Some(bindings),
             now_ms: Some(1_000),
             runtime_id: Some(&test_id),

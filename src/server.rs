@@ -16159,6 +16159,7 @@ mod tests {
             principal: None,
             session_id: None,
             user_id: Some("settlement-owner".to_owned()),
+            ..AuthInput::default()
         };
         let retained_input = HandlerInput {
             auth: retained_auth.clone(),
@@ -16220,6 +16221,7 @@ mod tests {
                     principal: None,
                     session_id: None,
                     user_id: Some("different-owner".to_owned()),
+                    ..AuthInput::default()
                 },
                 client_mutation_ids: vec![retained_id],
             })),

@@ -199,6 +199,7 @@ fn stale_client_read_set_reports_stale_not_committed() {
             principal: None,
             session_id: None,
             user_id: Some("user_dryrun".to_owned()),
+            ..AuthInput::default()
         },
         read_set: vec![ReadDependency {
             table: "todos".to_owned(),

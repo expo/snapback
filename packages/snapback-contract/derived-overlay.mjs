@@ -372,6 +372,9 @@ export const evalValueExpr = (expr, env, depth = 0) => {
     }
     return env.authUserId;
   }
+  if (expr === 'AuthKind' || expr === 'AuthActorKind' || expr === 'AuthIsDelegated') {
+    fail('SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY', `${expr} is server-authoritative`);
+  }
   if (expr === 'RuntimeId') {
     if (typeof env.runtimeId !== 'function') fail('SNAPBACK_EXPR_UNANALYZABLE', 'RuntimeId is not available');
     return canonicalizeJsonValue(env.runtimeId());
@@ -486,6 +489,7 @@ const filterMatchesRow = (filter, env, row) => {
 /// title/userId match (ENG-23385).
 const exprIsStable = (expr, stableBindings) => {
   if (expr === 'Args' || expr === 'AuthUserId') return true;
+  if (expr === 'AuthKind' || expr === 'AuthActorKind' || expr === 'AuthIsDelegated') return false;
   if (expr === 'RuntimeId' || expr === 'RuntimeNow') return false;
   if (expr === null || typeof expr !== 'object') return false;
   if ('Arg' in expr || 'Literal' in expr) return true;

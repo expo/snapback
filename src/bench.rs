@@ -310,6 +310,7 @@ fn auth() -> AuthInput {
         principal: Some("bench".to_owned()),
         session_id: None,
         user_id: Some("bench".to_owned()),
+        ..AuthInput::default()
     }
 }
 

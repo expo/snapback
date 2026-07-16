@@ -5,7 +5,12 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (ENG-24918 G7 checkpoint: retained grant-backed live
+**Revised:** 2026-07-16 (ENG-24916 G5 close-out: the three sealed
+authorization-expression inputs now flow through codegen and the Rust
+authority, actor-aware HostPlan row filters and trusted mutation guards are
+evaluated under both delegated and direct projections with intersection, and
+the live matcher reapplies the same rule for incremental deltas; Contract
+optimistic evaluation refuses these server-owned inputs). 2026-07-16 (ENG-24918 G7 checkpoint: retained grant-backed live
 authority now revalidates every immutable scope basis as well as its durable
 grant and carrier coordinates; a same-mode manifest activation that tombstones
 a retained scope projects a host-branded terminal delete before admission
@@ -1866,6 +1871,39 @@ the later G8 checkpoint below replaces that temporary refusal. G3 closed the
 mid-connection rotation and cap-eviction obligations without claiming G7's
 broader grant/lifecycle transitions or G8's live-query and queued-settlement
 surface.
+
+## Implementation checkpoint: G5 non-widening invocation gate (2026-07-16)
+
+The sealed authorization projection is now executable rather than documentary.
+`auth.kind`, `auth.actorKind`, and `auth.isDelegated` are first-class closed
+`ValueExpr` nodes in the Rust manifest and generated authoring surface. Their
+values are server-owned fields on the canonical invocation input, skipped by
+the handler-input wire and schemas so a caller cannot synthesize them.
+`auth.kind` remains retainable alongside `auth.userId` because it is an
+immutable function of that identity; either actor-bearing input makes a query
+online-only. The Contract optimistic evaluator refuses all three rather than
+guessing the server's projection.
+
+For a delegated `servicePrincipal`, HostPlan query-filter admission and trusted
+mutation guards evaluate actor-aware expressions once under the delegated
+projection and once under the enumerated direct effective-human projection;
+SQL combines both row constraints with `AND`, and guard admission requires both
+answers. The direct projection has no actor and the authorization evaluator has
+no `sessionId` or provider input. A missing direct actor fails closed. Runtime
+clock/id inputs are refused before an actor-aware decision can consume either.
+Actor-independent nodes reuse one result because the closed declarative IR
+proves the two authorization inputs identical for those nodes; this is not the
+rejected inference over an opaque Ibex handler. The handler itself still runs
+once under its handler-facing delegated projection.
+
+The same intersection now governs incremental live matching and op-log deltas,
+not only initial SQL snapshots, so a later write cannot reintroduce a row that
+the direct baseline excluded. Acceptance covers actor-only, negated, and
+disjunctive widening attempts; row sets and values derived from them (count,
+projection, and opaque result shapes); direct-human helper behavior for direct,
+delegated, and autonomous principals; and the existing single-execution action
+path. Client/codegen tests pin the new dependence dimensions and the optimistic
+refusal.
 
 ## Grant-backed live and queued replay
 

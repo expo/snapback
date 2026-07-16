@@ -170,6 +170,17 @@ assert.ok(abortReplayed >= 9, `replayed ${abortReplayed} rejection cases (>= 9 e
 
 // --- overlay-specific units ---------------------------------------------------
 
+// Actor-bearing authorization inputs are resolved and intersected only by the
+// host. A retained client must fail closed instead of attempting to predict
+// either projection from optimistic state.
+for (const expression of ['AuthKind', 'AuthActorKind', 'AuthIsDelegated']) {
+  assert.throws(
+    () => evalValueExpr(expression, { args: {}, bindings: new Map() }),
+    (error) => error?.code === 'SNAPBACK_VALUE_EXPR_AUTHORITATIVE_ONLY',
+    `${expression} is server-authoritative`,
+  );
+}
+
 // Native ECMAScript is the independent oracle for the mirrored client
 // evaluator. These are adjacent representable doubles around both half
 // boundaries; Math.floor(x + 0.5) gets the first case wrong.

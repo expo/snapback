@@ -339,6 +339,7 @@ fn replay_under_changed_authority_is_refused() {
         principal: Some("user".to_owned()),
         session_id: Some("sess_1".to_owned()),
         user_id: Some("user_1".to_owned()),
+        ..AuthInput::default()
     };
     let mut recorder = configured();
     let mut recorded_input = input(json!({ "tag": "auth" }));
@@ -370,6 +371,7 @@ fn replay_under_changed_authority_is_refused() {
         principal: Some("user".to_owned()),
         session_id: Some("sess_2".to_owned()),
         user_id: Some("user_2".to_owned()),
+        ..AuthInput::default()
     };
     let error = other
         .invoke_mutation("ledgeredIds", other_input)

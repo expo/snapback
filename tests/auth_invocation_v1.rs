@@ -71,6 +71,7 @@ fn input(user_id: Option<&str>, args: Value) -> HandlerInput {
             principal: None,
             session_id: None,
             user_id: user_id.map(str::to_owned),
+            ..AuthInput::default()
         },
         read_set: Vec::new(),
         correlation: None,

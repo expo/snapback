@@ -44,6 +44,9 @@ export declare function argsRoot(): ValueExpr;
 /** Optional arg access: missing keys yield null (compose with coalesce). */
 export declare function argOpt(path: string): ValueExpr;
 export declare function authUserId(): ValueExpr;
+export declare function authKind(): ValueExpr;
+export declare function authActorKind(): ValueExpr;
+export declare function authIsDelegated(): ValueExpr;
 export declare function lit(value: unknown): ValueExpr;
 export declare function bindingRef(name: string): ValueExpr;
 export declare function runtimeId(): ValueExpr;
@@ -149,6 +152,9 @@ export type AuthMode = 'dev' | 'sessions';
 export type AuthRequirement = 'public' | 'optional-user' | 'authenticated';
 export type AuthorizationInputDimension =
   | 'userId'
+  | 'kind'
+  | 'actorKind'
+  | 'isDelegated'
   | 'sessionId'
   | 'provider'
   | 'roles'

@@ -1627,6 +1627,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             principal: Some("user_1".to_owned()),
             session_id: None,
             user_id: Some("user_1".to_owned()),
+            ..AuthInput::default()
         },
         ..HandlerInput::default()
     };

@@ -68,6 +68,7 @@ fn input_for(user: &str, args: Value) -> HandlerInput {
             principal: Some("user".to_owned()),
             session_id: Some(format!("session:{user}")),
             user_id: Some(user.to_owned()),
+            ..AuthInput::default()
         },
         read_set: Vec::new(),
         correlation: None,
@@ -139,6 +140,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
             principal: Some(USER.to_owned()),
             session_id: None,
             user_id: Some(USER.to_owned()),
+            ..AuthInput::default()
         }),
         "sha256:86461827557b6998a5a62a63791d835495afd03cb573055d83bd5be048cc082a"
     );
@@ -147,6 +149,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
             principal: Some("é".to_owned()),
             session_id: Some("会话".to_owned()),
             user_id: Some("👩🏽‍💻".to_owned()),
+            ..AuthInput::default()
         }),
         "sha256:d858de49d9f97b29fb3066058e41b05b98918c82255b1a19e97331dc61e34e3d"
     );
@@ -156,6 +159,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
             principal: Some(String::new()),
             session_id: None,
             user_id: Some(String::new()),
+            ..AuthInput::default()
         })
     );
     assert_eq!(
@@ -163,6 +167,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
             principal: Some("a".repeat(131_072)),
             session_id: None,
             user_id: None,
+            ..AuthInput::default()
         }),
         "sha256:a7b4c457a7a1c988d351e99d3c48213a82145129cf9e3132c1981ca01f420ef0"
     );

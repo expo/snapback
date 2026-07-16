@@ -478,12 +478,16 @@ impl ResolvedAppAuthority {
                 principal: None,
                 session_id: Some(session_id.clone()),
                 user_id: Some(user_id.clone()),
-            },
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), None, false),
             Self::DevImpersonation { user_id, .. } => AuthInput {
                 principal: None,
                 session_id: None,
                 user_id: Some(user_id.clone()),
-            },
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), None, false),
             Self::ServicePrincipal {
                 actor_user_id,
                 effective_user_id,
@@ -497,7 +501,17 @@ impl ResolvedAppAuthority {
                         .unwrap_or(actor_user_id)
                         .clone(),
                 ),
-            },
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(
+                Some(if effective_user_id.is_some() {
+                    "human"
+                } else {
+                    "agent"
+                }),
+                effective_user_id.as_ref().map(|_| "agent"),
+                effective_user_id.is_some(),
+            ),
             Self::Anonymous | Self::AdminBypass { .. } | Self::System => AuthInput::default(),
         }
     }
@@ -595,13 +609,6 @@ impl DirectAuthorizationProjection {
         }
     }
 
-    fn legacy_input(&self) -> AuthInput {
-        AuthInput {
-            principal: None,
-            session_id: None,
-            user_id: Some(self.user_id.clone()),
-        }
-    }
 }
 
 impl HandlerAuthProjection {
@@ -917,9 +924,7 @@ impl PreparedAuthority {
     }
 
     pub(crate) fn canonical_auth_input(&self) -> AuthInput {
-        self.direct_authorization
-            .as_ref()
-            .map_or_else(|| self.resolved.legacy_input(), |direct| direct.legacy_input())
+        self.resolved.legacy_input()
     }
 
     pub(crate) fn with_fenced_publication(mut self, publication: FencedPublication) -> Self {
@@ -1751,15 +1756,11 @@ mod tests {
                 "kind": "human"
             })
         );
-        assert_eq!(
-            authority.canonical_auth_input(),
-            AuthInput {
-                principal: None,
-                session_id: None,
-                user_id: Some("user_1".to_owned()),
-            },
-            "host authorization sees only the direct effective-user baseline"
-        );
+        let canonical = authority.canonical_auth_input();
+        assert_eq!(canonical.user_id.as_deref(), Some("user_1"));
+        assert_eq!(canonical.authorization_kind.as_deref(), Some("human"));
+        assert_eq!(canonical.authorization_actor_kind.as_deref(), Some("agent"));
+        assert!(canonical.authorization_is_delegated);
         assert_eq!(authority.projection().session_id(), None);
         assert_eq!(
             serde_json::to_value(authority.projection()).unwrap()["actor"]["userId"],
@@ -2131,6 +2132,7 @@ mod tests {
                 principal: Some("wire-principal".to_owned()),
                 session_id: Some("wire-session".to_owned()),
                 user_id: Some("wire-user".to_owned()),
+                ..AuthInput::default()
             },
             ..HandlerInput::default()
         });

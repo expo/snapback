@@ -2335,6 +2335,7 @@ fn handler_input(args: Value, user_id: &str) -> HandlerInput {
             principal: Some(user_id.to_owned()),
             session_id: None,
             user_id: Some(user_id.to_owned()),
+            ..AuthInput::default()
         },
         read_set: Vec::new(),
         correlation: None,

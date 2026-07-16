@@ -16,12 +16,39 @@ function backend(functions, handler = undefined) {
   writeFileSync(join(dir, 'schema.mjs'), `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({
-  todos: defineTable({ ownerId: v.string(), title: v.string() }).sync(),
+  todos: defineTable({ ownerId: v.string(), title: v.string(), delegated: v.boolean() }).sync(),
 });
 `);
   writeFileSync(join(dir, 'functions.mjs'), functions);
   if (handler !== undefined) writeFileSync(join(dir, 'handler.js'), handler);
   return dir;
+}
+
+{
+  const functions = `
+import {
+  authActorKind, authIsDelegated, authKind, authUserId,
+  defineLiveQuery, defineQuery, eq,
+} from '${defineUrl}';
+export const kindScoped = defineQuery({
+  table: 'todos',
+  filter: [eq('ownerId', authUserId()), eq('title', authKind())],
+  retainable: true,
+});
+export const actorAware = defineLiveQuery({
+  table: 'todos',
+  filter: [eq('title', authActorKind()), eq('delegated', authIsDelegated())],
+});
+`;
+  const dir = backend(functions);
+  const result = await generate(dir);
+  assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+  const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+  const byName = new Map(manifest.functions.map((fn) => [fn.name, fn]));
+  assert.deepEqual(byName.get('kindScoped').authorizationDependence, ['kind', 'userId']);
+  assert.deepEqual(byName.get('actorAware').authorizationDependence, ['actorKind', 'isDelegated']);
+  assert.equal(byName.get('actorAware').runtime.HostPlan.Query.filters[0].value, 'AuthActorKind');
+  assert.equal(byName.get('actorAware').runtime.HostPlan.Query.filters[1].value, 'AuthIsDelegated');
 }
 
 {
@@ -76,6 +103,9 @@ const handler = `globalThis.__snapbackHandlers = {
 for (const declaration of [
   '',
   "authorizationDependence: ['userId'],",
+  "authorizationDependence: ['kind'],",
+  "authorizationDependence: ['actorKind'],",
+  "authorizationDependence: ['isDelegated'],",
   "authorizationDependence: ['sessionId'],",
   "authorizationDependence: ['provider'],",
   "authorizationDependence: ['opaque'],",

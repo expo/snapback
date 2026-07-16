@@ -295,6 +295,19 @@ pub(crate) fn row_matches_query_filters(
 fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) -> Option<bool> {
     let actual = row.get(&filter.field)?;
     let expected = eval_match_expr(&filter.value, input)?;
+    if !filter_matches_expected(&filter.op, actual, &expected)? {
+        return Some(false);
+    }
+    if input.auth.authorization_is_delegated && filter.value.uses_actor_projection() {
+        let mut direct = input.clone();
+        direct.auth = input.auth.direct_authorization_baseline()?;
+        let direct_expected = eval_match_expr(&filter.value, &direct)?;
+        return filter_matches_expected(&filter.op, actual, &direct_expected);
+    }
+    Some(true)
+}
+
+fn filter_matches_expected(op: &FilterOp, actual: &Value, expected: &Value) -> Option<bool> {
     // SQL three-valued logic: a NULL operand makes any comparison UNKNOWN, and
     // a `WHERE` clause excludes UNKNOWN rows. The matcher MUST agree with the
     // SQL `WHERE` (`build_query_sql`) or op-log delta membership diverges from
@@ -308,24 +321,24 @@ fn filter_matches_row(filter: &FilterExpr, input: &HandlerInput, row: &Value) ->
     if actual.is_null() {
         return Some(false);
     }
-    if expected.is_null() && filter.op != FilterOp::In {
+    if expected.is_null() && op != &FilterOp::In {
         return Some(false);
     }
-    match filter.op {
-        FilterOp::Eq => Some(values_equal(actual, &expected)),
+    match op {
+        FilterOp::Eq => Some(values_equal(actual, expected)),
         FilterOp::In => {
             let values = expected.as_array()?;
             Some(values.iter().any(|value| values_equal(actual, value)))
         }
         FilterOp::Lt => {
-            json_value_cmp(actual, &expected).map(|ordering| ordering == Ordering::Less)
+            json_value_cmp(actual, expected).map(|ordering| ordering == Ordering::Less)
         }
-        FilterOp::Lte => json_value_cmp(actual, &expected)
+        FilterOp::Lte => json_value_cmp(actual, expected)
             .map(|ordering| ordering == Ordering::Less || ordering == Ordering::Equal),
         FilterOp::Gt => {
-            json_value_cmp(actual, &expected).map(|ordering| ordering == Ordering::Greater)
+            json_value_cmp(actual, expected).map(|ordering| ordering == Ordering::Greater)
         }
-        FilterOp::Gte => json_value_cmp(actual, &expected)
+        FilterOp::Gte => json_value_cmp(actual, expected)
             .map(|ordering| ordering == Ordering::Greater || ordering == Ordering::Equal),
     }
 }
@@ -465,6 +478,9 @@ fn eval_match_expr(expr: &ValueExpr, input: &HandlerInput) -> Option<Value> {
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
+        auth_kind: input.auth.authorization_kind.as_deref(),
+        auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: None,
         now_ms: None,
         runtime_id: None,
@@ -1001,6 +1017,53 @@ mod delta_tests {
                 &json!({ "userId": "ada" })
             ),
             Some(false)
+        );
+    }
+
+    #[test]
+    fn delegated_live_matching_reapplies_the_direct_authorization_baseline() {
+        let delegated = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("effective-user".to_owned()),
+                ..AuthInput::default()
+            }
+            .with_authorization_projection(Some("human"), Some("agent"), true),
+            ..HandlerInput::default()
+        };
+        let plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![FilterExpr {
+                field: "title".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::If {
+                    cond: Box::new(ValueExpr::AuthIsDelegated),
+                    then: Box::new(ValueExpr::Literal(json!("delegated"))),
+                    r#else: Box::new(ValueExpr::Literal(json!("direct"))),
+                },
+            }],
+            ..unfiltered_plan()
+        };
+        let widened = json!({ "_id": "widened", "title": "delegated" });
+        assert_eq!(
+            row_matches_query_filters(&plan, &delegated, &widened),
+            Some(false),
+            "an incremental row cannot bypass the direct projection"
+        );
+        assert_eq!(
+            compute_live_delta(
+                &plan,
+                &delegated,
+                &BTreeSet::new(),
+                &[ChangedRow {
+                    table: "todos".to_owned(),
+                    id: "widened".to_owned(),
+                    op: ChangeOp::Insert,
+                    row: Some(widened),
+                    changed_fields: vec!["title".to_owned()],
+                }],
+            ),
+            LiveDeltaOutcome::Delta(Vec::new()),
+            "the op-log delta path must not add a delegated-only row"
         );
     }
 

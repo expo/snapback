@@ -10252,6 +10252,9 @@ fn eval_action_expr(
     let env = crate::value_expr::ExprEnv {
         args: &input.args,
         auth_user_id: input.auth.user_id.as_deref(),
+        auth_kind: input.auth.authorization_kind.as_deref(),
+        auth_actor_kind: input.auth.authorization_actor_kind.as_deref(),
+        auth_is_delegated: input.auth.authorization_is_delegated,
         bindings: Some(bindings),
         now_ms: Some(metadata.due_at_ms),
         runtime_id: Some(&generate_id),

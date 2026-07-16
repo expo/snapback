@@ -53,8 +53,23 @@ fn validate(function: FunctionDefinition) -> Result<(), Box<snapback::diagnostic
 }
 
 #[test]
-fn user_id_and_authority_independent_are_the_only_retainable_profiles() {
+fn immutable_user_identity_and_authority_independent_are_the_retainable_profiles() {
     validate(user_scoped_query()).expect("AuthUserId dependence is retainable");
+
+    let mut kind_scoped = user_scoped_query();
+    let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut kind_scoped.runtime else {
+        unreachable!()
+    };
+    plan.filters.push(FilterExpr {
+        field: "principalKind".to_owned(),
+        op: FilterOp::Eq,
+        value: ValueExpr::AuthKind,
+    });
+    kind_scoped.authorization_dependence = vec![
+        AuthorizationInputDimension::Kind,
+        AuthorizationInputDimension::UserId,
+    ];
+    validate(kind_scoped).expect("effective kind is immutable with userId");
 
     let mut live = user_scoped_query();
     live.kind = FunctionKind::LiveQuery;
@@ -120,6 +135,8 @@ fn non_query_and_opaque_javascript_retention_fail_closed() {
 #[test]
 fn session_provider_and_opaque_dimensions_are_refused() {
     for dimension in [
+        AuthorizationInputDimension::ActorKind,
+        AuthorizationInputDimension::IsDelegated,
         AuthorizationInputDimension::SessionId,
         AuthorizationInputDimension::Provider,
         AuthorizationInputDimension::Roles,

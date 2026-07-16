@@ -938,6 +938,21 @@
           "type": "string"
         },
         {
+          "const": "AuthKind",
+          "description": "Effective principal kind in the sealed authorization projection.",
+          "type": "string"
+        },
+        {
+          "const": "AuthActorKind",
+          "description": "Actor kind for delegated authority; null for direct and autonomous use.",
+          "type": "string"
+        },
+        {
+          "const": "AuthIsDelegated",
+          "description": "True only when an actor is exercising authority for another principal.",
+          "type": "string"
+        },
+        {
           "additionalProperties": false,
           "properties": {
             "Binding": {
