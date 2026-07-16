@@ -5601,10 +5601,12 @@ pub enum MembershipWriter {
         actor_principal: String,
         effective_principal: String,
         grant_id: String,
+        authority_creating_consent: bool,
     },
     Autonomous {
         actor_principal: String,
         grant_id: String,
+        authority_creating_consent: bool,
     },
     System,
     AdminBypass,
@@ -5625,6 +5627,13 @@ impl MembershipWriter {
     /// the seam the LLP 0004 bridge crosses when it wires `ctx.membership.*` to
     /// these host methods.
     pub fn from_resolved(resolved: &crate::auth::invocation::ResolvedAppAuthority) -> Self {
+        Self::from_resolved_with_authority_creating(resolved, false)
+    }
+
+    pub(crate) fn from_resolved_with_authority_creating(
+        resolved: &crate::auth::invocation::ResolvedAppAuthority,
+        authority_creating_consent: bool,
+    ) -> Self {
         use crate::auth::invocation::ResolvedAppAuthority as Resolved;
         match resolved {
             Resolved::Session { user_id, .. } | Resolved::DevImpersonation { user_id, .. } => {
@@ -5641,16 +5650,36 @@ impl MembershipWriter {
                 || Self::Autonomous {
                     actor_principal: actor_user_id.clone(),
                     grant_id: grant_id.clone(),
+                    authority_creating_consent,
                 },
                 |effective_user_id| Self::Delegated {
                     actor_principal: actor_user_id.clone(),
                     effective_principal: effective_user_id.clone(),
                     grant_id: grant_id.clone(),
+                    authority_creating_consent,
                 },
             ),
             Resolved::System => Self::System,
             Resolved::AdminBypass { .. } => Self::AdminBypass,
             Resolved::Anonymous => Self::Anonymous,
+        }
+    }
+
+    pub(crate) fn is_service_principal(&self) -> bool {
+        matches!(self, Self::Delegated { .. } | Self::Autonomous { .. })
+    }
+
+    pub(crate) fn has_authority_creating_consent(&self) -> bool {
+        match self {
+            Self::Delegated {
+                authority_creating_consent,
+                ..
+            }
+            | Self::Autonomous {
+                authority_creating_consent,
+                ..
+            } => *authority_creating_consent,
+            _ => false,
         }
     }
 
@@ -5687,6 +5716,7 @@ impl MembershipWriter {
                 actor_principal,
                 effective_principal,
                 grant_id,
+                ..
             } => MembershipWriteProvenance {
                 actor: actor_principal.clone(),
                 effective: effective_principal.clone(),
@@ -5696,6 +5726,7 @@ impl MembershipWriter {
             Self::Autonomous {
                 actor_principal,
                 grant_id,
+                ..
             } => MembershipWriteProvenance {
                 actor: actor_principal.clone(),
                 effective: actor_principal.clone(),
@@ -10057,6 +10088,7 @@ mod membership_write_tests {
             actor_principal: "agent-a".to_owned(),
             effective_principal: "alice".to_owned(),
             grant_id: "grant-historical".to_owned(),
+            authority_creating_consent: true,
         };
         let values = Map::from_iter([
             ("userId".to_owned(), json!("bob")),
@@ -10113,6 +10145,113 @@ mod membership_write_tests {
             assert_eq!(record.grant.as_deref(), Some("grant-historical"));
             assert_eq!(record.writer_class, "delegated");
         }
+    }
+
+    #[test]
+    fn delegated_self_seating_persists_after_grant_revocation_and_authorizes_by_row() {
+        let mut schema = membership_schema();
+        schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("event membership")
+            .transitions
+            .push(crate::manifest::MembershipTransition {
+                op: MembershipOp::Insert,
+                by: vec!["host".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: Some(vec!["host".to_owned()]),
+                fields: None,
+            });
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.activate_current_auth_catalog().expect("auth catalog");
+        db.apply_schema(schema).expect("self-seating schema");
+        db.conn
+            .execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('alice', 0, 'human', 'Alice', NULL, NULL, NULL, NULL)",
+                [],
+            )
+            .expect("human principal");
+        seed_agent(&mut db, "agent-a");
+        db.conn
+            .execute(
+                "INSERT INTO _auth_grants(
+                   id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                   expires_at_ms, revoked_at_ms, created_by, request_id,
+                   consent_digest, last_used_at_ms
+                 ) VALUES(
+                   'grant-self-seat', 'agent-a', 'alice', '[]', 10,
+                   1000, NULL, 'test', NULL, NULL, 10
+                 )",
+                [],
+            )
+            .expect("delegated grant");
+
+        let (event_id, _) = create_event(&mut db, "alice");
+        let delegated = MembershipWriter::Delegated {
+            actor_principal: "agent-a".to_owned(),
+            effective_principal: "alice".to_owned(),
+            grant_id: "grant-self-seat".to_owned(),
+            authority_creating_consent: true,
+        };
+        let plan = db
+            .plan_membership_insert(
+                &delegated,
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("agent-a")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("host")),
+                ]),
+            )
+            .expect("consented delegate seats its actor");
+        let commit = db
+            .commit_membership_plan(&delegated, plan)
+            .expect("self-seating commit");
+        let membership_id = commit_id_for_table(&commit, "event_members");
+
+        db.revoke_grant_for_user("alice", "grant-self-seat", 20)
+            .expect("grant revocation");
+        let revoked_at: Option<i64> = db
+            .conn
+            .query_row(
+                "SELECT revoked_at_ms FROM _auth_grants WHERE id = 'grant-self-seat'",
+                [],
+                |row| row.get(0),
+            )
+            .expect("revoked grant row");
+        assert_eq!(revoked_at, Some(20));
+        assert_eq!(role_of(&db, &membership_id).as_deref(), Some("host"));
+        assert_eq!(
+            db.membership_creation_provenance("event_members", &membership_id)
+                .expect("creation provenance"),
+            Some(MembershipCreationProvenance {
+                actor: "agent-a".to_owned(),
+                effective: "alice".to_owned(),
+                grant: Some("grant-self-seat".to_owned()),
+            })
+        );
+
+        let membership = db.schema().tables[1]
+            .membership
+            .clone()
+            .expect("event membership");
+        let access = crate::membership_rules::require_role(
+            &DbRead::Live(&db),
+            &membership,
+            "event_members",
+            "agent-a",
+            crate::membership_rules::ResourceBinding::Fixed(json!(event_id)),
+            &["host".to_owned()],
+        )
+        .expect("autonomous role check");
+        assert!(
+            access.denial.is_none(),
+            "post-revocation authority is explained by the durable row"
+        );
     }
 
     #[test]

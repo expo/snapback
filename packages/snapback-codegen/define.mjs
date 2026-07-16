@@ -67,6 +67,11 @@ function authoredFunctionAuth(spec, kind) {
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be authorityIndependent`);
     fields.authorityIndependent = spec.authorityIndependent;
   }
+  if (spec.authorityCreating !== undefined) {
+    assert(typeof spec.authorityCreating === 'boolean', `${kind} authorityCreating must be boolean`);
+    assert(kind === 'Mutation' || kind === 'Action', `${kind} cannot be authorityCreating`);
+    fields.authorityCreating = spec.authorityCreating;
+  }
   if (spec.retainable !== undefined) {
     assert(typeof spec.retainable === 'boolean', `${kind} retainable must be boolean`);
     assert(kind === 'Query' || kind === 'LiveQuery', `${kind} cannot be retainable`);

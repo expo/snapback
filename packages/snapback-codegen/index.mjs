@@ -813,7 +813,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Mutation',
-        ...authoredFunctionManifestFields(def),
+        ...authoredFunctionManifestFields(def, writes, tables),
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: reads,
         declaredWrites: writes,
@@ -908,7 +908,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Mutation',
-        ...authoredFunctionManifestFields(def),
+        ...authoredFunctionManifestFields(def, writes, tables),
         runtime: { HostPlan: { Mutation: serializedPlan } },
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
@@ -941,7 +941,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Action',
-        ...authoredFunctionManifestFields(def),
+        ...authoredFunctionManifestFields(def, writes, tables),
         uses: def.uses ?? [],
         runtime: { IbexModule: { source: handlerSource ?? '', export: def.js.exportName } },
         declaredReads: [],
@@ -958,7 +958,7 @@ export async function generateInProcess(backendDir, options = {}) {
       functions.push({
         name,
         kind: 'Action',
-        ...authoredFunctionManifestFields(def),
+        ...authoredFunctionManifestFields(def, writes, tables),
         uses: def.uses ?? [],
         runtime: { HostPlan: { Action: serializeActionPlan(def.plan, name, err) } },
         declaredReads: [],
@@ -2317,10 +2317,17 @@ function rowDescriptor(table) {
   return { shape: 'object', fields };
 }
 
-function authoredFunctionManifestFields(def) {
+function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
+  // @ref LLP 0055#grants — static authority-creation is best-effort, while the
+  // runtime write gate remains authoritative. Every declared write to a
+  // permission-backing table derives the marker; authors may conservatively
+  // mark opaque or nested paths explicitly.
+  const authorityCreating = def.authorityCreating === true
+    || [...declaredWrites].some((table) => tables[table]?.permissionBacking === true);
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
+    ...(authorityCreating ? { authorityCreating: true } : {}),
     ...(def.retainable === true ? { retainable: true } : {}),
     ...(Array.isArray(def.authorizationDependence)
       ? { authorizationDependence: [...def.authorizationDependence] }
@@ -2503,6 +2510,7 @@ function decorateFunctions(appId, functions) {
       requiredCapabilities: requiredCapabilities(fn),
       authRequirement: fn.authRequirement ?? 'optional-user',
       ...(fn.authorityIndependent === true ? { authorityIndependent: true } : {}),
+      ...(fn.authorityCreating === true ? { authorityCreating: true } : {}),
       ...(fn.retainable === true ? { retainable: true } : {}),
       ...(Array.isArray(fn.authorizationDependence) && fn.authorizationDependence.length > 0
         ? { authorizationDependence: fn.authorizationDependence }

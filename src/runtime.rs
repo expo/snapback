@@ -201,7 +201,10 @@ impl RuntimeManager {
             input.clone(),
             prepared.projection().clone(),
             prepared.admission_lease().clone(),
-            MembershipWriter::from_resolved(prepared.authority().resolved()),
+            MembershipWriter::from_resolved_with_authority_creating(
+                prepared.authority().resolved(),
+                prepared.authority_creating_consent(),
+            ),
             true,
         )?;
         let result = run_ibex_handler_with_context(module, &mut invocation, pool);
@@ -271,7 +274,10 @@ pub(crate) fn execute_ibex_mutation_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        MembershipWriter::from_resolved(prepared.authority().resolved()),
+        MembershipWriter::from_resolved_with_authority_creating(
+            prepared.authority().resolved(),
+            prepared.authority_creating_consent(),
+        ),
         true,
     )?;
     let result = run_ibex_handler_with_context_until(module, &mut invocation, pool, deadline);
@@ -318,7 +324,10 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
         input,
         prepared.projection().clone(),
         prepared.admission_lease().clone(),
-        MembershipWriter::from_resolved(prepared.authority().resolved()),
+        MembershipWriter::from_resolved_with_authority_creating(
+            prepared.authority().resolved(),
+            prepared.authority_creating_consent(),
+        ),
         false,
     )?;
     invocation.protected_query_profile = protected_query_profile;
@@ -950,6 +959,7 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("insert")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
+                self.ensure_permission_backing_write(&table)?;
                 let values = required_object(&args, "values")?;
                 // Row ids are host-generated entropy: they answer through the
                 // ctx-answer ledger like `runtime.id` (LLP 0051 D1).
@@ -965,6 +975,7 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("patch")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
+                self.ensure_permission_backing_write(&table)?;
                 let id = required_string(&args, "id")?;
                 let values = required_object(&args, "values")?;
                 let stored = self.db().get(&table, &id)?;
@@ -979,6 +990,7 @@ impl<'a> IbexHostContext<'a> {
                 self.ensure_writable("delete")?;
                 self.ensure_buffered_write_capacity()?;
                 let table = required_string(&args, "table")?;
+                self.ensure_permission_backing_write(&table)?;
                 let id = required_string(&args, "id")?;
                 let stored = self.db().get(&table, &id)?;
                 self.capture_point_read(&table, &id, stored.as_ref())?;
@@ -1007,11 +1019,11 @@ impl<'a> IbexHostContext<'a> {
                 }
                 let declaration = required_string(&args, "declaration")?;
                 let operation = required_string(&args, "operation")?;
-                let table = crate::membership_rules::find_declaration(
+                let table_manifest = crate::membership_rules::find_declaration(
                     self.db().schema(),
                     &declaration,
                 )
-                .map(|(table, _)| table.name.clone())
+                .map(|(table, _)| table)
                 .ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_MEMBERSHIP_UNKNOWN_DECLARATION",
@@ -1021,6 +1033,8 @@ impl<'a> IbexHostContext<'a> {
                         ),
                     )
                 })?;
+                self.ensure_membership_authority_creating(table_manifest)?;
+                let table = table_manifest.name.clone();
                 let writer = self.membership_writer.clone();
                 let command = match operation.as_str() {
                     "insert" => BufferedMembershipCommand::insert(
@@ -1239,6 +1253,65 @@ impl<'a> IbexHostContext<'a> {
             "runtime",
             format!("query handler attempted ctx.db.{op}"),
         ))
+    }
+
+    /// The dynamic half of LLP 0055's two-gate authority-creating system.
+    /// Static marking improves consent UX, but every declaration-bound
+    /// membership effect rechecks the exact invoked scope here so aliases,
+    /// computed access, and unmarked wrappers cannot launder durable authority.
+    fn ensure_membership_authority_creating(
+        &self,
+        table: &crate::manifest::TableManifest,
+    ) -> SnapbackResult<()> {
+        if !self.membership_writer.is_service_principal() {
+            return Ok(());
+        }
+        if !self.membership_writer.has_authority_creating_consent() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+                "auth",
+                "a service principal reached a membership write without explicit authority-creating consent",
+            )
+            .with_details(json!({ "reason": "effect_site_unconsented" })));
+        }
+        if table.membership.as_ref().and_then(|membership| membership.provenance)
+            == Some(crate::manifest::MembershipProvenance::Full)
+        {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+            "auth",
+            "service-principal membership writes require full host-filled provenance",
+        )
+        .with_details(json!({
+            "reason": "permission_backing_provenance_unavailable",
+            "table": table.name,
+        })))
+    }
+
+    /// v1 has full host-filled provenance only for LLP 0056 membership tables.
+    /// A service principal may therefore never write a different
+    /// `permissionBacking` table, even when its entry-point scope was marked.
+    fn ensure_permission_backing_write(&self, table: &str) -> SnapbackResult<()> {
+        let Some(table) = self.db().schema().table(table) else {
+            return Ok(());
+        };
+        if !self.membership_writer.is_service_principal()
+            || !table.permission_backing
+            || table.membership.is_some()
+        {
+            return Ok(());
+        }
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+            "auth",
+            "service-principal writes to non-membership permission-backing tables are unavailable without full provenance",
+        )
+        .with_details(json!({
+            "reason": "permission_backing_provenance_unavailable",
+            "table": table.name.clone(),
+        })))
     }
 
     /// Whether this invocation has buffered any write targeting `table`.
@@ -2447,6 +2520,7 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_AUTH_REQUIRED"
         | "SNAPBACK_AUTH_CLOCK_DEPENDENT_VISIBILITY"
         | "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED"
+        | "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"
@@ -2866,61 +2940,76 @@ mod parse_handler_output_tests {
 
 #[cfg(test)]
 mod membership_bridge_tests {
-    use super::IbexHostContext;
+    use super::{IbexHostContext, run_ibex_handler_with_context};
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{
-        AuthInput, FieldManifest, FieldType, HandlerInput, MembershipManifest, MembershipOp,
-        MembershipProvenance, MembershipScope, MembershipTarget, MembershipTransition,
-        SchemaManifest, TableManifest,
+        AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipManifest,
+        MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
+        MembershipTransition, SchemaManifest, TableManifest,
     };
     use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
     use serde_json::json;
 
     fn schema() -> SchemaManifest {
         SchemaManifest {
-            tables: vec![TableManifest {
-                name: "app_members".to_owned(),
-                fields: vec![
-                    FieldManifest {
-                        name: "userId".to_owned(),
+            tables: vec![
+                TableManifest {
+                    name: "app_members".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: Some(MembershipManifest {
+                        id: None,
+                        principal: "userId".to_owned(),
+                        resource: None,
+                        role: "role".to_owned(),
+                        roles: vec!["member".to_owned()],
+                        pending_roles: None,
+                        bootstrap_role: None,
+                        last_holder: None,
+                        expiry: None,
+                        incidental: None,
+                        provenance: Some(MembershipProvenance::Full),
+                        transitions: vec![MembershipTransition {
+                            op: MembershipOp::Insert,
+                            by: vec!["none".to_owned()],
+                            target: MembershipTarget::Own,
+                            from: None,
+                            to: Some(vec!["member".to_owned()]),
+                            fields: None,
+                        }],
+                        scope: MembershipScope::App,
+                        resource_table: None,
+                    }),
+                },
+                TableManifest {
+                    name: "custom_acl".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "ownerId".to_owned(),
                         field_type: FieldType::Principal,
                         optional: false,
-                    },
-                    FieldManifest {
-                        name: "role".to_owned(),
-                        field_type: FieldType::String,
-                        optional: false,
-                    },
-                ],
-                indexes: Vec::new(),
-                syncable: true,
-                permission_backing: false,
-                permission_fields: None,
-                membership: Some(MembershipManifest {
-                    id: None,
-                    principal: "userId".to_owned(),
-                    resource: None,
-                    role: "role".to_owned(),
-                    roles: vec!["member".to_owned()],
-                    pending_roles: None,
-                    bootstrap_role: None,
-                    last_holder: None,
-                    expiry: None,
-                    incidental: None,
-                    provenance: Some(MembershipProvenance::Full),
-                    transitions: vec![MembershipTransition {
-                        op: MembershipOp::Insert,
-                        by: vec!["none".to_owned()],
-                        target: MembershipTarget::Own,
-                        from: None,
-                        to: Some(vec!["member".to_owned()]),
-                        fields: None,
                     }],
-                    scope: MembershipScope::App,
-                    resource_table: None,
-                }),
-            }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: Some(vec!["ownerId".to_owned()]),
+                    membership: None,
+                },
+            ],
             ..SchemaManifest::default()
         }
     }
@@ -2948,6 +3037,35 @@ mod membership_bridge_tests {
             true,
         )
         .expect("membership bridge context")
+    }
+
+    fn service_context<'a>(
+        db: &'a LocalDatabase,
+        authority_creating_consent: bool,
+    ) -> IbexHostContext<'a> {
+        let input = input();
+        let authority = ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id: "agent-a".to_owned(),
+            credential_id: "credential-a".to_owned(),
+            credential_generation: 1,
+            grant_id: "grant-a".to_owned(),
+            token_id: "token-a".to_owned(),
+            effective_user_id: Some("alice".to_owned()),
+            scopes: Vec::new(),
+            token_expires_at_ms: 10_000,
+        };
+        IbexHostContext::new_with_projection(
+            DbRead::Live(db),
+            input,
+            HandlerAuthProjection::from_authority(&authority),
+            AdmissionLease::unmanaged(0, 0),
+            MembershipWriter::from_resolved_with_authority_creating(
+                &authority,
+                authority_creating_consent,
+            ),
+            true,
+        )
+        .expect("service-principal membership context")
     }
 
     fn ready_db() -> LocalDatabase {
@@ -3064,6 +3182,128 @@ mod membership_bridge_tests {
                 .total,
             0
         );
+    }
+
+    #[test]
+    fn service_principal_permission_effects_require_exact_consent_and_full_provenance() {
+        let db = ready_db();
+        let membership = json!({
+            "declaration": "app_members",
+            "operation": "insert",
+            "values": { "userId": "alice", "role": "member" }
+        });
+
+        let mut unmarked_wrapper = service_context(&db, false);
+        let error = unmarked_wrapper
+            .handle_host_call("membership.write", membership.clone())
+            .expect_err("an unmarked wrapper cannot reach a membership effect");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
+        );
+        assert_eq!(error.diagnostic.details["reason"], "effect_site_unconsented");
+
+        let mut explicitly_consented = service_context(&db, true);
+        explicitly_consented
+            .handle_host_call("membership.write", membership)
+            .expect("an exact authority-creating scope reaches the full-provenance lane");
+        assert_eq!(explicitly_consented.membership_commands.len(), 1);
+
+        for (operation, args) in [
+            (
+                "db.insert",
+                json!({ "table": "custom_acl", "values": { "ownerId": "alice" } }),
+            ),
+            (
+                "db.patch",
+                json!({ "table": "custom_acl", "id": "acl-a", "values": { "ownerId": "alice" } }),
+            ),
+            (
+                "db.delete",
+                json!({ "table": "custom_acl", "id": "acl-a" }),
+            ),
+        ] {
+            let mut unsupported_permission_backing = service_context(&db, true);
+            let error = unsupported_permission_backing
+                .handle_host_call(operation, args)
+                .expect_err("non-membership permission backing has no v1 provenance lane");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
+            );
+            assert_eq!(
+                error.diagnostic.details["reason"],
+                "permission_backing_provenance_unavailable"
+            );
+        }
+
+        let mut creation_only_schema = schema();
+        creation_only_schema.tables[0]
+            .membership
+            .as_mut()
+            .expect("membership declaration")
+            .provenance = Some(MembershipProvenance::Creation);
+        let mut creation_only_db = LocalDatabase::memory().expect("memory database");
+        creation_only_db
+            .activate_current_auth_catalog()
+            .expect("auth catalog");
+        creation_only_db
+            .apply_schema(creation_only_schema)
+            .expect("creation-only membership schema");
+        let mut creation_only = service_context(&creation_only_db, true);
+        let error = creation_only
+            .handle_host_call(
+                "membership.write",
+                json!({
+                    "declaration": "app_members",
+                    "operation": "insert",
+                    "values": { "userId": "alice", "role": "member" }
+                }),
+            )
+            .expect_err("authority creation requires full provenance");
+        assert_eq!(
+            error.diagnostic.details["reason"],
+            "permission_backing_provenance_unavailable"
+        );
+    }
+
+    #[test]
+    fn aliased_and_computed_membership_calls_fail_at_the_dynamic_gate() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async aliased(ctx) {
+    const membership = ctx.membership.app_members;
+    return await membership.insert({ userId: 'agent-a', role: 'member' });
+  },
+  async computed(ctx) {
+    const declaration = ctx.membership['app_members'];
+    const operation = 'insert';
+    return await declaration[operation]({ userId: 'agent-a', role: 'member' });
+  }
+};
+"#;
+        let db = ready_db();
+        for export in ["aliased", "computed"] {
+            let mut ctx = service_context(&db, false);
+            let error = run_ibex_handler_with_context(
+                &IbexModule {
+                    source: SOURCE.to_owned(),
+                    export: export.to_owned(),
+                },
+                &mut ctx,
+                None,
+            )
+            .expect_err("dynamic membership access must reach the host effect gate");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+                "{export} must fail with the host-owned effect diagnostic"
+            );
+            assert!(
+                ctx.membership_commands.is_empty(),
+                "{export} must not buffer a membership command"
+            );
+        }
     }
 }
 

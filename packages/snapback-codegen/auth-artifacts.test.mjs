@@ -128,6 +128,11 @@ assert.throws(
   assert.equal(list.authorityIndependent, true);
   assert.equal(create.authRequirement, 'authenticated');
   assert.equal(Object.hasOwn(create, 'authorityIndependent'), false);
+  assert.equal(
+    create.authorityCreating,
+    true,
+    'declared writes to permission-backing tables derive the consent marker',
+  );
 
   // Contract is bound to the exact paired schema/function identity and moves
   // with it. The Rust-declared capability and legacy artifact index retain

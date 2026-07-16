@@ -3998,7 +3998,7 @@ impl LocalSnapback {
         let result = self.invoke_host_plan_mutation_commit_guarded(
             name,
             input,
-            &admission,
+            &prepared,
             check_live,
             before_commit,
         );
@@ -4047,6 +4047,11 @@ impl LocalSnapback {
         // enforcement precede replay-settlement lookup and every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
+        refuse_unprovenanced_host_plan_authority_creation(
+            &prepared,
+            &function,
+            self.db.schema(),
+        )?;
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let identity = if let Some(id) = client_mutation_id {
@@ -4127,7 +4132,7 @@ impl LocalSnapback {
         &mut self,
         name: &str,
         input: HandlerInput,
-        admission: &AdmissionLease,
+        prepared: &PreparedInvocation,
         check_live: Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -4135,7 +4140,7 @@ impl LocalSnapback {
         Check: Fn() -> SnapbackResult<()>,
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
-        admission.validate("nested host-plan mutation execution")?;
+        prepared.validate_admission("nested host-plan mutation execution")?;
         check_live()?;
         let function = self.function(name)?.clone();
         if function.kind != FunctionKind::Mutation {
@@ -4145,6 +4150,11 @@ impl LocalSnapback {
                 format!("{name} is not a mutation"),
             ));
         }
+        refuse_unprovenanced_host_plan_authority_creation(
+            prepared,
+            &function,
+            self.db.schema(),
+        )?;
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
             return Err(SnapbackError::error(
@@ -4156,11 +4166,13 @@ impl LocalSnapback {
         let commit = self
             .db
             .execute_mutation_guarded(plan, &input, check_live, || {
-                let admission_guard = admission.effect_guard("nested host-plan transaction")?;
+                let admission_guard = prepared
+                    .admission_lease()
+                    .effect_guard("nested host-plan transaction")?;
                 let caller_guard = before_commit()?;
                 Ok((admission_guard, caller_guard))
             })?;
-        self.finish_mutation_commit(epoch_scopes, commit, admission)
+        self.finish_mutation_commit(epoch_scopes, commit, prepared.admission_lease())
     }
 
     fn finish_mutation_commit(
@@ -10195,6 +10207,48 @@ fn plan_io(definition: &FunctionDefinition) -> (Vec<String>, Vec<String>) {
     }
 }
 
+/// HostPlan writes do not traverse the Ibex host-call dispatcher and cannot
+/// attach LLP 0056's full provenance. Refuse their permission-backing effects
+/// under service-principal authority at the last runtime seam before plan
+/// execution; ordinary app-data HostPlans and every human invocation remain
+/// unchanged.
+///
+/// @ref LLP 0055#grants — non-provenanced permission-backing writes have no
+///   consentable service-principal lane in v1.
+fn refuse_unprovenanced_host_plan_authority_creation(
+    prepared: &PreparedInvocation,
+    function: &FunctionDefinition,
+    schema: &SchemaManifest,
+) -> SnapbackResult<()> {
+    if !matches!(
+        prepared.authority().resolved(),
+        ResolvedAppAuthority::ServicePrincipal { .. }
+    ) || !matches!(
+        function.runtime,
+        FunctionRuntime::HostPlan(HandlerPlan::Mutation(_))
+    ) {
+        return Ok(());
+    }
+    let (_, writes) = plan_io(function);
+    if let Some(table) = writes.iter().find_map(|name| {
+        schema
+            .tables
+            .iter()
+            .find(|table| table.name == *name && table.is_permission_backing())
+    }) {
+        return Err(SnapbackError::error(
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+            "auth",
+            "service-principal HostPlan writes to permission-backing tables are unavailable without full provenance",
+        )
+        .with_details(json!({
+            "reason": "permission_backing_provenance_unavailable",
+            "table": table.name,
+        })));
+    }
+    Ok(())
+}
+
 pub(crate) fn live_stream_text(envelope: RealtimeEnvelope) -> Option<String> {
     match envelope {
         RealtimeEnvelope::Durable(message) => String::from_utf8(message.payload)
@@ -10255,7 +10309,7 @@ mod tests {
         LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, RetryEpisodeKey, RetryReservationKind,
         SnapbackError, StagedNestedMutation, next_secret_read_reset_generation, now_millis,
-        reserve_unique_generation,
+        refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -10265,7 +10319,7 @@ mod tests {
     };
     use crate::auth::invocation::{
         InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation,
-        ResolvedAppAuthority, WireAuthorityFields,
+        ResolvedAppAuthority, ResolvedGrantScope, WireAuthorityFields,
     };
     use crate::auth::mode::{
         AuthModeStateRecord, AuthProgramReadiness, DeploymentIdentity, FUNCTION_V1_PREFIX,
@@ -10282,6 +10336,7 @@ mod tests {
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
+    use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
     use serde_json::{Map, Value, json};
     use std::collections::BTreeMap;
     use std::sync::Arc;
@@ -13594,6 +13649,82 @@ globalThis.__snapbackHandlers = {
         .expect("prepare nested test authority")
         .inherit_for(InvocationSource::NestedMutation)
         .expect("inherit nested test authority")
+    }
+
+    #[test]
+    fn service_principal_host_plan_permission_backing_write_is_refused_without_provenance() {
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "custom_acl".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "ownerId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: true,
+                permission_fields: Some(vec!["ownerId".to_owned()]),
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut values = BTreeMap::new();
+        values.insert("ownerId".to_owned(), ValueExpr::Literal(json!("alice")));
+        let mut function = FunctionDefinition::new(
+            "seatAcl",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "custom_acl".to_owned(),
+                    values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        function.authority_creating = true;
+        let scope = ResolvedGrantScope::from_exact(ExactGrantScope {
+            function_id: function.id.clone(),
+            kind: ScopedFunctionKind::Mutation,
+            basis: 0,
+            authority_creating: true,
+        });
+        let authority = InvocationGate::prepare_authority(
+            InvocationSource::HttpMutation,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            1,
+            1,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent-a".to_owned(),
+                credential_id: "credential-a".to_owned(),
+                credential_generation: 1,
+                grant_id: "grant-a".to_owned(),
+                token_id: "token-a".to_owned(),
+                effective_user_id: Some("alice".to_owned()),
+                scopes: vec![scope],
+                token_expires_at_ms: 10_000,
+            },
+        )
+        .expect("prepared service authority");
+        let prepared = InvocationGate::prepare_function(authority, &function)
+            .expect("explicit authority-creating scope");
+        let error = refuse_unprovenanced_host_plan_authority_creation(
+            &prepared,
+            &function,
+            &schema,
+        )
+        .expect_err("HostPlan has no full-provenance service lane");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
+        );
+        assert_eq!(
+            error.diagnostic.details["reason"],
+            "permission_backing_provenance_unavailable"
+        );
     }
 
     fn prepared_mutation(snapback: &LocalSnapback, name: &str) -> PreparedInvocation {

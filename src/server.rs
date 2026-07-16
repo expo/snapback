@@ -14208,6 +14208,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_IMPERSONATION_REQUIRED"
         | "SNAPBACK_AUTH_PERMISSION_DENIED"
         | "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        | "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a permanently deactivated agent is
         //   refused fail-closed at every authority-creating/exercising path.
         | "SNAPBACK_AUTH_AGENT_DEACTIVATED"
@@ -22379,6 +22380,7 @@ mod tests {
         "SNAPBACK_AUTH_CODE_LOCKED",
         "SNAPBACK_AUTHORIZED_LEASE_AUTHORITY_INVALID",
         "SNAPBACK_AUTH_IMPERSONATION_REQUIRED",
+        "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
         "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
         "SNAPBACK_AUTH_PERMISSION_DENIED",
         "SNAPBACK_CONNECTION_TOKEN_INVALID",

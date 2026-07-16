@@ -1028,6 +1028,7 @@ pub struct PreparedInvocation {
     function_id: String,
     function_kind: FunctionKind,
     requirement: AuthRequirement,
+    authority_creating_consent: bool,
     invocation_id: String,
 }
 
@@ -1050,6 +1051,10 @@ impl PreparedInvocation {
 
     pub fn auth_requirement(&self) -> AuthRequirement {
         self.requirement
+    }
+
+    pub(crate) fn authority_creating_consent(&self) -> bool {
+        self.authority_creating_consent
     }
 
     pub fn invocation_id(&self) -> &str {
@@ -1273,23 +1278,35 @@ impl InvocationGate {
                 "this function requires an authenticated user",
             ));
         }
-        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved
-            && !scopes
+        let mut authority_creating_consent = false;
+        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
+            let scope = scopes
                 .iter()
-                .any(|scope| scope.function_id == function.id && scope.kind == function.kind)
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-                "auth",
-                "the scoped grant does not authorize this function",
-            )
-            .with_details(serde_json::json!({ "reason": "missing_scope" })));
+                .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                        "auth",
+                        "the scoped grant does not authorize this function",
+                    )
+                    .with_details(serde_json::json!({ "reason": "missing_scope" }))
+                })?;
+            authority_creating_consent = scope.authority_creating;
+            if function.authority_creating && !authority_creating_consent {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+                    "auth",
+                    "the function requires explicit authority-creating consent",
+                )
+                .with_details(serde_json::json!({ "reason": "scope_not_authority_creating" })));
+            }
         }
         Ok(PreparedInvocation {
             authority,
             function_id: function.id.clone(),
             function_kind: function.kind.clone(),
             requirement,
+            authority_creating_consent,
             invocation_id: format!("inv_{}", Uuid::now_v7().simple()),
         })
     }
@@ -1782,6 +1799,39 @@ mod tests {
             .unwrap_err();
         assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
         assert_eq!(denied.diagnostic.details["reason"], "missing_scope");
+
+        let mut marked = function.clone();
+        marked.authority_creating = true;
+        let unconsented = InvocationGate::prepare_function(
+            prepare(service(vec![ResolvedGrantScope {
+                function_id: marked.id.clone(),
+                kind: marked.kind.clone(),
+                basis: 0,
+                authority_creating: false,
+            }])),
+            &marked,
+        )
+        .unwrap_err();
+        assert_eq!(
+            unconsented.diagnostic.code,
+            "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
+        );
+        assert_eq!(
+            unconsented.diagnostic.details["reason"],
+            "scope_not_authority_creating"
+        );
+
+        let consented = InvocationGate::prepare_function(
+            prepare(service(vec![ResolvedGrantScope {
+                function_id: marked.id.clone(),
+                kind: marked.kind.clone(),
+                basis: 0,
+                authority_creating: true,
+            }])),
+            &marked,
+        )
+        .unwrap();
+        assert!(consented.authority_creating_consent());
     }
 
     #[test]

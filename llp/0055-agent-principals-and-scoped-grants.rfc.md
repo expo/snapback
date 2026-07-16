@@ -5,7 +5,13 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (ENG-24914 G3 close-out: scoped-token-bound
+**Revised:** 2026-07-16 (ENG-24917 G6 close-out: codegen derives the
+`authorityCreating` marker for declared permission-backing writes; exact scope
+consent is carried into the runtime writer; membership and raw
+permission-backing effects enforce the authoritative dynamic gate, including
+aliased/computed calls and unmarked wrappers; only full-provenance membership
+writes are consentable, while every other service-principal permission-backing
+lane is refused). 2026-07-16 (ENG-24914 G3 close-out: scoped-token-bound
 connections are indexed by exact `tokenId`; token-cap eviction terminates only
 the evicted carrier, while credential rotation and `revoke-self` terminate all
 token carriers named by their committed storage witnesses; the live wire gains
@@ -1844,6 +1850,33 @@ under `servicePrincipal` remain admission-refused until G8/item 6 supplies the
 agent client fence. It closes G3's mid-connection rotation and cap-eviction
 obligations without claiming G7's broader grant/lifecycle transitions or G8's
 live query and queued-settlement surface.
+
+## Implementation checkpoint: G6 authority-creating effects (2026-07-16)
+
+The two-gate effect system is implemented. Codegen derives
+`authorityCreating` from every declared write to a hand-authored
+`permissionBacking` table and preserves an author's conservative explicit
+marker. A marked entry point under `servicePrincipal` requires the exact
+resolved `{fn, kind}` scope to carry authority-creating consent; an ordinary
+matching scope fails typed before execution. Tier expansion and basis
+invalidation continue to use the previously landed marker state.
+
+The authoritative gate lives on the runtime effects. The prepared invocation's
+exact consent bit rides the host-owned membership writer, so unmarked wrappers,
+aliases, computed property access, and data-dependent paths cannot launder a
+membership write. A service principal may write a membership declaration only
+when its scope was explicitly consented and the declaration carries
+`provenance: "full"`. Raw Ibex writes to any non-membership permission-backing
+table are refused for insert, patch, and delete even with consent. HostPlan
+mutations are refused at their pre-execution effect seam because that lane
+cannot attach full membership provenance.
+
+Acceptance covers the consequence as well as the refusals: a consented
+delegate seats its own actor as a durable `host`, revocation ends the grant but
+does not erase the membership, creation provenance retains the actor,
+effective user, and dead grant id, and a later autonomous role check succeeds
+from that row. The new typed diagnostic is projected as HTTP 403 and included
+in the reviewed production diagnostic inventory.
 
 ## Status
 
