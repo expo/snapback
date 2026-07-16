@@ -1981,6 +1981,42 @@
       ],
       "type": "object"
     },
+    "MaintenanceDiagnostics": {
+      "description": "Closed, monotonic maintenance health facts. Error text and room identities\nstay in the gated diagnostic ring; this projection is safe for public\ninspection and sufficient to distinguish healthy retry from a persistent\nmaintenance failure.",
+      "properties": {
+        "journalPruneFailures": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastJournalPruneFailureMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "lastPermissionResolutionFailureMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "permissionResolutionFailures": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "permissionResolutionFailures",
+        "journalPruneFailures"
+      ],
+      "type": "object"
+    },
     "MembershipExpiry": {
       "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —\n  remove-only in v1; the sweep itself is M2/M4 host work.",
       "properties": {
@@ -3358,6 +3394,9 @@
     "liveDelivery": {
       "$ref": "#/$defs/LiveDeliveryStats"
     },
+    "maintenance": {
+      "$ref": "#/$defs/MaintenanceDiagnostics"
+    },
     "reapedConnections": {
       "format": "uint64",
       "minimum": 0,
@@ -3410,6 +3449,7 @@
     "liveDelivery",
     "ephemeral",
     "cron",
+    "maintenance",
     "recentDiagnostics",
     "capabilityGaps"
   ],

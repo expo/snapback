@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+reviewed-commit: HEAD
 ---
 
 # Queries

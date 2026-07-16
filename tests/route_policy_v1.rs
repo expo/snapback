@@ -305,6 +305,62 @@ async fn registry_and_router_have_black_box_path_method_parity() {
     }
 }
 
+/// LLP 0031 keeps the router-owned registry authoritative for method shape;
+/// the loopback CORS projection must advertise every registered browser method
+/// without manufacturing operations on unknown paths.
+#[tokio::test]
+async fn cors_preflight_projects_registered_methods_including_delete() {
+    let router = app(AppState::detached(
+        LocalSnapback::memory().expect("in-memory CORS instance"),
+    ));
+    let origin = "http://localhost:5173";
+    for path in [
+        "/auth/grants/grant_probe",
+        "/auth/grants/by-actor/actor_probe",
+    ] {
+        let response = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("OPTIONS")
+                    .uri(path)
+                    .header(header::ORIGIN, origin)
+                    .header(header::ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(response.status(), StatusCode::NO_CONTENT, "{path}");
+        assert_eq!(response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], origin);
+        let allowed = response.headers()[header::ACCESS_CONTROL_ALLOW_METHODS]
+            .to_str()
+            .unwrap()
+            .split(", ")
+            .collect::<BTreeSet<_>>();
+        let mut expected = route_registry()
+            .into_iter()
+            .map(|route| route.method)
+            .collect::<BTreeSet<_>>();
+        expected.extend(["HEAD", "OPTIONS"]);
+        assert_eq!(allowed, expected, "CORS methods drifted from the registry");
+    }
+
+    let unknown = router
+        .oneshot(
+            Request::builder()
+                .method("OPTIONS")
+                .uri("/not-a-snapback-route")
+                .header(header::ORIGIN, origin)
+                .header(header::ACCESS_CONTROL_REQUEST_METHOD, "DELETE")
+                .body(Body::empty())
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(unknown.status(), StatusCode::NOT_FOUND);
+}
+
 /// @ref LLP 0057#routes-operations-and-dtos — the five provider paths have
 /// closed independent carrier/response classifications. LLP 0058 adds the
 /// rootless bootstrap handshake; active dev refuses only the provider paths

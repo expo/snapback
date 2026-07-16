@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 46e2ae4ef211b495e6c16572017401a8cfdbd1a8
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -54,7 +54,7 @@ with the Snapback label and `guide-gap` in the title.
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
-| auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | design-only | — (routes activation-fenced) | llp/0055 | GAP (owner: ccheever, review: 2026-08-15) |
+| auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | partial | route /auth/agents/pair | llp/0055 | GAP (owner: ccheever, review: 2026-08-15) |
 | auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | design-only | — (design in review) | llp/0056 | GAP (owner: ccheever, review: 2026-08-15) |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in demos/_kit/client.mjs | llp/0012 | clients/headless.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
@@ -188,7 +188,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 46e2ae4ef211b495e6c16572017401a8cfdbd1a8
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -325,7 +325,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 46e2ae4ef211b495e6c16572017401a8cfdbd1a8
+reviewed-commit: HEAD
 ---
 
 # Guide conventions
@@ -572,7 +572,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 2a372af84752924154235532dc150e8f3bb8c2a9
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -673,11 +673,15 @@ it; teach your tooling to read it. This is the boundary rule this guide
 itself follows: an auth behavior is teachable only when it has an
 acceptance witness or shows as ready here.
 
-**Not shipped yet (explicit gaps):** agent principals and scoped grants
-(LLP 0055) and scoped roles/memberships (LLP 0056) are Review-stage
-designs — the `/auth/agents/*` and grant routes exist behind the program
-fence and are GAP rows in the [capability index](../capabilities.md), not
-teachable surface.
+**Partial and still an explicit guide gap:** local agent principals and scoped
+grants (LLP 0055) now have real registration/grant routes, scoped-token app
+invocation, the headless `AgentAuthorityFence`, and several terminal lifecycle
+paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
+export/import work is not complete, so this guide does not present the slice as
+a finished end-to-end auth product. The [capability index](../capabilities.md)
+keeps it as an owned GAP until a dedicated page can teach the exact supported
+subset. Scoped roles/memberships (LLP 0056) remain a Review-stage design-only
+GAP.
 
 ## Anti-patterns
 
@@ -975,7 +979,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+reviewed-commit: HEAD
 ---
 
 # Queries
@@ -1076,7 +1080,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+reviewed-commit: HEAD
 ---
 
 # Mutations
@@ -1116,6 +1120,12 @@ row versions are not arguments and are never authored by the handler:
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+A mutation that declares a write to a `permissionBacking` table is generated
+with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
+conservatively, but cannot clear a derived marker. Under the partial local
+agent-auth slice this requires grant consent at admission, and the host still
+enforces the exact permission-backing write dynamically.
 
 ## Consume the structured result
 
@@ -1187,13 +1197,13 @@ id: backend.actions-and-fetch
 order: 3
 audience: agent-first
 capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -1234,6 +1244,12 @@ export const refreshFeed = defineAction({
 and `ctx.secrets` refuses an entry the action was not granted. Declare values
 and configure deployments as described in
 [secrets and config](../operating/secrets-and-config.md).
+
+For the partial local agent-auth slice, codegen also derives
+`authorityCreating: true` when an action or mutation declares a write to a
+`permissionBacking` table; an opaque path may conservatively set the boolean
+explicitly. This is an admission signal, not the security boundary: the host
+rechecks the resolved grant's exact consent at the permission-backing write.
 
 ## Keep network I/O outside the transaction
 
@@ -1304,7 +1320,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+reviewed-commit: HEAD
 ---
 
 # Scheduled execution with cron
@@ -1575,7 +1591,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 67ca44771ef1e3cd585c73a64454c29c0acbc850
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -1734,8 +1750,8 @@ examples: [demos/all-aboard/surfaces/react/src/main.tsx, demos/cursors-web/surfa
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: HEAD
 ---
 
 # The React arm
@@ -2028,8 +2044,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: HEAD
 ---
 
 # Your first backend
@@ -2257,7 +2273,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 5e09930ce29d64588d36a257462a79d2400fa05c
+reviewed-commit: HEAD
 ---
 
 # The authoring loop

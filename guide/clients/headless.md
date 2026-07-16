@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 67ca44771ef1e3cd585c73a64454c29c0acbc850
+reviewed-commit: HEAD
 ---
 
 # The headless client

@@ -4,13 +4,13 @@ id: backend.actions-and-fetch
 order: 3
 audience: agent-first
 capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
 examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -51,6 +51,12 @@ export const refreshFeed = defineAction({
 and `ctx.secrets` refuses an entry the action was not granted. Declare values
 and configure deployments as described in
 [secrets and config](../operating/secrets-and-config.md).
+
+For the partial local agent-auth slice, codegen also derives
+`authorityCreating: true` when an action or mutation declares a write to a
+`permissionBacking` table; an opaque path may conservatively set the boolean
+explicitly. This is an admission signal, not the security boundary: the host
+rechecks the resolved grant's exact consent at the permission-backing write.
 
 ## Keep network I/O outside the transaction
 

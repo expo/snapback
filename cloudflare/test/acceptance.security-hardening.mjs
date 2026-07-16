@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import fs from 'node:fs';
-import { startProof, ADMIN_TOKEN } from './harness.mjs';
+import { startProof, ADMIN_TOKEN, reportProofRuntimeFailure } from './harness.mjs';
 import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import { bindingNameFor } from '../config-set.mjs';
 import { cloudflareClientOptions } from '../client-options.mjs';
@@ -13,10 +13,17 @@ import { cloudflareClientOptions } from '../client-options.mjs';
 // ECONNRESET otherwise gives no clue which lifecycle boundary regressed.
 const nativeFetch = globalThis.fetch;
 globalThis.fetch = async (input, init) => {
+  const target = typeof input === 'string' ? input : input?.url || String(input);
   try {
-    return await nativeFetch(input, init);
+    // This proof creates and disposes many loopback Miniflare listeners. Do not
+    // let undici retain a socket across those Worker lifetimes: every request
+    // gets an explicit close handshake, eliminating the stale pooled-socket
+    // race without retrying an assertion or suite.
+    const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
+    headers.set('connection', 'close');
+    return await nativeFetch(input, { ...init, headers });
   } catch (error) {
-    const target = typeof input === 'string' ? input : input?.url || String(input);
+    reportProofRuntimeFailure(target, error);
     error.message = `${target}: ${error.message}`;
     throw error;
   }

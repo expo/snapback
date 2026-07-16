@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: bcd438bd726db4c9781cc35494e89327e268ba94
+reviewed-commit: HEAD
 ---
 
 # Mutations
@@ -50,6 +50,12 @@ row versions are not arguments and are never authored by the handler:
 `defineMutation` is the declarative twin: compose `insert`, `patch`,
 `delete`, conditions, and a declared return binding without running a JS
 handler.
+
+A mutation that declares a write to a `permissionBacking` table is generated
+with `authorityCreating: true`. Authors may explicitly mark an opaque mutation
+conservatively, but cannot clear a derived marker. Under the partial local
+agent-auth slice this requires grant consent at admission, and the host still
+enforces the exact permission-backing write dynamically.
 
 ## Consume the structured result
 

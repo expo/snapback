@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 2a372af84752924154235532dc150e8f3bb8c2a9
+reviewed-commit: HEAD
 ---
 
 # Sessions and principals
@@ -111,11 +111,15 @@ it; teach your tooling to read it. This is the boundary rule this guide
 itself follows: an auth behavior is teachable only when it has an
 acceptance witness or shows as ready here.
 
-**Not shipped yet (explicit gaps):** agent principals and scoped grants
-(LLP 0055) and scoped roles/memberships (LLP 0056) are Review-stage
-designs — the `/auth/agents/*` and grant routes exist behind the program
-fence and are GAP rows in the [capability index](../capabilities.md), not
-teachable surface.
+**Partial and still an explicit guide gap:** local agent principals and scoped
+grants (LLP 0055) now have real registration/grant routes, scoped-token app
+invocation, the headless `AgentAuthorityFence`, and several terminal lifecycle
+paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
+export/import work is not complete, so this guide does not present the slice as
+a finished end-to-end auth product. The [capability index](../capabilities.md)
+keeps it as an owned GAP until a dedicated page can teach the exact supported
+subset. Scoped roles/memberships (LLP 0056) remain a Review-stage design-only
+GAP.
 
 ## Anti-patterns
 

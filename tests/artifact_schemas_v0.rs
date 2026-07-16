@@ -38,7 +38,7 @@ use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
 use snapback::local::{
     InspectState, LiveDeliveryStats, LiveResumeInput, LiveSubscribeInput, LiveUnsubscribeInput,
-    PublicInspect,
+    MaintenanceDiagnostics, PublicInspect,
 };
 use snapback::manifest::{
     AuthInput, AuthorityDescriptor, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
@@ -846,6 +846,12 @@ fn representative_inspect() -> InspectState {
                 )
                 .with_details(json!({ "sourcePath": "/secret/cron/state.ts" })),
             ],
+        },
+        maintenance: MaintenanceDiagnostics {
+            permission_resolution_failures: 2,
+            journal_prune_failures: 1,
+            last_permission_resolution_failure_ms: Some(7),
+            last_journal_prune_failure_ms: Some(8),
         },
         recent_diagnostics: vec![
             Diagnostic::info("SNAPBACK_READY", "server", "recent diagnostic secret text")

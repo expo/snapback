@@ -113,13 +113,13 @@ globalThis.__snapbackHandlers = {
 
   async leakingAction(ctx) {
     const secret = ctx.secrets.get('leakKey').expose();
-    throw new Error(`public action leaked ${secret}`);
+    throw new Error(`public action leaked ${encodeURIComponent(secret)}`);
   },
 
   async rotatingSecretCron(ctx) {
     const secret = ctx.secrets.get('leakKey').expose();
     await fetch(secret);
-    throw new Error(`rotated cron leaked ${secret}`);
+    throw new Error(`rotated cron leaked ${encodeURIComponent(secret)}`);
   },
 
   async quickProbe(ctx) {

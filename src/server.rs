@@ -53,7 +53,8 @@ use crate::local::{
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
     LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, PreparedAuthProvision, StagedAction,
-    StagedAppAction, StagedConfigVerify, StagedNestedMutation, live_stream_text,
+    MaintenanceOperation, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    live_stream_text,
 };
 use crate::manifest::{
     AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
@@ -10129,20 +10130,31 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 for (room, fresh_authorities) in resolved_rooms {
                     let room_id = room.room.clone();
                     let generation = room.obligation.room_authority_generation;
-                    if let Ok(resolutions) =
-                        snapback.resolve_pending_ephemeral_room_permissions(room, fresh_authorities)
+                    match snapback
+                        .resolve_pending_ephemeral_room_permissions(room, fresh_authorities)
                     {
-                        planned.push((room_id, generation, resolutions));
+                        Ok(resolutions) => planned.push((room_id, generation, resolutions)),
+                        Err(error) => snapback.record_maintenance_error(
+                            MaintenanceOperation::PermissionResolution,
+                            &error,
+                            now,
+                        ),
                     }
                 }
                 if run_maintenance {
-                    // Best-effort; a transient prune error is retried on the
-                    // next ordinary maintenance sweep.
-                    let _ = snapback.prune_change_journal(
+                    // A transient prune error is retried on the next ordinary
+                    // maintenance sweep; persistent failure remains visible.
+                    if let Err(error) = snapback.prune_change_journal(
                         now,
                         JOURNAL_RETAIN_VERSIONS,
                         JOURNAL_RETAIN_MS,
-                    );
+                    ) {
+                        snapback.record_maintenance_error(
+                            MaintenanceOperation::JournalPrune,
+                            &error,
+                            now,
+                        );
+                    }
                 }
                 planned
             })
@@ -10207,7 +10219,7 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
     }
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_METHODS,
-        HeaderValue::from_static("GET, POST, OPTIONS"),
+        cors_allow_methods().clone(),
     );
     headers.insert(
         header::ACCESS_CONTROL_ALLOW_HEADERS,
@@ -10216,6 +10228,25 @@ fn with_cors_headers(mut response: Response, allowed_origin: Option<HeaderValue>
         ),
     );
     response
+}
+
+fn cors_allow_methods() -> &'static HeaderValue {
+    static METHODS: OnceLock<HeaderValue> = OnceLock::new();
+    METHODS.get_or_init(|| {
+        // @ref LLP 0031#resolved-decisions — the router-owned registry is the
+        // HTTP operation authority; CORS must not maintain a second method
+        // inventory that can omit a newly registered browser operation.
+        let mut methods = route_registry()
+            .into_iter()
+            .map(|route| route.method)
+            .collect::<std::collections::BTreeSet<_>>();
+        methods.insert("OPTIONS");
+        if methods.contains("GET") {
+            methods.insert("HEAD");
+        }
+        HeaderValue::from_str(&methods.into_iter().collect::<Vec<_>>().join(", "))
+            .expect("registered HTTP methods are valid CORS header values")
+    })
 }
 
 fn loopback_origin(origin: Option<&HeaderValue>) -> Option<HeaderValue> {

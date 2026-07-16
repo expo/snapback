@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs';
 import path from 'node:path';
 import esbuild from 'esbuild';
-import { Miniflare } from 'miniflare';
+import { Log, LogLevel, Miniflare } from 'miniflare';
 import { assertProofRuntimeNode } from './proof-runtime.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -25,6 +25,73 @@ const compatibilityOptions = {
 };
 
 export const ADMIN_TOKEN = 'miniflare-admin-token';
+
+const RUNTIME_DIAGNOSTIC_LIMIT = 32;
+const RUNTIME_DIAGNOSTIC_BYTES = 4_096;
+const loopbackProofs = new Map();
+
+function sensitiveStrings(bindings) {
+  const values = new Set([ADMIN_TOKEN]);
+  const visit = (value) => {
+    if (typeof value === 'string') {
+      if (value.length >= 4) values.add(value);
+      try { visit(JSON.parse(value)); } catch (_) {}
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) visit(item);
+      return;
+    }
+    if (value && typeof value === 'object') {
+      for (const item of Object.values(value)) visit(item);
+    }
+  };
+  visit(bindings);
+  return [...values].sort((left, right) => right.length - left.length);
+}
+
+function diagnosticRecorder(bindings) {
+  const retained = [];
+  const secrets = sensitiveStrings(bindings);
+  const sanitize = (value) => {
+    let text = value instanceof Error ? value.stack || value.message : String(value);
+    for (const secret of secrets) text = text.split(secret).join('[redacted]');
+    if (text.length > RUNTIME_DIAGNOSTIC_BYTES) {
+      text = `${text.slice(0, RUNTIME_DIAGNOSTIC_BYTES)}...[truncated]`;
+    }
+    return text;
+  };
+  const record = (source, level, value) => {
+    retained.push({ at: Date.now(), source, level, message: sanitize(value) });
+    if (retained.length > RUNTIME_DIAGNOSTIC_LIMIT) retained.shift();
+  };
+  return { retained, record, sanitize };
+}
+
+class CapturingLog extends Log {
+  constructor(record) {
+    super(LogLevel.WARN, { prefix: 'snapback-proof' });
+    this.record = record;
+  }
+
+  error(error) {
+    this.record('miniflare', 'error', error);
+    super.error(error);
+  }
+
+  warn(message) {
+    this.record('miniflare', 'warn', message);
+    super.warn(message);
+  }
+}
+
+// Emit the lifecycle evidence retained for the proof serving `target`.
+// Called only when a real-loopback transport request fails.
+export function reportProofRuntimeFailure(target, error) {
+  let client;
+  try { client = loopbackProofs.get(new URL(target).origin); } catch (_) {}
+  client?.reportRuntimeFailure(error);
+}
 
 // The LLP 0049 deploy-time app selector, harness half: the same
 // 'snapback-app' alias the wrangler configs pin, resolved per app through
@@ -143,30 +210,62 @@ export async function startProof({ app = 'notes', port = null, bindings = {}, se
       serviceBindings: { HOST: selected.gatewayWorker },
     });
   }
+  const runtimeDiagnostics = diagnosticRecorder(bindings);
   const mf = new Miniflare({
     ...(port === null ? {} : { host: '127.0.0.1', port }),
+    log: new CapturingLog(runtimeDiagnostics.record),
+    handleStructuredLogs({ level, message }) {
+      if (level === 'error' || level === 'warn') {
+        runtimeDiagnostics.record('workerd', level, message);
+      }
+    },
     workers,
   });
   // Force construction / readiness.
-  await mf.ready;
-  return new ProofClient(mf);
+  const ready = await mf.ready;
+  const client = new ProofClient(mf, runtimeDiagnostics, String(ready).replace(/\/$/, ''));
+  client.registerLoopback();
+  return client;
 }
 
 class ProofClient {
-  constructor(mf) {
+  constructor(mf, runtimeDiagnostics, loopbackUrl) {
     this.mf = mf;
     this.base = 'http://gateway';
+    this.runtimeDiagnostics = runtimeDiagnostics;
+    this.loopbackUrl = loopbackUrl;
+    this.onUncaughtException = (error, origin) => {
+      runtimeDiagnostics.record('node', origin, error);
+    };
+    process.on('uncaughtExceptionMonitor', this.onUncaughtException);
+  }
+
+  registerLoopback() {
+    if (this.loopbackUrl) loopbackProofs.set(new URL(this.loopbackUrl).origin, this);
+  }
+
+  reportRuntimeFailure(error) {
+    const cause = error?.cause;
+    const payload = {
+      event: 'SNAPBACK_PROOF_RUNTIME_TRANSPORT_FAILURE',
+      node: process.version,
+      error: this.runtimeDiagnostics.sanitize(error),
+      cause: cause ? this.runtimeDiagnostics.sanitize(cause) : null,
+      runtimeDiagnostics: this.runtimeDiagnostics.retained,
+    };
+    process.stderr.write(`${JSON.stringify(payload)}\n`);
   }
 
   async dispose() {
+    process.removeListener('uncaughtExceptionMonitor', this.onUncaughtException);
+    if (this.loopbackUrl) loopbackProofs.delete(new URL(this.loopbackUrl).origin);
     await this.mf.dispose();
   }
 
   // The real loopback URL when startProof was given a port — the base the kit
   // client (demos/_kit/client.mjs) drives over HTTP + WebSocket.
   async url() {
-    const ready = await this.mf.ready;
-    return String(ready).replace(/\/$/, '');
+    return this.loopbackUrl;
   }
 
   async inspect() {

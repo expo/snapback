@@ -9,9 +9,11 @@
 //! only to the runtime grant path; every other consumer sees names and status.
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
+use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
+use unicode_normalization::UnicodeNormalization as _;
 
 pub const CONFIG_STORE_FORMAT_VERSION: u32 = 1;
 
@@ -43,7 +45,7 @@ pub struct VerificationRecord {
 /// envelope and retention sinks.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct SecretRedactor {
-    secrets: Vec<String>,
+    patterns: Vec<Regex>,
 }
 
 impl SecretRedactor {
@@ -55,15 +57,19 @@ impl SecretRedactor {
             right.len().cmp(&left.len()).then_with(|| left.cmp(right))
         });
         secrets.dedup();
-        Self { secrets }
+        let patterns = secrets
+            .iter()
+            .flat_map(|secret| secret_redaction_patterns(secret))
+            .collect();
+        Self { patterns }
     }
 
     pub(crate) fn redact_text(&self, text: &str) -> String {
         let mut redacted = text.to_owned();
-        for secret in &self.secrets {
-            if redacted.contains(secret) {
-                redacted = redacted.replace(secret, "[REDACTED]");
-            }
+        for pattern in &self.patterns {
+            redacted = pattern
+                .replace_all(&redacted, "[REDACTED]")
+                .into_owned();
         }
         redacted
     }
@@ -81,6 +87,107 @@ impl SecretRedactor {
         error.diagnostic = self.redact_diagnostic(error.diagnostic);
         error
     }
+}
+
+/// Compile the same reversible representation language enforced by the
+/// Cloudflare host-fetch boundary. Each pattern consumes one complete secret;
+/// it never falls back to prefix matching.
+///
+/// @ref LLP 0036#runtime-exposure-d5-d8 — public and retained diagnostics
+/// scrub raw, normalized, JSON-escaped, and URL/form-encoded secret forms.
+fn secret_redaction_patterns(secret: &str) -> Vec<Regex> {
+    let normalized = BTreeSet::from([
+        secret.to_owned(),
+        secret.nfc().collect::<String>(),
+        secret.nfd().collect::<String>(),
+    ]);
+
+    let mut encoded = normalized.clone();
+    for _ in 0..2 {
+        for candidate in encoded.clone() {
+            encoded.insert(percent_encode(&candidate, false));
+            encoded.insert(percent_encode(&candidate, true));
+        }
+    }
+
+    let mut literal_patterns = encoded
+        .difference(&normalized)
+        .filter(|candidate| !candidate.is_empty())
+        .map(|candidate| candidate.to_owned())
+        .collect::<Vec<_>>();
+    literal_patterns.sort_unstable_by_key(|candidate| std::cmp::Reverse(candidate.len()));
+
+    let mut patterns = literal_patterns
+        .into_iter()
+        .map(|candidate| compile_redaction_pattern(&format!("(?i:{})", regex::escape(&candidate))))
+        .collect::<Vec<_>>();
+    patterns.extend(
+        normalized
+            .iter()
+            .filter(|candidate| !candidate.is_empty())
+            .map(|candidate| compile_redaction_pattern(&json_escape_language(candidate))),
+    );
+    patterns
+}
+
+fn compile_redaction_pattern(pattern: &str) -> Regex {
+    Regex::new(pattern).expect("secret redaction patterns are constructed from escaped input")
+}
+
+fn json_escape_language(candidate: &str) -> String {
+    let mut pattern = String::new();
+    for character in candidate.chars() {
+        let raw = regex::escape(&character.to_string());
+        let mut alternatives = vec![raw];
+        let mut units = [0_u16; 2];
+        let encoded = character.encode_utf16(&mut units);
+        let unicode = encoded
+            .iter()
+            .map(|unit| format!(r"\\+[uU](?i:{unit:04x})"))
+            .collect::<String>();
+        alternatives.push(unicode);
+        if let Some(short) = json_short_escape(character) {
+            alternatives.push(format!(r"\\+(?i:{})", regex::escape(short)));
+        }
+        pattern.push_str("(?:");
+        pattern.push_str(&alternatives.join("|"));
+        pattern.push(')');
+    }
+    pattern
+}
+
+fn json_short_escape(character: char) -> Option<&'static str> {
+    match character {
+        '\u{0008}' => Some("b"),
+        '\t' => Some("t"),
+        '\n' => Some("n"),
+        '\u{000c}' => Some("f"),
+        '\r' => Some("r"),
+        '"' => Some("\""),
+        '/' => Some("/"),
+        '\\' => Some("\\"),
+        _ => None,
+    }
+}
+
+fn percent_encode(value: &str, form: bool) -> String {
+    let mut encoded = String::with_capacity(value.len());
+    for byte in value.bytes() {
+        let allowed = byte.is_ascii_alphanumeric()
+            || matches!(byte, b'-' | b'.' | b'_')
+            || (!form && matches!(byte, b'!' | b'~' | b'*' | b'\'' | b'(' | b')'));
+        if allowed {
+            encoded.push(char::from(byte));
+        } else if form && byte == b' ' {
+            encoded.push('+');
+        } else {
+            const HEX: &[u8; 16] = b"0123456789ABCDEF";
+            encoded.push('%');
+            encoded.push(char::from(HEX[(byte >> 4) as usize]));
+            encoded.push(char::from(HEX[(byte & 0x0f) as usize]));
+        }
+    }
+    encoded
 }
 
 /// One stored entry: an ordered member pool (a single-valued entry is a
@@ -846,6 +953,63 @@ mod tests {
         assert_eq!(
             store.redact_text("vendor echoed token-extended"),
             "vendor echoed [REDACTED]"
+        );
+    }
+
+    #[test]
+    fn redaction_covers_reversible_encoded_and_normalized_forms() {
+        const SECRET: &str = "p+/%\"\\ café\u{0301} / é / 😀A";
+
+        fn unicode_escape(value: &str, uppercase: bool) -> String {
+            value
+                .encode_utf16()
+                .map(|unit| {
+                    if uppercase {
+                        format!("\\u{unit:04X}")
+                    } else {
+                        format!("\\u{unit:04x}")
+                    }
+                })
+                .collect()
+        }
+
+        let redactor = SecretRedactor::new(vec![SECRET.to_owned()]);
+        let url = percent_encode(SECRET, false);
+        let variants = [
+            SECRET.to_owned(),
+            url.clone(),
+            percent_encode(&url, false),
+            percent_encode(SECRET, true),
+            serde_json::to_string(SECRET)
+                .unwrap()
+                .trim_matches('"')
+                .to_owned(),
+            SECRET.nfc().collect(),
+            SECRET.nfd().collect(),
+            unicode_escape(SECRET, false),
+            unicode_escape(SECRET, true),
+            format!(
+                "{}{}",
+                &SECRET[..2],
+                unicode_escape(&SECRET[2..], true)
+            ),
+            unicode_escape(SECRET, false).replace("\\u", "\\\\u"),
+        ];
+
+        for variant in variants {
+            let diagnostic = format!("vendor echoed {variant}");
+            let redacted = redactor.redact_text(&diagnostic);
+            assert_eq!(redacted, "vendor echoed [REDACTED]", "{variant:?}");
+        }
+
+        assert_eq!(
+            redactor.redact_text("vendor echoed unrelated café text"),
+            "vendor echoed unrelated café text"
+        );
+        assert_eq!(
+            redactor.redact_text("vendor echoed p+/%"),
+            "vendor echoed p+/%",
+            "a recognizable prefix alone must not be broadly removed"
         );
     }
 

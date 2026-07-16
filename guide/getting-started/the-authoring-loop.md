@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 5e09930ce29d64588d36a257462a79d2400fa05c
+reviewed-commit: HEAD
 ---
 
 # The authoring loop

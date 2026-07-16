@@ -76,6 +76,7 @@ use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 const MAX_RECENT_DIAGNOSTICS: usize = 100;
+const MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS: u64 = 60_000;
 static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
 
 /// Hard retained durable-live ceilings for the canonical local server. These
@@ -256,6 +257,7 @@ pub struct InspectState {
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: EphemeralDiagnostics,
     pub cron: CronInspectState,
+    pub maintenance: MaintenanceDiagnostics,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<Diagnostic>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
@@ -311,6 +313,7 @@ pub struct PublicInspect {
     pub live_delivery: LiveDeliveryStats,
     pub ephemeral: PublicEphemeralDiagnostics,
     pub cron: PublicCronInspectState,
+    pub maintenance: MaintenanceDiagnostics,
     #[serde(rename = "recentDiagnostics", alias = "recent_diagnostics")]
     pub recent_diagnostics: Vec<PublicDiagnostic>,
     #[serde(rename = "capabilityGaps", alias = "capability_gaps")]
@@ -483,6 +486,25 @@ pub struct PublicCronInspectState {
     pub in_flight_job_count: usize,
 }
 
+/// Closed, monotonic maintenance health facts. Error text and room identities
+/// stay in the gated diagnostic ring; this projection is safe for public
+/// inspection and sufficient to distinguish healthy retry from a persistent
+/// maintenance failure.
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct MaintenanceDiagnostics {
+    pub permission_resolution_failures: u64,
+    pub journal_prune_failures: u64,
+    pub last_permission_resolution_failure_ms: Option<u64>,
+    pub last_journal_prune_failure_ms: Option<u64>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum MaintenanceOperation {
+    PermissionResolution,
+    JournalPrune,
+}
+
 impl From<CronInspectState> for PublicCronInspectState {
     fn from(cron: CronInspectState) -> Self {
         let CronInspectState {
@@ -528,6 +550,7 @@ impl From<InspectState> for PublicInspect {
             live_delivery,
             ephemeral,
             cron,
+            maintenance,
             recent_diagnostics,
             capability_gaps,
         } = inspect;
@@ -562,6 +585,7 @@ impl From<InspectState> for PublicInspect {
             live_delivery,
             ephemeral: ephemeral.into(),
             cron: cron.into(),
+            maintenance,
             recent_diagnostics: recent_diagnostics.into_iter().map(Into::into).collect(),
             capability_gaps,
         }
@@ -2048,6 +2072,9 @@ pub struct LocalSnapback {
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
     cron_tick_errors: u64,
+    maintenance: MaintenanceDiagnostics,
+    maintenance_permission_reported_at_ms: Option<u64>,
+    maintenance_prune_reported_at_ms: Option<u64>,
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5: idle means
     // idle. `cron_active` lets the 1s ticker skip the global lock entirely when
     // no cron jobs are loaded; the persisted cron state is written only when it
@@ -3494,6 +3521,7 @@ impl LocalSnapback {
             live_delivery: self.live_delivery.clone(),
             ephemeral: self.ephemeral.diagnostics(),
             cron,
+            maintenance: self.maintenance.clone(),
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
             capability_gaps,
         })
@@ -7107,6 +7135,47 @@ impl LocalSnapback {
         self.record_diagnostics(vec![error.diagnostic]);
     }
 
+    /// Record a retryable maintenance failure without retaining the underlying
+    /// error message (which may contain room identity or application text).
+    /// Counters advance for every failure; the bounded diagnostic ring receives
+    /// at most one classification per operation per minute.
+    pub(crate) fn record_maintenance_error(
+        &mut self,
+        operation: MaintenanceOperation,
+        error: &SnapbackError,
+        now_ms: u64,
+    ) {
+        let (count, last_failure, last_reported, code, message) = match operation {
+            MaintenanceOperation::PermissionResolution => (
+                &mut self.maintenance.permission_resolution_failures,
+                &mut self.maintenance.last_permission_resolution_failure_ms,
+                &mut self.maintenance_permission_reported_at_ms,
+                "SNAPBACK_MAINTENANCE_PERMISSION_RESOLUTION_FAILED",
+                "maintenance permission resolution failed; retry remains pending",
+            ),
+            MaintenanceOperation::JournalPrune => (
+                &mut self.maintenance.journal_prune_failures,
+                &mut self.maintenance.last_journal_prune_failure_ms,
+                &mut self.maintenance_prune_reported_at_ms,
+                "SNAPBACK_MAINTENANCE_JOURNAL_PRUNE_FAILED",
+                "change-journal pruning failed; retry remains scheduled",
+            ),
+        };
+        *count = count.saturating_add(1);
+        *last_failure = Some(now_ms);
+        let should_report = last_reported.is_none_or(|reported| {
+            now_ms.saturating_sub(reported) >= MAINTENANCE_DIAGNOSTIC_MIN_INTERVAL_MS
+        });
+        if should_report {
+            *last_reported = Some(now_ms);
+            let diagnostic = Diagnostic::warning(code, "maintenance", message).with_details(json!({
+                "causeCode": error.diagnostic.code.clone(),
+                "failureCount": *count,
+            }));
+            self.record_diagnostics(vec![diagnostic]);
+        }
+    }
+
     pub fn run_cron_job_now(&mut self, name: &str, now_ms: u64) -> SnapbackResult<CronRunRecord> {
         let claim = self.claim_manual_cron_run(name, now_ms)?;
         let mut records = self.execute_cron_claims(vec![claim])?;
@@ -7564,6 +7633,9 @@ impl LocalSnapback {
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
             cron_tick_errors: 0,
+            maintenance: MaintenanceDiagnostics::default(),
+            maintenance_permission_reported_at_ms: None,
+            maintenance_prune_reported_at_ms: None,
             cron_active: Arc::new(AtomicBool::new(false)),
             last_persisted_cron: None,
             cron_state_writes: 0,
@@ -10400,8 +10472,9 @@ mod tests {
         BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
         EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput,
         LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
-        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, RetryEpisodeKey, RetryReservationKind,
-        SnapbackError, StagedNestedMutation, next_secret_read_reset_generation, now_millis,
+        MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MaintenanceOperation, PublicInspect,
+        RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
+        next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
     };
     use crate::admin::ServerProfile;
@@ -10450,6 +10523,64 @@ mod tests {
             destination.fill(self.0.fetch_add(1, Ordering::SeqCst));
             Ok(())
         }
+    }
+
+    #[test]
+    fn maintenance_failures_are_counted_redacted_and_rate_limited() {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        let sensitive = SnapbackError::error(
+            "SNAPBACK_TEST_MAINTENANCE_CAUSE",
+            "test",
+            "room-secret must not be retained",
+        );
+        let initial_diagnostics = snapback.recent_diagnostics.len();
+
+        snapback.record_maintenance_error(
+            MaintenanceOperation::PermissionResolution,
+            &sensitive,
+            1_000,
+        );
+        snapback.record_maintenance_error(
+            MaintenanceOperation::PermissionResolution,
+            &sensitive,
+            2_000,
+        );
+        snapback.record_maintenance_error(
+            MaintenanceOperation::PermissionResolution,
+            &sensitive,
+            61_000,
+        );
+        snapback.record_maintenance_error(MaintenanceOperation::JournalPrune, &sensitive, 3_000);
+
+        assert_eq!(snapback.maintenance.permission_resolution_failures, 3);
+        assert_eq!(snapback.maintenance.journal_prune_failures, 1);
+        assert_eq!(
+            snapback
+                .maintenance
+                .last_permission_resolution_failure_ms,
+            Some(61_000)
+        );
+        assert_eq!(
+            snapback.maintenance.last_journal_prune_failure_ms,
+            Some(3_000)
+        );
+        let maintenance = snapback
+            .recent_diagnostics
+            .iter()
+            .skip(initial_diagnostics)
+            .collect::<Vec<_>>();
+        assert_eq!(maintenance.len(), 3, "one per rate-limit window and kind");
+        assert_eq!(maintenance[0].details["failureCount"], 1);
+        assert_eq!(maintenance[1].details["failureCount"], 3);
+        assert_eq!(maintenance[2].details["failureCount"], 1);
+        assert!(maintenance.iter().all(|diagnostic| {
+            diagnostic.details["causeCode"] == "SNAPBACK_TEST_MAINTENANCE_CAUSE"
+                && !diagnostic.message.contains("room-secret")
+                && !diagnostic.details.to_string().contains("room-secret")
+        }));
+
+        let public: PublicInspect = snapback.inspect().expect("inspect").into();
+        assert_eq!(public.maintenance, snapback.maintenance);
     }
 
     fn drain_live_stream_through_test_sink(
