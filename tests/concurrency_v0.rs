@@ -574,9 +574,6 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
             "collection": "cursors",
             "scope": { "roomId": "room_l9" },
             "connection_id": connection,
-            "session_id": null,
-            "user_id": null,
-            "custom_key": null,
             "auth": { "principal": null, "session_id": null, "user_id": null, "permissions": [] }
         })
     };
@@ -595,7 +592,16 @@ async fn l9_ephemeral_ops_proceed_while_a_busy_mutation_holds_the_write_lane() {
     .await
     .expect("subscribe must not stall behind the busy mutation")
     .expect("subscribe response");
-    assert_eq!(response.status(), StatusCode::OK);
+    let status = response.status();
+    let response_body = axum::body::to_bytes(response.into_body(), usize::MAX)
+        .await
+        .expect("subscribe body");
+    assert_eq!(
+        status,
+        StatusCode::OK,
+        "subscribe response: {}",
+        String::from_utf8_lossy(&response_body)
+    );
     assert!(
         started.elapsed() < Duration::from_millis(500),
         "ephemeral subscribe must not queue behind the busy write ({:?})",
