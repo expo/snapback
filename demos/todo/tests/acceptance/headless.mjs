@@ -464,8 +464,12 @@ try {
     // Hand-built bad function (bypasses codegen) to prove the SERVER also rejects it.
     await db.loadSchema(schemaManifest);
     const load = await db.loadFunctions({
-      bundle_hash: 'bad',
-      functions: [{ name: 'badQuery', kind: 'Query', runtime: { HostPlan: { Query: { table: 'todos', filters: [{ field: 'nope', op: 'Eq', value: { Literal: 'x' } }], order: [], limit: null, indexed_by: null } } } }],
+      artifactKind: 'functionManifest',
+      schemaVersion: 'snapback.v0',
+      appId: 'todo',
+      bundleHash: 'bad-query',
+      inputsHash: 'bad-query',
+      functions: [{ id: 'todo:badQuery', name: 'badQuery', kind: 'Query', runtime: { HostPlan: { Query: { table: 'todos', filters: [{ field: 'nope', op: 'Eq', value: { Literal: 'x' } }], order: [], limit: null, indexed_by: null } } } }],
     });
     const invalid = load.diagnostics.find(
       (diagnostic) => diagnostic.code === 'SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID',

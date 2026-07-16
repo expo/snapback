@@ -181,8 +181,10 @@ try {
     const load = await db.loadFunctions({
       artifactKind: 'functionManifest',
       schemaVersion: 'snapback.v0',
-      bundleHash: 'bad',
-      functions: [{ name: 'badQuery', kind: 'Query', runtime: { HostPlan: { Query: { table: 'todos', filters: [{ field: 'nope', op: 'Eq', value: { Literal: 'x' } }], order: [], limit: null, indexed_by: null } } } }],
+      appId: 'todo-v2',
+      bundleHash: 'bad-query',
+      inputsHash: 'bad-query',
+      functions: [{ id: 'todo-v2:badQuery', name: 'badQuery', kind: 'Query', runtime: { HostPlan: { Query: { table: 'todos', filters: [{ field: 'nope', op: 'Eq', value: { Literal: 'x' } }], order: [], limit: null, indexed_by: null } } } }],
     });
     const invalid = load.diagnostics.find(
       (diagnostic) => diagnostic.code === 'SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID',
