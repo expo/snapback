@@ -19,6 +19,9 @@ const repoRoot = join(here, '..', '..', '..');
 const ADA = 'ada';
 
 const schema = {
+  artifactKind: 'schemaManifest',
+  schemaVersion: 'snapback.v0',
+  appId: 'live-delta-e2e',
   tables: [
     {
       name: 'todos',
@@ -33,6 +36,7 @@ const schema = {
 };
 
 const hostQuery = (name, order) => ({
+  id: `live-delta-e2e:${name}`,
   name,
   kind: 'LiveQuery',
   runtime: {
@@ -49,9 +53,15 @@ const hostQuery = (name, order) => ({
 });
 
 const functions = {
+  artifactKind: 'functionManifest',
+  schemaVersion: 'snapback.v0',
+  appId: 'live-delta-e2e',
+  bundleHash: 'live-delta-e2e',
+  inputsHash: 'live-delta-e2e',
   functions: [
     hostQuery('listMine', []),
     {
+      id: 'live-delta-e2e:createTodo',
       name: 'createTodo',
       kind: 'Mutation',
       runtime: {
@@ -72,6 +82,7 @@ const functions = {
       },
     },
     {
+      id: 'live-delta-e2e:setUser',
       name: 'setUser',
       kind: 'Mutation',
       runtime: {
@@ -86,6 +97,7 @@ const functions = {
       },
     },
     {
+      id: 'live-delta-e2e:deleteTodo',
       name: 'deleteTodo',
       kind: 'Mutation',
       runtime: {
@@ -120,7 +132,12 @@ function recorder() {
 
 try {
   await db.loadSchema(schema);
-  await db.loadFunctions(functions);
+  const loaded = await db.loadFunctions(functions);
+  assertEqual(
+    loaded.diagnostics.filter((diagnostic) => ['Error', 'Fatal'].includes(diagnostic.severity)),
+    [],
+    'function manifest loads before live subscription',
+  );
   await db.reset();
 
   const rec = recorder();
