@@ -129,7 +129,8 @@ What the surface does for you:
   and an outbox; it reports capability class `Parity` only when the store
   is configured, the manifest claims `offlineReplay`, and every declared
   mutation has a derivable plan — else `Online`. Honest classes, no
-  pretending.
+  pretending. The complete retention, outbox, replay, and settlement contract
+  is in [offline retention and mutation replay](../sync/offline-and-retention.md).
 - **Ephemeral channels** — bound as generated links (subscribe + publish
   pairs); see the [presence recipe](../recipes/presence-cursors.md).
 

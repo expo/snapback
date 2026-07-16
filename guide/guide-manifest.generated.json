@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "54a44db83f15c12335da013d52e3a9a2399294d7"
+    "commit": "1e06be2458682673ce3bf389cb075a118d880856"
   },
   "nav": {
     ".": [
@@ -109,6 +109,13 @@
         "id": "recipes.hidden-hands",
         "order": 2,
         "title": "Recipe: hidden hands"
+      }
+    ],
+    "sync": [
+      {
+        "id": "sync.offline-and-retention",
+        "order": 1,
+        "title": "Offline retention and mutation replay"
       }
     ],
     "testing": [
@@ -396,7 +403,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "d6784ec03f00e23530eaf692dc127f5a6ed7348d7029e6ac4ae449a154985d44",
+      "sha256": "6da3eada15fb40012b5094260dba20214b981bf5ec88dbc46be2e1131f600dec",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -424,7 +431,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "7dd8b8ec37548ff1b87651525e8118569522f6601ee7c8b045dc8f8b9569cec3",
+      "sha256": "424d3b5cd67bacad80564f9d67344c651fb50d93303b6e52677beba384311092",
       "snippets": [
         {
           "lang": "contract",
@@ -632,7 +639,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "effe2b13ffcd75be5ffdf88bcbfe00b2b243df2485a3f22894084c81e700d6d7",
+      "sha256": "f8542f1c8f33b56562552cdcc54c56baaa0f7fe22e033bf7bd026865e85f1938",
       "snippets": []
     },
     "operating.secrets-and-config": {
@@ -848,6 +855,49 @@
       "sha256": "dc345540476ab511d3fc144bc10e706844f6eaa44847cd7ded9a299becdf00e0",
       "snippets": []
     },
+    "sync.offline-and-retention": {
+      "path": "guide/sync/offline-and-retention.md",
+      "title": "Offline retention and mutation replay",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "sync.offline"
+      ],
+      "authorities": [
+        "llp/0043-offline-replay-retention.rfc.md",
+        "llp/0052-contract-update-economy-and-host-state.rfc.md",
+        "packages/snapback-contract/index.mjs",
+        "packages/snapback-contract/offline-replay.test.mjs"
+      ],
+      "examples": [
+        "demos/card-game",
+        "demos/todo-v2/surfaces/contract"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "1e06be2458682673ce3bf389cb075a118d880856",
+      "sha256": "481b6608bffb90e41879b5f3b383c308ad632f56a4286d83f47ac087deecf9ad",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-contract/offline-replay.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-contract/offline-replay.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-contract/offline-replay.test.mjs"
+        }
+      ]
+    },
     "testing.acceptance": {
       "path": "guide/testing/acceptance.md",
       "title": "Acceptance testing",
@@ -913,6 +963,7 @@
       "realtime.durable-push",
       "realtime.ephemeral",
       "realtime.live-queries",
+      "sync.offline",
       "testing.acceptance"
     ],
     "gaps": [
@@ -922,13 +973,12 @@
       "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
-      "operating.host-ops",
-      "sync.offline"
+      "operating.host-ops"
     ]
   },
   "surfaces": {
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "69c87e1ae46c05650866418b98d44b2710f7220093fbd311defb1e774b947c24"
+  "contentHash": "ac07cdfda283179b9ba332d992f4ae5484d2e6528ea5b58a3de991e4421e03c6"
 }

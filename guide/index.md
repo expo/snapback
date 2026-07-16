@@ -59,6 +59,10 @@ you never build around a feature because you didn't know it existed.
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
 
+### Sync and offline
+- [Offline retention and mutation replay](./sync/offline-and-retention.md) —
+  stale boot, durable outbox ordering, deterministic overlays, and settlement.
+
 ### Auth
 - [Sessions and principals](./auth/sessions-and-principals.md) — the server
   derives who you are; scoped queries; logout barriers.
