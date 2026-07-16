@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: HEAD
+reviewed-commit: 77f490ad1cd82c8400839b8377b4acee4cd18c3a
 ---
 
 # Capability index
@@ -187,7 +187,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: HEAD
+reviewed-commit: 77f490ad1cd82c8400839b8377b4acee4cd18c3a
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -283,7 +283,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: HEAD
+reviewed-commit: 77f490ad1cd82c8400839b8377b4acee4cd18c3a
 ---
 
 # Guide conventions
@@ -446,7 +446,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: HEAD
+reviewed-commit: 77f490ad1cd82c8400839b8377b4acee4cd18c3a
 ---
 
 # Retrieval eval protocol

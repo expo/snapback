@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "61f759520ddbfa6c7f1d161d62acd90d60d320b6"
+    "commit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a"
   },
   "nav": {
     ".": [
@@ -181,8 +181,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "HEAD",
-      "sha256": "ea0718edfa05e2f85de4f14b4bb4bbbc2b0222967b2b83c68e96f5de5cbcf337",
+      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
+      "sha256": "d633a64c6966bb24dd73c916e5c9a6246898607d05a50f6870a9ad05a8aac0b7",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -290,8 +290,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "HEAD",
-      "sha256": "02e3d409adce123505df08a01313f16e97cfb1bb7f5feeec36ed9aa234fe1bb8",
+      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
+      "sha256": "b33f556037a67677253652fbec30d74f0a4b2989a0cb9e4cdac64e9e5eeb5d84",
       "snippets": []
     },
     "getting-started.the-authoring-loop": {
@@ -417,8 +417,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "HEAD",
-      "sha256": "2a149501a68b337fdb7b70aa21295e98eb33bdd876fc39dc34cc6c0b986104b2",
+      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
+      "sha256": "48696ffd31dedc77846efd84bff2742e34b171f7edb5a79828fabce2dd9ae6a4",
       "snippets": []
     },
     "realtime.live-queries": {
@@ -581,8 +581,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "HEAD",
-      "sha256": "9f8e25ddb1efea387599f63d60e7e2c67d0397bc935ac99d19b7d8bb83fda0bd",
+      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
+      "sha256": "dc345540476ab511d3fc144bc10e706844f6eaa44847cd7ded9a299becdf00e0",
       "snippets": []
     },
     "testing.acceptance": {
@@ -667,5 +667,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2080332bf2c23e95b70ccfb513b17774ad54e2be193afaf193a6ac9920f07bbc"
+  "contentHash": "6c5876bbe35d19f3cd6cd76c899fecbff6724331990a7e6631b676164e977f22"
 }
