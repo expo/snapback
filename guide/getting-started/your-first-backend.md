@@ -62,8 +62,8 @@ The complete validator set: `v.string()`, `v.boolean()`, `v.integer()`,
 `v.real()` / `v.number()`, `v.json()`, `v.object({...})`, and
 `v.optional(inner)`. `defineSchema` also takes an options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
-[presence recipe](../recipes/presence-cursors.md); a dedicated
-`realtime/ephemeral-state.md` page is a tracked gap), `auth:`
+[presence recipe](../recipes/presence-cursors.md) and complete
+[ephemeral-state reference](../realtime/ephemeral-state.md)), `auth:`
 (`{ mode: 'dev' | 'sessions' }` — see
 [auth/sessions-and-principals](../auth/sessions-and-principals.md)), and
 `requiredCapabilities:`.

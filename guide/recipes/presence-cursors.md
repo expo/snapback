@@ -22,7 +22,9 @@ reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
 "Two users see each other's cursors" is ephemeral state, not app data: it
 lives in typed in-memory rooms with TTL expiry and connection-owned
 cleanup (LLP 0013) — never in tables, never polled. The working reference
-is `demos/cursors-web`.
+is `demos/cursors-web`. This recipe is the shortest paved implementation;
+the [ephemeral-state reference](../realtime/ephemeral-state.md) inventories
+every collection option, key mode, recovery rule, and Contract link.
 
 ## 1. Declare the ephemeral collection in the schema
 

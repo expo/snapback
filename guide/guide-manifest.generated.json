@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9"
+    "commit": "39d6ce2db5832c9391dc8e5f7ad23243294f5774"
   },
   "nav": {
     ".": [
@@ -117,6 +117,11 @@
         "id": "realtime.live-queries",
         "order": 1,
         "title": "Live queries"
+      },
+      {
+        "id": "realtime.ephemeral-state",
+        "order": 2,
+        "title": "Ephemeral realtime state"
       }
     ],
     "recipes": [
@@ -423,7 +428,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "45fb80ab7a72f72c737960688f03058bbb9ee1b31cddcfadd5d00921fc553d98",
+      "sha256": "b2a91b7d7490804cf0ae5ccbfe93bb81ae1dbc342f41539128fa37766c56738b",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -451,7 +456,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "0a5b69d10e7b1fb597d9271fb1d7aa94d3b9ef30fb70e3e45e2565d5479a50b6",
+      "sha256": "923da52cf1f0195cf274f4c54b35d3242462f36b9ca83e17cc479e031e2bd277",
       "snippets": [
         {
           "lang": "contract",
@@ -511,7 +516,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "67ca44771ef1e3cd585c73a64454c29c0acbc850",
-      "sha256": "3356a3384cd84547877852ab606afc1267562760fc77f4521ed54d2ee22552f5",
+      "sha256": "56b0e72e735416fe730e476ba95caf6a522ece56f9cf769e1543ae7e7dd5a8c2",
       "snippets": [
         {
           "lang": "js",
@@ -631,7 +636,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "0486770450281730130873499d797659708824d320ba9372fe92d4c9038ec529",
+      "sha256": "e0ebec01e80869ef5f01cce7dd9d0b3bf70c2a253c0f8a556070874610479132",
       "snippets": [
         {
           "lang": "js",
@@ -699,7 +704,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "d132bce19dd8ec395ca3bac47351234170595ec7d1d8a39456d29e7842fbe7a8",
+      "sha256": "79b99c4c286f30ff3a8dc91e481126048e93bb1fa606c0c9cdfd5646d59b4850",
       "snippets": []
     },
     "operating.admin-console": {
@@ -845,6 +850,49 @@
         }
       ]
     },
+    "realtime.ephemeral-state": {
+      "path": "guide/realtime/ephemeral-state.md",
+      "title": "Ephemeral realtime state",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "realtime.ephemeral"
+      ],
+      "authorities": [
+        "llp/0013-ephemeral-realtime-state.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "demos/_kit/client.mjs",
+        "packages/snapback-contract/index.mjs"
+      ],
+      "examples": [
+        "demos/cursors-web",
+        "demos/todo-v2/snapback/schema.mjs"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "39d6ce2db5832c9391dc8e5f7ad23243294f5774",
+      "sha256": "0556fb4af13dbb1d4a6920f9631e676a7cf1380d23653b878c8b224fb0a0f5a5",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/cursors-web/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "fragment"
+        },
+        {
+          "lang": "contract",
+          "class": "transcluded",
+          "source": "demos/cursors-web/surfaces/contract/app.contract"
+        }
+      ]
+    },
     "realtime.live-queries": {
       "path": "guide/realtime/live-queries.md",
       "title": "Live queries",
@@ -977,7 +1025,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "1bdd63c15f8e70fa93dcd9ce32bfdc69a32521dd6c418c88acbbb39dbc5ea94f",
+      "sha256": "331ba0a7bdd70279aaa9877fc642fec480f9fef91f60cde245675dde6cdc035b",
       "snippets": [
         {
           "lang": "js",
@@ -1012,7 +1060,7 @@
       "examples": [],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "dc345540476ab511d3fc144bc10e706844f6eaa44847cd7ded9a299becdf00e0",
+      "sha256": "6ba0ca8fd0b66c32b2a09f4d26d2b5f1d18e58fb8b58d361f1ee81d41f68ba12",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -1140,5 +1188,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "cf3d985f60fbd8909ffa3a6221353168587aa2babeb030a26fc42328e983c22a"
+  "contentHash": "07401cf2d5bf5719aeb6f2c0cf0a707461ee5552e349a2ef9dc2a8ed37c179a4"
 }

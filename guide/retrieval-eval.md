@@ -39,8 +39,7 @@ land):
    `getting-started/` if starting fresh).
 2. **Ephemeral:** "Let two users of my Snapback app see each other's
    cursors." Expected pages: `recipes/presence-cursors.md` or
-   `realtime/ephemeral-state.md` (GAP-aware: until the ephemeral page
-   exists, the recipe is the target).
+   `realtime/ephemeral-state.md`.
 3. **Auth:** "Scope a query so each signed-in user only sees their own
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.

@@ -88,8 +88,9 @@ whose `currentEntries()`, `onChange`, `publish`, `delete`, and
 `dispose` methods implement the snapshot/delta/expiry contract.
 `publishEphemeral`, `deleteEphemeral`, and `unsubscribeEphemeral` are the
 lower-level transport operations. See the
-[presence recipe](../recipes/presence-cursors.md); the complete ephemeral
-reference page is tracked in the capability index until it lands.
+[presence recipe](../recipes/presence-cursors.md) for the paved feature and
+[ephemeral-state reference](../realtime/ephemeral-state.md) for the complete
+declaration, overlay, and recovery contract.
 
 ## Enter and leave session authority
 

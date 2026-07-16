@@ -47,7 +47,7 @@ with the Snapback label and `guide-gap` in the title.
 | backend.cron | Scheduled execution | cron, schedule, background jobs | local | shipped | route /_snapback/api/cron/tick | llp/0028 | backend/cron.md |
 | realtime.live-queries | Subscribe to a query; snapshot + replace/delta updates | live, subscription, realtime | local | shipped | route /live/{name}/subscribe | llp/0008 | realtime/live-queries.md |
 | realtime.durable-push | Durable WebSocket push lane; connection axis | websocket, stream, push, connection state | local | shipped | route /live/{connection_id}/stream | llp/0008, llp/0034 | realtime/live-queries.md |
-| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | recipes/presence-cursors.md |
+| realtime.ephemeral | Typed ephemeral rooms: presence, cursors, TTL | presence, cursors, rooms, ephemeral | local | shipped | route /ephemeral/publish | llp/0013 | realtime/ephemeral-state.md |
 | sync.offline | Retained queries, outbox, replay, optimistic overlays | offline, sync, local-first, outbox | local | shipped | route /outbox/{connection_id} | llp/0043, llp/0052 | sync/offline-and-retention.md |
 | auth.sessions | Server-minted sessions; email-code login; server-derived principals | login, signin, identity, session | local | shipped | route /auth/exchange | llp/0039, llp/0057, llp/0059 | auth/sessions-and-principals.md |
 | auth.scoped-queries | Per-principal query scoping via authScopeField | hidden data, per-user, row security | local | shipped | `authScopeField` in packages/snapback-codegen/define.mjs | llp/0039, llp/0053 | auth/sessions-and-principals.md |
@@ -235,6 +235,8 @@ you never build around a feature because you didn't know it existed.
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
+- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
+  collection options and key modes, overlays, recovery, and Contract links.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
@@ -501,8 +503,7 @@ land):
    `getting-started/` if starting fresh).
 2. **Ephemeral:** "Let two users of my Snapback app see each other's
    cursors." Expected pages: `recipes/presence-cursors.md` or
-   `realtime/ephemeral-state.md` (GAP-aware: until the ephemeral page
-   exists, the recipe is the target).
+   `realtime/ephemeral-state.md`.
 3. **Auth:** "Scope a query so each signed-in user only sees their own
    rows." Expected pages: `auth/sessions-and-principals.md`,
    `recipes/hidden-hands.md`.
@@ -1325,7 +1326,8 @@ What the surface does for you:
   pretending. The complete retention, outbox, replay, and settlement contract
   is in [offline retention and mutation replay](../sync/offline-and-retention.md).
 - **Ephemeral channels** — bound as generated links (subscribe + publish
-  pairs); see the [presence recipe](../recipes/presence-cursors.md).
+  pairs); see the [presence recipe](../recipes/presence-cursors.md) and
+  [ephemeral-state reference](../realtime/ephemeral-state.md).
 
 ## Anti-patterns
 
@@ -1431,8 +1433,9 @@ whose `currentEntries()`, `onChange`, `publish`, `delete`, and
 `dispose` methods implement the snapshot/delta/expiry contract.
 `publishEphemeral`, `deleteEphemeral`, and `unsubscribeEphemeral` are the
 lower-level transport operations. See the
-[presence recipe](../recipes/presence-cursors.md); the complete ephemeral
-reference page is tracked in the capability index until it lands.
+[presence recipe](../recipes/presence-cursors.md) for the paved feature and
+[ephemeral-state reference](../realtime/ephemeral-state.md) for the complete
+declaration, overlay, and recovery contract.
 
 ## Enter and leave session authority
 
@@ -1648,8 +1651,8 @@ The complete validator set: `v.string()`, `v.boolean()`, `v.integer()`,
 `v.real()` / `v.number()`, `v.json()`, `v.object({...})`, and
 `v.optional(inner)`. `defineSchema` also takes an options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
-[presence recipe](../recipes/presence-cursors.md); a dedicated
-`realtime/ephemeral-state.md` page is a tracked gap), `auth:`
+[presence recipe](../recipes/presence-cursors.md) and complete
+[ephemeral-state reference](../realtime/ephemeral-state.md)), `auth:`
 (`{ mode: 'dev' | 'sessions' }` — see
 [auth/sessions-and-principals](../auth/sessions-and-principals.md)), and
 `requiredCapabilities:`.
@@ -2497,6 +2500,181 @@ reconnect backoff 250ms → 10s. The
 
 ---
 
+<!-- snapback-guide-source: guide/realtime/ephemeral-state.md -->
+---
+title: Ephemeral realtime state
+id: realtime.ephemeral-state
+order: 2
+audience: agent-first
+capabilities: [realtime.ephemeral]
+authorities: [llp/0013-ephemeral-realtime-state.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, demos/_kit/client.mjs, packages/snapback-contract/index.mjs]
+examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 39d6ce2db5832c9391dc8e5f7ad23243294f5774
+---
+
+# Ephemeral realtime state
+
+> **Local target only.** This page describes the process-local dev/test
+> target. A hosted target needs sticky room routing or a shared room adapter;
+> Snapback does not currently claim that hosted capability.
+
+Ephemeral collections are typed, authorized, TTL-bounded latest-state maps for
+presence, cursors, selections, typing, drag state, and live viewport state.
+They are deliberately lossy: if a value must survive restart, support offline
+reads, or enter history/audit, put it in a durable table instead.
+
+Start with the [presence-cursors recipe](../recipes/presence-cursors.md) when
+building a feature. Use this page when choosing collection options or handling
+recovery.
+
+## Declare the complete collection contract
+
+One collection declaration contains every routing, ownership, budget,
+delivery, validation, and access fact:
+
+```js source=demos/cursors-web/snapback/schema.mjs
+    webCursors: ephemeral.collection({
+      scope: { roomId: v.string() },
+      routing: ['roomId'],
+      key: 'connection',
+      ttlMs: 5_000,
+      maxTtlMs: 30_000,
+      maxValueBytes: 1_024,
+      publishRate: { sustainedHz: 20, burst: 40 },
+      delivery: { mode: 'latest', dispatchMs: 33 },
+      value: v.object({
+        x: v.number(),
+        y: v.number(),
+        name: v.string(),
+        color: v.string(),
+        updatedAt: v.optional(v.number()),
+      }),
+      publish: allow.all(),
+      subscribe: allow.all(),
+    }),
+```
+
+The option inventory is:
+
+| Option | Local contract |
+| --- | --- |
+| `scope` | Required non-empty validator object. Its normalized values partition snapshots, fan-out, and authorization. |
+| `routing` | Defaults to every scope field; must be a non-empty, duplicate-free subset of `scope`. |
+| `key` | `connection` by default; also `session`, `user`, or `custom`. |
+| `ttlMs` | Required positive default lease. There is no immortal entry. |
+| `maxTtlMs` | Defaults to and may not exceed 30,000ms; must be at least `ttlMs`. |
+| `maxValueBytes` / `hardMaxValueBytes` | Defaults 1,024/4,096 bytes; neither may cross the 4 KiB local hard cap. |
+| `publishRate` | Defaults to `{ sustainedHz: 20, burst: 60 }`, enforced per connection/collection. |
+| `delivery` | Defaults to `{ mode: 'latest', dispatchMs: 33 }`; `latest` is the only shipped mode. |
+| `publish` / `subscribe` | Both required explicit policies: `allow.all()` or `allow.roomPermission(prefix)`. |
+| `value` | Required portable validator; generated clients and the server validate it. |
+| `targets` | Defaults to `local-dev-sqlite-ibex`; codegen rejects an undeclared selected target. |
+| `maxPendingEphemeralKeys` | Defaults to 1,024, bounding coalesced keys retained for dispatch. |
+
+Codegen rejects unsafe routing, absent TTL/auth, unsupported modes/targets,
+invalid validators, and over-budget declarations before it writes artifacts.
+Do not treat authoring defaults as hosted scale promises.
+
+## Choose a key mode deliberately
+
+- `connection` gives each active connection its own value and reclaims it on
+  disconnect or expiry. It is the normal cursor/presence choice.
+- `session` derives the key from the authenticated session, so reconnecting
+  can refresh the same lease. A caller-supplied session id is only an
+  assertion and must match transport authority.
+- `user` derives the key from the authenticated user. Multiple connections
+  refresh one shared lease; use it only when presence privacy permits.
+- `custom` accepts several connection-owned keys. Until generated
+  key-specific authorization exists, only the creating connection may replace
+  or delete each key.
+
+Never put a display name or caller-asserted user id in charge of ownership.
+The transport-derived connection/session/user identity is authoritative.
+
+## Authorize publish and subscribe separately
+
+`allow.all()` is explicit public room access. For protected rooms, use the
+same room permission prefix on publish and subscribe and grant the normalized
+permission through the connection authority:
+
+```js fragment reason="Policy fragment; protected room fixture uses a different domain-specific prefix."
+publish: allow.roomPermission('boardPresence'),
+subscribe: allow.roomPermission('boardPresence'),
+```
+
+The matching permission string is
+`SnapbackClient.roomPermission('boardPresence', scope)`. A room protected by
+durable membership also participates in the authorization-invalidation
+barrier: an authority-changing commit quiesces affected room sinks before the
+commit becomes visible. Custom-key authorization beyond connection ownership
+is not shipped.
+
+## Subscribe to snapshot plus deltas
+
+`subscribeEphemeral(ref, { connectionId, scope, ... })` registers the lane
+consumer before requesting its authoritative snapshot, buffers in-flight
+deltas, then applies them after the snapshot boundary. The returned overlay
+provides `currentEntries()`, `onChange`, `publish`, `delete`, `drain`, and
+`dispose`.
+
+Each current entry is:
+
+```text fragment reason="Normalized public entry shape assembled by EphemeralOverlay.currentEntries()."
+{ key, value, expiresAtMs, receivedAtMs, scopeEpoch, entryVersion }
+```
+
+The client prunes by the server-stamped expiry deadline. Server expiry,
+explicit delete, and disconnect normally emit remove deltas, but TTL is the
+backstop when that remove is lost.
+
+## Treat epochs and versions as one-room coordinates
+
+`entryVersion` is a monotonic room-local high-water coordinate, meaningful
+only for one collection/scope and within one `scopeEpoch`. The overlay ignores
+stale versions and keeps bounded tombstones so an old upsert cannot resurrect
+a removed entry.
+
+An epoch mismatch, queue overflow, or connection-wide continuity loss produces
+the level-triggered `needs_resync` state. Blank/degrade the UI, create a fresh
+overlay with `subscribeEphemeral`, attach its listener, then dispose the old
+overlay. Do not compare ephemeral versions with durable commit versions, and
+do not reopen a connection-poisoned overlay with a delayed snapshot.
+
+## Use generated Contract links
+
+Codegen emits a typed `*.ephemeral.ts` read descriptor, a
+`*.publish.ts` descriptor, their Contract metadata, and runtime links. A
+Contract component reads the map as an `ephemeral` binding:
+
+```contract source=demos/cursors-web/surfaces/contract/app.contract
+  ephemeral cursors = webCursors({ roomId: "lobby" })
+```
+
+The surface prewarms the room and configures the generated links; authored
+`publish ... rate=N` channels are statically checked against the generated
+publish budget. Keep imperative overlays in headless/React code and generated
+ephemeral links in Contract code—do not mix a second polling or publish lane
+into the same surface.
+
+## Anti-patterns
+
+- **Do not store transient motion in tables.** Durable commits and history are
+  the wrong correctness model for cursor samples.
+- **Do not invent global/unscoped rooms.** Scope is the fan-out and
+  authorization boundary.
+- **Do not retry rate-limit failures blindly.** Lower the publisher rate and
+  observe rejections.
+- **Do not trust deltas after `needs_resync`.** Establish a fresh snapshot
+  boundary.
+- **Do not claim multi-instance presence.** The current shipped adapter is
+  process-local.
+
+---
+
 <!-- snapback-guide-source: guide/recipes/presence-cursors.md -->
 ---
 title: "Recipe: presence cursors"
@@ -2522,7 +2700,9 @@ reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
 "Two users see each other's cursors" is ephemeral state, not app data: it
 lives in typed in-memory rooms with TTL expiry and connection-owned
 cleanup (LLP 0013) — never in tables, never polled. The working reference
-is `demos/cursors-web`.
+is `demos/cursors-web`. This recipe is the shortest paved implementation;
+the [ephemeral-state reference](../realtime/ephemeral-state.md) inventories
+every collection option, key mode, recovery rule, and Contract link.
 
 ## 1. Declare the ephemeral collection in the schema
 

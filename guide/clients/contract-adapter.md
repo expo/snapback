@@ -145,7 +145,8 @@ What the surface does for you:
   pretending. The complete retention, outbox, replay, and settlement contract
   is in [offline retention and mutation replay](../sync/offline-and-retention.md).
 - **Ephemeral channels** — bound as generated links (subscribe + publish
-  pairs); see the [presence recipe](../recipes/presence-cursors.md).
+  pairs); see the [presence recipe](../recipes/presence-cursors.md) and
+  [ephemeral-state reference](../realtime/ephemeral-state.md).
 
 ## Anti-patterns
 

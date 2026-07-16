@@ -58,6 +58,8 @@ you never build around a feature because you didn't know it existed.
 ### Realtime
 - [Live queries](./realtime/live-queries.md) — subscriptions, snapshot +
   replace/delta, durable push, the connection axis.
+- [Ephemeral state](./realtime/ephemeral-state.md) — typed rooms, all
+  collection options and key modes, overlays, recovery, and Contract links.
 
 ### Sync and offline
 - [Offline retention and mutation replay](./sync/offline-and-retention.md) —
