@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: 77f490ad1cd82c8400839b8377b4acee4cd18c3a
+reviewed: 2026-07-16
+reviewed-commit: 07460f64b762e69bf8dc22da6eb4c94029a8ec7a
 ---
 
 # Capability index
