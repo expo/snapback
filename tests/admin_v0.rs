@@ -297,7 +297,7 @@ async fn admin_client_module_is_served_from_the_shared_package() {
 
 #[tokio::test]
 async fn missing_console_dist_is_explicit_and_inspect_still_serves() {
-    let app = loopback_app(seeded_snapback());
+    let app = missing_dist_app(seeded_snapback());
 
     let html = app.clone().oneshot(get("/_snapback/admin")).await.unwrap();
     assert_eq!(html.status(), StatusCode::SERVICE_UNAVAILABLE);
@@ -545,7 +545,7 @@ async fn built_console_dist_is_served_when_configured() {
 
 #[tokio::test]
 async fn native_exact_request_without_dist_returns_capability_diagnostic() {
-    let app = loopback_app(seeded_snapback());
+    let app = missing_dist_app(seeded_snapback());
     let resp = app
         .oneshot(get("/_snapback/admin/__exact/platform-manifest.json"))
         .await
@@ -2180,6 +2180,12 @@ async fn stream_upgrade_requires_the_connection_token() {
 
 fn loopback_app(snapback: LocalSnapback) -> snapback::server::SnapbackApp {
     app_with_context(snapback, loopback_context(None))
+}
+
+fn missing_dist_app(snapback: LocalSnapback) -> snapback::server::SnapbackApp {
+    let mut context = loopback_context(None);
+    context.admin_dist = None;
+    app_with_context(snapback, context)
 }
 
 fn app_with_context(snapback: LocalSnapback, ctx: ServerContext) -> snapback::server::SnapbackApp {
