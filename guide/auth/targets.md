@@ -45,7 +45,8 @@ secrets, gated action egress, and settled idle-to-zero evidence. It is a
 narrow proof, not a paved product target: treat any technique on a page
 without `cloudflare` in its `targets:` as unverified there, and treat
 hosted auth as absent until LLP 0060's contract is implemented and
-witnessed.
+witnessed. Deployment, secret, egress, hibernation, and non-claim details are
+in [deploying the Cloudflare proof](../deploying/cloudflare.md).
 
 ## How to check instead of trusting prose
 

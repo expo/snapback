@@ -4,6 +4,8 @@ One generated Snapback app (a notes board) running on a Worker + a single app
 coordinator Durable Object with embedded SQLite, a V8 handler runtime, and
 WebSocket Hibernation. This is a **proof, not a product** — see
 [`llp/0040-cloudflare-narrow-proof.rfc.md`](../llp/0040-cloudflare-narrow-proof.rfc.md).
+The author-facing deployment and capability guide is
+[`guide/deploying/cloudflare.md`](../guide/deploying/cloudflare.md).
 
 ## Layout
 

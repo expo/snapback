@@ -95,6 +95,10 @@ you never build around a feature because you didn't know it existed.
 - [Admin console](./operating/admin-console.md) — build, launch, develop, and
   debug through the privileged Contract system app.
 
+### Deploying
+- [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
+  Aboard on the honest partial hosted profile; explicit supported subset and gaps.
+
 ### Recipes
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
   publish budgets (the cursors-web demo, distilled).

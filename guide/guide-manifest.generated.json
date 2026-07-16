@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d85bf1c02747900a3e8d8bcf4de522effb317c82"
+    "commit": "18fda6f4cbc2d216179c107c20388567db2b310d"
   },
   "nav": {
     ".": [
@@ -81,6 +81,13 @@
         "id": "clients.react",
         "order": 2,
         "title": "The React arm"
+      }
+    ],
+    "deploying": [
+      {
+        "id": "deploying.cloudflare",
+        "order": 1,
+        "title": "Deploying the Cloudflare proof"
       }
     ],
     "getting-started": [
@@ -279,7 +286,7 @@
       "examples": [],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "5302174aa1eb77614c659358e79665fdd8c852775a0211b5ec1b42c2dfb71bf9",
+      "sha256": "26b3b885db70c1b694279c6af8af4d2fdea89c63f601b92d743ff9b4cc8d8d2e",
       "snippets": []
     },
     "backend.actions-and-fetch": {
@@ -479,7 +486,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "5187de5c73dfd9ef90100c6661954dc90479c787e87872de5609f4a5c8c11272",
+      "sha256": "af5c5a54fd402f49acefd3a32d30e9000dc98648c876bbe24ffafd6731baafde",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -631,6 +638,41 @@
       "sha256": "b33f556037a67677253652fbec30d74f0a4b2989a0cb9e4cdac64e9e5eeb5d84",
       "snippets": []
     },
+    "deploying.cloudflare": {
+      "path": "guide/deploying/cloudflare.md",
+      "title": "Deploying the Cloudflare proof",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "cloudflare"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "deploy.cloudflare"
+      ],
+      "authorities": [
+        "llp/0014-cloudflare-strategy.rfc.md",
+        "llp/0040-cloudflare-narrow-proof.rfc.md",
+        "llp/0049-all-aboard-cloudflare-live.plan.md",
+        "cloudflare/README.md",
+        "cloudflare/deploy.sh",
+        "cloudflare/src/coordinator.js"
+      ],
+      "examples": [
+        "demos/all-aboard",
+        "cloudflare/app/all-aboard.app.js"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "18fda6f4cbc2d216179c107c20388567db2b310d",
+      "sha256": "d6777ffb30222be8d96407829622180943469462e9778c209bdab3092aa21281",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "cloudflare/app/all-aboard.app.js"
+        }
+      ]
+    },
     "getting-started.the-authoring-loop": {
       "path": "guide/getting-started/the-authoring-loop.md",
       "title": "The authoring loop",
@@ -755,7 +797,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "60076e43ef7d441836a422ac3ae9688694cf0b76576fb1602866a6d8af0cd7df",
+      "sha256": "f764862b50d994b8d1c75ae1d0bcccb1f82be512820cea83ecdc279f31ca4ccb",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1216,6 +1258,7 @@
       "clients.headless",
       "clients.optimistic-overlays",
       "clients.react",
+      "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
       "operating.host-ops",
@@ -1231,13 +1274,12 @@
     ],
     "gaps": [
       "auth.agent-principals",
-      "auth.scoped-roles",
-      "deploy.cloudflare"
+      "auth.scoped-roles"
     ]
   },
   "surfaces": {
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "5b5ea7ac26ed585677434f6fb524f1ace66aad5762de9ee3863a2736adf15dba"
+  "contentHash": "4cf131e18b589be1304aab36104502b3fe8cc3595019c586ea387df0e152f665"
 }
