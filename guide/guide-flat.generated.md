@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Capability index
@@ -188,7 +188,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -325,7 +325,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Guide conventions
@@ -490,7 +490,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 46e2ae4ef211b495e6c16572017401a8cfdbd1a8
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Retrieval eval protocol
@@ -572,7 +572,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Sessions and principals
@@ -979,7 +979,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Queries
@@ -1080,7 +1080,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Mutations
@@ -1203,7 +1203,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Actions and outbound fetch
@@ -1320,7 +1320,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Scheduled execution with cron
@@ -1591,7 +1591,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # The headless client
@@ -1751,7 +1751,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # The React arm
@@ -2045,7 +2045,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Your first backend
@@ -2273,7 +2273,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # The authoring loop
@@ -2371,7 +2371,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 54a44db83f15c12335da013d52e3a9a2399294d7
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Secrets and deployment config
@@ -2475,7 +2475,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Host operations
@@ -2559,6 +2559,11 @@ the process-bound capability and is unavailable in production. Destructive
 reset runs through the authorization-stream coordinator and fails closed if
 that projection is unavailable.
 
+The partial local `servicePrincipal`/scoped-token slice is admitted only by
+generated app-data calls. Host operations—including `function.run`—do not
+resolve scoped tokens into authority; use the operation's explicit admin or
+dev-impersonation gate instead.
+
 ## Anti-patterns
 
 - **Do not call internal Rust methods from tooling.** Use the envelope so CLI
@@ -2585,7 +2590,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Diagnostics and local doctoring
@@ -2834,8 +2839,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Live queries
@@ -2918,6 +2923,10 @@ asserts on delta kinds like this:
   });
 ```
 
+Membership-gated live replacement does not make a query safe for offline
+retention. V1 refuses retained role-gated queries until an authorized lease can
+bind the exact membership declaration/resource dependency and expiry floor.
+
 ## Connection state an author can observe
 
 The stream manager emits `'connecting'`, `'open'`, `'lost'`
@@ -2963,7 +2972,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 39d6ce2db5832c9391dc8e5f7ad23243294f5774
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Ephemeral realtime state
@@ -3059,9 +3068,10 @@ subscribe: allow.roomPermission('boardPresence'),
 The matching permission string is
 `SnapbackClient.roomPermission('boardPresence', scope)`. A room protected by
 durable membership also participates in the authorization-invalidation
-barrier: an authority-changing commit quiesces affected room sinks before the
-commit becomes visible. Custom-key authorization beyond connection ownership
-is not shipped.
+barrier. Membership-backed room authority binds to the declaration's stable id,
+not a table name or ambient role string; removing or downgrading a required role
+quiesces affected room sinks before the commit becomes visible. Custom-key
+authorization beyond connection ownership is not shipped.
 
 ## Subscribe to snapshot plus deltas
 
@@ -3137,8 +3147,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Recipe: presence cursors
@@ -3505,8 +3515,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Acceptance testing

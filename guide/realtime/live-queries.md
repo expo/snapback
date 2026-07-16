@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Live queries
@@ -92,6 +92,10 @@ asserts on delta kinds like this:
     onUpdate: rec.onUpdate,
   });
 ```
+
+Membership-gated live replacement does not make a query safe for offline
+retention. V1 refuses retained role-gated queries until an authorized lease can
+bind the exact membership declaration/resource dependency and expiry floor.
 
 ## Connection state an author can observe
 

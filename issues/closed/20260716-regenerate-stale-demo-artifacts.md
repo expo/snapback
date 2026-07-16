@@ -1,0 +1,37 @@
+# Regenerate and review stale committed demo artifacts
+
+**Status:** Closed
+**Severity:** P1
+**Systems:** Codegen, Generated artifacts, Demos, CI
+**Author:** Codex (GPT-5), directed by Charlie Cheever
+**Date:** 2026-07-16
+**Related:** LLP 0032 P3, LLP 0034
+**Marker:** build-integrity
+
+At `origin/main` commit `43314b7`, `scripts/verify-local-proof` fails in
+`scripts/check-generated-artifacts`. Regenerating the committed demos changes
+hashes in 34 files across Todo, Todo v2, All Aboard, the egress probe, Cursors,
+Graffiti, and Card Game. The check reports that the committed generated
+artifacts are stale and stops the canonical proof before its remaining gates.
+
+This is not just cosmetic generated churn: the committed artifacts are the
+runtime and acceptance boundary for schemas, functions, Contract data, and
+remote-service publication. The regeneration diff needs semantic inspection
+before it is committed.
+
+**Done when:**
+
+- Run `scripts/check-generated-artifacts` from a clean checkout and review the
+  resulting schema, function, capability, and input-hash changes.
+- Commit the intended regenerated output together with any source correction
+  needed to explain unexpected drift.
+- A second clean regeneration produces no diff.
+- `scripts/verify-local-proof` proceeds past the generated-artifact gate.
+
+## Resolution
+
+Regenerated all 34 stale demo artifacts and reviewed their normalized JSON
+diffs: every change is confined to bundle/input/schema identity hashes, with no
+schema, function, capability, or operation semantic drift. The dependent All
+Aboard Cloudflare deployment identity was regenerated too. A post-commit
+regeneration is clean.

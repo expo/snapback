@@ -9,8 +9,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Recipe: presence cursors

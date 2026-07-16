@@ -958,45 +958,18 @@ mod tests {
 
     #[test]
     fn redaction_covers_reversible_encoded_and_normalized_forms() {
-        const SECRET: &str = "p+/%\"\\ café\u{0301} / é / 😀A";
-
-        fn unicode_escape(value: &str, uppercase: bool) -> String {
-            value
-                .encode_utf16()
-                .map(|unit| {
-                    if uppercase {
-                        format!("\\u{unit:04X}")
-                    } else {
-                        format!("\\u{unit:04x}")
-                    }
-                })
-                .collect()
+        #[derive(Deserialize)]
+        struct RedactionCorpus {
+            secret: String,
+            variants: Vec<String>,
         }
+        let corpus: RedactionCorpus = serde_json::from_str(include_str!(
+            "../tests/fixtures/secret-redaction-encoded-forms.json"
+        ))
+        .expect("shared local/Cloudflare redaction corpus");
+        let redactor = SecretRedactor::new(vec![corpus.secret]);
 
-        let redactor = SecretRedactor::new(vec![SECRET.to_owned()]);
-        let url = percent_encode(SECRET, false);
-        let variants = [
-            SECRET.to_owned(),
-            url.clone(),
-            percent_encode(&url, false),
-            percent_encode(SECRET, true),
-            serde_json::to_string(SECRET)
-                .unwrap()
-                .trim_matches('"')
-                .to_owned(),
-            SECRET.nfc().collect(),
-            SECRET.nfd().collect(),
-            unicode_escape(SECRET, false),
-            unicode_escape(SECRET, true),
-            format!(
-                "{}{}",
-                &SECRET[..2],
-                unicode_escape(&SECRET[2..], true)
-            ),
-            unicode_escape(SECRET, false).replace("\\u", "\\\\u"),
-        ];
-
-        for variant in variants {
+        for variant in corpus.variants {
             let diagnostic = format!("vendor echoed {variant}");
             let redacted = redactor.redact_text(&diagnostic);
             assert_eq!(redacted, "vendor echoed [REDACTED]", "{variant:?}");

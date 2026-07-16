@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 39d6ce2db5832c9391dc8e5f7ad23243294f5774
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Ephemeral realtime state
@@ -106,9 +106,10 @@ subscribe: allow.roomPermission('boardPresence'),
 The matching permission string is
 `SnapbackClient.roomPermission('boardPresence', scope)`. A room protected by
 durable membership also participates in the authorization-invalidation
-barrier: an authority-changing commit quiesces affected room sinks before the
-commit becomes visible. Custom-key authorization beyond connection ownership
-is not shipped.
+barrier. Membership-backed room authority binds to the declaration's stable id,
+not a table name or ambient role string; removing or downgrading a required role
+quiesces affected room sinks before the commit becomes visible. Custom-key
+authorization beyond connection ownership is not shipped.
 
 ## Subscribe to snapshot plus deltas
 

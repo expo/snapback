@@ -32,6 +32,7 @@ globalThis.fetch = async (input, init) => {
 const schema = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/schema.manifest.json', import.meta.url), 'utf8'));
 const functions = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/generated/functions.manifest.json', import.meta.url), 'utf8'));
 const seed = JSON.parse(fs.readFileSync(new URL('../../demos/all-aboard/snapback/seed.json', import.meta.url), 'utf8'));
+const redactionCorpus = JSON.parse(fs.readFileSync(new URL('../../tests/fixtures/secret-redaction-encoded-forms.json', import.meta.url), 'utf8'));
 
 async function jsonFetch(base, path, body, headers = {}) {
   try {
@@ -105,7 +106,7 @@ try {
   await production.dispose();
 }
 
-const SPECIAL_SECRET = 'p+/%"\\ café\u0301 / é / 😀A';
+const SPECIAL_SECRET = redactionCorpus.secret;
 function utf16Escaped(value, casing = 'lower') {
   let output = '';
   for (let index = 0; index < value.length; index += 1) {
@@ -168,19 +169,7 @@ try {
   assert.equal(noGrant.body.result.rejected, true);
   assert.equal(noGrant.body.result.code, 'SNAPBACK_HOST_FETCH_SLOT_INVALID');
 
-  const reversible = new Set([
-    SPECIAL_SECRET,
-    encodeURIComponent(SPECIAL_SECRET),
-    encodeURIComponent(encodeURIComponent(SPECIAL_SECRET)),
-    new URLSearchParams({ v: SPECIAL_SECRET }).toString().slice(2),
-    JSON.stringify(SPECIAL_SECRET).slice(1, -1),
-    SPECIAL_SECRET.normalize('NFC'),
-    SPECIAL_SECRET.normalize('NFD'),
-    utf16Escaped(SPECIAL_SECRET, 'lower'),
-    utf16Escaped(SPECIAL_SECRET, 'upper'),
-    utf16Escaped(SPECIAL_SECRET, 'mixed'),
-    SPECIAL_SECRET.slice(0, 2) + utf16Escaped(SPECIAL_SECRET.slice(2), 'mixed'),
-  ]);
+  const reversible = new Set(redactionCorpus.variants);
   for (const path of ['/echo', '/redirect']) {
     const echoed = await testAction('probeSecretEcho', { url: `${echoOrigin}${path}` });
     const text = JSON.stringify(echoed.body);

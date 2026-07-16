@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
 ---
 
 # Host operations
@@ -93,6 +93,11 @@ require the bounded admin-secret-read lease. An impersonated branch requires
 the process-bound capability and is unavailable in production. Destructive
 reset runs through the authorization-stream coordinator and fails closed if
 that projection is unavailable.
+
+The partial local `servicePrincipal`/scoped-token slice is admitted only by
+generated app-data calls. Host operations—including `function.run`—do not
+resolve scoped tokens into authority; use the operation's explicit admin or
+dev-impersonation gate instead.
 
 ## Anti-patterns
 
