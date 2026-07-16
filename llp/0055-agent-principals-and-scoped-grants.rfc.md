@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (ENG-24919 G8 close-out: scoped-token handshakes now
+**Revised:** 2026-07-16 (ENG-24918 G7 checkpoint: retained grant-backed live
+authority now revalidates every immutable scope basis as well as its durable
+grant and carrier coordinates; a same-mode manifest activation that tombstones
+a retained scope projects a host-branded terminal delete before admission
+reopens, while preserving the public grant-scope diagnostic identity). 2026-07-16 (ENG-24919 G8 close-out: scoped-token handshakes now
 issue an opaque queued-replay descriptor over the durable actor/credential
 generation/grant tuple while excluding token churn; grant-backed live carries
 an exact token-bearing connection-effect fence, revalidates retained authority
@@ -1911,6 +1915,29 @@ Queued acknowledgement is authorized on the same opaque descriptor axis as
 settlement, not merely on the effective-user fingerprint. This matters for two
 grants delegated to the same effective user: knowledge of another grant's
 opaque client-mutation id cannot acknowledge or delete its settlement row.
+
+## Implementation checkpoint: G7 lifecycle completeness (2026-07-16)
+
+The durable and carrier endings implemented through G3 and G8 now cover grant
+revoke, actor bulk revoke, credential rotation, `revoke-self`, token-cap
+eviction, scoped-token expiry, and agent deactivation witnesses. Retained live
+authority revalidates the exact actor, credential generation, grant, token,
+effective user, deadline, and each immutable `{fn, kind, basis,
+authorityCreating}` scope entry before every full rerun or delta fanout. A
+same-mode manifest activation reconciles scope bases in its existing event-2
+transaction; before successor admission reopens, a retained service query on a
+tombstoned shape receives a host-branded `delete` disposition and terminal
+resolution, never a retryable quarantine or successor snapshot. The public
+diagnostic remains `SNAPBACK_AUTH_GRANT_SCOPE_DENIED`; its terminal brand is
+process-local and cannot cross or be forged through JSON.
+
+This checkpoint does not claim all of G7 closed. Owner invitation,
+owner-deactivation, owner re-credentialing, and revoke-all compromise routes
+remain the G2 delivery/lifecycle work described above. Logical export/import is
+also still deliberately absent pending the corpus's LLP 0057 export-tooling
+surface; declared restore and auth downgrade already purge agent authority and
+have no-resurrection acceptance coverage. Those missing trigger/tooling
+surfaces must land or be explicitly re-scoped before the G7 ticket can close.
 
 ## Implementation checkpoint: G6 authority-creating effects (2026-07-16)
 

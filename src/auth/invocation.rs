@@ -329,6 +329,22 @@ impl ResolvedGrantScope {
             authority_creating: scope.authority_creating,
         }
     }
+
+    pub(crate) fn function_id(&self) -> &str {
+        &self.function_id
+    }
+
+    pub(crate) fn kind(&self) -> &FunctionKind {
+        &self.kind
+    }
+
+    pub(crate) fn basis(&self) -> u64 {
+        self.basis
+    }
+
+    pub(crate) fn authority_creating(&self) -> bool {
+        self.authority_creating
+    }
 }
 
 impl ResolvedAppAuthority {

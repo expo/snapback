@@ -2313,6 +2313,7 @@ impl LocalSnapback {
     /// computation. Session authority is fenced by the projection; service
     /// authority is checked directly against the protected catalog without
     /// recovering or retaining its bearer.
+    // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — retained service authority and immutable scope shapes end as host-trusted terminal deletes.
     fn prepare_live_rerun_authority(
         &mut self,
         retained: &RetainedLiveAuthority,
@@ -2325,9 +2326,11 @@ impl LocalSnapback {
             grant_id,
             token_id,
             effective_user_id,
+            scopes,
             ..
         } = retained.resolved()
-            && !self.db.retained_service_authority_is_live(
+        {
+            if !self.db.retained_service_authority_is_live(
                 crate::storage::auth_agent_credentials::RetainedServiceAuthority {
                     actor_user_id,
                     credential_id,
@@ -2337,13 +2340,30 @@ impl LocalSnapback {
                     effective_user_id: effective_user_id.as_deref(),
                 },
                 now_millis(),
-            )?
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-                "auth",
-                "the retained service-principal authority is no longer current",
-            ));
+            )? {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "the retained service-principal authority is no longer current",
+                )
+                .into_trusted_permission_denial());
+            }
+            for scope in scopes {
+                let current = self.db.current_auth_scope_basis(
+                    scope.function_id(),
+                    scope.kind(),
+                    scope.authority_creating(),
+                )?;
+                if current != Some(scope.basis()) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                        "auth",
+                        "the retained grant scope is terminally invalid",
+                    )
+                    .with_details(json!({ "reason": "terminally_invalid_entry" }))
+                    .into_trusted_permission_denial());
+                }
+            }
         }
         retained.prepare_rerun(admission)
     }
@@ -10383,6 +10403,7 @@ mod tests {
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
+    use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::invalidation::{
         AuthorizationInvalidationConnection, InvalidationDisposition, LiveInvalidationIssuer,
         QueryNamespace, ResolutionKind, ScopeId,
@@ -10410,8 +10431,23 @@ mod tests {
     use serde_json::{Map, Value, json};
     use std::collections::BTreeMap;
     use std::sync::Arc;
-    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
+
+    struct CounterRandom(AtomicU8);
+
+    impl CounterRandom {
+        fn new() -> Self {
+            Self(AtomicU8::new(1))
+        }
+    }
+
+    impl RandomSource for CounterRandom {
+        fn fill(&self, destination: &mut [u8]) -> Result<(), CryptoError> {
+            destination.fill(self.0.fetch_add(1, Ordering::SeqCst));
+            Ok(())
+        }
+    }
 
     fn drain_live_stream_through_test_sink(
         snapback: &mut LocalSnapback,
@@ -10700,6 +10736,80 @@ mod tests {
         snapback
     }
 
+    fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
+        let random = CounterRandom::new();
+        let now_ms = now_millis();
+        let resolved = {
+            let db = snapback.auth_database_mut();
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_users(
+                       id, created_at_ms, kind, display_name, operator_contact,
+                       registration_provenance, deactivated_at_ms, owner_user_id
+                     ) VALUES('activation-owner', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                    rusqlite::params![now_ms as i64],
+                )?;
+                Ok(())
+            })
+            .expect("create activation owner");
+            db.create_agent_principal(
+                "activation-agent",
+                now_ms,
+                &crate::storage::auth_agents::AgentRegistration {
+                    display_name: Some("Activation agent".to_owned()),
+                    operator_contact: None,
+                    registration_provenance: r#"{"source":"activation-test"}"#.to_owned(),
+                    owner_user_id: Some("activation-owner".to_owned()),
+                },
+            )
+            .expect("create activation agent");
+            let credential = db
+                .issue_initial_agent_credential("activation-agent", now_ms, &random)
+                .expect("issue activation credential");
+            db.with_auth_transaction(|tx| {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES('activation-grant', 'activation-agent', 'activation-owner', ?1,
+                              ?2, ?3, NULL, 'test', NULL, NULL, ?2)",
+                    rusqlite::params![
+                        r#"[{"fn":"fn:listItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        now_ms.saturating_add(60_000) as i64,
+                    ],
+                )?;
+                Ok(())
+            })
+            .expect("create activation grant");
+            let token = db
+                .mint_scoped_token(
+                    &credential.secret,
+                    "activation-grant",
+                    Some(60_000),
+                    now_ms,
+                    &random,
+                )
+                .expect("mint activation token");
+            db.resolve_scoped_token(&token.secret, now_ms)
+                .expect("resolve activation token")
+        };
+        let admission = snapback
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("admit service live owner");
+        InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            admission,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::from_scoped_token(resolved),
+        )
+        .expect("prepare service live authority")
+    }
+
     #[test]
     fn same_mode_sessions_activation_projects_live_successor_before_reopening() {
         let (schema, predecessor_functions) = sessions_activation_pair('b', false);
@@ -10820,6 +10930,88 @@ mod tests {
                 .iter()
                 .all(|frame| !frame.contains("\"kind\":\"live_delta\"")),
             "deployment authorization changes never escape as an unfenced live delta"
+        );
+    }
+
+    #[test]
+    fn same_mode_activation_terminally_deletes_live_service_scope_tombstones() {
+        let (schema, predecessor_functions) = sessions_activation_pair('b', false);
+        let mut snapback =
+            settled_sessions_activation_snapback(schema, predecessor_functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let authority = scoped_live_authority(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "activation-service-live".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(94)),
+                    supersedes: None,
+                },
+                authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("subscribe service owner under predecessor scope basis");
+        assert!(subscribed.authorization_scope.is_some());
+        assert!(
+            drain_live_stream_through_test_sink(&mut snapback, "activation-service-live")
+                .is_empty()
+        );
+
+        let (_, mut successor_functions) = sessions_activation_pair('d', true);
+        successor_functions.functions[0].authority_creating = true;
+        let prepared = snapback
+            .prepare_auth_provision(
+                EnsureAppMode::Sessions,
+                None,
+                Some(successor_functions),
+                None,
+            )
+            .expect("preflight successor that tombstones the retained scope shape");
+        let transition = snapback
+            .admission
+            .clone()
+            .begin_transition()
+            .expect("close predecessor admission");
+        transition
+            .commit_project_and_publish_mode_state(|projection_admission| {
+                let committed = snapback.commit_auth_provision_classified(
+                    prepared,
+                    "test",
+                    Some(projection_admission),
+                )?;
+                Ok(((), committed.state))
+            })
+            .expect("commit scope tombstone and terminal live projection");
+
+        let frames = drain_live_stream_through_test_sink(
+            &mut snapback,
+            "activation-service-live",
+        );
+        let terminal = frames
+            .iter()
+            .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
+            .find(|frame| {
+                frame["kind"] == "authorization_invalidation"
+                    && frame["resolution"]["kind"] == "terminalDelete"
+            })
+            .expect("scope tombstone projects an immediate terminal delete");
+        assert_eq!(terminal["obligation"]["maxDisposition"], "delete");
+        assert!(
+            terminal.get("snapshot").is_none(),
+            "a terminal scope cannot publish a successor snapshot"
+        );
+        assert_eq!(
+            snapback
+                .auth_database_mut()
+                .current_auth_scope_basis("fn:listItems", &FunctionKind::LiveQuery, false)
+                .expect("read predecessor scope basis"),
+            None
         );
     }
 

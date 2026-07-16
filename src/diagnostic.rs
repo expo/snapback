@@ -161,6 +161,15 @@ impl SnapbackError {
         }
     }
 
+    /// Mark a host-constructed denial as terminal without changing its public
+    /// diagnostic identity. The bit is deliberately absent from serialization,
+    /// so an application or remote caller cannot forge this disposition by
+    /// replaying the same code and details.
+    pub(crate) fn into_trusted_permission_denial(mut self) -> Self {
+        self.trusted_permission_denial = true;
+        self
+    }
+
     pub(crate) fn is_trusted_permission_denial(&self) -> bool {
         self.trusted_permission_denial
     }
@@ -219,5 +228,22 @@ mod tests {
             "application supplied the public code",
         );
         assert!(!forged.is_trusted_permission_denial());
+
+        let classified = SnapbackError::error(
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+            "auth",
+            "host classified a durable scope tombstone",
+        )
+        .into_trusted_permission_denial();
+        assert!(classified.is_trusted_permission_denial());
+        assert_eq!(
+            classified.diagnostic.code,
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+        let decoded: SnapbackError = serde_json::from_str(
+            &serde_json::to_string(&classified).expect("serialize classified denial"),
+        )
+        .expect("deserialize classified denial");
+        assert!(!decoded.is_trusted_permission_denial());
     }
 }
