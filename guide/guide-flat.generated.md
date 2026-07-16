@@ -63,9 +63,9 @@ with the Snapback label and `guide-gap` in the title.
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
-| operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | GAP (owner: ccheever, review: 2026-08-15) |
-| operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | GAP (owner: ccheever, review: 2026-08-15) |
-| operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | GAP (owner: ccheever, review: 2026-08-15) |
+| operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
+| operating.host-ops | Host operations over CLI/HTTP | cli, ops, host operations | local | shipped | route /_snapback/api/host-ops | llp/0024 | operating/host-ops.md |
+| operating.diagnostics | Stable SNAPBACK_* codes; doctor tooling | diagnostics, errors, doctor | all | shipped | scripts/ibex-doctor | llp/0010 | operating/diagnostics.md |
 | operating.served-guide | Server embeds and serves this guide (pages + flat.md, hash-bound) | docs endpoint, llms.txt, served docs | all | shipped | route /_snapback/guide/flat.md | llp/0061 | index.md |
 | testing.acceptance | Headless-first acceptance harness | tests, acceptance, harness | local | shipped | `createSuite` in demos/_kit/harness.mjs | llp/0010, llp/0012 | testing/acceptance.md |
 | deploy.cloudflare | The hosted Cloudflare target, as far as it is real | deploy, hosting, production | cloudflare | partial | cloudflare/test/local-suite.mjs | llp/0014, llp/0040, llp/0049 | GAP (owner: ccheever, review: 2026-08-15) |
@@ -261,6 +261,12 @@ you never build around a feature because you didn't know it existed.
 ### Operating
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
+- [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
+  operation inventory and its authority envelopes.
+- [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
+  discipline, doctor, and bootstrap failure vocabulary.
+- [Admin console](./operating/admin-console.md) — build, launch, develop, and
+  debug through the privileged Contract system app.
 
 ### Recipes
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,
@@ -1252,6 +1258,19 @@ The generated `SnapbackContractLinks` interface enumerates every bound
 query, mutation, and ephemeral channel — using one before the bridge is
 configured throws, so a missed boot step fails loudly, not emptily.
 
+For cross-repo provider verification, the optional discovery helper reports
+whether Exact registers its conformance suite:
+
+```sh
+node packages/snapback-contract/exact-conformance.mjs
+node packages/snapback-contract/exact-conformance.mjs --require
+node packages/snapback-contract/exact-conformance.mjs --run
+```
+
+The Todo v2 provider-conformance acceptance points the Exact-owned suite at a
+live Snapback provider. Ordinary Snapback core work does not require a sibling
+Exact checkout; release/integration lanes use `--require` or `--run`.
+
 ## Boot: one surface, one idempotent ensure
 
 ```ts source=demos/todo-v2/surfaces/contract/main.ts
@@ -1991,6 +2010,362 @@ outside `uses`. Missing and undeclared entries fail with stable
   copied plaintext string.
 - **Do not treat `app.reset` as credential rotation.** Use `set`/`unset`
   and verification on the deployment config surface.
+
+---
+
+<!-- snapback-guide-source: guide/operating/host-ops.md -->
+---
+title: Host operations
+id: operating.host-ops
+order: 2
+audience: agent-first
+capabilities: [operating.host-ops]
+authorities: [llp/0024-agent-operating-surface.spec.md, src/host_ops.rs, src/server.rs, tests/host_ops_v0.rs]
+examples: [demos/todo]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+---
+
+# Host operations
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+Host operations give CLIs and agent tools one typed operating surface. The
+in-process implementation and `POST /_snapback/api/host-ops` return the same
+`hostOpsResult` envelope; operation variants are classified in the route
+registry instead of inheriting one overly broad HTTP policy.
+
+## Send one operation, receive one envelope
+
+A request names `operation` plus its typed fields:
+
+```json source=tests/host_ops_v0.rs
+        json!({
+            "operation": "function.run",
+            "function": "createTodo",
+            "args": { "title": "from host-ops" },
+            "userId": "user_ada",
+        }),
+```
+
+Every response contains `schemaVersion`, `resultKind: "hostOpsResult"`,
+`requestId`, `operation`, `ok`, `target`, optional `authority`,
+`artifacts`, `data`, `diagnostics[]`, and `next[]`. A known-but-unbuilt
+operation returns `ok: false` with a structured diagnostic, never a fake 404
+or empty success.
+
+## Served request operations
+
+The endpoint serves eight request spellings:
+
+| Request operation | Purpose |
+| --- | --- |
+| `app.inspect` | Full runtime/artifact/capability projection. |
+| `app.reset` | Coordinated destructive reset, optionally with seed. |
+| `schema.load` | Load a generated schema manifest. |
+| `functions.load` | Load a generated function/config/cron manifest. |
+| `function.run` | Run a query/live query, mutation, or action with its kind-specific gate. |
+| `function.explain` | Explain a supported kind; currently `mutationDryRun` is implemented. |
+| `auth.mintSession` | Dev/test session mint requiring the process-bound impersonation capability. |
+| `auth.rescueCollidingTable` | Operator-only pre-auth catalog collision recovery. |
+
+`host.start`, `host.stop`, and `host.restart` are CLI-only lifecycle
+verbs—a running server cannot safely own starting/stopping itself.
+`schema.reload`, `functions.reload`, and `acceptance.run` are pinned but
+unbuilt and fail as `SNAPBACK_HOST_OP_UNIMPLEMENTED`.
+
+## The exact 13 registry identities
+
+The HTTP request names above expand into these 13 audited operation identities:
+
+1. `host_ops.app.inspect`
+2. `host_ops.function.explain`
+3. `host_ops.function.explain.impersonated`
+4. `host_ops.app.reset`
+5. `host_ops.schema.load`
+6. `host_ops.functions.load`
+7. `host_ops.auth.mintSession`
+8. `host_ops.auth.rescueCollidingTable`
+9. `host_ops.function.run.query`
+10. `host_ops.function.run.mutation`
+11. `host_ops.function.run.action`
+12. `host_ops.function.run.unknown`
+13. `host_ops.function.run.impersonated`
+
+Query/explain reads, durable writes, credential-producing operations, and
+dev impersonation therefore keep distinct `RoutePolicy`, authority, effect,
+and response-sensitivity classifications even though they share one carrier.
+
+## Respect admin, secret-read, and impersonation gates
+
+The admin credential authenticates the transport; it does not silently invent
+an app caller. In sessions mode, sensitive query/explain results additionally
+require the bounded admin-secret-read lease. An impersonated branch requires
+the process-bound capability and is unavailable in production. Destructive
+reset runs through the authorization-stream coordinator and fails closed if
+that projection is unavailable.
+
+## Anti-patterns
+
+- **Do not call internal Rust methods from tooling.** Use the envelope so CLI
+  and HTTP behavior stay identical.
+- **Do not treat all host ops as AdminWrite.** The registry's kind-specific
+  policy is part of the security boundary.
+- **Do not interpret an unimplemented diagnostic as an absent operation.**
+  Pinned future verbs fail explicitly.
+- **Do not place credentials in request ids, logs, or `next[]`.** Credential
+  operations use their dedicated response-sensitivity path.
+
+---
+
+<!-- snapback-guide-source: guide/operating/diagnostics.md -->
+---
+title: Diagnostics and local doctoring
+id: operating.diagnostics
+order: 3
+audience: agent-first
+capabilities: [operating.diagnostics]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, src/diagnostic.rs, demos/_kit/harness.mjs, scripts/ibex-doctor, scripts/bootstrap-ibex-runtime]
+examples: [demos/todo/tests/acceptance/headless.mjs]
+status: current
+targets: [all]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+---
+
+# Diagnostics and local doctoring
+
+Snapback failures carry stable machine identity. Assert and branch on the
+`SNAPBACK_*` code; display the message to a human; inspect `details` only
+for code-specific facts.
+
+## Consume the diagnostic shape
+
+The full diagnostic is:
+
+- `code`: stable machine classification;
+- `severity`: lowercase `info | warning | error | fatal`;
+- `subsystem`: stable owning subsystem;
+- `message`: human explanation, not an API;
+- `details`: structured code-specific context.
+
+Public unauthenticated projections intentionally drop `message` and
+`details`, because they can contain source paths, handler text, arguments, or
+operator context. Error envelopes expose the diagnostic at
+`error.diagnostic`; some terminal mutation paths also attach a receipt.
+
+## Assert on codes, not prose
+
+The shared acceptance helper demonstrates the rule:
+
+```js source=demos/_kit/harness.mjs
+export async function assertThrows(fn, code, message) {
+  try {
+    await fn();
+  } catch (error) {
+    const got = error.diagnostic?.code ?? error.message;
+    if (code && got !== code) throw new Error(`${message ?? 'wrong error'}: expected ${code}, got ${got}`);
+    return error;
+  }
+  throw new Error(`${message ?? 'expected an error'}: nothing thrown (wanted ${code})`);
+}
+```
+
+Messages may improve without a compatibility event. A code change is a
+contract change and must update its schemas, callers, tests, and docs together.
+
+## Diagnose the vendored Ibex runtime first
+
+Run the read-only doctor before repairing runtime files by hand:
+
+```sh
+scripts/ibex-doctor
+```
+
+It checks the submodule state, prepared Hermes artifacts/framework, CLI,
+runtime-load posture, and required tools. On a clean checkout, bootstrap before
+Cargo build/test/run:
+
+```sh
+scripts/bootstrap-ibex-runtime
+```
+
+The stable bootstrap failure vocabulary is:
+`SNAPBACK_IBEX_SOURCE_MISSING`,
+`SNAPBACK_IBEX_SUBMODULE_BROKEN`,
+`SNAPBACK_IBEX_SUBMODULE_INIT_FAILED`,
+`SNAPBACK_IBEX_SUBMODULE_WEDGED`,
+`SNAPBACK_CAPABILITY_IBEX_HERMES_MISSING`,
+`SNAPBACK_IBEX_HERMES_DOWNLOAD_FAILED`,
+`SNAPBACK_IBEX_CARGO_BUILD_FAILED`,
+`SNAPBACK_IBEX_RUNTIME_LOAD_FAILED`, and
+`SNAPBACK_IBEX_HOST_UNSUPPORTED`.
+
+The doctor additionally distinguishes uninitialized/conflicting/drifted
+submodules, a missing vendored CLI, missing Node/Bun/Cargo, and dynamic-loader
+configuration. Follow the emitted next checks; do not collapse those states
+into “build failed.”
+
+## Preserve the first useful failure
+
+Acceptance harnesses must fail during setup instead of reporting a vacuous
+0/0 pass, bound every wait, include the diagnostic body when an assertion
+fails, and clean up their server/handles. When one failure cascades, fix and
+rerun from the earliest stable code rather than patching later symptoms.
+
+## Anti-patterns
+
+- **Do not parse `message` text.** Use `diagnostic.code` and typed details.
+- **Do not expose full diagnostics on public endpoints.** Use the public
+  classification projection.
+- **Do not rebuild Hermes first.** Doctor, then bootstrap from prepared sibling
+  artifacts when available.
+- **Do not accept a zero-check or timeout-only test result.** Require the
+  intended diagnostic and non-vacuous witnesses.
+
+---
+
+<!-- snapback-guide-source: guide/operating/admin-console.md -->
+---
+title: Admin console
+id: operating.admin-console
+order: 4
+audience: agent-first
+capabilities: [operating.admin-console]
+authorities: [llp/0017-admin-console-inspection-surface.rfc.md, src/admin.rs, admin-ui/app.contract, admin-ui/build.mjs, admin-ui/dev.mjs, packages/snapback-contract/build-preset.mjs, admin-ui/tests/fatal-rendering.mjs]
+examples: [admin-ui]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: 1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9
+---
+
+# Admin console
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+The admin console is Snapback's browser debugger over
+`/_snapback/api/*`. Its Contract app exposes Overview, Schema, Data,
+Functions, Secrets, Capabilities, Realtime, and Diagnostics views from the same
+inspect/scan/runner/config boundaries used by tests and tools.
+
+## Launch the built console
+
+Build the static browser and native Exact artifacts, then start Snapback:
+
+```sh
+cd admin-ui
+./build.sh
+cargo run --manifest-path ../Cargo.toml -- --memory
+```
+
+The server serves the immutable `dist/` snapshot at
+`/_snapback/admin/`. Set `SNAPBACK_ADMIN_DIST` to pin another snapshot; in
+a checkout, an unset value discovers `admin-ui/dist` when it exists. If no
+dist is available, the route returns a structured missing-dist diagnostic
+instead of a second embedded implementation.
+
+Browser baseline:
+
+```sh
+cargo run -- --memory
+# open the printed admin console URL
+```
+
+For a native Exact shell, point `EXACT_APP_CUSTOM_URL` at the
+Snapback-served static admin URL. A browser-only dist returns a specific
+native-artifact capability diagnostic.
+
+## Use the browser development loop
+
+Run Snapback at a known port, then start the Exact/Contract Vite app:
+
+```sh
+cargo run -- --memory --port 4287
+SNAPBACK_ADMIN_DEV_API=http://127.0.0.1:4287 bun run --cwd admin-ui dev
+```
+
+The dev server regenerates Contract bindings, watches their inputs, and proxies
+`/_snapback/api/*` to the configured backend. It binds loopback by default.
+Non-loopback proxy exposure requires both
+`SNAPBACK_ADMIN_DEV_HOST` and
+`SNAPBACK_ADMIN_DEV_ALLOW_NON_LOOPBACK=1`; treat that as exposing a
+privileged operator surface.
+
+If the backend is down, the proxy returns
+`SNAPBACK_ADMIN_DEV_API_UNREACHABLE` rather than HTML or a blank app.
+Static native artifacts remain build-only; request them from the served
+`./build.sh` output, not the dev server.
+
+## Authenticate the operator surface
+
+Loopback reads are open until an admin token exists; writes and non-loopback
+access follow the server's admin policy. Use the printed/token-file credential,
+never app session credentials. Sessions-mode sensitive reads use a separate
+short-lived admin-secret-read lease; neither credential substitutes for the
+other.
+
+The UI clears submitted credentials and renders hostile diagnostics as text:
+
+```js source=admin-ui/tests/fatal-rendering.mjs
+assert.equal(root.children[0].tagName, 'pre');
+assert.equal(
+  root.children[0].textContent,
+  `Admin console failed to start:\n${hostile}`,
+);
+assert.equal('innerHTML' in root.children[0], false);
+```
+
+The production browser proof also enforces CSP hashes, Trusted Types, zero
+runtime exceptions, zero console errors, and zero policy violations.
+
+## Debug through declared views
+
+- **Overview/Capabilities/Realtime/Diagnostics:** inspect target, artifacts,
+  capability gaps, delivery state, receipts, and stable codes.
+- **Schema/Data:** inspect declared tables and page through rows; private reads
+  remain subject to secret-read scope/budgets.
+- **Functions:** run queries, mutations, and actions through the classified
+  direct-runner boundary and inspect captured reads/writes.
+- **Secrets:** see declaration/set/verification state and run declared probes;
+  values never render.
+
+Use the [host operations](./host-ops.md) page for automation and
+[diagnostics](./diagnostics.md) for code-driven troubleshooting.
+
+## Verify the Contract/Exact seam
+
+The build preset owns plugin ordering, route/entry preflight, static/native
+targets, and the admin base-path rewrite. Snapback's Exact discovery/conformance
+helpers remain optional for ordinary core work:
+
+```sh
+node packages/snapback-contract/exact-conformance.mjs
+node packages/snapback-contract/exact-conformance.mjs --require
+node packages/snapback-contract/exact-conformance.mjs --run
+```
+
+`--require` makes a lane fail unless Exact registers the provider suite;
+`--run` invokes Exact's registered check. Generated descriptor/project
+semantics are covered by the Contract adapter acceptance, not by a hand-written
+admin binding layer.
+
+## Anti-patterns
+
+- **Do not run the privileged dev proxy on a LAN accidentally.**
+- **Do not point a native shell at a browser Vite surface.** Use the built
+  Snapback-served admin URL.
+- **Do not persist admin or secret-read credentials in UI state/storage.**
+- **Do not bypass generated Contract bindings with a second admin UI.**
 
 ---
 

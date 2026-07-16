@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "67ca44771ef1e3cd585c73a64454c29c0acbc850"
+    "commit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9"
   },
   "nav": {
     ".": [
@@ -95,6 +95,21 @@
         "id": "operating.secrets-and-config",
         "order": 1,
         "title": "Secrets and deployment config"
+      },
+      {
+        "id": "operating.host-ops",
+        "order": 2,
+        "title": "Host operations"
+      },
+      {
+        "id": "operating.diagnostics",
+        "order": 3,
+        "title": "Diagnostics and local doctoring"
+      },
+      {
+        "id": "operating.admin-console",
+        "order": 4,
+        "title": "Admin console"
       }
     ],
     "realtime": [
@@ -408,7 +423,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "1a9619a73ca50a3639ebe610a9b17395d0a7baba220cf0e408e4dfdabd257bd9",
+      "sha256": "45fb80ab7a72f72c737960688f03058bbb9ee1b31cddcfadd5d00921fc553d98",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -436,7 +451,7 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "424d3b5cd67bacad80564f9d67344c651fb50d93303b6e52677beba384311092",
+      "sha256": "0a5b69d10e7b1fb597d9271fb1d7aa94d3b9ef30fb70e3e45e2565d5479a50b6",
       "snippets": [
         {
           "lang": "contract",
@@ -684,8 +699,108 @@
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "0549a3e03437f9e10091d25c348111df0d1379453ad4e1c1fe12298ff694a4b3",
+      "sha256": "d132bce19dd8ec395ca3bac47351234170595ec7d1d8a39456d29e7842fbe7a8",
       "snippets": []
+    },
+    "operating.admin-console": {
+      "path": "guide/operating/admin-console.md",
+      "title": "Admin console",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.admin-console"
+      ],
+      "authorities": [
+        "llp/0017-admin-console-inspection-surface.rfc.md",
+        "src/admin.rs",
+        "admin-ui/app.contract",
+        "admin-ui/build.mjs",
+        "admin-ui/dev.mjs",
+        "packages/snapback-contract/build-preset.mjs",
+        "admin-ui/tests/fatal-rendering.mjs"
+      ],
+      "examples": [
+        "admin-ui"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9",
+      "sha256": "dab7426cf1a7721ddecb6802c7f84566924b3064dbd11566178c463e3d8b7e12",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "admin-ui/tests/fatal-rendering.mjs"
+        }
+      ]
+    },
+    "operating.diagnostics": {
+      "path": "guide/operating/diagnostics.md",
+      "title": "Diagnostics and local doctoring",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.diagnostics"
+      ],
+      "authorities": [
+        "llp/0010-agent-dx-and-acceptance.spec.md",
+        "src/diagnostic.rs",
+        "demos/_kit/harness.mjs",
+        "scripts/ibex-doctor",
+        "scripts/bootstrap-ibex-runtime"
+      ],
+      "examples": [
+        "demos/todo/tests/acceptance/headless.mjs"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9",
+      "sha256": "60deb75eb707a65f6428380fbc4651454ae2e416b632f35f8cc69f174899393d",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/_kit/harness.mjs"
+        }
+      ]
+    },
+    "operating.host-ops": {
+      "path": "guide/operating/host-ops.md",
+      "title": "Host operations",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "operating.host-ops"
+      ],
+      "authorities": [
+        "llp/0024-agent-operating-surface.spec.md",
+        "src/host_ops.rs",
+        "src/server.rs",
+        "tests/host_ops_v0.rs"
+      ],
+      "examples": [
+        "demos/todo"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "1448c4b79b05ab5406541a7ccdbd48d4aa6cb6d9",
+      "sha256": "2624b0908bc901f6ea1c41bcd028d82f4b9b2e60fec8a6605ab522a67bc3f3eb",
+      "snippets": [
+        {
+          "lang": "json",
+          "class": "transcluded",
+          "source": "tests/host_ops_v0.rs"
+        }
+      ]
     },
     "operating.secrets-and-config": {
       "path": "guide/operating/secrets-and-config.md",
@@ -1002,6 +1117,9 @@
       "clients.headless",
       "clients.optimistic-overlays",
       "clients.react",
+      "operating.admin-console",
+      "operating.diagnostics",
+      "operating.host-ops",
       "operating.inspect",
       "operating.secrets-config",
       "operating.served-guide",
@@ -1015,15 +1133,12 @@
     "gaps": [
       "auth.agent-principals",
       "auth.scoped-roles",
-      "deploy.cloudflare",
-      "operating.admin-console",
-      "operating.diagnostics",
-      "operating.host-ops"
+      "deploy.cloudflare"
     ]
   },
   "surfaces": {
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2376593bf4e3f7b90f65a9d35448eac6a5be59e7d58550a4608678afce8ba8a7"
+  "contentHash": "cf3d985f60fbd8909ffa3a6221353168587aa2babeb030a26fc42328e983c22a"
 }

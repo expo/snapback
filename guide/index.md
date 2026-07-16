@@ -84,6 +84,12 @@ you never build around a feature because you didn't know it existed.
 ### Operating
 - [Secrets and deployment config](./operating/secrets-and-config.md) —
   declare, set, verify, grant, and consume write-only values.
+- [Host operations](./operating/host-ops.md) — the complete CLI/HTTP
+  operation inventory and its authority envelopes.
+- [Diagnostics](./operating/diagnostics.md) — stable codes, assertion
+  discipline, doctor, and bootstrap failure vocabulary.
+- [Admin console](./operating/admin-console.md) — build, launch, develop, and
+  debug through the privileged Contract system app.
 
 ### Recipes
 - [Presence cursors](./recipes/presence-cursors.md) — ephemeral rooms, TTL,

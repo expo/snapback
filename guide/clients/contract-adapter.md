@@ -78,6 +78,19 @@ The generated `SnapbackContractLinks` interface enumerates every bound
 query, mutation, and ephemeral channel — using one before the bridge is
 configured throws, so a missed boot step fails loudly, not emptily.
 
+For cross-repo provider verification, the optional discovery helper reports
+whether Exact registers its conformance suite:
+
+```sh
+node packages/snapback-contract/exact-conformance.mjs
+node packages/snapback-contract/exact-conformance.mjs --require
+node packages/snapback-contract/exact-conformance.mjs --run
+```
+
+The Todo v2 provider-conformance acceptance points the Exact-owned suite at a
+live Snapback provider. Ordinary Snapback core work does not require a sibling
+Exact checkout; release/integration lanes use `--require` or `--run`.
+
 ## Boot: one surface, one idempotent ensure
 
 ```ts source=demos/todo-v2/surfaces/contract/main.ts
