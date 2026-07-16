@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "64da0b296368fc7a5a4109c4e021853b20ae6f1e"
+    "commit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8"
   },
   "nav": {
     ".": [
@@ -485,8 +485,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
-      "sha256": "d7dfd13df92a9ee35cfb3555d1c8c42f1e62e37d01f37c6c645cb6d1d9fc8d59",
+      "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
+      "sha256": "3c2f426b162e286f59657cca3fa634807650336798e4f1555ba9df6d085d6748",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -634,8 +634,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
-      "sha256": "33e0b60c61ae5826e2d99ce887b3ee9acc6c598cac4553fcc8545351fcfb0f17",
+      "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
+      "sha256": "d395bb914f68b8ab37625774ab72bc55b0e60908f3b358321e05f1891ee2ffa7",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -796,8 +796,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
-      "sha256": "42e1c6458b08c41e2ee8796340237acdb0ba88b02ebe9c396a1670abfee46fcf",
+      "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
+      "sha256": "36cc04e06df309e95aee68d6c22d28f09747631cd8d2157c9568a3923a528408",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1152,8 +1152,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
-      "sha256": "00ebf4051b7978a4eadd1cca3dee56f13955d5da135ee5c76f160dee7c305cc6",
+      "reviewedCommit": "46e2ae4ef211b495e6c16572017401a8cfdbd1a8",
+      "sha256": "86a0a74dcb94c379eb1eb61a653fca200a8cb031b969528fe8c54a94c849d1d7",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -1281,5 +1281,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "d6625a50d6c32412b6ecd698fb7eecae279ea07e93848536934c18d335401e92"
+  "contentHash": "88f6c3f7e7401564d696921c70c8c2b136b3f7ef880831dcb1d656dbfc6fc808"
 }
