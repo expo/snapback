@@ -1275,10 +1275,10 @@ fn reconcile_created_grant_approval(
     {
         return Err(grant_commit_uncertain());
     }
-    if let Some(proof) = proof {
-        if !proof.reconcile_consumed_on(connection)? {
-            return Err(grant_commit_uncertain());
-        }
+    if let Some(proof) = proof
+        && !proof.reconcile_consumed_on(connection)?
+    {
+        return Err(grant_commit_uncertain());
     }
     let durable = load_approved_grant_on(connection, &expected.grant_id, request_id)?;
     if &durable != expected || durable.effective_user_id != effective_user_id {
@@ -1304,10 +1304,10 @@ fn reconcile_rejected_grant_approval(
     if request != Some(("pending".to_owned(), None)) {
         return Err(grant_commit_uncertain());
     }
-    if let Some(proof) = proof {
-        if !proof.reconcile_unconsumed_on(connection)? {
-            return Err(grant_commit_uncertain());
-        }
+    if let Some(proof) = proof
+        && !proof.reconcile_unconsumed_on(connection)?
+    {
+        return Err(grant_commit_uncertain());
     }
     Ok(())
 }

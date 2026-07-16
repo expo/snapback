@@ -509,6 +509,28 @@ struct BufferedEffects {
     result: Value,
 }
 
+#[derive(Clone, Copy)]
+struct MembershipCommitAuthority<'a> {
+    gate: MembershipWriteGate,
+    writer: Option<&'a MembershipWriter>,
+}
+
+impl<'a> MembershipCommitAuthority<'a> {
+    const fn deny() -> Self {
+        Self {
+            gate: MembershipWriteGate::Deny,
+            writer: None,
+        }
+    }
+
+    const fn sanctioned(writer: &'a MembershipWriter) -> Self {
+        Self {
+            gate: MembershipWriteGate::Sanctioned,
+            writer: Some(writer),
+        }
+    }
+}
+
 impl ClientMutationIdentity {
     pub fn new(id: impl Into<String>, function: impl Into<String>, input: &HandlerInput) -> Self {
         Self::for_authority(
@@ -2282,8 +2304,7 @@ impl LocalDatabase {
                 apply: false,
                 identity: None,
             },
-            MembershipWriteGate::Deny,
-            None,
+            MembershipCommitAuthority::deny(),
             &|| Ok(()),
             || Ok(()),
         )
@@ -2306,8 +2327,7 @@ impl LocalDatabase {
                 result,
             },
             options,
-            MembershipWriteGate::Deny,
-            None,
+            MembershipCommitAuthority::deny(),
             &|| Ok(()),
             || Ok(()),
         )
@@ -2329,8 +2349,7 @@ impl LocalDatabase {
             input,
             effects,
             options,
-            MembershipWriteGate::Deny,
-            None,
+            MembershipCommitAuthority::deny(),
             check_live,
             before_commit,
         )
@@ -2341,8 +2360,7 @@ impl LocalDatabase {
         input: &HandlerInput,
         effects: BufferedEffects,
         options: BufferedCommitOptions<'_>,
-        membership_gate: MembershipWriteGate,
-        membership_writer: Option<&MembershipWriter>,
+        membership_authority: MembershipCommitAuthority<'_>,
         check_live: &Check,
         before_commit: BeforeCommit,
     ) -> SnapbackResult<MutationCommit>
@@ -2385,7 +2403,13 @@ impl LocalDatabase {
 
         let mut carried_writes: Vec<_> = writes
             .into_iter()
-            .map(|write| (write, membership_gate, membership_writer.cloned()))
+            .map(|write| {
+                (
+                    write,
+                    membership_authority.gate,
+                    membership_authority.writer.cloned(),
+                )
+            })
             .collect();
         for authorized in membership_plans {
             carried_writes.extend(authorized.plan.writes.into_iter().map(|write| {
@@ -6100,8 +6124,7 @@ impl LocalDatabase {
                 apply: true,
                 identity: None,
             },
-            MembershipWriteGate::Sanctioned,
-            Some(writer),
+            MembershipCommitAuthority::sanctioned(writer),
             &|| Ok(()),
             || Ok(()),
         )
@@ -10824,7 +10847,7 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 1000)
             .expect("sweep plan");
-        assert_eq!(plan.skipped_protected(), &[host_id.clone()]);
+        assert_eq!(plan.skipped_protected(), std::slice::from_ref(&host_id));
         let before_sweep = db.authorization_version().expect("pre-sweep version");
         let sweep = db
             .commit_membership_plan(&MembershipWriter::System, plan)

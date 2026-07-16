@@ -1273,18 +1273,17 @@ impl InvocationGate {
                 "this function requires an authenticated user",
             ));
         }
-        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
-            if !scopes
+        if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved
+            && !scopes
                 .iter()
                 .any(|scope| scope.function_id == function.id && scope.kind == function.kind)
-            {
-                return Err(SnapbackError::error(
-                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-                    "auth",
-                    "the scoped grant does not authorize this function",
-                )
-                .with_details(serde_json::json!({ "reason": "missing_scope" })));
-            }
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                "auth",
+                "the scoped grant does not authorize this function",
+            )
+            .with_details(serde_json::json!({ "reason": "missing_scope" })));
         }
         Ok(PreparedInvocation {
             authority,

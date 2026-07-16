@@ -3077,10 +3077,10 @@ mod direct_human_projection_tests {
     use serde_json::{Value, json};
 
     fn run(authority: ResolvedAppAuthority) -> Value {
-        let mut db = LocalDatabase::memory().unwrap();
+        let db = LocalDatabase::memory().unwrap();
         let projection = HandlerAuthProjection::from_authority(&authority);
         let mut invocation = IbexHostContext::new_with_projection(
-            DbRead::Live(&mut db),
+            DbRead::Live(&db),
             HandlerInput::default(),
             projection,
             AdmissionLease::unmanaged(0, 0),

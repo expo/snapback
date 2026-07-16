@@ -1037,11 +1037,10 @@ mod tests {
         }
         // A well-formed `sbrp_`/`sbrm_` value is refused by every bearer parser.
         for value in ["sbrp_00000000-0000-0000-0000-000000000000", "sbrm_deadbeef"] {
-            assert_eq!(
-                classify_credential(value)
+            assert!(
+                !classify_credential(value)
                     .map(CredentialClass::is_authenticating)
-                    .unwrap_or(false),
-                false
+                    .unwrap_or(false)
             );
             assert!(SessionBearer::parse(value).is_err());
             assert!(ScopedToken::parse(value).is_err());

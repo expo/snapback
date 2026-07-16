@@ -75,6 +75,17 @@ pub(crate) struct ResolvedScopedToken {
     pub expires_at_ms: u64,
 }
 
+struct StoredScopedToken {
+    token_id: String,
+    grant_id: String,
+    actor_user_id: String,
+    effective_user_id: Option<String>,
+    credential_id: String,
+    credential_generation: i64,
+    scopes_json: String,
+    expires_at_ms: i64,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct AgentFamilyRevocation {
     pub user_id: Option<String>,
@@ -473,16 +484,7 @@ impl LocalDatabase {
         let hash = token.token_hash();
         self.with_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
-            let row: Option<(
-                String,
-                String,
-                String,
-                Option<String>,
-                String,
-                i64,
-                String,
-                i64,
-            )> = tx
+            let row: Option<StoredScopedToken> = tx
                 .query_row(
                     "SELECT t.id, g.id, g.actor_user_id, g.effective_user_id,
                             t.credential_id, t.credential_generation, g.scopes,
@@ -501,33 +503,33 @@ impl LocalDatabase {
                        AND u.kind = 'agent' AND u.deactivated_at_ms IS NULL",
                     params![hash.as_bytes(), now_ms as i64],
                     |row| {
-                        Ok((
-                            row.get(0)?,
-                            row.get(1)?,
-                            row.get(2)?,
-                            row.get(3)?,
-                            row.get(4)?,
-                            row.get(5)?,
-                            row.get(6)?,
-                            row.get(7)?,
-                        ))
+                        Ok(StoredScopedToken {
+                            token_id: row.get(0)?,
+                            grant_id: row.get(1)?,
+                            actor_user_id: row.get(2)?,
+                            effective_user_id: row.get(3)?,
+                            credential_id: row.get(4)?,
+                            credential_generation: row.get(5)?,
+                            scopes_json: row.get(6)?,
+                            expires_at_ms: row.get(7)?,
+                        })
                     },
                 )
                 .optional()?;
-            let Some((
+            let Some(StoredScopedToken {
                 token_id,
                 grant_id,
                 actor_user_id,
                 effective_user_id,
                 credential_id,
-                generation,
-                scopes,
+                credential_generation,
+                scopes_json,
                 expires_at_ms,
-            )) = row
+            }) = row
             else {
                 return Err(scoped_token_invalid());
             };
-            let scopes = current_grant_scopes_on(tx, &scopes)?;
+            let scopes = current_grant_scopes_on(tx, &scopes_json)?;
             coalesce_credential_use(tx, &credential_id, now_ms)?;
             tx.execute(
                 "UPDATE _auth_grants SET last_used_at_ms = ?1
@@ -544,7 +546,7 @@ impl LocalDatabase {
                 actor_user_id,
                 effective_user_id,
                 credential_id,
-                credential_generation: generation as u64,
+                credential_generation: credential_generation as u64,
                 scopes,
                 expires_at_ms: expires_at_ms as u64,
             })

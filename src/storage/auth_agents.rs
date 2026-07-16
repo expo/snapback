@@ -20,6 +20,14 @@ use crate::manifest::{MembershipScope, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::json;
 
+#[derive(Clone, Copy)]
+struct ProtectedMembershipColumns<'a> {
+    table: &'a str,
+    principal: &'a str,
+    resource: &'a str,
+    role: &'a str,
+}
+
 /// The immutable registration facts recorded when an agent principal is created.
 /// `kind` is always `agent`; `registration_provenance` and `kind` are written
 /// once and never updated, which is how their documented immutability is kept.
@@ -267,22 +275,22 @@ fn stranded_protected_resources(
             continue;
         }
         let protect = last_holder.protect.as_str();
+        let columns = ProtectedMembershipColumns {
+            table: &table.name,
+            principal: &membership.principal,
+            resource: resource_column,
+            role: &membership.role,
+        };
         let held = resources_held_by(
             conn,
-            &table.name,
-            &membership.principal,
-            resource_column,
-            &membership.role,
+            columns,
             principal,
             protect,
         )?;
         for resource in held {
             if !has_other_eligible_holder(
                 conn,
-                &table.name,
-                &membership.principal,
-                resource_column,
-                &membership.role,
+                columns,
                 principal,
                 &resource,
                 protect,
@@ -309,20 +317,17 @@ fn table_exists(conn: &Connection, table: &str) -> SnapbackResult<bool> {
 
 fn resources_held_by(
     conn: &Connection,
-    table: &str,
-    principal_column: &str,
-    resource_column: &str,
-    role_column: &str,
+    columns: ProtectedMembershipColumns<'_>,
     principal: &str,
     protect: &str,
 ) -> SnapbackResult<Vec<String>> {
     let sql = format!(
         "SELECT DISTINCT {resource} FROM {table}
          WHERE {principal} = ?1 AND {role} = ?2",
-        resource = quote_ident(resource_column),
-        table = quote_ident(table),
-        principal = quote_ident(principal_column),
-        role = quote_ident(role_column),
+        resource = quote_ident(columns.resource),
+        table = quote_ident(columns.table),
+        principal = quote_ident(columns.principal),
+        role = quote_ident(columns.role),
     );
     let mut statement = conn.prepare(&sql)?;
     let rows = statement.query_map(params![principal, protect], |row| row.get::<_, String>(0))?;
@@ -334,10 +339,7 @@ fn resources_held_by(
 /// holder principal absent from `_auth_users` is not deactivated, hence eligible.
 fn has_other_eligible_holder(
     conn: &Connection,
-    table: &str,
-    principal_column: &str,
-    resource_column: &str,
-    role_column: &str,
+    columns: ProtectedMembershipColumns<'_>,
     principal: &str,
     resource: &str,
     protect: &str,
@@ -349,10 +351,10 @@ fn has_other_eligible_holder(
              SELECT id FROM _auth_users WHERE deactivated_at_ms IS NOT NULL
            )
          LIMIT 1",
-        table = quote_ident(table),
-        resource = quote_ident(resource_column),
-        role = quote_ident(role_column),
-        principal = quote_ident(principal_column),
+        table = quote_ident(columns.table),
+        resource = quote_ident(columns.resource),
+        role = quote_ident(columns.role),
+        principal = quote_ident(columns.principal),
     );
     Ok(conn
         .query_row(&sql, params![resource, protect, principal], |_| Ok(()))
