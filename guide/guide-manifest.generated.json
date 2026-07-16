@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0cc293cd55017f24196427f02e8eb087a6ea53d0"
+    "commit": "f3ff57a0199b4ab85071d955ce9899ffd40abb9f"
   },
   "nav": {
     ".": [
@@ -485,8 +485,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a",
-      "sha256": "af5c5a54fd402f49acefd3a32d30e9000dc98648c876bbe24ffafd6731baafde",
+      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
+      "sha256": "d7dfd13df92a9ee35cfb3555d1c8c42f1e62e37d01f37c6c645cb6d1d9fc8d59",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -633,9 +633,9 @@
         "llp/0061-agent-first-snapback-guide.rfc.md"
       ],
       "examples": [],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "b33f556037a67677253652fbec30d74f0a4b2989a0cb9e4cdac64e9e5eeb5d84",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
+      "sha256": "2067f8b56e5a029fa4f5f65a0a9b5013c2829ea48612bf4ea7faf9b0dac6b691",
       "snippets": []
     },
     "deploying.cloudflare": {
@@ -795,9 +795,9 @@
         "demos/cursors-web",
         "demos/card-game"
       ],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "f764862b50d994b8d1c75ae1d0bcccb1f82be512820cea83ecdc279f31ca4ccb",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
+      "sha256": "42e1c6458b08c41e2ee8796340237acdb0ba88b02ebe9c396a1670abfee46fcf",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1151,9 +1151,9 @@
         "llp/0061-agent-first-snapback-guide.rfc.md"
       ],
       "examples": [],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "77f490ad1cd82c8400839b8377b4acee4cd18c3a",
-      "sha256": "6ba0ca8fd0b66c32b2a09f4d26d2b5f1d18e58fb8b58d361f1ee81d41f68ba12",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
+      "sha256": "00ebf4051b7978a4eadd1cca3dee56f13955d5da135ee5c76f160dee7c305cc6",
       "snippets": []
     },
     "sync.offline-and-retention": {
@@ -1281,5 +1281,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "ad85c4092b36f474646ace1e84b58812c9bcc193f2f4e4aa98368e484bc99a51"
+  "contentHash": "80c1a7b8e8429462cfa549c52a24e3aeaf962397712cbf646e5a0c18c2f7b1b7"
 }
