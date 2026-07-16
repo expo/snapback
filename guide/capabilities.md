@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 5e75774a934c607cd093958d6326aa21ca3e09f3
 ---
 
 # Capability index
