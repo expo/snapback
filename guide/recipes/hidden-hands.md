@@ -4,13 +4,13 @@ id: recipes.hidden-hands
 order: 2
 audience: agent-first
 capabilities: [auth.scoped-queries, auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, demos/card-game/snapback/functions.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-16
+reviewed-commit: 2a372af84752924154235532dc150e8f3bb8c2a9
 ---
 
 # Recipe: hidden hands
@@ -31,8 +31,19 @@ Prerequisite: sessions-mode auth —
 ## One query, disjoint worlds
 
 Each player signs in (email code → session) and calls the same query with
-no owner argument; the server stamps the session principal and the
-`authScopeField` does the rest:
+no owner argument. The query's explicit
+`eq('ownerId', authUserId())` predicate compares rows with the
+server-derived session principal:
+
+```js source=demos/card-game/snapback/functions.mjs
+  filter: [
+    eq('ownerId', authUserId()),
+    eq('gameId', arg('gameId')),
+  ],
+```
+
+For JS live queries, `authScopeField` can additionally declare the principal
+field to the live matcher; it never substitutes for the ownership predicate.
 
 ```js source=demos/card-game/tests/acceptance/authority-scope.mjs
   const [adaResult, graceResult] = await Promise.all([

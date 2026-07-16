@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "07460f64b762e69bf8dc22da6eb4c94029a8ec7a"
+    "commit": "2a372af84752924154235532dc150e8f3bb8c2a9"
   },
   "nav": {
     ".": [
@@ -109,14 +109,15 @@
         "llp/0057-auth-provider-protocol.spec.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "src/auth/mode.rs",
+        "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "f488344dc236fd5676bdee19aca9644914d01962ffcc269b43b967ed1e6d2a84",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "2a372af84752924154235532dc150e8f3bb8c2a9",
+      "sha256": "b3db37f9e8b00a204fab2f3e91b1fbf262f9f8ebcae83d7c82f93d155346be60",
       "snippets": [
         {
           "lang": "js",
@@ -127,6 +128,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/card-game/tests/acceptance/authority-scope.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/snapback/functions.mjs"
         },
         {
           "lang": "js",
@@ -493,15 +499,21 @@
       "authorities": [
         "llp/0053-authorization-invalidation.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "demos/card-game/snapback/functions.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "1383579f5d9bd6c4c9c061aed3ff1ad87038c447579eb03029903e7436dbcd23",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "2a372af84752924154235532dc150e8f3bb8c2a9",
+      "sha256": "636fcef3908840772fbe07317bf4b2f053e1ecab09804f9528128cd7794e3ab1",
       "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/card-game/snapback/functions.mjs"
+        },
         {
           "lang": "js",
           "class": "transcluded",
@@ -667,5 +679,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "57565e678f7604614621fe05e86446d18daab4a39be8ede409e68763d777d0fc"
+  "contentHash": "8a2d798ca0ae1375d2b5ff9df60dc1ef17d8452fe1b6f46501df7b68d7e1b9e2"
 }
