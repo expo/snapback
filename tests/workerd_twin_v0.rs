@@ -769,7 +769,10 @@ fn deterministic_member_denial_is_convergent_for_the_deterministic_tier() {
 fn busy_loop_is_killed_with_no_commit_and_no_collateral() {
     require_workerd!();
     let mut snapback = configured();
-    let error = with_wall_clock_timeout_ms(1_500, || {
+    // This budget includes per-invocation workerd materialization, startup,
+    // and readiness. Leave enough post-startup time under full-suite load for
+    // the handler to enter its loop before the outer process deadline wins.
+    let error = with_wall_clock_timeout_ms(5_000, || {
         on_v8(|| snapback.invoke_mutation("busyLoop", input(json!({}))))
     })
     .expect_err("a busy loop on the V8 leg must be killed");
