@@ -333,7 +333,8 @@
       "enum": [
         "SNAPBACK_AUTH_SESSION_EXPIRED",
         "SNAPBACK_AUTH_STREAM_RESET",
-        "SNAPBACK_AUTH_MODE_PENDING"
+        "SNAPBACK_AUTH_MODE_PENDING",
+        "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
       ],
       "type": "string"
     },

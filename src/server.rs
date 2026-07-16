@@ -958,6 +958,8 @@ struct ConnectionRegistryState {
     used: std::collections::BTreeSet<(u64, String)>,
     anonymous_grants: std::collections::HashMap<String, std::collections::BTreeSet<String>>,
     session_grants: std::collections::HashMap<BoundSessionKey, std::collections::BTreeSet<String>>,
+    service_token_grants:
+        std::collections::HashMap<String, std::collections::BTreeSet<String>>,
     anonymous_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     session_open_attempts:
@@ -1142,10 +1144,9 @@ impl BoundGrantAuthority {
                 session_id: session_id.clone(),
                 generation: *generation,
             }),
-            Self::ServicePrincipal {
-                authorization_stream_incarnation,
-                ..
-            } => GrantReverseKey::Anonymous(authorization_stream_incarnation.clone()),
+            Self::ServicePrincipal { token_id, .. } => {
+                GrantReverseKey::ServiceToken(token_id.clone())
+            }
         }
     }
 
@@ -1272,6 +1273,7 @@ impl BoundGrantAuthority {
 enum GrantReverseKey {
     Anonymous(String),
     Session(BoundSessionKey),
+    ServiceToken(String),
 }
 
 enum ResolvedRoomConnectionAuthority {
@@ -1510,6 +1512,16 @@ impl AuthTerminalLifecycle {
         );
     }
 
+    pub(crate) fn terminate_service_tokens(&self, token_ids: &[String], close_by: Instant) {
+        let captures = self.connections.invalidate_service_tokens(token_ids);
+        self.terminalize_captures(
+            captures,
+            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            close_by,
+        );
+    }
+
     pub(crate) fn committed_stream_reset(
         &self,
         reason: crate::live_wire::LiveAuthErrorReason,
@@ -1645,6 +1657,12 @@ impl ConnectionRegistryState {
                     .or_default()
                     .insert(connection_id.to_owned());
             }
+            GrantReverseKey::ServiceToken(token_id) => {
+                self.service_token_grants
+                    .entry(token_id)
+                    .or_default()
+                    .insert(connection_id.to_owned());
+            }
         }
     }
 
@@ -1663,6 +1681,14 @@ impl ConnectionRegistryState {
                     ids.remove(connection_id);
                     if ids.is_empty() {
                         self.session_grants.remove(&key);
+                    }
+                }
+            }
+            GrantReverseKey::ServiceToken(token_id) => {
+                if let Some(ids) = self.service_token_grants.get_mut(&token_id) {
+                    ids.remove(connection_id);
+                    if ids.is_empty() {
+                        self.service_token_grants.remove(&token_id);
                     }
                 }
             }
@@ -1822,6 +1848,11 @@ impl ConnectionRegistryState {
                         .get(&key)
                         .is_some_and(|ids| ids.contains(connection_id))
                 ),
+                GrantReverseKey::ServiceToken(token_id) => assert!(
+                    self.service_token_grants
+                        .get(&token_id)
+                        .is_some_and(|ids| ids.contains(connection_id))
+                ),
             }
         }
         for (incarnation, ids) in &self.anonymous_grants {
@@ -1830,9 +1861,6 @@ impl ConnectionRegistryState {
                 assert!(matches!(
                     self.grants.get(connection_id).map(|record| &record.authority),
                     Some(BoundGrantAuthority::Anonymous {
-                        authorization_stream_incarnation,
-                        ..
-                    }) | Some(BoundGrantAuthority::ServicePrincipal {
                         authorization_stream_incarnation,
                         ..
                     }) if authorization_stream_incarnation == incarnation
@@ -1852,6 +1880,18 @@ impl ConnectionRegistryState {
                     }) if authorization_stream_incarnation == &key.authorization_stream_incarnation
                         && session_id == &key.session_id
                         && generation == &key.generation
+                ));
+            }
+        }
+        for (token_id, ids) in &self.service_token_grants {
+            assert!(!ids.is_empty(), "service token reverse index has a ghost set");
+            for connection_id in ids {
+                assert!(matches!(
+                    self.grants.get(connection_id).map(|record| &record.authority),
+                    Some(BoundGrantAuthority::ServicePrincipal {
+                        token_id: bound_token_id,
+                        ..
+                    }) if bound_token_id == token_id
                 ));
             }
         }
@@ -2020,6 +2060,50 @@ impl ConnectionRegistry {
         };
         let mut state = self.lock();
         let ids = state.session_grants.get(&key).cloned().unwrap_or_default();
+        let captures = ids
+            .iter()
+            .filter_map(|connection_id| {
+                let record = state.grants.get(connection_id)?;
+                Some(
+                    record
+                        .authority
+                        .terminal_capture(connection_id.clone(), record.grant_id.clone()),
+                )
+            })
+            .collect::<Vec<_>>();
+        for connection_id in &ids {
+            state.remove_grant(connection_id);
+        }
+        if !ids.is_empty() {
+            state.pressure_mint_only = true;
+        }
+        captures
+    }
+
+    /// Remove every connection capability carried by one of the exact scoped
+    /// tokens that became terminal in the just-committed credential operation.
+    /// The token reverse index keeps cap eviction isolated: another carrier of
+    /// the same durable grant is deliberately left installed.
+    ///
+    /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — token revocation and cap eviction end
+    ///   the carrier axis only; rotation supplies every token from the ended
+    ///   credential generation as exact witnesses.
+    pub(crate) fn invalidate_service_tokens(
+        &self,
+        token_ids: &[String],
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        let ids = token_ids
+            .iter()
+            .flat_map(|token_id| {
+                state
+                    .service_token_grants
+                    .get(token_id)
+                    .into_iter()
+                    .flatten()
+                    .cloned()
+            })
+            .collect::<std::collections::BTreeSet<_>>();
         let captures = ids
             .iter()
             .filter_map(|connection_id| {
@@ -7295,10 +7379,10 @@ async fn auth_agent_rotate(
         )
     })
     .await?;
-    // `invalidated_token_ids` is the exact connection-projection input. The
-    // service-principal connection registry lands with G7; no session-shaped
-    // connection may be guessed here.
-    let _invalidated = issued.invalidated_token_ids;
+    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+        &issued.invalidated_token_ids,
+        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+    );
     Ok(Json(AgentCredentialSecretResponse {
         credential_id: issued.credential_id,
         user_id: issued.user_id,
@@ -7348,7 +7432,10 @@ async fn auth_agent_token(
             .await?
         }
     };
-    let _evicted = issued.evicted_token_ids;
+    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+        &issued.evicted_token_ids,
+        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+    );
     Ok(Json(AgentTokenSecretResponse {
         token_id: issued.token_id,
         grant_id: issued.grant_id,
@@ -7373,12 +7460,16 @@ async fn auth_agent_revoke_self(
     let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
     let credential = parse_agent_credential(&request.credential)?;
     let now_ms = _provider.now_ms();
-    let _revoked = with_snapback(&runtime.snapback, move |snapback| {
+    let revoked = with_snapback(&runtime.snapback, move |snapback| {
         snapback
             .auth_database_mut()
             .revoke_agent_credential_family(&credential, now_ms)
     })
     .await?;
+    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+        &revoked.token_ids,
+        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+    );
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -19054,7 +19145,7 @@ mod tests {
         })
         .await
         .unwrap();
-        let router = app(state);
+        let router = app(state.clone());
 
         let mut ordinary_request = auth_http_request(
             "POST",
@@ -19081,6 +19172,29 @@ mod tests {
         assert_eq!(ordinary["grantExpiresAtMs"], now_ms + 60_000);
         assert_eq!(ordinary["scopes"][0]["fn"], "fn:listItems");
         assert!(ordinary["token"].as_str().unwrap().starts_with("sbagt_"));
+        let first_token = ordinary["token"].as_str().unwrap().to_owned();
+        let first_open = router
+            .clone()
+            .oneshot(connection_open_request(Some(&first_token), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(first_open.status(), StatusCode::OK);
+        let first_open = response_json(first_open).await;
+        let first_connection_id = first_open["connectionId"].as_str().unwrap().to_owned();
+        let first_connection_token = first_open["connectionToken"].as_str().unwrap().to_owned();
+        let first_grant_id = state
+            .connections
+            .lock()
+            .grants
+            .get(&first_connection_id)
+            .unwrap()
+            .grant_id
+            .clone();
+        let notifier = state.ephemeral.delivery_notifier();
+        let (first_registration, _) = notifier
+            .register_bound(&first_connection_id, first_grant_id)
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(2)).await;
 
         let mut pairing_request = auth_http_request(
             "POST",
@@ -19106,6 +19220,92 @@ mod tests {
         assert_eq!(pairing["grantId"], "route-grant");
         assert_eq!(pairing["grantExpiresAtMs"], now_ms + 60_000);
         assert_eq!(pairing["scopes"], ordinary["scopes"]);
+        let second_token = pairing["token"].as_str().unwrap().to_owned();
+        let second_open = router
+            .clone()
+            .oneshot(connection_open_request(Some(&second_token), json!({})))
+            .await
+            .unwrap();
+        assert_eq!(second_open.status(), StatusCode::OK);
+        let second_open = response_json(second_open).await;
+        let second_connection_id = second_open["connectionId"].as_str().unwrap().to_owned();
+        let second_connection_token = second_open["connectionToken"].as_str().unwrap().to_owned();
+        let second_grant_id = state
+            .connections
+            .lock()
+            .grants
+            .get(&second_connection_id)
+            .unwrap()
+            .grant_id
+            .clone();
+        let (second_registration, _) = notifier
+            .register_bound(&second_connection_id, second_grant_id)
+            .unwrap();
+        tokio::time::sleep(Duration::from_millis(2)).await;
+
+        // Fill the grant's ten-token carrier cap, then mint the eleventh. The
+        // oldest token's exact connection becomes terminal while the second
+        // token on the same durable grant remains current.
+        for _ in 0..8 {
+            let mut fill = auth_http_request(
+                "POST",
+                "/auth/agents/token",
+                serde_json::to_vec(&json!({
+                    "credential": credential,
+                    "grantId": "route-grant",
+                }))
+                .unwrap(),
+                true,
+                None,
+                None,
+            );
+            offer_auth_client_protocol(&mut fill);
+            assert_eq!(
+                router.clone().oneshot(fill).await.unwrap().status(),
+                StatusCode::OK
+            );
+            tokio::time::sleep(Duration::from_millis(2)).await;
+        }
+        let mut evict = auth_http_request(
+            "POST",
+            "/auth/agents/token",
+            serde_json::to_vec(&json!({
+                "credential": credential,
+                "grantId": "route-grant",
+            }))
+            .unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut evict);
+        assert_eq!(
+            router.clone().oneshot(evict).await.unwrap().status(),
+            StatusCode::OK
+        );
+        let terminal = notifier
+            .terminal_if_current(&first_connection_id, first_registration)
+            .expect("cap eviction projects the exact carrier terminal event");
+        assert_eq!(
+            terminal.code,
+            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
+        );
+        assert_eq!(terminal.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
+        assert!(
+            notifier
+                .terminal_if_current(&second_connection_id, second_registration)
+                .is_none(),
+            "a sibling token on the same grant survives oldest-carrier eviction"
+        );
+        {
+            let connections = state.connections.lock();
+            assert!(!connections.grants.contains_key(&first_connection_id));
+            assert!(connections.grants.get(&second_connection_id).is_some_and(|record| {
+                record.token == second_connection_token
+            }));
+            assert_ne!(first_connection_token, second_connection_token);
+            connections.assert_grant_indexes_consistent();
+        }
 
         let mut pending_request = auth_http_request(
             "POST",
@@ -19158,6 +19358,45 @@ mod tests {
                 "SNAPBACK_AUTH_REQUEST_INVALID"
             );
         }
+
+        with_snapback(&state.snapback, |snapback| {
+            snapback.auth_database_mut().with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_agent_credentials SET rotated_at_ms = 0
+                     WHERE user_id = 'route-agent' AND revoked_at_ms IS NULL",
+                    [],
+                )?;
+                Ok(())
+            })
+        })
+        .await
+        .unwrap();
+        let mut rotate = auth_http_request(
+            "POST",
+            "/auth/agents/rotate",
+            serde_json::to_vec(&json!({ "credential": credential })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut rotate);
+        assert_eq!(
+            router.clone().oneshot(rotate).await.unwrap().status(),
+            StatusCode::OK
+        );
+        let terminal = notifier
+            .terminal_if_current(&second_connection_id, second_registration)
+            .expect("credential rotation projects every old-generation carrier");
+        assert_eq!(
+            terminal.code,
+            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
+        );
+        assert_eq!(terminal.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
+        assert!(!state
+            .connections
+            .lock()
+            .grants
+            .contains_key(&second_connection_id));
     }
 
     /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — the

@@ -5,7 +5,12 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (ENG-24913 G2 checkpoint: landed the non-production,
+**Revised:** 2026-07-16 (ENG-24914 G3 close-out: scoped-token-bound
+connections are indexed by exact `tokenId`; token-cap eviction terminates only
+the evicted carrier, while credential rotation and `revoke-self` terminate all
+token carriers named by their committed storage witnesses; the live wire gains
+the closed `SNAPBACK_AUTH_SCOPED_TOKEN_INVALID` terminal class). 2026-07-15
+(ENG-24913 G2 checkpoint: landed the non-production,
 operation-bound step-up substrate and coupled its single-use consumption to
 `authorityCreating` grant approval; owner credential routes, revoke-all, and
 LLP 0045 production delivery remain pending); 2026-07-14 (round-7 dual-family revision, /llp-super-refine:
@@ -1819,6 +1824,26 @@ proof consumption to its own durable transaction. Production challenge creation
 remains fail-closed with
 `SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE` until LLP 0045 supplies the
 ephemeral human-delivery seam; capture is not a production escape hatch.
+
+## Implementation checkpoint: G3 carrier projection (2026-07-16)
+
+The credential/token lifecycle and its connection projection are implemented.
+`POST /connection/open` already bound a scoped token to an exact
+`servicePrincipal`, but the connection registry previously filed that grant in
+the anonymous reverse index and the rotate/token/revoke-self routes discarded
+the exact token-id witnesses returned by their committed storage operations.
+The registry now maintains a token-id reverse index and projects those witnesses
+through LLP 0059's terminal notifier. Token-cap eviction removes and terminalizes
+only the evicted token's connections; another token on the same durable grant
+survives. Rotation and `revoke-self` terminalize every live carrier belonging to
+the ended credential family. The terminal frame uses the newly registered
+`SNAPBACK_AUTH_SCOPED_TOKEN_INVALID` code with reason `revoked`.
+
+This checkpoint does not enable grant-backed live registration: connection acts
+under `servicePrincipal` remain admission-refused until G8/item 6 supplies the
+agent client fence. It closes G3's mid-connection rotation and cap-eviction
+obligations without claiming G7's broader grant/lifecycle transitions or G8's
+live query and queued-settlement surface.
 
 ## Status
 

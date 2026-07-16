@@ -189,6 +189,8 @@ pub enum LiveAuthErrorCode {
     StreamReset,
     #[serde(rename = "SNAPBACK_AUTH_MODE_PENDING")]
     ModePending,
+    #[serde(rename = "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID")]
+    ScopedTokenInvalid,
 }
 
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
@@ -446,6 +448,19 @@ mod tests {
                 "kind": "auth_error",
                 "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
                 "reason": "expired",
+            })
+        );
+
+        let scoped_token_terminal = LiveSocketServerFrame::AuthError {
+            code: LiveAuthErrorCode::ScopedTokenInvalid,
+            reason: LiveAuthErrorReason::Revoked,
+        };
+        assert_eq!(
+            serde_json::to_value(&scoped_token_terminal).unwrap(),
+            json!({
+                "kind": "auth_error",
+                "code": "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "reason": "revoked",
             })
         );
 

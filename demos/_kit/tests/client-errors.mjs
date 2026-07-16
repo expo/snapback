@@ -426,12 +426,12 @@ try {
     await stream.ready;
     ws.dispatch('message', { data: JSON.stringify({
       kind: 'auth_error',
-      code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
-      reason: 'expired',
+      code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      reason: 'revoked',
     }) });
     const error = await assertThrows(
       () => stream.nextUpdate(50),
-      'SNAPBACK_AUTH_SESSION_EXPIRED',
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
       'terminal auth frame must reject instead of entering the durable queue',
     );
     assertEqual(ws.closeCalls, 1, 'terminal frame closes its exact raw socket');
