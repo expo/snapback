@@ -1101,6 +1101,123 @@ mod tests {
     }
 
     #[test]
+    fn canonical_route_by_terminal_ending_pause_matrix_fails_closed() {
+        #[derive(Clone, Copy, Debug)]
+        enum Route {
+            Query,
+            Mutation,
+            Action,
+            AuthSession,
+            ConnectionInsert,
+            ConnectionAct,
+        }
+        #[derive(Clone, Copy, Debug)]
+        enum Ending {
+            GrantRevoke,
+            CredentialRotate,
+            CredentialRevoke,
+            PrincipalDeactivate,
+            TokenExpiry,
+            TokenCapEvict,
+        }
+        const ROUTES: [Route; 6] = [
+            Route::Query,
+            Route::Mutation,
+            Route::Action,
+            Route::AuthSession,
+            Route::ConnectionInsert,
+            Route::ConnectionAct,
+        ];
+        const ENDINGS: [Ending; 6] = [
+            Ending::GrantRevoke,
+            Ending::CredentialRotate,
+            Ending::CredentialRevoke,
+            Ending::PrincipalDeactivate,
+            Ending::TokenExpiry,
+            Ending::TokenCapEvict,
+        ];
+
+        for route in ROUTES {
+            for ending in ENDINGS {
+                let registry = ServiceAuthorityFenceRegistry::default();
+                let monotonic = Instant::now();
+                let token_id = format!("token-{route:?}-{ending:?}");
+                let expiry = matches!(ending, Ending::TokenExpiry);
+                let publication = registry
+                    .register(
+                        witness(&token_id, if expiry { 101 } else { 1_000 }),
+                        100,
+                        monotonic,
+                    )
+                    .expect("resolve and register exact finite witness");
+
+                if !expiry {
+                    let disposition = if matches!(ending, Ending::TokenCapEvict) {
+                        ServiceAuthorityDisposition::Carrier
+                    } else {
+                        ServiceAuthorityDisposition::DurableDelete
+                    };
+                    registry
+                        .prepare_terminal(std::slice::from_ref(&token_id), disposition)
+                        .expect("pause-after-resolution terminal premark")
+                        .committed()
+                        .expect("commit exact terminal ending");
+                }
+
+                let mut effect_ran = false;
+                match route {
+                    Route::ConnectionAct => {
+                        assert!(
+                            !matches!(
+                                publication.resolve_act(101, monotonic),
+                                Ok(ServiceAuthorityActResolution::Current(_))
+                            ),
+                            "{route:?} published after {ending:?}"
+                        );
+                    }
+                    Route::Action => {
+                        assert!(
+                            publication.begin_external_effect(101, monotonic).is_err(),
+                            "{route:?} began a native effect after {ending:?}"
+                        );
+                        let result = publication.try_publish(101, monotonic, || {
+                            effect_ran = true;
+                            Ok(())
+                        });
+                        assert!(
+                            matches!(result, Ok(None) | Err(_)),
+                            "{route:?} published after {ending:?}"
+                        );
+                    }
+                    Route::Query
+                    | Route::Mutation
+                    | Route::AuthSession
+                    | Route::ConnectionInsert => {
+                        let result = publication.try_publish(101, monotonic, || {
+                            effect_ran = true;
+                            Ok(())
+                        });
+                        assert!(
+                            matches!(result, Ok(None) | Err(_)),
+                            "{route:?} published after {ending:?}"
+                        );
+                    }
+                }
+                assert!(!effect_ran, "{route:?} effect ran after {ending:?}");
+                assert_eq!(
+                    publication.terminal_disposition(101, monotonic),
+                    if matches!(ending, Ending::TokenExpiry | Ending::TokenCapEvict) {
+                        ServiceAuthorityDisposition::Carrier
+                    } else {
+                        ServiceAuthorityDisposition::DurableDelete
+                    },
+                    "{route:?} classified {ending:?} incorrectly"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn terminal_commit_waits_for_external_effect_initiation_cut() {
         let registry = ServiceAuthorityFenceRegistry::default();
         let monotonic = Instant::now();
