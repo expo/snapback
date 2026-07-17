@@ -5,7 +5,12 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (ENG-24916 G5 close-out: the three sealed
+**Revised:** 2026-07-16 (durable agent-custody closure: the reference headless
+client persists a versioned authority tuple/epoch/revision record behind exact
+transactional compare-and-set, requires an exact server descriptor before
+initialization, adoption, recovery, or live credential replacement, and waits
+for terminal barriers; filesystem custody provides private atomic files and a
+bounded cross-process advisory lock). 2026-07-16 (ENG-24916 G5 close-out: the three sealed
 authorization-expression inputs now flow through codegen and the Rust
 authority, actor-aware HostPlan row filters and trusted mutation guards are
 evaluated under both delegated and direct projections with intersection, and
@@ -1945,9 +1950,26 @@ with the captured carrier and compare-and-committed before exposure. Token
 replacement increments the carrier generation, closes transports, and clears
 connection grants; when the durable tuple is unchanged, the server-issued
 authority descriptor remains bound and queued replay continues. A tuple change
-increments the durable epoch and clears the descriptor before any successor
-work. Protocol-v1 construction without either browser custody or this agent
-custody remains refused.
+increments the durable epoch and deletes predecessor state before successor
+publication. The reference Node custody adapter persists a versioned
+tuple/epoch/revision/phase record with exact transactional compare-and-set and
+cross-process locking; bearer bytes and carrier ids remain memory-only. A
+fresh process, a different configured tuple, interrupted-transition recovery,
+and live credential replacement all require a strict scoped-token handshake
+whose exact service descriptor matches the proposed tuple before any custody
+write. An invalid proposal leaves the predecessor record byte-for-byte intact.
+Contract registers its physical durable store before that recovery handshake,
+so a persisted clearing intent cannot settle without replaying the store's
+epoch-bound deletion. Protocol-v1 construction without either browser custody
+or this agent custody remains refused.
+
+Terminal handling classifies the server's explicit `carrier` versus
+`durableDelete` disposition against the captured authority. Missing, malformed,
+or close-only diagnostics are conservatively carrier-local and never authorize
+durable deletion. The finite HTTP path awaits the accepted terminal barrier,
+and all result publication, transport creation, and durable replay effects are
+fenced against the exact persisted capture. Counter exhaustion closes the
+fence permanently rather than wrapping or reusing an authority identity.
 
 Queued acknowledgement is authorized on the same opaque descriptor axis as
 settlement, not merely on the effective-user fingerprint. This matters for two

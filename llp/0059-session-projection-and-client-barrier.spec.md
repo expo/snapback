@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (terminal authority-disposition closure: the typed
+**Revised:** 2026-07-16 (client-fence implementation closure: terminal
+classification defaults missing or malformed evidence to carrier-only,
+finite Agent failures await durable barrier settlement, browser transport
+pre-cuts are phase-deduplicated within the exact capture, request start and
+publication use final custody comparisons, and identity-counter exhaustion
+permanently closes publication). 2026-07-16 (terminal authority-disposition closure: the typed
 terminal frame distinguishes a replaceable expired/evicted carrier from a
 durable authority deletion, with a closed two-value wire axis and exact source
 classification); 2026-07-15 (author ratification: Charlie Cheever explicitly
@@ -1132,6 +1137,14 @@ or close B because both the socket-generation guard and captured authority
 epoch must match. If the frame is lost, the next handshake/grant/request still
 converges through the projection and incarnation checks.
 
+A missing frame, malformed frame, unrecognized disposition, or close-only
+terminal signal is never proof of a committed backing-authority deletion. The
+client classifies that evidence as `carrier`, quarantines the exact transport
+capture, and requires a fresh handshake to learn current authority. Only the
+closed server field `authorityDisposition: "durableDelete"` may authorize the
+destructive durable barrier. Finite Agent HTTP failures carry the same axis and
+await the accepted barrier's settlement before returning the terminal error.
+
 ## Reset, restore, and stream publication
 
 Reset and any future live logical import use a unique stream mutation ticket
@@ -1563,6 +1576,13 @@ loss of ownership aborts immediately and permits a successor to recover:
    independently. A context's exposure resumes only after its own mandatory
    participants report readiness.
 
+Every identity-bearing epoch, revision, socket generation, request generation,
+and barrier generation is a checked safe integer. Exhaustion first closes local
+publication and transport gates, then records a permanent fault; it never
+wraps, retains a predecessor cache, or resumes under a reused identity. A peer
+that encounters an exhausted durable revision reaches the same blank,
+fail-closed state through the ownership protocol.
+
 Local participant registration during `clearing` joins in a paused and blank
 state and participates in the remaining phases; it cannot observe pending
 custody. The coordinator tracks the active barrier's phase completion per
@@ -1803,6 +1823,14 @@ Before changing boundary or durable state they call coordinator
 `compareAndCommit`. A delayed completion under A may free its private temporary
 buffer, but it cannot alter B, reapply A's optimistic layer, clear B's error,
 or publish an A result.
+
+The transport begins each finite request inside the final exact custody
+comparison rather than checking and releasing custody before network start.
+Response parsing and publication repeat the capture fence. Terminal browser
+handling may pre-cut transport phases synchronously, but records completion per
+exact predecessor capture and phase; the coordinator barrier skips only those
+already-completed transport phases, while every other participant and every
+failed phase still runs or retries normally.
 
 The kit no longer treats `setBearerToken` as a local token swap. It requests a
 coordinator rotation or transition. Clearing a bearer, receiving a terminal

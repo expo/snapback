@@ -49,11 +49,15 @@ CLI and daemon agents use `AgentAuthorityFence`, not the browser
 `AuthCoordinator`. Construct it from the scoped-token mint response plus its
 actor id, then pass it as `agentAuthority` with
 `authInvalidationProtocol: 1`. Replace an expiring token only through
-`replaceAgentCredential(...)`: the fence preserves the durable
-actor/credential-generation/grant axis, invalidates the old token carrier, and
-forces a fresh handshake before more work can publish. A changed grant or
-credential generation clears the bound descriptor, so queued work from the
-predecessor cannot migrate to the successor authority.
+`replaceAgentCredential(...)`. The client first offers the proposed bearer to
+`GET /auth/session` without changing custody, verifies the exact returned
+service-principal descriptor, and only then begins the transition. A rejected
+or mismatched proposal leaves the predecessor custody record and its queued
+work unchanged. A same-tuple replacement preserves the durable
+actor/credential-generation/grant axis while invalidating the old token
+carrier; a changed tuple deletes predecessor state before publishing the
+validated successor. In either case, no successor result can publish until an
+exact final custody comparison succeeds.
 
 Long-running Node CLI and daemon processes should import
 `createFilesystemAgentAuthorityCustodyStorage` directly from
@@ -63,7 +67,10 @@ state directory. It creates 0600 atomic custody files under a 0700 directory,
 serializes independent processes with a bounded OS advisory lock, and never
 persists the scoped-token bearer or carrier id. This is a Node-only import;
 browser code continues to import the portable client arm without filesystem
-dependencies.
+dependencies. The first handshake, restart adoption, and interrupted-transition
+recovery all require the server-issued descriptor proof; plain synchronization
+cannot claim an unvalidated durable tuple. Treat the state directory and
+`custodyId` as stable deployment identity, not as per-process temporary state.
 
 Start app boot with `health()`, then
 `ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions

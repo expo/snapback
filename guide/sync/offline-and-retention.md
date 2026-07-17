@@ -46,6 +46,16 @@ work. Every replay still resolves and validates a current scoped token before
 the server acts. Agent authority does not enable retained service-principal
 reads in v1.
 
+Production CLI and daemon replay requires both a durable Contract
+`clientStore` and a filesystem-backed `AgentAuthorityFence`; the in-memory
+custody adapter is test-only. Construct the Contract surface before manually
+synchronizing the fence. Surface construction registers the physical store as
+a barrier participant before it performs the strict server handshake, so a
+restart that finds an interrupted `clearing` transition replays that store's
+epoch-bound deletion before custody can settle. Reversing that order can leave
+predecessor queue data outside the recovered authority barrier and is refused
+by the supported construction path.
+
 ## Boot from retained rows honestly
 
 An online boot publishes and stores the authoritative snapshot. If a later

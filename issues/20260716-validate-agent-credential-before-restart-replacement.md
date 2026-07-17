@@ -1,4 +1,4 @@
-# Validate an agent credential before destructive restart replacement
+# Validate an agent credential before destructive custody replacement
 
 **Status:** Open
 **Severity:** P1
@@ -14,6 +14,10 @@ settled custody record can currently advance and clear the predecessor during
 service descriptor are valid. A typo or revoked bearer can therefore destroy
 locally retained work without ever establishing successor authority.
 
+The same ordering is required for a live `replaceAgentCredential(...)` call:
+the proposed carrier must be treated as a narrow handshake offer, not as
+custody authority, until its exact service descriptor is proven.
+
 **Done when:**
 
 - Plain synchronization cannot replace a mismatched settled tuple or recover a
@@ -22,4 +26,5 @@ locally retained work without ever establishing successor authority.
   durable publication remains closed.
 - Only an exact descriptor proof enables initialization/replacement/recovery;
   invalid handshakes leave the predecessor custody record byte-for-byte intact.
-- Tests cover a mismatched invalid restart and successful validated recovery.
+- Tests cover invalid and valid live replacement, a mismatched invalid restart,
+  and successful validated recovery.
