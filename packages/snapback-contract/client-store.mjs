@@ -25,7 +25,7 @@ import {
   validateAuthorizedLease,
 } from './authorized-lease.mjs';
 
-export const SNAPBACK_CLIENT_STORE_VERSION = 5;
+export const SNAPBACK_CLIENT_STORE_VERSION = 6;
 export const MAX_OFFLINE_LEDGER_IDS = 1024;
 const SNAPBACK_CTX_LEDGER_VERSION = 1;
 const REPLAY_OPAQUE_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$/;
@@ -175,6 +175,7 @@ const freshState = () => ({
   generation: 0,
   authorityEpoch: null,
   authorityKey: null,
+  terminallyUnbound: false,
   queueAuthorization: {
     authorityGeneration: 0,
     queueGeneration: 0,
@@ -669,12 +670,13 @@ const normalizeState = (state) => {
   const legacyV2 = state.version === 2;
   const legacyV3 = state.version === 3;
   const legacyV4 = state.version === 4;
+  const legacyV5 = state.version === 5;
   // @ref LLP 0043#auth-posture — item 6 and item 7 both shipped physical
   //   format 4. Only their exact, mutually exclusive top-level shapes are
   //   eligible for migration; partial/hybrid shapes cannot supply a missing
   //   authority axis after the fact.
   const legacyV4Shape = legacyV4PredecessorShape(state);
-  if (legacyV1 || legacyV2 || legacyV3 || legacyV4) {
+  if (legacyV1 || legacyV2 || legacyV3 || legacyV4 || legacyV5) {
     // v2 changed acknowledgements from ambiguous bare ids to auth-tagged
     // records and replaces the collision-prone FNV scope with SHA-256. A v1
     // store retained only the 64-bit alias, not the canonical auth tuple, so
@@ -711,6 +713,12 @@ const normalizeState = (state) => {
   // dev until a server-proven coordinator transition explicitly binds it.
   if (!Object.hasOwn(state, 'authorityEpoch')) state.authorityEpoch = null;
   if (!Object.hasOwn(state, 'authorityKey')) state.authorityKey = null;
+  if (!Object.hasOwn(state, 'terminallyUnbound')) {
+    if (!legacyV1 && !legacyV2 && !legacyV3 && !legacyV4 && !legacyV5) {
+      assertStateField(false, 'terminallyUnbound');
+    }
+    state.terminallyUnbound = false;
+  }
   if (!Object.hasOwn(state, 'queueAuthorization')) {
     if (!legacyV1 && !legacyV2 && !legacyV3 && !legacyV4) {
       assertStateField(false, 'queueAuthorization');
@@ -745,6 +753,11 @@ const normalizeState = (state) => {
     state.authorityEpoch === null
       || (Number.isSafeInteger(state.authorityEpoch) && state.authorityEpoch >= 0),
     'authorityEpoch',
+  );
+  assertStateField(typeof state.terminallyUnbound === 'boolean', 'terminallyUnbound');
+  assertStateField(
+    !state.terminallyUnbound || (state.authorityEpoch === null && state.authorityKey === null),
+    'terminallyUnbound',
   );
   if (state.principalScope !== null) assertPrincipalScope(state.principalScope, 'principalScope');
   if (state.authorityDescriptor !== null) {
@@ -1029,7 +1042,38 @@ const normalizeState = (state) => {
     state.leaseClockHighWaterMs = 0;
     state.queryAuthorization = {};
   }
-  // A format-5 rerecordable record contains the original mutation payload.
+  if (legacyV5) {
+    // Format 5 predates the persistent terminallyUnbound anti-rebind bit. A
+    // missing bit cannot distinguish a legitimate predecessor from a terminal
+    // record rewritten by an older process, so no privacy-bearing v5 byte is
+    // grandfathered into v6. Validate the complete predecessor above, then
+    // clear it and require an exact coordinator transition to consume this
+    // marker. An old context that later overwrites v6 with v5 is handled by the
+    // same deletion-only migration on the next read.
+    state.retained = {};
+    state.pending = [];
+    state.failed = [];
+    state.acknowledged = [];
+    state.stranded = [];
+    state.legacyV2Stranded = [];
+    state.legacyV3Stranded = [];
+    state.legacyV4Stranded = [];
+    state.queryAuthorization = {};
+    state.queueAuthorization.pendingByScope = {};
+    if (state.queueAuthorization.queueGeneration < Number.MAX_SAFE_INTEGER) {
+      advanceQueueGeneration(state, 0);
+    } else {
+      state.queueAuthorization.authorityGeneration =
+        state.queueAuthorization.authorityGeneration === 0 ? 1 : 0;
+    }
+    state.principalScope = null;
+    state.authorityDescriptor = null;
+    state.authFingerprint = null;
+    state.authorityEpoch = null;
+    state.authorityKey = null;
+    state.terminallyUnbound = true;
+  }
+  // A format-6 rerecordable record contains the original mutation payload.
   // It is visible only while its persisted predecessor-principal proof is
   // byte-for-byte equal to the validated current principal. Structural
   // tampering or an unproven predecessor drops the payload before any public
@@ -1144,6 +1188,7 @@ function staleStoreAuthorityError(operation) {
 
 function expectedAuthorityMatchesState(state, expected = {}) {
   if (state.authorityEpoch === null) {
+    if (state.terminallyUnbound) return false;
     return expected.authorityEpoch === undefined || expected.authorityEpoch === null;
   }
   return expected.authorityEpoch === state.authorityEpoch
@@ -1192,6 +1237,7 @@ function queueCapture(state) {
 function expectedQueueMatchesState(state, expected = {}) {
   const hasAuthority = Object.hasOwn(expected, 'authorityGeneration');
   const hasQueue = Object.hasOwn(expected, 'queueGeneration');
+  if (state.terminallyUnbound) return false;
   if (state.authorityEpoch === null && !hasAuthority && !hasQueue) return true;
   return hasAuthority
     && hasQueue
@@ -1301,6 +1347,15 @@ function hasPrivacyBearingState(state) {
     || state.legacyV2Stranded.length > 0
     || state.legacyV3Stranded.length > 0
     || state.legacyV4Stranded.length > 0;
+}
+
+function terminalAuthorityDataIsClean(state) {
+  return !hasPrivacyBearingState(state)
+    && Object.keys(state.queueAuthorization.pendingByScope).length === 0
+    && Object.keys(state.queryAuthorization).length === 0
+    && state.authFingerprint === null
+    && state.principalScope === null
+    && state.authorityDescriptor === null;
 }
 
 function strandCurrentQueue(
@@ -1472,6 +1527,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           }
           throw staleStoreAuthorityError('authority bind');
         }
+        if (state.terminallyUnbound) {
+          throw staleStoreAuthorityError('authority bind after terminal purge');
+        }
 
         // A v2 fingerprint was client input, not server provenance. Preserve
         // only records whose v2 shape is explicitly unscoped, and only in the
@@ -1489,6 +1547,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         state.authFingerprint = null;
         state.authorityEpoch = authorityEpoch;
         state.authorityKey = authorityKey;
+        state.terminallyUnbound = false;
         state.queueAuthorization.pendingByScope = {};
         advanceQueueGeneration(state, authorityEpoch);
         commit(state);
@@ -1500,17 +1559,28 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       expectedEpoch,
       nextEpoch,
       nextAuthorityKey,
+      expectedStoreGeneration = null,
       disposition = 'delete',
       queueTransition = 'delete',
       transitionReason = 'authority_boundary_delete',
       retainPrincipalData = false,
       nextPrincipalScope = null,
+      terminal = false,
     }) {
-      if (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0) {
-        throw new TypeError('transitionAuthority requires a safe expectedEpoch');
+      if (
+        expectedEpoch !== null
+        && (!Number.isSafeInteger(expectedEpoch) || expectedEpoch < 0)
+      ) {
+        throw new TypeError('transitionAuthority requires a safe expectedEpoch or null');
       }
       if (!Number.isSafeInteger(nextEpoch) || nextEpoch < 0) {
         throw new TypeError('transitionAuthority requires a safe nextEpoch');
+      }
+      if (
+        expectedStoreGeneration !== null
+        && (!Number.isSafeInteger(expectedStoreGeneration) || expectedStoreGeneration < 0)
+      ) {
+        throw new TypeError('transitionAuthority expectedStoreGeneration must be a safe nonnegative integer or null');
       }
       if (typeof nextAuthorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(nextAuthorityKey)) {
         throw new TypeError('transitionAuthority requires a canonical nextAuthorityKey');
@@ -1535,22 +1605,60 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (typeof retainPrincipalData !== 'boolean') {
         throw new TypeError('transitionAuthority retainPrincipalData must be boolean');
       }
+      if (typeof terminal !== 'boolean') {
+        throw new TypeError('transitionAuthority terminal must be boolean');
+      }
       if (nextPrincipalScope !== null) {
         assertPrincipalScope(nextPrincipalScope, 'nextPrincipalScope');
       }
       return transact((state, commit) => {
+        if (
+          expectedStoreGeneration !== null
+          && state.generation !== expectedStoreGeneration
+        ) {
+          throw staleStoreAuthorityError('authority transition generation');
+        }
+        const exactCurrent = state.authorityEpoch === nextEpoch
+          && state.authorityKey === nextAuthorityKey;
+        const terminalReplay = terminal
+          && nextPrincipalScope === null
+          && retainPrincipalData === false
+          && queueTransition === 'delete';
+        const terminalClean = terminalAuthorityDataIsClean(state);
+        const cleanUnboundAdoption = state.authorityEpoch === null
+          && state.authorityKey === null
+          && terminalClean;
         // A suspended context may miss several custody transitions while a
         // peer has already committed this physical store to the exact current
-        // successor. Exact-current adoption is idempotent; only a real write
-        // is constrained to a one-epoch transition.
-        if (state.authorityEpoch === nextEpoch && state.authorityKey === nextAuthorityKey) {
+        // successor. Exact-current adoption is idempotent except for a
+        // terminal replay that finds privacy-bearing residue under the same
+        // tuple; that residue must be cleared before the delete can settle.
+        if (exactCurrent && (!terminalReplay || terminalClean)) {
           return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
         }
-        if (nextEpoch !== expectedEpoch + 1) {
-          throw new TypeError('transitionAuthority must advance authority epoch exactly once');
-        }
-        if (state.authorityEpoch !== expectedEpoch) {
-          throw staleStoreAuthorityError('authority transition');
+        if (!exactCurrent) {
+          const cleanSameEpochAdoption = cleanUnboundAdoption
+            && expectedEpoch !== null
+            && nextEpoch === expectedEpoch;
+          if (
+            (expectedEpoch === null && nextEpoch !== 0)
+            || (
+              expectedEpoch !== null
+              && nextEpoch !== expectedEpoch + 1
+              && !cleanSameEpochAdoption
+            )
+          ) {
+            throw new TypeError('transitionAuthority must begin at zero or must advance authority epoch exactly once');
+          }
+          // A terminal participant deliberately unbinds the physical store so
+          // delayed captures for the deleted authority cannot write into it.
+          // The durable coordinator may later prove a one-step active
+          // successor from that tombstone. A fully privacy-clean unbound store
+          // can adopt that proven successor just as bindAuthority could; dirty
+          // or partially bound state still fails closed as stale.
+          if (state.authorityEpoch !== expectedEpoch && !cleanUnboundAdoption) {
+            throw staleStoreAuthorityError('authority transition');
+          }
         }
         const samePrincipal = state.principalScope !== null
           && nextPrincipalScope !== null
@@ -1588,8 +1696,48 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         state.authorityDescriptor = null;
         state.authorityEpoch = nextEpoch;
         state.authorityKey = nextAuthorityKey;
+        state.terminallyUnbound = false;
         commit(state);
         return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
+      });
+    },
+
+    async purgeAuthority({ authorityKey }) {
+      if (typeof authorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(authorityKey)) {
+        throw new TypeError('purgeAuthority requires a canonical authorityKey');
+      }
+      return transact((state, commit) => {
+        if (state.authorityKey !== null && state.authorityKey !== authorityKey) {
+          return { purged: false, fenced: false };
+        }
+        clearAllQueueNamespaces(state);
+        state.queueAuthorization.pendingByScope = {};
+        invalidateQueriesForAuthorityTransition(state, { deleteRows: true });
+        state.retained = {};
+        state.authFingerprint = null;
+        state.principalScope = null;
+        state.authorityDescriptor = null;
+        // Invalidate every queue capture taken before the terminal cut. At the
+        // numeric ceiling the unbound-state rule above is itself the permanent
+        // non-aliasing fence; do not wrap the comparison generation.
+        if (state.queueAuthorization.queueGeneration < Number.MAX_SAFE_INTEGER) {
+          advanceQueueGeneration(state, 0);
+        } else {
+          // queueGeneration cannot advance or wrap. Its maximum value first
+          // existed under the current authority generation (no later
+          // transition can succeed), so changing the other comparison axis is
+          // a fresh, permanent invalidation identity.
+          state.queueAuthorization.authorityGeneration =
+            state.queueAuthorization.authorityGeneration === 0 ? 1 : 0;
+        }
+        // This path is used when shared custody proves another tuple owns the
+        // primary row. Unbinding the exact stale local key invalidates every
+        // old authority/queue capture without consuming a successor epoch.
+        state.authorityEpoch = null;
+        state.authorityKey = null;
+        state.terminallyUnbound = true;
+        commit(state);
+        return { purged: true, fenced: true };
       });
     },
 
@@ -1597,6 +1745,15 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       return transact((state) => clone({
         authorityEpoch: state.authorityEpoch,
         authorityKey: state.authorityKey,
+      }));
+    },
+
+    async authorityBindingCapture() {
+      return transact((state) => clone({
+        storeGeneration: state.generation,
+        authorityEpoch: state.authorityEpoch,
+        authorityKey: state.authorityKey,
+        terminallyUnbound: state.terminallyUnbound,
       }));
     },
 
@@ -1684,8 +1841,8 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     },
 
     // @ref LLP 0043#auth-posture — principal/data and authority-instance/queue
-    //   are independent axes in the composed format-5 store.
-    /// Install the two independent format-5 axes from one authenticated
+    //   are independent axes in the composed format-6 store.
+    /// Install the two independent format-6 axes from one authenticated
     /// handshake. Principal identity owns retained rows; the opaque authority
     /// instance owns queued mutations. Query authorization remains durable and
     /// is changed only through the item-8 fence/lease methods below.
@@ -1717,7 +1874,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
           clearAllQueueNamespaces(state);
           state.authFingerprint = null;
         } else {
-          // Legacy queues have no format-5 proof connecting them to this
+          // Legacy queues have no format-6 proof connecting them to this
           // principal, even when the modern principal itself is unchanged.
           clearLegacyQueueNamespaces(state);
           if (state.principalScope !== null) {
@@ -1960,7 +2117,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
               // This redacted tombstone is diagnostic state intentionally
               // carried into the replacement artifact namespace. The old
               // identity remains in `diagnostic.previous`; binding the record
-              // itself to that old namespace would make format-5 reject its
+              // itself to that old namespace would make format-6 reject its
               // own committed state on reload.
               ...nextScope,
               status: 'failed',
@@ -2723,8 +2880,16 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
 
     async enqueueMutation(record) {
       return transact((state, commit) => {
-        assertExpectedAuthority(state, record, 'queued mutation write');
-        assertExpectedQueue(state, record, 'queued mutation write');
+        if (state.terminallyUnbound) {
+          // Prefer the precise stale-capture diagnostic for a delayed bound
+          // queue token. A forged/current numeric queue pair still reaches the
+          // authority check and cannot write into terminally unbound custody.
+          assertExpectedQueue(state, record, 'queued mutation write');
+          assertExpectedAuthority(state, record, 'queued mutation write');
+        } else {
+          assertExpectedAuthority(state, record, 'queued mutation write');
+          assertExpectedQueue(state, record, 'queued mutation write');
+        }
         assertQueueRunnable(state, 'mutation enqueue');
         if (state.authorityDescriptor !== null) {
           if (record.authorityDescriptor === undefined) {
@@ -3069,8 +3234,12 @@ function authorityQueueTransition(previous, next) {
 export function createSnapbackClientStoreAuthParticipant(store, {
   name = 'snapback-client-store',
 } = {}) {
-  if (!store || typeof store.transitionAuthority !== 'function') {
-    throw new TypeError('client-store auth participant requires a format-5 store');
+  if (
+    !store
+    || typeof store.transitionAuthority !== 'function'
+    || typeof store.purgeAuthority !== 'function'
+  ) {
+    throw new TypeError('client-store auth participant requires a format-6 store');
   }
   return Object.freeze({
     name,
@@ -3089,7 +3258,11 @@ export function createSnapbackClientStoreAuthParticipant(store, {
         disposition: context.disposition,
         ...transition,
         nextPrincipalScope: principalScopeForAuthority(context.nextAuthority),
+        terminal: context.nextAuthority === null,
       });
+    },
+    async commitTerminalDurable(context) {
+      await store.purgeAuthority({ authorityKey: context.nextAuthorityKey });
     },
     async resume() {},
   });

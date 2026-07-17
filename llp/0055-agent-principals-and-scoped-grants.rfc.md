@@ -5,7 +5,10 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (finite service-authority closure: exact token witnesses
+**Revised:** 2026-07-16 (terminal side-ledger reconciliation: durable Agent
+custody records tuple-specific terminal witnesses before primary cleanup,
+backfills pre-ledger tombstones, requires independent partition ownership, and
+pins coordinated rollout plus permanent witness retention). 2026-07-16 (finite service-authority closure: exact token witnesses
 now fence every finite response/effect, auth-session descriptor, connection
 open, and connection act against terminal storage transactions; deadline
 terminality is durable before publication and external native initiation has
@@ -1946,9 +1949,9 @@ Retained/offline service-principal reads remain refused as the v1 plane boundary
 requires.
 
 The headless kit now has a separate `AgentAuthorityFence`; it does not reuse the
-browser `AuthCoordinator`. Its custody record names the explicit
-`(actorUserId, credentialId, credentialGeneration, grantId)` durable tuple and
-the current `(tokenId, carrierGeneration)` live axis. Every HTTP result, raw or
+browser `AuthCoordinator`. Its durable custody record names the explicit
+`(actorUserId, credentialId, credentialGeneration, grantId)` tuple, while its
+memory-only fence tracks the current `(tokenId, carrierGeneration)` live axis. Every HTTP result, raw or
 managed socket frame, live update, receipt, and overlay publication is marked
 with the captured carrier and compare-and-committed before exposure. Token
 replacement increments the carrier generation, closes transports, and clears
@@ -1956,9 +1959,53 @@ connection grants; when the durable tuple is unchanged, the server-issued
 authority descriptor remains bound and queued replay continues. A tuple change
 increments the durable epoch and deletes predecessor state before successor
 publication. The reference Node custody adapter persists a versioned
-tuple/epoch/revision/phase record with exact transactional compare-and-set and
-cross-process locking; bearer bytes and carrier ids remain memory-only. A
-fresh process, a different configured tuple, interrupted-transition recovery,
+tuple/epoch/revision/phase primary record with exact transactional
+compare-and-set and cross-process locking; bearer bytes, token ids, and carrier
+ids remain memory-only. Beside the primary row it persists one permanent,
+tuple-specific terminal witness for every durable tuple that receives an exact
+`durableDelete` verdict. Main-row reads and writes, witness reads and writes,
+and final publication comparisons serialize through one reserved custody gate.
+The terminal process records the witness before primary cleanup. Every active
+install, adoption, confirmation, and publication comparison refuses a matching
+witness; a distinct proposed tuple cannot delete the active primary row, and a
+fresh null-CAS loser re-enters the gate before deciding whether the winner is
+its predecessor.
+
+The witness retains the closed
+`(actorUserId, credentialId, credentialGeneration, grantId)` tuple and derived
+key because those non-bearer fields are its anti-resurrection identity. It
+never contains a bearer, token id, or carrier generation. Before a distinct
+active tuple may replace a pre-ledger `settled/deleted` primary tombstone, the
+new reader backfills that old tuple into the side ledger under the same gate.
+Witnesses do not expire when the primary advances: removing one would make an
+old validated descriptor reusable. Explicit custody-store replacement is the
+current administrative reclamation boundary.
+
+Storage advertises `partitionOwnership: "partitioned-v1"`; its gate owner must
+provide `withPartition` for independently owned primary and witness
+partitions. An adapter backed only by one non-reentrant global mutex is refused
+before synchronization, ownership callbacks are non-reentrant, caller custody
+ids cannot collide with the reserved internal namespaces, and derived ids use
+a separate larger internal bound. This is an on-disk coordination-protocol
+change. Every process sharing a custody directory must be drained and upgraded
+together: a pre-ledger binary neither takes the universal gate nor consults
+terminal witnesses and therefore cannot participate in a mixed-version
+rollout.
+
+The filesystem adapter accepts only a normalized absolute custody path. It
+rejects untrusted lexical symlinks, untrusted or replaceable resolved ancestor
+owners, unsafe ancestor ACL grants, and a custody directory that is not an
+effective-user-owned real `0700` inode. It pins that canonical device/inode and
+ancestor chain across lock, read, temp-write, rename, and directory-fsync
+steps. Lock, record, and temporary files must be effective-user-owned,
+single-link regular `0600` files without access-expanding ACLs. Record reads
+use nonblocking bounded I/O capped at 64 KiB and revalidate the file after the
+read. This is process custody against other OS users, not protection against a
+malicious process already running as the same effective uid. Node's pathname
+API still lacks a complete dirfd/openat/renameat capability chain; the residual
+precise same-uid/pathname ABA hardening is tracked as a filesystem follow-up.
+
+A fresh process, a different configured tuple, interrupted-transition recovery,
 and live credential replacement all require a strict scoped-token handshake
 whose exact service descriptor matches the proposed tuple before any custody
 write. An invalid proposal leaves the predecessor record byte-for-byte intact.
@@ -1974,8 +2021,17 @@ durable deletion. The finite HTTP path awaits the accepted terminal barrier,
 and all result publication, transport creation, and durable replay effects are
 fenced against the exact persisted capture. Counter exhaustion closes the
 fence permanently rather than wrapping or reusing an authority identity.
+An accepted durable deletion snapshots its mandatory local stores before any
+callback. It attempts exact-key purge after the terminal-witness attempt even
+when that attempt or primary counter planning fails, and re-purges after any
+interrupted clearing replay that could rebind the tuple. Unregistration cannot
+resolve ahead of a snapshotted cleanup callback, including when requested from
+the synchronous confidentiality cut.
 For durable Agent custody, exhaustion commits a terminal `exhausted` marker
-that strips the authority tuple and credential whenever one revision remains.
+that retains the exact closed durable tuple but strips all bearer, token, and
+carrier material whenever one revision remains. The tuple is necessary to
+identify the permanently poisoned authority and is not credential-secret
+persistence.
 A legacy non-terminal record already at the maximum revision is durable poison
 on every read: it blanks publication and is never accepted as current merely
 because no further compare-and-set is representable.

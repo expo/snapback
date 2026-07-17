@@ -5,7 +5,11 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (finite service-authority closure: scoped-token
+**Revised:** 2026-07-16 (client-store format-6 terminal fencing: the persisted anti-rebind marker is mandatory, v5 migration is deletion-only, delayed adoption compares store generation, and shared client-store writers require coordinated rollout). 2026-07-16 (Agent terminal-ledger reconciliation: tuple witnesses
+share one universal gate with primary custody, old tombstones backfill before
+replacement, adapter partition ownership and coordinated rollout are explicit,
+and terminal store replay is distinguished from an exact-current nonterminal
+service successor). 2026-07-16 (finite service-authority closure: scoped-token
 resolution now registers one exact process witness, terminal transactions
 premark only their read-only planned token set before any write, finite and
 connection publication use that witness, external native effects use a
@@ -1413,7 +1417,35 @@ predecessor publication callback may run. An exhausted epoch uses the
 dedicated diagnostic below and the same terminal marker when a revision remains.
 The same rule is normative for durable Agent custody: persist the terminal
 marker while revision space remains, and treat a legacy non-terminal record at
-the maximum revision as poison on every read, never as current authority.
+the maximum revision as poison on every read, never as current authority. The
+Agent marker deliberately retains its exact closed
+`(actorUserId, credentialId, credentialGeneration, grantId)` tuple while
+removing bearer, token, and carrier material. That tuple is the non-secret
+identity of the poison and terminal witness; unlike browser `AuthCustodyV2`, it
+cannot null every authority field without losing the anti-resurrection key.
+
+Durable Agent custody additionally owns a permanent side ledger keyed by
+`(custodyId, authorityKey)`. An exact `durableDelete` writes that tuple-specific
+witness before primary-row cleanup. Primary reads/writes, witness reads/writes,
+active installation and final publication comparison all take one reserved
+universal gate, then an independently owned primary or witness partition. A
+matching witness makes every active operation stale, including an already-open
+peer; witness I/O failure blanks and wedges just like primary custody I/O
+failure. A terminal proposal for B never rewrites a distinct active A. If B
+loses a fresh null CAS, it re-enters the gate and re-evaluates the winner rather
+than deleting it. A pre-ledger primary `settled/deleted` row is backfilled to
+the side ledger before a distinct active successor replaces it.
+
+Agent adapters therefore advertise `partitionOwnership: "partitioned-v1"` and
+the gate owner provides `withPartition`. One global non-reentrant mutex does
+not satisfy this contract and is rejected before use; ownership callbacks are
+themselves non-reentrant. Caller ids cannot enter the reserved gate/witness
+namespaces. Witnesses have no automatic retention deadline because deleting a
+witness would re-admit its old descriptor; explicit custody-store replacement
+is the current compaction boundary. This protocol requires coordinated process
+rollout: every process sharing one custody store is drained before upgrade,
+because a pre-ledger binary does not take the universal gate or inspect the
+side ledger.
 
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
@@ -1766,14 +1798,15 @@ format 2 to format 3. Its existing top-level `generation` remained the
 monotonic store-write revision; it MUST NOT be repurposed as auth authority.
 The store added a distinct `authorityEpoch` matching settled custody.
 
-The current composed production store is format 5, owned by
+The current composed production store is format 6, owned by
 [LLP 0043#auth-posture](./0043-offline-replay-retention.rfc.md#auth-posture).
 It preserves this section's epoch/key barrier semantics while composing item
 6's query/queue fences, item 7's principal/authority-descriptor axes, and item
-8's `queryAuthorization` and signed-lease custody. Its migrator recognizes
-formats 1 through 4, accepts only the exact identifiable predecessor shapes,
-and migrates them to format 5 fail closed; it never retags an earlier format as
-current authority.
+8's `queryAuthorization` and signed-lease custody. Format 5 remains the
+historical composed predecessor. The current migrator recognizes formats 1
+through 5: it accepts only the exact identifiable v1-v4 predecessor shapes,
+then treats every validated v5 record as deletion-only before producing v6. It
+never retags an earlier format as current authority.
 
 Every privacy-bearing record in retained rows, pending writes, failed writes,
 stranded writes, acknowledgements, mutation receipts, and any implementation
@@ -1827,10 +1860,14 @@ until a sessions transition.
 
 The composed migration now follows LLP 0043: it recognizes formats 1, 2, and 3,
 plus the two exact and mutually exclusive item-6/item-7 format-4 predecessor
-shapes, and produces format 5. Partial, hybrid, extended, or otherwise
+shapes, and historically produced format 5. Partial, hybrid, extended, or otherwise
 ambiguous format-4 state supplies no authority proof and is quarantined or
-deleted fail closed. Older clients reject format 5 rather than downgrading or
-rewriting it.
+deleted fail closed. Format 6 requires `terminallyUnbound`; every validated
+format-5 predecessor is privacy-cleared, queue-invalidated, and left marked
+unbound because a missing bit cannot prove that an old writer did not erase a
+terminal cut. Older clients reject format 6 rather than downgrading or
+rewriting it, and all contexts sharing one client-store key require coordinated
+drain during rollout.
 
 ### Independent item-5 availability axes
 
@@ -1875,6 +1912,7 @@ interface AuthBarrierParticipant {
   blank(ctx: BarrierContext): void
   clearMemory(ctx: BarrierContext): void
   commitDurable(ctx: BarrierContext): Promise<void>
+  commitTerminalDurable?(ctx: BarrierContext): Promise<void>
   resume(ctx: SettledBarrierContext): Promise<void>
 }
 
@@ -1890,13 +1928,57 @@ interface SettledBarrierContext extends BarrierContext {
 
 `blank` and `clearMemory` are synchronous and cannot call app code.
 `commitDurable` must use the exact expected/next epoch supplied by the
-coordinator. `resume` receives no bearer directly; it asks coordinator custody
+coordinator. Its physical-store transition receives an explicit terminal bit
+derived from `nextAuthority === null`; a null browser principal scope alone is
+not terminal because ordinary Agent/service-principal successors also have no
+browser principal scope. Thus exact-current terminal replay verifies or
+reapplies deletion, while exact-current nonterminal Agent successor replay is
+idempotent and preserves successor bytes.
+
+Every terminal Agent barrier prefers `commitTerminalDurable` with B's exact key
+over the ordinary epoch-transition callback. A durable store purges B at any
+local epoch, including when the custody store was reset while the client store
+survived. If shared primary custody belongs to distinct A, the coordinator also
+preserves A byte-for-byte. The exact-key purge leaves a local A store untouched
+and unbinds B so old queue captures cannot enqueue after deletion. Format 6
+persists this state as `terminallyUnbound: true`; a direct bind cannot consume
+the marker. If a terminal callback wins while an initially empty store is
+between authority boot and direct bind, Contract may adopt the exact still-
+current same-epoch capture only by comparing the store generation observed with
+the marker. If durable custody later proves a one-epoch active successor from a
+deleted record, the ordinary callback may likewise bind a fully privacy-clean,
+fully unbound store to that proven successor. Neither exception applies to a
+dirty or partially bound store, and the successor case MUST still use exactly
+`expectedEpoch + 1`.
+
+The terminal invocation snapshots its mandatory participants before any
+synchronous cut. Scheduled/fresh deletion attempts every snapshotted exact-key
+purge after the witness attempt even when witness I/O or primary counter
+planning fails. If replay of an interrupted nonterminal clearing intent can
+rebind B, both its success and error paths repeat the exact terminal purge
+before final settlement. One failing terminal participant does not prevent
+later snapshotted participants from attempting their purges; settlement
+preserves the first failure. This preserves re-grant availability without
+reviving any capture for the terminal tuple.
+`resume` receives no bearer directly; it asks coordinator custody
 through a narrow request/grant API. It may perform network and other preparatory
 work while ownership is released, but any resulting cache, callback, observer,
 or boundary effect MUST be submitted through `stagePublication` with the exact
 resume capture. Staged callbacks are synchronous and non-reentrant, use the
 same callback restrictions as `compareAndCommit`, and execute only at the final
 locked confirmation. A participant MUST NOT publish directly during resume.
+Awaited `commitDurable`, `commitTerminalDurable`, and `resume` callbacks MUST
+NOT call `synchronize()` or await their own unregistration. The Agent fence
+rejects those joins promptly with
+`SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT`; it never leaves a silently
+self-dependent barrier Promise. Synchronous `quiesce`/`blank`/`clearMemory`
+callbacks may request unregistration; settlement selection is deferred until
+the transition publishes its terminal handle, and that unregistration cannot
+resolve before every callback already snapshotted for the participant has
+finished or failed. After any unregistration resolves, no future participant
+callback may begin. A participant registered while durable Agent
+custody is initially closed is synchronously quiesced, blanked, and
+memory-cleared before any recovery decision, including terminal-only recovery.
 
 Mandatory participants are:
 
@@ -2002,9 +2084,9 @@ receipts are installed:
 - `authCoordinator` requires durable custody, cross-context mutex or fenced
   lease, all mandatory participants, client-store format 3, and delayed-race
   acceptance in at least two contexts. Format 3 is the historical item-5
-  prerequisite; composed production satisfies it through LLP 0043's format 5,
-  which preserves the item-5 epoch/key barrier and migrates formats 1 through 4
-  fail closed.
+  prerequisite; composed production satisfies it through LLP 0043's format 6,
+  which preserves the item-5 epoch/key barrier, migrates formats 1 through 4
+  through their closed historical rules, and migrates format 5 deletion-only.
 
 These receipts are opaque Rust construction plans, not route-name or
 source-substring probes. The connection plan owns the exact typed route
@@ -2296,10 +2378,11 @@ return after clean synchronization.
 
 1. At the historical item-5 boundary, migrate representative and adversarial
    format-2 stores without retagging any privacy record as a format-3 successor.
-   In the composed production suite, migrate formats 1 through 4 into LLP
-   0043's format 5, distinguish the two exact format-4 predecessor shapes, and
-   quarantine or delete ambiguous format-4 state fail closed. Older readers
-   reject format 5.
+   In the composed production suite, migrate formats 1 through 4 through LLP
+   0043's historical format-5 rules, distinguish the two exact format-4
+   predecessor shapes, and quarantine or delete ambiguous format-4 state fail
+   closed. Then migrate validated format 5 deletion-only into format 6 and
+   require older readers to reject format 6.
 2. For every store operation, race transition between expected-epoch read and
    commit. CAS rejects the stale mutation and reads suppress mismatched tags.
    Repeat for a delayed LLP 0008 one-key writer released after the successor.
@@ -2355,8 +2438,10 @@ invariant across an externally enableable commit:
    drain, notifier terminal events, and typed live errors;
 4. added custody storage, coordinator ownership/transition recovery, the
    historical item-5 client-store format 3, and mandatory kit/Contract
-   participants; composed production now uses LLP 0043's format 5, which
-   preserves these barriers and migrates formats 1 through 4 fail closed;
+   participants; composed production now uses LLP 0043's format 6, which
+   preserves these barriers, carries the mandatory terminal marker, migrates
+   formats 1 through 4 through their closed historical rules, and migrates
+   format 5 deletion-only;
 5. revised the closed handshake DTO, derived activation facts from opaque typed
    plans issued by the actual connection, two-phase runtime, and canonical
    coordinator construction edges, consumed those same plans to construct the

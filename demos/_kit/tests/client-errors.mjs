@@ -785,6 +785,85 @@ try {
     };
   });
 
+  await suite.check('receipt observers cannot reenter client authority mutators', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    db.clearAuthSession();
+    const capture = authCoordinator.capture();
+    const cached = { privateProjection: 'predecessor' };
+    db.__authSessionLastSuccessful = cached;
+    const terminalError = diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401);
+    const refusals = [];
+    let laterObservers = 0;
+    db.onReceipt(() => {
+      for (const operation of [
+        () => db.clearAuthSession(),
+        () => db.setBearerToken('must-not-be-installed'),
+        () => db.handleTerminalAuthLoss(capture, terminalError),
+      ]) {
+        try {
+          operation();
+          assert(false, 'authority mutation unexpectedly reentered receipt publication');
+        } catch (error) {
+          refusals.push(error?.code ?? null);
+        }
+      }
+    });
+    db.onReceipt(() => {
+      laterObservers += 1;
+      assert(authCoordinator.isCurrent(capture), 'the predecessor remains current for the whole callback');
+      assertEqual(db.__authSessionLastSuccessful, cached, 'a refused clear cannot partially blank cache state');
+      assertEqual(db.bearerToken, null, 'a refused bearer mutation cannot install bytes before failing');
+      assertEqual(db.__authCounterError, null, 'a refused nested clear cannot exhaust the client identity');
+    });
+    db.recordReceipt({ kind: 'authority-reentrancy-probe' }, capture);
+    assertEqual(refusals, [
+      'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+      'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+      'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+    ]);
+    assertEqual(laterObservers, 1, 'later observers run only because no terminal cut occurred');
+    assertEqual(
+      db.receipts().map((receipt) => receipt.kind),
+      ['authority-reentrancy-probe'],
+    );
+    await db.closeAuth();
+    return { refusals, laterObservers };
+  });
+
+  await suite.check('uncoordinated receipt observers cannot cut authority mid-dispatch', async () => {
+    const db = new SnapbackClient('http://stub', {
+      bearerToken: 'legacy-private-bearer',
+      authCounterCeiling: 1,
+    });
+    db.clearAuthSession();
+    const cached = { privateProjection: 'legacy-predecessor' };
+    db.__authSessionLastSuccessful = cached;
+    let refusal = null;
+    let laterObservers = 0;
+    db.onReceipt(() => {
+      try {
+        db.clearAuthSession();
+      } catch (error) {
+        refusal = error;
+      }
+    });
+    db.onReceipt(() => {
+      laterObservers += 1;
+      assertEqual(db.__authSessionLastSuccessful, cached);
+      assertEqual(db.__authCounterError, null);
+    });
+    db.recordReceipt({ kind: 'legacy-authority-reentrancy-probe' });
+    assertEqual(refusal?.code, 'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT');
+    assertEqual(laterObservers, 1);
+    assertEqual(db.receipts().length, 1);
+    await db.closeAuth();
+    return { code: refusal.code, laterObservers };
+  });
+
   await suite.check('auth-transport counter exhaustion still closes and wedges publication', async () => {
     const authCoordinator = terminalCoordinatorBarrierSpy();
     const db = new SnapbackClient('http://stub', {

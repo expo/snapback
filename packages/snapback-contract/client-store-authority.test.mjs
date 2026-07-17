@@ -1,4 +1,4 @@
-// Composed format-5 LLP 0059/0053 principal/data + authority-instance/queue tests.
+// Composed format-6 LLP 0059/0053 principal/data + authority-instance/queue tests.
 
 import assert from 'node:assert/strict';
 
@@ -140,6 +140,70 @@ const coordinatorAt = async (authority) => {
   assert.equal((await reopened.snapshot()).legacyV3Stranded.length, 2);
 }
 
+// Format 6 makes terminallyUnbound a mandatory anti-rebind bit. Format 5 did
+// not carry it, so migration validates but deletes every privacy/queue
+// namespace and leaves a persistent marker that only an exact generation-CAS
+// coordinator transition may consume.
+{
+  const predecessorStore = createMemorySnapbackClientStore();
+  await predecessorStore.bindAuthority({
+    authorityEpoch: 7,
+    authorityKey: key1,
+    authMode: 'sessions',
+  });
+  const queue = await predecessorStore.captureMutationQueue({
+    authorityEpoch: 7,
+    authorityKey: key1,
+  });
+  await predecessorStore.putRetainedQuery('legacy-v5-private', {
+    authorityEpoch: 7,
+    authorityKey: key1,
+    rows: [{ secret: 'legacy-v5-retained' }],
+  });
+  await predecessorStore.enqueueMutation({
+    id: 'cm_legacy_v5_private',
+    function: 'legacyV5Write',
+    authorityEpoch: 7,
+    authorityKey: key1,
+    ...queue,
+  });
+  const legacyV5 = await predecessorStore.snapshot();
+  legacyV5.version = 5;
+  delete legacyV5.terminallyUnbound;
+
+  const migratedStore = createMemorySnapbackClientStore({ state: legacyV5 });
+  const migrated = await migratedStore.snapshot();
+  assert.equal(migrated.version, SNAPBACK_CLIENT_STORE_VERSION);
+  assert.equal(migrated.terminallyUnbound, true);
+  assert.equal(migrated.authorityEpoch, null);
+  assert.equal(migrated.authorityKey, null);
+  assert.equal(JSON.stringify(migrated).includes('legacy-v5-retained'), false);
+  assert.equal(JSON.stringify(migrated).includes('cm_legacy_v5_private'), false);
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
+    migratedStore.bindAuthority({ authorityEpoch: 7, authorityKey: key1 }),
+  );
+  const binding = await migratedStore.authorityBindingCapture();
+  await migratedStore.transitionAuthority({
+    expectedEpoch: 7,
+    nextEpoch: 7,
+    nextAuthorityKey: key1,
+    expectedStoreGeneration: binding.storeGeneration,
+  });
+  assert.deepEqual(await migratedStore.authorityScope(), {
+    authorityEpoch: 7,
+    authorityKey: key1,
+  });
+  assert.equal((await migratedStore.snapshot()).terminallyUnbound, false);
+
+  const truncatedV6 = await migratedStore.snapshot();
+  delete truncatedV6.terminallyUnbound;
+  assert.throws(
+    () => createMemorySnapbackClientStore({ state: truncatedV6 }),
+    (error) => error?.code === 'SNAPBACK_CLIENT_STORE_CORRUPT',
+  );
+}
+
 // The principal axis preserves rows across a new session. The independent
 // authority-instance axis strands (and never silently retags) queued writes.
 {
@@ -201,7 +265,7 @@ const coordinatorAt = async (authority) => {
   );
 }
 
-// A format-5 rerecordable payload is principal-owned. Tampering only the
+// A format-6 rerecordable payload is principal-owned. Tampering only the
 // persisted top-level principal must not make user A's mutation visible to
 // user B when the store is reopened.
 {
@@ -241,7 +305,7 @@ const coordinatorAt = async (authority) => {
 
 // Artifact replacement preserves the exact queue authority on its redacted
 // diagnostic tombstone and binds that tombstone to the replacement artifact
-// namespace, so format-5 can validate and reopen its own committed bytes.
+// namespace, so format-6 can validate and reopen its own committed bytes.
 {
   const persisted = {};
   let artifactStore = createMemorySnapbackClientStore({ state: persisted });
@@ -329,7 +393,7 @@ const coordinatorAt = async (authority) => {
   assert.equal(JSON.stringify(state).includes('anonymous-unproven-payload'), false);
 }
 
-// Item 6 and item 7 independently allocated format 4. Format 5 recognizes
+// Item 6 and item 7 independently allocated format 4. Format 6 recognizes
 // only their exact/XOR predecessor shapes: item 6's descriptor-less queue is
 // discard-only, while item 7's descriptor-bound queue gains the independent
 // invalidation generation without losing replay identity.
@@ -344,6 +408,7 @@ const coordinatorAt = async (authority) => {
   });
   const legacyItem6 = await item6.snapshot();
   legacyItem6.version = 4;
+  delete legacyItem6.terminallyUnbound;
   delete legacyItem6.principalScope;
   delete legacyItem6.authorityDescriptor;
   delete legacyItem6.queryAuthorization;
@@ -421,6 +486,7 @@ const coordinatorAt = async (authority) => {
   });
   const item7QueueAuthorization = structuredClone(legacyItem7.queueAuthorization);
   legacyItem7.version = 4;
+  delete legacyItem7.terminallyUnbound;
   delete legacyItem7.queueAuthorization;
   delete legacyItem7.queryInstanceHighWater;
   delete legacyItem7.leaseClockHighWaterMs;
@@ -1024,6 +1090,170 @@ assert.deepEqual(
   await store.pendingMutationAcknowledgements(10, 'auth:anonymous', authority0),
   [queued.id],
 );
+
+// A fresh terminal custody transition can target a physical store already
+// bound to the exact epoch-zero tuple. Exact-current is idempotent only after
+// every privacy-bearing namespace is actually clean; retained and queued
+// predecessor bytes must be deleted before the participant reports success.
+{
+  const terminalStore = createMemorySnapbackClientStore();
+  const terminalAuthority = { authorityEpoch: 0, authorityKey: keyB };
+  await terminalStore.bindAuthority({ ...terminalAuthority, authMode: 'sessions' });
+  const terminalQueue = await terminalStore.captureMutationQueue(terminalAuthority);
+  await terminalStore.putRetainedQuery('terminal-private', {
+    ...terminalAuthority,
+    rows: [{ secret: 'terminal-retained-secret' }],
+  });
+  await terminalStore.enqueueMutation({
+    id: 'cm_terminal_private',
+    function: 'writeTerminalPrivate',
+    authFingerprint: 'auth:terminal-private',
+    ...terminalAuthority,
+    ...terminalQueue,
+  });
+  const participant = createSnapbackClientStoreAuthParticipant(terminalStore);
+  await participant.commitDurable({
+    previousAuthority: {
+      kind: 'servicePrincipal',
+      authMode: 'sessions',
+      actorUserId: USER,
+      credentialId: SESSION,
+      credentialGeneration: 0,
+      grantId: SESSION_B,
+    },
+    nextAuthority: null,
+    expectedEpoch: null,
+    nextEpoch: 0,
+    nextAuthorityKey: keyB,
+    disposition: 'delete',
+  });
+  const terminalState = await terminalStore.snapshot();
+  assert.equal(JSON.stringify(terminalState).includes('terminal-retained-secret'), false);
+  assert.equal(JSON.stringify(terminalState).includes('cm_terminal_private'), false);
+  assert.deepEqual(terminalState.retained, {});
+  assert.deepEqual(terminalState.pending, []);
+  assert.deepEqual(terminalState.failed, []);
+  assert.deepEqual(terminalState.acknowledged, []);
+  assert.deepEqual(terminalState.stranded, []);
+  assert.equal(terminalState.principalScope, null);
+  assert.equal(terminalState.authFingerprint, null);
+  assert.deepEqual(await terminalStore.authorityScope(), terminalAuthority);
+
+  await terminalStore.purgeAuthority({ authorityKey: keyB });
+  await expectCode(
+    'SNAPBACK_CLIENT_QUEUE_GENERATION_STALE',
+    () => terminalStore.enqueueMutation({
+      id: 'cm_delayed_after_terminal_purge',
+      function: 'writeDelayedTerminalPrivate',
+      ...terminalQueue,
+    }),
+  );
+  assert.deepEqual(await terminalStore.authorityScope(), {
+    authorityEpoch: null,
+    authorityKey: null,
+  });
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
+    () => terminalStore.bindAuthority({ authorityEpoch: 0, authorityKey: keyB }),
+  );
+  await terminalStore.transitionAuthority({
+    expectedEpoch: 0,
+    nextEpoch: 0,
+    nextAuthorityKey: key1,
+  });
+  assert.deepEqual(await terminalStore.authorityScope(), {
+    authorityEpoch: 0,
+    authorityKey: key1,
+  });
+
+  const successorStore = createMemorySnapbackClientStore();
+  const successorAuthority = { authorityEpoch: 1, authorityKey: keyB };
+  await successorStore.bindAuthority({ ...successorAuthority, authMode: 'sessions' });
+  const successorQueue = await successorStore.captureMutationQueue(successorAuthority);
+  await successorStore.putRetainedQuery('agent-successor-private', {
+    ...successorAuthority,
+    rows: [{ secret: 'agent-successor-retained' }],
+  });
+  await successorStore.enqueueMutation({
+    id: 'cm_agent_successor_private',
+    function: 'writeAgentSuccessorPrivate',
+    authFingerprint: 'auth:agent-successor',
+    ...successorAuthority,
+    ...successorQueue,
+  });
+  const successorParticipant = createSnapbackClientStoreAuthParticipant(successorStore);
+  await successorParticipant.commitDurable({
+    previousAuthority: {
+      kind: 'servicePrincipal',
+      authMode: 'sessions',
+      actorUserId: USER,
+      credentialId: SESSION,
+      credentialGeneration: 0,
+      grantId: SESSION_B,
+    },
+    nextAuthority: {
+      kind: 'servicePrincipal',
+      authMode: 'sessions',
+      actorUserId: USER,
+      credentialId: SESSION,
+      credentialGeneration: 1,
+      grantId: SESSION_2,
+    },
+    expectedEpoch: 0,
+    nextEpoch: 1,
+    nextAuthorityKey: keyB,
+    disposition: 'delete',
+  });
+  const successorState = await successorStore.snapshot();
+  assert.equal(JSON.stringify(successorState).includes('agent-successor-retained'), true);
+  assert.equal(JSON.stringify(successorState).includes('cm_agent_successor_private'), true);
+}
+
+// A terminal callback that wins while an initially empty Contract store is
+// still unbound records a durable bind fence. A delayed direct B bind cannot
+// recreate the terminal tuple; only a coordinator-proven active adoption can
+// consume the clean marker.
+{
+  const initiallyUnbound = createMemorySnapbackClientStore();
+  await initiallyUnbound.purgeAuthority({ authorityKey: keyB });
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
+    () => initiallyUnbound.bindAuthority({ authorityEpoch: 0, authorityKey: keyB }),
+  );
+  await initiallyUnbound.transitionAuthority({
+    expectedEpoch: 0,
+    nextEpoch: 0,
+    nextAuthorityKey: key1,
+  });
+  assert.deepEqual(await initiallyUnbound.authorityScope(), {
+    authorityEpoch: 0,
+    authorityKey: key1,
+  });
+}
+
+// Terminal purge also invalidates a captured queue at the numeric ceiling
+// without wrapping or reusing the same two-axis queue identity.
+{
+  const ceilingState = {};
+  const ceilingStore = createMemorySnapbackClientStore({ state: ceilingState });
+  const authority = { authorityEpoch: 0, authorityKey: keyB };
+  await ceilingStore.bindAuthority({ ...authority, authMode: 'sessions' });
+  ceilingState.queueAuthorization.queueGeneration = Number.MAX_SAFE_INTEGER;
+  const captured = await ceilingStore.captureMutationQueue(authority);
+  await ceilingStore.purgeAuthority({ authorityKey: keyB });
+  await expectCode(
+    'SNAPBACK_CLIENT_QUEUE_GENERATION_STALE',
+    () => ceilingStore.enqueueMutation({
+      id: 'cm_delayed_after_terminal_ceiling',
+      function: 'writeDelayedTerminalCeiling',
+      ...captured,
+    }),
+  );
+  assert.equal(
+    (await ceilingStore.snapshot()).queueAuthorization.queueGeneration,
+    Number.MAX_SAFE_INTEGER,
+  );
+}
 
 // A real coordinator transition drives the physical store's expected-epoch
 // participant. The predecessor becomes unreachable before successor resume,

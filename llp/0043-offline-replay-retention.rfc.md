@@ -5,7 +5,7 @@
 **Systems:** Sync, Storage, Client integration, Auth, API, Realtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-14 (ENG-24992: the Milestone 1 fail-closed list no longer implies client-side cryptographic MAC verification — client custody detects structural/binding/hash/expiry/rollback defects while `key_id`/`mac` are authenticated only by the server keyring, per LLP 0053 §The lease's dated verification-locus amendment; executable one-bit MAC tamper and unknown-key vectors pin both sides). 2026-07-14 (ENG-24606 reconciliation: item 8 now populates the format-5 `queryAuthorization` namespace with never-reused query-instance identities, authorization witnesses, independent pending-scope fences, signed lease custody, and equality-expiry deletion; the earlier ENG-24605 empty reservation remains the historical pre-item-8 checkpoint). 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
+**Revised:** 2026-07-16 (format-6 terminal anti-rebind boundary: `terminallyUnbound` is mandatory, format 5 migrates deletion-only, and only an exact coordinator/store-generation CAS may consume the marker). 2026-07-14 (ENG-24992: the Milestone 1 fail-closed list no longer implies client-side cryptographic MAC verification — client custody detects structural/binding/hash/expiry/rollback defects while `key_id`/`mac` are authenticated only by the server keyring, per LLP 0053 §The lease's dated verification-locus amendment; executable one-bit MAC tamper and unknown-key vectors pin both sides). 2026-07-14 (ENG-24606 reconciliation: item 8 now populates the format-5 `queryAuthorization` namespace with never-reused query-instance identities, authorization witnesses, independent pending-scope fences, signed lease custody, and equality-expiry deletion; the earlier ENG-24605 empty reservation remains the historical pre-item-8 checkpoint). 2026-07-13 (ENG-24605 composition: server-issued authority descriptors bind queued work independently from principal-owned retained rows; composed store format 5 resolves item 6/item 7's independent format-4 allocation, migrates both predecessor shapes fail-closed, preserves rows across a same-principal new session while stranding its queue, and reserves but does not implement `queryAuthorization`). 2026-07-12 (ENG-24571: standalone authenticated ACK delivery, auth-tagged client ACK retention, receipt-proven acknowledgement, collision-resistant auth fingerprints with collision-safe v1/FNV quarantine on both client and server, transactionally maintained global/per-auth counters, and an admin-gated recovery purge); 2026-07-12 (ENG-24571: durable mutation settlement is acknowledgement-driven and auth-bound, with hard result/aggregate/count refusal limits and gated retention metrics; no time-based eviction can break exactly-once replay); 2026-07-12 (ENG-24376: retained writes are ordered and compare-and-set by opaque stream/version, while app/database/target/reset-stream identity is persisted and invalidates incompatible rows). 2026-07-09 (ENG-23965 ships the first closed-IR single-query M1/M2
 slice: retained auth/artifact-scoped rows, durable monotonic outbox, atomic
 client mutation settlement, full-resync-before-replay, and replay tests; broader
 conflict/delta-resume work remains as scoped below. Earlier: cross-family review
@@ -214,7 +214,7 @@ the failed mutation and authoritative state, not pretend convergence happened.
 
 ### Auth posture
 
-Store format 5 has two axes because “who may see these rows?” and “which
+Store format 6 retains format 5's two axes because “who may see these rows?” and “which
 credential instance created this outbox entry?” are different questions:
 
 - **Principal/data axis.** `(authMode, authorizationStreamIncarnation,
@@ -237,7 +237,17 @@ credential instance created this outbox entry?” are different questions:
   work as visible, explicitly discardable, and never replayable. It is never
   silently retagged to the successor.
 
-The older client-derived auth fingerprint may remain attached to format-5
+Format 6 additionally requires the top-level boolean `terminallyUnbound`.
+An exact terminal purge deletes every privacy- and replay-bearing namespace,
+invalidates the queue generation, clears the authority epoch/key, and sets this
+bit in one store transaction. Direct `bindAuthority` cannot consume it. A
+coordinator may adopt only a still-current proven authority through
+`transitionAuthority`, comparing the store's captured write generation so a
+terminal cut after observation wins rather than being rebound by delayed boot.
+The same exception admits a proven one-epoch successor only while the store is
+fully privacy-clean and unbound.
+
+The older client-derived auth fingerprint may remain attached to format-6
 records solely for settlement-ACK compatibility. Once a modern axis is bound,
 that fingerprint cannot delete, preserve, expose, or replay data and therefore
 cannot become a hidden third ownership axis.
@@ -265,6 +275,17 @@ moves to `legacyV4Stranded` and is never replayable. An item-7 shape has the
 descriptor/principal axes but no invalidation queue generation, so it gains a
 fresh independent queue generation while preserving descriptor-bound work.
 Neither migration infers one authority axis from the other.
+
+Format 5 did not possess the mandatory terminal marker. Format-6 migration
+therefore validates a complete v5 predecessor but preserves none of its
+retained, queue, receipt, stranded, principal, descriptor, or authority bytes:
+it clears those namespaces, advances the queue invalidation identity, and
+leaves `terminallyUnbound: true`. This deletion-only conversion is deliberate;
+there is no safe way to distinguish a legitimate v5 record from a terminal v5
+record whose new bit was erased by an older writer. Older readers reject v6.
+Every tab/process sharing the physical client-store key must be drained and
+upgraded together; if an old writer later replaces v6 with v5, the next v6 read
+performs the same deletion-only migration instead of trusting the downgrade.
 
 ## Non-goals
 
@@ -331,7 +352,8 @@ lease protocol. Syncable-live status alone never admits retained display.
 
 Draft, with the first closed-IR single-query M1/M2 slice implemented by
 ENG-23965, hardened by ENG-24376, and the format-5 authority split implemented
-by ENG-24605. ENG-24606/item 8 implements the mandatory query-authorization
+by ENG-24605 and retained inside the current format-6 terminal-marker boundary.
+ENG-24606/item 8 implements the mandatory query-authorization
 namespace, signed-lease issuance and client custody, exact deadline deletion,
 rollback protection, and full-revalidation-only renewal. Shipped evidence covers
 retained stale boot, reload persistence,

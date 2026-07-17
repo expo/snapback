@@ -10,6 +10,10 @@ import { generate } from './index.mjs';
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dirs = [];
+const membershipValidationParity = JSON.parse(readFileSync(
+  join(repoRoot, 'tests/fixtures/membership-validation-parity-v0.json'),
+  'utf8',
+));
 
 // The success case remains a literal source fixture so the guide can verify
 // its author-facing excerpt byte-for-byte. The schemaSource factory below is
@@ -87,6 +91,40 @@ export default defineSchema({
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
+
+const parityTransition = ({ kind, value }) => {
+  if (kind === 'roleCallerTargetsSelf') {
+    if (value === 'insert') return { op: value, by: ['host'], target: 'self', to: ['guest'] };
+    if (value === 'setRole') {
+      return { op: value, by: ['host'], target: 'self', from: ['guest'], to: ['host'] };
+    }
+    if (value === 'remove') return { op: value, by: ['host'], target: 'self', from: ['guest'] };
+    return { op: value, by: ['host'], target: 'self', fields: ['joinedAt'] };
+  }
+  if (kind === 'selfCallerTargetsOther') {
+    if (value === 'setRole') {
+      return { op: value, by: ['self'], target: 'other', from: ['guest'], to: ['host'] };
+    }
+    if (value === 'remove') return { op: value, by: ['self'], target: 'other', from: ['guest'] };
+    return { op: value, by: ['self'], target: 'other', fields: ['joinedAt'] };
+  }
+  if (kind === 'patchAxis') {
+    return { op: 'patch', by: ['self'], target: 'self', fields: [value] };
+  }
+  return null;
+};
+
+const paritySchemaSource = (testCase) => schemaSource({
+  ...(testCase.kind === 'reservedProvenance'
+    ? { extraField: `${testCase.value}: v.string(),` }
+    : {}),
+  ...(testCase.kind === 'generatedIndexCollision'
+    ? { indexName: testCase.value }
+    : {}),
+  ...(['roleCallerTargetsSelf', 'selfCallerTargetsOther', 'patchAxis'].includes(testCase.kind)
+    ? { transitions: [parityTransition(testCase)] }
+    : {}),
+});
 
 const generatedSymbolCollisionSchema = `
 import { defineSchema, defineTable, v } from '${defineUrl}';
@@ -342,37 +380,24 @@ export const bootstrapEvent = defineJsMutation({
     ],
     ['invalid expiry type', schemaSource({ expiryType: 'string' }), 'SCHEMA_MEMBERSHIP_EXPIRY_FIELD_TYPE'],
     ['unknown id table', schemaSource({ idTarget: 'missingEvents' }), 'SCHEMA_ID_TARGET_UNKNOWN'],
-    [
-      'reserved provenance field',
-      schemaSource({ extraField: 'grantedByActor: v.string(),' }),
-      'SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED',
-    ],
-    [
-      'role caller targeting self',
-      schemaSource({ transitions: [{ op: 'remove', by: ['host'], target: 'self' }] }),
-      'SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR',
-    ],
-    [
-      'self caller targeting other',
-      schemaSource({ transitions: [{ op: 'remove', by: ['self'], target: 'other' }] }),
-      'SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER',
-    ],
-    [
-      'patching an authorization axis',
-      schemaSource({ transitions: [{ op: 'patch', by: ['self'], target: 'self', fields: ['role'] }] }),
-      'SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD',
-    ],
-    [
-      'generated membership index collision',
-      schemaSource({ indexName: '_membership_pk' }),
-      'SCHEMA_MEMBERSHIP_INDEX_NAME_COLLISION',
-    ],
   ]) {
     const { result } = await run('export {};\n', inputSchema);
     assert.equal(result.ok, false, `${label} unexpectedly generated`);
     assert(
       result.diagnostics.some(({ code }) => code === expectedCode),
       `${label} omitted ${expectedCode}: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+
+  // This corpus is consumed by both this authoring test and Rust activation
+  // tests. Adding or changing one of the duplicated closed invariants must
+  // therefore update one shared fixture instead of two drifting case lists.
+  for (const testCase of membershipValidationParity) {
+    const { result } = await run('export {};\n', paritySchemaSource(testCase));
+    assert.equal(result.ok, false, `${testCase.name} unexpectedly generated`);
+    assert(
+      result.diagnostics.some(({ code }) => code === testCase.codegenCode),
+      `${testCase.name} omitted ${testCase.codegenCode}: ${JSON.stringify(result.diagnostics)}`,
     );
   }
 

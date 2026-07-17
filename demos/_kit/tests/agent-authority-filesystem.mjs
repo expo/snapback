@@ -1,18 +1,30 @@
 // True process-restart and OS-lock proof for Node filesystem agent custody.
 
 import assert from 'node:assert/strict';
-import { spawn } from 'node:child_process';
-import { readFile, readdir, rm, stat } from 'node:fs/promises';
+import { execFile, spawn } from 'node:child_process';
+import {
+  link,
+  mkdir,
+  readFile,
+  readdir,
+  rename,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdtemp } from 'node:fs/promises';
+import { promisify } from 'node:util';
 
 import { createFilesystemAgentAuthorityCustodyStorage } from '../agent-authority-filesystem.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CHILD = join(HERE, 'agent-authority-filesystem-child.mjs');
 const BEARER_SENTINEL = 'sbagt_filesystem_bearer_must_never_persist';
+const execFileAsync = promisify(execFile);
 
 const spawnChild = (args) => spawn(
   process.execPath,
@@ -72,6 +84,121 @@ const waitForLine = async (child, predicate) => {
 const directory = await mkdtemp(join(tmpdir(), 'snapback-agent-custody-'));
 
 try {
+  // Custody roots are canonical, stable private directories. A final symlink
+  // (including the historical trailing-separator lstat bypass) is refused.
+  {
+    const securityRoot = await mkdtemp(join(tmpdir(), 'snapback-agent-symlink-'));
+    try {
+      const target = join(securityRoot, 'target');
+      const alias = join(securityRoot, 'alias');
+      await mkdir(target, { mode: 0o700 });
+      const privateChild = join(target, 'private');
+      await mkdir(privateChild, { mode: 0o700 });
+      await symlink(target, alias);
+      assert.throws(
+        () => createFilesystemAgentAuthorityCustodyStorage({ directory: `${alias}${sep}` }),
+        /normalized path without a trailing separator/,
+      );
+      const aliased = createFilesystemAgentAuthorityCustodyStorage({ directory: alias });
+      await assert.rejects(
+        aliased.withOwnership('agent:symlink-root', (owner) => owner.read()),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
+      );
+      const intermediate = createFilesystemAgentAuthorityCustodyStorage({
+        directory: join(alias, 'private'),
+      });
+      await assert.rejects(
+        intermediate.withOwnership('agent:symlink-ancestor', (owner) => owner.read()),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
+      );
+    } finally {
+      await rm(securityRoot, { recursive: true, force: true });
+    }
+  }
+
+  if (process.platform === 'darwin') {
+    const securityRoot = await mkdtemp(join(tmpdir(), 'snapback-agent-acl-'));
+    try {
+      const custodyDirectory = join(securityRoot, 'custody');
+      await mkdir(custodyDirectory, { mode: 0o700 });
+      await execFileAsync('/bin/chmod', [
+        '+a',
+        'everyone allow add_file,delete_child',
+        securityRoot,
+      ]);
+      const aclStorage = createFilesystemAgentAuthorityCustodyStorage({
+        directory: custodyDirectory,
+      });
+      await assert.rejects(
+        aclStorage.withOwnership('agent:unsafe-ancestor-acl', (owner) => owner.read()),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
+      );
+    } finally {
+      await rm(securityRoot, { recursive: true, force: true });
+    }
+  }
+
+  // Replacing the 0700 directory with another 0700 inode during an atomic
+  // write cannot redirect the temp-file rename into attacker-chosen storage.
+  {
+    const securityRoot = await mkdtemp(join(tmpdir(), 'snapback-agent-swap-'));
+    const custodyDirectory = join(securityRoot, 'custody');
+    const displacedDirectory = join(securityRoot, 'custody-displaced');
+    await mkdir(custodyDirectory, { mode: 0o700 });
+    let swapped = false;
+    const swapping = createFilesystemAgentAuthorityCustodyStorage({
+      directory: custodyDirectory,
+      testHooks: {
+        async beforeRecordRename() {
+          if (swapped) return;
+          swapped = true;
+          await rename(custodyDirectory, displacedDirectory);
+          await mkdir(custodyDirectory, { mode: 0o700 });
+        },
+      },
+    });
+    try {
+      const initialized = await run('init-a', directory, 'agent:swap-template');
+      await assert.rejects(
+        swapping.withOwnership('agent:directory-swap', (owner) => (
+          owner.replace(null, {
+            ...initialized.record,
+            custodyId: 'agent:directory-swap',
+          })
+        )),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
+      );
+    } finally {
+      await rm(securityRoot, { recursive: true, force: true });
+    }
+  }
+
+  // Record reads are bounded and reject aliases with extra hard links.
+  for (const attack of ['hard-link', 'oversized', 'fifo']) {
+    const securityRoot = await mkdtemp(join(tmpdir(), `snapback-agent-${attack}-`));
+    try {
+      await run('init-a', securityRoot, `agent:${attack}`);
+      const recordName = (await readdir(securityRoot)).find((entry) => entry.endsWith('.json'));
+      assert(recordName, 'security fixture must create a custody record');
+      const recordPath = join(securityRoot, recordName);
+      if (attack === 'hard-link') {
+        await link(recordPath, join(securityRoot, 'record-alias'));
+      } else if (attack === 'oversized') {
+        await writeFile(recordPath, 'x'.repeat((64 * 1_024) + 1), { mode: 0o600 });
+      } else {
+        await rm(recordPath);
+        await execFileAsync('/usr/bin/mkfifo', ['-m', '600', recordPath]);
+      }
+      const attacked = createFilesystemAgentAuthorityCustodyStorage({ directory: securityRoot });
+      await assert.rejects(
+        attacked.snapshot(`agent:${attack}`),
+        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_FILE_INSECURE',
+      );
+    } finally {
+      await rm(securityRoot, { recursive: true, force: true });
+    }
+  }
+
   // Three independent Node processes prove epoch/revision restoration rather
   // than accidentally sharing the in-memory adapter or an imported singleton.
   const initialized = await run('init-a', directory, 'agent:filesystem-restart');
@@ -89,6 +216,49 @@ try {
   assert.equal(restarted.capture.authorityEpoch, 1);
   assert.equal(restarted.record.revision, 3);
   assert.equal(restarted.record.authorityKey, replaced.record.authorityKey);
+
+  // Operations sharing one owner cannot race the compare-and-swap. The first
+  // replacement may commit, but an overlapping second call is rejected before
+  // it can reread the same predecessor and silently overwrite the winner.
+  const overlapCustodyId = 'agent:filesystem-owner-overlap';
+  await run('init-a', directory, overlapCustodyId);
+  const overlapStorage = createFilesystemAgentAuthorityCustodyStorage({ directory });
+  const overlap = await overlapStorage.withOwnership(overlapCustodyId, async (owner) => {
+    const current = await owner.read();
+    const marker = {
+      ...current,
+      revision: current.revision + 1,
+      phase: 'exhausted',
+      status: 'deleted',
+      transition: null,
+    };
+    const results = await Promise.allSettled([
+      owner.replace(current.revision, marker),
+      owner.replace(current.revision, marker),
+    ]);
+    return { results, marker };
+  });
+  assert.deepEqual(
+    overlap.results.map((result) => result.status).sort(),
+    ['fulfilled', 'rejected'],
+  );
+  assert.equal(
+    overlap.results.find((result) => result.status === 'rejected').reason.code,
+    'SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP',
+  );
+  assert.deepEqual(await overlapStorage.snapshot(overlapCustodyId), overlap.marker);
+  await overlapStorage.withOwnership('agent:filesystem-reentrant-owner', async (owner) => {
+    await assert.rejects(
+      owner.withPartition('agent:filesystem-reentrant-owner', () => assert.fail('reentered')),
+      (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT',
+    );
+    await assert.rejects(
+      overlapStorage.snapshot('agent:filesystem-reentrant-owner'),
+      (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT',
+    );
+  });
+  const exhaustedRestart = await run('reject-a', directory, overlapCustodyId);
+  assert.equal(exhaustedRestart.failure.code, 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED');
 
   // A crash after the clearing CAS leaves enough intent for a distinct
   // process to replay the durable participant phase and settle exactly once.

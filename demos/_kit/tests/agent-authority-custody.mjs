@@ -46,6 +46,19 @@ const replaceValidated = (fence, value) => (
   fence.replaceCredentialValidated(fence.capture(), value, descriptorFor(value))
 );
 
+const transitionIdForTest = (custodyId, transition) => `agent-transition-v1:${JSON.stringify({
+  custodyId,
+  expectedRevision: transition.expectedRevision,
+  expectedEpoch: transition.expectedEpoch,
+  expectedAuthorityKey: transition.expectedAuthorityKey,
+  previousStatus: transition.previousStatus,
+  nextEpoch: transition.nextEpoch,
+  nextAuthorityKey: transition.nextAuthorityKey,
+  nextStatus: transition.nextStatus,
+  reason: transition.reason,
+  disposition: transition.disposition,
+})}`;
+
 const deferred = () => {
   let resolve;
   const promise = new Promise((done) => { resolve = done; });
@@ -62,6 +75,37 @@ const deferred = () => {
   assert.equal(rotated.authorityEpoch, first.authorityEpoch);
   assert.equal(rotated.carrierGeneration, first.carrierGeneration + 1);
   assert(fence.isCurrent(rotated));
+}
+
+// Durable side-ledger atomicity is an explicit adapter capability. Legacy or
+// globally non-reentrant mutex adapters fail at construction instead of
+// hanging after the first gate/partition composition. Internal namespaces
+// cannot collide with caller-selected custody ids.
+{
+  assert.throws(
+    () => new AgentAuthorityFence(credential(), {
+      storage: { async withOwnership() {} },
+      custodyId: 'agent:legacy-global-mutex',
+    }),
+    code('SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED'),
+  );
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  for (const custodyId of [
+    'snapback.agent-custody-gate.v1:caller',
+    'snapback.agent-terminal-witness.v1:caller',
+    'x'.repeat(513),
+  ]) {
+    assert.throws(
+      () => new AgentAuthorityFence(credential(), { storage, custodyId }),
+      /reserved internal namespace|too long/,
+    );
+  }
+  await storage.withOwnership('agent:memory-direct-reentry', async () => {
+    await assert.rejects(
+      storage.withOwnership('agent:memory-direct-reentry', () => assert.fail('reentered')),
+      code('SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE'),
+    );
+  });
 }
 
 // Publication callbacks are a non-reentrant custody boundary in both
@@ -94,6 +138,172 @@ for (const durable of [false, true]) {
   assert.deepEqual(result, { committed: true, value: durable ? 'durable' : 'volatile' });
   assert(fence.isCurrent(capture), 'reentrant custody attempts leave the published capture current');
   assert.equal(fence.authorityDescriptor, null, 'reentrant binding cannot mutate descriptor state');
+  await unregister();
+}
+
+// Awaited participant callbacks receive a prompt stable refusal when they try
+// to join the barrier that is awaiting them. Both synchronization and removal
+// remain retryable after the callback returns; neither can self-deadlock.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const fence = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:participant-reentrant',
+  });
+  let synchronizeFailure = null;
+  let removalFailure = null;
+  let unregister;
+  unregister = fence.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {
+      try {
+        await fence.synchronize();
+      } catch (error) {
+        synchronizeFailure = error;
+      }
+    },
+    async resume() {
+      try {
+        await unregister();
+      } catch (error) {
+        removalFailure = error;
+      }
+    },
+  });
+  await synchronizeValidated(fence);
+  await replaceValidated(fence, credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+  assert.equal(
+    synchronizeFailure?.code,
+    'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT',
+  );
+  assert.equal(
+    removalFailure?.code,
+    'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT',
+  );
+  await unregister();
+}
+
+// The optional exact-key terminal callback has the same non-reentrant awaited
+// participant contract as ordinary durable commit and resume callbacks.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const fence = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:terminal-participant-reentrant',
+  });
+  let synchronizeFailure = null;
+  let removalFailure = null;
+  let unregister;
+  unregister = fence.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitTerminalDurable() {
+      try {
+        await fence.synchronize();
+      } catch (error) {
+        synchronizeFailure = error;
+      }
+      try {
+        await unregister();
+      } catch (error) {
+        removalFailure = error;
+      }
+    },
+  });
+  await synchronizeValidated(fence);
+  const terminal = fence.terminateValidatedCredential(
+    fence.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await terminal.settlement;
+  assert.equal(
+    synchronizeFailure?.code,
+    'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT',
+  );
+  assert.equal(
+    removalFailure?.code,
+    'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT',
+  );
+  await unregister();
+}
+
+// Scheduled fresh deletion may snapshot a participant before its async barrier
+// starts; awaited unregister still does not resolve ahead of that final call.
+{
+  const fence = new AgentAuthorityFence(credential(), {
+    storage: createMemoryAgentAuthorityCustodyStorage(),
+    custodyId: 'agent:fresh-terminal-unregister-lifetime',
+  });
+  let callbackFinished = false;
+  const unregister = fence.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitTerminalDurable() {
+      await Promise.resolve();
+      callbackFinished = true;
+    },
+  });
+  const terminal = fence.terminateValidatedCredential(
+    fence.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await unregister();
+  assert.equal(callbackFinished, true, 'unregister waits for snapshotted terminal callback');
+  await terminal.settlement;
+}
+
+// Synchronous confidentiality callbacks run before the terminal handle and
+// async barrier Promise are installed. Their supported unregister calls defer
+// settlement selection until that handle exists, then wait for the mandatory
+// durable callback instead of resolving in the intervening microtask.
+{
+  const fence = new AgentAuthorityFence(credential(), {
+    storage: createMemoryAgentAuthorityCustodyStorage(),
+    custodyId: 'agent:sync-cut-unregister-lifetime',
+  });
+  let armed = false;
+  let releaseTerminal;
+  let terminalCallbackStarted;
+  const started = new Promise((resolve) => { terminalCallbackStarted = resolve; });
+  const terminalGate = new Promise((resolve) => { releaseTerminal = resolve; });
+  let terminalCallbackRan = false;
+  let removalsResolved = 0;
+  const removalAttempts = [];
+  let unregister;
+  const attemptRemoval = () => {
+    if (!armed) return;
+    const attempt = unregister();
+    void attempt.then(() => { removalsResolved += 1; });
+    removalAttempts.push(attempt);
+  };
+  unregister = fence.registerParticipant({
+    quiesce: attemptRemoval,
+    blank: attemptRemoval,
+    clearMemory: attemptRemoval,
+    async commitTerminalDurable() {
+      terminalCallbackStarted();
+      await terminalGate;
+      terminalCallbackRan = true;
+    },
+  });
+  await synchronizeValidated(fence);
+  armed = true;
+  const terminal = fence.terminateValidatedCredential(
+    fence.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  assert.equal(removalAttempts.length, 3, 'every synchronous cut phase attempted removal');
+  await started;
+  assert.equal(removalsResolved, 0, 'unregister cannot resolve before durable cleanup');
+  releaseTerminal();
+  await terminal.settlement;
+  await Promise.all(removalAttempts);
+  assert.equal(removalsResolved, 3, 'sync-cut unregisters settle after durable cleanup');
+  assert.equal(terminalCallbackRan, true, 'reentrant removal cannot skip durable cleanup');
   await unregister();
 }
 
@@ -162,7 +372,11 @@ for (const durable of [false, true]) {
     async commitDurable() { order.push('commitDurable'); },
     async resume() { order.push('resume'); },
   });
-  assert.deepEqual(order, ['quiesce', 'blank'], 'registration begins paused and blank');
+  assert.deepEqual(
+    order,
+    ['quiesce', 'blank', 'clearMemory'],
+    'registration begins paused, blank, and memory-cleared',
+  );
   await assert.rejects(
     fence.synchronize(),
     code('SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED'),
@@ -173,6 +387,7 @@ for (const durable of [false, true]) {
   assert.deepEqual(order, [
     'quiesce',
     'blank',
+    'clearMemory',
     'quiesce',
     'blank',
     'clearMemory',
@@ -232,15 +447,21 @@ for (const durable of [false, true]) {
   const base = createMemoryAgentAuthorityCustodyStorage();
   let throwAfterCommit = false;
   const ambiguous = {
+    partitionOwnership: base.partitionOwnership,
     async withOwnership(custodyId, operation) {
-      const result = await base.withOwnership(custodyId, operation);
-      if (throwAfterCommit) {
-        throwAfterCommit = false;
-        const error = new Error('injected response loss after custody commit');
-        error.code = 'TEST_AMBIGUOUS_AFTER_COMMIT';
-        throw error;
-      }
-      return result;
+      return base.withOwnership(custodyId, (owner) => operation(Object.freeze({
+        ...owner,
+        async withPartition(partition, partitionOperation) {
+          const result = await owner.withPartition(partition, partitionOperation);
+          if (partition === 'agent:ambiguous' && throwAfterCommit) {
+            throwAfterCommit = false;
+            const error = new Error('injected response loss after custody commit');
+            error.code = 'TEST_AMBIGUOUS_AFTER_COMMIT';
+            throw error;
+          }
+          return result;
+        },
+      })));
     },
   };
   const fence = new AgentAuthorityFence(credential(), {
@@ -430,26 +651,41 @@ for (const durable of [false, true]) {
   assert.equal(storage.snapshot('agent:participant-ambiguous').phase, 'settled');
 }
 
-// Epoch exhaustion is a synchronous confidentiality cut and never wraps or
-// overwrites the maximum durable record.
+// Durable counter exhaustion consumes a reserved revision for a terminal,
+// secret-free marker. A fresh process sees the marker and cannot reopen the
+// predecessor tuple even when it presents a newly validated carrier.
 {
   const state = { custody: Object.create(null) };
   const storage = createMemoryAgentAuthorityCustodyStorage({ state });
-  const seed = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:max' });
+  const custodyId = 'agent:epoch-reserved-terminal';
+  const seed = new AgentAuthorityFence(credential(), { storage, custodyId });
   await synchronizeValidated(seed);
-  state.custody['agent:max'] = {
-    ...storage.snapshot('agent:max'),
-    authorityEpoch: Number.MAX_SAFE_INTEGER,
+  state.custody[custodyId] = {
+    ...storage.snapshot(custodyId),
+    authorityEpoch: Number.MAX_SAFE_INTEGER - 1,
   };
-  const exhausted = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:max' });
+  const exhausted = new AgentAuthorityFence(credential(), { storage, custodyId });
   await synchronizeValidated(exhausted);
-  assert.throws(
-    () => replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+  await assert.rejects(
+    replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
     code('SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'),
   );
   assert.throws(() => exhausted.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
-  assert.equal(storage.snapshot('agent:max').authorityEpoch, Number.MAX_SAFE_INTEGER);
-  assert.equal(storage.snapshot('agent:max').status, 'active');
+  const marker = storage.snapshot(custodyId);
+  assert.equal(marker.authorityEpoch, Number.MAX_SAFE_INTEGER - 1);
+  assert.equal(marker.phase, 'exhausted');
+  assert.equal(marker.status, 'deleted');
+  assert.equal(marker.revision, 2);
+
+  const restarted = new AgentAuthorityFence(credential({ tokenId: TOKEN_C }), {
+    storage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(restarted, credential({ tokenId: TOKEN_C })),
+    code('SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'),
+  );
+  assert.deepEqual(storage.snapshot(custodyId), marker);
 }
 
 // Every other comparison identity fails closed too. Carrier and barrier
@@ -497,28 +733,95 @@ for (const durable of [false, true]) {
 {
   const state = { custody: Object.create(null) };
   const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:revision-reserved-terminal';
   const seed = new AgentAuthorityFence(credential(), {
     storage,
-    custodyId: 'agent:revision-max',
+    custodyId,
   });
   await synchronizeValidated(seed);
-  state.custody['agent:revision-max'] = {
-    ...storage.snapshot('agent:revision-max'),
-    revision: Number.MAX_SAFE_INTEGER,
+  state.custody[custodyId] = {
+    ...storage.snapshot(custodyId),
+    revision: Number.MAX_SAFE_INTEGER - 2,
   };
   const exhausted = new AgentAuthorityFence(credential(), {
     storage,
-    custodyId: 'agent:revision-max',
+    custodyId,
   });
   await synchronizeValidated(exhausted);
   const lastCapture = exhausted.capture();
-  assert.throws(
-    () => replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+  await assert.rejects(
+    replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
     code('SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'),
   );
   assert.equal(exhausted.isCurrent(lastCapture), false);
-  assert.equal(storage.snapshot('agent:revision-max').revision, Number.MAX_SAFE_INTEGER);
-  assert.equal(storage.snapshot('agent:revision-max').status, 'active');
+  const marker = storage.snapshot(custodyId);
+  assert.equal(marker.revision, Number.MAX_SAFE_INTEGER - 1);
+  assert.equal(marker.phase, 'exhausted');
+  assert.equal(marker.status, 'deleted');
+  const restarted = new AgentAuthorityFence(credential({ tokenId: TOKEN_C }), {
+    storage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(restarted, credential({ tokenId: TOKEN_C })),
+    code('SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'),
+  );
+}
+
+// Legacy records that already consumed a maximum counter remain durable
+// poison. Epoch exhaustion can still be rewritten to a marker when a revision
+// remains; revision exhaustion cannot be rewritten, so every process rejects
+// the exact maximum record instead.
+for (const field of ['authorityEpoch', 'revision']) {
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = `agent:legacy-${field}-max`;
+  const seed = new AgentAuthorityFence(credential(), { storage, custodyId });
+  await synchronizeValidated(seed);
+  state.custody[custodyId] = {
+    ...storage.snapshot(custodyId),
+    [field]: Number.MAX_SAFE_INTEGER,
+  };
+  const expected = field === 'revision'
+    ? 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+    : 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED';
+  for (const tokenId of [TOKEN_B, TOKEN_C]) {
+    const restarted = new AgentAuthorityFence(credential({ tokenId }), { storage, custodyId });
+    await assert.rejects(
+      synchronizeValidated(restarted, credential({ tokenId })),
+      code(expected),
+    );
+  }
+  const persisted = storage.snapshot(custodyId);
+  assert.equal(persisted.status, field === 'revision' ? 'active' : 'deleted');
+  assert.equal(persisted.phase, field === 'revision' ? 'settled' : 'exhausted');
+}
+
+// A maximum counter on an existing deletion tombstone is also normalized to
+// the stable exhaustion marker; "already deleted" never bypasses poison
+// handling or changes the public diagnosis on the next restart.
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:legacy-deleted-epoch-max';
+  const seed = new AgentAuthorityFence(credential(), { storage, custodyId });
+  await synchronizeValidated(seed);
+  const terminal = seed.terminate(seed.capture(), { authorityDisposition: 'durableDelete' });
+  await terminal.settlement;
+  state.custody[custodyId] = {
+    ...storage.snapshot(custodyId),
+    authorityEpoch: Number.MAX_SAFE_INTEGER,
+  };
+  const restarted = new AgentAuthorityFence(credential({ tokenId: TOKEN_B }), {
+    storage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(restarted, credential({ tokenId: TOKEN_B })),
+    code('SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'),
+  );
+  assert.equal(storage.snapshot(custodyId).phase, 'exhausted');
+  assert.equal(storage.snapshot(custodyId).status, 'deleted');
 }
 
 // A synchronous participant fault cannot veto durable deletion. The terminal
@@ -706,7 +1009,7 @@ for (const durable of [false, true]) {
   restarted.registerParticipant({
     quiesce() { phases.push('registration-quiesce'); },
     blank() { phases.push('registration-blank'); },
-    clearMemory() { phases.push('unexpected-local-clear'); },
+    clearMemory() { phases.push('registration-clear'); },
     async commitDurable() { phases.push('commitDurable'); },
   });
   const offer = restarted.credentialOfferForHandshake();
@@ -725,7 +1028,12 @@ for (const durable of [false, true]) {
     'the exact validated offer reuses one deletion settlement',
   );
   await deletion.settlement;
-  assert.deepEqual(phases, ['registration-quiesce', 'registration-blank', 'commitDurable']);
+  assert.deepEqual(phases, [
+    'registration-quiesce',
+    'registration-blank',
+    'registration-clear',
+    'commitDurable',
+  ]);
   assert.equal(storage.snapshot(custodyId).phase, 'settled');
   assert.equal(storage.snapshot(custodyId).status, 'deleted');
   assert.throws(() => restarted.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
@@ -762,7 +1070,7 @@ for (const durable of [false, true]) {
   restarted.registerParticipant({
     quiesce() { localPhases.push('registration-quiesce'); },
     blank() { localPhases.push('registration-blank'); },
-    clearMemory() { localPhases.push('unexpected-clear'); },
+    clearMemory() { localPhases.push('registration-clear'); },
     async commitDurable(context) { durableContexts.push(context); },
     async resume() { localPhases.push('unexpected-resume'); },
   });
@@ -772,7 +1080,11 @@ for (const durable of [false, true]) {
     terminalError: new Error('classified while successor recovery was pending'),
   });
   await deletion.settlement;
-  assert.deepEqual(localPhases, ['registration-quiesce', 'registration-blank']);
+  assert.deepEqual(localPhases, [
+    'registration-quiesce',
+    'registration-blank',
+    'registration-clear',
+  ]);
   assert.equal(durableContexts.length, 2, 'recovery and deletion each settle one durable intent');
   assert.equal(durableContexts[0].transitionId, interrupted.transition.transitionId);
   assert.equal(durableContexts[0].reason, interrupted.transition.reason);
@@ -836,8 +1148,13 @@ for (const durable of [false, true]) {
   });
   await synchronizeValidated(fence);
   const phases = [];
-  fence.registerParticipant({
-    quiesce() { phases.push('quiesce'); },
+  let unregister;
+  let removal;
+  unregister = fence.registerParticipant({
+    quiesce() {
+      phases.push('quiesce');
+      removal ??= unregister();
+    },
     blank() { phases.push('blank'); },
     clearMemory() { phases.push('clearMemory'); },
     async commitDurable() { phases.push('commitDurable'); },
@@ -851,14 +1168,24 @@ for (const durable of [false, true]) {
   assert.deepEqual(phases, ['quiesce', 'blank', 'clearMemory', 'commitDurable']);
   assert.equal(storage.snapshot(custodyId).phase, 'settled');
   assert.equal(storage.snapshot(custodyId).status, 'deleted');
+  await removal;
 }
 
-// Persisted epoch/revision exhaustion is different: no distinct CAS successor
-// can be encoded. Keep the exact active record untouched and publication
-// permanently closed while the durableDelete settlement rejects stably.
-for (const { field, expectedCode } of [
-  { field: 'authorityEpoch', expectedCode: 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED' },
-  { field: 'revision', expectedCode: 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED' },
+// A classified durable deletion at the reserved counter boundary persists the
+// same exhaustion marker as replacement. The initiating settlement preserves
+// the precise counter diagnostic; a fresh process sees the generic permanent
+// closure marker.
+for (const { field, injected, expectedCode } of [
+  {
+    field: 'authorityEpoch',
+    injected: Number.MAX_SAFE_INTEGER - 1,
+    expectedCode: 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+  },
+  {
+    field: 'revision',
+    injected: Number.MAX_SAFE_INTEGER - 2,
+    expectedCode: 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+  },
 ]) {
   const state = { custody: Object.create(null) };
   const storage = createMemoryAgentAuthorityCustodyStorage({ state });
@@ -867,7 +1194,7 @@ for (const { field, expectedCode } of [
   await synchronizeValidated(seed);
   state.custody[custodyId] = {
     ...storage.snapshot(custodyId),
-    [field]: Number.MAX_SAFE_INTEGER,
+    [field]: injected,
   };
   const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
   await synchronizeValidated(fence);
@@ -881,11 +1208,467 @@ for (const { field, expectedCode } of [
   const deletion = fence.terminate(fence.capture(), { authorityDisposition: 'durableDelete' });
   await assert.rejects(deletion.settlement, code(expectedCode));
   const preserved = storage.snapshot(custodyId);
-  assert.equal(preserved.phase, 'settled');
-  assert.equal(preserved.status, 'active');
-  assert.equal(preserved[field], Number.MAX_SAFE_INTEGER);
+  assert.equal(preserved.phase, 'exhausted');
+  assert.equal(preserved.status, 'deleted');
+  assert.equal(preserved[field], field === 'revision' ? injected + 1 : injected);
   assert.equal(durableCommits, 0, 'no unrepresentable durable intent reaches participants');
   assert.throws(() => fence.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  const restarted = new AgentAuthorityFence(credential({ tokenId: TOKEN_B }), {
+    storage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(restarted, credential({ tokenId: TOKEN_B })),
+    code('SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'),
+  );
+}
+
+// Legacy clearing intents at a maximum counter replay their durable effect
+// before failing closed. Epoch poison can settle and then consume a marker;
+// a clearing record that already consumed MAX revision remains intact so every
+// restart can replay the idempotent participant instead of dropping intent.
+for (const field of ['authorityEpoch', 'revision']) {
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = `agent:legacy-clearing-${field}-max`;
+  const writer = new AgentAuthorityFence(credential(), { storage, custodyId });
+  await synchronizeValidated(writer);
+  writer.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() { throw new Error('leave clearing for max-counter recovery'); },
+    async resume() {},
+  });
+  await assert.rejects(
+    replaceValidated(writer, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+    /leave clearing/,
+  );
+  const clearing = storage.snapshot(custodyId);
+  const transition = { ...clearing.transition };
+  if (field === 'authorityEpoch') {
+    transition.expectedEpoch = Number.MAX_SAFE_INTEGER - 1;
+    transition.nextEpoch = Number.MAX_SAFE_INTEGER;
+  } else {
+    transition.expectedRevision = Number.MAX_SAFE_INTEGER - 1;
+  }
+  transition.transitionId = transitionIdForTest(custodyId, transition);
+  state.custody[custodyId] = {
+    ...clearing,
+    authorityEpoch: field === 'authorityEpoch'
+      ? Number.MAX_SAFE_INTEGER
+      : clearing.authorityEpoch,
+    revision: field === 'revision'
+      ? Number.MAX_SAFE_INTEGER
+      : clearing.revision,
+    transition,
+  };
+
+  const value = credential({ grantId: GRANT_B, tokenId: TOKEN_C });
+  const recovery = new AgentAuthorityFence(value, { storage, custodyId });
+  let durableCommits = 0;
+  recovery.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() { durableCommits += 1; },
+    async resume() { assert.fail('poisoned clearing recovery cannot resume'); },
+  });
+  await assert.rejects(
+    synchronizeValidated(recovery, value),
+    code(field === 'revision'
+      ? 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+      : 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'),
+  );
+  assert.equal(durableCommits, 1, 'clearing intent replays before counter failure');
+  assert.throws(() => recovery.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  const terminal = storage.snapshot(custodyId);
+  assert.equal(terminal.phase, field === 'revision' ? 'clearing' : 'exhausted');
+  assert.equal(terminal.status, field === 'revision' ? 'active' : 'deleted');
+}
+
+// A validated synchronization that has already read empty custody cannot
+// resurrect it after a same-process durableDelete. The deletion establishes a
+// fresh terminal tombstone before settling; the delayed initializer then sees
+// the local terminal gate (and would lose the null CAS in another process).
+{
+  const base = createMemoryAgentAuthorityCustodyStorage();
+  const readReleased = deferred();
+  const releaseRead = deferred();
+  let pauseFirstOwnershipResult = true;
+  const storage = {
+    partitionOwnership: base.partitionOwnership,
+    async withOwnership(custodyId, operation) {
+      const result = await base.withOwnership(custodyId, operation);
+      if (
+        pauseFirstOwnershipResult
+        && custodyId.startsWith('snapback.agent-custody-gate.v1:')
+      ) {
+        pauseFirstOwnershipResult = false;
+        readReleased.resolve();
+        await releaseRead.promise;
+      }
+      return result;
+    },
+  };
+  const custodyId = 'agent:null-delete-race';
+  const value = credential();
+  const fence = new AgentAuthorityFence(value, { storage, custodyId });
+  const offer = fence.credentialOfferForHandshake();
+  const synchronizing = synchronizeValidated(fence, value);
+  await readReleased.promise;
+  const deletion = fence.terminateValidatedCredential(offer, {
+    authorityDisposition: 'durableDelete',
+  });
+  await deletion.settlement;
+  const tombstone = base.snapshot(custodyId);
+  assert.equal(tombstone.phase, 'settled');
+  assert.equal(tombstone.status, 'deleted');
+  assert.equal(tombstone.authorityEpoch, 0);
+  assert.equal(tombstone.revision, 2);
+  releaseRead.resolve();
+  await assert.rejects(synchronizing, code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  assert.deepEqual(base.snapshot(custodyId), tombstone);
+
+  const restarted = new AgentAuthorityFence(credential({ tokenId: TOKEN_B }), {
+    storage: base,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(restarted, credential({ tokenId: TOKEN_B })),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.deepEqual(base.snapshot(custodyId), tombstone);
+}
+
+// Fresh terminal custody remains in clearing until every durable participant
+// has committed. A failed callback leaves replayable intent; a restarted
+// fence replays it and only then settles the deletion tombstone.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const custodyId = 'agent:fresh-terminal-participant-recovery';
+  const value = credential();
+  const failing = new AgentAuthorityFence(value, { storage, custodyId });
+  const offer = failing.credentialOfferForHandshake();
+  let attempts = 0;
+  failing.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable(context) {
+      attempts += 1;
+      assert.equal(context.expectedEpoch, null);
+      assert.equal(context.nextEpoch, 0);
+      assert.equal(context.previousAuthority.grantId, GRANT_A);
+      assert.equal(context.nextAuthority, null);
+      throw new Error('injected fresh terminal participant failure');
+    },
+    async resume() {},
+  });
+  const failed = failing.terminateValidatedCredential(offer, {
+    authorityDisposition: 'durableDelete',
+  });
+  await assert.rejects(failed.settlement, /fresh terminal participant failure/);
+  assert.equal(attempts, 1);
+  assert.equal(storage.snapshot(custodyId).phase, 'clearing');
+  assert.equal(storage.snapshot(custodyId).status, 'deleted');
+
+  const recovery = new AgentAuthorityFence(credential({ tokenId: TOKEN_B }), {
+    storage,
+    custodyId,
+  });
+  let recoveryCommits = 0;
+  recovery.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable(context) {
+      recoveryCommits += 1;
+      assert.equal(context.expectedEpoch, null);
+      assert.equal(context.nextEpoch, 0);
+    },
+    async resume() {},
+  });
+  await assert.rejects(
+    synchronizeValidated(recovery, credential({ tokenId: TOKEN_B })),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.equal(recoveryCommits, 1);
+  assert.equal(storage.snapshot(custodyId).phase, 'settled');
+  assert.equal(storage.snapshot(custodyId).status, 'deleted');
+}
+
+// A terminal result for proposed tuple B excludes B without touching the
+// active predecessor A. The tuple witness and main custody CAS share one gate:
+// if an older validated B synchronization already read A but has not written,
+// the later terminal witness wins and its active CAS is refused.
+// A fresh terminal B that loses its null CAS to initializer A re-enters the
+// gated ownership check. It preserves A instead of treating the newly observed
+// row as B's predecessor.
+{
+  const base = createMemoryAgentAuthorityCustodyStorage();
+  const custodyId = 'agent:fresh-terminal-cas-loser';
+  const witnessRecorded = deferred();
+  const releaseTerminal = deferred();
+  let pauseFirstGate = true;
+  const delayedTerminalStorage = {
+    partitionOwnership: base.partitionOwnership,
+    async withOwnership(partition, operation) {
+      const result = await base.withOwnership(partition, operation);
+      if (partition.startsWith('snapback.agent-custody-gate.v1:') && pauseFirstGate) {
+        pauseFirstGate = false;
+        witnessRecorded.resolve();
+        await releaseTerminal.promise;
+      }
+      return result;
+    },
+  };
+  const b = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const terminalB = new AgentAuthorityFence(b, {
+    storage: delayedTerminalStorage,
+    custodyId,
+  });
+  const deletion = terminalB.terminateValidatedCredential(
+    terminalB.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await witnessRecorded.promise;
+
+  const a = credential();
+  const initializerA = new AgentAuthorityFence(a, { storage: base, custodyId });
+  await synchronizeValidated(initializerA, a);
+  const activeA = base.snapshot(custodyId);
+  releaseTerminal.resolve();
+  await deletion.settlement;
+  assert.deepEqual(base.snapshot(custodyId), activeA);
+  assert.equal(activeA.status, 'active');
+  assert.equal(activeA.authority.grantId, GRANT_A);
+}
+
+// A terminal witness that linearizes after a successor checked the side ledger
+// but before counter-exhaustion persistence prevents that successor from
+// tombstoning the distinct predecessor merely because no next epoch exists.
+{
+  const state = { custody: Object.create(null) };
+  const base = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:witness-counter-race';
+  const a = credential();
+  const seed = new AgentAuthorityFence(a, { storage: base, custodyId });
+  await synchronizeValidated(seed, a);
+  state.custody[custodyId] = {
+    ...state.custody[custodyId],
+    authorityEpoch: Number.MAX_SAFE_INTEGER - 1,
+  };
+  const predecessor = base.snapshot(custodyId);
+  const witnessChecked = deferred();
+  const releasePlan = deferred();
+  let gateReads = 0;
+  const delayed = {
+    partitionOwnership: base.partitionOwnership,
+    async withOwnership(partition, operation) {
+      const result = await base.withOwnership(partition, operation);
+      if (partition.startsWith('snapback.agent-custody-gate.v1:')) {
+        gateReads += 1;
+        if (gateReads === 2) {
+          witnessChecked.resolve();
+          await releasePlan.promise;
+        }
+      }
+      return result;
+    },
+  };
+  const b = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const successor = new AgentAuthorityFence(b, { storage: delayed, custodyId });
+  const synchronizing = synchronizeValidated(successor, b);
+  await witnessChecked.promise;
+  const terminalB = new AgentAuthorityFence(b, { storage: base, custodyId });
+  const deletion = terminalB.terminateValidatedCredential(
+    terminalB.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await deletion.settlement;
+  releasePlan.resolve();
+  await assert.rejects(synchronizing, code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  assert.deepEqual(base.snapshot(custodyId), predecessor);
+}
+
+// Once B's clearing row is durable, a later terminal B witness and deletion
+// wins the universal gate. The older installer cannot settle active B after
+// the terminal process returns.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const custodyId = 'agent:clearing-terminal-race';
+  const a = credential();
+  const seed = new AgentAuthorityFence(a, { storage, custodyId });
+  await synchronizeValidated(seed, a);
+  const b = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const successor = new AgentAuthorityFence(b, { storage, custodyId });
+  const clearingWritten = deferred();
+  const releaseCommit = deferred();
+  successor.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {
+      clearingWritten.resolve();
+      await releaseCommit.promise;
+    },
+    async resume() {},
+  });
+  const installing = synchronizeValidated(successor, b);
+  await clearingWritten.promise;
+  assert.equal(storage.snapshot(custodyId).phase, 'clearing');
+  assert.equal(storage.snapshot(custodyId).status, 'active');
+
+  const terminalValue = credential({ grantId: GRANT_B, tokenId: TOKEN_C });
+  const terminal = new AgentAuthorityFence(terminalValue, { storage, custodyId });
+  const deletion = terminal.terminateValidatedCredential(
+    terminal.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await deletion.settlement;
+  releaseCommit.resolve();
+  await assert.rejects(installing, code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  assert.equal(storage.snapshot(custodyId).phase, 'settled');
+  assert.equal(storage.snapshot(custodyId).status, 'deleted');
+  assert.equal(storage.snapshot(custodyId).authority.grantId, GRANT_B);
+}
+
+// Pre-side-ledger main-row tombstones are migrated before a distinct active
+// tuple replaces them. Removing the synthetic sidecar models an old on-disk
+// record; after C installs, a delayed validated B still cannot reopen B.
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:legacy-tombstone-backfill';
+  const b = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const originalB = new AgentAuthorityFence(b, { storage, custodyId });
+  await synchronizeValidated(originalB, b);
+  const deletion = originalB.terminate(originalB.capture(), {
+    authorityDisposition: 'durableDelete',
+  });
+  await deletion.settlement;
+  const witnessId = Object.keys(state.custody).find((partition) => (
+    partition.startsWith('snapback.agent-terminal-witness.v1:')
+  ));
+  assert(witnessId, 'modern deletion creates the migration sidecar fixture');
+  delete state.custody[witnessId];
+  assert.equal(storage.snapshot(custodyId).status, 'deleted');
+
+  const c = credential({ grantId: GRANT_A, tokenId: TOKEN_C });
+  const successorC = new AgentAuthorityFence(c, { storage, custodyId });
+  await synchronizeValidated(successorC, c);
+  const activeC = storage.snapshot(custodyId);
+  assert.equal(activeC.status, 'active');
+  assert(Object.hasOwn(state.custody, witnessId), 'replacement backfills legacy terminal evidence');
+
+  const delayedBValue = credential({ grantId: GRANT_B, tokenId: TOKEN_C });
+  const delayedB = new AgentAuthorityFence(delayedBValue, { storage, custodyId });
+  await assert.rejects(
+    synchronizeValidated(delayedB, delayedBValue),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.deepEqual(storage.snapshot(custodyId), activeC);
+}
+
+{
+  const base = createMemoryAgentAuthorityCustodyStorage();
+  const custodyId = 'agent:proposed-terminal-witness';
+  const a = credential();
+  const seed = new AgentAuthorityFence(a, { storage: base, custodyId });
+  await synchronizeValidated(seed, a);
+  const predecessor = base.snapshot(custodyId);
+
+  const readReleased = deferred();
+  const releaseRead = deferred();
+  let pausePrimaryRead = true;
+  const delayed = {
+    partitionOwnership: base.partitionOwnership,
+    async withOwnership(partition, operation) {
+      const result = await base.withOwnership(partition, operation);
+      if (partition.startsWith('snapback.agent-custody-gate.v1:') && pausePrimaryRead) {
+        pausePrimaryRead = false;
+        readReleased.resolve();
+        await releaseRead.promise;
+      }
+      return result;
+    },
+  };
+  const b = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const olderSuccess = new AgentAuthorityFence(b, { storage: delayed, custodyId });
+  const installing = synchronizeValidated(olderSuccess, b);
+  await readReleased.promise;
+
+  const laterTerminal = new AgentAuthorityFence(b, { storage: base, custodyId });
+  const offer = laterTerminal.credentialOfferForHandshake();
+  const deletion = laterTerminal.terminateValidatedCredential(offer, {
+    authorityDisposition: 'durableDelete',
+  });
+  await deletion.settlement;
+  assert.deepEqual(base.snapshot(custodyId), predecessor, 'terminal B preserves active A byte-for-byte');
+
+  releaseRead.resolve();
+  await assert.rejects(installing, code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  assert.deepEqual(base.snapshot(custodyId), predecessor);
+  const restartedB = new AgentAuthorityFence(credential({
+    grantId: GRANT_B,
+    tokenId: TOKEN_C,
+  }), { storage: base, custodyId });
+  await assert.rejects(
+    synchronizeValidated(restartedB, credential({ grantId: GRANT_B, tokenId: TOKEN_C })),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.deepEqual(base.snapshot(custodyId), predecessor);
+}
+
+// A failure while consulting the tuple-specific terminal witness is a custody
+// read failure, not a harmless auxiliary miss. An already-open peer blanks and
+// wedges before surfacing the storage error, so its prior capture cannot keep
+// publishing after exclusion state becomes unknowable.
+{
+  const base = createMemoryAgentAuthorityCustodyStorage();
+  const custodyId = 'agent:terminal-witness-read-failure';
+  let failWitnessReads = false;
+  const storage = {
+    partitionOwnership: base.partitionOwnership,
+    async withOwnership(partition, operation) {
+      return base.withOwnership(partition, (owner) => operation(Object.freeze({
+        ...owner,
+        async withPartition(childPartition, childOperation) {
+          if (
+            failWitnessReads
+            && childPartition.startsWith('snapback.agent-terminal-witness.v1:')
+          ) {
+            throw new Error('injected terminal witness read failure');
+          }
+          return owner.withPartition(childPartition, childOperation);
+        },
+      })));
+    },
+  };
+  const value = credential();
+  const fence = new AgentAuthorityFence(value, { storage, custodyId });
+  let blanks = 0;
+  fence.registerParticipant({
+    quiesce() {},
+    blank() { blanks += 1; },
+    clearMemory() {},
+    async commitDurable() {},
+    async resume() {},
+  });
+  await synchronizeValidated(fence, value);
+  const capture = fence.capture();
+  const blanksBeforeFailure = blanks;
+  failWitnessReads = true;
+  await assert.rejects(
+    synchronizeValidated(fence, value),
+    /injected terminal witness read failure/,
+  );
+  assert(blanks > blanksBeforeFailure, 'witness read failure blanks the open peer');
+  assert.throws(() => fence.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  assert.equal(await fence.compareAndCommit(capture, () => assert.fail('stale commit ran')).then(
+    (result) => result.committed,
+  ), false);
 }
 
 await import('./agent-authority-filesystem.mjs');

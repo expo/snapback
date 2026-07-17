@@ -980,6 +980,17 @@ const staleAuthorityError = () => {
   return error;
 };
 
+const authorityCommitReentrantError = (message) => {
+  const diagnostic = {
+    code: 'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+    message,
+  };
+  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return error;
+};
+
 export class SnapbackClient {
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
@@ -1051,6 +1062,7 @@ export class SnapbackClient {
     this.__authMaterializations = new Set();
     this.__authBarrierParticipants = new Set();
     this.__authorityPublicationCapture = null;
+    this.__authorityPublicationDepth = 0;
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
     this.__terminalTransportCut = null;
@@ -1227,6 +1239,12 @@ export class SnapbackClient {
     if (this.__authCounterError) throw this.__authCounterError;
   }
 
+  #assertNotInAuthorityPublication(message) {
+    if (this.__authorityPublicationDepth > 0) {
+      throw authorityCommitReentrantError(message);
+    }
+  }
+
   #terminalTransportPhaseAlreadyCut(phase, context) {
     if (
       this.__authCounterCut
@@ -1385,6 +1403,9 @@ export class SnapbackClient {
   }
 
   setBearerToken(token) {
+    this.#assertNotInAuthorityPublication(
+      'bearer mutation is forbidden inside an authority publication callback',
+    );
     if (this.authCoordinator || this.agentAuthority) {
       throw new TypeError('setBearerToken cannot bypass browser or agent custody');
     }
@@ -1443,6 +1464,9 @@ export class SnapbackClient {
   }
 
   clearAuthSession() {
+    this.#assertNotInAuthorityPublication(
+      'auth-session clearing is forbidden inside an authority publication callback',
+    );
     // Clear first: if the generation cannot advance, no predecessor cache may
     // remain reachable under the last reusable comparison id.
     this.__authSessionLastSuccessful = null;
@@ -1587,11 +1611,16 @@ export class SnapbackClient {
     }
     this.#assertAuthCountersAvailable();
     if (!this.authorityFence) {
-      const value = commit();
-      if (value && typeof value.then === 'function') {
-        throw new TypeError('authority publication callback must be synchronous');
+      this.__authorityPublicationDepth += 1;
+      try {
+        const value = commit();
+        if (value && typeof value.then === 'function') {
+          throw new TypeError('authority publication callback must be synchronous');
+        }
+        return { committed: true, value };
+      } finally {
+        this.__authorityPublicationDepth -= 1;
       }
-      return { committed: true, value };
     }
     if (!capture) return { committed: false };
     if (this.#isTerminalAuthorityCapture(capture)) return { committed: false };
@@ -1612,6 +1641,7 @@ export class SnapbackClient {
       }
       const previous = this.__authorityPublicationCapture;
       this.__authorityPublicationCapture = capture;
+      this.__authorityPublicationDepth += 1;
       try {
         const value = commit();
         if (value && typeof value.then === 'function') {
@@ -1619,6 +1649,7 @@ export class SnapbackClient {
         }
         return value;
       } finally {
+        this.__authorityPublicationDepth -= 1;
         this.__authorityPublicationCapture = previous;
       }
     });
@@ -1629,6 +1660,9 @@ export class SnapbackClient {
   }
 
   handleTerminalAuthLoss(capture, error) {
+    this.#assertNotInAuthorityPublication(
+      'terminal auth handling is forbidden inside an authority publication callback',
+    );
     const authorityDisposition = error?.authorityDisposition === 'durableDelete'
       ? 'durableDelete'
       : 'carrier';
@@ -2093,7 +2127,10 @@ export class SnapbackClient {
       }
       return receipt;
     };
-    if (!this.authorityFence) return publish();
+    if (!this.authorityFence) {
+      void this.commitAuthorityPublication(null, publish).catch(() => {});
+      return receipt;
+    }
     // Most receipt callers intentionally remain synchronous. The publication
     // itself is queued behind durable custody and every observer still runs
     // inside the synchronous compare-and-commit callback. When a receipt is

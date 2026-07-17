@@ -113,7 +113,7 @@ import {
   validateAuthorizedLeaseCapability,
 } from './authorized-lease.mjs';
 
-// A physical format-5 store is one durable barrier participant even when an
+// A physical format-6 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
 // transition; surfaces merely hold references to this shared registration.
 // @ref LLP 0059#participant-contract — duplicate surfaces must not race the
@@ -543,6 +543,21 @@ export async function createSnapbackContractSurface({
   liveQueries = null,
 }) {
   const coordinator = resolveAuthCoordinator(client, authCoordinator);
+  const clientFences = new Set([
+    client?.authorityFence,
+    client?.authCoordinator,
+    client?.agentAuthority,
+  ].filter(Boolean));
+  if ([...clientFences].some((fence) => fence !== coordinator)) {
+    const diagnostic = Object.freeze({
+      code: 'SNAPBACK_CONTRACT_AUTH_COORDINATOR_MISMATCH',
+      message: 'Contract and client transport authority fences must be one identity',
+    });
+    const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+    error.code = diagnostic.code;
+    error.diagnostic = diagnostic;
+    throw error;
+  }
   const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
   let authorityCapture = null;
   let durableAuthorityRestored = false;
@@ -605,11 +620,18 @@ export async function createSnapbackContractSurface({
       // authority publication callback. Re-entering AuthCoordinator here is
       // forbidden and used to drop every browser-custody receipt. Preserve
       // that already-held fence and deliver the app callback in the same turn.
-      if (!coordinator || publication?.authorityFenced === true) {
+      if (
+        !coordinator
+        || (
+          publication?.authorityFenced === true
+          && clientOwnsAuthorityFence(client, coordinator)
+        )
+      ) {
         onReceipt(enriched);
         return;
       }
-      const capture = captureForTransportValue(client, null, receipt);
+      const capture = publication?.authorityCapture
+        ?? captureForTransportValue(client, null, receipt);
       if (!capture) return;
       // Generic clients that do not advertise an already-held receipt fence
       // run the complete app effect inside the final durable comparison.
@@ -642,11 +664,38 @@ export async function createSnapbackContractSurface({
     ));
     attachReceiptListener();
     if (coordinator && clientStore) {
-      await clientStore.bindAuthority({
-        authorityEpoch: authorityCapture.authorityEpoch,
-        authorityKey: authorityCapture.authorityKey,
-        authMode: coordinator.authority?.authMode ?? 'sessions',
-      });
+      try {
+        await clientStore.bindAuthority({
+          authorityEpoch: authorityCapture.authorityEpoch,
+          authorityKey: authorityCapture.authorityKey,
+          authMode: coordinator.authority?.authMode ?? 'sessions',
+        });
+      } catch (error) {
+        if (
+          error?.code !== 'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE'
+          || typeof clientStore.authorityBindingCapture !== 'function'
+        ) throw error;
+        const binding = await clientStore.authorityBindingCapture();
+        if (!binding.terminallyUnbound) throw error;
+        // A terminal callback may win while an initially empty store is
+        // between durable authority boot and its direct bind. Only an exact
+        // still-current coordinator capture may consume that marker, and the
+        // store-generation CAS prevents a terminal cut after this observation
+        // from being rebound by the delayed adoption.
+        const current = await compareContractCommit(
+          client,
+          coordinator,
+          authorityCapture,
+          () => undefined,
+        );
+        if (!current.committed) throw staleContractAuthorityError();
+        await clientStore.transitionAuthority({
+          expectedEpoch: authorityCapture.authorityEpoch,
+          nextEpoch: authorityCapture.authorityEpoch,
+          nextAuthorityKey: authorityCapture.authorityKey,
+          expectedStoreGeneration: binding.storeGeneration,
+        });
+      }
       const bound = await compareContractCommit(client, coordinator, authorityCapture, () => undefined);
       if (!bound.committed) throw staleContractAuthorityError();
     }
@@ -982,9 +1031,7 @@ export async function createSnapbackContractSurface({
       ephemeralIdleLingerMs,
       authorityCapture,
       commitAuthorityPublication: coordinator
-        ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
-          ? client.commitAuthorityPublication(capture, commit)
-          : compareContractCommit(client, coordinator, capture, commit)
+        ? (capture, commit) => compareContractCommit(client, coordinator, capture, commit)
         : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
@@ -2282,9 +2329,7 @@ export async function createSnapbackContractSurface({
           ephemeralIdleLingerMs,
           authorityCapture: capture,
           commitAuthorityPublication: (candidate, commit) => (
-            typeof client.commitAuthorityPublication === 'function'
-              ? client.commitAuthorityPublication(candidate, commit)
-              : compareContractCommit(client, coordinator, candidate, commit)
+            compareContractCommit(client, coordinator, candidate, commit)
           ),
           onAuthorityRefused: () => {
             void confirmDurableAuthority().catch(() => {});
@@ -3513,9 +3558,7 @@ async function createMultiLiveContractSurface({
       ephemeralIdleLingerMs,
       authorityCapture: currentCapture,
       commitAuthorityPublication: coordinator
-        ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
-          ? client.commitAuthorityPublication(capture, commit)
-          : compareContractCommit(client, coordinator, capture, commit)
+        ? (capture, commit) => compareContractCommit(client, coordinator, capture, commit)
         : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
@@ -4007,9 +4050,7 @@ async function createMultiLiveContractSurface({
             ephemeralIdleLingerMs,
             authorityCapture: context.capture,
             commitAuthorityPublication: (capture, commit) => (
-              typeof client.commitAuthorityPublication === 'function'
-                ? client.commitAuthorityPublication(capture, commit)
-                : compareContractCommit(client, coordinator, capture, commit)
+              compareContractCommit(client, coordinator, capture, commit)
             ),
             onAuthorityRefused: () => {
               void confirmDurableAuthority().catch(() => {});

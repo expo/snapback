@@ -6704,10 +6704,17 @@ fn read_caller_role_with_dependency(
             Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
         .optional()?;
-    let roles = membership
-        .vocabulary()
-        .map(str::to_owned)
-        .collect::<Vec<_>>();
+    // A present lookup must capture the exact role that produced the caller
+    // class, not merely the existence of some membership row. Otherwise a
+    // `host` plan could survive a concurrent demotion to `guest`: the same row
+    // id would still match a probe over the declaration's whole vocabulary.
+    // An absent lookup deliberately probes the whole vocabulary so any later
+    // caller membership invalidates the `none` witness.
+    let caller_role = row.as_ref().map(|(_, role)| role.clone());
+    let roles = caller_role.clone().map_or_else(
+        || membership.vocabulary().map(str::to_owned).collect(),
+        |role| vec![role],
+    );
     let resource = match (&membership.resource, resource) {
         (Some(_), Some(resource)) => {
             crate::membership_rules::ResourceBinding::Fixed(Value::String(resource.to_owned()))
@@ -6731,7 +6738,7 @@ fn read_caller_role_with_dependency(
         table_change_version_from_connection(conn, &table.name)?,
         matching_ids,
     )?;
-    Ok((row.map(|(_, role)| role), dependency))
+    Ok((caller_role, dependency))
 }
 
 fn read_resource_version(
@@ -10824,9 +10831,13 @@ mod membership_write_tests {
     }
 
     fn ready_db() -> LocalDatabase {
+        ready_db_with_schema(membership_schema())
+    }
+
+    fn ready_db_with_schema(schema: SchemaManifest) -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.activate_current_auth_catalog().expect("auth catalog");
-        db.apply_schema(membership_schema()).expect("apply schema");
+        db.apply_schema(schema).expect("apply schema");
         db
     }
 
@@ -10886,6 +10897,141 @@ mod membership_write_tests {
                 ),
                 "unexpected diagnostic: {:?}",
                 error.diagnostic
+            );
+        }
+    }
+
+    #[test]
+    fn membership_authoring_and_activation_share_closed_invariant_fixtures() {
+        #[derive(Deserialize)]
+        struct ParityCase {
+            name: String,
+            kind: String,
+            value: String,
+            #[serde(rename = "codegenCode")]
+            codegen_code: String,
+            #[serde(rename = "activationCode")]
+            activation_code: String,
+        }
+
+        let cases: Vec<ParityCase> = serde_json::from_str(include_str!(
+            "../tests/fixtures/membership-validation-parity-v0.json"
+        ))
+        .expect("shared membership validation parity corpus");
+        assert!(!cases.is_empty());
+        for case in cases {
+            assert!(
+                case.codegen_code.starts_with("SCHEMA_MEMBERSHIP_"),
+                "{} must name its authoring diagnostic",
+                case.name
+            );
+            let mut schema = membership_schema();
+            let table = &mut schema.tables[1];
+            match case.kind.as_str() {
+                "reservedProvenance" => table.fields.push(FieldManifest {
+                    name: case.value.clone(),
+                    field_type: FieldType::String,
+                    optional: true,
+                }),
+                "generatedIndexCollision" => {
+                    table.indexes.push(crate::manifest::IndexManifest {
+                        name: case.value.clone(),
+                        fields: vec!["userId".to_owned()],
+                        unique: false,
+                    });
+                }
+                "roleCallerTargetsSelf" | "selfCallerTargetsOther" | "patchAxis" => {
+                    let (op, by, target, from, to, fields) =
+                        match (case.kind.as_str(), case.value.as_str()) {
+                            ("roleCallerTargetsSelf", "insert") => (
+                                MembershipOp::Insert,
+                                vec!["host".to_owned()],
+                                MembershipTarget::Own,
+                                None,
+                                Some(vec!["guest".to_owned()]),
+                                None,
+                            ),
+                            ("roleCallerTargetsSelf", "setRole") => (
+                                MembershipOp::SetRole,
+                                vec!["host".to_owned()],
+                                MembershipTarget::Own,
+                                Some(vec!["guest".to_owned()]),
+                                Some(vec!["host".to_owned()]),
+                                None,
+                            ),
+                            ("roleCallerTargetsSelf", "remove") => (
+                                MembershipOp::Remove,
+                                vec!["host".to_owned()],
+                                MembershipTarget::Own,
+                                Some(vec!["guest".to_owned()]),
+                                None,
+                                None,
+                            ),
+                            ("roleCallerTargetsSelf", "patch") => (
+                                MembershipOp::Patch,
+                                vec!["host".to_owned()],
+                                MembershipTarget::Own,
+                                None,
+                                None,
+                                Some(vec!["notifyPrefs".to_owned()]),
+                            ),
+                            ("selfCallerTargetsOther", "setRole") => (
+                                MembershipOp::SetRole,
+                                vec!["self".to_owned()],
+                                MembershipTarget::Other,
+                                Some(vec!["guest".to_owned()]),
+                                Some(vec!["host".to_owned()]),
+                                None,
+                            ),
+                            ("selfCallerTargetsOther", "remove") => (
+                                MembershipOp::Remove,
+                                vec!["self".to_owned()],
+                                MembershipTarget::Other,
+                                Some(vec!["guest".to_owned()]),
+                                None,
+                                None,
+                            ),
+                            ("selfCallerTargetsOther", "patch") => (
+                                MembershipOp::Patch,
+                                vec!["self".to_owned()],
+                                MembershipTarget::Other,
+                                None,
+                                None,
+                                Some(vec!["notifyPrefs".to_owned()]),
+                            ),
+                            ("patchAxis", field) => (
+                                MembershipOp::Patch,
+                                vec!["self".to_owned()],
+                                MembershipTarget::Own,
+                                None,
+                                None,
+                                Some(vec![field.to_owned()]),
+                            ),
+                            _ => panic!("unknown parity case {}", case.name),
+                        };
+                    table
+                        .membership
+                        .as_mut()
+                        .expect("membership declaration")
+                        .transitions = vec![crate::manifest::MembershipTransition {
+                        op,
+                        by,
+                        target,
+                        from,
+                        to,
+                        fields,
+                    }];
+                }
+                _ => panic!("unknown parity kind {}", case.kind),
+            }
+            let error = match validate_schema(&schema) {
+                Ok(()) => panic!("{} unexpectedly activated", case.name),
+                Err(error) => error,
+            };
+            assert_eq!(
+                error.diagnostic.code, case.activation_code,
+                "shared parity case {}",
+                case.name
             );
         }
     }
@@ -11131,6 +11277,145 @@ mod membership_write_tests {
         set_role(db, target, &mid, "guest").expect("accept");
         set_role(db, host, &mid, "cohost").expect("promote cohost");
         set_role(db, host, &mid, "host").expect("promote host");
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum CallerAuthorityOperation {
+        Insert,
+        SetRole,
+        Remove,
+        Patch,
+    }
+
+    impl CallerAuthorityOperation {
+        const ALL: [Self; 4] = [Self::Insert, Self::SetRole, Self::Remove, Self::Patch];
+    }
+
+    fn allow_host_demotion(schema: &mut SchemaManifest) {
+        schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration")
+            .transitions
+            .push(crate::manifest::MembershipTransition {
+                op: MembershipOp::SetRole,
+                by: vec!["host".to_owned()],
+                target: MembershipTarget::Other,
+                from: Some(vec!["host".to_owned()]),
+                to: Some(vec!["cohost".to_owned()]),
+                fields: None,
+            });
+    }
+
+    fn allow_none_class_insert(schema: &mut SchemaManifest) {
+        let membership = schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration");
+        membership
+            .transitions
+            .push(crate::manifest::MembershipTransition {
+                op: MembershipOp::Insert,
+                by: vec!["none".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: Some(vec!["invited".to_owned()]),
+                fields: None,
+            });
+    }
+
+    fn caller_authority_fixture(
+        schema: SchemaManifest,
+    ) -> (LocalDatabase, String, String, String, String) {
+        let mut db = ready_db_with_schema(schema);
+        let (event_id, alice) = create_event(&mut db, "alice");
+        promote_to_host(&mut db, "alice", &event_id, "bob");
+        let bob = member_id(&db, &event_id, "bob");
+        invite(&mut db, "alice", &event_id, "carol");
+        let carol = member_id(&db, &event_id, "carol");
+        set_role(&mut db, "carol", &carol, "guest").expect("carol accepts");
+        (db, event_id, alice, bob, carol)
+    }
+
+    fn plan_caller_authority_operation(
+        db: &LocalDatabase,
+        operation: CallerAuthorityOperation,
+        caller: &str,
+        event_id: &str,
+        target: &str,
+    ) -> MembershipPlan {
+        match operation {
+            CallerAuthorityOperation::Insert => db
+                .plan_membership_insert(
+                    &user(caller),
+                    "event_members",
+                    Map::from_iter([
+                        ("userId".to_owned(), json!("dave")),
+                        ("eventId".to_owned(), json!(event_id)),
+                        ("role".to_owned(), json!("invited")),
+                    ]),
+                )
+                .expect("insert plan"),
+            CallerAuthorityOperation::SetRole => db
+                .plan_membership_set_role(&user(caller), "event_members", target, "cohost")
+                .expect("setRole plan"),
+            CallerAuthorityOperation::Remove => db
+                .plan_membership_remove(&user(caller), "event_members", target)
+                .expect("remove plan"),
+            CallerAuthorityOperation::Patch => db
+                .plan_membership_patch(
+                    &user(caller),
+                    "event_members",
+                    target,
+                    Map::from_iter([("expiresAt".to_owned(), json!(5_000))]),
+                )
+                .expect("patch plan"),
+        }
+    }
+
+    fn sessions_holder_fixture(
+        allow_demotion: bool,
+    ) -> (
+        LocalDatabase,
+        String,
+        String,
+        String,
+        crate::auth::crypto::AgentCredential,
+        crate::auth::crypto::AgentCredential,
+    ) {
+        let mut schema = membership_schema();
+        if allow_demotion {
+            allow_host_demotion(&mut schema);
+        }
+        let mut db = ready_db_with_schema(schema);
+        // This storage-unit fixture exercises the sessions-mode eligibility
+        // predicate without going through the deployment activation protocol,
+        // whose staged artifact handshake is covered in auth_mode tests.
+        db.schema.auth = Some(crate::manifest::AuthManifest {
+            mode: AuthMode::Sessions,
+        });
+        seed_agent(&mut db, "agent-a");
+        seed_agent(&mut db, "agent-b");
+        let random = crate::auth::crypto::OsRandom;
+        let agent_a_credential = db
+            .issue_initial_agent_credential("agent-a", 1, &random)
+            .expect("agent-a credential")
+            .secret;
+        let agent_b_credential = db
+            .issue_initial_agent_credential("agent-b", 2, &random)
+            .expect("agent-b credential")
+            .secret;
+        let (event_id, agent_a) = create_event(&mut db, "agent-a");
+        promote_to_host(&mut db, "agent-a", &event_id, "agent-b");
+        let agent_b = member_id(&db, &event_id, "agent-b");
+        (
+            db,
+            event_id,
+            agent_a,
+            agent_b,
+            agent_a_credential,
+            agent_b_credential,
+        )
     }
 
     #[test]
@@ -12163,6 +12448,121 @@ mod membership_write_tests {
     }
 
     #[test]
+    fn protected_demotion_racing_deactivation_refuses_the_second_commit_in_both_orders() {
+        // Auth lifecycle wins: B is still an eligible host when A deactivates,
+        // but the stale demotion of B must not leave only deactivated A.
+        let (mut auth_first, _, _, agent_b, _, _) = sessions_holder_fixture(true);
+        let manifest = auth_first.schema().clone();
+        let demote = auth_first
+            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .expect("demotion plan");
+        auth_first
+            .deactivate_agent("agent-a", 100, &manifest)
+            .expect("B remains an eligible host");
+        let error = auth_first
+            .commit_membership_plan(&user("agent-a"), demote)
+            .expect_err("demotion cannot spend a deactivated survivor");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        assert_eq!(role_of(&auth_first, &agent_b).as_deref(), Some("host"));
+
+        // Membership wins: B leaves the protected role, making A the final
+        // eligible holder, so the auth-side evaluator refuses A's deactivation.
+        let (mut membership_first, _, agent_a, agent_b, _, _) = sessions_holder_fixture(true);
+        let manifest = membership_first.schema().clone();
+        let demote = membership_first
+            .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+            .expect("demotion plan");
+        membership_first
+            .commit_membership_plan(&user("agent-a"), demote)
+            .expect("demotion commits first");
+        let error = membership_first
+            .deactivate_agent("agent-a", 100, &manifest)
+            .expect_err("deactivation cannot strand the post-demotion resource");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        );
+        assert_eq!(
+            role_of(&membership_first, &agent_a).as_deref(),
+            Some("host")
+        );
+    }
+
+    #[test]
+    fn protected_departures_racing_credential_revocation_refuse_the_second_commit() {
+        for demote in [false, true] {
+            // Credential revocation wins while B is still an eligible host.
+            // The stale departure must then fail the shared final-state check.
+            let (mut auth_first, _, _, agent_b, agent_a_credential, _) =
+                sessions_holder_fixture(demote);
+            let departure = if demote {
+                auth_first
+                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .expect("demotion plan")
+            } else {
+                auth_first
+                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .expect("removal plan")
+            };
+            auth_first
+                .revoke_agent_credential_family(&agent_a_credential, 100)
+                .expect("B remains an eligible holder during revocation");
+            let writer = if demote {
+                user("agent-a")
+            } else {
+                user("agent-b")
+            };
+            let error = auth_first
+                .commit_membership_plan(&writer, departure)
+                .expect_err("departure cannot spend a now-unrecoverable survivor");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+                "demote={demote}"
+            );
+            assert_eq!(role_of(&auth_first, &agent_b).as_deref(), Some("host"));
+
+            // Membership wins first, leaving A as the sole protected holder;
+            // credential-family revocation must roll back rather than strand it.
+            let (mut membership_first, _, agent_a, agent_b, agent_a_credential, _) =
+                sessions_holder_fixture(demote);
+            let departure = if demote {
+                membership_first
+                    .plan_membership_set_role(&user("agent-a"), "event_members", &agent_b, "cohost")
+                    .expect("demotion plan")
+            } else {
+                membership_first
+                    .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+                    .expect("removal plan")
+            };
+            let writer = if demote {
+                user("agent-a")
+            } else {
+                user("agent-b")
+            };
+            membership_first
+                .commit_membership_plan(&writer, departure)
+                .expect("membership departure commits first");
+            let error = membership_first
+                .revoke_agent_credential_family(&agent_a_credential, 100)
+                .expect_err("credential revocation cannot strand the resource");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+                "demote={demote}"
+            );
+            membership_first
+                .resolve_agent_credential(&agent_a_credential, 100)
+                .expect("refused revocation keeps A recoverable");
+            assert_eq!(
+                role_of(&membership_first, &agent_a).as_deref(),
+                Some("host")
+            );
+        }
+    }
+
+    #[test]
     fn concurrent_final_two_host_removals_yield_one_commit_one_conflict() {
         let mut db = ready_db();
         let (event_id, alice_host) = create_event(&mut db, "alice");
@@ -12188,6 +12588,194 @@ mod membership_write_tests {
         // Exactly one host remains — the resource is never stranded.
         assert_eq!(role_of(&db, &bob_host).as_deref(), Some("host"));
         assert_eq!(role_of(&db, &alice_host), None);
+    }
+
+    #[test]
+    fn caller_removal_races_every_membership_operation_in_both_commit_orders() {
+        for operation in CallerAuthorityOperation::ALL {
+            // Authority loss wins: every sanctioned operation must reject the
+            // caller-role witness it planned while Alice was a host.
+            let (mut authority_first, event_id, alice, _, target) =
+                caller_authority_fixture(membership_schema());
+            let stale = plan_caller_authority_operation(
+                &authority_first,
+                operation,
+                "alice",
+                &event_id,
+                &target,
+            );
+            let remove_caller = authority_first
+                .plan_membership_remove(&user("alice"), "event_members", &alice)
+                .expect("second host permits caller removal");
+            authority_first
+                .commit_membership_plan(&user("alice"), remove_caller)
+                .expect("caller membership removal commits first");
+            let error = authority_first
+                .commit_membership_plan(&user("alice"), stale)
+                .expect_err("stale caller authority must not commit");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
+                "operation {operation:?}"
+            );
+
+            // Operation wins: the authority-changing plan may either remain
+            // valid or conservatively conflict on another captured roster
+            // fact. In the latter case a fresh plan must commit; the important
+            // ordering property is that the authorized operation linearized
+            // before authority ended, never after it.
+            let (mut operation_first, event_id, alice, _, target) =
+                caller_authority_fixture(membership_schema());
+            let operation_plan = plan_caller_authority_operation(
+                &operation_first,
+                operation,
+                "alice",
+                &event_id,
+                &target,
+            );
+            let remove_caller = operation_first
+                .plan_membership_remove(&user("alice"), "event_members", &alice)
+                .expect("concurrent caller removal plan");
+            operation_first
+                .commit_membership_plan(&user("alice"), operation_plan)
+                .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
+            if let Err(error) =
+                operation_first.commit_membership_plan(&user("alice"), remove_caller)
+            {
+                assert_eq!(
+                    error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
+                    "operation {operation:?}"
+                );
+                let retry = operation_first
+                    .plan_membership_remove(&user("alice"), "event_members", &alice)
+                    .expect("fresh caller removal plan");
+                operation_first
+                    .commit_membership_plan(&user("alice"), retry)
+                    .expect("fresh caller removal commits");
+            }
+        }
+    }
+
+    #[test]
+    fn caller_demotion_races_every_membership_operation_in_both_commit_orders() {
+        let schema = || {
+            let mut schema = membership_schema();
+            allow_host_demotion(&mut schema);
+            schema
+        };
+        for operation in CallerAuthorityOperation::ALL {
+            // The caller's row id survives a demotion, so this specifically
+            // proves that the captured dependency includes the exact role that
+            // produced the `host` class rather than row existence alone.
+            let (mut authority_first, event_id, alice, _, target) =
+                caller_authority_fixture(schema());
+            let stale = plan_caller_authority_operation(
+                &authority_first,
+                operation,
+                "alice",
+                &event_id,
+                &target,
+            );
+            let demote_caller = authority_first
+                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .expect("bob may demote alice");
+            authority_first
+                .commit_membership_plan(&user("bob"), demote_caller)
+                .expect("caller demotion commits first");
+            let error = authority_first
+                .commit_membership_plan(&user("alice"), stale)
+                .expect_err("a host plan cannot survive caller demotion");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
+                "operation {operation:?}"
+            );
+
+            let (mut operation_first, event_id, alice, _, target) =
+                caller_authority_fixture(schema());
+            let operation_plan = plan_caller_authority_operation(
+                &operation_first,
+                operation,
+                "alice",
+                &event_id,
+                &target,
+            );
+            let demote_caller = operation_first
+                .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                .expect("concurrent caller demotion plan");
+            operation_first
+                .commit_membership_plan(&user("alice"), operation_plan)
+                .unwrap_or_else(|error| panic!("operation {operation:?} must win: {error}"));
+            if let Err(error) = operation_first.commit_membership_plan(&user("bob"), demote_caller)
+            {
+                assert_eq!(
+                    error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT",
+                    "operation {operation:?}"
+                );
+                let retry = operation_first
+                    .plan_membership_set_role(&user("bob"), "event_members", &alice, "cohost")
+                    .expect("fresh caller demotion plan");
+                operation_first
+                    .commit_membership_plan(&user("bob"), retry)
+                    .expect("fresh caller demotion commits");
+            }
+        }
+    }
+
+    #[test]
+    fn absent_caller_insert_witness_races_membership_creation_in_both_commit_orders() {
+        let schema = || {
+            let mut schema = membership_schema();
+            allow_none_class_insert(&mut schema);
+            schema
+        };
+        let other_insert = |db: &LocalDatabase, event_id: &str| {
+            db.plan_membership_insert(
+                &user("mallory"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("dave")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("invited")),
+                ]),
+            )
+            .expect("none-class other insert plan")
+        };
+        let join = |db: &LocalDatabase, event_id: &str| {
+            db.plan_membership_insert(
+                &user("mallory"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("mallory")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("guest")),
+                ]),
+            )
+            .expect("absent caller may open-join")
+        };
+
+        // Membership wins: the caller is no longer class `none`, so the stale
+        // operation must conflict even though its target is unchanged.
+        let (mut membership_first, event_id, _, _, _) = caller_authority_fixture(schema());
+        let stale = other_insert(&membership_first, &event_id);
+        let caller_join = join(&membership_first, &event_id);
+        membership_first
+            .commit_membership_plan(&user("mallory"), caller_join)
+            .expect("caller membership appears first");
+        let error = membership_first
+            .commit_membership_plan(&user("mallory"), stale)
+            .expect_err("none-class plan must reject an absent-to-present caller race");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+
+        // None-class operation wins: both plans were prepared while the caller
+        // was absent, so it legitimately linearizes before the class change.
+        let (mut operation_first, event_id, _, _, _) = caller_authority_fixture(schema());
+        let operation_plan = other_insert(&operation_first, &event_id);
+        let caller_join = join(&operation_first, &event_id);
+        operation_first
+            .commit_membership_plan(&user("mallory"), operation_plan)
+            .expect("none-class operation commits first");
+        operation_first
+            .commit_membership_plan(&user("mallory"), caller_join)
+            .expect("caller membership commits second");
     }
 
     #[test]
@@ -12570,6 +13158,88 @@ mod membership_write_tests {
             error.diagnostic.code,
             "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
         );
+        assert_eq!(role_of(&sweep_first, &survivor_id).as_deref(), Some("host"));
+    }
+
+    #[test]
+    fn expired_protected_holders_and_credential_revocation_serialize_safely() {
+        let prepare = || {
+            let (db, _, agent_a, agent_b, agent_a_credential, agent_b_credential) =
+                sessions_holder_fixture(false);
+            db.conn
+                .execute(
+                    "UPDATE event_members SET expiresAt = 10 WHERE _id IN (?1, ?2)",
+                    params![agent_a, agent_b],
+                )
+                .expect("expire both protected holders");
+            let sweep = db
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .expect("expiry plan");
+            assert_eq!(sweep.writes.len(), 1);
+            assert_eq!(sweep.skipped_protected().len(), 1);
+            let survivor_id = sweep.skipped_protected()[0].clone();
+            let survivor: String = db
+                .conn
+                .query_row(
+                    "SELECT userId FROM event_members WHERE _id = ?1",
+                    params![survivor_id],
+                    |row| row.get(0),
+                )
+                .expect("skipped survivor");
+            (
+                db,
+                sweep,
+                survivor,
+                survivor_id,
+                agent_a_credential,
+                agent_b_credential,
+            )
+        };
+
+        // Revocation wins while the other expired holder is still live. The
+        // sweep cannot then delete that other holder and leave only the
+        // deliberately skipped, now-unrecoverable principal.
+        let (mut auth_first, sweep, survivor, survivor_id, agent_a_credential, agent_b_credential) =
+            prepare();
+        let survivor_credential = if survivor == "agent-a" {
+            &agent_a_credential
+        } else {
+            &agent_b_credential
+        };
+        auth_first
+            .revoke_agent_credential_family(survivor_credential, 100)
+            .expect("the other expired holder is still recoverable before the sweep");
+        let error = auth_first
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .expect_err("sweep cannot spend a revoked survivor");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        assert_eq!(role_of(&auth_first, &survivor_id).as_deref(), Some("host"));
+
+        // Sweep wins and leaves exactly the skipped holder; revoking that
+        // holder's final credential family must then roll back.
+        let (mut sweep_first, sweep, survivor, survivor_id, agent_a_credential, agent_b_credential) =
+            prepare();
+        let survivor_credential = if survivor == "agent-a" {
+            &agent_a_credential
+        } else {
+            &agent_b_credential
+        };
+        sweep_first
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .expect("sweep commits first");
+        let error = sweep_first
+            .revoke_agent_credential_family(survivor_credential, 100)
+            .expect_err("revocation cannot strand the skipped holder");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        sweep_first
+            .resolve_agent_credential(survivor_credential, 100)
+            .expect("refused revocation preserves the credential family");
         assert_eq!(role_of(&sweep_first, &survivor_id).as_deref(), Some("host"));
     }
 

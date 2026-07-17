@@ -1,0 +1,17 @@
+[
+  { "name": "reserved-provenance-actor", "kind": "reservedProvenance", "value": "grantedByActor", "codegenCode": "SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED", "activationCode": "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED" },
+  { "name": "reserved-provenance-effective", "kind": "reservedProvenance", "value": "grantedByEffective", "codegenCode": "SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED", "activationCode": "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED" },
+  { "name": "reserved-provenance-grant", "kind": "reservedProvenance", "value": "grantedByGrant", "codegenCode": "SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED", "activationCode": "SNAPBACK_MEMBERSHIP_PROVENANCE_FIELD_RESERVED" },
+  { "name": "insert-role-caller-targets-self", "kind": "roleCallerTargetsSelf", "value": "insert", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR" },
+  { "name": "set-role-caller-targets-self", "kind": "roleCallerTargetsSelf", "value": "setRole", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR" },
+  { "name": "remove-role-caller-targets-self", "kind": "roleCallerTargetsSelf", "value": "remove", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR" },
+  { "name": "patch-role-caller-targets-self", "kind": "roleCallerTargetsSelf", "value": "patch", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR" },
+  { "name": "set-self-caller-targets-other", "kind": "selfCallerTargetsOther", "value": "setRole", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER" },
+  { "name": "remove-self-caller-targets-other", "kind": "selfCallerTargetsOther", "value": "remove", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER" },
+  { "name": "patch-self-caller-targets-other", "kind": "selfCallerTargetsOther", "value": "patch", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER" },
+  { "name": "patch-resource-axis", "kind": "patchAxis", "value": "eventId", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD" },
+  { "name": "patch-principal-axis", "kind": "patchAxis", "value": "userId", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD" },
+  { "name": "patch-role-axis", "kind": "patchAxis", "value": "role", "codegenCode": "SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD", "activationCode": "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD" },
+  { "name": "generated-primary-index-collision", "kind": "generatedIndexCollision", "value": "_membership_pk", "codegenCode": "SCHEMA_MEMBERSHIP_INDEX_NAME_COLLISION", "activationCode": "SNAPBACK_MEMBERSHIP_INDEX_NAME_COLLISION" },
+  { "name": "generated-reverse-index-collision", "kind": "generatedIndexCollision", "value": "_membership_reverse", "codegenCode": "SCHEMA_MEMBERSHIP_INDEX_NAME_COLLISION", "activationCode": "SNAPBACK_MEMBERSHIP_INDEX_NAME_COLLISION" }
+]
