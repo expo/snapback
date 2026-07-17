@@ -49,6 +49,17 @@ const authorityCapture = (authorityEpoch, authorityKey, carrierGeneration, token
   Object.freeze({ authorityEpoch, authorityKey, carrierGeneration, tokenId })
 );
 
+const sameAuthorityCapture = (left, right) => (
+  left !== null
+  && right !== null
+  && left !== undefined
+  && right !== undefined
+  && left?.authorityEpoch === right?.authorityEpoch
+  && left?.authorityKey === right?.authorityKey
+  && left?.carrierGeneration === right?.carrierGeneration
+  && left?.tokenId === right?.tokenId
+);
+
 const normalizeCredential = (value) => Object.freeze({
   actorUserId: requireUuid(value?.actorUserId, 'actorUserId'),
   credentialId: requireUuid(value?.credentialId, 'credentialId'),
@@ -645,19 +656,34 @@ export class AgentAuthorityFence {
   #terminated = false;
   #synchronizing = null;
   #inCommit = false;
-  #volatileCounterCeiling;
+  #carrierCounterCeiling;
+  #barrierCounterCeiling;
+  #handshakeOffers = new WeakSet();
+  #terminalCapture = null;
+  #terminalHandle = null;
+  #terminalDisposition = null;
+  #durableDeletionScheduled = false;
 
   constructor(credential, {
     storage = null,
     custodyId = null,
     volatileCounterCeiling = Number.MAX_SAFE_INTEGER,
+    carrierCounterCeiling = volatileCounterCeiling,
+    barrierCounterCeiling = volatileCounterCeiling,
   } = {}) {
     this.#credential = normalizeCredential(credential);
     this.#durableKey = canonicalAgentAuthorityKey(this.#credential);
     if (!Number.isSafeInteger(volatileCounterCeiling) || volatileCounterCeiling < 1) {
       throw new TypeError('volatileCounterCeiling must be a positive safe integer');
     }
-    this.#volatileCounterCeiling = volatileCounterCeiling;
+    if (!Number.isSafeInteger(carrierCounterCeiling) || carrierCounterCeiling < 1) {
+      throw new TypeError('carrierCounterCeiling must be a positive safe integer');
+    }
+    if (!Number.isSafeInteger(barrierCounterCeiling) || barrierCounterCeiling < 1) {
+      throw new TypeError('barrierCounterCeiling must be a positive safe integer');
+    }
+    this.#carrierCounterCeiling = carrierCounterCeiling;
+    this.#barrierCounterCeiling = barrierCounterCeiling;
     if (storage === null) {
       if (custodyId !== null) {
         throw new TypeError('custodyId requires transactional agent custody storage');
@@ -793,10 +819,12 @@ export class AgentAuthorityFence {
     // offer for /auth/session validation. It deliberately returns neither an
     // authority capture nor publication permission, and never reads or writes
     // the durable custody record.
-    return Object.freeze({
+    const offer = Object.freeze({
       bearer: this.#credential.bearerToken,
       tokenId: this.#credential.tokenId,
     });
+    this.#handshakeOffers.add(offer);
+    return offer;
   }
 
   credentialOfferForReplacement(credential) {
@@ -880,7 +908,7 @@ export class AgentAuthorityFence {
         this.#carrierGeneration,
         'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
         'agent carrier generation',
-        this.#volatileCounterCeiling,
+        this.#carrierCounterCeiling,
       );
       if (durableChanged) {
         nextEpoch = nextSafeCounter(
@@ -989,8 +1017,62 @@ export class AgentAuthorityFence {
     return this.#awaitBarrierCapture(capture);
   }
 
+  terminateValidatedCredential(offer, disposition = {}) {
+    const authorityDisposition = typeof disposition === 'string'
+      ? disposition
+      : disposition?.authorityDisposition ?? 'carrier';
+    const terminalError = typeof disposition === 'object'
+      ? disposition?.terminalError ?? null
+      : null;
+    if (authorityDisposition !== 'carrier' && authorityDisposition !== 'durableDelete') {
+      throw new TypeError('validated closed-custody termination requires carrier or durableDelete');
+    }
+    if (
+      !this.#handshakeOffers.has(offer)
+      || offer?.bearer !== this.#credential.bearerToken
+      || offer?.tokenId !== this.#credential.tokenId
+    ) {
+      throw stale('the classified terminal result does not bind the current credential offer');
+    }
+    if (authorityDisposition === 'durableDelete' && this.#storage === null) {
+      throw stale('validated closed-custody termination requires durable custody');
+    }
+    if (this.#terminalHandle !== null) {
+      if (
+        authorityDisposition === 'durableDelete'
+        && this.#terminalDisposition === 'carrier'
+      ) {
+        return this.#scheduleDurableDeletion({ previousCapture: null, terminalError });
+      }
+      return authorityDisposition === this.#terminalDisposition
+        ? this.#terminalHandle
+        : false;
+    }
+    if (this.#publicationOpen && !this.#barrierActive && this.#barrierError === null) {
+      return this.terminate(this.#captureUnchecked(), { authorityDisposition, terminalError });
+    }
+    this.#publicationOpen = false;
+    this.#terminated = true;
+    this.#authorityDescriptor = null;
+    const settlement = (async () => {
+      await this.#barrierPromise;
+      if (this.#barrierError) throw this.#barrierError;
+    })();
+    void settlement.catch(() => {});
+    this.#terminalDisposition = 'carrier';
+    this.#terminalHandle = Object.freeze({
+      accepted: true,
+      authorityDisposition: 'carrier',
+      settlement,
+    });
+    if (authorityDisposition === 'carrier') return this.#terminalHandle;
+    return this.#scheduleDurableDeletion({
+      previousCapture: null,
+      terminalError,
+    });
+  }
+
   terminate(capture, disposition = 'carrier') {
-    if (!this.isCurrent(capture)) return false;
     const authorityDisposition = typeof disposition === 'string'
       ? disposition
       : disposition?.authorityDisposition ?? 'carrier';
@@ -1000,6 +1082,18 @@ export class AgentAuthorityFence {
     if (authorityDisposition !== 'carrier' && authorityDisposition !== 'durableDelete') {
       throw new TypeError('agent termination authorityDisposition must be carrier or durableDelete');
     }
+    if (sameAuthorityCapture(capture, this.#terminalCapture)) {
+      if (
+        authorityDisposition === 'durableDelete'
+        && this.#terminalDisposition === 'carrier'
+      ) {
+        return this.#scheduleDurableDeletion({ previousCapture: capture, terminalError });
+      }
+      return authorityDisposition === this.#terminalDisposition
+        ? this.#terminalHandle ?? false
+        : false;
+    }
+    if (!this.isCurrent(capture)) return false;
     // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a
     // carrier result retires only the exact token generation. A durableDelete
     // additionally advances and tombstones the durable tuple so restart cannot
@@ -1013,7 +1107,7 @@ export class AgentAuthorityFence {
         this.#carrierGeneration,
         'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
         'agent carrier generation',
-        this.#volatileCounterCeiling,
+        this.#carrierCounterCeiling,
       );
       if (authorityDisposition === 'durableDelete') {
         nextEpoch = nextSafeCounter(
@@ -1043,16 +1137,20 @@ export class AgentAuthorityFence {
             : error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
               ? 'agent_authority_epoch_exhausted'
               : 'agent_authority_termination_failed',
-        disposition: 'delete',
-        authorityDisposition: 'durableDelete',
+        disposition: authorityDisposition === 'carrier' ? 'retain' : 'delete',
+        authorityDisposition,
         previousAuthority: this.authority,
-        nextAuthority: null,
+        nextAuthority: authorityDisposition === 'carrier' ? this.authority : null,
         previousCapture: capture,
         capture,
         expectedEpoch: capture.authorityEpoch,
         nextEpoch: capture.authorityEpoch,
         nextAuthorityKey: capture.authorityKey,
       });
+      this.#rememberTerminalFailure(capture, authorityDisposition, error);
+      if (authorityDisposition === 'durableDelete') {
+        return this.#scheduleDurableDeletion({ previousCapture: capture, terminalError });
+      }
       throw error;
     }
     const nextCapture = authorityCapture(
@@ -1079,11 +1177,20 @@ export class AgentAuthorityFence {
         ? 'agent_carrier_terminated'
         : 'agent_durable_authority_deleted',
     });
-    const barrier = this.#beginBarrier({
-      clearMemory: true,
-      context,
-      deferSyncError: true,
-    });
+    let barrier;
+    try {
+      barrier = this.#beginBarrier({
+        clearMemory: true,
+        context,
+        deferSyncError: true,
+      });
+    } catch (error) {
+      this.#rememberTerminalFailure(capture, authorityDisposition, error);
+      if (authorityDisposition === 'durableDelete') {
+        return this.#scheduleDurableDeletion({ previousCapture: capture, terminalError });
+      }
+      throw error;
+    }
     this.#carrierGeneration = nextCapture.carrierGeneration;
     this.#durableEpoch = nextEpoch;
     this.#authorityDescriptor = null;
@@ -1132,11 +1239,233 @@ export class AgentAuthorityFence {
     // the handle after the synchronous confidentiality cut. Mark the Promise
     // observed without changing what an HTTP caller receives when it awaits.
     void settlement.catch(() => {});
-    return Object.freeze({
+    const handle = Object.freeze({
       accepted: true,
       authorityDisposition,
       settlement,
     });
+    this.#terminalCapture = capture;
+    this.#terminalDisposition = authorityDisposition;
+    if (authorityDisposition === 'durableDelete') this.#durableDeletionScheduled = true;
+    this.#terminalHandle = handle;
+    return handle;
+  }
+
+  #rememberTerminalFailure(capture, authorityDisposition, error) {
+    const settlement = Promise.reject(error);
+    void settlement.catch(() => {});
+    const handle = Object.freeze({
+      accepted: true,
+      authorityDisposition,
+      settlement,
+    });
+    this.#publicationOpen = false;
+    this.#terminated = true;
+    this.#authorityDescriptor = null;
+    this.#terminalCapture = capture;
+    this.#terminalDisposition = authorityDisposition;
+    this.#terminalHandle = handle;
+    return handle;
+  }
+
+  #scheduleDurableDeletion({ previousCapture, terminalError }) {
+    if (this.#durableDeletionScheduled && this.#terminalHandle) {
+      return this.#terminalHandle;
+    }
+    const predecessorSettlement = this.#terminalHandle?.settlement ?? Promise.resolve();
+    const settlement = (async () => {
+      let predecessorError = null;
+      try {
+        await predecessorSettlement;
+      } catch (error) {
+        predecessorError = error;
+      }
+      // A failed carrier cut is already permanently closed. Preserve its
+      // eventual public error, but do not let that local callback failure veto
+      // a later exact server-classified durable tombstone.
+      if (this.#barrierError !== null) {
+        this.#barrierError = null;
+        this.#barrierActive = false;
+        this.#barrierPhase = null;
+      }
+      await this.#deleteConfiguredDurableAuthority({ previousCapture, terminalError });
+      if (predecessorError) throw predecessorError;
+    })();
+    void settlement.catch(() => {});
+    const handle = Object.freeze({
+      accepted: true,
+      authorityDisposition: 'durableDelete',
+      settlement,
+    });
+    if (previousCapture !== null && this.#terminalCapture === null) {
+      this.#terminalCapture = previousCapture;
+    }
+    this.#durableDeletionScheduled = true;
+    this.#terminalDisposition = 'durableDelete';
+    this.#terminalHandle = handle;
+    return handle;
+  }
+
+  async #deleteConfiguredDurableAuthority({ previousCapture, terminalError }) {
+    if (this.#storage === null) return;
+    const observed = await this.#readDurable();
+    if (observed === null) {
+      this.#publicationOpen = false;
+      this.#terminated = true;
+      return;
+    }
+    if (
+      observed.authorityKey !== this.#durableKey
+      || !sameDurableAuthority(observed.authority, this.authority)
+    ) {
+      throw stale('classified durable deletion does not match the observed configured tuple');
+    }
+    this.#durableRecord = observed;
+    this.#durableEpoch = observed.authorityEpoch;
+    this.#durableKey = observed.authorityKey;
+    this.#publicationOpen = false;
+    this.#terminated = true;
+    this.#authorityDescriptor = null;
+    if (observed.phase === 'settled' && observed.status === 'deleted') return;
+
+    if (observed.phase === 'clearing' && observed.status === 'active') {
+      let recovered;
+      try {
+        recovered = settledRecordForClearing(observed);
+      } catch (error) {
+        this.#failTerminalDurable(error);
+        throw error;
+      }
+      const transition = observed.transition;
+      // This intent already replaced its predecessor. Replaying its exact
+      // durable participant is required before another transition may use the
+      // successor as a CAS predecessor. Publication remains permanently closed
+      // throughout; recovery does not resurrect the classified credential.
+      const recoveryContext = Object.freeze({
+        capture: authorityCapture(
+          recovered.authorityEpoch,
+          recovered.authorityKey,
+          this.#carrierGeneration,
+          this.#credential.tokenId,
+        ),
+        authority: transition.nextAuthority,
+        previousAuthority: transition.previousAuthority,
+        nextAuthority: transition.nextAuthority,
+        previousCapture,
+        expectedEpoch: transition.expectedEpoch,
+        nextEpoch: transition.nextEpoch,
+        nextAuthorityKey: transition.nextAuthorityKey,
+        disposition: transition.disposition,
+        transitionId: transition.transitionId,
+        reason: transition.reason,
+      });
+      await this.#runTerminalDurableTransition({
+        observed,
+        clearing: observed,
+        target: recovered,
+        context: recoveryContext,
+      });
+      return this.#deleteConfiguredDurableAuthority({ previousCapture, terminalError });
+    }
+
+    let clearing;
+    let target;
+    if (observed.phase === 'clearing') {
+      try {
+        target = settledRecordForClearing(observed);
+      } catch (error) {
+        this.#failTerminalDurable(error);
+        throw error;
+      }
+      clearing = observed;
+    } else if (observed.status === 'active') {
+      try {
+        const nextEpoch = nextSafeCounter(
+          observed.authorityEpoch,
+          'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+          'agent authority epoch',
+        );
+        const transition = custodyTransitionRecords({
+          custodyId: this.#custodyId,
+          predecessor: observed,
+          nextEpoch,
+          nextStatus: 'deleted',
+          nextAuthority: observed.authority,
+          reason: 'agent_durable_authority_deleted_after_validation',
+          disposition: 'delete',
+        });
+        clearing = transition.clearing;
+        target = transition.settled;
+      } catch (error) {
+        this.#failTerminalDurable(error);
+        throw error;
+      }
+    } else {
+      throw stale('classified durable deletion found an invalid durable status');
+    }
+
+    const transition = clearing.transition;
+    const context = Object.freeze({
+      capture: previousCapture,
+      authority: null,
+      previousAuthority: transition.previousAuthority,
+      nextAuthority: null,
+      previousCapture,
+      expectedEpoch: transition.expectedEpoch,
+      nextEpoch: transition.nextEpoch,
+      nextAuthorityKey: transition.nextAuthorityKey,
+      disposition: transition.disposition,
+      authorityDisposition: 'durableDelete',
+      ...(terminalError ? { terminalError } : {}),
+      transitionId: transition.transitionId,
+      reason: transition.reason,
+    });
+    await this.#runTerminalDurableTransition({ observed, clearing, target, context });
+  }
+
+  async #runTerminalDurableTransition({ observed, clearing, target, context }) {
+    const barrier = this.#beginBarrier({
+      clearMemory: false,
+      context,
+      deferSyncError: true,
+      skipLocalPhases: true,
+    });
+    const prepare = async () => {
+      const confirmed = observed.phase === 'clearing'
+        ? await this.#confirmDurableExact(clearing)
+        : await this.#replaceDurableExact(observed, clearing);
+      this.#installDurableRecord(confirmed);
+      this.#terminated = true;
+      return confirmed;
+    };
+    const settle = async () => {
+      const confirmed = await this.#replaceDurableExact(clearing, target);
+      this.#installDurableRecord(confirmed);
+      this.#terminated = true;
+      return confirmed;
+    };
+    this.#finishBarrier(barrier, context, {
+      prepare,
+      settle,
+      commitDurable: true,
+      resume: false,
+      open: false,
+    });
+    await this.#awaitTerminationSettlement({
+      barrier,
+      barrierPromise: this.#barrierPromise,
+      expectedRecord: target,
+    });
+  }
+
+  #failTerminalDurable(error) {
+    this.#publicationOpen = false;
+    this.#terminated = true;
+    this.#authorityDescriptor = null;
+    this.#barrierActive = true;
+    this.#barrierPhase = 'failed';
+    this.#barrierError = error;
+    this.#barrierPromise = Promise.resolve();
   }
 
   compareAndCommit(capture, commit) {
@@ -1201,17 +1530,40 @@ export class AgentAuthorityFence {
     };
   }
 
-  #beginBarrier({ clearMemory, context, deferSyncError = false }) {
+  #beginBarrier({
+    clearMemory,
+    context,
+    deferSyncError = false,
+    skipLocalPhases = false,
+  }) {
     if (this.#barrierActive) {
       throw stale('an agent authority transition is already active');
     }
     const entries = this.#participants.filter((entry) => !entry.removed);
+    if (skipLocalPhases) {
+      if (!this.#terminated || this.#publicationOpen) {
+        throw stale('a terminal-only durable barrier requires permanently closed publication');
+      }
+      // The exact durable transitionId/CAS predecessor is the identity for
+      // this closed-custody operation. It must remain available even after the
+      // volatile local barrier counter is exhausted; no local phase can be
+      // admitted or replayed through this path.
+      this.#barrierActive = true;
+      this.#publicationOpen = false;
+      this.#barrierPhase = 'preparing-durable';
+      return {
+        entries,
+        generation: null,
+        syncError: null,
+        terminalOnly: true,
+      };
+    }
     try {
       this.#barrierGeneration = nextSafeCounter(
         this.#barrierGeneration,
         'SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED',
         'agent barrier generation',
-        this.#volatileCounterCeiling,
+        this.#barrierCounterCeiling,
       );
     } catch (error) {
       // An exhausted barrier id cannot be reused, but confidentiality still
@@ -1286,6 +1638,9 @@ export class AgentAuthorityFence {
     open,
   }) {
     const frozenContext = Object.freeze({ ...context });
+    const ownsBarrier = () => barrier.terminalOnly === true
+      ? this.#barrierActive
+      : barrier.generation === this.#barrierGeneration;
     const complete = async () => {
       let durableRecord = await prepare();
       if (commitDurable) {
@@ -1296,7 +1651,7 @@ export class AgentAuthorityFence {
       }
       this.#barrierPhase = 'settling-durable';
       durableRecord = await settle(durableRecord);
-      if (resume) {
+      if (resume && this.#terminalDisposition === null) {
         this.#barrierPhase = 'resuming';
         for (const { participant } of [...barrier.entries].reverse()) {
           await participant.resume?.(frozenContext);
@@ -1311,20 +1666,22 @@ export class AgentAuthorityFence {
       // but the public settlement must still reject so callers never mistake
       // a partially failed local cut for a clean terminal transition.
       if (barrier.syncError) throw barrier.syncError;
-      if (barrier.generation === this.#barrierGeneration) {
+      if (ownsBarrier()) {
         this.#barrierActive = false;
         this.#barrierPhase = null;
         this.#publicationOpen = open && !this.#terminated;
       }
     };
     this.#barrierPromise = complete().catch((error) => {
-      if (barrier.generation === this.#barrierGeneration) {
+      if (ownsBarrier()) {
         this.#barrierError = error;
         this.#barrierActive = true;
         this.#publicationOpen = false;
         this.#barrierPhase = 'failed';
-        for (const { participant } of barrier.entries) {
-          try { this.#invokeSyncParticipant(participant, 'blank', frozenContext); } catch { /* preserve first failure */ }
+        if (barrier.terminalOnly !== true) {
+          for (const { participant } of barrier.entries) {
+            try { this.#invokeSyncParticipant(participant, 'blank', frozenContext); } catch { /* preserve first failure */ }
+          }
         }
       }
     });
@@ -1351,7 +1708,7 @@ export class AgentAuthorityFence {
     await barrierPromise;
     if (this.#barrierError) throw this.#barrierError;
     if (
-      barrier.generation !== this.#barrierGeneration
+      (barrier.terminalOnly !== true && barrier.generation !== this.#barrierGeneration)
       || this.#barrierActive
       || !this.#terminated
       || this.#publicationOpen
@@ -1732,7 +2089,7 @@ export class AgentAuthorityFence {
     if (validated.status === 'deleted') {
       this.#authorityDescriptor = null;
       this.#terminated = true;
-    } else {
+    } else if (this.#terminalDisposition === null) {
       this.#terminated = false;
     }
   }

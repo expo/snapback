@@ -1288,8 +1288,15 @@ export class SnapbackClient {
       return committed.value;
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
-      if (offeredCapture && TERMINAL_AUTH_CODES.has(code)) {
-        const terminal = this.handleTerminalAuthLoss(offeredCapture, error);
+      if (TERMINAL_AUTH_CODES.has(code)) {
+        const terminal = offeredCapture
+          ? this.handleTerminalAuthLoss(offeredCapture, error)
+          : this.agentAuthority.terminateValidatedCredential(credential, {
+              authorityDisposition: error?.authorityDisposition === 'durableDelete'
+                ? 'durableDelete'
+                : 'carrier',
+              terminalError: error,
+            });
         if (terminal && typeof terminal === 'object') await terminal.settlement;
       }
       if (
@@ -1520,7 +1527,25 @@ export class SnapbackClient {
   }
 
   handleTerminalAuthLoss(capture, error) {
+    const authorityDisposition = error?.authorityDisposition === 'durableDelete'
+      ? 'durableDelete'
+      : 'carrier';
+    if (error && typeof error === 'object') error.authorityDisposition = authorityDisposition;
     if (this.#isTerminalAuthorityCapture(capture)) {
+      if (
+        this.agentAuthority
+        && authorityDisposition === 'durableDelete'
+        && this.__terminalAuthorityHandle?.authorityDisposition === 'carrier'
+      ) {
+        const escalated = this.agentAuthority.terminate(capture, {
+          authorityDisposition,
+          terminalError: error,
+        });
+        if (escalated && typeof escalated === 'object') {
+          this.__terminalAuthorityHandle = escalated;
+          return escalated;
+        }
+      }
       return this.__terminalAuthorityHandle ?? true;
     }
     if (
@@ -1528,10 +1553,6 @@ export class SnapbackClient {
       && (!capture || !this.authorityFence.isCurrent?.(capture))
     ) return false;
     this.__terminalAuthorityCapture = capture ?? null;
-    const authorityDisposition = error?.authorityDisposition === 'durableDelete'
-      ? 'durableDelete'
-      : 'carrier';
-    if (error && typeof error === 'object') error.authorityDisposition = authorityDisposition;
 
     if (this.agentAuthority) {
       // AgentAuthorityFence owns the synchronous transport participant barrier.
@@ -2029,6 +2050,7 @@ export class SnapbackClient {
     let capture = null;
     let bearerUsed = null;
     let terminalHandle = null;
+    let custodyCleared = false;
     let requestTransportGeneration = null;
     try {
       if (this.authorityFence) {
@@ -2154,19 +2176,24 @@ export class SnapbackClient {
           });
         }
         try { await this.#familyAlarmWithBearer(bearerUsed); } catch { /* named stolen-successor residual */ }
-        await this.authCoordinator.compareAndClear(capture, 'credential_superseded_without_successor');
+        const cleared = await this.authCoordinator.compareAndClear(
+          capture,
+          'credential_superseded_without_successor',
+        );
+        custodyCleared = cleared?.cleared === true;
       } else if (
         this.authCoordinator
         && capture
         && TERMINAL_AUTH_CODES.has(code)
         && error?.authorityDisposition !== 'carrier'
       ) {
-        await this.authCoordinator.compareAndClear(capture, code);
+        const cleared = await this.authCoordinator.compareAndClear(capture, code);
+        custodyCleared = cleared?.cleared === true;
       }
       if (terminalHandle && typeof terminalHandle === 'object') {
         await terminalHandle.settlement;
       }
-      if ([
+      if (!terminalHandle && !custodyCleared && [
         'SNAPBACK_AUTH_MODE_PENDING',
         'SNAPBACK_AUTH_REQUIRED',
         'SNAPBACK_AUTH_SESSION_EXPIRED',

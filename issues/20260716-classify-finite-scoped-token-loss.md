@@ -13,6 +13,13 @@ expiry, cap eviction, and unknown carrier bytes together with durable grant,
 credential-generation, and principal revocation. The client consequently cannot
 know whether it should preserve or delete a durable agent queue.
 
+Classification can also arrive after the local carrier has already closed. A
+close-only live event may cut the carrier before a concurrent finite revocation
+returns, and a restarted process may receive the classified refusal during its
+strict handshake before it has any publishable capture. In both races the
+stronger `durableDelete` result still has to tombstone only the exact configured
+and observed durable tuple; capture-only terminal dedup must not suppress it.
+
 **Done when:**
 
 - Scoped-token resolution classifies the exact cause as `carrier` or
@@ -21,5 +28,23 @@ know whether it should preserve or delete a durable agent queue.
   fail-closed by the client.
 - Missing or malformed legacy classification terminates the carrier but cannot
   select destructive durable deletion.
+- A classified `durableDelete` for the exact same predecessor escalates an
+  earlier carrier-only terminal handle, remains publication-closed, settles a
+  durable tombstone, and does not replay the completed local blank/clear cut.
+- A fresh process may use only the exact in-memory credential offer that
+  received the classified handshake refusal. It re-reads durable custody under
+  ownership and tombstones only a matching configured tuple; copied offers or
+  mismatched observed tuples cannot delete custody.
+- If that exact tuple is already `clearing/active`, restart replays and settles
+  its original transition (including the durable participant) before beginning
+  a distinct active-to-deleted transition; it never publishes the recovered
+  carrier between the two intents.
+- Exhausted volatile carrier/barrier identities still perform one local cut
+  and cannot veto the exact durable tombstone lane. Exhausted persisted
+  epoch/revision identities remain fail-closed and leave the unrepresentable
+  durable predecessor byte-for-byte intact.
+- Escalation and restart deletion are idempotent and their public settlement
+  resolves only after the exact tombstone and durable participants settle.
 - Tests distinguish token expiry/unknown carrier from grant, credential, and
-  principal revocation.
+  principal revocation, including close-only-to-finite escalation and
+  restart-before-capture classification races.

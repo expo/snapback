@@ -145,6 +145,7 @@ const terminalCoordinatorSpy = () => {
     synchronize: async () => capture,
     credentialFor: () => ({ bearer: null }),
     isCurrent: (candidate) => current && candidate === capture,
+    waitForNewerRevision: async () => null,
     registerParticipant: () => async () => {},
     compareAndCommit: async (candidate, commit) => (
       candidate === capture && current
@@ -174,6 +175,7 @@ const terminalCoordinatorBarrierSpy = () => {
     synchronize: async () => capture,
     credentialFor: () => ({ bearer: null }),
     isCurrent: (candidate) => current && candidate === capture,
+    waitForNewerRevision: async () => null,
     registerParticipant(participant, { before = null } = {}) {
       const index = before === null ? -1 : participants.indexOf(before);
       if (index === -1) participants.push(participant);
@@ -495,6 +497,103 @@ try {
     return { disposition: error.authorityDisposition, status: tombstone.status };
   });
 
+  await suite.check('agent carrier terminal escalates to concurrent durable deletion exactly once', async () => {
+    const storage = createMemoryAgentAuthorityCustodyStorage();
+    const value = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
+    const authority = new AgentAuthorityFence(value, {
+      storage,
+      custodyId: 'agent:finite-terminal-escalation',
+    });
+    await authority.synchronizeValidated(agentDescriptor(value));
+    const db = new SnapbackClient('http://stub', { agentAuthority: authority });
+    const capture = authority.capture();
+    let blanks = 0;
+    const unregister = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => { blanks += 1; },
+    });
+    const closeOnly = diagnosticError('SNAPBACK_AUTH_STREAM_RESET', 'unclassified close', null);
+    closeOnly.authorityDisposition = 'carrier';
+    const carrier = db.handleTerminalAuthLoss(capture, closeOnly);
+    const classified = diagnosticError('SNAPBACK_AUTH_SCOPED_TOKEN_INVALID', 'revoked', 401);
+    classified.authorityDisposition = 'durableDelete';
+    const deletion = db.handleTerminalAuthLoss(capture, classified);
+    assertEqual(carrier.authorityDisposition, 'carrier');
+    assertEqual(deletion.authorityDisposition, 'durableDelete');
+    assert(deletion !== carrier, 'the stronger classification replaces the carrier-only settlement');
+    assertEqual(db.handleTerminalAuthLoss(capture, classified), deletion, 'the escalation is idempotent');
+    await deletion.settlement;
+    assertEqual(blanks, 1, 'durable escalation does not replay the completed local cut');
+    assertEqual(storage.snapshot('agent:finite-terminal-escalation').status, 'deleted');
+    unregister();
+    await db.closeAuth();
+    return { blanks, status: storage.snapshot('agent:finite-terminal-escalation').status };
+  });
+
+  await suite.check('restart invalid-carrier classification tombstones exact active agent custody', async () => {
+    const storage = createMemoryAgentAuthorityCustodyStorage();
+    const custodyId = 'agent:restart-finite-terminal';
+    const initialValue = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
+    const initial = new AgentAuthorityFence(initialValue, { storage, custodyId });
+    await initial.synchronizeValidated(agentDescriptor(initialValue));
+    const restartedValue = agentCredential(AGENT_TOKEN_B, 'invalid-restart-token');
+    const restarted = new AgentAuthorityFence(restartedValue, { storage, custodyId });
+    const db = new SnapbackClient('http://stub', { agentAuthority: restarted });
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'revoked while process was offline',
+        details: { authorityDisposition: 'durableDelete' },
+      },
+    }));
+    const error = await assertThrows(
+      () => db.authSession(),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'the classified handshake refusal surfaces only after exact tombstoning',
+    );
+    const tombstone = storage.snapshot(custodyId);
+    assertEqual(error.authorityDisposition, 'durableDelete');
+    assertEqual(tombstone.phase, 'settled');
+    assertEqual(tombstone.status, 'deleted');
+    assertThrows(() => restarted.capture(), 'SNAPBACK_CLIENT_AUTHORITY_STALE');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, status: tombstone.status };
+  });
+
+  await suite.check('restart carrier-only refusal retires the offer without deleting custody', async () => {
+    const storage = createMemoryAgentAuthorityCustodyStorage();
+    const custodyId = 'agent:restart-carrier-terminal';
+    const initialValue = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
+    const initial = new AgentAuthorityFence(initialValue, { storage, custodyId });
+    await initial.synchronizeValidated(agentDescriptor(initialValue));
+    const restartedValue = agentCredential(AGENT_TOKEN_B, 'expired-restart-token');
+    const restarted = new AgentAuthorityFence(restartedValue, { storage, custodyId });
+    const db = new SnapbackClient('http://stub', { agentAuthority: restarted });
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'carrier expired while process was offline',
+        details: { authorityDisposition: 'carrier' },
+      },
+    }));
+    const error = await assertThrows(
+      () => db.authSession(),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'the classified carrier refusal remains the public error',
+    );
+    const preserved = storage.snapshot(custodyId);
+    assertEqual(error.authorityDisposition, 'carrier');
+    assertEqual(preserved.phase, 'settled');
+    assertEqual(preserved.status, 'active');
+    assertThrows(
+      () => restarted.credentialOfferForHandshake(),
+      'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'the refused carrier cannot be offered again by this process',
+    );
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, status: preserved.status };
+  });
+
   await suite.check('browser durable deletion reuses one exact synchronous client cut', async () => {
     const authCoordinator = terminalCoordinatorBarrierSpy();
     const db = new SnapbackClient('http://stub', { authCoordinator });
@@ -531,6 +630,65 @@ try {
     await unregisterDurable();
     await db.closeAuth();
     return { directBlanks, durablePhases };
+  });
+
+  await suite.check('one finite terminal event advances auth-session identity exactly once', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SESSION_REVOKED',
+        message: 'revoked',
+        details: { authorityDisposition: 'carrier' },
+      },
+    }));
+    const error = await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_AUTH_SESSION_REVOKED',
+      'the terminal cause survives its single cache-identity cut',
+    );
+    assertEqual(
+      db.__authSessionCacheGeneration,
+      1,
+      'the transport clear owns the only cache-generation increment for this terminal event',
+    );
+    assertEqual(db.__authCounterError, null, 'one terminal event does not falsely exhaust the counter');
+    await db.closeAuth();
+    return { code: error.diagnostic.code, cacheGeneration: db.__authSessionCacheGeneration };
+  });
+
+  await suite.check('one no-successor superseded barrier advances auth-session identity exactly once', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    globalThis.fetch = stubFetch(409, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
+        message: 'no successor became visible',
+      },
+    }));
+    const error = await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED',
+      'the superseded cause survives its single no-successor custody clear',
+    );
+    assertEqual(db.__authSessionCacheGeneration, 1);
+    assertEqual(db.__authCounterError, null, 'one superseded barrier does not falsely exhaust the counter');
+    await db.closeAuth();
+    return { code: error.diagnostic.code, cacheGeneration: db.__authSessionCacheGeneration };
   });
 
   await suite.check('auth-session counter exhaustion clears predecessor cache and wedges requests', async () => {
