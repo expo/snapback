@@ -1396,6 +1396,56 @@ for (const bytes of hintBytes.values()) {
   await peer.close();
 }
 
+// An exhausted broadcast is only an eager terminal wakeup, not durable state.
+// Forged higher counters cut visibility synchronously but unchanged settled
+// custody reopens through the normal owned reload and participant resume.
+{
+  const forgedHub = new BroadcastHub();
+  const forgedState = { custody: { [APP]: { ...storage.snapshot(APP) } } };
+  const subject = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: forgedState }),
+    broadcastChannelFactory: forgedHub.factory,
+    hintStorage: null,
+  });
+  const before = await subject.synchronize();
+  const surface = { visible: true, memory: true, resumes: 0 };
+  subject.registerParticipant({
+    async quiesce() {},
+    blank() { surface.visible = false; },
+    clearMemory() { surface.memory = false; },
+    async resume() {
+      surface.visible = true;
+      surface.memory = true;
+      surface.resumes += 1;
+    },
+  });
+  const channel = [...forgedHub.channels.values()][0].values().next().value;
+  channel.onmessage({ data: {
+    formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+    appIdHash: authAppIdHash(APP),
+    authorityEpoch: before.authorityEpoch,
+    revision: before.custodyRevision + 100,
+    phase: 'exhausted',
+  } });
+  assert.deepEqual(
+    surface,
+    { visible: false, memory: false, resumes: 0 },
+    'an exhausted wakeup performs its local terminal cut synchronously',
+  );
+  assert.equal(
+    await errorCode(() => Promise.resolve(subject.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  assert.deepEqual(await subject.synchronize(), before);
+  assert.deepEqual(
+    surface,
+    { visible: true, memory: true, resumes: 1 },
+    'unchanged settled durable custody recovers from a forged exhausted hint',
+  );
+  await subject.close();
+}
+
 // Authority-epoch exhaustion persists a secret-free terminal marker. Both the
 // owner and an already-exposed peer synchronously blank and permanently reject
 // predecessor publication; no terminal-clear result can report success.
@@ -1460,6 +1510,11 @@ for (const bytes of hintBytes.values()) {
     peer: { visible: false, memory: false, resumed: 0 },
   });
   assert.equal(exhausted.phase, 'exhausted');
+  assert.equal(
+    await errorCode(() => peer.synchronize()),
+    'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED',
+    'the peer latches only after its owned reload validates the durable marker',
+  );
   assert.equal(peer.phase, 'exhausted');
   assert.equal(await errorCode(() => Promise.resolve(exhausted.capture())),
     'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED');

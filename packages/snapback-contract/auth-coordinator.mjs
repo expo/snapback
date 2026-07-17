@@ -691,6 +691,7 @@ export class AuthCoordinator {
   #inCommit = false;
   #counterExhaustionError = null;
   #counterExhaustionSettlement = null;
+  #exhaustedWakeupCut = null;
 
   constructor({
     appId,
@@ -830,6 +831,15 @@ export class AuthCoordinator {
 
   /** Mandatory lifecycle/publication gate; reloads durable custody under ownership. */
   async synchronize() {
+    this.#assertUsable();
+    if (this.#inCommit) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+        'coordinator operations are forbidden inside compareAndCommit',
+      );
+    }
+    const eagerCut = this.#exhaustedWakeupCut;
+    if (eagerCut !== null) await eagerCut;
     this.#assertOperationAllowed();
     if (this.#activeBarrier?.phase === 'resume' && this.#record?.phase === 'settled') {
       // A resume participant may be inside either an owner transition or the
@@ -2043,7 +2053,13 @@ export class AuthCoordinator {
     ) return;
     if (this.#record && message.revision <= this.#record.revision) return;
     if (message.phase === 'exhausted') {
-      this.#latchCounterExhaustion(durableCounterExhausted(message));
+      // Broadcast bytes are routing hints, never durable authority. Cut local
+      // visibility eagerly, then reload under ownership; only #readOwned may
+      // turn a validated durable marker/poison record into a permanent latch.
+      const cut = this.#beginExhaustedWakeupCut(message);
+      void cut
+        .then(() => this.synchronize())
+        .catch(() => { this.#publicationPaused = true; });
       return;
     }
     if (
@@ -2056,6 +2072,50 @@ export class AuthCoordinator {
       this.#publicationPaused = true;
     }
     void this.synchronize().catch(() => { this.#publicationPaused = true; });
+  }
+
+  #beginExhaustedWakeupCut(message) {
+    if (this.#exhaustedWakeupCut !== null) return this.#exhaustedWakeupCut;
+    let finish;
+    const gate = new Promise((resolve) => { finish = resolve; });
+    // Install the gate before participant callbacks so their reentrant
+    // operations cannot race the durable reload ahead of this terminal cut.
+    this.#exhaustedWakeupCut = gate;
+    const prior = this.#record;
+    this.#publicationPaused = true;
+    this.#discardStagedPublications(this.#activeBarrier);
+    const previousAuthority = prior?.phase === 'settled' ? clone(prior.authority) : null;
+    const context = Object.freeze({
+      appId: this.#appId,
+      expectedEpoch: prior?.authorityEpoch ?? message.authorityEpoch,
+      expectedAuthorityKey: previousAuthority === null
+        ? null
+        : canonicalAuthorityKey(this.#appId, previousAuthority),
+      nextEpoch: message.authorityEpoch,
+      nextAuthorityKey: null,
+      reason: 'auth_counter_exhausted_wakeup',
+      disposition: 'delete',
+      recovery: true,
+      previousAuthority,
+      nextAuthority: null,
+    });
+    const quiescence = [];
+    for (const entry of this.#participants) {
+      if (entry.removed) continue;
+      try {
+        quiescence.push(Promise.resolve(participantMethod(entry.participant, 'quiesce', context)));
+      } catch (error) {
+        quiescence.push(Promise.reject(error));
+      }
+    }
+    this.#terminalBlankParticipants(context);
+    void Promise.allSettled(quiescence).then(() => {
+      this.#terminalBlankParticipants(context);
+    }).finally(() => {
+      if (this.#exhaustedWakeupCut === gate) this.#exhaustedWakeupCut = null;
+      finish();
+    });
+    return gate;
   }
 
   #barrierContext() {
@@ -2085,6 +2145,12 @@ export class AuthCoordinator {
       throw coordinatorError(
         'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
         'coordinator operations are forbidden inside compareAndCommit',
+      );
+    }
+    if (this.#exhaustedWakeupCut !== null) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'durable custody is reloading after an exhausted wakeup',
       );
     }
   }
