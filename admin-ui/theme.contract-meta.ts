@@ -12,15 +12,22 @@
 //
 // `result` is intentionally omitted: with no declared result the compiler does
 // not row-shape-check member access on the returned value, so `c.<field>`
-// reads stay exactly as unchecked as they were under the opaque import. This is
-// a warning-only cleanup, not a behavior or type-coverage change.
+// reads stay exactly as unchecked as they were under the opaque import.
+// Dependencies are nevertheless explicit: `colors` selects between the two
+// module-owned palettes, while `initialTab` reads the web host's location and
+// URI decoder when they exist and falls back for native-capable hosts where
+// location does not.
 
-import { defineContractModule, pure } from '@exact/contract/exports';
+import { capability, defineContractModule, pure } from '@exact/contract/exports';
 
 export default defineContractModule('./theme.ts', {
-  colors: pure({ params: ['mode'], depends: 'args' }),
+  colors: pure({ params: ['mode'], depends: ['LIGHT', 'DARK'] }),
   fonts: pure({ params: [], depends: 'args' }),
   navSections: pure({ params: [], depends: 'args' }),
-  initialTab: pure({ params: [], depends: 'args' }),
-  initialTheme: pure({ params: [], depends: 'args' }),
+  initialTab: pure({ params: [], depends: ['location', 'decodeURIComponent'] }),
+  systemTheme: pure({ params: [], depends: ['globalThis', 'matchMedia'] }),
+  watchSystemTheme: capability({
+    params: { listener: { type: 'function' } },
+    effects: ['theme.scheme.read', 'theme.store.subscribe'],
+  }),
 });
