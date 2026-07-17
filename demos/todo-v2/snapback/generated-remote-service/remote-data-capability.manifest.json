@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:4810468fd5a0e5e65556a83f71b5175e452af7c0f120083e34318eb2f23c6264"
+    "sha256": "sha256:2237e1ab42093790941e0fef6d52a422eae951615ff744303cbf49153f128ac2"
   },
   "manifestVersion": 1,
   "operations": [
@@ -35,7 +35,7 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+        "sha256": "sha256:567c086ccc2e3808bb18a178090c5ca505e703423f6ddb345761070f3bb4aacd"
       }
     },
     {
@@ -61,7 +61,7 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+        "sha256": "sha256:567c086ccc2e3808bb18a178090c5ca505e703423f6ddb345761070f3bb4aacd"
       }
     },
     {
@@ -87,13 +87,13 @@
       },
       "responseSchema": {
         "path": "schemas/mutation.output.schema.json",
-        "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+        "sha256": "sha256:567c086ccc2e3808bb18a178090c5ca505e703423f6ddb345761070f3bb4aacd"
       }
     }
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:4702d5d7bb37fa99a53536b69cb0181b57be0fec79d9006a6d179d91619efcac"
+    "sha256": "sha256:fc6fb34326ef34a49fd8fcab39ef6c9d75fa08aa23c2048209d770565ffbaa20"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -104,7 +104,7 @@
     },
     "connectionOpenInput": {
       "path": "schemas/connection.open.input.schema.json",
-      "sha256": "sha256:f7f714d7746e034379d993d480ef3a52f750799fc9ce89dd96d7102597c58e22"
+      "sha256": "sha256:9ef8a9ae017fee3123f67ba57ab4c31208b6255abe6b6f7fff54756fa402d3d1"
     },
     "errorResponse": {
       "path": "schemas/error.response.schema.json",
@@ -144,7 +144,7 @@
     },
     "mutationOutput": {
       "path": "schemas/mutation.output.schema.json",
-      "sha256": "sha256:ca7a079e2ba33d12def922803b5c59424a9e7fad8d61b649c098737998cc4f37"
+      "sha256": "sha256:567c086ccc2e3808bb18a178090c5ca505e703423f6ddb345761070f3bb4aacd"
     },
     "queryInput": {
       "path": "schemas/query.input.schema.json",

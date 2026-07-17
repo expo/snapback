@@ -204,7 +204,7 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/mutation.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
-  "description": "Successful `POST /mutation/{name}` response. The mutation output and its\nterminal receipt are one closed, typed envelope; rejected mutations keep\nusing [`ErrorResponse`] with the same receipt attached by the error path.\n\n@ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —\n  direct mutation results are part of the generated client-visible wire.",
+  "description": "Successful `POST /mutation/{name}` response. The mutation output and its\nterminal receipt are one closed, typed envelope; rejected mutations keep\nusing [`ErrorResponse`] with the same receipt attached by the error path.\n\n@ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed — direct\n  mutation results are part of the generated client-visible wire.",
   "properties": {
     "changed_count": {
       "format": "uint",

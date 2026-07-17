@@ -511,8 +511,8 @@ pub struct MembershipLastHolder {
 /// declared role ordering the host cannot prove any downgrade is
 /// non-escalating, so a `downgradeTo:` effect is a manifest error.
 ///
-/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
-///   remove-only in v1; the sweep itself is M2/M4 host work.
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only
+///   in v1; the sweep itself is M2/M4 host work.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct MembershipExpiry {
     pub field: String,

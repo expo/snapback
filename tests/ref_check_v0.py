@@ -17,6 +17,10 @@ loader.exec_module(ref_check)
 
 
 class RefCheckScanPolicyTest(unittest.TestCase):
+    def test_repository_has_no_unchecked_shorthand_refs(self):
+        report, _, _, _ = ref_check.check(ROOT)
+        self.assertEqual(report.infos, [])
+
     def test_build_outputs_and_source_maps_do_not_affect_validation_or_counts(self):
         with tempfile.TemporaryDirectory() as root:
             os.makedirs(os.path.join(root, "llp"))

@@ -135,7 +135,8 @@ pub(crate) fn inject_reset_commit_failure_for_test() {
 
 const META_SCHEMA_MANIFEST: &str = "schema_manifest";
 const META_CRON_STATE: &str = "cron_state";
-// @ref LLP 0032 L3 — the monotonic replay floor: the highest change version
+// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 monotonic replay floor:
+// the highest change version
 // that pruning has removed. A resume from at/above it is guaranteed replayable;
 // below it, a change may be gone, so the client must resnapshot.
 const META_RETENTION_FLOOR: &str = "retention_floor";
@@ -1260,7 +1261,8 @@ impl LocalDatabase {
 
     /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation
     /// query, so a test can assert it uses the `(table_name, version)` index
-    /// rather than scanning. @ref LLP 0032 L3.
+    /// rather than scanning.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 index gate.
     pub fn explain_table_change_version_plan(&self, table: &str) -> SnapbackResult<String> {
         let table = schema_table(&self.schema, table)?;
         let mut statement = self.conn.prepare(

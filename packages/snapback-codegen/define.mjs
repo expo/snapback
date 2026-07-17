@@ -164,7 +164,8 @@ class TableBuilder {
   /** Declare that this table contains authorization-granting facts. An
    * optional field list narrows only known updates; insert/delete and unknown
    * changed-field sets remain conservative.
-   * @ref LLP 0053#two-orthogonal-declarations */
+   * @ref LLP 0053#two-orthogonal-declarations — permission backing is the
+   *   independent authorization-dependence axis. */
   permissionBacking(fields) {
     assert(!this.permissionBackingDeclared, 'permissionBacking() may be declared only once per table');
     if (fields !== undefined) {

@@ -7292,7 +7292,8 @@ impl LocalSnapback {
         self.refresh_cron_active();
     }
 
-    /// Record connection activity for the L2 reaper. @ref LLP 0032 L2.
+    /// Record connection activity for the L2 reaper.
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2 liveness.
     fn touch_connection(&mut self, connection_id: &str, now_ms: u64) {
         self.connections_last_seen.touch(connection_id, now_ms);
     }
@@ -7960,7 +7961,8 @@ impl LocalSnapback {
     }
 
     /// A lock-free flag the cron ticker checks to skip the global lock when no
-    /// cron job is armed (scale-to-zero). @ref LLP 0032 L5.
+    /// cron job is armed (scale-to-zero).
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L5 idle-cost gate.
     pub fn cron_activity_flag(&self) -> Arc<AtomicBool> {
         self.cron_active.clone()
     }

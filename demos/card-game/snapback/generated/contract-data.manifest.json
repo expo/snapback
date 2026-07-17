@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:81f0fab9aa5f28dc35c9720a604a1b3f5bfd337875de2c1b292cd7925fc9bd8f",
+  "bundleHash": "snapback.v1:sessions:function:sha256:b38cb45efe9a465095f0eea9553e5347d5825e595ccabaf37a9b706d1c613439",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": true,
@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:4809f4974b328eb29e7d7a60f1e5c3a8ea00bf5df31e7be964b7bb8e837cb50c",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:974bc48fa1c811518792d4bffcc406da78f385de5953b6503e7d1d4aa4498fb7",
   "manifestVersion": 2,
   "mutations": {
     "acceptHandCard": {
@@ -189,6 +189,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:136a6fd91c22f7bf4d13ac43cf12ac0a6b0fe015d92180cfe4be0beddaa7f41a",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:759640b990d7e0eee96821a032b24ccee3e0e22160629a5a292d84873b589975",
   "schemaVersion": "snapback.v1"
 }

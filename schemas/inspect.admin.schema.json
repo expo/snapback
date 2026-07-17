@@ -2111,7 +2111,7 @@
       "type": "object"
     },
     "MembershipExpiry": {
-      "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —\n  remove-only in v1; the sweep itself is M2/M4 host work.",
+      "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only\n  in v1; the sweep itself is M2/M4 host work.",
       "properties": {
         "field": {
           "type": "string"

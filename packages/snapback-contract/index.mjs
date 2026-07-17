@@ -3,9 +3,10 @@
 // @ref LLP 0005#contractexact-integration - the generated Contract adapter owns
 //   the boring seams Valet demos copied by hand: boot, query-boundary wiring,
 //   mutation invocation, initial snapshot, pending state, and provider wiring.
-// @ref LLP 0012#capability-manifest / LLP 0051 D6 — the adapter's Parity
-//   slice is the closed IR tier: derived local overlays + a D1-ledgered durable
-//   queue. Surfaces without a configured client store still report Online.
+// @ref LLP 0012#capability-manifest — adapters report Online versus Parity honestly.
+// @ref LLP 0051#d6-clients-by-class-online-fallback-parity-by-construction — the
+//   adapter's Parity slice is the closed IR tier: derived local overlays plus a
+//   D1-ledgered durable queue. Surfaces without a configured client store report Online.
 
 export const SNAPBACK_CONTRACT_ADAPTER_VERSION = 1;
 // Legacy/default and every non-offline surface stay Online. Parity is a

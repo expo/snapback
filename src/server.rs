@@ -1979,8 +1979,8 @@ impl std::fmt::Debug for ConnectionGrant {
 /// used only to prove ownership of an existing grant; it is request-only and
 /// must never enter diagnostics, receipts, retained client state, or logs.
 ///
-/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
-///   the complete non-JS client HTTP surface is Rust-owned and generated.
+/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed — the
+///   complete non-JS client HTTP surface is Rust-owned and generated.
 #[derive(Clone, Default, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct OpenConnectionRequest {
@@ -3226,8 +3226,8 @@ pub struct ErrorResponse {
 /// terminal receipt are one closed, typed envelope; rejected mutations keep
 /// using [`ErrorResponse`] with the same receipt attached by the error path.
 ///
-/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed —
-///   direct mutation results are part of the generated client-visible wire.
+/// @ref LLP 0051#d4-finish-dk-7-the-live-envelope-becomes-schema-governed — direct
+///   mutation results are part of the generated client-visible wire.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MutationResponse {
@@ -10049,8 +10049,9 @@ const MAINTENANCE_INTERVAL_MS: u64 = 30_000;
 const ROOM_REAUTHORIZATION_INTERVAL_MS: u64 =
     crate::auth::invalidation::AUTH_INVALIDATION_REFIRE_MAX_MS;
 const MAINTENANCE_TICKS_PER_SWEEP: u64 = MAINTENANCE_INTERVAL_MS / ROOM_REAUTHORIZATION_INTERVAL_MS;
-// @ref LLP 0032 L3 / LLP 0008 §Retention — keep the last N commit versions and
-// anything newer than the time window; prune the rest.
+// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3 bounds the journal.
+// @ref LLP 0008#retention-and-resume — keep the last N commit versions and anything
+//   newer than the time window; prune the rest.
 const JOURNAL_RETAIN_VERSIONS: u64 = 10_000;
 const JOURNAL_RETAIN_MS: u64 = 24 * 60 * 60 * 1_000;
 
