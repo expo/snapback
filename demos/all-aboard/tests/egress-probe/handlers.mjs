@@ -5,11 +5,16 @@
 // exposed values here are test literals, returned so the acceptance test can
 // prove the grant/rotation/import path end to end — a real app never returns
 // exposed material.
+// Port 65534 is intentionally ordinary (not on the Fetch Standard's blocked
+// port list). The probe observes only the returned promise and never awaits or
+// depends on a listener, so it still performs no external network I/O.
+const EGRESS_PROBE_URL = 'http://127.0.0.1:65534/none';
+
 globalThis.__snapbackHandlers = {
   async egressProbe(ctx) {
     let fetchState;
     try {
-      const p = fetch('http://127.0.0.1:9/none');
+      const p = fetch(EGRESS_PROBE_URL);
       if (p && typeof p.then === 'function') {
         p.then(function () {}, function () {}); // swallow the (expected) rejection
         fetchState = 'available';
@@ -45,7 +50,7 @@ globalThis.__snapbackHandlers = {
   async queryProbe(ctx) {
     let fetchState;
     try {
-      const p = fetch('http://127.0.0.1:9/none');
+      const p = fetch(EGRESS_PROBE_URL);
       if (p && typeof p.then === 'function') {
         p.then(function () {}, function () {});
         fetchState = 'available';
