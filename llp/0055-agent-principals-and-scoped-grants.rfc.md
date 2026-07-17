@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (terminal side-ledger reconciliation: durable Agent
+**Revised:** 2026-07-17 (filesystem directory-capability closure: the Node
+adapter retains one validated POSIX CWD inode in a dedicated helper, resolves
+every SQLite lock and custody operation relative to it, bounds retained helpers
+and exact-namespace crash-orphan cleanup, and fails closed after helper loss).
+2026-07-16 (terminal side-ledger reconciliation: durable Agent
 custody records tuple-specific terminal witnesses before primary read,
 validation, or cleanup,
 backfills pre-ledger tombstones, requires independent partition ownership, and
@@ -1999,15 +2003,31 @@ rollout.
 The filesystem adapter accepts only a normalized absolute custody path. It
 rejects untrusted lexical symlinks, untrusted or replaceable resolved ancestor
 owners, unsafe ancestor ACL grants, and a custody directory that is not an
-effective-user-owned real `0700` inode. It pins that canonical device/inode and
-ancestor chain across lock, read, temp-write, rename, and directory-fsync
-steps. Lock, record, and temporary files must be effective-user-owned,
-single-link regular `0600` files without access-expanding ACLs. Record reads
-use nonblocking bounded I/O capped at 64 KiB and revalidate the file after the
-read. This is process custody against other OS users, not protection against a
-malicious process already running as the same effective uid. Node's pathname
-API still lacks a complete dirfd/openat/renameat capability chain; the residual
-precise same-uid/pathname ABA hardening is tracked as a filesystem follow-up.
+effective-user-owned real `0700` inode. After that validation, one dedicated
+helper compares the exact device/inode/owner, changes into that directory, and
+retains the kernel CWD reference for the process lifetime. POSIX resolves every
+single-component lock, record, temporary, rename, unlink, and directory-fsync
+operation relative to that retained inode (`AT_FDCWD` semantics); the
+configured pathname is never resolved again. The helper that opens the
+relative SQLite lock and holds `BEGIN IMMEDIATE` is also the only process that
+can compare or replace the corresponding record, so helper death releases the
+lock and eliminates the stale writer together. Directory-name replacement at
+any later cut cannot split lock and record custody.
+
+Lock, record, and temporary files must be effective-user-owned, single-link
+regular `0600` files without access-expanding ACLs. Record reads use
+nonblocking bounded I/O capped at 64 KiB and revalidate the opened and named
+inode after the read. Under each exact partition lock, maintenance scans at
+most 4,096 entries and accepts only that record's
+`<record>.<pid>.<128-bit-hex>.tmp` namespace; at most 128 validated files and
+8 MiB are removed, with typed count/byte diagnostics on exhaustion or partial
+failure. The rule applies equally to primary and terminal-witness partitions.
+At most 32 distinct directory capabilities may be retained per process.
+Capabilities are never idle-evicted, because re-resolving a pathname would
+reopen the ABA; a helper that dies permanently closes that process's view until
+an explicit process restart. This is process custody against other OS users
+and pathname replacement, not protection against a malicious process already
+running as the same effective uid and mutating entries inside the pinned inode.
 
 A fresh process, a different configured tuple, interrupted-transition recovery,
 and live credential replacement all require a strict scoped-token handshake

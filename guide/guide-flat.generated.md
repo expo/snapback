@@ -1886,11 +1886,27 @@ recovery all require the server-issued descriptor proof; plain synchronization
 cannot claim an unvalidated durable tuple. Treat the state directory and
 `custodyId` as stable deployment identity, not as per-process temporary state.
 
+The adapter validates the directory once and retains its exact POSIX inode in a
+dedicated helper. SQLite locking, record reads, temporary writes, rename,
+cleanup, and directory fsync all use single-component names relative to that
+kernel-held directory, so replacing the configured pathname cannot redirect a
+commit. A helper crash releases both the lock and the only possible writer; the
+current process then fails closed until restart instead of reopening the path.
+Keep the configured-directory set small: one process retains at most 32 such
+capabilities and refuses the next one with
+`SNAPBACK_AUTH_CUSTODY_DIRECTORY_CAPABILITY_LIMIT`.
+
 The directory must be a normalized absolute path to an effective-user-owned
 `0700` directory. The adapter rejects untrusted symlink components, unsafe
 ancestor owners/ACLs, hard-linked or non-`0600` custody files, and records over
-64 KiB. Do not share it with another Unix account or mutate it from another
-same-uid process while Snapback is running.
+64 KiB. Under each primary or terminal-witness partition lock it scans at most
+4,096 entries and removes only validated files in that exact record's temporary
+namespace, capped at 128 files / 8 MiB. `maintenanceSnapshot()` reports the
+last successful scan; limit and partial-cleanup failures use the exported
+`SNAPBACK_AUTH_CUSTODY_ORPHAN_*` diagnostics. Do not share the directory with
+another Unix account. The retained capability closes directory-name ABA, but
+it does not protect against a malicious same-uid process mutating entries
+inside the pinned inode.
 
 Durable deletion also writes a permanent witness for the exact
 actor/credential-generation/grant tuple. That witness contains no bearer or

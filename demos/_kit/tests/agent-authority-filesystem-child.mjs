@@ -23,7 +23,21 @@ const emit = (value) => {
 const storage = createFilesystemAgentAuthorityCustodyStorage({
   directory,
   lockTimeoutMs,
-  testHooks: action === 'pause-before-rename-b'
+  testHooks: action === 'crash-helper-after-temp-b'
+    ? {
+        async afterTemporaryCreate(context) {
+          emit({ event: 'crashing-helper-after-temp', context });
+          process.kill(context.helperPid, 'SIGKILL');
+        },
+      }
+    : action === 'pause-after-temp-b'
+    ? {
+        async afterTemporaryCreate(context) {
+          emit({ event: 'after-temp', context });
+          await delay(holdMs);
+        },
+      }
+    : action === 'pause-before-rename-b'
     ? {
         async beforeRecordRename(context) {
           emit({ event: 'before-rename', context });
@@ -63,6 +77,8 @@ try {
     emit({ ok: true, capture, record: await storage.snapshot(custodyId) });
   } else if (
     action === 'replace-b'
+    || action === 'crash-helper-after-temp-b'
+    || action === 'pause-after-temp-b'
     || action === 'pause-before-rename-b'
     || action === 'pause-after-rename-b'
   ) {

@@ -1,6 +1,7 @@
 // True process-restart and OS-lock proof for Node filesystem agent custody.
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { execFile, spawn } from 'node:child_process';
 import {
   link,
@@ -138,36 +139,48 @@ try {
     }
   }
 
-  // Replacing the 0700 directory with another 0700 inode during an atomic
-  // write cannot redirect the temp-file rename into attacker-chosen storage.
-  {
-    const securityRoot = await mkdtemp(join(tmpdir(), 'snapback-agent-swap-'));
+  // The helper retains one kernel CWD capability before taking the partition
+  // lock. Replacing the configured pathname at every later linearization
+  // window cannot split the SQLite lock, temporary file, and final record
+  // across two directory inodes: the commit stays in the displaced original.
+  const swapTemplate = await run('init-a', directory, 'agent:swap-template');
+  for (const hookName of [
+    'beforeLock',
+    'beforeTemporaryCreate',
+    'afterTemporaryCreate',
+    'beforeRecordRename',
+  ]) {
+    const securityRoot = await mkdtemp(join(tmpdir(), `snapback-agent-swap-${hookName}-`));
     const custodyDirectory = join(securityRoot, 'custody');
     const displacedDirectory = join(securityRoot, 'custody-displaced');
     await mkdir(custodyDirectory, { mode: 0o700 });
     let swapped = false;
+    const hooks = {
+      async [hookName]() {
+        if (swapped) return;
+        swapped = true;
+        await rename(custodyDirectory, displacedDirectory);
+        await mkdir(custodyDirectory, { mode: 0o700 });
+      },
+    };
     const swapping = createFilesystemAgentAuthorityCustodyStorage({
       directory: custodyDirectory,
-      testHooks: {
-        async beforeRecordRename() {
-          if (swapped) return;
-          swapped = true;
-          await rename(custodyDirectory, displacedDirectory);
-          await mkdir(custodyDirectory, { mode: 0o700 });
-        },
-      },
+      testHooks: hooks,
     });
+    const custodyId = `agent:directory-swap-${hookName}`;
     try {
-      const initialized = await run('init-a', directory, 'agent:swap-template');
-      await assert.rejects(
-        swapping.withOwnership('agent:directory-swap', (owner) => (
-          owner.replace(null, {
-            ...initialized.record,
-            custodyId: 'agent:directory-swap',
-          })
-        )),
-        (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
-      );
+      const committed = await swapping.withOwnership(custodyId, (owner) => (
+        owner.replace(null, {
+          ...swapTemplate.record,
+          custodyId,
+        })
+      ));
+      assert.equal(swapped, true);
+      assert.deepEqual(await swapping.snapshot(custodyId), committed);
+      const displacedEntries = await readdir(displacedDirectory);
+      assert(displacedEntries.some((entry) => entry.endsWith('.lock')));
+      assert(displacedEntries.some((entry) => entry.endsWith('.json')));
+      assert.deepEqual(await readdir(custodyDirectory), []);
     } finally {
       await rm(securityRoot, { recursive: true, force: true });
     }
@@ -291,6 +304,29 @@ try {
   assert.equal(rejected.record.authorityEpoch, deleted.record.authorityEpoch);
   assert.equal(rejected.record.revision, deleted.record.revision);
 
+  // Orphan maintenance applies to independently locked terminal-witness
+  // partitions too, not only the primary custody row. The derived namespace is
+  // exact, so cleaning this temp cannot touch another witness or primary file.
+  {
+    const custodyId = 'agent:filesystem-deleted';
+    const witnessId = `snapback.agent-terminal-witness.v1:${deleted.record.authorityKey}:${custodyId}`;
+    const witnessKey = createHash('sha256')
+      .update(`snapback.agent-authority-custody-file.v1\n${witnessId}`, 'utf8')
+      .digest('hex');
+    const witnessRecordName = `${witnessKey}.json`;
+    assert((await readdir(directory)).includes(witnessRecordName));
+    const witnessOrphanName = `${witnessRecordName}.777.${'b'.repeat(32)}.tmp`;
+    await writeFile(join(directory, witnessOrphanName), 'witness-orphan', { mode: 0o600 });
+    const witnessCleaner = createFilesystemAgentAuthorityCustodyStorage({ directory });
+    const witness = await witnessCleaner.snapshot(witnessId);
+    assert.equal(witness.status, 'deleted');
+    const cleanup = witnessCleaner.maintenanceSnapshot();
+    assert.equal(cleanup.orphanCount, 1);
+    assert.equal(cleanup.orphanBytes, 14);
+    assert.equal(cleanup.removedCount, 1);
+    assert.equal((await readdir(directory)).includes(witnessOrphanName), false);
+  }
+
   // The process that owns the kernel lock also performs rename(). Kill it in
   // both deterministic linearization windows. A successor can then acquire
   // custody, but the dead predecessor has no process left that could overwrite
@@ -318,6 +354,89 @@ try {
     assert.equal(successor.record.phase, 'settled');
     assert.equal(successor.record.revision, 3);
     assert.equal(successor.record.authority.grantId, replaced.record.authority.grantId);
+  }
+
+  // Killing only the retained-capability helper after O_EXCL temp creation
+  // also kills the process that owns SQLite's inode lock and the only writer.
+  // The authority fence reports the indeterminate write as ambiguous; a fresh
+  // process can acquire the same directory, validate the exact temp namespace,
+  // and remove the orphan under the partition lock before recovering.
+  {
+    const custodyId = 'agent:filesystem-helper-temp-crash';
+    await run('init-a', directory, custodyId);
+    const crashed = await run('crash-helper-after-temp-b', directory, custodyId);
+    assert.equal(crashed.ok, false);
+    assert.equal(crashed.code, 'SNAPBACK_AUTH_CUSTODY_AMBIGUOUS');
+    const crashEntries = await readdir(directory);
+    const orphanName = crashEntries.find((entry) => (
+      /^[a-f0-9]{64}\.json\.[1-9][0-9]*\.[a-f0-9]{32}\.tmp$/u.test(entry)
+    ));
+    assert(orphanName, 'helper crash after temp creation must leave one exact-namespace orphan');
+    const recordName = orphanName.match(/^([a-f0-9]{64}\.json)\./u)?.[1];
+    assert(recordName, 'crash orphan must bind one exact record namespace');
+
+    const cleaner = createFilesystemAgentAuthorityCustodyStorage({ directory });
+    const predecessor = await cleaner.snapshot(custodyId);
+    assert.equal(predecessor.revision, 1);
+    const crashCleanup = cleaner.maintenanceSnapshot();
+    assert(crashCleanup.scannedEntries >= crashEntries.length);
+    assert.equal(crashCleanup.orphanCount, 1);
+    assert.equal(crashCleanup.orphanBytes, 0);
+    assert.equal(crashCleanup.removedCount, 1);
+    assert.equal((await readdir(directory)).includes(orphanName), false);
+    const recoveredAfterHelperCrash = await run('recover-b', directory, custodyId);
+    assert.equal(recoveredAfterHelperCrash.ok, true);
+    assert.equal(recoveredAfterHelperCrash.record.phase, 'settled');
+    assert.equal(recoveredAfterHelperCrash.record.revision, 3);
+
+    // A cleanup failure never broadens the deletion target or silently claims
+    // success. The exact validated orphan remains for a later under-lock retry,
+    // whose maintenance receipt reports its bounded count and bytes.
+    const failedOrphanName = `${recordName}.999.${'a'.repeat(32)}.tmp`;
+    await writeFile(join(directory, failedOrphanName), 'orphan', { mode: 0o600 });
+    const failingCleaner = createFilesystemAgentAuthorityCustodyStorage({
+      directory,
+      testHooks: {
+        async beforeOrphanUnlink({ orphanName: candidate }) {
+          if (candidate === failedOrphanName) throw new Error('injected orphan unlink failure');
+        },
+      },
+    });
+    await assert.rejects(
+      failingCleaner.snapshot(custodyId),
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_CUSTODY_ORPHAN_CLEANUP_FAILED'
+        && error?.diagnostic?.details?.removedCount === 0
+        && error?.diagnostic?.details?.remainingCount === 1
+      ),
+    );
+    assert.equal((await readdir(directory)).includes(failedOrphanName), true);
+    await cleaner.snapshot(custodyId);
+    const retryCleanup = cleaner.maintenanceSnapshot();
+    assert(retryCleanup.scannedEntries >= (await readdir(directory)).length);
+    assert.equal(retryCleanup.orphanCount, 1);
+    assert.equal(retryCleanup.orphanBytes, 6);
+    assert.equal(retryCleanup.removedCount, 1);
+    assert.equal((await readdir(directory)).includes(failedOrphanName), false);
+
+    // Count exhaustion is diagnosed before deletion. This proves maintenance
+    // work is bounded even when the directory contains attacker-created debris.
+    const excessiveOrphans = Array.from({ length: 129 }, (_, index) => (
+      `${recordName}.${1_000 + index}.${index.toString(16).padStart(32, '0')}.tmp`
+    ));
+    for (const name of excessiveOrphans) {
+      await writeFile(join(directory, name), '', { mode: 0o600 });
+    }
+    await assert.rejects(
+      cleaner.snapshot(custodyId),
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_CUSTODY_ORPHAN_LIMIT'
+        && error?.diagnostic?.details?.orphanCount === 129
+        && error?.diagnostic?.details?.maximumOrphans === 128
+      ),
+    );
+    for (const name of excessiveOrphans) await rm(join(directory, name));
+    await cleaner.snapshot(custodyId);
   }
 
   // The OS advisory lock serializes distinct processes. Acquisition is

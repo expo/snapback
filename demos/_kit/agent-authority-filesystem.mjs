@@ -10,19 +10,16 @@
 // @ref LLP 0059#cross-context-ownership — an OS advisory lock provides the
 // cross-process owner and is never stolen on elapsed wall time.
 
-import { constants as fsConstants } from 'node:fs';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import {
   lstat,
   mkdir,
-  open,
   realpath,
-  rename,
-  unlink,
 } from 'node:fs/promises';
-import { createHash, randomBytes } from 'node:crypto';
-import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { execFile, fork } from 'node:child_process';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import {
   dirname,
   isAbsolute,
@@ -31,15 +28,15 @@ import {
   parse,
   sep,
 } from 'node:path';
-import { DatabaseSync } from 'node:sqlite';
 
 const DIRECTORY_MODE = 0o700;
-const FILE_MODE = 0o600;
 const SAFE_COUNTER_MAX = Number.MAX_SAFE_INTEGER;
 const MAX_RECORD_BYTES = 64 * 1_024;
-const LOCK_RETRY_MS = 10;
 const PROCESS_OWNERSHIP = new Map();
 const PROCESS_OWNERSHIP_CONTEXT = new AsyncLocalStorage();
+const DIRECTORY_CAPABILITIES = new Map();
+const MAX_RETAINED_DIRECTORY_CAPABILITIES = 32;
+const CAPABILITY_HELPER = fileURLToPath(new URL('./agent-authority-filesystem-helper.mjs', import.meta.url));
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const TOP_LEVEL_FIELDS = Object.freeze([
   'formatVersion',
@@ -88,6 +85,9 @@ export const AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS = Object.freeze({
   casStale: 'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
   corrupt: 'SNAPBACK_AUTH_CUSTODY_CORRUPT',
   ioFailed: 'SNAPBACK_AUTH_CUSTODY_IO_FAILED',
+  capabilityLimit: 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_CAPABILITY_LIMIT',
+  orphanLimit: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_LIMIT',
+  orphanCleanupFailed: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_CLEANUP_FAILED',
 });
 
 const diagnostic = (code, message, details = undefined, cause = undefined) => {
@@ -570,147 +570,240 @@ const assertPrivateDirectory = async (directory, expectedIdentity = null) => {
   return identity;
 };
 
-const assertPrivateFileInfo = (info, { maximumBytes = null } = {}) => {
-  const effectiveUid = process.geteuid();
-  if (
-    !info.isFile()
-    || info.isSymbolicLink()
-    || (info.mode & 0o7777) !== FILE_MODE
-    || info.uid !== effectiveUid
-    || info.nlink !== 1
-    || (maximumBytes !== null && info.size > maximumBytes)
-  ) {
-    throw diagnostic(
-      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
-      'filesystem agent custody files must be owned, single-link, bounded real 0600 files',
-      maximumBytes === null ? undefined : { maximumBytes, size: info.size },
-    );
+const remoteError = (value) => {
+  const error = new Error(value?.message ?? 'filesystem custody capability helper failed');
+  if (typeof value?.code === 'string') error.code = value.code;
+  if (value?.diagnostic && typeof value.diagnostic === 'object') {
+    error.diagnostic = value.diagnostic;
   }
+  return error;
 };
 
-const assertPrivateFile = async (path, info, options = {}) => {
-  assertPrivateFileInfo(info, options);
-  await assertNoExtendedAccess(path, 'file');
-};
+const serializeHookError = (error) => ({
+  code: typeof error?.code === 'string' ? error.code : null,
+  message: error?.message ?? String(error),
+  diagnostic: error?.diagnostic ?? null,
+});
 
-const ensurePrivateLockFile = async (path) => {
-  try {
-    const handle = await open(
-      path,
-      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
-      FILE_MODE,
-    );
-    try {
-      await handle.chmod(FILE_MODE);
-      await handle.sync();
-    } finally {
-      await handle.close();
-    }
-  } catch (error) {
-    if (error?.code !== 'EEXIST') throw ioFailure('create-lock-file', error);
-  }
-  let info;
-  try {
-    info = await lstat(path);
-  } catch (error) {
-    throw ioFailure('inspect-lock-file', error);
-  }
-  await assertPrivateFile(path, info);
-};
+class RetainedDirectoryCapability {
+  #child;
+  #closed = false;
+  #hooks = new Map();
+  #nextRequestId = 1;
+  #nextSessionId = 1;
+  #pending = new Map();
+  #stderr = '';
 
-const syncDirectory = async (directory, expectedIdentity = null) => {
-  let handle;
-  try {
-    if (expectedIdentity !== null) {
-      await assertPrivateDirectory(directory, expectedIdentity);
-    }
-    handle = await open(directory, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-    await handle.sync();
-    if (expectedIdentity !== null) {
-      await assertPrivateDirectory(directory, expectedIdentity);
-    }
-  } catch (error) {
-    throw ioFailure('sync-directory', error);
-  } finally {
-    await handle?.close().catch(() => {});
-  }
-};
-
-const readRecordFile = async (
-  path,
-  custodyId,
-  { directory = null, directoryIdentity = null } = {},
-) => {
-  let handle;
-  try {
-    if (directoryIdentity !== null) {
-      await assertPrivateDirectory(directory, directoryIdentity);
-    }
-    handle = await open(
-      path,
-      fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW | fsConstants.O_NONBLOCK,
-    );
-  } catch (error) {
-    if (error?.code === 'ENOENT') {
-      if (directoryIdentity !== null) {
-        await assertPrivateDirectory(directory, directoryIdentity);
-      }
-      return null;
-    }
-    if (error?.code === 'ELOOP') {
-      throw diagnostic(
-        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
-        'filesystem agent custody record cannot be a symbolic link',
-      );
-    }
-    throw ioFailure('open-record', error);
-  }
-  try {
-    const info = await handle.stat();
-    await assertPrivateFile(path, info, { maximumBytes: MAX_RECORD_BYTES });
-    const chunks = [];
-    let totalBytes = 0;
-    while (totalBytes <= MAX_RECORD_BYTES) {
-      const buffer = Buffer.allocUnsafe(Math.min(
-        8 * 1_024,
-        (MAX_RECORD_BYTES + 1) - totalBytes,
+  constructor(directory) {
+    this.directory = directory;
+    this.#child = fork(CAPABILITY_HELPER, [], {
+      execArgv: [],
+      stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
+      serialization: 'advanced',
+    });
+    this.#child.stderr.setEncoding('utf8');
+    this.#child.stderr.on('data', (chunk) => {
+      this.#stderr = `${this.#stderr}${chunk}`.slice(-16 * 1_024);
+    });
+    this.#child.stderr.unref?.();
+    this.#child.on('message', (message) => this.#onMessage(message));
+    this.#child.once('error', (error) => this.#fail(diagnostic(
+      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+      'filesystem agent custody directory capability helper failed',
+      typeof error?.code === 'string' ? { errno: error.code } : undefined,
+      error,
+    )));
+    this.#child.once('exit', (code, signal) => {
+      this.#fail(diagnostic(
+        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+        'filesystem agent custody directory capability helper exited',
+        {
+          code,
+          signal,
+          ...(this.#stderr.length === 0 ? {} : { helperStderr: this.#stderr }),
+        },
       ));
-      const { bytesRead } = await handle.read(buffer, 0, buffer.length, null);
-      if (bytesRead === 0) break;
-      chunks.push(buffer.subarray(0, bytesRead));
-      totalBytes += bytesRead;
-    }
-    if (totalBytes > MAX_RECORD_BYTES) {
-      throw diagnostic(
-        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
-        'filesystem agent custody record exceeds its bounded envelope',
-        { maximumBytes: MAX_RECORD_BYTES },
-      );
-    }
-    const finalInfo = await handle.stat();
-    await assertPrivateFile(path, finalInfo, { maximumBytes: MAX_RECORD_BYTES });
-    if (finalInfo.size !== totalBytes) {
-      throw diagnostic(
-        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
-        'filesystem agent custody record changed while being read',
-      );
-    }
-    const bytes = Buffer.concat(chunks, totalBytes).toString('utf8');
-    if (directoryIdentity !== null) {
-      await assertPrivateDirectory(directory, directoryIdentity);
-    }
-    let parsed;
+    });
+    this.#unref();
+  }
+
+  async initialize(identity) {
+    return this.#request('initialize', {
+      directory: this.directory,
+      expectedIdentity: {
+        dev: identity.dev,
+        ino: identity.ino,
+        uid: identity.uid,
+      },
+    });
+  }
+
+  nextSessionId() {
+    const id = `${process.pid}:${this.#nextSessionId}`;
+    this.#nextSessionId += 1;
+    return id;
+  }
+
+  async begin(sessionId, lockName, recordName, timeoutMs, hooks) {
+    this.#hooks.set(sessionId, hooks ?? null);
     try {
-      parsed = JSON.parse(bytes);
+      return await this.#request('begin', { sessionId, lockName, recordName, timeoutMs });
     } catch (error) {
-      throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
+      this.#hooks.delete(sessionId);
+      throw error;
     }
-    return clone(assertCustodyRecord(parsed, custodyId));
+  }
+
+  read(sessionId, recordName) {
+    return this.#request('read', { sessionId, recordName });
+  }
+
+  replace(sessionId, recordName, expectedRevision, encoded) {
+    return this.#request('replace', {
+      sessionId,
+      recordName,
+      expectedRevision,
+      encoded,
+    });
+  }
+
+  async release(sessionId) {
+    try {
+      await this.#request('release', { sessionId });
+    } finally {
+      this.#hooks.delete(sessionId);
+    }
+  }
+
+  retireAfterInitializationFailure() {
+    if (this.#closed) return;
+    this.#closed = true;
+    for (const pending of this.#pending.values()) {
+      pending.reject(diagnostic(
+        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+        'filesystem agent custody directory capability initialization failed',
+      ));
+    }
+    this.#pending.clear();
+    this.#hooks.clear();
+    this.#child.kill('SIGTERM');
+  }
+
+  #request(command, fields) {
+    if (this.#closed || !this.#child.connected) {
+      return Promise.reject(diagnostic(
+        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+        'filesystem agent custody directory capability is unavailable',
+      ));
+    }
+    const requestId = this.#nextRequestId;
+    this.#nextRequestId += 1;
+    this.#ref();
+    return new Promise((resolve, reject) => {
+      this.#pending.set(requestId, { resolve, reject });
+      try {
+        this.#child.send({ kind: 'request', requestId, command, ...fields }, (error) => {
+          if (error == null) return;
+          const pending = this.#pending.get(requestId);
+          if (pending === undefined) return;
+          this.#pending.delete(requestId);
+          pending.reject(ioFailure('send-capability-command', error));
+          this.#unrefIfIdle();
+        });
+      } catch (error) {
+        this.#pending.delete(requestId);
+        reject(ioFailure('send-capability-command', error));
+        this.#unrefIfIdle();
+      }
+    });
+  }
+
+  #onMessage(message) {
+    if (message?.kind === 'response') {
+      const pending = this.#pending.get(message.requestId);
+      if (pending === undefined) return;
+      this.#pending.delete(message.requestId);
+      if (message.ok) pending.resolve(message.value);
+      else pending.reject(remoteError(message.error));
+      this.#unrefIfIdle();
+      return;
+    }
+    if (message?.kind !== 'hook') return;
+    const hook = this.#hooks.get(message.sessionId)?.[message.name];
+    Promise.resolve()
+      .then(() => (typeof hook === 'function' ? hook(message.context) : undefined))
+      .then(
+        () => this.#sendHookResult(message.hookId, true),
+        (error) => this.#sendHookResult(message.hookId, false, serializeHookError(error)),
+      );
+  }
+
+  #sendHookResult(hookId, ok, error = undefined) {
+    if (this.#closed || !this.#child.connected) return;
+    try {
+      this.#child.send({ kind: 'hookResult', hookId, ok, error });
+    } catch {
+      // Child exit rejects the owning request and is the authoritative error.
+    }
+  }
+
+  #fail(error) {
+    if (this.#closed) return;
+    this.#closed = true;
+    for (const pending of this.#pending.values()) pending.reject(error);
+    this.#pending.clear();
+    this.#hooks.clear();
+  }
+
+  #ref() {
+    this.#child.ref();
+    this.#child.channel?.ref?.();
+  }
+
+  #unref() {
+    this.#child.unref();
+    this.#child.channel?.unref?.();
+  }
+
+  #unrefIfIdle() {
+    if (this.#pending.size === 0) this.#unref();
+  }
+}
+
+const retainedDirectoryCapability = async (directory) => {
+  let capability = DIRECTORY_CAPABILITIES.get(directory);
+  if (capability !== undefined) return capability;
+  // Retained capabilities deliberately survive for the process lifetime: an
+  // idle eviction followed by pathname re-resolution would reopen the ABA this
+  // adapter exists to close. Bound distinct configured directories instead.
+  // A helper that dies remains a closed capability until process restart; it
+  // is never silently recreated from a potentially replaced pathname.
+  if (DIRECTORY_CAPABILITIES.size >= MAX_RETAINED_DIRECTORY_CAPABILITIES) {
+    throw diagnostic(
+      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.capabilityLimit,
+      'filesystem agent custody retained-directory capacity is exhausted',
+      { maximumDirectories: MAX_RETAINED_DIRECTORY_CAPABILITIES },
+    );
+  }
+  capability = (async () => {
+    const identity = await assertPrivateDirectory(directory);
+    const retained = new RetainedDirectoryCapability(directory);
+    try {
+      await retained.initialize(identity);
+      return retained;
+    } catch (error) {
+      retained.retireAfterInitializationFailure();
+      throw error;
+    }
+  })();
+  DIRECTORY_CAPABILITIES.set(directory, capability);
+  try {
+    return await capability;
   } catch (error) {
-    if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
-    throw ioFailure('read-record', error);
-  } finally {
-    await handle.close().catch(() => {});
+    if (DIRECTORY_CAPABILITIES.get(directory) === capability) {
+      DIRECTORY_CAPABILITIES.delete(directory);
+    }
+    throw error;
   }
 };
 
@@ -736,148 +829,6 @@ const withProcessOwnership = async (key, operation) => {
   } finally {
     release();
     if (PROCESS_OWNERSHIP.get(key) === current) PROCESS_OWNERSHIP.delete(key);
-  }
-};
-
-const acquireLock = async (path, timeoutMs) => {
-  const startedAt = performance.now();
-  let lastBusy = null;
-  let database = null;
-  for (;;) {
-    try {
-      // The lock must live in this process. A child that merely holds lockf(2)
-      // can die after a parent-side liveness check and before rename(), allowing
-      // a successor to commit before the stale parent overwrites it. SQLite's
-      // BEGIN IMMEDIATE is a POSIX advisory lock held by this exact DatabaseSync
-      // connection, so callback, CAS, rename, and directory fsync share one
-      // crash-released owner. Busy acquisition is polled nonblocking so another
-      // process cannot freeze this process's event loop while it owns the lock.
-      database = new DatabaseSync(path);
-      database.exec('PRAGMA busy_timeout = 0');
-      database.exec('BEGIN IMMEDIATE');
-      break;
-    } catch (error) {
-      try { database?.close(); } catch { /* preserve acquisition failure */ }
-      database = null;
-      if (error?.errcode !== 5 && error?.errcode !== 6) {
-        throw ioFailure('acquire-lock', error);
-      }
-      lastBusy = error;
-      const remainingMs = timeoutMs - (performance.now() - startedAt);
-      if (remainingMs <= 0) {
-        throw diagnostic(
-          AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
-          'timed out waiting for filesystem agent custody ownership',
-          { timeoutMs },
-          lastBusy,
-        );
-      }
-      await new Promise((resolve) => setTimeout(resolve, Math.min(LOCK_RETRY_MS, remainingMs)));
-    }
-  }
-
-  let released = false;
-  return Object.freeze({
-    assertActive() {
-      if (released) {
-        throw diagnostic(
-          AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-          'filesystem agent custody ownership was released',
-        );
-      }
-    },
-    async release() {
-      if (released) return;
-      released = true;
-      try {
-        database.exec('COMMIT');
-      } catch (error) {
-        throw ioFailure('release-lock', error);
-      } finally {
-        try { database.close(); } catch { /* release failure above is authoritative */ }
-      }
-    },
-  });
-};
-
-const atomicReplace = async ({
-  directory,
-  directoryIdentity,
-  recordPath,
-  custodyId,
-  expectedRevision,
-  nextValue,
-  lock,
-  testHooks,
-}) => {
-  lock.assertActive();
-  await assertPrivateDirectory(directory, directoryIdentity);
-  const current = await readRecordFile(recordPath, custodyId, {
-    directory,
-    directoryIdentity,
-  });
-  const actualRevision = current?.revision ?? null;
-  if (actualRevision !== expectedRevision) {
-    throw diagnostic(
-      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.casStale,
-      'durable filesystem agent custody changed before compare-and-swap',
-      { expectedRevision, actualRevision },
-    );
-  }
-  const next = clone(assertCustodyRecord(clone(nextValue), custodyId));
-  assertReplacement(current, next);
-  const encoded = `${JSON.stringify(next)}\n`;
-  if (Buffer.byteLength(encoded, 'utf8') > MAX_RECORD_BYTES) {
-    throw diagnostic(
-      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
-      'filesystem agent custody record exceeds its bounded envelope',
-      { maximumBytes: MAX_RECORD_BYTES },
-    );
-  }
-  const temporaryPath = `${recordPath}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
-  let handle;
-  let renamed = false;
-  try {
-    handle = await open(
-      temporaryPath,
-      fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_NOFOLLOW,
-      FILE_MODE,
-    );
-    await handle.writeFile(encoded, { encoding: 'utf8' });
-    await handle.chmod(FILE_MODE);
-    await handle.sync();
-    await assertPrivateFile(temporaryPath, await handle.stat(), {
-      maximumBytes: MAX_RECORD_BYTES,
-    });
-    await handle.close();
-    handle = null;
-    await testHooks?.beforeRecordRename?.(Object.freeze({
-      custodyId,
-      expectedRevision,
-      nextRevision: next.revision,
-    }));
-    lock.assertActive();
-    await assertPrivateDirectory(directory, directoryIdentity);
-    await rename(temporaryPath, recordPath);
-    renamed = true;
-    await assertPrivateFile(recordPath, await lstat(recordPath), {
-      maximumBytes: MAX_RECORD_BYTES,
-    });
-    await syncDirectory(directory, directoryIdentity);
-    lock.assertActive();
-    await testHooks?.afterRecordRename?.(Object.freeze({
-      custodyId,
-      expectedRevision,
-      nextRevision: next.revision,
-    }));
-    await assertPrivateDirectory(directory, directoryIdentity);
-    return clone(next);
-  } catch (error) {
-    if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
-    throw ioFailure('replace-record', error);
-  } finally {
-    await handle?.close().catch(() => {});
-    if (!renamed) await unlink(temporaryPath).catch(() => {});
   }
 };
 
@@ -910,15 +861,22 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     throw new TypeError('filesystem agent custody directory must be a normalized path without a trailing separator');
   }
   normalizeDuration(lockTimeoutMs, 'lockTimeoutMs');
+  const testHookNames = [
+    'beforeLock',
+    'beforeOrphanCleanup',
+    'beforeOrphanUnlink',
+    'beforeTemporaryCreate',
+    'afterTemporaryCreate',
+    'beforeRecordRename',
+    'afterRecordRename',
+  ];
   if (
     testHooks !== null
     && (
       typeof testHooks !== 'object'
       || Array.isArray(testHooks)
-      || Object.keys(testHooks).some(
-        (name) => name !== 'beforeRecordRename' && name !== 'afterRecordRename',
-      )
-      || ['beforeRecordRename', 'afterRecordRename'].some(
+      || Object.keys(testHooks).some((name) => !testHookNames.includes(name))
+      || testHookNames.some(
         (name) => testHooks[name] !== undefined && typeof testHooks[name] !== 'function',
       )
     )
@@ -931,24 +889,41 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     const key = storageKey(custodyId);
     return Object.freeze({
       custodyId,
-      recordPath: join(directory, `${key}.json`),
-      lockPath: join(directory, `${key}.lock`),
+      recordName: `${key}.json`,
+      lockName: `${key}.lock`,
     });
   };
+
+  let lastMaintenance = Object.freeze({
+    scannedEntries: 0,
+    orphanCount: 0,
+    orphanBytes: 0,
+    removedCount: 0,
+  });
 
   const withOwnership = async (rawCustodyId, operation) => {
     if (typeof operation !== 'function') {
       throw new TypeError('filesystem agent custody ownership requires an operation callback');
     }
-    const { custodyId, recordPath, lockPath } = pathsFor(rawCustodyId);
-    return withProcessOwnership(lockPath, async () => {
-      const directoryIdentity = await assertPrivateDirectory(directory);
-      await ensurePrivateLockFile(lockPath);
-      await assertPrivateDirectory(directory, directoryIdentity);
-      await syncDirectory(directory, directoryIdentity);
-      const lock = await acquireLock(lockPath, lockTimeoutMs);
-      await assertPrivateDirectory(directory, directoryIdentity);
-      await assertPrivateFile(lockPath, await lstat(lockPath));
+    const { custodyId, recordName, lockName } = pathsFor(rawCustodyId);
+    return withProcessOwnership(`${directory}\u0000${lockName}`, async () => {
+      const capability = await retainedDirectoryCapability(directory);
+      const sessionId = capability.nextSessionId();
+      const boundHooks = testHooks === null ? null : Object.fromEntries(
+        testHookNames
+          .filter((name) => typeof testHooks[name] === 'function')
+          .map((name) => [name, (context) => testHooks[name](Object.freeze({
+            custodyId,
+            ...context,
+          }))]),
+      );
+      lastMaintenance = Object.freeze(await capability.begin(
+        sessionId,
+        lockName,
+        recordName,
+        lockTimeoutMs,
+        boundHooks,
+      ));
       let active = true;
       let ownerOperationActive = false;
       const runOwnerOperation = async (operationName, operationBody) => {
@@ -967,7 +942,6 @@ export function createFilesystemAgentAuthorityCustodyStorage({
         }
         ownerOperationActive = true;
         try {
-          lock.assertActive();
           return await operationBody();
         } finally {
           ownerOperationActive = false;
@@ -993,12 +967,15 @@ export function createFilesystemAgentAuthorityCustodyStorage({
         },
         async read() {
           return runOwnerOperation('read', async () => {
-            const value = await readRecordFile(recordPath, custodyId, {
-              directory,
-              directoryIdentity,
-            });
-            lock.assertActive();
-            return value;
+            const bytes = await capability.read(sessionId, recordName);
+            if (bytes === null) return null;
+            let parsed;
+            try {
+              parsed = JSON.parse(bytes);
+            } catch (error) {
+              throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
+            }
+            return clone(assertCustodyRecord(parsed, custodyId));
           });
         },
         async replace(expectedRevision, nextValue) {
@@ -1008,24 +985,42 @@ export function createFilesystemAgentAuthorityCustodyStorage({
                 positive: true,
               });
             }
-            return atomicReplace({
-              directory,
-              directoryIdentity,
-              recordPath,
-              custodyId,
-              expectedRevision,
-              nextValue,
-              lock,
-              testHooks,
-            });
+            const currentBytes = await capability.read(sessionId, recordName);
+            let current = null;
+            if (currentBytes !== null) {
+              try {
+                current = clone(assertCustodyRecord(JSON.parse(currentBytes), custodyId));
+              } catch (error) {
+                if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+                throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
+              }
+            }
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw diagnostic(
+                AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.casStale,
+                'durable filesystem agent custody changed before compare-and-swap',
+                { expectedRevision, actualRevision },
+              );
+            }
+            const next = clone(assertCustodyRecord(clone(nextValue), custodyId));
+            assertReplacement(current, next);
+            const encoded = `${JSON.stringify(next)}\n`;
+            if (Buffer.byteLength(encoded, 'utf8') > MAX_RECORD_BYTES) {
+              throw diagnostic(
+                AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.fileInsecure,
+                'filesystem agent custody record exceeds its bounded envelope',
+                { maximumBytes: MAX_RECORD_BYTES },
+              );
+            }
+            await capability.replace(sessionId, recordName, expectedRevision, encoded);
+            return clone(next);
           });
         },
       });
       let operationError = null;
       try {
         const result = await operation(owner);
-        lock.assertActive();
-        await assertPrivateDirectory(directory, directoryIdentity);
         return result;
       } catch (error) {
         operationError = error;
@@ -1033,7 +1028,7 @@ export function createFilesystemAgentAuthorityCustodyStorage({
       } finally {
         active = false;
         try {
-          await lock.release();
+          await capability.release(sessionId);
         } catch (releaseError) {
           if (operationError === null) throw releaseError;
         }
@@ -1044,6 +1039,9 @@ export function createFilesystemAgentAuthorityCustodyStorage({
   return Object.freeze({
     partitionOwnership: 'partitioned-v1',
     withOwnership,
+    maintenanceSnapshot() {
+      return clone(lastMaintenance);
+    },
     async snapshot(rawCustodyId) {
       return withOwnership(rawCustodyId, (owner) => owner.read());
     },
