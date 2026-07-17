@@ -15,6 +15,8 @@
 //!   would leave a protected resource with no eligible holder.
 
 use super::LocalDatabase;
+use super::auth::ServiceAuthTransactionAttempt;
+use super::auth_agent_credentials::{require_agent_clock_on, token_ids_for_user};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, MembershipScope, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, params};
@@ -128,39 +130,85 @@ impl LocalDatabase {
         now_ms: u64,
         manifest: &SchemaManifest,
     ) -> SnapbackResult<()> {
-        self.with_auth_transaction(|tx| {
-            let existing: Option<(String, Option<i64>)> = tx
-                .query_row(
-                    "SELECT kind, deactivated_at_ms FROM _auth_users WHERE id = ?1",
-                    params![user_id],
-                    |row| Ok((row.get(0)?, row.get(1)?)),
-                )
-                .optional()?;
-            let Some((kind, deactivated_at_ms)) = existing else {
-                return Err(agent_unknown(user_id));
-            };
-            if kind != "agent" {
-                return Err(agent_unknown(user_id));
-            }
-            if deactivated_at_ms.is_some() {
-                // Already terminal; permanent state is idempotent.
-                return Ok(());
-            }
+        self.observe_agent_authorization_clock(now_ms)?;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                token_ids_for_user(tx, user_id)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let existing: Option<(String, Option<i64>)> = tx
+                    .query_row(
+                        "SELECT kind, deactivated_at_ms FROM _auth_users WHERE id = ?1",
+                        params![user_id],
+                        |row| Ok((row.get(0)?, row.get(1)?)),
+                    )
+                    .optional()?;
+                let Some((kind, deactivated_at_ms)) = existing else {
+                    return Err(agent_unknown(user_id));
+                };
+                if kind != "agent" {
+                    return Err(agent_unknown(user_id));
+                }
+                if deactivated_at_ms.is_some() {
+                    // Already terminal; permanent state is idempotent.
+                    return Ok(());
+                }
 
-            let stranded = stranded_protected_resources(tx, user_id, manifest)?;
-            if !stranded.is_empty() {
-                return Err(deactivation_would_strand(&stranded));
-            }
+                let stranded = stranded_protected_resources(tx, user_id, manifest)?;
+                if !stranded.is_empty() {
+                    return Err(deactivation_would_strand(&stranded));
+                }
 
-            tx.execute(
-                "UPDATE _auth_users
+                tx.execute(
+                    "UPDATE _auth_users
                  SET deactivated_at_ms = ?1
                  WHERE id = ?2 AND kind = 'agent' AND deactivated_at_ms IS NULL",
-                params![now_ms as i64, user_id],
-            )?;
-            validate_protected_membership_final_state(tx, manifest)?;
-            Ok(())
-        })
+                    params![now_ms as i64, user_id],
+                )?;
+                validate_protected_membership_final_state(tx, manifest)?;
+                Ok(())
+            },
+        );
+        match attempt {
+            ServiceAuthTransactionAttempt::Committed(()) => Ok(()),
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
+                let exact = self.with_auth_read(|connection| {
+                    Ok(connection
+                        .query_row(
+                            "SELECT deactivated_at_ms FROM _auth_users
+                             WHERE id = ?1 AND kind = 'agent'",
+                            params![user_id],
+                            |row| row.get::<_, Option<i64>>(0),
+                        )
+                        .optional()?
+                        .flatten()
+                        == Some(now_ms as i64))
+                })?;
+                if !exact {
+                    let predecessor = self.with_auth_read(|connection| {
+                        Ok(connection
+                            .query_row(
+                                "SELECT deactivated_at_ms FROM _auth_users
+                                 WHERE id = ?1 AND kind = 'agent'",
+                                params![user_id],
+                                |row| row.get::<_, Option<i64>>(0),
+                            )
+                            .optional()?
+                            == Some(None))
+                    })?;
+                    if predecessor {
+                        self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    }
+                    return Err(error);
+                }
+                self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                Ok(())
+            }
+        }
     }
 }
 

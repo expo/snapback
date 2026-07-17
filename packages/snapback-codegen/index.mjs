@@ -645,6 +645,15 @@ export async function generateInProcess(backendDir, options = {}) {
       }
       const declaredRoles = new Set(declaration.roles);
       const vocabulary = [...declaration.roles, ...(declaration.pendingRoles ?? [])];
+      for (const field of ['grantedByActor', 'grantedByEffective', 'grantedByGrant']) {
+        if (Object.hasOwn(table.fields, field)) {
+          err('SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED', 'schema', `table ${name} field ${field} is host-managed membership provenance`, {
+            table: name,
+            declaration: declaration.id ?? name,
+            field,
+          });
+        }
+      }
       const foldedRoles = new Map();
       for (const roleName of vocabulary) {
         if (roleName === 'self' || roleName === 'none') {
@@ -741,10 +750,32 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       for (const transition of declaration.transitions) {
+        const hasRoleCaller = transition.by.some((caller) => vocabulary.includes(caller));
+        if (transition.target === 'self' && hasRoleCaller) {
+          err('SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR', 'schema', `table ${name} membership ${transition.op} transition combines a role caller with target self, which is unreachable`, {
+            table: name,
+            declaration: declaration.id ?? name,
+            op: transition.op,
+          });
+        }
+        if (transition.target === 'other' && transition.by.includes('self')) {
+          err('SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER', 'schema', `table ${name} membership ${transition.op} transition combines caller self with target other`, {
+            table: name,
+            declaration: declaration.id ?? name,
+            op: transition.op,
+          });
+        }
         for (const fieldName of transition.fields ?? []) {
           if (!Object.hasOwn(table.fields, fieldName)) {
             err('SCHEMA_MEMBERSHIP_TRANSITION_FIELD_UNKNOWN', 'schema', `table ${name} membership transition references unknown patch field ${fieldName}`, {
               table: name,
+              field: fieldName,
+            });
+          } else if ([declaration.principal, declaration.resource, declaration.role].includes(fieldName)) {
+            err('SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD', 'schema', `table ${name} membership transition cannot patch authorization axis ${fieldName}`, {
+              table: name,
+              declaration: declaration.id ?? name,
+              op: transition.op,
               field: fieldName,
             });
           }
@@ -778,7 +809,45 @@ export async function generateInProcess(backendDir, options = {}) {
     };
   }
 
+  // SQLite index names are database-global and the physical spelling joins
+  // table/index with `_`. Reserve the two declaration-derived membership
+  // indexes in the same namespace as user indexes before emitting artifacts.
+  // @ref LLP 0056#declaring-a-membership-table — generated membership indexes
+  //   are true schema objects, so a colliding author declaration must fail.
+  const physicalIndexNames = new Map();
+  for (const table of Object.values(tables)) {
+    const entries = table.indexes.map((index) => ({ name: index.name, generatedMembership: false }));
+    if (table.membership) {
+      entries.push(
+        { name: '_membership_pk', generatedMembership: true },
+        { name: '_membership_reverse', generatedMembership: true },
+      );
+    }
+    for (const entry of entries) {
+      const physicalName = `${table.name}_${entry.name}`;
+      const current = { table: table.name, index: entry.name, generatedMembership: entry.generatedMembership };
+      const previous = physicalIndexNames.get(physicalName);
+      if (previous) {
+        const membershipCollision = previous.generatedMembership || current.generatedMembership;
+        err(
+          membershipCollision ? 'SCHEMA_MEMBERSHIP_INDEX_NAME_COLLISION' : 'SCHEMA_INDEX_NAME_COLLISION',
+          'schema',
+          `index ${table.name}.${entry.name} collides with ${previous.table}.${previous.index} at physical name ${physicalName}`,
+          {
+            table: table.name,
+            index: entry.name,
+            physicalName,
+            declarations: [`${previous.table}.${previous.index}`, `${table.name}.${entry.name}`],
+          },
+        );
+      } else {
+        physicalIndexNames.set(physicalName, current);
+      }
+    }
+  }
+
   const membershipDeclarations = new Map();
+  const membershipGeneratedSymbols = new Map();
   for (const table of Object.values(tables)) {
     if (!table.membership) continue;
     const declaration = table.membership.id ?? table.name;
@@ -796,6 +865,25 @@ export async function generateInProcess(backendDir, options = {}) {
       });
     } else {
       membershipDeclarations.set(declaration, { table, membership: table.membership });
+    }
+    if (typeof declaration === 'string' && IDENT.test(declaration)) {
+      const generatedSymbol = `${pascal(declaration)}Role`;
+      const priorSymbol = membershipGeneratedSymbols.get(generatedSymbol);
+      if (priorSymbol && priorSymbol.declaration !== declaration) {
+        err(
+          'SCHEMA_MEMBERSHIP_GENERATED_SYMBOL_COLLISION',
+          'schema',
+          `membership declarations ${JSON.stringify(priorSymbol.declaration)} and ${JSON.stringify(declaration)} both generate TypeScript symbol ${generatedSymbol}`,
+          {
+            declaration,
+            generatedSymbol,
+            declarations: [priorSymbol.declaration, declaration],
+            tables: [priorSymbol.table.name, table.name],
+          },
+        );
+      } else if (!priorSymbol) {
+        membershipGeneratedSymbols.set(generatedSymbol, { declaration, table });
+      }
     }
   }
 
@@ -2657,13 +2745,15 @@ function rowDescriptor(table) {
 
 function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // @ref LLP 0055#grants — static authority-creation is best-effort, while the
-  // runtime write gate remains authoritative. Every declared write to a
-  // permission-backing table derives the marker; authors may conservatively
-  // mark opaque or nested paths explicitly.
+  // runtime write gate remains authoritative. Declared permission-backing
+  // writes derive the marker by default; an explicit false supports a
+  // bootstrap-only wrapper, whose dynamic host gate can perform only the
+  // structurally non-authority-creating bootstrap operation. If such a
+  // wrapper reaches any ordinary membership write, the host still refuses it.
   const authorityCreating = def.authorityCreating === true
-    || [...declaredWrites].some((table) => (
+    || (def.authorityCreating !== false && [...declaredWrites].some((table) => (
       tables[table]?.permissionBacking === true || tables[table]?.membership !== undefined
-    ));
+    )));
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
@@ -3213,7 +3303,7 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
       ? idFieldTypeTable(table.fields?.[membership.resource]?.fieldType)
       : null;
     const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'null';
-    lines.push(`  ${declaration}: { requireRole(resource: ${resourceType}, ...roles: ${typeName}Role[]): Promise<void> };`);
+    lines.push(`  ${declaration}: { requireRole(resource: ${resourceType}, role: ${typeName}Role, ...roles: ${typeName}Role[]): Promise<void> };`);
   }
   lines.push('}');
   const membershipAliases = [];
@@ -3235,8 +3325,23 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
       .filter(([fieldName]) => ![membership.principal, membership.resource, membership.role].includes(fieldName))
       .map(([fieldName, validator]) => `${fieldName}?: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`);
     membershipAliases.push(`export type ${typeName}Insert = { ${insertFields.join('; ')} };`);
-    membershipAliases.push(`export type ${typeName}Patch = { ${patchFields.join('; ')} };`);
-    membershipMembers.push(`  ${declaration}: { insert(values: ${typeName}Insert): Promise<unknown>; setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
+    const patchType = patchFields.length === 0
+      ? 'Record<string, never>'
+      : `{ ${patchFields.join('; ')} }`;
+    membershipAliases.push(`export type ${typeName}Patch = ${patchType};`);
+    let bootstrapMethod = '';
+    if (membership.bootstrapRole !== undefined && membership.scope === 'resource') {
+      const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+      const resourceDefinition = resourceTable ? schemaDef.tables?.[resourceTable] : null;
+      if (resourceTable && resourceDefinition) {
+        const bootstrapFields = Object.entries(resourceDefinition.fields ?? {}).map(([fieldName, validator]) => (
+          `${fieldName}${validator.optional ? '?' : ''}: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`
+        ));
+        membershipAliases.push(`export type ${typeName}Bootstrap = { ${bootstrapFields.join('; ')} };`);
+        bootstrapMethod = `bootstrap(values: ${typeName}Bootstrap): Promise<Id<'${resourceTable}'>>; `;
+      }
+    }
+    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
   }
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');

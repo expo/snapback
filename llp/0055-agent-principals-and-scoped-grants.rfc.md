@@ -5,7 +5,11 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (durable agent-custody closure: the reference headless
+**Revised:** 2026-07-16 (finite service-authority closure: exact token witnesses
+now fence every finite response/effect, auth-session descriptor, connection
+open, and connection act against terminal storage transactions; deadline
+terminality is durable before publication and external native initiation has
+an explicit cut). 2026-07-16 (durable agent-custody closure: the reference headless
 client persists a versioned authority tuple/epoch/revision record behind exact
 transactional compare-and-set, requires an exact server descriptor before
 initialization, adoption, recovery, or live credential replacement, and waits
@@ -1970,6 +1974,11 @@ durable deletion. The finite HTTP path awaits the accepted terminal barrier,
 and all result publication, transport creation, and durable replay effects are
 fenced against the exact persisted capture. Counter exhaustion closes the
 fence permanently rather than wrapping or reusing an authority identity.
+For durable Agent custody, exhaustion commits a terminal `exhausted` marker
+that strips the authority tuple and credential whenever one revision remains.
+A legacy non-terminal record already at the maximum revision is durable poison
+on every read: it blanks publication and is never accepted as current merely
+because no further compare-and-set is representable.
 
 Queued acknowledgement is authorized on the same opaque descriptor axis as
 settlement, not merely on the effective-user fingerprint. This matters for two
@@ -2025,6 +2034,34 @@ does not erase the membership, creation provenance retains the actor,
 effective user, and dead grant id, and a later autonomous role check succeeds
 from that row. The new typed diagnostic is projected as HTTP 403 and included
 in the reviewed production diagnostic inventory.
+
+## Implementation checkpoint: finite service authority fencing (2026-07-16)
+
+Finite scoped-token use now carries an exact process witness from durable
+resolution through final publication. The witness binds token, grant, actor,
+effective user, credential generation, and token/grant deadlines. It is used
+by query, mutation, action, `/auth/session`, connection-open, retained live,
+and every later connection act. A terminal storage operation plans the exact
+affected token ids read-only, premarks those fences before its first write,
+then settles only its own ticket after known commit, known rollback, or an
+exact durable reconciliation. An uncertain outcome blocks only that planned
+set; it never quarantines unrelated service principals.
+
+The two ending axes remain separate. Token revoke, expiry, and cap eviction
+terminalize the carrier only. Grant expiry/revocation, credential rotation or
+revocation, and principal deactivation terminalize durable authority. A
+terminal cause is chosen from the committed operation, not reconstructed from
+a generic invalid-token error. Monotonic-observed token or grant expiry is
+persisted through the same exact terminal transaction before any finite or
+live surface publishes terminality, so restart cannot revive it under a lower
+wall sample.
+
+Detached Ibex actions also fence native network initiation. Application input
+is normalized first; `Begin` reserves the exact authority; the trusted native
+enqueue occurs synchronously; and `Initiated` is acknowledged exactly once in
+`finally`. A terminal transaction that has premarked first prevents enqueue;
+one that arrives after `Begin` waits only for that bounded native initiation
+cut, not for the network response.
 
 ## Status
 

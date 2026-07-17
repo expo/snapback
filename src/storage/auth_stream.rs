@@ -10,10 +10,11 @@ use super::{AuthorizationVersion, LocalDatabase};
 use crate::auth::session_projection::{
     AUTHORIZATION_STREAM_META_KEY, AuthorizationStreamIncarnation, AuthorizationStreamRecord,
     ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionTokenRow,
-    ProjectionUserRow,
+    ProjectionUserRow, SESSION_TERMINAL_CAUSE_META_PREFIX,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{Connection, OptionalExtension, Transaction, TransactionBehavior, params};
+use std::collections::BTreeMap;
 
 pub(crate) const AUTHORIZATION_EPOCH_META_KEY: &str = "authorization_epoch_v1";
 
@@ -125,6 +126,46 @@ impl LocalDatabase {
                 })?
                 .collect::<Result<Vec<_>, _>>()?
         };
+        let mut terminal_causes = {
+            let mut statement = tx.prepare(
+                "SELECT key, typeof(value), CAST(value AS BLOB)
+                 FROM _snapback_meta
+                 WHERE substr(key, 1, ?1) = ?2
+                 ORDER BY key",
+            )?;
+            let rows = statement
+                .query_map(
+                    params![
+                        SESSION_TERMINAL_CAUSE_META_PREFIX.len() as i64,
+                        SESSION_TERMINAL_CAUSE_META_PREFIX,
+                    ],
+                    |row| {
+                        Ok((
+                            row.get::<_, String>(0)?,
+                            row.get::<_, String>(1)?,
+                            row.get::<_, Vec<u8>>(2)?,
+                        ))
+                    },
+                )?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut causes = BTreeMap::new();
+            for (key, storage_class, bytes) in rows {
+                if storage_class != "text" {
+                    return Err(projection_corrupt(
+                        "a session terminal-cause witness is not stored as SQLite text",
+                    ));
+                }
+                let session_id = key
+                    .strip_prefix(SESSION_TERMINAL_CAUSE_META_PREFIX)
+                    .expect("prefix-constrained metadata query");
+                if session_id.is_empty() || causes.insert(session_id.to_owned(), bytes).is_some() {
+                    return Err(projection_corrupt(
+                        "session terminal-cause metadata has an invalid key",
+                    ));
+                }
+            }
+            causes
+        };
         let sessions = {
             let mut statement = tx.prepare(
                 "SELECT id, user_id, identity_id, authority_instance_id,
@@ -132,7 +173,7 @@ impl LocalDatabase {
                         expires_at_ms, absolute_expires_at_ms, revoked_at_ms
                  FROM _auth_sessions ORDER BY id",
             )?;
-            statement
+            let mut sessions = statement
                 .query_map([], |row| {
                     Ok(ProjectionSessionRow {
                         id: row.get(0)?,
@@ -146,10 +187,20 @@ impl LocalDatabase {
                         expires_at_ms: row.get(8)?,
                         absolute_expires_at_ms: row.get(9)?,
                         revoked_at_ms: row.get(10)?,
+                        terminal_cause: None,
                     })
                 })?
-                .collect::<Result<Vec<_>, _>>()?
+                .collect::<Result<Vec<_>, _>>()?;
+            for session in &mut sessions {
+                session.terminal_cause = terminal_causes.remove(&session.id);
+            }
+            sessions
         };
+        if !terminal_causes.is_empty() {
+            return Err(projection_corrupt(
+                "session terminal-cause metadata names a missing session",
+            ));
+        }
         let superseded_tokens = {
             let mut statement = tx.prepare(
                 "SELECT token_hash, session_id, superseded_at_ms

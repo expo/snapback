@@ -4,9 +4,9 @@ use crate::admin_secret_read::{
 };
 use crate::auth::admission::{AdmissionLease, AuthAdmissionController, ModeCommitFailure};
 use crate::auth::coordinator::{
-    AuthCoordinator, AuthFinish, CommittedAuthOutcome, CommittedAuthResponseClass,
-    CommittedRevocationTarget, ConnectionBearerResolution, ConnectionSessionThrottleKey,
-    IssuanceFinish, RevocationFinish, RotationFinish,
+    AuthCoordinator, AuthFinish, BoundSessionResolution, CommittedAuthOutcome,
+    CommittedAuthResponseClass, CommittedRevocationTarget, ConnectionBearerResolution,
+    ConnectionSessionThrottleKey, IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
     AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
@@ -30,8 +30,15 @@ use crate::auth::provider::{
     PlannedRevocationCommit, ProviderError, StepUpBinding, auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
+    session_revoked as provider_session_revoked,
 };
-use crate::auth::session_projection::FencedPublication;
+use crate::auth::service_fence::{
+    ServiceAuthorityActResolution, ServiceAuthorityDisposition,
+    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWitness,
+};
+use crate::auth::session_projection::{
+    FencedPublication, RevocationReason, TerminalAuthorityDisposition,
+};
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
     MailboxResponse, MintSessionRequest, RequestCodeRequest, RequestCodeResponse,
@@ -353,6 +360,8 @@ struct DetachedActionHost {
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
     authority: PreparedAuthority,
+    external_effect_open: bool,
+    external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
 }
 
 impl DetachedActionHost {
@@ -431,7 +440,42 @@ impl IbexActionHost for DetachedActionHost {
         // This atomic generation fence keeps ordinary runtime/id/log calls off
         // the global instance mutex. A mutation rechecks while holding that
         // mutex, and detached mutation commit retains its own generation bind.
-        self.validate_live(op)
+        match op {
+            "action.externalEffectBegin" => {
+                self.validate_live(op)?;
+                if self.external_effect_open {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "an external action effect is already initiating",
+                    ));
+                }
+                {
+                    let mut snapback = self.lock_live(op)?;
+                    snapback.persist_service_deadline_if_due(&self.authority)?;
+                }
+                self.external_effect_permit = self
+                    .authority
+                    .begin_service_external_effect(now_millis(), Instant::now())?;
+                self.external_effect_open = true;
+                Ok(())
+            }
+            "action.externalEffectInitiated" => {
+                if !self.external_effect_open {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "no external action effect is awaiting initiation",
+                    ));
+                }
+                if let Some(permit) = self.external_effect_permit.take() {
+                    permit.initiated();
+                }
+                self.external_effect_open = false;
+                self.validate_live(op)
+            }
+            _ => self.validate_live(op),
+        }
     }
 
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
@@ -636,6 +680,8 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                     app_generation,
                     app_generation_fence,
                     authority: invocation.authority().clone(),
+                    external_effect_open: false,
+                    external_effect_permit: None,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = runtime.invoke_ibex_action_prepared(
@@ -1038,6 +1084,7 @@ enum BoundGrantAuthority {
         token_id: String,
         deadline_ms: u64,
         publication: FencedPublication,
+        service_publication: ServiceAuthorityPublication,
     },
 }
 
@@ -1099,6 +1146,33 @@ impl BoundGrantAuthority {
             | Self::Session { publication, .. }
             | Self::ServicePrincipal { publication, .. } => publication,
         }
+    }
+
+    fn service_publication(&self) -> Option<&ServiceAuthorityPublication> {
+        match self {
+            Self::ServicePrincipal {
+                service_publication,
+                ..
+            } => Some(service_publication),
+            Self::Anonymous { .. } | Self::Session { .. } => None,
+        }
+    }
+
+    fn try_publish<T>(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+        publish: impl FnOnce() -> SnapbackResult<T>,
+    ) -> SnapbackResult<Option<T>> {
+        let nested = self
+            .publication()
+            .try_publish(epoch_now_ms, monotonic_now, || {
+                match self.service_publication() {
+                    Some(service) => service.try_publish(epoch_now_ms, monotonic_now, publish),
+                    None => publish().map(Some),
+                }
+            })?;
+        Ok(nested.flatten())
     }
 
     fn effect_fence(&self, grant_id: &str) -> crate::ephemeral::ConnectionEffectFence {
@@ -1213,23 +1287,38 @@ impl BoundGrantAuthority {
         }
     }
 
-    fn stale_error(&self) -> SnapbackError {
+    fn stale_error_at(&self, epoch_now_ms: u64) -> SnapbackError {
         match self {
             Self::Anonymous { .. } => SnapbackError::error(
                 "SNAPBACK_AUTH_STREAM_RESET",
                 "auth",
                 "the connection authorization stream is no longer current",
             ),
-            Self::Session { .. } => SnapbackError::error(
-                "SNAPBACK_AUTH_SESSION_EXPIRED",
-                "auth",
-                "the connection session is no longer current",
-            ),
-            Self::ServicePrincipal { .. } => SnapbackError::error(
-                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-                "auth",
-                "the connection scoped token is no longer current",
-            ),
+            Self::Session { publication, .. } => {
+                let disposition = publication
+                    .session_terminal_reason(epoch_now_ms, Instant::now())
+                    .ok()
+                    .flatten()
+                    .map(session_http_authority_disposition)
+                    .unwrap_or(HttpAuthorityDisposition::Carrier);
+                session_expired_http("the connection session is no longer current", disposition)
+            }
+            Self::ServicePrincipal {
+                service_publication,
+                ..
+            } => {
+                let disposition =
+                    match service_publication.terminal_disposition(epoch_now_ms, Instant::now()) {
+                        ServiceAuthorityDisposition::Carrier => HttpAuthorityDisposition::Carrier,
+                        ServiceAuthorityDisposition::DurableDelete => {
+                            HttpAuthorityDisposition::DurableDelete
+                        }
+                    };
+                scoped_token_invalid_http(
+                    "the connection scoped token authority is no longer current",
+                    disposition,
+                )
+            }
         }
     }
 
@@ -1569,11 +1658,34 @@ impl AuthTerminalLifecycle {
         );
     }
 
+    #[cfg(test)]
     fn expire_service_tokens(&self, token_ids: &[String], close_by: Instant) {
         self.terminate_service_tokens_for_reason(
             token_ids,
             crate::live_wire::LiveAuthErrorReason::Expired,
             crate::live_wire::LiveAuthorityDisposition::Carrier,
+            close_by,
+        );
+    }
+
+    fn expire_service_tokens_for_disposition(
+        &self,
+        token_ids: &[String],
+        disposition: ServiceAuthorityDisposition,
+        close_by: Instant,
+    ) {
+        let disposition = match disposition {
+            ServiceAuthorityDisposition::Carrier => {
+                crate::live_wire::LiveAuthorityDisposition::Carrier
+            }
+            ServiceAuthorityDisposition::DurableDelete => {
+                crate::live_wire::LiveAuthorityDisposition::DurableDelete
+            }
+        };
+        self.terminate_service_tokens_for_reason(
+            token_ids,
+            crate::live_wire::LiveAuthErrorReason::Expired,
+            disposition,
             close_by,
         );
     }
@@ -2435,10 +2547,15 @@ impl ConnectionRegistry {
             monotonic_now,
             auth_invalidation_protocol,
         } = attempt;
-        let stale = prepared.bound.stale_error();
-        let publication = prepared.bound.publication().clone();
+        let PreparedConnectionOpenAuthority {
+            resolved: _,
+            managed_authority,
+            bound,
+        } = prepared;
+        let publication_bound = bound.clone();
+        let stale = bound.stale_error_at(now_ms);
         let mut retirement = None;
-        let result = publication.try_publish(now_ms, monotonic_now, || {
+        let result = publication_bound.try_publish(now_ms, monotonic_now, || {
             let mut grants = self.lock();
             if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
                 && grants
@@ -2449,7 +2566,7 @@ impl ConnectionRegistry {
                 let same_authority = grants
                     .grants
                     .get(id)
-                    .is_some_and(|existing| existing.authority.same_identity(&prepared.bound));
+                    .is_some_and(|existing| existing.authority.same_identity(&bound));
                 if !same_authority {
                     if let Some(record) = grants.remove_grant(id) {
                         retirement = Some(
@@ -2469,8 +2586,8 @@ impl ConnectionRegistry {
                     .grants
                     .get_mut(id)
                     .expect("exact previous grant remains installed");
-                existing.authority = prepared.bound.clone();
-                existing.managed_authority = prepared.managed_authority;
+                existing.authority = bound.clone();
+                existing.managed_authority = managed_authority;
                 let grant_id = existing.grant_id.clone();
                 let connection_token = existing.token.clone();
                 let authorization_invalidation = existing.authorization_invalidation.clone();
@@ -2534,8 +2651,8 @@ impl ConnectionRegistry {
                 ConnectionGrantRecord {
                     grant_id: grant_id.clone(),
                     token: connection_token.clone(),
-                    authority: prepared.bound,
-                    managed_authority: prepared.managed_authority,
+                    authority: bound,
+                    managed_authority,
                     last_use_ms: now_ms,
                     used: false,
                     authorization_invalidation: authorization_invalidation.clone(),
@@ -2601,7 +2718,7 @@ impl ConnectionRegistry {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<()> {
-        let stale = prepared.bound.stale_error();
+        let stale = prepared.bound.stale_error_at(epoch_now_ms);
         prepared
             .bound
             .publication()
@@ -2636,7 +2753,7 @@ impl ConnectionRegistry {
         epoch_now_ms: u64,
         monotonic_now: Instant,
     ) -> SnapbackResult<()> {
-        let stale = prepared.bound.stale_error();
+        let stale = prepared.bound.stale_error_at(epoch_now_ms);
         prepared
             .bound
             .publication()
@@ -2752,7 +2869,7 @@ impl ConnectionRegistry {
                         effect_fence,
                     });
                 };
-                let Some(resolved) = coordinator.resolve_bound_connection_session(
+                let resolution = coordinator.resolve_bound_connection_session(
                     authorization_stream_incarnation,
                     session_id,
                     user_id,
@@ -2760,14 +2877,17 @@ impl ConnectionRegistry {
                     *generation,
                     epoch_now_ms,
                     monotonic_now,
-                )?
-                else {
-                    return Ok(ResolvedRoomConnectionAuthority::Current {
-                        auth: None,
-                        effect_fence,
-                    });
-                };
-                resolved
+                )?;
+                match resolution {
+                    BoundSessionResolution::Current(resolved) => resolved,
+                    BoundSessionResolution::Terminal { .. }
+                    | BoundSessionResolution::Unavailable => {
+                        return Ok(ResolvedRoomConnectionAuthority::Current {
+                            auth: None,
+                            effect_fence,
+                        });
+                    }
+                }
             }
         };
         let current = bound
@@ -2836,11 +2956,35 @@ impl ConnectionRegistry {
             BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
             BoundGrantAuthority::ServicePrincipal {
                 authority,
-                deadline_ms,
+                service_publication,
                 ..
             } => {
-                if *deadline_ms <= epoch_now_ms {
-                    return Err(ApiError::from(bound.stale_error()));
+                match service_publication
+                    .resolve_act(epoch_now_ms, monotonic_now)
+                    .map_err(ApiError::from)?
+                {
+                    ServiceAuthorityActResolution::Current(_) => {}
+                    ServiceAuthorityActResolution::Terminal(disposition) => {
+                        let disposition = match disposition {
+                            ServiceAuthorityDisposition::Carrier => {
+                                HttpAuthorityDisposition::Carrier
+                            }
+                            ServiceAuthorityDisposition::DurableDelete => {
+                                HttpAuthorityDisposition::DurableDelete
+                            }
+                        };
+                        return Err(ApiError::from(scoped_token_invalid_http(
+                            "the connection scoped token authority is no longer current",
+                            disposition,
+                        )));
+                    }
+                    ServiceAuthorityActResolution::Unavailable => {
+                        return Err(ApiError::from(SnapbackError::error(
+                            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                            "auth",
+                            "finite service authority termination is unresolved",
+                        )));
+                    }
                 }
                 authority.clone()
             }
@@ -2859,7 +3003,7 @@ impl ConnectionRegistry {
                         "authentication projection is unavailable",
                     ))
                 })?;
-                coordinator
+                match coordinator
                     .resolve_bound_connection_session(
                         authorization_stream_incarnation,
                         session_id,
@@ -2870,7 +3014,18 @@ impl ConnectionRegistry {
                         monotonic_now,
                     )
                     .map_err(ApiError::from)?
-                    .ok_or_else(|| ApiError::from(bound.stale_error()))?
+                {
+                    BoundSessionResolution::Current(resolved) => resolved,
+                    BoundSessionResolution::Terminal { reason } => {
+                        return Err(ApiError::from(session_expired_http(
+                            "the connection session is no longer current",
+                            session_http_authority_disposition(reason),
+                        )));
+                    }
+                    BoundSessionResolution::Unavailable => {
+                        return Err(ApiError::from(bound.stale_error_at(epoch_now_ms)));
+                    }
+                }
             }
         };
         Ok(PreparedConnectionAct {
@@ -2968,7 +3123,6 @@ impl PreparedConnectionAct {
         // an outbox acknowledgement or writer `try_send`.
         let published = self
             .bound
-            .publication()
             .try_publish(epoch_now_ms, monotonic_now, || {
                 let mut state = registry.lock();
                 let current = state
@@ -2988,7 +3142,7 @@ impl PreparedConnectionAct {
             })
             .map_err(ApiError::from)?;
         if published.is_none() {
-            return Err(ApiError::from(self.bound.stale_error()));
+            return Err(ApiError::from(self.bound.stale_error_at(epoch_now_ms)));
         }
         outcome.expect("a successful fenced connection act records its outcome")
     }
@@ -5605,133 +5759,150 @@ async fn prepare_registered_route_authority(
             .into());
         }
     }
-    let (resolved, fenced_publication) = if let Some(resolved) = resolved_connection_authority {
-        // Connection open/acts already carry the exact bound publication
-        // fence. The caller installs that fence after the shared invocation
-        // gate has projected this resolved authority.
-        (resolved.clone(), None)
-    } else {
-        match active_mode {
-            crate::manifest::AuthMode::Dev => {
-                if source == InvocationSource::BootstrapHandshake
-                    && headers.contains_key(header::AUTHORIZATION)
-                {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_AUTH_REQUIRED",
-                        "auth",
-                        "session credentials are unavailable while auth mode is dev",
-                    )
-                    .into());
-                }
-                if matches!(
-                    source,
-                    InvocationSource::HostOperationFunctionRun
-                        | InvocationSource::HostOperationMutationDryRun
-                ) {
-                    (dev_host_operation_authority(handler_value), None)
-                } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
-                    || source == InvocationSource::DirectAdminRunner
-                {
-                    (dev_body_authority(handler_value), None)
-                } else {
-                    (ResolvedAppAuthority::Anonymous, None)
-                }
-            }
-            crate::manifest::AuthMode::Sessions => {
-                let coordinator = installed_auth_coordinator(runtime)?;
-                if matches!(
-                    source,
-                    InvocationSource::DirectAdminRunner
-                        | InvocationSource::HostOperationFunctionRun
-                        | InvocationSource::HostOperationMutationDryRun
-                ) {
-                    (
-                        ResolvedAppAuthority::AdminBypass {
-                            reason: "administrative application invocation".to_owned(),
-                        },
-                        Some(
-                            coordinator
-                                .prepare_anonymous_publication()
-                                .map_err(ApiError::from)?,
-                        ),
-                    )
-                } else if matches!(
-                    effective.credential_resolution,
-                    CredentialResolution::OptionalSessionBearer
-                        | CredentialResolution::OptionalSessionOrScopedToken
-                        | CredentialResolution::RequiredSessionBearer
-                ) && (effective.credential_resolution
-                    == CredentialResolution::RequiredSessionBearer
-                    || headers.contains_key(header::AUTHORIZATION))
-                {
-                    // Invalid and duplicate Authorization values remain
-                    // presented-invalid credentials. Finite request resolution
-                    // is projection-only and never falls through to provider or
-                    // SQLite.
-                    let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
-                    let provider = installed_auth_provider(runtime)?;
-                    let now_ms = provider.now_ms();
-                    if effective.credential_resolution
-                        == CredentialResolution::OptionalSessionOrScopedToken
-                        && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
+    let (resolved, fenced_publication, service_publication) =
+        if let Some(resolved) = resolved_connection_authority {
+            // Connection open/acts already carry the exact bound publication
+            // fence. The caller installs that fence after the shared invocation
+            // gate has projected this resolved authority.
+            (resolved.clone(), None, None)
+        } else {
+            match active_mode {
+                crate::manifest::AuthMode::Dev => {
+                    if source == InvocationSource::BootstrapHandshake
+                        && headers.contains_key(header::AUTHORIZATION)
                     {
-                        dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
-                            .map_err(|error| ApiError::from(error.into_snapback_error()))?;
-                        let token = ScopedToken::parse(&bearer).map_err(|_| {
-                            ApiError::from(SnapbackError::error(
-                                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-                                "auth",
-                                "scoped agent token is invalid",
-                            ))
-                        })?;
-                        let resolved = with_snapback(&runtime.snapback, move |snapback| {
-                            snapback
-                                .auth_database_mut()
-                                .resolve_scoped_token(&token, now_ms)
-                        })
-                        .await?;
-                        (ResolvedAppAuthority::from_scoped_token(resolved), None)
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_AUTH_REQUIRED",
+                            "auth",
+                            "session credentials are unavailable while auth mode is dev",
+                        )
+                        .into());
+                    }
+                    if matches!(
+                        source,
+                        InvocationSource::HostOperationFunctionRun
+                            | InvocationSource::HostOperationMutationDryRun
+                    ) {
+                        (dev_host_operation_authority(handler_value), None, None)
+                    } else if effective.invocation_authority == InvocationAuthority::ClientAsserted
+                        || source == InvocationSource::DirectAdminRunner
+                    {
+                        (dev_body_authority(handler_value), None, None)
                     } else {
-                        if classify_credential(&bearer)
-                            .is_some_and(|class| class != CredentialClass::Session)
+                        (ResolvedAppAuthority::Anonymous, None, None)
+                    }
+                }
+                crate::manifest::AuthMode::Sessions => {
+                    let coordinator = installed_auth_coordinator(runtime)?;
+                    if matches!(
+                        source,
+                        InvocationSource::DirectAdminRunner
+                            | InvocationSource::HostOperationFunctionRun
+                            | InvocationSource::HostOperationMutationDryRun
+                    ) {
+                        (
+                            ResolvedAppAuthority::AdminBypass {
+                                reason: "administrative application invocation".to_owned(),
+                            },
+                            Some(
+                                coordinator
+                                    .prepare_anonymous_publication()
+                                    .map_err(ApiError::from)?,
+                            ),
+                            None,
+                        )
+                    } else if matches!(
+                        effective.credential_resolution,
+                        CredentialResolution::OptionalSessionBearer
+                            | CredentialResolution::OptionalSessionOrScopedToken
+                            | CredentialResolution::RequiredSessionBearer
+                    ) && (effective.credential_resolution
+                        == CredentialResolution::RequiredSessionBearer
+                        || headers.contains_key(header::AUTHORIZATION))
+                    {
+                        // Invalid and duplicate Authorization values remain
+                        // presented-invalid credentials. Finite request resolution
+                        // is projection-only and never falls through to provider or
+                        // SQLite.
+                        let bearer = auth_bearer(headers).unwrap_or_default().to_owned();
+                        let provider = installed_auth_provider(runtime)?;
+                        let now_ms = provider.now_ms();
+                        let service_monotonic_now = provider.monotonic_now();
+                        if effective.credential_resolution
+                            == CredentialResolution::OptionalSessionOrScopedToken
+                            && classify_credential(&bearer) == Some(CredentialClass::ScopedToken)
                         {
-                            dispatch_credential_class(&bearer, CredentialClass::Session)
+                            dispatch_credential_class(&bearer, CredentialClass::ScopedToken)
                                 .map_err(|error| ApiError::from(error.into_snapback_error()))?;
-                            unreachable!("wrong-class dispatch always refuses");
-                        }
-                        let prepared = if matches!(
-                            source,
-                            InvocationSource::AuthRefresh | InvocationSource::AuthLogout
-                        ) {
-                            coordinator.resolve_family_bearer(
-                                &bearer,
-                                now_ms,
-                                provider.monotonic_now(),
+                            let token = ScopedToken::parse(&bearer)
+                                .map_err(|_| ApiError::from(scoped_token_invalid_carrier()))?;
+                            let service_fences = runtime.service_authority_fences.clone();
+                            let service_clock = provider.clone();
+                            let (resolved, service_publication) =
+                                with_snapback(&runtime.snapback, move |snapback| {
+                                    let resolved = snapback
+                                        .auth_database_mut()
+                                        .resolve_scoped_token(&token, now_ms)?;
+                                    let publication = service_fences
+                                        .register(
+                                            ServiceAuthorityWitness::from_resolved(&resolved),
+                                            now_ms,
+                                            service_monotonic_now,
+                                        )?
+                                        .with_provider_clock(service_clock);
+                                    Ok::<_, SnapbackError>((resolved, publication))
+                                })
+                                .await?;
+                            let stream_publication = coordinator
+                                .prepare_anonymous_publication()
+                                .map_err(ApiError::from)?;
+                            (
+                                ResolvedAppAuthority::from_scoped_token(resolved),
+                                Some(stream_publication),
+                                Some(service_publication),
                             )
                         } else {
-                            coordinator.resolve_required_bearer(
-                                &bearer,
-                                now_ms,
-                                provider.monotonic_now(),
-                            )
+                            if classify_credential(&bearer)
+                                .is_some_and(|class| class != CredentialClass::Session)
+                            {
+                                dispatch_credential_class(&bearer, CredentialClass::Session)
+                                    .map_err(|error| ApiError::from(error.into_snapback_error()))?;
+                                unreachable!("wrong-class dispatch always refuses");
+                            }
+                            let prepared = if matches!(
+                                source,
+                                InvocationSource::AuthRefresh | InvocationSource::AuthLogout
+                            ) {
+                                coordinator.resolve_family_bearer(
+                                    &bearer,
+                                    now_ms,
+                                    provider.monotonic_now(),
+                                )
+                            } else {
+                                coordinator.resolve_required_bearer(
+                                    &bearer,
+                                    now_ms,
+                                    provider.monotonic_now(),
+                                )
+                            }
+                            .map_err(ApiError::from)?;
+                            let (resolved, publication) = prepared.into_parts();
+                            (resolved, Some(publication), None)
                         }
-                        .map_err(ApiError::from)?;
-                        let (resolved, publication) = prepared.into_parts();
-                        (resolved, Some(publication))
+                    } else {
+                        (
+                            ResolvedAppAuthority::Anonymous,
+                            Some(
+                                coordinator
+                                    .prepare_anonymous_publication()
+                                    .map_err(ApiError::from)?,
+                            ),
+                            None,
+                        )
                     }
-                } else {
-                    (
-                        ResolvedAppAuthority::Anonymous,
-                        Some(
-                            coordinator
-                                .prepare_anonymous_publication()
-                                .map_err(ApiError::from)?,
-                        ),
-                    )
                 }
             }
-        }
-    };
+        };
     let authority = InvocationGate::prepare_admitted_authority(
         source,
         active_mode,
@@ -5741,7 +5912,7 @@ async fn prepare_registered_route_authority(
         resolved,
     )
     .map_err(ApiError::from)?;
-    Ok(Some(match fenced_publication {
+    let authority = match fenced_publication {
         Some(publication) => authority.with_fenced_publication(publication),
         None if source == InvocationSource::BootstrapHandshake => authority
             .with_authorization_stream_incarnation(
@@ -5749,6 +5920,10 @@ async fn prepare_registered_route_authority(
                     .authorization_stream_incarnation()
                     .map_err(ApiError::from)?,
             ),
+        None => authority,
+    };
+    Ok(Some(match service_publication {
+        Some(publication) => authority.with_service_publication(publication),
         None => authority,
     }))
 }
@@ -5905,7 +6080,7 @@ fn finish_registered_response(
                     Ok(Some(response)) => response,
                     Ok(None) => {
                         let error = match authority {
-                            Some(authority) => stale_prepared_authority(authority),
+                            Some(authority) => stale_prepared_authority(authority, now_millis()),
                             None => SnapbackError::error(
                                 "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
                                 "auth",
@@ -6116,13 +6291,32 @@ impl HttpBody for RetainedAdmissionBody {
     }
 }
 
-fn stale_prepared_authority(authority: &PreparedAuthority) -> SnapbackError {
+fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) -> SnapbackError {
     match authority.resolved() {
-        ResolvedAppAuthority::Session { .. } => SnapbackError::error(
-            "SNAPBACK_AUTH_SESSION_EXPIRED",
-            "auth",
-            "authentication session is no longer current",
-        ),
+        ResolvedAppAuthority::Session { .. } => {
+            let disposition = authority
+                .session_terminal_reason(epoch_now_ms, Instant::now())
+                .ok()
+                .flatten()
+                .map(session_http_authority_disposition)
+                .unwrap_or(HttpAuthorityDisposition::Carrier);
+            session_expired_http("authentication session is no longer current", disposition)
+        }
+        ResolvedAppAuthority::ServicePrincipal { .. } => {
+            let disposition =
+                match authority.service_terminal_disposition(epoch_now_ms, Instant::now()) {
+                    Some(ServiceAuthorityDisposition::DurableDelete) => {
+                        HttpAuthorityDisposition::DurableDelete
+                    }
+                    Some(ServiceAuthorityDisposition::Carrier) | None => {
+                        HttpAuthorityDisposition::Carrier
+                    }
+                };
+            scoped_token_invalid_http(
+                "scoped agent token authority is no longer current",
+                disposition,
+            )
+        }
         _ => SnapbackError::error(
             "SNAPBACK_AUTH_STREAM_RESET",
             "auth",
@@ -6859,16 +7053,20 @@ async fn enforce_registered_route_policy(
         }
     };
     let prepared_authority = prepared_authority.map(|authority| {
-        let publication = prepared_connection_act
+        let bound = prepared_connection_act
             .as_ref()
-            .map(|prepared| prepared.bound.publication().clone())
+            .map(|prepared| &prepared.bound)
             .or_else(|| {
                 prepared_connection_open
                     .as_ref()
-                    .map(|prepared| prepared.bound.publication().clone())
+                    .map(|prepared| &prepared.bound)
             });
-        match publication {
-            Some(publication) => authority.with_fenced_publication(publication),
+        let authority = match bound {
+            Some(bound) => authority.with_fenced_publication(bound.publication().clone()),
+            None => authority,
+        };
+        match bound.and_then(BoundGrantAuthority::service_publication) {
+            Some(publication) => authority.with_service_publication(publication.clone()),
             None => authority,
         }
     });
@@ -6912,6 +7110,21 @@ async fn enforce_registered_route_policy(
         && let Err(error) = record_successful_finite_session_use(&runtime, authority).await
     {
         response = error.into_response();
+    }
+    if let Some(authority) = prepared_authority.as_ref()
+        && matches!(
+            authority.resolved(),
+            ResolvedAppAuthority::ServicePrincipal { .. }
+        )
+    {
+        let deadline_authority = authority.clone();
+        if let Err(error) = with_snapback(&runtime.snapback, move |snapback| {
+            snapback.persist_service_deadline_if_due(&deadline_authority)
+        })
+        .await
+        {
+            response = ApiError::from(error).into_response();
+        }
     }
     finish_registered_response(
         response_policy,
@@ -7593,7 +7806,7 @@ async fn auth_session(
             .is_some_and(|provider| provider.readiness() == AuthProviderReadiness::Available);
     let authorization_stream_incarnation = authority
         .authorization_stream_incarnation()
-        .ok_or_else(|| stale_prepared_authority(&authority))?
+        .ok_or_else(|| stale_prepared_authority(&authority, now_millis()))?
         .to_owned();
     let authority_descriptor =
         descriptor_for_resolved_authority(&resolved_authority, &authorization_stream_incarnation)?;
@@ -7607,7 +7820,7 @@ async fn auth_session(
         // future route composition violates that invariant rather than
         // serializing a shape no closed handshake authority kind can express.
         ResolvedAppAuthority::DevImpersonation { .. } => {
-            return Err(stale_prepared_authority(&authority).into());
+            return Err(stale_prepared_authority(&authority, now_millis()).into());
         }
     };
     let response = AuthSessionResponse::from_facts(
@@ -7702,21 +7915,26 @@ async fn prepare_connection_open_authority_with_scoped_token(
         }
         dispatch_credential_class(raw, CredentialClass::ScopedToken)
             .map_err(|error| ApiError::from(error.into_snapback_error()))?;
-        let token = ScopedToken::parse(raw).map_err(|_| {
-            ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
-                "auth",
-                "scoped agent token is invalid",
-            ))
-        })?;
+        let token =
+            ScopedToken::parse(raw).map_err(|_| ApiError::from(scoped_token_invalid_carrier()))?;
         runtime
             .connections
             .consume_service_open(*token.token_hash().as_bytes(), monotonic_now)?;
-        let now_ms = installed_auth_provider(runtime)?.now_ms();
-        let resolved = with_snapback(&runtime.snapback, move |snapback| {
-            snapback
+        let service_clock = installed_auth_provider(runtime)?;
+        let now_ms = service_clock.now_ms();
+        let service_fences = runtime.service_authority_fences.clone();
+        let (resolved, service_publication) = with_snapback(&runtime.snapback, move |snapback| {
+            let resolved = snapback
                 .auth_database_mut()
-                .resolve_scoped_token(&token, now_ms)
+                .resolve_scoped_token(&token, now_ms)?;
+            let publication = service_fences
+                .register(
+                    ServiceAuthorityWitness::from_resolved(&resolved),
+                    now_ms,
+                    monotonic_now,
+                )?
+                .with_provider_clock(service_clock);
+            Ok::<_, SnapbackError>((resolved, publication))
         })
         .await?;
         let token_id = resolved.token_id.clone();
@@ -7734,6 +7952,7 @@ async fn prepare_connection_open_authority_with_scoped_token(
                 token_id,
                 deadline_ms,
                 publication: prepared.publication,
+                service_publication,
             },
         });
     }
@@ -8034,6 +8253,56 @@ fn auth_bearer(headers: &HeaderMap) -> Option<&str> {
         .then_some(bearer)
 }
 
+/// A structurally scoped but malformed bearer cannot prove any durable
+/// authority ended. Finite HTTP clients must quarantine only that carrier.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum HttpAuthorityDisposition {
+    Carrier,
+    DurableDelete,
+}
+
+impl HttpAuthorityDisposition {
+    fn wire_name(self) -> &'static str {
+        match self {
+            Self::Carrier => "carrier",
+            Self::DurableDelete => "durableDelete",
+        }
+    }
+}
+
+fn scoped_token_invalid_http(
+    message: &'static str,
+    authority_disposition: HttpAuthorityDisposition,
+) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_SCOPED_TOKEN_INVALID", "auth", message).with_details(
+        json!({
+            "authorityDisposition": authority_disposition.wire_name(),
+        }),
+    )
+}
+
+fn scoped_token_invalid_carrier() -> SnapbackError {
+    scoped_token_invalid_http(
+        "scoped agent token is invalid",
+        HttpAuthorityDisposition::Carrier,
+    )
+}
+
+fn session_expired_http(
+    message: &'static str,
+    authority_disposition: HttpAuthorityDisposition,
+) -> SnapbackError {
+    SnapbackError::error("SNAPBACK_AUTH_SESSION_EXPIRED", "auth", message)
+        .with_details(json!({ "authorityDisposition": authority_disposition.wire_name() }))
+}
+
+fn session_http_authority_disposition(reason: RevocationReason) -> HttpAuthorityDisposition {
+    match reason.authority_disposition() {
+        TerminalAuthorityDisposition::Carrier => HttpAuthorityDisposition::Carrier,
+        TerminalAuthorityDisposition::DurableDelete => HttpAuthorityDisposition::DurableDelete,
+    }
+}
+
 /// Preserve absence versus malformed/duplicate Authorization syntax so
 /// connection-open can account both in the coarse prebudget without ever
 /// hashing malformed bytes or consulting the projection.
@@ -8291,10 +8560,10 @@ async fn auth_refresh(
                 .map_err(ApiError::from)?
                 {
                     RevocationFinish::Committed { .. } => {
-                        return Err(map_provider_error(provider_session_expired()));
+                        return Err(map_provider_error(provider_session_revoked()));
                     }
-                    RevocationFinish::AlreadyTerminal { .. } => {
-                        return Err(map_provider_error(provider_session_expired()));
+                    RevocationFinish::AlreadyTerminal { reason, .. } => {
+                        return Err(already_terminal_session_error(reason));
                     }
                     RevocationFinish::PredecessorChanged => continue,
                 }
@@ -8372,8 +8641,8 @@ async fn auth_logout(
                 response.extensions_mut().insert(outcome);
                 return Ok(response);
             }
-            RevocationFinish::AlreadyTerminal { .. } => {
-                return Err(map_provider_error(provider_session_expired()));
+            RevocationFinish::AlreadyTerminal { reason, .. } => {
+                return Err(already_terminal_session_error(reason));
             }
             RevocationFinish::PredecessorChanged => continue,
         }
@@ -8400,6 +8669,13 @@ fn require_provider_session_authority(
         .into());
     }
     Ok(())
+}
+
+fn already_terminal_session_error(reason: Option<RevocationReason>) -> ApiError {
+    let disposition = reason
+        .map(session_http_authority_disposition)
+        .unwrap_or(HttpAuthorityDisposition::Carrier);
+    session_expired_http("authentication session is no longer current", disposition).into()
 }
 
 /// Opaque revoke-only alarm. Every bearer shape enters the provider's fixed
@@ -11466,6 +11742,13 @@ async fn invoke_query(
     let Json(input) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
+    let authority_to_validate = authority.clone();
+    with_snapback(&state, move |snapback| {
+        snapback.persist_and_validate_prepared_service_authority(&authority_to_validate)
+    })
+    .await
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?;
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
             lane.invoke_query_prepared(&name, input, authority)
@@ -11821,15 +12104,17 @@ async fn acknowledge_authorization_invalidation(
                 "connection did not negotiate authInvalidationProtocol: 1",
             )
         })?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let ack_admission = admission.clone();
+    let connections = runtime.connections.clone();
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.acknowledge_authorization_invalidation(input, connection, &ack_admission)
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            snapback
+                .acknowledge_authorization_invalidation(input, connection, &ack_admission)
+                .map_err(ApiError::from)
+        })
     })
     .await?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
@@ -11851,14 +12136,16 @@ async fn manual_retry_authorization_invalidation(
                 "connection did not negotiate authInvalidationProtocol: 1",
             )
         })?;
+    let connections = runtime.connections.clone();
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.manual_retry_authorization_invalidation(input, connection, authority)
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            snapback
+                .manual_retry_authorization_invalidation(input, connection, authority)
+                .map_err(ApiError::from)
+        })
     })
     .await?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
@@ -11870,20 +12157,22 @@ async fn subscribe_live(
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
         effect_fence: Some(connection_act.effect_fence()),
         #[cfg(test)]
         session_mode: false,
     };
+    let connections = runtime.connections.clone();
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let publication = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.subscribe_live_for_transport(&name, input, authority, invalidation)
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            snapback
+                .subscribe_live_for_transport(&name, input, authority, invalidation)
+                .map_err(ApiError::from)
+        })
     })
     .await?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let publication_authority = if let Some(authorization) = publication.authorization {
         runtime
             .ephemeral
@@ -11909,20 +12198,22 @@ async fn resume_live(
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let invalidation = LiveInvalidationAdmission {
         connection: connection_act.authorization_invalidation.clone(),
         effect_fence: Some(connection_act.effect_fence()),
         #[cfg(test)]
         session_mode: false,
     };
+    let connections = runtime.connections.clone();
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let publication = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.resume_live_for_transport(&name, input, authority, invalidation)
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            snapback
+                .resume_live_for_transport(&name, input, authority, invalidation)
+                .map_err(ApiError::from)
+        })
     })
     .await?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let publication_authority = if let Some(authorization) = publication.authorization {
         runtime
             .ephemeral
@@ -11948,17 +12239,19 @@ async fn unsubscribe_live(
     input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     let effect_fence = connection_act.effect_fence();
+    let connections = runtime.connections.clone();
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     // L7 offload: disposal reads the storage version (rusqlite) for its
     // receipt, so it runs on the blocking lane like every other write path.
     let output = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.unsubscribe_live_prepared(&name, input, authority, Some(&effect_fence))
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            snapback
+                .unsubscribe_live_prepared(&name, input, authority, Some(&effect_fence))
+                .map_err(ApiError::from)
+        })
     })
     .await?;
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
     Ok(Json(output))
 }
 
@@ -12349,21 +12642,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     };
     let mut safety_net = interval(Duration::from_millis(heartbeat_ms));
     safety_net.tick().await; // consume the immediate first tick
-    let (service_token_id, mut service_expiry) = match &connection_act.bound {
+    let mut service_expiry = match &connection_act.bound {
         BoundGrantAuthority::ServicePrincipal {
-            token_id,
-            deadline_ms,
+            service_publication,
             ..
-        } => {
-            let delay_ms = deadline_ms.saturating_sub(now_millis());
-            (
-                Some(token_id.clone()),
-                Some(Box::pin(tokio::time::sleep(Duration::from_millis(
-                    delay_ms,
-                )))),
-            )
-        }
-        BoundGrantAuthority::Anonymous { .. } | BoundGrantAuthority::Session { .. } => (None, None),
+        } => Some(Box::pin(tokio::time::sleep(
+            service_publication.remaining_until_deadline(Instant::now()),
+        ))),
+        BoundGrantAuthority::Anonymous { .. } | BoundGrantAuthority::Session { .. } => None,
     };
 
     // Flush anything enqueued before (or racing) registration under one short
@@ -12616,13 +12902,6 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                     None => std::future::pending::<()>().await,
                 }
             } => {
-                if let Some(token_id) = service_token_id.as_ref() {
-                    runtime.auth_terminal_lifecycle.expire_service_tokens(
-                        std::slice::from_ref(token_id),
-                        Instant::now()
-                            + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-                    );
-                }
                 break 'stream;
             }
             _ = waker.notified() => {
@@ -12726,6 +13005,7 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         }
     }
 
+    observe_service_connection_terminal(&runtime, &connection_act).await;
     if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
         offer_terminal_live_write(&terminal_writer, event);
     }
@@ -12733,6 +13013,66 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     drop(terminal_writer);
     let _ = writer_task.await;
     teardown_live_stream(&state, &notify, &connection_id, generation).await;
+}
+
+async fn observe_service_connection_terminal(
+    runtime: &AppState,
+    connection_act: &PreparedConnectionAct,
+) {
+    let BoundGrantAuthority::ServicePrincipal {
+        token_id,
+        service_publication,
+        ..
+    } = &connection_act.bound
+    else {
+        return;
+    };
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
+    let deadline = match service_publication.expired_deadline_terminal(epoch_now_ms, monotonic_now)
+    {
+        Ok(deadline) => deadline,
+        Err(_) => return,
+    };
+    if let Some(deadline) = deadline.as_ref() {
+        let deadline = deadline.clone();
+        if with_snapback(&runtime.snapback, move |snapback| {
+            snapback
+                .auth_database_mut()
+                .terminalize_expired_service_authority(&deadline)
+        })
+        .await
+        .is_err()
+        {
+            return;
+        }
+    }
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
+    let Ok(ServiceAuthorityActResolution::Terminal(disposition)) =
+        service_publication.resolve_act(epoch_now_ms, monotonic_now)
+    else {
+        return;
+    };
+    let close_by = monotonic_now
+        .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+        .unwrap_or(monotonic_now);
+    if deadline.is_some() {
+        runtime
+            .auth_terminal_lifecycle
+            .expire_service_tokens_for_disposition(
+                std::slice::from_ref(token_id),
+                disposition,
+                close_by,
+            );
+    } else {
+        match disposition {
+            ServiceAuthorityDisposition::Carrier => runtime
+                .auth_terminal_lifecycle
+                .evict_service_tokens(std::slice::from_ref(token_id), close_by),
+            ServiceAuthorityDisposition::DurableDelete => runtime
+                .auth_terminal_lifecycle
+                .terminate_service_tokens(std::slice::from_ref(token_id), close_by),
+        }
+    }
 }
 
 /// Generation-guarded stream teardown (LLP 0034 review fix 1): a task tears a
@@ -14783,12 +15123,12 @@ mod tests {
         CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
         ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
         OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-        SnapbackApp, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
-        coordinated_app_reset, dispatch_cron_tick_background, finish_registered_response,
-        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
-        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
-        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-        status_for_diagnostic_code, with_snapback,
+        SnapbackApp, already_terminal_session_error, app, configured_action_worker_limit,
+        configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
+        finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
+        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -14812,6 +15152,11 @@ mod tests {
         AUTH_SESSION_SLIDING_WINDOW_MS, AUTH_SESSION_SUPERSESSION_GRACE_MS,
         AUTH_SESSION_USE_COALESCE_MS, AuthClock, AuthProvider, AuthProviderProfile,
     };
+    use crate::auth::service_fence::{
+        ServiceAuthorityActResolution, ServiceAuthorityCommitInterlock,
+        ServiceAuthorityDisposition, ServiceAuthorityFenceRegistry,
+    };
+    use crate::auth::session_projection::RevocationReason;
     use crate::cron::CronRunOutcome;
     use crate::diagnostic::SnapbackError;
     use crate::local::{
@@ -14871,6 +15216,49 @@ mod tests {
             self.monotonic_origin
                 + Duration::from_millis(epoch_ms.saturating_sub(self.base_epoch_ms))
         }
+    }
+
+    #[test]
+    fn one_database_rejects_a_second_independent_app_state_graph() {
+        let first = AppState::detached(LocalSnapback::memory().expect("shared registry fixture"));
+        let clone = first.clone();
+        assert!(
+            first
+                .service_authority_fences
+                .is_same_registry(&clone.service_authority_fences),
+            "router clones retain one terminal graph"
+        );
+        let second = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            AppState::new(
+                first.snapback.clone(),
+                first.read.clone(),
+                first.ephemeral.clone(),
+                (*first.server).clone(),
+            )
+        }));
+        assert!(
+            second.is_err(),
+            "a second independent connection/lifecycle graph must be rejected"
+        );
+    }
+
+    #[test]
+    fn already_terminal_session_errors_preserve_exact_durable_disposition() {
+        let cap = already_terminal_session_error(Some(RevocationReason::CapEviction));
+        assert_eq!(cap.0.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+        assert_eq!(cap.0.diagnostic.details["authorityDisposition"], "carrier");
+
+        let logout = already_terminal_session_error(Some(RevocationReason::Logout));
+        assert_eq!(
+            logout.0.diagnostic.details["authorityDisposition"],
+            "durableDelete"
+        );
+
+        let legacy = already_terminal_session_error(None);
+        assert_eq!(
+            legacy.0.diagnostic.details["authorityDisposition"], "carrier",
+            "a legacy row without an exact cause witness may not overclassify durable deletion"
+        );
     }
 
     impl AuthClock for ManualServerAuthClock {
@@ -23136,6 +23524,36 @@ mod tests {
         expected
     }
 
+    #[tokio::test]
+    async fn scoped_token_authority_disposition_survives_http_serialization() {
+        for (disposition, expected) in [
+            (super::HttpAuthorityDisposition::Carrier, "carrier"),
+            (
+                super::HttpAuthorityDisposition::DurableDelete,
+                "durableDelete",
+            ),
+        ] {
+            let response = super::ApiError::from(super::scoped_token_invalid_http(
+                "scoped token test classification",
+                disposition,
+            ))
+            .into_response();
+            assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
+            let body = to_bytes(response.into_body(), usize::MAX)
+                .await
+                .expect("diagnostic response bytes");
+            let body: Value = serde_json::from_slice(&body).expect("diagnostic response JSON");
+            assert_eq!(
+                body["diagnostic"]["code"],
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+            );
+            assert_eq!(
+                body["diagnostic"]["details"]["authorityDisposition"],
+                expected
+            );
+        }
+    }
+
     /// LLP 0032 S5.D10 / ENG-24357 — every diagnostic emitted by the Rust
     /// implementation has a reviewed HTTP result, across every status family.
     #[test]
@@ -23679,7 +24097,78 @@ globalThis.__snapbackHandlers = {
             app_generation: action.app_generation,
             app_generation_fence: action.app_generation_fence.clone(),
             authority: action.invocation.authority().clone(),
+            external_effect_open: false,
+            external_effect_permit: None,
         }
+    }
+
+    #[test]
+    fn detached_action_host_closes_begin_to_native_initiated_revocation_race() {
+        use std::sync::mpsc;
+
+        let mut snapback = LocalSnapback::memory().expect("external effect host fixture");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let epoch_now_ms = super::now_millis();
+        let publication = registry
+            .synthetic_publication_for_test(
+                "token-action",
+                epoch_now_ms,
+                epoch_now_ms + 60_000,
+                monotonic,
+            )
+            .expect("register action service fence");
+        let mut host = held_action_host(state, &staged);
+        host.authority = host
+            .authority
+            .clone()
+            .with_service_publication(publication.clone());
+
+        host.validate_host_call("action.externalEffectBegin")
+            .expect("reserve exact native-enqueue cut");
+        let terminal_registry = registry.clone();
+        let (terminal_tx, terminal_rx) = mpsc::channel();
+        let terminal = std::thread::spawn(move || {
+            terminal_registry
+                .prepare_terminal(
+                    &["token-action".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+                .expect("prepare terminal while native initiation is open")
+                .committed()
+                .expect("commit terminal after initiation");
+            terminal_tx.send(()).expect("report terminal completion");
+        });
+        let pending_deadline = Instant::now() + Duration::from_secs(1);
+        while !matches!(
+            publication
+                .resolve_act(epoch_now_ms + 1, monotonic)
+                .unwrap(),
+            ServiceAuthorityActResolution::Unavailable
+        ) {
+            assert!(
+                Instant::now() < pending_deadline,
+                "terminal transaction did not reach the precommit marker"
+            );
+            std::thread::yield_now();
+        }
+        assert!(
+            terminal_rx.recv_timeout(Duration::from_millis(30)).is_err(),
+            "terminal commit must wait until native initiation is acknowledged"
+        );
+        host.validate_host_call("action.externalEffectInitiated")
+            .expect("native initiation acknowledgement releases the cut");
+        terminal_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("terminal commits after native initiation");
+        terminal.join().expect("terminal thread joins");
+        let stale = host
+            .validate_host_call("action.externalEffectBegin")
+            .expect_err("a later native effect cannot start after revocation");
+        assert_eq!(stale.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID");
     }
 
     /// ENG-24340 review follow-up: holding an outer detached action across an
@@ -23825,6 +24314,10 @@ globalThis.__snapbackHandlers = {
             token_id: token_id.to_owned(),
             deadline_ms: u64::MAX,
             publication,
+            service_publication:
+                crate::auth::service_fence::ServiceAuthorityPublication::synthetic_for_test(
+                    token_id,
+                ),
         }
     }
 

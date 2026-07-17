@@ -34,7 +34,7 @@ export interface GeneratedDataModel {
   announcements: { _id: Id<'announcements'>; _version: number; _createdAt: number; _updatedAt: number; authorId: Principal; message: string };
 }
 export interface GeneratedPermissions {
-  appMembers: { requireRole(resource: null, ...roles: AppMembersRole[]): Promise<void> };
+  appMembers: { requireRole(resource: null, role: AppMembersRole, ...roles: AppMembersRole[]): Promise<void> };
 }
 export type AppMembersRole = "member" | "admin";
 export type AppMembersInsert = { userId: Principal; role: AppMembersRole };

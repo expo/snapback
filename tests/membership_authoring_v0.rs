@@ -161,7 +161,10 @@ fn input(user: &str) -> HandlerInput {
 }
 
 fn input_with_args(user: &str, args: Value) -> HandlerInput {
-    HandlerInput { args, ..input(user) }
+    HandlerInput {
+        args,
+        ..input(user)
+    }
 }
 
 #[test]
@@ -255,7 +258,10 @@ fn generated_helper_runs_direct_nested_dry_run_and_replay_while_raw_stays_closed
     let error = raw
         .invoke_mutation("rawJoin", input("mallory"))
         .expect_err("raw membership insert stays refused");
-    assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
+    );
     assert_eq!(
         raw.scan_table("app_members", 10, 0)
             .expect("raw rows")

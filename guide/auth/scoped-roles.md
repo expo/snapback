@@ -73,6 +73,8 @@ export const eventMembers = defineTable({
   role: 'role',
   roles: ['host', 'guest'],
   pendingRoles: ['invited'],
+  bootstrapRole: 'host',
+  lastHolder: { protect: 'host' },
   incidental: ['joinedAt'],
   provenance: 'full',
   transitions: [],
@@ -156,6 +158,21 @@ boundary. Mark any function that can create durable authority with
 `authorityCreating: true`. That marker becomes part of delegated-agent consent
 and requires full membership provenance.
 
+A resource declaration with `bootstrapRole` also gets
+`ctx.membership.<declaration>.bootstrap(resourceValues)`. It returns the fresh,
+branded resource id and atomically inserts both the resource and a membership
+that seats the server-derived effective principal in the bootstrap role. A
+`lastHolder` declaration relies on this path: creating the protected resource
+without its initial eligible holder is refused.
+
+A JavaScript mutation dedicated to that one bootstrap operation may set
+`authorityCreating: false` even though its declared writes include the resource
+and membership tables. Bootstrap cannot name a different principal, so a
+delegated agent seats its effective user rather than itself. The runtime still
+rejects every non-bootstrap membership operation from such an unconsented
+wrapper; a mutation that can perform bootstrap *and* ordinary membership
+changes must use `authorityCreating: true`.
+
 The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
@@ -170,5 +187,7 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   declaration-bound predicate or `ctx.permissions.requireRole`.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
+- **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use
+  the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result
   offline.** Neither has the transactional/lease proof required by v1.

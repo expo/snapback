@@ -15,6 +15,7 @@
   var trustedHasOwnProperty = Object.prototype.hasOwnProperty;
   var trustedFreeze = Object.freeze;
   var trustedReflectApply = Reflect.apply;
+  var trustedReflectConstruct = Reflect.construct;
   var trustedMapSet = TrustedMap && TrustedMap.prototype.set;
   var trustedMapDelete = TrustedMap && TrustedMap.prototype.delete;
   var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
@@ -49,14 +50,23 @@
   // reading g.__hostCall later would let a handler replace it with a wrapper
   // and observe the otherwise-opaque invocation epoch.
   var ibexHostCall = typeof g.__hostCall === "function" ? g.__hostCall : null;
+  var trustedNativeFetch = typeof g.fetch === "function" ? g.fetch : null;
+  var trustedNativeFetchDescriptor = trustedGetOwnPropertyDescriptor(g, "fetch");
+  var TrustedRequest = typeof g.Request === "function" ? g.Request : null;
+  var activeActionFetchHost = null;
   function installTrustedFunction(name, value) {
     // These names are control-plane entry points, not application extension
     // points. Install non-writable/non-configurable properties before the
     // handler module runs, and fail harness initialization if the runtime
     // cannot enforce that boundary.
+    var existing = trustedGetOwnPropertyDescriptor(g, name);
+    // Some engines expose native fetch as non-configurable but writable. Such
+    // a property may still replace its value and transition writable→false;
+    // its enumerable bit must remain unchanged by ECMAScript invariants.
+    var enumerable = existing && !existing.configurable ? existing.enumerable : false;
     trustedDefineProperty(g, name, {
       value: value,
-      enumerable: false,
+      enumerable: enumerable,
       configurable: false,
       writable: false
     });
@@ -65,6 +75,39 @@
       throw snapbackError("SNAPBACK_HANDLER_HARNESS_INIT_FAILED", name);
     }
     try { trustedFreeze(value); } catch (_) {}
+  }
+  // The deterministic Ibex ambient layer has already installed a sealed deny
+  // function in this slot; replacing it would both weaken that boundary and
+  // collide with Ibex's lazy ambient installer. Egress-action fetch is the
+  // distinct configurable native slot. Workerd owns its invocation-local
+  // request lifecycle and does not need the process service fence.
+  if (trustedNativeFetch && ibexHostCall !== null &&
+      trustedNativeFetchDescriptor && trustedNativeFetchDescriptor.configurable) {
+    installTrustedFunction("fetch", function guardedSnapbackFetch() {
+      // @ref LLP 0059#finite-service-authority-fence — terminal premark and
+      // native enqueue are ordered by an exact Begin/Initiated handshake.
+      // Workerd supplies an invocation-local transport and owns its own
+      // request lifecycle. Ibex is the native process in which finite scoped
+      // authority can race a durable auth transaction, so its action fetches
+      // cross an explicit begin-to-initiated handshake around native enqueue.
+      if (activeActionFetchHost === null) {
+        throw snapbackError("SNAPBACK_AUTH_POLICY_UNAVAILABLE", "fetch has no active action authority");
+      }
+      // Normalize every application-controlled input before reserving the
+      // authority cut. Request construction may invoke Proxy/string coercion;
+      // once this trusted native Request exists, begin-to-enqueue contains no
+      // application callback and is bounded by the native synchronous call.
+      if (TrustedRequest === null) {
+        throw snapbackError("SNAPBACK_AUTH_POLICY_UNAVAILABLE", "trusted Request construction is unavailable");
+      }
+      var request = trustedReflectConstruct(TrustedRequest, [arguments[0], arguments[1]]);
+      activeActionFetchHost("action.externalEffectBegin", trustedCreate(null));
+      try {
+        return trustedReflectApply(trustedNativeFetch, g, [request]);
+      } finally {
+        activeActionFetchHost("action.externalEffectInitiated", trustedCreate(null));
+      }
+    });
   }
   // The opaque secret handle (LLP 0036 D5/D8): every accidental
   // materialization path — stringify, JSON, template coercion, console —
@@ -360,7 +403,7 @@
     }
     function host(op, args) {
       try {
-        return hostCallFn(epoch + "|" + op, JSON.stringify(args || {}));
+        return hostCallFn(epoch + "|" + op, trustedJsonStringify(args || {}));
       } catch (error) {
         var code = codeFromMessage(error && error.message);
         if (code) {
@@ -626,6 +669,13 @@
               get: function(_target, declaration) {
                 if (typeof declaration !== "string") { return undefined; }
                 return {
+                  bootstrap: function(values) {
+                    return host("membership.write", {
+                      declaration: declaration,
+                      operation: "bootstrap",
+                      values: values || {}
+                    });
+                  },
                   insert: function(values) {
                     return host("membership.write", {
                       declaration: declaration,
@@ -667,7 +717,15 @@
     if (typeof handler !== "function") {
       throw snapbackError("SNAPBACK_HANDLER_EXPORT_MISSING", name);
     }
-    return await handler(ctx, args);
+    var previousActionFetchHost = activeActionFetchHost;
+    if (mode === "action" && hostCallFn === ibexHostCall) {
+      activeActionFetchHost = host;
+    }
+    try {
+      return await handler(ctx, args);
+    } finally {
+      activeActionFetchHost = previousActionFetchHost;
+    }
   };
   function __snapbackSafeString(value) {
     var text = trustedString(value);

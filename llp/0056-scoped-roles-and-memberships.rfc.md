@@ -5,7 +5,12 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (reconciled implementation status after the public
+**Revised:** 2026-07-16 (landed the public atomic `bootstrap()` authoring path:
+the generated mutation surface now returns a branded fresh resource id while
+the host commits the resource and protected initial holder together; an
+explicit bootstrap-only function classification preserves the structural
+non-authority-creating carve-out while the dynamic host gate refuses every
+ordinary membership write). Earlier: 2026-07-16 (reconciled implementation status after the public
 authoring slice landed: codegen now exposes nominal `v.principal()` / `v.id()`,
 closed `.membership()` declarations, declaration-bound `memberOf` / `hasRole`,
 generated read-only permissions and mutation-only membership contexts, nominal
@@ -502,6 +507,7 @@ no precedence rule — only class assignment needed one, and it is total.
 The generated methods are therefore thin and unforgeable:
 
 ```ts
+const eventId = await eventMembers.bootstrap({ title: "Launch" }) // resource + host seat
 await eventMembers.insert({ eventId, userId, role: "invited" })  // policy decides
 await eventMembers.setRole(memberId, "guest")                    // accept, if declared
 await eventMembers.remove(memberId)                              // leave / kick, if declared
@@ -859,8 +865,9 @@ New surface this RFC adds:
 slice is now present: closed declarations and final-state activation validation;
 nominal principal/resource types; transition, raw-write, `lastHolder`, expiry,
 and provenance enforcement; declaration-bound query predicates and
-`ctx.permissions`; mutation-only sanctioned membership writes; authorization
-invalidation; generated TypeScript contexts; and an acceptance-tested RBAC demo.
+`ctx.permissions`; mutation-only sanctioned membership writes including atomic
+resource bootstrap; authorization invalidation; generated TypeScript contexts;
+and an acceptance-tested RBAC demo.
 The remaining named follow-ons are the cron-to-sweep binding,
 `--as-membership`, the persisted rename diagnostic, and the incremental
 semi-join/retained-offline lane. The dated milestone notes below explain the

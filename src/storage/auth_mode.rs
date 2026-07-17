@@ -873,7 +873,11 @@ impl LocalDatabase {
             )?;
         }
         let catalog = crate::storage::auth::inspect_auth_catalog_on(&tx)?;
-        let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(&tx, now_ms)?;
+        let sessions_revoked = crate::storage::auth::revoke_all_sessions_in(
+            &tx,
+            now_ms,
+            crate::auth::session_projection::RevocationReason::ModeTransition,
+        )?;
         // @ref LLP 0055#companion-obligations — downgrade ends all agent
         // bearer and pending-consent authority in the same transaction as
         // browser-session revocation; principals and scope tombstones survive.
@@ -2499,7 +2503,7 @@ mod tests {
                     "INSERT INTO _auth_sessions(
                        id, user_id, identity_id, authority_instance_id, token_hash, generation,
                        created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
-                     ) VALUES('s', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
+                     ) VALUES('01890f47-0000-7000-8000-000000000001', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
                     [],
                 )?;
                 Ok(())
@@ -2537,7 +2541,7 @@ mod tests {
         let session: (i64, Option<i64>) = database
             .with_auth_read(|conn| {
                 Ok(conn.query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000001'",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?)
@@ -2575,7 +2579,7 @@ mod tests {
                     "INSERT INTO _auth_sessions(
                        id, user_id, identity_id, authority_instance_id, token_hash, generation,
                        created_at_ms, last_used_at_ms, expires_at_ms, absolute_expires_at_ms
-                     ) VALUES('s', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
+                     ) VALUES('01890f47-0000-7000-8000-000000000001', 'u', 'i', 'a', zeroblob(32), 1, 1, 1, 100, 100)",
                     [],
                 )?;
                 tx.execute_batch(
@@ -2644,7 +2648,7 @@ mod tests {
         let before_downgrade: (i64, Option<i64>) = database
             .with_auth_read(|conn| {
                 Ok(conn.query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000001'",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?)
@@ -2670,7 +2674,7 @@ mod tests {
             database
                 .with_auth_read(|conn| {
                     Ok(conn.query_row(
-                        "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                        "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000001'",
                         [],
                         |row| Ok((row.get::<_, i64>(0)?, row.get::<_, Option<i64>>(1)?)),
                     )?)
@@ -2707,7 +2711,7 @@ mod tests {
         let (generation, revoked): (i64, Option<i64>) = database
             .with_auth_read(|conn| {
                 Ok(conn.query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 's'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000001'",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )?)
@@ -2822,7 +2826,7 @@ mod tests {
                        generation, created_at_ms, last_used_at_ms, expires_at_ms,
                        absolute_expires_at_ms
                      ) VALUES(
-                       'v1-session', 'v1-user', 'v1-identity', 'v1-authority',
+                       '01890f47-0000-7000-8000-000000000002', 'v1-user', 'v1-identity', 'v1-authority',
                        zeroblob(32), 1, 1, 1, 100, 100
                      )",
                     [],
@@ -2847,7 +2851,7 @@ mod tests {
             database
                 .conn
                 .query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'v1-session'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000002'",
                     [],
                     |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
                 )

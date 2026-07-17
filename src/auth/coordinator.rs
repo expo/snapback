@@ -17,8 +17,9 @@ use super::provider::{
 use super::session_projection::{
     AUTH_LOCK_RANK_TOPOLOGY, AuthorizationStreamIncarnation, BoundConnectionSessionIdentity,
     DueExpiryBatch, ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
-    RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest, ranked_mutex_lock,
+    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution, ProjectedSessionAuthority,
+    ProjectedTokenResolution, RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest,
+    ranked_mutex_lock,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -195,6 +196,7 @@ pub(crate) enum RevocationFinish {
     },
     AlreadyTerminal {
         generation: u64,
+        reason: Option<crate::auth::session_projection::RevocationReason>,
     },
     PredecessorChanged,
 }
@@ -334,6 +336,13 @@ pub(crate) enum ConnectionBearerResolution {
     Unknown {
         authorization_stream_incarnation: String,
     },
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum BoundSessionResolution {
+    Current(ResolvedAppAuthority),
+    Terminal { reason: RevocationReason },
+    Unavailable,
 }
 
 #[derive(Debug)]
@@ -562,9 +571,10 @@ impl AuthCoordinator {
             }
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                 generation,
+                reason,
             }) => {
                 exact_unmark_revocation(&mut topology, &carrier)?;
-                Ok(RevocationFinish::AlreadyTerminal { generation })
+                Ok(RevocationFinish::AlreadyTerminal { generation, reason })
             }
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(revocation)) => {
                 let expected_generation = carrier
@@ -811,7 +821,9 @@ impl AuthCoordinator {
                     }
                     authority
                 }
-                ProjectedTokenResolution::Terminal => return Err(session_expired()),
+                ProjectedTokenResolution::Terminal { reason } => {
+                    return Err(session_expired(reason));
+                }
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
@@ -843,7 +855,9 @@ impl AuthCoordinator {
             {
                 ProjectedTokenResolution::Current(authority)
                 | ProjectedTokenResolution::Superseded { authority, .. } => authority,
-                ProjectedTokenResolution::Terminal => return Err(session_expired()),
+                ProjectedTokenResolution::Terminal { reason } => {
+                    return Err(session_expired(reason));
+                }
                 ProjectedTokenResolution::Unavailable => return Err(projection_unavailable()),
                 ProjectedTokenResolution::Unknown => return Err(auth_required()),
             };
@@ -957,15 +971,14 @@ impl AuthCoordinator {
         generation: u64,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Option<ResolvedAppAuthority>> {
+    ) -> SnapbackResult<BoundSessionResolution> {
         let incarnation = AuthorizationStreamIncarnation::parse(authorization_stream_incarnation)?;
         let topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
         }
-        Ok(topology
-            .projection
-            .resolve_bound_connection_session(
+        Ok(
+            match topology.projection.resolve_bound_connection_session(
                 BoundConnectionSessionIdentity::new(
                     &incarnation,
                     session_id,
@@ -975,18 +988,26 @@ impl AuthCoordinator {
                 ),
                 epoch_now_ms,
                 monotonic_now,
-            )?
-            .map(|authority| ResolvedAppAuthority::Session {
-                user_id: authority.user_id,
-                session_id: authority.session_id,
-                provider: authority.provider,
-                generation: authority.generation,
-                authority_instance_id: authority.authority_instance_id,
-                session_not_after_ms: authority
-                    .expires_at_ms
-                    .min(authority.absolute_expires_at_ms),
-                provider_not_after_ms: None,
-            }))
+            )? {
+                ProjectedBoundSessionResolution::Current(authority) => {
+                    BoundSessionResolution::Current(ResolvedAppAuthority::Session {
+                        user_id: authority.user_id,
+                        session_id: authority.session_id,
+                        provider: authority.provider,
+                        generation: authority.generation,
+                        authority_instance_id: authority.authority_instance_id,
+                        session_not_after_ms: authority
+                            .expires_at_ms
+                            .min(authority.absolute_expires_at_ms),
+                        provider_not_after_ms: None,
+                    })
+                }
+                ProjectedBoundSessionResolution::Terminal { reason } => {
+                    BoundSessionResolution::Terminal { reason }
+                }
+                ProjectedBoundSessionResolution::Unavailable => BoundSessionResolution::Unavailable,
+            },
+        )
     }
 
     /// Publish the later deadline only after the provider's durable result is
@@ -1261,12 +1282,19 @@ fn credential_superseded() -> SnapbackError {
     )
 }
 
-fn session_expired() -> SnapbackError {
+fn session_expired(reason: RevocationReason) -> SnapbackError {
+    let authority_disposition = match reason.authority_disposition() {
+        super::session_projection::TerminalAuthorityDisposition::Carrier => "carrier",
+        super::session_projection::TerminalAuthorityDisposition::DurableDelete => "durableDelete",
+    };
     SnapbackError::error(
         "SNAPBACK_AUTH_SESSION_EXPIRED",
         "auth",
         "authentication session is expired or revoked",
     )
+    .with_details(serde_json::json!({
+        "authorityDisposition": authority_disposition,
+    }))
 }
 
 #[cfg(test)]
@@ -1345,6 +1373,7 @@ mod tests {
                 expires_at_ms: 1_000,
                 absolute_expires_at_ms: 9_000_000_000,
                 revoked_at_ms: None,
+                terminal_cause: None,
             }],
             superseded_tokens: Vec::new(),
         };
@@ -1620,12 +1649,16 @@ mod tests {
                 loser,
                 AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
                     generation: 2,
+                    reason: Some(RevocationReason::Logout),
                 }),
             )
             .unwrap();
         assert!(matches!(
             outcome,
-            RevocationFinish::AlreadyTerminal { generation: 2 }
+            RevocationFinish::AlreadyTerminal {
+                generation: 2,
+                reason: Some(RevocationReason::Logout)
+            }
         ));
         fixture.coordinator.check_invariants().unwrap();
     }

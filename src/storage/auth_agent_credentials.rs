@@ -13,10 +13,12 @@ use super::auth_grants::{ExactGrantScope, current_grant_scopes_on};
 use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64, write_meta_u64};
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, new_id};
 use crate::auth::crypto::{AgentCredential, RandomSource, ScopedToken};
+use crate::auth::service_fence::{ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::storage::auth::AuthTransactionAttempt;
+use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::Value;
+use std::collections::BTreeSet;
 
 pub const AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS: u64 = 60 * 60 * 1_000;
 pub const AGENT_CREDENTIAL_FAMILY_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
@@ -74,6 +76,7 @@ pub(crate) struct ResolvedScopedToken {
     pub credential_generation: u64,
     pub scopes: Vec<ExactGrantScope>,
     pub expires_at_ms: u64,
+    pub grant_expires_at_ms: Option<u64>,
 }
 
 pub(crate) struct RetainedServiceAuthority<'a> {
@@ -94,6 +97,7 @@ struct StoredScopedToken {
     credential_generation: i64,
     scopes_json: String,
     expires_at_ms: i64,
+    grant_expires_at_ms: Option<i64>,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -197,94 +201,121 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let predecessor_hash = credential.token_hash();
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            sweep_credential_family_on(tx, now_ms)?;
-            let row = credential_row_by_hash(tx, predecessor_hash.as_bytes())?
-                .filter(|row| row.revoked_at_ms.is_none())
-                .ok_or_else(agent_credential_invalid)?;
-            require_agent_active_on(tx, &row.user_id)?;
-            if now_ms
-                < row
-                    .rotated_at_ms
-                    .saturating_add(AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS)
-            {
-                return Err(agent_credential_rotation_throttled());
-            }
-            let successor_generation = row
-                .generation
-                .checked_add(1)
-                .filter(|generation| *generation <= i64::MAX as u64)
-                .ok_or_else(agent_credential_state_corrupt)?;
-            let successor = generate_unique_agent_credential_on(tx, random)?;
-            let successor_hash = successor.token_hash();
-            tx.execute(
-                "INSERT INTO _auth_agent_credentials(
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let row = credential_row_by_hash(tx, predecessor_hash.as_bytes())?
+                    .filter(|row| row.revoked_at_ms.is_none())
+                    .ok_or_else(agent_credential_invalid)?;
+                require_agent_active_on(tx, &row.user_id)?;
+                token_ids_for_credential(tx, &row.id)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                sweep_credential_family_on(tx, now_ms)?;
+                let row = credential_row_by_hash(tx, predecessor_hash.as_bytes())?
+                    .filter(|row| row.revoked_at_ms.is_none())
+                    .ok_or_else(agent_credential_invalid)?;
+                require_agent_active_on(tx, &row.user_id)?;
+                if now_ms
+                    < row
+                        .rotated_at_ms
+                        .saturating_add(AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS)
+                {
+                    return Err(agent_credential_rotation_throttled());
+                }
+                let successor_generation = row
+                    .generation
+                    .checked_add(1)
+                    .filter(|generation| *generation <= i64::MAX as u64)
+                    .ok_or_else(agent_credential_state_corrupt)?;
+                let successor = generate_unique_agent_credential_on(tx, random)?;
+                let successor_hash = successor.token_hash();
+                tx.execute(
+                    "INSERT INTO _auth_agent_credentials(
                    id, user_id, secret_hash, generation, created_at_ms,
                    rotated_at_ms, last_used_at_ms, revoked_at_ms
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
-                params![
-                    new_id(),
-                    row.user_id,
-                    predecessor_hash.as_bytes(),
-                    row.generation as i64,
-                    row.created_at_ms as i64,
-                    row.rotated_at_ms as i64,
-                    row.last_used_at_ms as i64,
-                    now_ms as i64,
-                ],
-            )?;
-            let invalidated_token_ids = live_token_ids_for_credential(tx, &row.id)?;
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                    params![
+                        new_id(),
+                        row.user_id,
+                        predecessor_hash.as_bytes(),
+                        row.generation as i64,
+                        row.created_at_ms as i64,
+                        row.rotated_at_ms as i64,
+                        row.last_used_at_ms as i64,
+                        now_ms as i64,
+                    ],
+                )?;
+                let invalidated_token_ids = live_token_ids_for_credential(tx, &row.id)?;
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
                  WHERE credential_id = ?2 AND revoked_at_ms IS NULL",
-                params![now_ms as i64, row.id],
-            )?;
-            tx.execute(
-                "UPDATE _auth_agent_credentials
+                    params![now_ms as i64, row.id],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_agent_credentials
                  SET secret_hash = ?1, generation = ?2, rotated_at_ms = ?3,
                      last_used_at_ms = ?3
                  WHERE id = ?4 AND revoked_at_ms IS NULL",
-                params![
-                    successor_hash.as_bytes(),
-                    successor_generation as i64,
-                    now_ms as i64,
-                    row.id,
-                ],
-            )?;
-            body_outcome = Some(RotatedAgentCredential {
-                credential_id: row.id,
-                user_id: row.user_id,
-                predecessor_generation: row.generation,
-                generation: successor_generation,
-                invalidated_token_ids,
-                secret: successor,
-            });
-            Ok(())
-        });
+                    params![
+                        successor_hash.as_bytes(),
+                        successor_generation as i64,
+                        now_ms as i64,
+                        row.id,
+                    ],
+                )?;
+                body_outcome = Some(RotatedAgentCredential {
+                    credential_id: row.id,
+                    user_id: row.user_id,
+                    predecessor_generation: row.generation,
+                    generation: successor_generation,
+                    invalidated_token_ids: invalidated_token_ids.clone(),
+                    secret: successor,
+                });
+                Ok(())
+            },
+        );
         let operation_key = body_outcome
             .as_ref()
             .map_or("unresolved", |outcome| outcome.credential_id.as_str());
-        let attempt =
-            inject_agent_lifecycle_commit_uncertainty(attempt, "rotate-credential", operation_key);
+        let attempt = inject_agent_lifecycle_service_commit_uncertainty(
+            attempt,
+            "rotate-credential",
+            operation_key,
+        );
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_rotated_agent_credential(
                         connection,
                         predecessor_hash.as_bytes(),
                         expected,
                     )
-                })
-                .map_err(|_| agent_lifecycle_commit_uncertain())?;
-                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    rotated_agent_credential_is_predecessor(
+                        connection,
+                        predecessor_hash.as_bytes(),
+                        expected,
+                    )
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
         }
     }
@@ -301,70 +332,88 @@ impl LocalDatabase {
         let hash = attributable.token_hash();
         let manifest = self.schema.clone();
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            sweep_credential_family_on(tx, now_ms)?;
-            let Some(row) = credential_row_by_hash(tx, hash.as_bytes())? else {
-                return Err(agent_credential_invalid());
-            };
-            let credential_ids = credential_ids_for_user(tx, &row.user_id)?;
-            let token_ids = live_token_ids_for_user(tx, &row.user_id)?;
-            let grant_ids = live_grant_ids_for_actor(tx, &row.user_id)?;
-            tx.execute(
-                "UPDATE _auth_agent_credentials SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let row = credential_row_by_hash(tx, hash.as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                token_ids_for_user(tx, &row.user_id)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                sweep_credential_family_on(tx, now_ms)?;
+                let Some(row) = credential_row_by_hash(tx, hash.as_bytes())? else {
+                    return Err(agent_credential_invalid());
+                };
+                let credential_ids = credential_ids_for_user(tx, &row.user_id)?;
+                let token_ids = live_token_ids_for_user(tx, &row.user_id)?;
+                let grant_ids = live_grant_ids_for_actor(tx, &row.user_id)?;
+                tx.execute(
+                    "UPDATE _auth_agent_credentials SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                  WHERE user_id = ?2",
-                params![now_ms as i64, row.user_id],
-            )?;
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                    params![now_ms as i64, row.user_id],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                  WHERE credential_id IN (
                    SELECT id FROM _auth_agent_credentials WHERE user_id = ?2
                  )",
-                params![now_ms as i64, row.user_id],
-            )?;
-            tx.execute(
-                "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                    params![now_ms as i64, row.user_id],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grants SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
                  WHERE actor_user_id = ?2",
-                params![now_ms as i64, row.user_id],
-            )?;
-            // Revocation is allowed to end compromised authority, but it may
-            // not silently make an unowned production holder permanently
-            // unrecoverable. The app must seat a replacement (or use the
-            // explicit emergency transfer/quarantine surface) first.
-            // @ref LLP 0055#principal-kinds — durable recoverability is shared
-            //   with LLP 0056's transaction-final lastHolder invariant.
-            super::auth_agents::validate_protected_membership_final_state(tx, &manifest)?;
-            body_outcome = Some(AgentFamilyRevocation {
-                user_id: Some(row.user_id),
-                credential_ids,
-                token_ids,
-                grant_ids,
-            });
-            Ok(())
-        });
+                    params![now_ms as i64, row.user_id],
+                )?;
+                // Revocation is allowed to end compromised authority, but it may
+                // not silently make an unowned production holder permanently
+                // unrecoverable. The app must seat a replacement (or use the
+                // explicit emergency transfer/quarantine surface) first.
+                // @ref LLP 0055#principal-kinds — durable recoverability is shared
+                //   with LLP 0056's transaction-final lastHolder invariant.
+                super::auth_agents::validate_protected_membership_final_state(tx, &manifest)?;
+                body_outcome = Some(AgentFamilyRevocation {
+                    user_id: Some(row.user_id),
+                    credential_ids,
+                    token_ids: token_ids.clone(),
+                    grant_ids,
+                });
+                Ok(())
+            },
+        );
         let operation_key = body_outcome
             .as_ref()
             .and_then(|outcome| outcome.user_id.as_deref())
             .unwrap_or("unresolved");
-        let attempt = inject_agent_lifecycle_commit_uncertainty(
+        let attempt = inject_agent_lifecycle_service_commit_uncertainty(
             attempt,
             "revoke-credential-family",
             operation_key,
         );
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_agent_family_revocation(connection, expected)
-                })
-                .map_err(|_| agent_lifecycle_commit_uncertain())?;
-                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    agent_family_revocation_is_predecessor(connection, expected)
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
         }
     }
@@ -393,71 +442,98 @@ impl LocalDatabase {
         let token_hash = secret.token_hash();
         let token_id = new_id();
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
-                .ok_or_else(agent_credential_invalid)?;
-            require_agent_active_on(tx, &resolved.user_id)?;
-            let grant = require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
-            let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
-                expires_at_ms.min(grant_expiry)
-            });
-            let mut live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
-            let mut evicted_token_ids = Vec::new();
-            while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
-                let evicted = live.remove(0);
-                tx.execute(
-                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                require_agent_active_on(tx, &resolved.user_id)?;
+                require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
+                let live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
+                let evict_count = live
+                    .len()
+                    .saturating_sub(SCOPED_TOKEN_LIVE_CAP as usize - 1);
+                Ok(live.into_iter().take(evict_count).collect())
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                require_agent_active_on(tx, &resolved.user_id)?;
+                let grant = require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
+                let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
+                    expires_at_ms.min(grant_expiry)
+                });
+                let mut live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
+                let mut evicted_token_ids = Vec::new();
+                while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
+                    let evicted = live.remove(0);
+                    tx.execute(
+                        "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
                      WHERE id = ?2 AND revoked_at_ms IS NULL",
-                    params![now_ms as i64, evicted],
-                )?;
-                evicted_token_ids.push(evicted);
-            }
-            tx.execute(
-                "INSERT INTO _auth_grant_tokens(
+                        params![now_ms as i64, evicted],
+                    )?;
+                    evicted_token_ids.push(evicted);
+                }
+                tx.execute(
+                    "INSERT INTO _auth_grant_tokens(
                    id, token_hash, grant_id, credential_id,
                    credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
-                params![
-                    token_id,
-                    token_hash.as_bytes(),
-                    grant_id,
-                    resolved.credential_id,
-                    resolved.generation as i64,
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
-            body_outcome = Some(IssuedScopedToken {
-                token_id: token_id.clone(),
-                grant_id: grant_id.to_owned(),
-                credential_id: resolved.credential_id,
-                credential_generation: resolved.generation,
-                expires_at_ms,
-                grant_expires_at_ms: grant.expires_at_ms,
-                scopes: grant.scopes,
-                evicted_token_ids,
-                secret,
-            });
-            Ok(())
-        });
-        let attempt =
-            inject_agent_lifecycle_commit_uncertainty(attempt, "mint-scoped-token", grant_id);
+                    params![
+                        token_id,
+                        token_hash.as_bytes(),
+                        grant_id,
+                        resolved.credential_id,
+                        resolved.generation as i64,
+                        now_ms as i64,
+                        expires_at_ms as i64,
+                    ],
+                )?;
+                coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
+                body_outcome = Some(IssuedScopedToken {
+                    token_id: token_id.clone(),
+                    grant_id: grant_id.to_owned(),
+                    credential_id: resolved.credential_id,
+                    credential_generation: resolved.generation,
+                    expires_at_ms,
+                    grant_expires_at_ms: grant.expires_at_ms,
+                    scopes: grant.scopes,
+                    evicted_token_ids: evicted_token_ids.clone(),
+                    secret,
+                });
+                Ok(())
+            },
+        );
+        let attempt = inject_agent_lifecycle_service_commit_uncertainty(
+            attempt,
+            "mint-scoped-token",
+            grant_id,
+        );
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_issued_scoped_token(connection, expected)
-                })
-                .map_err(|_| agent_lifecycle_commit_uncertain())?;
-                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    issued_scoped_token_is_predecessor(connection, expected)
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
         }
     }
@@ -487,123 +563,136 @@ impl LocalDatabase {
         let token_hash = secret.token_hash();
         let token_id = format!("{pairing_request_id}:{}", new_id());
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
-                .ok_or_else(agent_credential_invalid)?;
-            require_agent_active_on(tx, &resolved.user_id)?;
-            let pairing = tx
-                .query_row(
-                    "SELECT agent_user_id, state, expires_at_ms, grant_id
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+            |tx| planned_pairing_terminal_token_ids(tx, credential, pairing_request_id, now_ms),
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+                    .ok_or_else(agent_credential_invalid)?;
+                require_agent_active_on(tx, &resolved.user_id)?;
+                let pairing = tx
+                    .query_row(
+                        "SELECT agent_user_id, state, expires_at_ms, grant_id
                      FROM _auth_pairing_requests WHERE id = ?1",
-                    params![pairing_request_id],
-                    |row| {
-                        Ok((
-                            row.get::<_, Option<String>>(0)?,
-                            row.get::<_, String>(1)?,
-                            row.get::<_, i64>(2)?,
-                            row.get::<_, Option<String>>(3)?,
-                        ))
-                    },
-                )
-                .optional()?;
-            let Some((bound_agent, state, pairing_expires_at_ms, grant_id)) = pairing else {
-                return Err(grant_invalid());
-            };
-            let pairing_expires_at_ms = u64::try_from(pairing_expires_at_ms)
-                .map_err(|_| agent_credential_state_corrupt())?;
-            if bound_agent.as_deref() != Some(resolved.user_id.as_str())
-                || pairing_expires_at_ms <= now_ms
-            {
-                return Err(grant_invalid());
-            }
-            if state == "pending" && grant_id.is_none() {
-                return Err(grant_pending());
-            }
-            if state != "approved" {
-                return Err(grant_invalid());
-            }
-            let grant_id = grant_id.ok_or_else(grant_invalid)?;
-            let grant = require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
-            let expires_at_ms = grant
-                .expires_at_ms
-                .map_or(requested_expires_at_ms, |expiry| {
-                    requested_expires_at_ms.min(expiry)
-                });
+                        params![pairing_request_id],
+                        |row| {
+                            Ok((
+                                row.get::<_, Option<String>>(0)?,
+                                row.get::<_, String>(1)?,
+                                row.get::<_, i64>(2)?,
+                                row.get::<_, Option<String>>(3)?,
+                            ))
+                        },
+                    )
+                    .optional()?;
+                let Some((bound_agent, state, pairing_expires_at_ms, grant_id)) = pairing else {
+                    return Err(grant_invalid());
+                };
+                let pairing_expires_at_ms = u64::try_from(pairing_expires_at_ms)
+                    .map_err(|_| agent_credential_state_corrupt())?;
+                if bound_agent.as_deref() != Some(resolved.user_id.as_str())
+                    || pairing_expires_at_ms <= now_ms
+                {
+                    return Err(grant_invalid());
+                }
+                if state == "pending" && grant_id.is_none() {
+                    return Err(grant_pending());
+                }
+                if state != "approved" {
+                    return Err(grant_invalid());
+                }
+                let grant_id = grant_id.ok_or_else(grant_invalid)?;
+                let grant = require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
+                let expires_at_ms = grant
+                    .expires_at_ms
+                    .map_or(requested_expires_at_ms, |expiry| {
+                        requested_expires_at_ms.min(expiry)
+                    });
 
-            let pairing_prefix = format!("{pairing_request_id}:%");
-            let mut replaced_token_ids = collect_token_ids(
-                tx,
-                "SELECT id FROM _auth_grant_tokens
+                let pairing_prefix = format!("{pairing_request_id}:%");
+                let mut replaced_token_ids = collect_token_ids(
+                    tx,
+                    "SELECT id FROM _auth_grant_tokens
                  WHERE grant_id = ?1 AND id LIKE ?2 AND revoked_at_ms IS NULL
                  ORDER BY created_at_ms, id",
-                params![grant_id, pairing_prefix],
-            )?;
-            for replaced in &replaced_token_ids {
-                tx.execute(
-                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
-                     WHERE id = ?2 AND revoked_at_ms IS NULL",
-                    params![now_ms as i64, replaced],
+                    params![grant_id, pairing_prefix],
                 )?;
-            }
-            let mut live = live_token_ids_for_grant(tx, &grant_id, now_ms)?;
-            while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
-                let evicted = live.remove(0);
-                tx.execute(
-                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                for replaced in &replaced_token_ids {
+                    tx.execute(
+                        "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
                      WHERE id = ?2 AND revoked_at_ms IS NULL",
-                    params![now_ms as i64, evicted],
-                )?;
-                replaced_token_ids.push(evicted);
-            }
-            tx.execute(
-                "INSERT INTO _auth_grant_tokens(
+                        params![now_ms as i64, replaced],
+                    )?;
+                }
+                let mut live = live_token_ids_for_grant(tx, &grant_id, now_ms)?;
+                while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
+                    let evicted = live.remove(0);
+                    tx.execute(
+                        "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                     WHERE id = ?2 AND revoked_at_ms IS NULL",
+                        params![now_ms as i64, evicted],
+                    )?;
+                    replaced_token_ids.push(evicted);
+                }
+                tx.execute(
+                    "INSERT INTO _auth_grant_tokens(
                    id, token_hash, grant_id, credential_id,
                    credential_generation, created_at_ms, expires_at_ms, revoked_at_ms
                  ) VALUES(?1, ?2, ?3, ?4, ?5, ?6, ?7, NULL)",
-                params![
-                    token_id,
-                    token_hash.as_bytes(),
+                    params![
+                        token_id,
+                        token_hash.as_bytes(),
+                        grant_id,
+                        resolved.credential_id,
+                        resolved.generation as i64,
+                        now_ms as i64,
+                        expires_at_ms as i64,
+                    ],
+                )?;
+                coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
+                body_outcome = Some(IssuedScopedToken {
+                    token_id: token_id.clone(),
                     grant_id,
-                    resolved.credential_id,
-                    resolved.generation as i64,
-                    now_ms as i64,
-                    expires_at_ms as i64,
-                ],
-            )?;
-            coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
-            body_outcome = Some(IssuedScopedToken {
-                token_id: token_id.clone(),
-                grant_id,
-                credential_id: resolved.credential_id,
-                credential_generation: resolved.generation,
-                expires_at_ms,
-                grant_expires_at_ms: grant.expires_at_ms,
-                scopes: grant.scopes,
-                evicted_token_ids: replaced_token_ids,
-                secret,
-            });
-            Ok(())
-        });
-        let attempt = inject_agent_lifecycle_commit_uncertainty(
+                    credential_id: resolved.credential_id,
+                    credential_generation: resolved.generation,
+                    expires_at_ms,
+                    grant_expires_at_ms: grant.expires_at_ms,
+                    scopes: grant.scopes,
+                    evicted_token_ids: replaced_token_ids.clone(),
+                    secret,
+                });
+                Ok(())
+            },
+        );
+        let attempt = inject_agent_lifecycle_service_commit_uncertainty(
             attempt,
             "mint-pairing-scoped-token",
             pairing_request_id,
         );
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(agent_lifecycle_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_issued_scoped_token(connection, expected)
-                })
-                .map_err(|_| agent_lifecycle_commit_uncertain())?;
-                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(agent_lifecycle_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    issued_scoped_token_is_predecessor(connection, expected)
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(agent_lifecycle_commit_uncertain())
             }
         }
     }
@@ -624,7 +713,7 @@ impl LocalDatabase {
                 .query_row(
                     "SELECT t.id, g.id, g.actor_user_id, g.effective_user_id,
                             t.credential_id, t.credential_generation, g.scopes,
-                            t.expires_at_ms
+                            t.expires_at_ms, g.expires_at_ms
                      FROM _auth_grant_tokens AS t
                      JOIN _auth_grants AS g ON g.id = t.grant_id
                      JOIN _auth_agent_credentials AS c ON c.id = t.credential_id
@@ -648,6 +737,7 @@ impl LocalDatabase {
                             credential_generation: row.get(5)?,
                             scopes_json: row.get(6)?,
                             expires_at_ms: row.get(7)?,
+                            grant_expires_at_ms: row.get(8)?,
                         })
                     },
                 )
@@ -661,9 +751,12 @@ impl LocalDatabase {
                 credential_generation,
                 scopes_json,
                 expires_at_ms,
+                grant_expires_at_ms,
             }) = row
             else {
-                return Err(scoped_token_invalid());
+                let authority_disposition =
+                    scoped_token_authority_disposition_on(tx, hash.as_bytes(), now_ms)?;
+                return Err(scoped_token_invalid(authority_disposition));
             };
             let scopes = current_grant_scopes_on(tx, &scopes_json)?;
             coalesce_credential_use(tx, &credential_id, now_ms)?;
@@ -685,6 +778,10 @@ impl LocalDatabase {
                 credential_generation: credential_generation as u64,
                 scopes,
                 expires_at_ms: expires_at_ms as u64,
+                grant_expires_at_ms: grant_expires_at_ms
+                    .map(u64::try_from)
+                    .transpose()
+                    .map_err(|_| agent_credential_state_corrupt())?,
             })
         })
     }
@@ -698,6 +795,21 @@ impl LocalDatabase {
         now_ms: u64,
     ) -> SnapbackResult<bool> {
         self.observe_agent_authorization_clock(now_ms)?;
+        self.retained_service_authority_is_live_readonly(authority, now_ms)
+    }
+
+    /// Exact read-only twin for an invocation that already owns the app lock.
+    /// The resolving auth path advanced the durable clock floor; this seam
+    /// avoids a second write transaction immediately before an app effect.
+    pub(crate) fn retained_service_authority_is_live_readonly(
+        &self,
+        authority: RetainedServiceAuthority<'_>,
+        now_ms: u64,
+    ) -> SnapbackResult<bool> {
+        let high_water = strict_meta_u64(&self.conn, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
+        if now_ms < high_water || now_ms > MAX_AUTHORIZATION_EPOCH {
+            return Err(auth_clock_rollback());
+        }
         let credential_generation = i64::try_from(authority.credential_generation)
             .map_err(|_| agent_credential_state_corrupt())?;
         let now_ms = i64::try_from(now_ms).map_err(|_| auth_clock_rollback())?;
@@ -731,6 +843,113 @@ impl LocalDatabase {
             )
             .optional()?
             .is_some())
+    }
+
+    /// Persist a monotonic-observed scoped-token/grant deadline before the
+    /// process publishes that terminal result. This prevents a backward wall
+    /// clock plus restart from reviving authority that this process already
+    /// observed expire.
+    pub(crate) fn terminalize_expired_service_authority(
+        &mut self,
+        deadline: &ServiceAuthorityDeadlineTerminal,
+    ) -> SnapbackResult<()> {
+        let disposition = deadline.disposition;
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            disposition,
+            |tx| {
+                let token_ids = match disposition {
+                    ServiceAuthorityDisposition::Carrier => vec![deadline.token_id.clone()],
+                    ServiceAuthorityDisposition::DurableDelete => collect_token_ids(
+                        tx,
+                        "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
+                        params![deadline.grant_id],
+                    )?,
+                };
+                Ok(token_ids)
+            },
+            |tx| {
+                match disposition {
+                    ServiceAuthorityDisposition::Carrier => {
+                        tx.execute(
+                            "UPDATE _auth_grant_tokens
+                         SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                         WHERE id = ?2 AND grant_id = ?3",
+                            params![
+                                deadline.deadline_ms as i64,
+                                deadline.token_id,
+                                deadline.grant_id,
+                            ],
+                        )?;
+                    }
+                    ServiceAuthorityDisposition::DurableDelete => {
+                        tx.execute(
+                            "UPDATE _auth_grant_tokens
+                         SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                         WHERE grant_id = ?2",
+                            params![deadline.deadline_ms as i64, deadline.grant_id],
+                        )?;
+                        tx.execute(
+                            "UPDATE _auth_grants
+                         SET revoked_at_ms = COALESCE(revoked_at_ms, ?1)
+                         WHERE id = ?2",
+                            params![deadline.deadline_ms as i64, deadline.grant_id],
+                        )?;
+                    }
+                }
+                Ok(())
+            },
+        );
+        match attempt {
+            ServiceAuthTransactionAttempt::Committed(()) => Ok(()),
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
+                let successor = self.with_auth_read(|connection| match disposition {
+                    ServiceAuthorityDisposition::Carrier => Ok(connection
+                        .query_row(
+                            "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens
+                             WHERE id = ?1 AND grant_id = ?2",
+                            params![deadline.token_id, deadline.grant_id],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .optional()?
+                        == Some(true)),
+                    ServiceAuthorityDisposition::DurableDelete => Ok(connection
+                        .query_row(
+                            "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
+                            params![deadline.grant_id],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .optional()?
+                        == Some(true)),
+                })?;
+                if successor {
+                    return self.reconcile_ambiguous_service_terminal(terminal, true);
+                }
+                let predecessor = self.with_auth_read(|connection| match disposition {
+                    ServiceAuthorityDisposition::Carrier => Ok(connection
+                        .query_row(
+                            "SELECT revoked_at_ms IS NULL FROM _auth_grant_tokens
+                             WHERE id = ?1 AND grant_id = ?2",
+                            params![deadline.token_id, deadline.grant_id],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .optional()?
+                        == Some(true)),
+                    ServiceAuthorityDisposition::DurableDelete => Ok(connection
+                        .query_row(
+                            "SELECT revoked_at_ms IS NULL FROM _auth_grants WHERE id = ?1",
+                            params![deadline.grant_id],
+                            |row| row.get::<_, bool>(0),
+                        )
+                        .optional()?
+                        == Some(true)),
+                })?;
+                if predecessor {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                }
+                Err(error)
+            }
+        }
     }
 
     pub(super) fn observe_agent_authorization_clock(&mut self, now_ms: u64) -> SnapbackResult<()> {
@@ -942,6 +1161,71 @@ fn live_token_ids_for_grant(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
+fn planned_pairing_terminal_token_ids(
+    tx: &Transaction<'_>,
+    credential: &AgentCredential,
+    pairing_request_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(tx, now_ms)?;
+    let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+        .ok_or_else(agent_credential_invalid)?;
+    require_agent_active_on(tx, &resolved.user_id)?;
+    let pairing = tx
+        .query_row(
+            "SELECT agent_user_id, state, expires_at_ms, grant_id
+             FROM _auth_pairing_requests WHERE id = ?1",
+            params![pairing_request_id],
+            |row| {
+                Ok((
+                    row.get::<_, Option<String>>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, Option<String>>(3)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((bound_agent, state, pairing_expires_at_ms, grant_id)) = pairing else {
+        return Err(grant_invalid());
+    };
+    let pairing_expires_at_ms =
+        u64::try_from(pairing_expires_at_ms).map_err(|_| agent_credential_state_corrupt())?;
+    if bound_agent.as_deref() != Some(resolved.user_id.as_str()) || pairing_expires_at_ms <= now_ms
+    {
+        return Err(grant_invalid());
+    }
+    if state == "pending" && grant_id.is_none() {
+        return Err(grant_pending());
+    }
+    if state != "approved" {
+        return Err(grant_invalid());
+    }
+    let grant_id = grant_id.ok_or_else(grant_invalid)?;
+    require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
+
+    let pairing_prefix = format!("{pairing_request_id}:%");
+    let mut terminal = collect_token_ids(
+        tx,
+        "SELECT id FROM _auth_grant_tokens
+         WHERE grant_id = ?1 AND id LIKE ?2 AND revoked_at_ms IS NULL
+         ORDER BY created_at_ms, id",
+        params![grant_id, pairing_prefix],
+    )?;
+    let replaced = terminal.iter().cloned().collect::<BTreeSet<_>>();
+    let remaining_live = live_token_ids_for_grant(tx, &grant_id, now_ms)?
+        .into_iter()
+        .filter(|token_id| !replaced.contains(token_id))
+        .collect::<Vec<_>>();
+    let evict_count = remaining_live
+        .len()
+        .saturating_sub(SCOPED_TOKEN_LIVE_CAP as usize - 1);
+    terminal.extend(remaining_live.into_iter().take(evict_count));
+    terminal.sort();
+    terminal.dedup();
+    Ok(terminal)
+}
+
 fn live_token_ids_for_credential(
     tx: &Transaction<'_>,
     credential_id: &str,
@@ -954,6 +1238,18 @@ fn live_token_ids_for_credential(
     )
 }
 
+fn token_ids_for_credential(
+    tx: &Transaction<'_>,
+    credential_id: &str,
+) -> SnapbackResult<Vec<String>> {
+    collect_token_ids(
+        tx,
+        "SELECT id FROM _auth_grant_tokens
+         WHERE credential_id = ?1 ORDER BY created_at_ms, id",
+        params![credential_id],
+    )
+}
+
 fn credential_ids_for_user(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<Vec<String>> {
     collect_ids(
         tx,
@@ -962,13 +1258,32 @@ fn credential_ids_for_user(tx: &Transaction<'_>, user_id: &str) -> SnapbackResul
     )
 }
 
-fn live_token_ids_for_user(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<Vec<String>> {
+pub(super) fn live_token_ids_for_user(
+    tx: &Transaction<'_>,
+    user_id: &str,
+) -> SnapbackResult<Vec<String>> {
     collect_ids(
         tx,
         "SELECT t.id FROM _auth_grant_tokens AS t
          JOIN _auth_agent_credentials AS c ON c.id = t.credential_id
          WHERE c.user_id = ?1 AND t.revoked_at_ms IS NULL ORDER BY t.id",
         user_id,
+    )
+}
+
+pub(super) fn token_ids_for_user(
+    tx: &Transaction<'_>,
+    user_id: &str,
+) -> SnapbackResult<Vec<String>> {
+    collect_token_ids(
+        tx,
+        "SELECT tokens.id
+         FROM _auth_grant_tokens AS tokens
+         JOIN _auth_agent_credentials AS credentials
+           ON credentials.id = tokens.credential_id
+         WHERE credentials.user_id = ?1
+         ORDER BY tokens.created_at_ms, tokens.id",
+        params![user_id],
     )
 }
 
@@ -1113,6 +1428,51 @@ fn reconcile_rotated_agent_credential(
     Ok(())
 }
 
+fn rotated_agent_credential_is_predecessor(
+    connection: &Connection,
+    predecessor_hash: &[u8],
+    expected: &RotatedAgentCredential,
+) -> SnapbackResult<bool> {
+    let credential = connection
+        .query_row(
+            "SELECT user_id, secret_hash, generation, revoked_at_ms
+             FROM _auth_agent_credentials WHERE id = ?1",
+            params![expected.credential_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                ))
+            },
+        )
+        .optional()?;
+    if credential
+        != Some((
+            expected.user_id.clone(),
+            predecessor_hash.to_vec(),
+            expected.predecessor_generation as i64,
+            None,
+        ))
+    {
+        return Ok(false);
+    }
+    for token_id in &expected.invalidated_token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn reconcile_issued_scoped_token(
     connection: &Connection,
     expected: &IssuedScopedToken,
@@ -1187,6 +1547,36 @@ fn reconcile_issued_scoped_token(
     Ok(())
 }
 
+fn issued_scoped_token_is_predecessor(
+    connection: &Connection,
+    expected: &IssuedScopedToken,
+) -> SnapbackResult<bool> {
+    let candidate_exists = connection
+        .query_row(
+            "SELECT 1 FROM _auth_grant_tokens WHERE id = ?1",
+            params![expected.token_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if candidate_exists {
+        return Ok(false);
+    }
+    for token_id in &expected.evicted_token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn reconcile_agent_family_revocation(
     connection: &Connection,
     expected: &AgentFamilyRevocation,
@@ -1253,6 +1643,49 @@ fn reconcile_agent_family_revocation(
         return Err(agent_lifecycle_commit_uncertain());
     }
     Ok(())
+}
+
+fn agent_family_revocation_is_predecessor(
+    connection: &Connection,
+    expected: &AgentFamilyRevocation,
+) -> SnapbackResult<bool> {
+    let Some(user_id) = expected.user_id.as_deref() else {
+        return Ok(false);
+    };
+    let live_credentials: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_agent_credentials
+         WHERE user_id = ?1 AND revoked_at_ms IS NULL",
+        params![user_id],
+        |row| row.get(0),
+    )?;
+    if live_credentials == 0 {
+        return Ok(false);
+    }
+    for token_id in &expected.token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    for grant_id in &expected.grant_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
+                params![grant_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
 }
 
 fn sweep_credential_family_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
@@ -1328,6 +1761,46 @@ fn inject_agent_lifecycle_commit_uncertainty<T>(
     attempt
 }
 
+fn inject_agent_lifecycle_service_commit_uncertainty<T>(
+    attempt: ServiceAuthTransactionAttempt<T>,
+    _operation: &str,
+    _key: &str,
+) -> ServiceAuthTransactionAttempt<T> {
+    #[cfg(test)]
+    {
+        let should_inject = {
+            let mut target = INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
+                .lock()
+                .expect("agent lifecycle commit uncertainty injector lock");
+            if target
+                .as_ref()
+                .is_some_and(|(operation, key)| operation == _operation && key == _key)
+            {
+                target.take();
+                true
+            } else {
+                false
+            }
+        };
+        if should_inject {
+            return match attempt {
+                ServiceAuthTransactionAttempt::Committed(_) => {
+                    ServiceAuthTransactionAttempt::CommitUncertain {
+                        error: SnapbackError::error(
+                            "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
+                            "auth",
+                            "agent lifecycle commit acknowledgement was unavailable",
+                        ),
+                        terminal: None,
+                    }
+                }
+                other => other,
+            };
+        }
+    }
+    attempt
+}
+
 fn agent_lifecycle_commit_uncertain() -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
@@ -1368,12 +1841,92 @@ fn agent_credential_state_corrupt() -> SnapbackError {
     )
 }
 
-fn scoped_token_invalid() -> SnapbackError {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScopedTokenAuthorityDisposition {
+    Carrier,
+    DurableDelete,
+}
+
+impl ScopedTokenAuthorityDisposition {
+    fn wire_name(self) -> &'static str {
+        match self {
+            Self::Carrier => "carrier",
+            Self::DurableDelete => "durableDelete",
+        }
+    }
+}
+
+/// Classify a failed scoped-token resolution without trusting the bearer as a
+/// durable-authority tombstone. An unknown hash is only a bad carrier. For a
+/// known token, token-local expiry/revocation is also carrier churn so long as
+/// its grant, credential generation, and actor principal remain live. Only a
+/// failed durable axis authorizes clients to delete retained agent authority.
+///
+/// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — bearer
+///   expiry is a carrier event; grant, credential, and principal termination
+///   end durable authority.
+fn scoped_token_authority_disposition_on(
+    connection: &Connection,
+    token_hash: &[u8],
+    now_ms: u64,
+) -> SnapbackResult<ScopedTokenAuthorityDisposition> {
+    let token_basis = connection
+        .query_row(
+            "SELECT grant_id, credential_id, credential_generation
+             FROM _auth_grant_tokens
+             WHERE token_hash = ?1",
+            params![token_hash],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, i64>(2)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((grant_id, credential_id, credential_generation)) = token_basis else {
+        return Ok(ScopedTokenAuthorityDisposition::Carrier);
+    };
+    let durable_axes_live = connection.query_row(
+        "SELECT EXISTS(
+           SELECT 1
+           FROM _auth_grants AS g
+           JOIN _auth_agent_credentials AS c ON c.id = ?2
+           JOIN _auth_users AS u ON u.id = g.actor_user_id
+           WHERE g.id = ?1
+             AND g.revoked_at_ms IS NULL
+             AND (g.expires_at_ms IS NULL OR g.expires_at_ms > ?4)
+             AND c.revoked_at_ms IS NULL
+             AND c.generation = ?3
+             AND c.user_id = g.actor_user_id
+             AND u.kind = 'agent'
+             AND u.deactivated_at_ms IS NULL
+         )",
+        params![
+            grant_id,
+            credential_id,
+            credential_generation,
+            now_ms as i64
+        ],
+        |row| row.get::<_, bool>(0),
+    )?;
+    Ok(if durable_axes_live {
+        ScopedTokenAuthorityDisposition::Carrier
+    } else {
+        ScopedTokenAuthorityDisposition::DurableDelete
+    })
+}
+
+fn scoped_token_invalid(authority_disposition: ScopedTokenAuthorityDisposition) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
         "auth",
         "scoped agent token is invalid",
     )
+    .with_details(serde_json::json!({
+        "authorityDisposition": authority_disposition.wire_name(),
+    }))
 }
 
 fn scoped_token_ttl_invalid() -> SnapbackError {
@@ -1520,6 +2073,25 @@ mod tests {
                 ],
             )
             .expect("expiring grant");
+    }
+
+    fn assert_scoped_token_disposition(error: SnapbackError, expected: &str) {
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID");
+        assert_eq!(error.diagnostic.details["authorityDisposition"], expected);
+    }
+
+    fn scoped_token_fixture(ttl_ms: u64) -> (LocalDatabase, IssuedScopedToken) {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        let credential = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .expect("credential")
+            .secret;
+        seed_grant(&db, "grant-a", 1_000);
+        let token = db
+            .mint_scoped_token(&credential, "grant-a", Some(ttl_ms), 1_000, &random)
+            .expect("scoped token");
+        (db, token)
     }
 
     #[test]
@@ -1723,12 +2295,10 @@ mod tests {
             );
         }
         assert_eq!(tokens.last().unwrap().evicted_token_ids.len(), 1);
-        assert_eq!(
+        assert_scoped_token_disposition(
             db.resolve_scoped_token(&tokens.remove(0).secret, now + SCOPED_TOKEN_LIVE_CAP)
-                .unwrap_err()
-                .diagnostic
-                .code,
-            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+                .unwrap_err(),
+            "carrier",
         );
         let current = tokens.last().unwrap();
         let resolved = db
@@ -1736,6 +2306,88 @@ mod tests {
             .unwrap();
         assert_eq!(resolved.grant_id, "grant-a");
         assert_eq!(resolved.actor_user_id, "agent-a");
+    }
+
+    #[test]
+    fn scoped_token_failures_classify_carrier_churn_and_durable_authority_loss() {
+        let (mut unknown_db, _) = scoped_token_fixture(100);
+        let unknown = ScopedToken::generate(&FixedRandom(99)).expect("well-formed unknown token");
+        assert_scoped_token_disposition(
+            unknown_db
+                .resolve_scoped_token(&unknown, 1_001)
+                .unwrap_err(),
+            "carrier",
+        );
+
+        let (mut expired_db, expired) = scoped_token_fixture(10);
+        assert_scoped_token_disposition(
+            expired_db
+                .resolve_scoped_token(&expired.secret, 1_010)
+                .unwrap_err(),
+            "carrier",
+        );
+
+        let (mut revoked_grant_db, revoked_grant) = scoped_token_fixture(100);
+        revoked_grant_db
+            .conn
+            .execute(
+                "UPDATE _auth_grants SET revoked_at_ms = 1001 WHERE id = 'grant-a'",
+                [],
+            )
+            .expect("revoke grant");
+        assert_scoped_token_disposition(
+            revoked_grant_db
+                .resolve_scoped_token(&revoked_grant.secret, 1_001)
+                .unwrap_err(),
+            "durableDelete",
+        );
+
+        let (mut rotated_credential_db, rotated_credential) = scoped_token_fixture(100);
+        rotated_credential_db
+            .conn
+            .execute(
+                "UPDATE _auth_agent_credentials SET generation = generation + 1
+                 WHERE user_id = 'agent-a' AND revoked_at_ms IS NULL",
+                [],
+            )
+            .expect("rotate credential generation");
+        assert_scoped_token_disposition(
+            rotated_credential_db
+                .resolve_scoped_token(&rotated_credential.secret, 1_001)
+                .unwrap_err(),
+            "durableDelete",
+        );
+
+        let (mut revoked_credential_db, revoked_credential) = scoped_token_fixture(100);
+        revoked_credential_db
+            .conn
+            .execute(
+                "UPDATE _auth_agent_credentials SET revoked_at_ms = 1001
+                 WHERE user_id = 'agent-a' AND revoked_at_ms IS NULL",
+                [],
+            )
+            .expect("revoke credential");
+        assert_scoped_token_disposition(
+            revoked_credential_db
+                .resolve_scoped_token(&revoked_credential.secret, 1_001)
+                .unwrap_err(),
+            "durableDelete",
+        );
+
+        let (mut inactive_principal_db, inactive_principal) = scoped_token_fixture(100);
+        inactive_principal_db
+            .conn
+            .execute(
+                "UPDATE _auth_users SET deactivated_at_ms = 1001 WHERE id = 'agent-a'",
+                [],
+            )
+            .expect("deactivate principal");
+        assert_scoped_token_disposition(
+            inactive_principal_db
+                .resolve_scoped_token(&inactive_principal.secret, 1_001)
+                .unwrap_err(),
+            "durableDelete",
+        );
     }
 
     #[test]
@@ -1839,6 +2491,67 @@ mod tests {
     }
 
     #[test]
+    fn monotonic_token_expiry_is_durable_before_terminal_publication_and_restart() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("service-expiry.sqlite3");
+        let random = CounterRandom::new();
+        let token;
+        {
+            let mut db = LocalDatabase::open(&path).expect("open durable database");
+            db.activate_current_auth_catalog()
+                .expect("activate auth catalog");
+            create_agent(&mut db, "agent-a");
+            let credential = db
+                .issue_initial_agent_credential("agent-a", 1_000, &random)
+                .unwrap()
+                .secret;
+            seed_grant(&db, "grant-a", 1_000);
+            let issued = db
+                .mint_scoped_token(&credential, "grant-a", Some(10), 1_000, &random)
+                .unwrap();
+            let resolved = db.resolve_scoped_token(&issued.secret, 1_001).unwrap();
+            let monotonic = std::time::Instant::now();
+            let publication = db
+                .service_authority_fence_registry()
+                .register(
+                    crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
+                    1_001,
+                    monotonic,
+                )
+                .expect("register resolved service authority");
+            let deadline = publication
+                .expired_deadline_terminal(1_001, monotonic + std::time::Duration::from_millis(9))
+                .expect("classify monotonic deadline")
+                .expect("monotonic deadline is due");
+            assert_eq!(
+                publication
+                    .resolve_act(1_001, monotonic + std::time::Duration::from_millis(9))
+                    .unwrap(),
+                crate::auth::service_fence::ServiceAuthorityActResolution::Unavailable,
+                "an unpersisted deadline is unavailable, never terminal"
+            );
+            db.terminalize_expired_service_authority(&deadline)
+                .expect("persist expiry and settle exact fence");
+            assert_eq!(
+                publication
+                    .resolve_act(1_001, monotonic + std::time::Duration::from_millis(9))
+                    .unwrap(),
+                crate::auth::service_fence::ServiceAuthorityActResolution::Terminal(
+                    ServiceAuthorityDisposition::Carrier
+                )
+            );
+            token = issued.secret;
+        }
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen durable database");
+        let error = reopened
+            .resolve_scoped_token(&token, 1_001)
+            .expect_err("a backward wall sample after restart cannot revive the token");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID");
+        assert_eq!(error.diagnostic.details["authorityDisposition"], "carrier");
+    }
+
+    #[test]
     fn token_receipt_and_durable_expiry_are_clamped_to_the_grant() {
         let random = CounterRandom::new();
         let mut db = ready();
@@ -1862,12 +2575,9 @@ mod tests {
         assert_eq!(issued.expires_at_ms, 1_010);
         db.resolve_scoped_token(&issued.secret, 1_009)
             .expect("token remains live strictly before the grant expiry");
-        assert_eq!(
-            db.resolve_scoped_token(&issued.secret, 1_010)
-                .unwrap_err()
-                .diagnostic
-                .code,
-            "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+        assert_scoped_token_disposition(
+            db.resolve_scoped_token(&issued.secret, 1_010).unwrap_err(),
+            "durableDelete",
         );
     }
 

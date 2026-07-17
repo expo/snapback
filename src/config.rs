@@ -67,9 +67,7 @@ impl SecretRedactor {
     pub(crate) fn redact_text(&self, text: &str) -> String {
         let mut redacted = text.to_owned();
         for pattern in &self.patterns {
-            redacted = pattern
-                .replace_all(&redacted, "[REDACTED]")
-                .into_owned();
+            redacted = pattern.replace_all(&redacted, "[REDACTED]").into_owned();
         }
         redacted
     }

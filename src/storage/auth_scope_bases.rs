@@ -154,8 +154,8 @@ pub(super) fn reconcile_auth_scope_bases_on(
             None => {}
             Some(function) => {
                 let kind = function_kind_name(&function.kind);
-                let shape_changed = basis.kind != kind
-                    || basis.authority_creating != function.authority_creating;
+                let shape_changed =
+                    basis.kind != kind || basis.authority_creating != function.authority_creating;
                 let generation = if shape_changed {
                     reconciliation.basis_advanced.insert(function_id.clone());
                     next_generation(basis.generation)?

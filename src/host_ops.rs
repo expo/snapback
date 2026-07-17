@@ -1048,6 +1048,17 @@ fn run_function(
     let input = host_op_handler_input(request);
     match kind {
         FunctionKind::Query | FunctionKind::LiveQuery => {
+            if let Err(error) =
+                snapback.persist_and_validate_prepared_service_authority(&prepared_authority)
+            {
+                return envelope(
+                    snapback,
+                    false,
+                    authority,
+                    Value::Object(Default::default()),
+                    vec![error.diagnostic],
+                );
+            }
             match snapback.invoke_query_with_dependencies_prepared(&name, input, prepared_authority)
             {
                 Ok(invocation) => {

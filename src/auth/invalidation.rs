@@ -1285,16 +1285,14 @@ impl ObligationRegistry {
                 namespace == target
             }
             ScopeId::Connection { .. } => {
-                self.connection_children
-                    .get(scope)
-                    .is_some_and(|children| {
-                        children.iter().any(|child| {
-                            matches!(
-                                child,
-                                ScopeId::Subscription { namespace, .. } if namespace == target
-                            )
-                        })
+                self.connection_children.get(scope).is_some_and(|children| {
+                    children.iter().any(|child| {
+                        matches!(
+                            child,
+                            ScopeId::Subscription { namespace, .. } if namespace == target
+                        )
                     })
+                })
             }
         })
     }

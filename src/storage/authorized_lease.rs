@@ -384,6 +384,7 @@ mod tests {
 
     const NOW: u64 = 1_800_000_000_000;
     const INCARNATION: &str = "01890f3c-9d5b-7000-8000-000000000001";
+    const SESSION_ID: &str = "01890f3c-9d5b-7000-8000-000000000006";
 
     fn digest(prefix: &str, byte: u8) -> String {
         format!("{prefix}{:x}", Sha256::digest([byte; 32]))
@@ -465,7 +466,7 @@ mod tests {
                    absolute_expires_at_ms, revoked_at_ms
                  ) VALUES(?1, ?2, ?3, ?4, ?5, 1, ?6, ?6, ?7, ?8, NULL)",
                 params![
-                    "session_1",
+                    SESSION_ID,
                     "user_1",
                     "identity_1",
                     "01890f3c-9d5b-7000-8000-000000000004",
@@ -513,7 +514,7 @@ mod tests {
                     query_key: "items:{owner=me}".to_owned(),
                     query_instance_id: 1,
                     principal_id: "user_1".to_owned(),
-                    session_id_at_issue: Some("session_1".to_owned()),
+                    session_id_at_issue: Some(SESSION_ID.to_owned()),
                     provider_key: Some("email-code".to_owned()),
                     authorization,
                     data: AuthorizedLeaseData {
@@ -858,7 +859,7 @@ mod tests {
                 "UPDATE _auth_sessions
                     SET revoked_at_ms = ?1, generation = generation + 1
                   WHERE id = ?2",
-                params![NOW as i64, "session_1"],
+                params![NOW as i64, SESSION_ID],
             )?;
             Ok(())
         })

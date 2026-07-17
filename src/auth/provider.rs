@@ -260,10 +260,7 @@ impl fmt::Debug for StepUpProof {
 }
 
 impl StepUpProof {
-    pub(crate) fn reconcile_consumed_on(
-        &self,
-        connection: &Connection,
-    ) -> SnapbackResult<bool> {
+    pub(crate) fn reconcile_consumed_on(&self, connection: &Connection) -> SnapbackResult<bool> {
         let Some(expected_key_id) = self.key_id.as_ref() else {
             return Ok(false);
         };
@@ -294,10 +291,7 @@ impl StepUpProof {
             .map_err(SnapbackError::from)
     }
 
-    pub(crate) fn reconcile_unconsumed_on(
-        &self,
-        connection: &Connection,
-    ) -> SnapbackResult<bool> {
+    pub(crate) fn reconcile_unconsumed_on(&self, connection: &Connection) -> SnapbackResult<bool> {
         let Some(expected_key_id) = self.key_id.as_ref() else {
             return Ok(true);
         };
@@ -868,7 +862,10 @@ pub(crate) enum PlannedFamilyAlarmCommit {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum PlannedRevocationCommit {
     Committed(SessionRevocation),
-    AlreadyTerminal { generation: u64 },
+    AlreadyTerminal {
+        generation: u64,
+        reason: Option<RevocationReason>,
+    },
     PredecessorChanged,
 }
 
@@ -1110,7 +1107,9 @@ impl AuthProvider {
         let sample = self.clock.epoch_ms();
         // fetch_max returns the previous value; the observed epoch is the max
         // of that and the fresh sample.
-        let previous = self.session_clock_floor_ms.fetch_max(sample, Ordering::AcqRel);
+        let previous = self
+            .session_clock_floor_ms
+            .fetch_max(sample, Ordering::AcqRel);
         previous.max(sample)
     }
 
@@ -1787,7 +1786,10 @@ impl AuthAdmission {
             }
             AuthTransactionAttempt::RolledBack(error) => AuthTransactionAttempt::RolledBack(error),
             AuthTransactionAttempt::CommitUncertain(error) => {
-                if matches!(body_outcome, Some(PlannedRotationTransaction::CandidateCollision)) {
+                if matches!(
+                    body_outcome,
+                    Some(PlannedRotationTransaction::CandidateCollision)
+                ) {
                     // Candidate collision is detected before any write. A lost
                     // read-only COMMIT acknowledgement cannot have changed
                     // durable authority, so the coordinator may exact-unmark
@@ -1847,7 +1849,7 @@ impl AuthAdmission {
                 }
                 Ok(RefreshOutcome::ReuseRevoked(revocation)) => {
                     return Err(ProviderError::with_committed_revocation(
-                        session_expired().into_snapback_error(),
+                        session_revoked().into_snapback_error(),
                         revocation,
                     ));
                 }
@@ -2953,6 +2955,10 @@ fn resolve_ordinary_lookup(
             if session.live_at(now_ms) {
                 Ok(session.session)
             } else {
+                // The frozen v1/v2 durable row has only `revoked_at_ms`, not
+                // the cause. Cap eviction is carrier-only while logout and
+                // family revocation are durable, so this restart/provider
+                // fallback must remain non-destructive.
                 Err(session_expired())
             }
         }
@@ -3033,15 +3039,24 @@ fn planned_revocation_transaction(
     if changed > 1 {
         return Err(internal_state_snapback());
     }
-    let durable: Option<(i64, bool)> = transaction
+    if changed == 1 {
+        crate::storage::auth::write_session_terminal_cause_in(
+            transaction,
+            &plan.session_id,
+            committed_generation,
+            now_ms,
+            plan.reason,
+        )?;
+    }
+    let durable: Option<(i64, Option<i64>)> = transaction
         .query_row(
-            "SELECT generation, revoked_at_ms IS NOT NULL
+            "SELECT generation, revoked_at_ms
              FROM _auth_sessions WHERE id = ?1",
             params![plan.session_id],
             |row| Ok((row.get(0)?, row.get(1)?)),
         )
         .optional()?;
-    let Some((generation, revoked)) = durable else {
+    let Some((generation, revoked_at_ms)) = durable else {
         return Ok(PlannedRevocationCommit::PredecessorChanged);
     };
     let generation = u64::try_from(generation)
@@ -3049,7 +3064,7 @@ fn planned_revocation_transaction(
         .filter(|generation| *generation != 0 && *generation <= MAX_SAFE_TIMESTAMP)
         .ok_or_else(internal_state_snapback)?;
     if changed == 1 {
-        if revoked && generation == committed_generation {
+        if revoked_at_ms == Some(now_ms as i64) && generation == committed_generation {
             return Ok(PlannedRevocationCommit::Committed(SessionRevocation {
                 session_id: plan.session_id.clone(),
                 generation,
@@ -3057,8 +3072,17 @@ fn planned_revocation_transaction(
         }
         return Err(internal_state_snapback());
     }
-    if revoked && generation >= committed_generation {
-        Ok(PlannedRevocationCommit::AlreadyTerminal { generation })
+    if let Some(revoked_at_ms) = revoked_at_ms
+        && generation >= committed_generation
+    {
+        let revoked_at_ms = u64::try_from(revoked_at_ms).map_err(|_| internal_state_snapback())?;
+        let reason = crate::storage::auth::read_session_terminal_cause_on(
+            transaction,
+            &plan.session_id,
+            generation,
+            revoked_at_ms,
+        )?;
+        Ok(PlannedRevocationCommit::AlreadyTerminal { generation, reason })
     } else {
         Ok(PlannedRevocationCommit::PredecessorChanged)
     }
@@ -3110,6 +3134,13 @@ fn reconcile_planned_revocation(
     let committed_generation = plan.committed_generation()?;
     if snapshot.record.session.generation == committed_generation
         && snapshot.revoked_at_ms == Some(now_ms)
+        && crate::storage::auth::session_terminal_cause_matches_on(
+            connection,
+            &plan.session_id,
+            committed_generation,
+            now_ms,
+            plan.reason,
+        )?
     {
         return Ok(DurableRevocationReconcile::ExactSuccessor(
             SessionRevocation {
@@ -3295,7 +3326,12 @@ fn refresh_transaction(
     if age <= AUTH_SESSION_SUPERSESSION_GRACE_MS {
         return Ok(RefreshOutcome::SupersededInsideGrace);
     }
-    let revocation = revoke_live_session(transaction, &session, now_ms)?;
+    let revocation = revoke_live_session(
+        transaction,
+        &session,
+        now_ms,
+        RevocationReason::RefreshReuse,
+    )?;
     Ok(RefreshOutcome::ReuseRevoked(revocation))
 }
 
@@ -3311,7 +3347,8 @@ fn logout_transaction(
             if !session.live_at(now_ms) {
                 Ok(LogoutOutcome::SessionExpired)
             } else {
-                revoke_live_session(transaction, &session, now_ms).map(LogoutOutcome::Revoked)
+                revoke_live_session(transaction, &session, now_ms, RevocationReason::Logout)
+                    .map(LogoutOutcome::Revoked)
             }
         }
         PresentedSessionLookup::Tombstone {
@@ -3327,7 +3364,8 @@ fn logout_transaction(
             if age > AUTH_SESSION_SUPERSESSION_GRACE_MS {
                 Ok(LogoutOutcome::CredentialSuperseded)
             } else {
-                revoke_live_session(transaction, &session, now_ms).map(LogoutOutcome::Revoked)
+                revoke_live_session(transaction, &session, now_ms, RevocationReason::Logout)
+                    .map(LogoutOutcome::Revoked)
             }
         }
     }
@@ -3338,6 +3376,7 @@ fn revoke_live_session(
     transaction: &Transaction<'_>,
     session: &SessionRecord,
     now_ms: u64,
+    reason: RevocationReason,
 ) -> SnapbackResult<SessionRevocation> {
     let generation = session
         .session
@@ -3359,6 +3398,13 @@ fn revoke_live_session(
     if changed != 1 {
         return Err(internal_state_snapback());
     }
+    crate::storage::auth::write_session_terminal_cause_in(
+        transaction,
+        &session.session.session_id,
+        generation,
+        now_ms,
+        reason,
+    )?;
     Ok(SessionRevocation {
         session_id: session.session.session_id.clone(),
         generation,
@@ -3384,7 +3430,7 @@ fn family_alarm_transaction(
             |row| Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?)),
         )
         .optional()?;
-    revoked
+    let revocation = revoked
         .map(|(session_id, generation)| {
             let generation = u64::try_from(generation)
                 .ok()
@@ -3398,7 +3444,17 @@ fn family_alarm_transaction(
                 generation,
             })
         })
-        .transpose()
+        .transpose()?;
+    if let Some(revocation) = &revocation {
+        crate::storage::auth::write_session_terminal_cause_in(
+            transaction,
+            &revocation.session_id,
+            revocation.generation,
+            now_ms,
+            RevocationReason::FamilyAlarm,
+        )?;
+    }
+    Ok(revocation)
 }
 
 fn authenticated_use_row(
@@ -4249,6 +4305,13 @@ fn planned_session_issuance_transaction(
             if changed != 1 {
                 return Err(internal_state_snapback());
             }
+            crate::storage::auth::write_session_terminal_cause_in(
+                transaction,
+                &eviction.session_id,
+                generation,
+                plan.now_ms,
+                RevocationReason::CapEviction,
+            )?;
             Some(SessionRevocation {
                 session_id: eviction.session_id.clone(),
                 generation,
@@ -4572,6 +4635,13 @@ fn issuance_eviction_is_exact_successor(
         || !snapshot.record.revoked
         || snapshot.revoked_at_ms != Some(plan.now_ms)
         || snapshot.current_digest != eviction.presented_digest
+        || !crate::storage::auth::session_terminal_cause_matches_on(
+            connection,
+            &eviction.session_id,
+            generation,
+            plan.now_ms,
+            RevocationReason::CapEviction,
+        )?
     {
         return Err(internal_state_snapback());
     }
@@ -4704,6 +4774,13 @@ fn enforce_session_cap(
     if changed != 1 {
         return Err(internal_state_snapback());
     }
+    crate::storage::auth::write_session_terminal_cause_in(
+        transaction,
+        &session_id,
+        generation,
+        now_ms,
+        RevocationReason::CapEviction,
+    )?;
     Ok(Some(SessionRevocation {
         session_id,
         generation,
@@ -4840,11 +4917,24 @@ pub(crate) fn auth_required() -> ProviderError {
 }
 
 pub(crate) fn session_expired() -> ProviderError {
-    ProviderError::new(SnapbackError::error(
-        "SNAPBACK_AUTH_SESSION_EXPIRED",
-        "auth",
-        "authentication session is expired",
-    ))
+    session_expired_with_disposition("carrier")
+}
+
+pub(crate) fn session_revoked() -> ProviderError {
+    session_expired_with_disposition("durableDelete")
+}
+
+fn session_expired_with_disposition(authority_disposition: &'static str) -> ProviderError {
+    ProviderError::new(
+        SnapbackError::error(
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+            "auth",
+            "authentication session is expired",
+        )
+        .with_details(serde_json::json!({
+            "authorityDisposition": authority_disposition,
+        })),
+    )
 }
 
 pub(crate) fn credential_superseded() -> ProviderError {
@@ -4964,6 +5054,9 @@ fn _snapback<T>(result: SnapbackResult<T>) -> ProviderResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::session_projection::{
+        ProjectedTokenResolution, SessionProjection, TerminalAuthorityDisposition,
+    };
     use serde_json::Value;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -5055,6 +5148,32 @@ mod tests {
         let provider =
             Arc::new(AuthProvider::new(AuthProviderProfile::Test, keyring).expect("auth provider"));
         (provider, database)
+    }
+
+    fn projected_terminal_reason_after_restart(
+        database: &mut LocalDatabase,
+        bearer: &str,
+        now_ms: u64,
+    ) -> RevocationReason {
+        let source = database
+            .session_projection_source()
+            .expect("restart projection source");
+        let monotonic_now = Instant::now();
+        let projection =
+            SessionProjection::rebuild_with_fresh_startup_id(source, now_ms, monotonic_now)
+                .expect("restart projection");
+        let digest = TokenDigest::from_token_hash(
+            &SessionBearer::parse(bearer)
+                .expect("test bearer")
+                .token_hash(),
+        );
+        match projection
+            .resolve_token(&digest, now_ms, monotonic_now)
+            .expect("restart token resolution")
+        {
+            ProjectedTokenResolution::Terminal { reason } => reason,
+            resolution => panic!("expected terminal restart resolution, got {resolution:?}"),
+        }
     }
 
     fn provider_database_with_random(
@@ -5807,6 +5926,13 @@ mod tests {
             .logout(&mut database, &successor, now_ms)
             .expect_err("logout loses to cap eviction");
         assert_eq!(logout.diagnostic().code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+        let restart_reason =
+            projected_terminal_reason_after_restart(&mut database, &successor, now_ms);
+        assert_eq!(restart_reason, RevocationReason::CapEviction);
+        assert_eq!(
+            restart_reason.authority_disposition(),
+            TerminalAuthorityDisposition::Carrier,
+        );
         assert_eq!(direct_stream_facts(&database), (0, 0));
     }
 
@@ -6418,11 +6544,39 @@ mod tests {
                 SessionRevocation { generation: 2, .. }
             ))
         ));
+        let restart_reason =
+            projected_terminal_reason_after_restart(&mut database, &bearer, start_ms + 1);
+        assert_eq!(restart_reason, RevocationReason::Logout);
+        assert_eq!(
+            restart_reason.authority_disposition(),
+            TerminalAuthorityDisposition::DurableDelete,
+        );
         let loser = admission.commit_planned_revocation(&mut database, &plan, start_ms + 1);
         assert!(matches!(
             loser,
             AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
-                generation: 2
+                generation: 2,
+                reason: Some(RevocationReason::Logout),
+            })
+        ));
+        database
+            .with_auth_transaction(|transaction| {
+                transaction.execute(
+                    "DELETE FROM _snapback_meta WHERE key = ?1",
+                    params![
+                        crate::auth::session_projection::SessionTerminalCauseRecord::meta_key(
+                            plan.session_id()
+                        )?
+                    ],
+                )?;
+                Ok(())
+            })
+            .expect("simulate a legacy terminal row without a cause witness");
+        assert!(matches!(
+            admission.commit_planned_revocation(&mut database, &plan, start_ms + 1),
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
+                generation: 2,
+                reason: None,
             })
         ));
     }
@@ -6470,6 +6624,26 @@ mod tests {
                 .expect("predecessor refresh plan"),
             PlannedRefresh::SupersededInsideGrace
         ));
+        let reuse_at = superseded_at_ms + AUTH_SESSION_SUPERSESSION_GRACE_MS + 1;
+        let PlannedRefresh::ReuseRevoke(reuse) = admission
+            .plan_refresh(&database, &predecessor, reuse_at)
+            .expect("reuse revocation plan")
+        else {
+            panic!("out-of-grace predecessor must revoke its family");
+        };
+        assert!(matches!(
+            admission.commit_planned_revocation(&mut database, &reuse, reuse_at),
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
+                SessionRevocation { generation: 2, .. }
+            ))
+        ));
+        let restart_reason =
+            projected_terminal_reason_after_restart(&mut database, &successor, reuse_at);
+        assert_eq!(restart_reason, RevocationReason::RefreshReuse);
+        assert_eq!(
+            restart_reason.authority_disposition(),
+            TerminalAuthorityDisposition::DurableDelete,
+        );
     }
 
     #[tokio::test]
@@ -6517,6 +6691,13 @@ mod tests {
                 SessionRevocation { generation: 2, .. }
             ))
         ));
+        let restart_reason =
+            projected_terminal_reason_after_restart(&mut database, &predecessor, alarm_at);
+        assert_eq!(restart_reason, RevocationReason::FamilyAlarm);
+        assert_eq!(
+            restart_reason.authority_disposition(),
+            TerminalAuthorityDisposition::DurableDelete,
+        );
     }
 
     #[tokio::test]
@@ -6580,10 +6761,7 @@ mod tests {
         let first = mint(&provider, &mut database, "first@example.com", now_ms).await;
         let first_id = first.response().session.id.clone();
 
-        let issuance = provider
-            .admit_email("second@example.com")
-            .await
-            .unwrap();
+        let issuance = provider.admit_email("second@example.com").await.unwrap();
         let issuance_plan = issuance.plan_mint_session(&database, now_ms + 1).unwrap();
         let issuance_commit = issuance_plan.commit_plan();
         database
@@ -6751,16 +6929,18 @@ mod tests {
     async fn planned_twenty_first_session_revokes_the_exact_oldest_predecessor() {
         let start_ms = 60_000;
         let (provider, mut database) = provider_database(start_ms);
+        let mut oldest_token = None;
         for offset in 0..AUTH_SESSION_LIVE_LIMIT {
-            drop(
-                mint(
-                    &provider,
-                    &mut database,
-                    "planned-cap@example.com",
-                    start_ms + offset as u64,
-                )
-                .await,
-            );
+            let issue = mint(
+                &provider,
+                &mut database,
+                "planned-cap@example.com",
+                start_ms + offset as u64,
+            )
+            .await;
+            if offset == 0 {
+                oldest_token = Some(issue_token(&issue));
+            }
         }
         let oldest: String = database
             .with_auth_read(|connection| {
@@ -6781,6 +6961,17 @@ mod tests {
         let plan = admission
             .plan_mint_session(&database, start_ms + AUTH_SESSION_LIVE_LIMIT as u64)
             .expect("cap issuance plan");
+        let logout_admission = provider.admit().await;
+        let PlannedLogout::Revoke(losing_logout) = logout_admission
+            .plan_logout(
+                &database,
+                oldest_token.as_deref().expect("oldest bearer"),
+                start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
+            )
+            .expect("plan concurrent logout of oldest")
+        else {
+            panic!("oldest bearer must still be current before cap commit");
+        };
         assert_eq!(
             plan.eviction().map(ProviderRevocationPlan::session_id),
             Some(oldest.as_str())
@@ -6795,6 +6986,17 @@ mod tests {
         };
         assert_eq!(revocation.session_id, oldest);
         assert_eq!(revocation.generation, 2);
+        assert!(matches!(
+            logout_admission.commit_planned_revocation(
+                &mut database,
+                &losing_logout,
+                start_ms + AUTH_SESSION_LIVE_LIMIT as u64,
+            ),
+            AuthTransactionAttempt::Committed(PlannedRevocationCommit::AlreadyTerminal {
+                generation: 2,
+                reason: Some(RevocationReason::CapEviction),
+            })
+        ));
         assert!(matches!(
             database
                 .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))

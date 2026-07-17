@@ -10,6 +10,10 @@
 use crate::admin::ServerProfile;
 use crate::auth::admission::{AdmissionEffectGuard, AdmissionLease};
 use crate::auth::provider::ResolvedSession;
+use crate::auth::service_fence::{
+    ServiceAuthorityActResolution, ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
+    ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication,
+};
 use crate::auth::session_projection::FencedPublication;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
@@ -837,6 +841,9 @@ pub struct PreparedAuthority {
     /// cut. Dev-only/local preparations may omit this; every projection- or
     /// connection-resolved sessions-mode request installs it.
     publication: Option<FencedPublication>,
+    /// Exact finite scoped-token fence. Unlike the authorization-stream fence,
+    /// this carrier also applies to the diagnostic `/auth/session` projection.
+    service_publication: Option<ServiceAuthorityPublication>,
     authorization_stream_incarnation: Option<String>,
 }
 
@@ -853,6 +860,7 @@ pub(crate) struct RetainedLiveAuthority {
     /// this subscription's authority and cannot terminalize it when its basis
     /// changes.
     matched_grant_scope: Option<ResolvedGrantScope>,
+    service_publication: Option<ServiceAuthorityPublication>,
 }
 
 impl PreparedAuthority {
@@ -928,6 +936,81 @@ impl PreparedAuthority {
         self
     }
 
+    pub(crate) fn with_service_publication(
+        mut self,
+        publication: ServiceAuthorityPublication,
+    ) -> Self {
+        self.service_publication = Some(publication);
+        self
+    }
+
+    pub(crate) fn resolve_service_authority_act(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ServiceAuthorityActResolution>> {
+        self.service_publication
+            .as_ref()
+            .map(|publication| publication.resolve_act(epoch_now_ms, monotonic_now))
+            .transpose()
+    }
+
+    pub(crate) fn service_clock_sample(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> (u64, Instant) {
+        self.service_publication
+            .as_ref()
+            .map_or((epoch_now_ms, monotonic_now), |publication| {
+                publication.current_clock_sample(epoch_now_ms, monotonic_now)
+            })
+    }
+
+    pub(crate) fn expired_service_deadline_terminal(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ServiceAuthorityDeadlineTerminal>> {
+        self.service_publication
+            .as_ref()
+            .map(|publication| publication.expired_deadline_terminal(epoch_now_ms, monotonic_now))
+            .transpose()
+            .map(Option::flatten)
+    }
+
+    pub(crate) fn service_terminal_disposition(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Option<ServiceAuthorityDisposition> {
+        self.service_publication
+            .as_ref()
+            .map(|publication| publication.terminal_disposition(epoch_now_ms, monotonic_now))
+    }
+
+    pub(crate) fn begin_service_external_effect(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<ServiceAuthorityExternalEffectPermit>> {
+        self.service_publication
+            .as_ref()
+            .map(|publication| publication.begin_external_effect(epoch_now_ms, monotonic_now))
+            .transpose()
+    }
+
+    pub(crate) fn session_terminal_reason(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<crate::auth::session_projection::RevocationReason>> {
+        match &self.publication {
+            Some(publication) => publication.session_terminal_reason(epoch_now_ms, monotonic_now),
+            None => Ok(None),
+        }
+    }
+
     pub(crate) fn with_authorization_stream_incarnation(mut self, incarnation: String) -> Self {
         self.authorization_stream_incarnation = Some(incarnation);
         self
@@ -942,12 +1025,20 @@ impl PreparedAuthority {
         monotonic_now: std::time::Instant,
         publish: impl FnOnce() -> SnapbackResult<T>,
     ) -> SnapbackResult<Option<T>> {
-        if self.admission.is_diagnostic() {
-            return publish().map(Some);
-        }
-        match &self.publication {
+        let publish_service = || match &self.service_publication {
             Some(publication) => publication.try_publish(epoch_now_ms, monotonic_now, publish),
             None => publish().map(Some),
+        };
+        if self.admission.is_diagnostic() {
+            return publish_service();
+        }
+        match &self.publication {
+            Some(publication) => {
+                let nested =
+                    publication.try_publish(epoch_now_ms, monotonic_now, publish_service)?;
+                Ok(nested.flatten())
+            }
+            None => publish_service(),
         }
     }
 
@@ -969,6 +1060,7 @@ impl PreparedAuthority {
             profile: self.profile,
             resolved: self.resolved.clone(),
             matched_grant_scope: None,
+            service_publication: self.service_publication.clone(),
         })
     }
 
@@ -1028,7 +1120,7 @@ impl RetainedLiveAuthority {
         &self,
         admission: AdmissionLease,
     ) -> SnapbackResult<PreparedAuthority> {
-        InvocationGate::prepare_admitted_authority_inner(
+        let prepared = InvocationGate::prepare_admitted_authority_inner(
             InvocationSource::LiveRerun,
             self.active_mode,
             self.profile,
@@ -1036,7 +1128,11 @@ impl RetainedLiveAuthority {
             &WireAuthorityFields::default(),
             self.resolved.clone(),
             true,
-        )
+        )?;
+        Ok(match &self.service_publication {
+            Some(publication) => prepared.with_service_publication(publication.clone()),
+            None => prepared,
+        })
     }
 
     pub(crate) fn canonicalize_input(&self, mut input: HandlerInput) -> HandlerInput {
@@ -1259,6 +1355,7 @@ impl InvocationGate {
             audit,
             availability: OperationAvailability::Available,
             publication: None,
+            service_publication: None,
             authorization_stream_incarnation: None,
         })
     }

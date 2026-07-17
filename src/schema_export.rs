@@ -40,7 +40,7 @@ use crate::local::{
 };
 use crate::manifest::{
     CapabilityManifest, FunctionManifest, HandlerInput, MutationAcknowledgementRequest,
-    MutationAcknowledgementResponse, MutationRequest, SchemaManifest, SNAPBACK_SCHEMA_VERSION,
+    MutationAcknowledgementResponse, MutationRequest, SNAPBACK_SCHEMA_VERSION, SchemaManifest,
 };
 use crate::server::{
     AuthorizedLeaseQueryRequest, AuthorizedLeaseQueryResponse, ConnectionGrant, ErrorResponse,

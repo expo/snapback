@@ -19,26 +19,44 @@ export type FieldType =
   | 'Principal'
   | { readonly Id: { readonly table: string } };
 
-export interface Validator<Value = unknown, Type extends FieldType = FieldType> {
+export interface Validator<
+  Value = unknown,
+  Type extends FieldType = FieldType,
+  Optional extends boolean = boolean,
+> {
   readonly __validator: true;
   readonly fieldType: Type;
   readonly primitive: string;
-  readonly optional: boolean;
+  readonly optional: Optional;
   readonly fields?: Record<string, Validator>;
   readonly __value?: Value;
 }
 
+export type InferValidator<Input extends Validator> =
+  Input extends Validator<infer Value, FieldType, boolean> ? Value : never;
+
+type OptionalValidatorKeys<Fields extends Record<string, Validator>> = {
+  [Name in keyof Fields]-?: Fields[Name]['optional'] extends true ? Name : never;
+}[keyof Fields];
+
+type RequiredValidatorKeys<Fields extends Record<string, Validator>> =
+  Exclude<keyof Fields, OptionalValidatorKeys<Fields>>;
+
+export type InferObjectValidatorFields<Fields extends Record<string, Validator>> =
+  { [Name in RequiredValidatorKeys<Fields>]: Exclude<InferValidator<Fields[Name]>, undefined> }
+  & { [Name in OptionalValidatorKeys<Fields>]?: Exclude<InferValidator<Fields[Name]>, undefined> };
+
 export declare const v: {
-  string(): Validator<string, 'String'>;
-  principal(): Validator<string, 'Principal'>;
-  id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }>;
-  boolean(): Validator<boolean, 'Boolean'>;
-  integer(): Validator<number, 'Integer'>;
-  real(): Validator<number, 'Real'>;
-  number(): Validator<number, 'Real'>;
-  json(): Validator<unknown, 'Json'>;
-  object<const Fields extends Record<string, Validator>>(fields: Fields): Validator<{ [Name in keyof Fields]: Fields[Name] extends Validator<infer Value, FieldType> ? Value : never }, 'Json'> & { readonly fields: Fields };
-  optional<Inner extends Validator>(inner: Inner): Inner;
+  string(): Validator<string, 'String', false>;
+  principal(): Validator<string, 'Principal', false>;
+  id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }, false>;
+  boolean(): Validator<boolean, 'Boolean', false>;
+  integer(): Validator<number, 'Integer', false>;
+  real(): Validator<number, 'Real', false>;
+  number(): Validator<number, 'Real', false>;
+  json(): Validator<unknown, 'Json', false>;
+  object<const Fields extends Record<string, Validator>>(fields: Fields): Validator<InferObjectValidatorFields<Fields>, 'Json', false> & { readonly fields: Fields };
+  optional<Inner extends Validator>(inner: Inner): Validator<InferValidator<Inner> | undefined, Inner['fieldType'], true>;
 };
 
 export interface MembershipResourceRef<Table extends string = string> {

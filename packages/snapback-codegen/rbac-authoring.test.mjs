@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -7,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { generate } from './index.mjs';
 
 const defineUrl = pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')).href;
+const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const dirs = [];
 
 // The success case remains a literal source fixture so the guide can verify
@@ -27,6 +29,8 @@ export const eventMembers = defineTable({
   role: 'role',
   roles: ['host', 'guest'],
   pendingRoles: ['invited'],
+  bootstrapRole: 'host',
+  lastHolder: { protect: 'host' },
   incidental: ['joinedAt'],
   provenance: 'full',
   transitions: [],
@@ -43,10 +47,13 @@ export default defineSchema({
 const schemaSource = ({
   appScope = false,
   bootstrapRole = null,
+  extraField = '',
   expiryType = null,
   idTarget = 'events',
+  indexName = null,
   lastHolderProtect = null,
   roles = ['host', 'guest'],
+  transitions = [],
 } = {}) => `
 import { defineSchema, defineTable, v } from '${defineUrl}';
 
@@ -55,8 +62,9 @@ export const eventMembers = defineTable({
   userId: v.principal(),
   role: v.string(),
   joinedAt: v.integer(),
+  ${extraField}
   ${expiryType === null ? '' : `expiresAt: v.optional(v.${expiryType}()),`}
-}).membership({
+})${indexName === null ? '' : `.index(${JSON.stringify(indexName)}, ['userId'])`}.membership({
   id: 'eventMembers',
   principal: 'userId',
   ${appScope ? '' : "resource: 'eventId',"}
@@ -68,7 +76,7 @@ export const eventMembers = defineTable({
   ${expiryType === null ? '' : "expiry: { field: 'expiresAt', onExpiry: 'remove' },"}
   incidental: ['joinedAt'],
   provenance: 'full',
-  transitions: [],
+  transitions: ${JSON.stringify(transitions)},
   scope: '${appScope ? 'app' : 'resource'}',
 });
 
@@ -76,6 +84,61 @@ export default defineSchema({
   events: defineTable({ title: v.string() }),
   organizations: defineTable({ name: v.string() }),
   eventNotes: defineTable({ eventId: v.id('events'), body: v.string() }),
+  eventMembers,
+}, { auth: { mode: 'sessions' } });
+`;
+
+const generatedSymbolCollisionSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+
+const eventMembersSnake = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  id: 'event_members',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['member'],
+});
+
+const eventMembersCamel = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  id: 'eventMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['member'],
+});
+
+export default defineSchema({
+  events: defineTable({ title: v.string() }),
+  eventMembersSnake,
+  eventMembersCamel,
+}, { auth: { mode: 'sessions' } });
+`;
+
+const axisOnlyMembershipSchema = `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+
+const eventMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  id: 'eventMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['host', 'guest'],
+});
+
+export default defineSchema({
+  events: defineTable({ title: v.string() }),
   eventMembers,
 }, { auth: { mode: 'sessions' } });
 `;
@@ -118,6 +181,13 @@ async function run(inputFunctions = functions(), inputSchema = schema) {
   dirs.push(dir);
   writeFileSync(join(dir, 'schema.mjs'), inputSchema);
   writeFileSync(join(dir, 'functions.mjs'), inputFunctions);
+  writeFileSync(join(dir, 'bootstrap-handler.mjs'), `
+globalThis.__snapbackHandlers = {
+  async bootstrapEvent(ctx, args) {
+    return await ctx.membership.eventMembers.bootstrap({ title: args.title });
+  },
+};
+`);
   mkdirSync(join(dir, 'generated'));
   const result = await generate(dir);
   return { dir, result };
@@ -150,6 +220,8 @@ try {
       role: 'role',
       roles: ['host', 'guest'],
       pendingRoles: ['invited'],
+      bootstrapRole: 'host',
+      lastHolder: { protect: 'host' },
       incidental: ['joinedAt'],
       provenance: 'full',
       transitions: [],
@@ -179,9 +251,11 @@ try {
       "export type Principal = string",
       "Id<'events'>",
       "export type EventMembersRole = \"host\" | \"guest\" | \"invited\"",
+      'export type EventMembersBootstrap = { title: string }',
       'export interface GeneratedPermissions',
-      'eventMembers: { requireRole',
+      "eventMembers: { requireRole(resource: Id<'events'>, role: EventMembersRole, ...roles: EventMembersRole[])",
       'export interface GeneratedMembership',
+      "eventMembers: { bootstrap(values: EventMembersBootstrap): Promise<Id<'events'>>",
       'export interface GeneratedMutationContext extends GeneratedQueryContext',
     ]) {
       assert(apiTypes.includes(expected), `generated API types omit ${expected}`);
@@ -205,6 +279,30 @@ try {
     for (const forbidden of ['insert(', 'setRole(', 'remove(', 'patch(']) {
       assert(!permissionsSurface.includes(forbidden), `read-only permissions unexpectedly expose ${forbidden}`);
     }
+  }
+
+  {
+    const bootstrapFunctions = `
+import { defineJsMutation, v } from '${defineUrl}';
+
+export const bootstrapEvent = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: false,
+  args: { title: v.string() },
+  source: 'bootstrap-handler.mjs',
+  exportName: 'bootstrapEvent',
+  writes: ['events', 'eventMembers'],
+});
+`;
+    const { dir, result } = await run(bootstrapFunctions);
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const manifest = JSON.parse(readFileSync(join(dir, 'generated', 'functions.manifest.json'), 'utf8'));
+    const bootstrapEvent = manifest.functions.find(({ name }) => name === 'bootstrapEvent');
+    assert.equal(
+      bootstrapEvent.authorityCreating,
+      undefined,
+      'an explicit bootstrap-only wrapper must not require authority-creating consent',
+    );
   }
 
   for (const [label, inputFunctions] of [
@@ -244,6 +342,31 @@ try {
     ],
     ['invalid expiry type', schemaSource({ expiryType: 'string' }), 'SCHEMA_MEMBERSHIP_EXPIRY_FIELD_TYPE'],
     ['unknown id table', schemaSource({ idTarget: 'missingEvents' }), 'SCHEMA_ID_TARGET_UNKNOWN'],
+    [
+      'reserved provenance field',
+      schemaSource({ extraField: 'grantedByActor: v.string(),' }),
+      'SCHEMA_MEMBERSHIP_PROVENANCE_FIELD_RESERVED',
+    ],
+    [
+      'role caller targeting self',
+      schemaSource({ transitions: [{ op: 'remove', by: ['host'], target: 'self' }] }),
+      'SCHEMA_MEMBERSHIP_TRANSITION_GRAMMAR',
+    ],
+    [
+      'self caller targeting other',
+      schemaSource({ transitions: [{ op: 'remove', by: ['self'], target: 'other' }] }),
+      'SCHEMA_MEMBERSHIP_TRANSITION_SELF_ON_OTHER',
+    ],
+    [
+      'patching an authorization axis',
+      schemaSource({ transitions: [{ op: 'patch', by: ['self'], target: 'self', fields: ['role'] }] }),
+      'SCHEMA_MEMBERSHIP_TRANSITION_AXIS_FIELD',
+    ],
+    [
+      'generated membership index collision',
+      schemaSource({ indexName: '_membership_pk' }),
+      'SCHEMA_MEMBERSHIP_INDEX_NAME_COLLISION',
+    ],
   ]) {
     const { result } = await run('export {};\n', inputSchema);
     assert.equal(result.ok, false, `${label} unexpectedly generated`);
@@ -251,6 +374,51 @@ try {
       result.diagnostics.some(({ code }) => code === expectedCode),
       `${label} omitted ${expectedCode}: ${JSON.stringify(result.diagnostics)}`,
     );
+  }
+
+  {
+    const { dir, result } = await run('export {};\n', generatedSymbolCollisionSchema);
+    assert.equal(result.ok, false, 'colliding generated membership symbols unexpectedly generated');
+    const diagnostic = result.diagnostics.find(
+      ({ code }) => code === 'SCHEMA_MEMBERSHIP_GENERATED_SYMBOL_COLLISION',
+    );
+    assert(diagnostic, `generated symbol collision omitted its diagnostic: ${JSON.stringify(result.diagnostics)}`);
+    assert.equal(diagnostic.generatedSymbol, 'EventMembersRole');
+    assert.deepEqual(diagnostic.declarations, ['event_members', 'eventMembers']);
+    assert.deepEqual(diagnostic.tables, ['eventMembersSnake', 'eventMembersCamel']);
+    assert.equal(
+      existsSync(join(dir, 'generated', 'api.d.ts')),
+      false,
+      'generated symbol collision must fail closed before writing TypeScript',
+    );
+  }
+
+  {
+    const { dir, result } = await run('export {};\n', axisOnlyMembershipSchema);
+    assert.equal(result.ok, true, JSON.stringify(result.diagnostics));
+    const apiTypes = readFileSync(join(dir, 'generated', 'api.d.ts'), 'utf8');
+    assert(
+      apiTypes.includes('export type EventMembersPatch = Record<string, never>;'),
+      'an axis-only membership must emit an actually empty patch input',
+    );
+    writeFileSync(join(dir, 'consumer.ts'), `
+import type { GeneratedMutationContext, Id } from './generated/api';
+
+declare const ctx: GeneratedMutationContext;
+declare const memberId: Id<'eventMembers'>;
+
+ctx.membership.eventMembers.patch(memberId, {});
+// @ts-expect-error Membership authorization axes cannot be patched.
+ctx.membership.eventMembers.patch(memberId, { role: 'host' });
+`);
+    execFileSync(join(repoRoot, 'node_modules/.bin/tsc'), [
+      '--noEmit',
+      '--strict',
+      '--target', 'es2022',
+      '--module', 'esnext',
+      '--moduleResolution', 'bundler',
+      'consumer.ts',
+    ], { cwd: dir, stdio: 'pipe' });
   }
 
   console.log('rbac-authoring.test.mjs: all cases passed');

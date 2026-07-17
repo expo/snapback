@@ -166,7 +166,10 @@ fn create_backup_inner(
     backup_step_completed(1)?;
 
     temporary
-        .write_child(OsStr::new(BACKUP_KEYRING_FILE), keyring_bytes.expose_secret())
+        .write_child(
+            OsStr::new(BACKUP_KEYRING_FILE),
+            keyring_bytes.expose_secret(),
+        )
         .map_err(|_| backup_invalid("backup keyring could not be written"))?;
     backup_step_completed(2)?;
 
@@ -1165,7 +1168,9 @@ impl Drop for TemporaryDirectory {
                 }
             }
             let _ = self.directory.sync_all();
-            let _ = self.parent.remove_staging_directory(&self.name, self.identity);
+            let _ = self
+                .parent
+                .remove_staging_directory(&self.name, self.identity);
         }
     }
 }
@@ -1231,7 +1236,10 @@ impl PinnedDirectory {
         self.revalidate()
             .map_err(|error| std::io::Error::other(error.diagnostic.message))?;
         let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "staging name contains NUL")
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "staging name contains NUL",
+            )
         })?;
         if unsafe { libc::mkdirat(self.file.as_raw_fd(), name_c.as_ptr(), 0o700) } != 0 {
             return Err(std::io::Error::last_os_error());
@@ -1335,18 +1343,25 @@ impl PinnedDirectory {
     /// Remove the staging entry only while it is still the exact pinned
     /// inode; a substituted object is refused and left in place.
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
-    fn remove_staging_directory(&self, name: &OsStr, expected: FileIdentity) -> std::io::Result<()> {
+    fn remove_staging_directory(
+        &self,
+        name: &OsStr,
+        expected: FileIdentity,
+    ) -> std::io::Result<()> {
         use std::os::fd::AsRawFd as _;
         use std::os::unix::ffi::OsStrExt as _;
 
         let name_c = std::ffi::CString::new(name.as_bytes()).map_err(|_| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "staging name contains NUL")
+            std::io::Error::new(
+                std::io::ErrorKind::InvalidInput,
+                "staging name contains NUL",
+            )
         })?;
         match self.stat_at(name)? {
             None => return Ok(()),
             Some(stat)
-                if stat.st_mode & libc::S_IFMT == libc::S_IFDIR
-                    && expected.matches_stat(&stat) => {}
+                if stat.st_mode & libc::S_IFMT == libc::S_IFDIR && expected.matches_stat(&stat) => {
+            }
             Some(_) => {
                 return Err(std::io::Error::new(
                     std::io::ErrorKind::PermissionDenied,
@@ -2276,11 +2291,8 @@ mod tests {
                 let staging = only_temporary(&parent, ".snapback-auth-backup-");
                 std::fs::rename(&staging, &held_for_hook).unwrap();
                 std::fs::create_dir(&staging).unwrap();
-                std::os::unix::fs::symlink(
-                    &target_for_hook,
-                    staging.join(BACKUP_DATABASE_FILE),
-                )
-                .unwrap();
+                std::os::unix::fs::symlink(&target_for_hook, staging.join(BACKUP_DATABASE_FILE))
+                    .unwrap();
                 std::fs::write(staging.join("foreign-backup-sentinel"), b"survive").unwrap();
             }));
         });

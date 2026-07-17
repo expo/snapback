@@ -13,7 +13,7 @@ use crate::auth::crypto::{AgentCredential, PairingCode, RandomSource};
 use crate::auth::provider::{StepUpConsumption, StepUpProof, step_up_required_error};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::FunctionKind;
-use crate::storage::auth::AuthTransactionAttempt;
+use crate::storage::auth::{AuthTransactionAttempt, ServiceAuthTransactionAttempt};
 use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -679,63 +679,98 @@ impl LocalDatabase {
     ) -> SnapbackResult<GrantRevocation> {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let revoked_at_ms = tx
-                .query_row(
-                    "SELECT revoked_at_ms FROM _auth_grants
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let revoked_at_ms = tx
+                    .query_row(
+                        "SELECT revoked_at_ms FROM _auth_grants
+                         WHERE id = ?1 AND effective_user_id = ?2",
+                        params![grant_id, effective_user_id],
+                        |row| row.get::<_, Option<i64>>(0),
+                    )
+                    .optional()?
+                    .ok_or_else(grant_invalid)?;
+                if revoked_at_ms.is_some() {
+                    return Ok(Vec::new());
+                }
+                let mut statement = tx.prepare(
+                    "SELECT id FROM _auth_grant_tokens
+                     WHERE grant_id = ?1 ORDER BY id",
+                )?;
+                Ok(statement
+                    .query_map(params![grant_id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let revoked_at_ms = tx
+                    .query_row(
+                        "SELECT revoked_at_ms FROM _auth_grants
                      WHERE id = ?1 AND effective_user_id = ?2",
-                    params![grant_id, effective_user_id],
-                    |row| row.get::<_, Option<i64>>(0),
-                )
-                .optional()?
-                .ok_or_else(grant_invalid)?;
-            if revoked_at_ms.is_some() {
+                        params![grant_id, effective_user_id],
+                        |row| row.get::<_, Option<i64>>(0),
+                    )
+                    .optional()?
+                    .ok_or_else(grant_invalid)?;
+                if revoked_at_ms.is_some() {
+                    body_outcome = Some(GrantRevocation {
+                        grant_id: grant_id.to_owned(),
+                        token_ids: Vec::new(),
+                    });
+                    return Ok(());
+                }
+                let mut statement = tx.prepare(
+                    "SELECT id FROM _auth_grant_tokens
+                 WHERE grant_id = ?1 AND revoked_at_ms IS NULL ORDER BY id",
+                )?;
+                let token_ids = statement
+                    .query_map(params![grant_id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                drop(statement);
+                tx.execute(
+                    "UPDATE _auth_grants SET revoked_at_ms = ?1
+                 WHERE id = ?2 AND effective_user_id = ?3 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, grant_id, effective_user_id],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                 WHERE grant_id = ?2 AND revoked_at_ms IS NULL",
+                    params![now_ms as i64, grant_id],
+                )?;
                 body_outcome = Some(GrantRevocation {
                     grant_id: grant_id.to_owned(),
-                    token_ids: Vec::new(),
+                    token_ids: token_ids.clone(),
                 });
-                return Ok(());
-            }
-            let mut statement = tx.prepare(
-                "SELECT id FROM _auth_grant_tokens
-                 WHERE grant_id = ?1 AND revoked_at_ms IS NULL ORDER BY id",
-            )?;
-            let token_ids = statement
-                .query_map(params![grant_id], |row| row.get::<_, String>(0))?
-                .collect::<Result<Vec<_>, _>>()?;
-            drop(statement);
-            tx.execute(
-                "UPDATE _auth_grants SET revoked_at_ms = ?1
-                 WHERE id = ?2 AND effective_user_id = ?3 AND revoked_at_ms IS NULL",
-                params![now_ms as i64, grant_id, effective_user_id],
-            )?;
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
-                 WHERE grant_id = ?2 AND revoked_at_ms IS NULL",
-                params![now_ms as i64, grant_id],
-            )?;
-            body_outcome = Some(GrantRevocation {
-                grant_id: grant_id.to_owned(),
-                token_ids,
-            });
-            Ok(())
-        });
-        let attempt = inject_grant_revocation_commit_uncertainty(attempt, "single", grant_id);
+                Ok(())
+            },
+        );
+        let attempt =
+            inject_grant_revocation_service_commit_uncertainty(attempt, "single", grant_id);
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(grant_revocation_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(grant_revocation_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_grant_revocation(connection, effective_user_id, expected)
-                })
-                .map_err(|_| grant_revocation_commit_uncertain())?;
-                body_outcome.ok_or_else(grant_revocation_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(grant_revocation_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    grant_revocation_is_predecessor(connection, effective_user_id, expected)
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(grant_revocation_commit_uncertain())
             }
         }
     }
@@ -756,23 +791,42 @@ impl LocalDatabase {
     ) -> SnapbackResult<BulkGrantRevocation> {
         self.observe_agent_authorization_clock(now_ms)?;
         let mut body_outcome = None;
-        let attempt = self.attempt_auth_transaction(|tx| {
-            require_agent_clock_on(tx, now_ms)?;
-            let mut grant_statement = tx.prepare(
-                "SELECT id FROM _auth_grants
+        let attempt = self.attempt_auth_transaction_with_service_terminal(
+            crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let mut statement = tx.prepare(
+                    "SELECT tokens.id
+                     FROM _auth_grant_tokens AS tokens
+                     JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
+                     WHERE grants.effective_user_id = ?1
+                       AND grants.actor_user_id = ?2
+                       AND grants.revoked_at_ms IS NULL
+                     ORDER BY tokens.id",
+                )?;
+                Ok(statement
+                    .query_map(params![effective_user_id, actor_user_id], |row| {
+                        row.get::<_, String>(0)
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?)
+            },
+            |tx| {
+                require_agent_clock_on(tx, now_ms)?;
+                let mut grant_statement = tx.prepare(
+                    "SELECT id FROM _auth_grants
                  WHERE effective_user_id = ?1 AND actor_user_id = ?2
                    AND revoked_at_ms IS NULL
                  ORDER BY id",
-            )?;
-            let grant_ids = grant_statement
-                .query_map(params![effective_user_id, actor_user_id], |row| {
-                    row.get::<_, String>(0)
-                })?
-                .collect::<Result<Vec<_>, _>>()?;
-            drop(grant_statement);
+                )?;
+                let grant_ids = grant_statement
+                    .query_map(params![effective_user_id, actor_user_id], |row| {
+                        row.get::<_, String>(0)
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?;
+                drop(grant_statement);
 
-            let mut token_statement = tx.prepare(
-                "SELECT tokens.id
+                let mut token_statement = tx.prepare(
+                    "SELECT tokens.id
                  FROM _auth_grant_tokens AS tokens
                  JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
                  WHERE grants.effective_user_id = ?1
@@ -780,56 +834,72 @@ impl LocalDatabase {
                    AND grants.revoked_at_ms IS NULL
                    AND tokens.revoked_at_ms IS NULL
                  ORDER BY tokens.id",
-            )?;
-            let token_ids = token_statement
-                .query_map(params![effective_user_id, actor_user_id], |row| {
-                    row.get::<_, String>(0)
-                })?
-                .collect::<Result<Vec<_>, _>>()?;
-            drop(token_statement);
+                )?;
+                let token_ids = token_statement
+                    .query_map(params![effective_user_id, actor_user_id], |row| {
+                        row.get::<_, String>(0)
+                    })?
+                    .collect::<Result<Vec<_>, _>>()?;
+                drop(token_statement);
 
-            tx.execute(
-                "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
+                tx.execute(
+                    "UPDATE _auth_grant_tokens SET revoked_at_ms = ?1
                  WHERE revoked_at_ms IS NULL AND grant_id IN (
                    SELECT id FROM _auth_grants
                    WHERE effective_user_id = ?2 AND actor_user_id = ?3
                      AND revoked_at_ms IS NULL
                  )",
-                params![now_ms as i64, effective_user_id, actor_user_id],
-            )?;
-            tx.execute(
-                "UPDATE _auth_grants SET revoked_at_ms = ?1
+                    params![now_ms as i64, effective_user_id, actor_user_id],
+                )?;
+                tx.execute(
+                    "UPDATE _auth_grants SET revoked_at_ms = ?1
                  WHERE effective_user_id = ?2 AND actor_user_id = ?3
                    AND revoked_at_ms IS NULL",
-                params![now_ms as i64, effective_user_id, actor_user_id],
-            )?;
-            body_outcome = Some(BulkGrantRevocation {
-                grant_ids,
-                token_ids,
-            });
-            Ok(())
-        });
+                    params![now_ms as i64, effective_user_id, actor_user_id],
+                )?;
+                body_outcome = Some(BulkGrantRevocation {
+                    grant_ids,
+                    token_ids: token_ids.clone(),
+                });
+                Ok(())
+            },
+        );
         let operation_key = format!("{effective_user_id}\0{actor_user_id}");
-        let attempt = inject_grant_revocation_commit_uncertainty(attempt, "bulk", &operation_key);
+        let attempt =
+            inject_grant_revocation_service_commit_uncertainty(attempt, "bulk", &operation_key);
         match attempt {
-            AuthTransactionAttempt::Committed(()) => {
+            ServiceAuthTransactionAttempt::Committed(()) => {
                 body_outcome.ok_or_else(grant_revocation_commit_uncertain)
             }
-            AuthTransactionAttempt::RolledBack(error) => Err(error),
-            AuthTransactionAttempt::CommitUncertain(_) => {
+            ServiceAuthTransactionAttempt::RolledBack(error) => Err(error),
+            ServiceAuthTransactionAttempt::CommitUncertain { error, terminal } => {
                 let expected = body_outcome
                     .as_ref()
                     .ok_or_else(grant_revocation_commit_uncertain)?;
-                self.with_auth_read(|connection| {
+                let successor = self.with_auth_read(|connection| {
                     reconcile_bulk_grant_revocation(
                         connection,
                         effective_user_id,
                         actor_user_id,
                         expected,
                     )
-                })
-                .map_err(|_| grant_revocation_commit_uncertain())?;
-                body_outcome.ok_or_else(grant_revocation_commit_uncertain)
+                });
+                if successor.is_ok() {
+                    self.reconcile_ambiguous_service_terminal(terminal, true)?;
+                    return body_outcome.ok_or_else(grant_revocation_commit_uncertain);
+                }
+                if self.with_auth_read(|connection| {
+                    bulk_grant_revocation_is_predecessor(
+                        connection,
+                        effective_user_id,
+                        actor_user_id,
+                        expected,
+                    )
+                })? {
+                    self.reconcile_ambiguous_service_terminal(terminal, false)?;
+                    return Err(error);
+                }
+                Err(grant_revocation_commit_uncertain())
             }
         }
     }
@@ -1393,6 +1463,38 @@ fn reconcile_grant_revocation(
     Ok(())
 }
 
+fn grant_revocation_is_predecessor(
+    connection: &Connection,
+    effective_user_id: &str,
+    expected: &GrantRevocation,
+) -> SnapbackResult<bool> {
+    let grant_revoked = connection
+        .query_row(
+            "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants
+             WHERE id = ?1 AND effective_user_id = ?2",
+            params![expected.grant_id, effective_user_id],
+            |row| row.get::<_, bool>(0),
+        )
+        .optional()?;
+    if grant_revoked != Some(false) {
+        return Ok(false);
+    }
+    for token_id in &expected.token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens
+                 WHERE id = ?1 AND grant_id = ?2",
+                params![token_id, expected.grant_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    Ok(true)
+}
+
 fn reconcile_bulk_grant_revocation(
     connection: &Connection,
     effective_user_id: &str,
@@ -1449,6 +1551,44 @@ fn reconcile_bulk_grant_revocation(
     Ok(())
 }
 
+fn bulk_grant_revocation_is_predecessor(
+    connection: &Connection,
+    effective_user_id: &str,
+    actor_user_id: &str,
+    expected: &BulkGrantRevocation,
+) -> SnapbackResult<bool> {
+    for grant_id in &expected.grant_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants
+                 WHERE id = ?1 AND effective_user_id = ?2 AND actor_user_id = ?3",
+                params![grant_id, effective_user_id, actor_user_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    for token_id in &expected.token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT tokens.revoked_at_ms IS NOT NULL
+                 FROM _auth_grant_tokens AS tokens
+                 JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
+                 WHERE tokens.id = ?1 AND grants.effective_user_id = ?2
+                   AND grants.actor_user_id = ?3",
+                params![token_id, effective_user_id, actor_user_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(false) {
+            return Ok(false);
+        }
+    }
+    Ok(!expected.grant_ids.is_empty() || !expected.token_ids.is_empty())
+}
+
 #[cfg(test)]
 static INJECT_GRANT_REVOCATION_COMMIT_UNCERTAIN: std::sync::Mutex<Option<(String, String)>> =
     std::sync::Mutex::new(None);
@@ -1490,6 +1630,46 @@ fn inject_grant_revocation_commit_uncertainty<T>(
                         "auth",
                         "grant revocation commit acknowledgement was unavailable",
                     ))
+                }
+                other => other,
+            };
+        }
+    }
+    attempt
+}
+
+fn inject_grant_revocation_service_commit_uncertainty<T>(
+    attempt: ServiceAuthTransactionAttempt<T>,
+    _operation: &str,
+    _key: &str,
+) -> ServiceAuthTransactionAttempt<T> {
+    #[cfg(test)]
+    {
+        let should_inject = {
+            let mut target = INJECT_GRANT_REVOCATION_COMMIT_UNCERTAIN
+                .lock()
+                .expect("grant revocation commit uncertainty injector lock");
+            if target
+                .as_ref()
+                .is_some_and(|(operation, key)| operation == _operation && key == _key)
+            {
+                target.take();
+                true
+            } else {
+                false
+            }
+        };
+        if should_inject {
+            return match attempt {
+                ServiceAuthTransactionAttempt::Committed(_) => {
+                    ServiceAuthTransactionAttempt::CommitUncertain {
+                        error: SnapbackError::error(
+                            "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
+                            "auth",
+                            "grant revocation commit acknowledgement was unavailable",
+                        ),
+                        terminal: None,
+                    }
                 }
                 other => other,
             };

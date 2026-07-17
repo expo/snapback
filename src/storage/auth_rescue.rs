@@ -10,12 +10,12 @@ use super::auth::{
     AuthCatalogState, auth_catalog_marker, inspect_auth_catalog_on,
     reject_exact_auth_catalog_object_collision,
 };
+use super::auth_mode::{
+    META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
+};
 use super::{
     LocalDatabase, META_SCHEMA_MANIFEST, is_auth_reserved_identifier,
     load_schema_manifest_from_connection, validate_schema,
-};
-use super::auth_mode::{
-    META_AUTH_MODE_STATE, META_CAPABILITY_AWARE_SCHEMA_MANIFEST, META_STAGED_AUTH_MODE_MANIFEST,
 };
 use crate::auth::rescue::{
     CollisionRescueResult, quote_identifier, rewrite_create_index, rewrite_create_table,
@@ -574,9 +574,7 @@ fn unique_source_table<'a>(
 ) -> SnapbackResult<&'a SchemaObject> {
     let matching = objects
         .iter()
-        .filter(|object| {
-            object.kind == "table" && object.name == requested_source
-        })
+        .filter(|object| object.kind == "table" && object.name == requested_source)
         .collect::<Vec<_>>();
     if matching.len() != 1 || !is_auth_reserved_identifier(&matching[0].name) {
         return Err(rescue_invalid(
@@ -595,8 +593,8 @@ struct TableColumn {
 }
 
 fn table_columns(connection: &Connection, table: &str) -> SnapbackResult<Vec<TableColumn>> {
-    let mut statement =
-        connection.prepare("SELECT name, type, hidden, pk FROM pragma_table_xinfo(?1) ORDER BY cid")?;
+    let mut statement = connection
+        .prepare("SELECT name, type, hidden, pk FROM pragma_table_xinfo(?1) ORDER BY cid")?;
     Ok(statement
         .query_map(params![table], |row| {
             Ok(TableColumn {
@@ -824,7 +822,10 @@ fn observable_rowid_alias(
     // A true INTEGER PRIMARY KEY is the rowid alias and is already in the
     // named-column copy. The DESC/non-alias form owns a `pk` autoindex, so it
     // falls through to explicit hidden-rowid preservation.
-    let integer_primary_key = columns.iter().filter(|column| column.primary_key_ordinal != 0).count()
+    let integer_primary_key = columns
+        .iter()
+        .filter(|column| column.primary_key_ordinal != 0)
+        .count()
         == 1
         && columns.iter().any(|column| {
             column.primary_key_ordinal == 1
@@ -1397,7 +1398,10 @@ mod tests {
             error.diagnostic.code,
             "SNAPBACK_AUTH_RESCUE_SCHEMA_UNSUPPORTED"
         );
-        assert_eq!(table_row_count(&database.conn, "_auth_sequence").unwrap(), 1);
+        assert_eq!(
+            table_row_count(&database.conn, "_auth_sequence").unwrap(),
+            1
+        );
         assert_eq!(
             database
                 .conn

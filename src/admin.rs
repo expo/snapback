@@ -730,6 +730,10 @@ pub struct AppState {
     /// installed in this app state. The pre-bind expiry worker receives a
     /// clone, so readiness cannot accidentally describe a different graph.
     pub(crate) auth_terminal_lifecycle: AuthTerminalLifecycle,
+    /// Exact process-local publication/effect fences for finite scoped-token
+    /// authority. The same registry is installed on the protected auth store
+    /// so terminal SQLite commits premark matching request/connection leaves.
+    pub(crate) service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
     /// Clone-shared mode authority. A network stage/re-stage publishes the
     /// committed durable record and its derived active/desired policy inputs
     /// as one write before returning success.
@@ -817,6 +821,17 @@ impl AppState {
         let connections = ConnectionRegistry::default();
         let auth_terminal_lifecycle =
             AuthTerminalLifecycle::new(connections.clone(), &ephemeral, snapback.clone());
+        let service_authority_fences = {
+            let mut instance = snapback
+                .try_lock()
+                .expect("trusted app-state builder owns the detached instance");
+            let database = instance.auth_database_mut();
+            assert!(
+                database.claim_app_state_graph(),
+                "one SharedSnapback may be wrapped by exactly one AppState graph; clone AppState for additional routers",
+            );
+            database.service_authority_fence_registry()
+        };
         (
             Self {
                 snapback,
@@ -825,6 +840,7 @@ impl AppState {
                 server: Arc::new(server),
                 connections,
                 auth_terminal_lifecycle,
+                service_authority_fences,
                 auth_mode_runtime: Arc::new(StdRwLock::new(AuthModeRuntimeSnapshot {
                     state: Arc::new(AuthModeStateRecord::initial_dev(None)),
                     active_policy: PolicyAuthMode::Dev,

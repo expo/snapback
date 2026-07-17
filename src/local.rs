@@ -21,6 +21,7 @@ use crate::auth::lease::{
 use crate::auth::mode::{
     AuthModeStateRecord, DeploymentIdentity, STARTUP_ARTIFACT_FORMAT_VERSION, StartupArtifacts,
 };
+use crate::auth::service_fence::{ServiceAuthorityActResolution, ServiceAuthorityDisposition};
 use crate::config::{ConfigStore, VerificationRecord};
 use crate::cron::{
     CronInspectState, CronRunClaim, CronRunMetadata, CronRunOutcome, CronRunRecord, CronRunTrigger,
@@ -2336,6 +2337,113 @@ impl LocalSnapback {
         &mut self.db
     }
 
+    /// Revalidate the exact finite service carrier while the caller owns the
+    /// app lock. Terminal auth writers use that same outer lock and premark
+    /// the process fence before commit, so a successful check linearizes every
+    /// subsequent synchronous app effect in this lock hold before termination.
+    pub(crate) fn validate_prepared_service_authority(
+        &self,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<()> {
+        let ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            effective_user_id,
+            grant_id,
+            token_id,
+            credential_id,
+            credential_generation,
+            token_expires_at_ms,
+            ..
+        } = authority.resolved()
+        else {
+            return Ok(());
+        };
+        let (now_ms, monotonic_now) = authority.service_clock_sample(now_millis(), Instant::now());
+        let witness = match authority.resolve_service_authority_act(now_ms, monotonic_now)? {
+            Some(ServiceAuthorityActResolution::Current(witness)) => witness,
+            Some(ServiceAuthorityActResolution::Terminal(disposition)) => {
+                let wire = match disposition {
+                    ServiceAuthorityDisposition::Carrier => "carrier",
+                    ServiceAuthorityDisposition::DurableDelete => "durableDelete",
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "scoped agent token authority is no longer current",
+                )
+                .with_details(json!({ "authorityDisposition": wire })));
+            }
+            Some(ServiceAuthorityActResolution::Unavailable) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority termination is unresolved",
+                ));
+            }
+            None => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority has no exact process fence",
+                ));
+            }
+        };
+        if witness.actor_user_id() != actor_user_id
+            || witness.effective_user_id() != effective_user_id.as_deref()
+            || witness.grant_id() != grant_id
+            || witness.token_id() != token_id
+            || witness.credential_id() != credential_id
+            || witness.credential_generation() != *credential_generation
+            || witness.expires_at_ms() != *token_expires_at_ms
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "finite service authority disagrees with its exact process fence",
+            ));
+        }
+        if !self.db.retained_service_authority_is_live_readonly(
+            crate::storage::auth_agent_credentials::RetainedServiceAuthority {
+                actor_user_id,
+                credential_id,
+                credential_generation: *credential_generation,
+                grant_id,
+                token_id,
+                effective_user_id: effective_user_id.as_deref(),
+            },
+            now_ms,
+        )? {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "auth",
+                "scoped agent token authority is no longer current",
+            )
+            .with_details(json!({ "authorityDisposition": "carrier" })));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn persist_and_validate_prepared_service_authority(
+        &mut self,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<()> {
+        self.persist_service_deadline_if_due(authority)?;
+        self.validate_prepared_service_authority(authority)
+    }
+
+    pub(crate) fn persist_service_deadline_if_due(
+        &mut self,
+        authority: &PreparedAuthority,
+    ) -> SnapbackResult<()> {
+        let (now_ms, monotonic_now) = authority.service_clock_sample(now_millis(), Instant::now());
+        if let Some(deadline) =
+            authority.expired_service_deadline_terminal(now_ms, monotonic_now)?
+        {
+            self.db.terminalize_expired_service_authority(&deadline)?;
+        }
+        Ok(())
+    }
+
     /// Revalidate the durable and carrier axes before every retained live
     /// computation. Session authority is fenced by the projection; service
     /// authority is checked directly against the protected catalog without
@@ -2398,7 +2506,9 @@ impl LocalSnapback {
                 .into_trusted_permission_denial());
             }
         }
-        retained.prepare_rerun(admission)
+        let prepared = retained.prepare_rerun(admission)?;
+        self.persist_and_validate_prepared_service_authority(&prepared)?;
+        Ok(prepared)
     }
 
     /// Cloneable process-local admission authority for HTTP composition.
@@ -3435,6 +3545,7 @@ impl LocalSnapback {
         ids: &[String],
     ) -> SnapbackResult<u64> {
         authority.validate_admission("client mutation acknowledgement")?;
+        self.persist_and_validate_prepared_service_authority(authority)?;
         let auth = authority.canonical_auth_input();
         let incarnation = self.db.ensure_authorization_stream_incarnation()?;
         let descriptor = descriptor_for_authority(authority, incarnation.as_str())?;
@@ -3574,6 +3685,7 @@ impl LocalSnapback {
         input: HandlerInput,
         authority: PreparedAuthority,
     ) -> SnapbackResult<QueryInvocation> {
+        self.validate_prepared_service_authority(&authority)?;
         let function = self.function(name)?;
         let prepared = InvocationGate::prepare_function(authority, function)?;
         let input = prepared.canonicalize_input(input);
@@ -4159,6 +4271,7 @@ impl LocalSnapback {
         // enforcement precede replay-settlement lookup and every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
+        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
         refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
@@ -4249,6 +4362,7 @@ impl LocalSnapback {
         BeforeCommit: FnOnce() -> SnapbackResult<G>,
     {
         prepared.validate_admission("nested host-plan mutation execution")?;
+        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
         check_live()?;
         let function = self.function(name)?.clone();
         if function.kind != FunctionKind::Mutation {
@@ -4343,6 +4457,7 @@ impl LocalSnapback {
     {
         let admission = binding.invocation.admission_lease().clone();
         admission.validate("detached nested mutation commit")?;
+        self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
         check_live()?;
         let input = binding.invocation.canonicalize_input(input);
         let function = self.function(name)?.clone();
@@ -6040,6 +6155,26 @@ impl LocalSnapback {
                 }));
             }
         };
+        if let Err(error) =
+            self.persist_and_validate_prepared_service_authority(prepared.authority())
+        {
+            return StagedAppAction::Done(Box::new(FunctionRunResult {
+                ok: false,
+                function: name.to_owned(),
+                kind: Some(definition.kind.clone()),
+                reads,
+                writes,
+                captured_reads: Vec::new(),
+                captured_writes: Vec::new(),
+                admin_bypass: false,
+                elapsed_ms: elapsed_ms(started),
+                version: None,
+                changed_count: None,
+                rows: None,
+                result: None,
+                diagnostic: Some(error.diagnostic),
+            }));
+        }
         if !matches!(definition.kind, FunctionKind::Action) {
             return StagedAppAction::Done(Box::new(FunctionRunResult {
                 ok: false,
@@ -6133,13 +6268,14 @@ impl LocalSnapback {
     }
 
     pub(crate) fn stage_nested_mutation(
-        &self,
+        &mut self,
         name: &str,
         input: &HandlerInput,
         authority: PreparedAuthority,
     ) -> SnapbackResult<StagedNestedMutation> {
         let function = self.function(name)?.clone();
         let invocation = InvocationGate::prepare_function(authority, &function)?;
+        self.persist_and_validate_prepared_service_authority(invocation.authority())?;
         let canonical_input = invocation.canonicalize_input(input.clone());
         match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => {
@@ -7829,6 +7965,7 @@ impl LocalSnapback {
         prepared: PreparedInvocation,
     ) -> SnapbackResult<Value> {
         prepared.validate_admission("action execution")?;
+        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
         let function = self.function(name)?.clone();
         if prepared.function_id() != function.id
             && prepared.function_id() != format!("fn:{}", function.name)
@@ -11072,7 +11209,7 @@ mod tests {
     fn scoped_live_authority(snapback: &mut LocalSnapback) -> PreparedAuthority {
         let random = CounterRandom::new();
         let now_ms = now_millis();
-        let resolved = {
+        let (resolved, service_publication) = {
             let db = snapback.auth_database_mut();
             db.with_auth_transaction(|tx| {
                 tx.execute(
@@ -11131,8 +11268,18 @@ mod tests {
                     &random,
                 )
                 .expect("mint activation token");
-            db.resolve_scoped_token(&token.secret, now_ms)
-                .expect("resolve activation token")
+            let resolved = db
+                .resolve_scoped_token(&token.secret, now_ms)
+                .expect("resolve activation token");
+            let publication = db
+                .service_authority_fence_registry()
+                .register(
+                    crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
+                    now_ms,
+                    Instant::now(),
+                )
+                .expect("register activation token fence");
+            (resolved, publication)
         };
         let admission = snapback
             .admission
@@ -11147,6 +11294,7 @@ mod tests {
             ResolvedAppAuthority::from_scoped_token(resolved),
         )
         .expect("prepare service live authority")
+        .with_service_publication(service_publication)
     }
 
     #[test]
@@ -12504,11 +12652,117 @@ globalThis.__snapbackHandlers = {
         }
     }
 
+    const SERVICE_REPLAY_EXPIRES_AT_MS: u64 = 2_000_000_000_000;
+
+    fn install_service_replay_auth(snapback: &mut LocalSnapback) {
+        let now_ms = now_millis();
+        let db = snapback.auth_database_mut();
+        db.activate_current_auth_catalog()
+            .expect("activate service replay auth catalog");
+        db.with_auth_transaction(|tx| {
+            tx.execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('user-a', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                rusqlite::params![now_ms as i64],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_users(
+                   id, created_at_ms, kind, display_name, operator_contact,
+                   registration_provenance, deactivated_at_ms, owner_user_id
+                 ) VALUES('agent-a', ?1, 'agent', 'Agent A', NULL, 'test', NULL, NULL)",
+                rusqlite::params![now_ms as i64],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_agent_credentials(
+                   id, user_id, secret_hash, generation, created_at_ms,
+                   rotated_at_ms, last_used_at_ms, revoked_at_ms
+                 ) VALUES('credential-a', 'agent-a', ?1, 1, ?2, ?2, ?2, NULL)",
+                rusqlite::params![vec![0x41_u8; 32], now_ms as i64],
+            )?;
+            tx.execute(
+                "INSERT INTO _auth_scope_bases(
+                   function_id, kind, generation, present, authority_creating
+                 ) VALUES('fn:hostInsert', 'mutation', 0, 1, 0)",
+                [],
+            )?;
+            for grant_id in ["grant-a", "grant-b"] {
+                tx.execute(
+                    "INSERT INTO _auth_grants(
+                       id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                       expires_at_ms, revoked_at_ms, created_by, request_id,
+                       consent_digest, last_used_at_ms
+                     ) VALUES(?1, 'agent-a', 'user-a', ?2, ?3, ?4, NULL,
+                              'test', NULL, NULL, ?3)",
+                    rusqlite::params![
+                        grant_id,
+                        r#"[{"fn":"fn:hostInsert","kind":"mutation","basis":0,"authorityCreating":false}]"#,
+                        now_ms as i64,
+                        SERVICE_REPLAY_EXPIRES_AT_MS as i64,
+                    ],
+                )?;
+            }
+            for (index, (token_id, grant_id)) in [
+                ("token-a", "grant-a"),
+                ("token-b", "grant-a"),
+                ("token-c", "grant-a"),
+                ("token-e", "grant-b"),
+                ("token-x", "grant-b"),
+                ("token-y", "grant-a"),
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                tx.execute(
+                    "INSERT INTO _auth_grant_tokens(
+                       id, token_hash, grant_id, credential_id,
+                       credential_generation, created_at_ms, expires_at_ms,
+                       revoked_at_ms
+                     ) VALUES(?1, ?2, ?3, 'credential-a', 1, ?4, ?5, NULL)",
+                    rusqlite::params![
+                        token_id,
+                        vec![u8::try_from(index + 1).expect("small token fixture index"); 32],
+                        grant_id,
+                        now_ms as i64,
+                        SERVICE_REPLAY_EXPIRES_AT_MS as i64,
+                    ],
+                )?;
+            }
+            Ok(())
+        })
+        .expect("install current service replay authority");
+    }
+
     fn service_mutation_authority(
+        service_fences: &crate::auth::service_fence::ServiceAuthorityFenceRegistry,
         token_id: &str,
         credential_generation: u64,
         grant_id: &str,
     ) -> PreparedAuthority {
+        let resolved = crate::storage::auth_agent_credentials::ResolvedScopedToken {
+            token_id: token_id.to_owned(),
+            grant_id: grant_id.to_owned(),
+            actor_user_id: "agent-a".to_owned(),
+            effective_user_id: Some("user-a".to_owned()),
+            credential_id: "credential-a".to_owned(),
+            credential_generation,
+            scopes: vec![crate::storage::auth_grants::ExactGrantScope {
+                function_id: "fn:hostInsert".to_owned(),
+                kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
+                basis: 0,
+                authority_creating: false,
+            }],
+            expires_at_ms: SERVICE_REPLAY_EXPIRES_AT_MS,
+            grant_expires_at_ms: Some(SERVICE_REPLAY_EXPIRES_AT_MS),
+        };
+        let publication = service_fences
+            .register(
+                crate::auth::service_fence::ServiceAuthorityWitness::from_resolved(&resolved),
+                now_millis(),
+                Instant::now(),
+            )
+            .expect("register service replay token fence");
         InvocationGate::prepare_authority(
             InvocationSource::HttpMutation,
             crate::manifest::AuthMode::Sessions,
@@ -12516,25 +12770,10 @@ globalThis.__snapbackHandlers = {
             1,
             1,
             &WireAuthorityFields::default(),
-            ResolvedAppAuthority::ServicePrincipal {
-                actor_user_id: "agent-a".to_owned(),
-                credential_id: "credential-a".to_owned(),
-                credential_generation,
-                grant_id: grant_id.to_owned(),
-                token_id: token_id.to_owned(),
-                effective_user_id: Some("user-a".to_owned()),
-                scopes: vec![crate::auth::invocation::ResolvedGrantScope::from_exact(
-                    crate::storage::auth_grants::ExactGrantScope {
-                        function_id: "fn:hostInsert".to_owned(),
-                        kind: crate::storage::auth_grants::ScopedFunctionKind::Mutation,
-                        basis: 0,
-                        authority_creating: false,
-                    },
-                )],
-                token_expires_at_ms: u64::MAX,
-            },
+            ResolvedAppAuthority::from_scoped_token(resolved),
         )
         .expect("prepare service authority")
+        .with_service_publication(publication)
     }
 
     #[test]
@@ -12679,7 +12918,9 @@ globalThis.__snapbackHandlers = {
     fn service_queued_replay_survives_token_churn_and_refuses_durable_axis_drift() {
         const INCARNATION: &str = "018f0d90-7b21-7a22-8c33-445566778899";
         let mut snapback = guarded_snapback();
-        let first = service_mutation_authority("token-a", 1, "grant-a");
+        install_service_replay_auth(&mut snapback);
+        let service_fences = snapback.db.service_authority_fence_registry();
+        let first = service_mutation_authority(&service_fences, "token-a", 1, "grant-a");
         let descriptor = crate::auth::descriptor::descriptor_for_resolved_authority(
             first.resolved(),
             INCARNATION,
@@ -12693,7 +12934,7 @@ globalThis.__snapbackHandlers = {
                 Some("cm_service_token_churn".to_owned()),
                 Some(descriptor.clone()),
                 "http",
-                service_mutation_authority("token-b", 1, "grant-a"),
+                service_mutation_authority(&service_fences, "token-b", 1, "grant-a"),
             )
             .0
             .expect("replacement token settles queued work");
@@ -12704,7 +12945,7 @@ globalThis.__snapbackHandlers = {
                 Some("cm_service_token_churn".to_owned()),
                 Some(descriptor.clone()),
                 "http",
-                service_mutation_authority("token-c", 1, "grant-a"),
+                service_mutation_authority(&service_fences, "token-c", 1, "grant-a"),
             )
             .0
             .expect("another token reads the durable settlement");
@@ -12713,7 +12954,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .acknowledge_client_mutations_with_authority(
-                    &service_mutation_authority("token-x", 1, "grant-b"),
+                    &service_mutation_authority(&service_fences, "token-x", 1, "grant-b"),
                     &["cm_service_token_churn".to_owned()],
                 )
                 .unwrap(),
@@ -12723,7 +12964,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(
             snapback
                 .acknowledge_client_mutations_with_authority(
-                    &service_mutation_authority("token-y", 1, "grant-a"),
+                    &service_mutation_authority(&service_fences, "token-y", 1, "grant-a"),
                     &["cm_service_token_churn".to_owned()],
                 )
                 .unwrap(),
@@ -12731,9 +12972,15 @@ globalThis.__snapbackHandlers = {
             "token churn on the same durable grant can acknowledge"
         );
 
-        for authority in [
-            service_mutation_authority("token-d", 2, "grant-a"),
-            service_mutation_authority("token-e", 1, "grant-b"),
+        for (authority, expected_code) in [
+            (
+                service_mutation_authority(&service_fences, "token-d", 2, "grant-a"),
+                "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+            ),
+            (
+                service_mutation_authority(&service_fences, "token-e", 1, "grant-b"),
+                "SNAPBACK_AUTH_STALE_RESULT",
+            ),
         ] {
             let result = snapback
                 .invoke_mutation_recording_with_authority_descriptor(
@@ -12746,7 +12993,7 @@ globalThis.__snapbackHandlers = {
                 )
                 .0
                 .expect_err("durable authority drift is stale");
-            assert_eq!(result.diagnostic.code, "SNAPBACK_AUTH_STALE_RESULT");
+            assert_eq!(result.diagnostic.code, expected_code);
         }
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
     }
@@ -14596,7 +14843,7 @@ globalThis.__snapbackHandlers = {
         .expect("prepare test mutation")
     }
 
-    fn detached(snapback: &LocalSnapback, name: &str) -> Box<DetachedIbexMutation> {
+    fn detached(snapback: &mut LocalSnapback, name: &str) -> Box<DetachedIbexMutation> {
         match snapback
             .stage_nested_mutation(name, &input(), nested_authority())
             .expect("stage nested mutation")
@@ -14686,7 +14933,7 @@ globalThis.__snapbackHandlers = {
         let DetachedIbexMutation {
             binding,
             read: _read,
-        } = *detached(&cancelled_snapback, "ibexInsert");
+        } = *detached(&mut cancelled_snapback, "ibexInsert");
         let error = cancelled_snapback
             .commit_detached_ibex_mutation_guarded(
                 "ibexInsert",
@@ -14712,7 +14959,7 @@ globalThis.__snapbackHandlers = {
         let DetachedIbexMutation {
             binding,
             read: _read,
-        } = *detached(&committed, "ibexInsert");
+        } = *detached(&mut committed, "ibexInsert");
         let active = Arc::new(AtomicBool::new(false));
         let observed = Arc::new(AtomicBool::new(false));
         install_postcommit_gate_assertion(active.clone(), observed.clone());
@@ -14747,8 +14994,8 @@ globalThis.__snapbackHandlers = {
             .expect("apply v1");
         snapback.load_functions(reload_functions());
 
-        let old_insert = detached(&snapback, "insertOld");
-        let new_table_read = detached(&snapback, "readNewTable");
+        let old_insert = detached(&mut snapback, "insertOld");
+        let new_table_read = detached(&mut snapback, "readNewTable");
         snapback
             .apply_schema(reload_schema("schema-v2", true))
             .expect("apply v2 while mutations are detached");

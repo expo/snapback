@@ -663,6 +663,11 @@ pub struct LocalDatabase {
     // databases, which cannot run WAL; those fall back to the serialized lane.
     reader_pool: Option<Arc<ReaderPool>>,
     authorization_interlock: Option<Arc<dyn AuthorizationCommitInterlock>>,
+    /// One process registry belongs to this database instance. Every AppState
+    /// clone borrows this same registry, so constructing another router cannot
+    /// replace the interlock beneath already-running service publications.
+    service_authority_fences: crate::auth::service_fence::ServiceAuthorityFenceRegistry,
+    app_state_graph_claimed: bool,
 }
 
 fn reset_and_seed_transaction(
@@ -736,6 +741,9 @@ impl LocalDatabase {
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
+            service_authority_fences:
+                crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
+            app_state_graph_claimed: false,
         };
         db.configure(false)?;
         db.create_infra()?;
@@ -764,6 +772,9 @@ impl LocalDatabase {
             schema: SchemaManifest::default(),
             reader_pool: None,
             authorization_interlock: None,
+            service_authority_fences:
+                crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
+            app_state_graph_claimed: false,
         };
         db.configure(true)?;
         db.create_infra()?;
@@ -802,6 +813,9 @@ impl LocalDatabase {
             schema: self.schema.clone(),
             reader_pool: None,
             authorization_interlock: None,
+            service_authority_fences:
+                crate::auth::service_fence::ServiceAuthorityFenceRegistry::default(),
+            app_state_graph_claimed: false,
         })
     }
 
@@ -810,6 +824,21 @@ impl LocalDatabase {
         interlock: Arc<dyn AuthorizationCommitInterlock>,
     ) {
         self.authorization_interlock = Some(interlock);
+    }
+
+    pub(crate) fn service_authority_fence_registry(
+        &self,
+    ) -> crate::auth::service_fence::ServiceAuthorityFenceRegistry {
+        self.service_authority_fences.clone()
+    }
+
+    pub(crate) fn claim_app_state_graph(&mut self) -> bool {
+        if self.app_state_graph_claimed {
+            false
+        } else {
+            self.app_state_graph_claimed = true;
+            true
+        }
     }
 
     pub fn schema(&self) -> &SchemaManifest {
@@ -6459,6 +6488,10 @@ pub(crate) struct BufferedMembershipCommand {
 
 #[derive(Debug)]
 enum BufferedMembershipOp {
+    Bootstrap {
+        resource_id: String,
+        values: Map<String, Value>,
+    },
     Insert(Map<String, Value>),
     SetRole {
         member_id: String,
@@ -6474,6 +6507,22 @@ enum BufferedMembershipOp {
 }
 
 impl BufferedMembershipCommand {
+    pub(crate) fn bootstrap(
+        writer: MembershipWriter,
+        table: String,
+        resource_id: String,
+        values: Map<String, Value>,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::Bootstrap {
+                resource_id,
+                values,
+            },
+        }
+    }
+
     pub(crate) fn insert(
         writer: MembershipWriter,
         table: String,
@@ -6741,6 +6790,25 @@ impl LocalDatabase {
             .into_iter()
             .map(|command| {
                 let plan = match command.op {
+                    BufferedMembershipOp::Bootstrap {
+                        resource_id,
+                        values,
+                    } => {
+                        let (_, membership) = resolve_membership_decl(&self.schema, &command.table)?;
+                        let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
+                            membership_refusal(
+                                "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
+                                "bootstrap is available only for resource-scoped membership declarations",
+                            )
+                        })?;
+                        self.plan_membership_bootstrap_with_id(
+                            &command.writer,
+                            resource_table,
+                            resource_id,
+                            values,
+                            &command.table,
+                        )?
+                    }
                     BufferedMembershipOp::Insert(values) => {
                         self.plan_membership_insert(&command.writer, &command.table, values)?
                     }
@@ -7220,6 +7288,27 @@ impl LocalDatabase {
         resource_values: Map<String, Value>,
         membership_table: &str,
     ) -> SnapbackResult<MembershipPlan> {
+        self.plan_membership_bootstrap_with_id(
+            writer,
+            resource_table,
+            new_id(),
+            resource_values,
+            membership_table,
+        )
+    }
+
+    /// Buffered handler twin of [`Self::plan_membership_bootstrap`]. The
+    /// resource id is minted through the invocation's deterministic id ledger
+    /// before the handler continues, then carried unchanged into this planner
+    /// so `await ctx.membership.<decl>.bootstrap(values)` can return it.
+    pub(crate) fn plan_membership_bootstrap_with_id(
+        &self,
+        writer: &MembershipWriter,
+        resource_table: &str,
+        resource_id: String,
+        resource_values: Map<String, Value>,
+        membership_table: &str,
+    ) -> SnapbackResult<MembershipPlan> {
         let schema = self.schema.clone();
         let (member_table_manifest, membership) =
             resolve_membership_decl(&schema, membership_table)?;
@@ -7254,7 +7343,6 @@ impl LocalDatabase {
                 "bootstrap is a resource-scoped operation",
             )
         })?;
-        let resource_id = new_id();
         let mut member_values = Map::new();
         member_values.insert(
             membership.principal.clone(),
@@ -7270,7 +7358,7 @@ impl LocalDatabase {
             writes: vec![
                 BufferedWrite::Insert {
                     table: resource_table.to_owned(),
-                    id: resource_id,
+                    id: resource_id.clone(),
                     values: resource_values,
                 },
                 BufferedWrite::Insert {
@@ -7280,7 +7368,7 @@ impl LocalDatabase {
                 },
             ],
             read_dependencies: Vec::new(),
-            result: Value::Null,
+            result: Value::String(resource_id),
             skipped_protected: Vec::new(),
         })
     }

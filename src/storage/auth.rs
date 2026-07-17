@@ -6,6 +6,10 @@
 //! mutation, journal, version, receipt, or live-delivery machinery.
 
 use super::{LocalDatabase, is_auth_reserved_identifier};
+use crate::auth::service_fence::ServiceAuthorityCommitInterlock;
+use crate::auth::session_projection::{
+    RevocationReason, SESSION_TERMINAL_CAUSE_META_PREFIX, SessionTerminalCauseRecord,
+};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use rusqlite::{
     Connection, OpenFlags, OptionalExtension, Transaction, TransactionBehavior, params,
@@ -52,6 +56,28 @@ thread_local! {
         const { std::cell::Cell::new(None) };
     static FAIL_AUTH_RESTORE_AFTER_STEP: std::cell::Cell<Option<usize>> =
         const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+thread_local! {
+    static INJECT_SERVICE_ROLLBACK_UNCERTAINTY: std::cell::Cell<bool> = const {
+        std::cell::Cell::new(false)
+    };
+}
+
+#[cfg(test)]
+pub(crate) fn inject_service_rollback_uncertainty_for_test() {
+    INJECT_SERVICE_ROLLBACK_UNCERTAINTY.with(|slot| {
+        assert!(
+            !slot.replace(true),
+            "service rollback fault must be one-shot"
+        );
+    });
+}
+
+#[cfg(test)]
+fn take_service_rollback_uncertainty_for_test() -> bool {
+    INJECT_SERVICE_ROLLBACK_UNCERTAINTY.with(|slot| slot.replace(false))
 }
 
 #[cfg(test)]
@@ -169,6 +195,79 @@ pub(crate) enum AuthRestoreResult {
     AlreadyApplied,
 }
 
+/// Persist the committed terminal cause in the same SQLite transaction that
+/// advances a session to its revoked generation. Frozen auth catalogs v1/v2
+/// retain their exact table shapes; this versioned metadata witness supplies
+/// the cause that `revoked_at_ms` alone cannot represent across restart.
+pub(crate) fn write_session_terminal_cause_in(
+    tx: &Transaction<'_>,
+    session_id: &str,
+    generation: u64,
+    revoked_at_ms: u64,
+    reason: RevocationReason,
+) -> SnapbackResult<()> {
+    let record = SessionTerminalCauseRecord::new(session_id, generation, revoked_at_ms, reason)?;
+    let changed = tx.execute(
+        "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2)",
+        params![
+            SessionTerminalCauseRecord::meta_key(session_id)?,
+            record.encode_string()?,
+        ],
+    )?;
+    if changed != 1 {
+        return Err(corrupt(
+            "a session terminal-cause witness could not be persisted",
+        ));
+    }
+    Ok(())
+}
+
+pub(crate) fn session_terminal_cause_matches_on(
+    conn: &Connection,
+    session_id: &str,
+    generation: u64,
+    revoked_at_ms: u64,
+    reason: RevocationReason,
+) -> SnapbackResult<bool> {
+    Ok(
+        read_session_terminal_cause_on(conn, session_id, generation, revoked_at_ms)?
+            == Some(reason),
+    )
+}
+
+/// Recover only an exact cause witness for this durable terminal row. A
+/// missing or stale/mismatched record is legacy/uncertain authority and must
+/// be classified as carrier loss by callers; malformed metadata is catalog
+/// corruption and remains an availability failure.
+pub(crate) fn read_session_terminal_cause_on(
+    conn: &Connection,
+    session_id: &str,
+    generation: u64,
+    revoked_at_ms: u64,
+) -> SnapbackResult<Option<RevocationReason>> {
+    let raw: Option<(String, Vec<u8>)> = conn
+        .query_row(
+            "SELECT typeof(value), CAST(value AS BLOB)
+             FROM _snapback_meta WHERE key = ?1",
+            params![SessionTerminalCauseRecord::meta_key(session_id)?],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .optional()?;
+    let Some((storage_class, bytes)) = raw else {
+        return Ok(None);
+    };
+    if storage_class != "text" {
+        return Err(corrupt(
+            "a session terminal-cause witness is not stored as SQLite text",
+        ));
+    }
+    let record = SessionTerminalCauseRecord::parse_exact(&bytes)?;
+    Ok((record.session_id() == session_id
+        && record.generation() == generation
+        && record.revoked_at_ms() == revoked_at_ms)
+        .then(|| record.reason()))
+}
+
 /// Commit certainty for an item-5 two-phase auth mutation. Body/begin errors
 /// are known rollbacks and may exact-unmark their projection ticket. A commit
 /// error is conservatively ambiguous and must reconcile or fail closed.
@@ -176,6 +275,20 @@ pub(crate) enum AuthTransactionAttempt<T> {
     Committed(T),
     RolledBack(SnapbackError),
     CommitUncertain(SnapbackError),
+}
+
+/// A finite service-authority transaction carries its exact process-fence
+/// ticket through an indeterminate COMMIT. Operation-specific reconciliation
+/// can then settle that ticket without blocking unrelated tokens or clearing a
+/// sibling mutation's marker. `None` is used only by deterministic tests that
+/// inject uncertainty after a real successful commit.
+pub(crate) enum ServiceAuthTransactionAttempt<T> {
+    Committed(T),
+    RolledBack(SnapbackError),
+    CommitUncertain {
+        error: SnapbackError,
+        terminal: Option<Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>>,
+    },
 }
 
 struct ExpectedTable {
@@ -969,6 +1082,87 @@ impl LocalDatabase {
         }
     }
 
+    /// Commit a durable service-authority ending through the process-local
+    /// token-fence interlock. `plan` is a read-only immutable affected-id
+    /// phase: its exact token fences are blocked before `operation` may write.
+    /// A body failure therefore already owns the exact ticket needed to stay
+    /// fail-closed if SQLite cannot prove rollback, without quarantining
+    /// unrelated service authorities.
+    ///
+    /// @ref LLP 0059#finite-service-authority-fence — exact affected ids are
+    /// planned read-only and premarked before the first durable ending write.
+    pub(crate) fn attempt_auth_transaction_with_service_terminal<T>(
+        &mut self,
+        disposition: crate::auth::service_fence::ServiceAuthorityDisposition,
+        plan: impl FnOnce(&Transaction<'_>) -> SnapbackResult<Vec<String>>,
+        operation: impl FnOnce(&Transaction<'_>) -> SnapbackResult<T>,
+    ) -> ServiceAuthTransactionAttempt<T> {
+        let tx = match self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+        {
+            Ok(tx) => tx,
+            Err(error) => return ServiceAuthTransactionAttempt::RolledBack(error.into()),
+        };
+        if let Err(error) = require_ready_on(&tx) {
+            return rollback_unprepared_service_auth_transaction(tx, error);
+        }
+        let token_ids = match plan(&tx) {
+            Ok(token_ids) => token_ids,
+            Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
+        };
+        let mut prepared = match self
+            .service_authority_fences
+            .prepare_terminal(&token_ids, disposition)
+        {
+            Ok(prepared) => prepared,
+            Err(error) => return rollback_unprepared_service_auth_transaction(tx, error),
+        };
+        let output = match operation(&tx) {
+            Ok(output) => output,
+            Err(error) => {
+                return rollback_prepared_service_auth_transaction(tx, error, prepared);
+            }
+        };
+        match tx.commit() {
+            Ok(()) => match prepared.committed() {
+                Ok(()) => ServiceAuthTransactionAttempt::Committed(output),
+                Err(error) => ServiceAuthTransactionAttempt::CommitUncertain {
+                    error,
+                    terminal: None,
+                },
+            },
+            Err(error) => {
+                prepared.mark_ambiguous();
+                ServiceAuthTransactionAttempt::CommitUncertain {
+                    error: error.into(),
+                    terminal: Some(prepared),
+                }
+            }
+        }
+    }
+
+    /// Settle the exact process ticket after an operation-specific durable
+    /// reread proves the outcome of an ambiguous SQLite COMMIT. A failed or
+    /// inconclusive reread deliberately leaves the ticket pending.
+    pub(crate) fn reconcile_ambiguous_service_terminal(
+        &self,
+        prepared: Option<Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>>,
+        committed: bool,
+    ) -> SnapbackResult<()> {
+        let Some(prepared) = prepared else {
+            // Deterministic test injection can report uncertainty after a real
+            // successful COMMIT; that ticket was already settled synchronously.
+            return Ok(());
+        };
+        if committed {
+            prepared.committed()
+        } else {
+            prepared.rolled_back();
+            Ok(())
+        }
+    }
+
     /// Read the durable non-decreasing auth-clock floor. A missing key means
     /// no floor has been recorded yet and returns zero. Corrupt or
     /// out-of-range values fail closed as catalog corruption.
@@ -1038,6 +1232,20 @@ impl LocalDatabase {
                    LIMIT ?2
                  )",
                 params![now_ms as i64, AUTH_GC_BATCH as i64],
+            )?;
+            tx.execute(
+                "DELETE FROM _snapback_meta
+                 WHERE key IN (
+                   SELECT ?3 || id FROM _auth_sessions
+                   WHERE absolute_expires_at_ms <= ?1
+                   ORDER BY absolute_expires_at_ms, id
+                   LIMIT ?2
+                 )",
+                params![
+                    now_ms as i64,
+                    AUTH_GC_BATCH as i64,
+                    SESSION_TERMINAL_CAUSE_META_PREFIX,
+                ],
             )?;
             let sessions_deleted = tx.execute(
                 "DELETE FROM _auth_sessions
@@ -1125,7 +1333,8 @@ impl LocalDatabase {
             .max(restored_catalog_frontier);
         advance_session_clock_floor_on(&tx, restore_now_ms)?;
 
-        let sessions_revoked = revoke_all_sessions_in(&tx, restore_now_ms)?;
+        let sessions_revoked =
+            revoke_all_sessions_in(&tx, restore_now_ms, RevocationReason::Restore)?;
         restore_transaction_step_completed(0)?;
         let challenges_deleted = tx.execute("DELETE FROM _auth_verification_codes", [])?;
         if catalog == AuthCatalogState::ReadyV2 {
@@ -1304,6 +1513,56 @@ fn rollback_auth_transaction<T>(
     }
 }
 
+fn rollback_unprepared_service_auth_transaction<T>(
+    tx: Transaction<'_>,
+    operation_error: SnapbackError,
+) -> ServiceAuthTransactionAttempt<T> {
+    match rollback_auth_transaction::<T>(tx, operation_error) {
+        AuthTransactionAttempt::RolledBack(error) => {
+            ServiceAuthTransactionAttempt::RolledBack(error)
+        }
+        AuthTransactionAttempt::CommitUncertain(error) => {
+            ServiceAuthTransactionAttempt::CommitUncertain {
+                error,
+                terminal: None,
+            }
+        }
+        AuthTransactionAttempt::Committed(_) => unreachable!("rollback cannot report a commit"),
+    }
+}
+
+fn rollback_prepared_service_auth_transaction<T>(
+    tx: Transaction<'_>,
+    operation_error: SnapbackError,
+    mut prepared: Box<dyn crate::auth::service_fence::PreparedServiceAuthorityTerminal>,
+) -> ServiceAuthTransactionAttempt<T> {
+    let rollback = tx.rollback();
+    #[cfg(test)]
+    let rollback = if take_service_rollback_uncertainty_for_test() && rollback.is_ok() {
+        Err(rusqlite::Error::ExecuteReturnedResults)
+    } else {
+        rollback
+    };
+    match rollback {
+        Ok(()) => {
+            prepared.rolled_back();
+            ServiceAuthTransactionAttempt::RolledBack(operation_error)
+        }
+        Err(error) => {
+            prepared.mark_ambiguous();
+            ServiceAuthTransactionAttempt::CommitUncertain {
+                error: SnapbackError::error(
+                    "SNAPBACK_AUTH_REVOCATION_UNCERTAIN",
+                    "auth",
+                    "service-authority transaction rollback could not be proven",
+                )
+                .with_details(json!({ "sqlite": error.to_string() })),
+                terminal: Some(prepared),
+            }
+        }
+    }
+}
+
 /// Open a SQLite connection bound to the exact open descriptor rather than a
 /// pathname. The kernel resolves `/dev/fd` (macOS) and `/proc/self/fd`
 /// (Linux) to the descriptor's inode, so no rename or symlink in the staging
@@ -1425,7 +1684,11 @@ pub(crate) fn install_frozen_v1_catalog_fixture(
 /// Revoke every still-live session inside a caller-owned downgrade
 /// transaction. This matches declared-restore generation semantics without
 /// creating a restore marker or deleting identity rows.
-pub(super) fn revoke_all_sessions_in(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<usize> {
+pub(super) fn revoke_all_sessions_in(
+    tx: &Transaction<'_>,
+    now_ms: u64,
+    reason: RevocationReason,
+) -> SnapbackResult<usize> {
     require_ready_on(tx)?;
     let exhausted: i64 = tx.query_row(
         "SELECT COUNT(*) FROM _auth_sessions
@@ -1438,12 +1701,36 @@ pub(super) fn revoke_all_sessions_in(tx: &Transaction<'_>, now_ms: u64) -> Snapb
             "auth catalog contains an unrevoked session with an exhausted generation",
         ));
     }
-    Ok(tx.execute(
+    let mut statement = tx.prepare(
+        "SELECT id, generation FROM _auth_sessions
+         WHERE revoked_at_ms IS NULL ORDER BY id",
+    )?;
+    let sessions = statement
+        .query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, i64>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    drop(statement);
+    for (session_id, generation) in &sessions {
+        let successor_generation = u64::try_from(*generation)
+            .ok()
+            .and_then(|generation| generation.checked_add(1))
+            .filter(|generation| *generation <= MAX_SAFE_TIMESTAMP_MS)
+            .ok_or_else(|| corrupt("auth catalog contains a session with an invalid generation"))?;
+        write_session_terminal_cause_in(tx, session_id, successor_generation, now_ms, reason)?;
+    }
+    let changed = tx.execute(
         "UPDATE _auth_sessions
          SET revoked_at_ms = ?1, generation = generation + 1
          WHERE revoked_at_ms IS NULL",
         params![now_ms as i64],
-    )?)
+    )?;
+    if changed != sessions.len() {
+        return Err(corrupt(
+            "bulk session revocation did not match its terminal-cause witnesses",
+        ));
+    }
+    Ok(changed)
 }
 
 fn retained_key_ids_on(conn: &Connection) -> SnapbackResult<Vec<String>> {
@@ -1591,6 +1878,13 @@ pub(super) fn reset_auth_catalog_in(tx: &Transaction<'_>) -> SnapbackResult<()> 
         return Ok(());
     };
     require_ready_on(tx)?;
+    tx.execute(
+        "DELETE FROM _snapback_meta WHERE substr(key, 1, ?1) = ?2",
+        params![
+            SESSION_TERMINAL_CAUSE_META_PREFIX.len() as i64,
+            SESSION_TERMINAL_CAUSE_META_PREFIX,
+        ],
+    )?;
     // Agent tables exist only from version 2 onward; clear them first (children
     // before the `_auth_users` parent they reference).
     if marker == CATALOG_V2.version {
@@ -2114,6 +2408,67 @@ mod tests {
     }
 
     #[test]
+    fn service_rollback_uncertainty_contains_only_the_exact_planned_authority() {
+        let mut db = catalog_database();
+        let registry = db.service_authority_fence_registry();
+        let monotonic = std::time::Instant::now();
+        let exact = registry
+            .synthetic_publication_for_test("token-exact", 100, 200, monotonic)
+            .expect("register exact authority");
+        let unrelated = registry
+            .synthetic_publication_for_test("token-unrelated", 100, 200, monotonic)
+            .expect("register unrelated authority");
+
+        inject_service_rollback_uncertainty_for_test();
+        let attempt: ServiceAuthTransactionAttempt<()> = db
+            .attempt_auth_transaction_with_service_terminal(
+                crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
+                |_tx| Ok(vec!["token-exact".to_owned()]),
+                |tx| {
+                    tx.execute(
+                        "INSERT INTO _snapback_meta(key, value) VALUES('service-test', 'written')",
+                        [],
+                    )?;
+                    Err(SnapbackError::error(
+                        "TEST_SERVICE_BODY_FAILURE",
+                        "auth",
+                        "injected failure after the exact terminal plan",
+                    ))
+                },
+            );
+        let ServiceAuthTransactionAttempt::CommitUncertain { terminal, .. } = attempt else {
+            panic!("injected rollback acknowledgement must be uncertain");
+        };
+        assert_eq!(
+            exact.resolve_act(101, monotonic).unwrap(),
+            crate::auth::service_fence::ServiceAuthorityActResolution::Unavailable
+        );
+        assert!(matches!(
+            unrelated.resolve_act(101, monotonic).unwrap(),
+            crate::auth::service_fence::ServiceAuthorityActResolution::Current(_)
+        ));
+        assert_eq!(
+            db.conn
+                .query_row(
+                    "SELECT value FROM _snapback_meta WHERE key = 'service-test'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .optional()
+                .unwrap(),
+            None,
+            "the injected uncertainty follows a real rollback"
+        );
+
+        db.reconcile_ambiguous_service_terminal(terminal, false)
+            .expect("exact durable predecessor settles only its ticket");
+        assert!(matches!(
+            exact.resolve_act(101, monotonic).unwrap(),
+            crate::auth::service_fence::ServiceAuthorityActResolution::Current(_)
+        ));
+    }
+
+    #[test]
     fn frozen_v1_reopens_without_migration_and_refuses_agent_surfaces() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("frozen-v1.sqlite3");
@@ -2355,7 +2710,7 @@ mod tests {
                    generation, created_at_ms, last_used_at_ms, expires_at_ms,
                    absolute_expires_at_ms, revoked_at_ms
                  ) VALUES(
-                   'session-restore-clock', 'user-restore-clock', 'identity-restore-clock',
+                   '01890f47-0000-7000-8000-000000000021', 'user-restore-clock', 'identity-restore-clock',
                    'authority-restore-clock', ?1, 1, 900, 900, 1000, 1100, NULL
                  )",
                 params![vec![7_u8; 32]],
@@ -2369,7 +2724,7 @@ mod tests {
         let revoked_at: i64 = db
             .conn
             .query_row(
-                "SELECT revoked_at_ms FROM _auth_sessions WHERE id = 'session-restore-clock'",
+                "SELECT revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000021'",
                 [],
                 |row| row.get(0),
             )
@@ -2500,7 +2855,7 @@ mod tests {
                    generation, created_at_ms, last_used_at_ms, expires_at_ms,
                    absolute_expires_at_ms
                  ) VALUES(
-                   'v1-live', 'v1-user', 'v1-identity', 'v1-live-authority',
+                   '01890f47-0000-7000-8000-000000000022', 'v1-user', 'v1-identity', 'v1-live-authority',
                    randomblob(32), 1, 10, 10, 100, 200
                  );",
             )
@@ -2518,7 +2873,7 @@ mod tests {
         assert_eq!(
             db.conn
                 .query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'v1-live'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000022'",
                     [],
                     |row| Ok((row.get::<_, i64>(0)?, row.get::<_, i64>(1)?)),
                 )
@@ -2904,7 +3259,7 @@ mod tests {
                        generation, created_at_ms, last_used_at_ms, expires_at_ms,
                        absolute_expires_at_ms, revoked_at_ms
                      ) VALUES(
-                       'session-1', 'user-1', 'identity-1', 'authority-1', ?1,
+                       '01890f47-0000-7000-8000-000000000023', 'user-1', 'identity-1', 'authority-1', ?1,
                        1, 0, 0, 1000, 2000, NULL
                      )",
                     params![vec![7_u8; 32]],
@@ -2937,7 +3292,7 @@ mod tests {
             let session: (i64, Option<i64>) = db
                 .conn
                 .query_row(
-                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = 'session-1'",
+                    "SELECT generation, revoked_at_ms FROM _auth_sessions WHERE id = '01890f47-0000-7000-8000-000000000023'",
                     [],
                     |row| Ok((row.get(0)?, row.get(1)?)),
                 )

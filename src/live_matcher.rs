@@ -330,9 +330,7 @@ fn filter_matches_expected(op: &FilterOp, actual: &Value, expected: &Value) -> O
             let values = expected.as_array()?;
             Some(values.iter().any(|value| values_equal(actual, value)))
         }
-        FilterOp::Lt => {
-            json_value_cmp(actual, expected).map(|ordering| ordering == Ordering::Less)
-        }
+        FilterOp::Lt => json_value_cmp(actual, expected).map(|ordering| ordering == Ordering::Less),
         FilterOp::Lte => json_value_cmp(actual, expected)
             .map(|ordering| ordering == Ordering::Less || ordering == Ordering::Equal),
         FilterOp::Gt => {

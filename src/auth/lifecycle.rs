@@ -322,6 +322,9 @@ mod tests {
     use std::sync::atomic::{AtomicU8, Ordering};
     use std::time::Instant;
 
+    const FIRST_RESTORE_SESSION: &str = "01890f47-0000-7000-8000-000000000011";
+    const SECOND_RESTORE_SESSION: &str = "01890f47-0000-7000-8000-000000000012";
+
     #[derive(Debug, Default)]
     struct CountingRandom(AtomicU8);
 
@@ -456,7 +459,7 @@ mod tests {
         let random = CountingRandom::default();
         activate_catalog(&mut database, &keyring, 0, &random).unwrap();
         let predecessor_incarnation = database.ensure_authorization_stream_incarnation().unwrap();
-        insert_restore_fixture(&mut database, "session-1", 1);
+        insert_restore_fixture(&mut database, FIRST_RESTORE_SESSION, 1);
 
         let mailbox = CaptureMailbox::new();
         let challenge = ChallengeId::parse("sbc_AAAAAAAAAAAAAAAAAAAAAA").unwrap();
@@ -510,10 +513,10 @@ mod tests {
         );
         assert!(!declaration_path.exists());
         assert!(mailbox.peek_address(&challenge).is_none());
-        assert_session(&database, "session-1", 2, Some(2000));
+        assert_session(&database, FIRST_RESTORE_SESSION, 2, Some(2000));
         assert_eq!(challenge_count(&database), 0);
 
-        insert_restore_fixture(&mut database, "session-2", 2);
+        insert_restore_fixture(&mut database, SECOND_RESTORE_SESSION, 2);
         crate::secure_file::write_new_owner_only(
             &declaration_path,
             &declaration.to_bytes().unwrap(),
@@ -532,7 +535,7 @@ mod tests {
             database.authorization_stream_incarnation().unwrap(),
             committed_incarnation
         );
-        assert_session(&database, "session-2", 1, None);
+        assert_session(&database, SECOND_RESTORE_SESSION, 1, None);
         assert_eq!(challenge_count(&database), 1);
     }
 
@@ -542,7 +545,7 @@ mod tests {
         let declaration_path = directory.path().join(RESTORE_DECLARATION_FILE);
         let mut database = LocalDatabase::memory().unwrap();
         database.activate_current_auth_catalog().unwrap();
-        insert_restore_fixture(&mut database, "session-1", 1);
+        insert_restore_fixture(&mut database, FIRST_RESTORE_SESSION, 1);
         let declaration = RestoreDeclaration::fresh();
         let other = RestoreDeclaration::fresh();
         crate::secure_file::write_new_owner_only(
@@ -559,7 +562,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
-        assert_session(&database, "session-1", 1, None);
+        assert_session(&database, FIRST_RESTORE_SESSION, 1, None);
 
         std::fs::remove_file(&declaration_path).unwrap();
         let invalid = format!(
@@ -576,7 +579,7 @@ mod tests {
         )
         .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_BACKUP_INVALID");
-        assert_session(&database, "session-1", 1, None);
+        assert_session(&database, FIRST_RESTORE_SESSION, 1, None);
     }
 
     fn insert_restore_fixture(database: &mut LocalDatabase, session_id: &str, suffix: u8) {

@@ -222,14 +222,7 @@ impl RuntimeManager {
             ..
         } = invocation;
         let membership_plans = db.authorize_membership_commands(membership_commands)?;
-        db.dry_run_buffered_writes(
-            &input,
-            writes,
-            membership_plans,
-            reads,
-            result,
-            ctx_ledger,
-        )
+        db.dry_run_buffered_writes(&input, writes, membership_plans, reads, result, ctx_ledger)
     }
 
     // This is the explicit runtime boundary: keeping the independently named
@@ -1033,31 +1026,63 @@ impl<'a> IbexHostContext<'a> {
                         ),
                     )
                 })?;
-                self.ensure_membership_authority_creating(table_manifest)?;
+                // Bootstrap is structurally non-authority-creating: it seats
+                // only the host-derived effective principal, in the declared
+                // bootstrap role, against the fresh resource id minted below.
+                // Every other membership operation still requires the exact
+                // delegated-agent consent gate.
+                // @ref LLP 0056#agents
+                if operation != "bootstrap" {
+                    self.ensure_membership_authority_creating(table_manifest)?;
+                }
                 let table = table_manifest.name.clone();
                 let writer = self.membership_writer.clone();
-                let command = match operation.as_str() {
-                    "insert" => BufferedMembershipCommand::insert(
-                        writer,
-                        table,
-                        required_object(&args, "values")?,
+                let (command, result) = match operation.as_str() {
+                    "bootstrap" => {
+                        let resource_id = self.next_host_id()?;
+                        (
+                            BufferedMembershipCommand::bootstrap(
+                                writer,
+                                table,
+                                resource_id.clone(),
+                                required_object(&args, "values")?,
+                            ),
+                            Value::String(resource_id),
+                        )
+                    }
+                    "insert" => (
+                        BufferedMembershipCommand::insert(
+                            writer,
+                            table,
+                            required_object(&args, "values")?,
+                        ),
+                        Value::Null,
                     ),
-                    "setRole" => BufferedMembershipCommand::set_role(
-                        writer,
-                        table,
-                        required_string(&args, "memberId")?,
-                        required_string(&args, "role")?,
+                    "setRole" => (
+                        BufferedMembershipCommand::set_role(
+                            writer,
+                            table,
+                            required_string(&args, "memberId")?,
+                            required_string(&args, "role")?,
+                        ),
+                        Value::Null,
                     ),
-                    "remove" => BufferedMembershipCommand::remove(
-                        writer,
-                        table,
-                        required_string(&args, "memberId")?,
+                    "remove" => (
+                        BufferedMembershipCommand::remove(
+                            writer,
+                            table,
+                            required_string(&args, "memberId")?,
+                        ),
+                        Value::Null,
                     ),
-                    "patch" => BufferedMembershipCommand::patch(
-                        writer,
-                        table,
-                        required_string(&args, "memberId")?,
-                        required_object(&args, "values")?,
+                    "patch" => (
+                        BufferedMembershipCommand::patch(
+                            writer,
+                            table,
+                            required_string(&args, "memberId")?,
+                            required_object(&args, "values")?,
+                        ),
+                        Value::Null,
                     ),
                     _ => {
                         return Err(SnapbackError::error(
@@ -1068,7 +1093,7 @@ impl<'a> IbexHostContext<'a> {
                     }
                 };
                 self.membership_commands.push(command);
-                Ok(Value::Null)
+                Ok(result)
             }
             "runtime.now" => Ok(json!(self.now_ms)),
             // Diagnostics-routed console (LLP 0048 allowlist slice 1): the
@@ -1101,6 +1126,15 @@ impl<'a> IbexHostContext<'a> {
                 )
                 .with_details(json!({ "error": error.to_string() }))
             }),
+            // Internal two-call handshake around the synchronous native-fetch
+            // enqueue. The action host reserves/releases the exact scoped
+            // authority permit in `validate_host_call`; these branches expose
+            // no application data and exist only so the trusted harness can
+            // close begin→initiated without an unknown-op refusal.
+            "action.externalEffectBegin" | "action.externalEffectInitiated" => {
+                self.ensure_action("externalEffect")?;
+                Ok(Value::Null)
+            }
             "action.runMutation" => {
                 self.ensure_action("runMutation")?;
                 let name = required_string(&args, "name")?;
@@ -1143,16 +1177,11 @@ impl<'a> IbexHostContext<'a> {
                 }
                 let declaration = required_string(&args, "declaration")?;
                 let resource_arg = args.get("resource").cloned().unwrap_or(Value::Null);
-                let requested_roles: Vec<String> = args
-                    .get("roles")
-                    .and_then(Value::as_array)
-                    .map(|roles| {
-                        roles
-                            .iter()
-                            .filter_map(|role| role.as_str().map(str::to_owned))
-                            .collect()
-                    })
-                    .unwrap_or_default();
+                // This is an authorization boundary, so malformed role values
+                // may never be silently discarded. In particular `[undefined]`
+                // crosses the JS/JSON bridge as `[null]`; treating that as an
+                // empty `memberOf` check broadens `requireRole` fail-open.
+                let requested_roles = required_nonempty_string_array(&args, "roles")?;
                 // Resolve the declaration to owned data so no borrow of `self`
                 // (via the schema) is held across the mutable capture below.
                 let (table_name, membership) = {
@@ -1170,6 +1199,18 @@ impl<'a> IbexHostContext<'a> {
                         }
                     }
                 };
+                if let Some(role) = requested_roles.iter().find(|role| {
+                    !membership
+                        .vocabulary()
+                        .any(|declared| declared == role.as_str())
+                }) {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE",
+                        "auth",
+                        "ctx.permissions.requireRole names a role outside the declaration vocabulary",
+                    )
+                    .with_details(json!({ "role": role })));
+                }
                 // Unauthenticated / null effective principal: deny with the same
                 // invariant payload (the `optional-user` split; `authenticated`
                 // functions fail AUTH_REQUIRED before the handler runs).
@@ -1178,12 +1219,10 @@ impl<'a> IbexHostContext<'a> {
                     self.terminal_denial = Some(denial.clone());
                     return Err(denial);
                 };
-                let requested = if requested_roles.is_empty() {
-                    None
-                } else {
-                    Some(requested_roles.as_slice())
-                };
-                let roles = crate::membership_rules::effective_roles(&membership, requested);
+                let roles = crate::membership_rules::effective_roles(
+                    &membership,
+                    Some(requested_roles.as_slice()),
+                );
                 if membership.scope == crate::manifest::MembershipScope::App
                     && crate::membership_rules::impersonated_global_role_satisfies(
                         &membership,
@@ -1274,7 +1313,10 @@ impl<'a> IbexHostContext<'a> {
             )
             .with_details(json!({ "reason": "effect_site_unconsented" })));
         }
-        if table.membership.as_ref().and_then(|membership| membership.provenance)
+        if table
+            .membership
+            .as_ref()
+            .and_then(|membership| membership.provenance)
             == Some(crate::manifest::MembershipProvenance::Full)
         {
             return Ok(());
@@ -2462,6 +2504,36 @@ fn required_object(args: &Value, key: &str) -> SnapbackResult<Map<String, Value>
         })
 }
 
+fn required_nonempty_string_array(args: &Value, key: &str) -> SnapbackResult<Vec<String>> {
+    let values = args
+        .get(key)
+        .and_then(Value::as_array)
+        .filter(|values| !values.is_empty())
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+                "runtime",
+                format!("handler host call requires a nonempty string array field {key}"),
+            )
+        })?;
+    values
+        .iter()
+        .map(|value| {
+            value
+                .as_str()
+                .filter(|value| !value.is_empty())
+                .map(str::to_owned)
+                .ok_or_else(|| {
+                    SnapbackError::error(
+                        "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+                        "runtime",
+                        format!("handler host call field {key} must contain only nonempty strings"),
+                    )
+                })
+        })
+        .collect()
+}
+
 fn row_version(row: &Value) -> SnapbackResult<u64> {
     row.get("_version").and_then(Value::as_u64).ok_or_else(|| {
         SnapbackError::error(
@@ -2944,8 +3016,8 @@ mod membership_bridge_tests {
     use crate::auth::admission::AdmissionLease;
     use crate::auth::invocation::{HandlerAuthProjection, ResolvedAppAuthority};
     use crate::manifest::{
-        AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipManifest,
-        MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
+        AuthInput, FieldManifest, FieldType, HandlerInput, IbexModule, MembershipLastHolder,
+        MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
         MembershipTransition, SchemaManifest, TableManifest,
     };
     use crate::storage::{BufferedCommitPayload, DbRead, LocalDatabase, MembershipWriter};
@@ -3008,6 +3080,63 @@ mod membership_bridge_tests {
                     permission_backing: true,
                     permission_fields: Some(vec!["ownerId".to_owned()]),
                     membership: None,
+                },
+                TableManifest {
+                    name: "events".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "title".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "event_members".to_owned(),
+                    fields: vec![
+                        FieldManifest {
+                            name: "eventId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "events".to_owned(),
+                            },
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "userId".to_owned(),
+                            field_type: FieldType::Principal,
+                            optional: false,
+                        },
+                        FieldManifest {
+                            name: "role".to_owned(),
+                            field_type: FieldType::String,
+                            optional: false,
+                        },
+                    ],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: Some(MembershipManifest {
+                        id: None,
+                        principal: "userId".to_owned(),
+                        resource: Some("eventId".to_owned()),
+                        role: "role".to_owned(),
+                        roles: vec!["host".to_owned(), "guest".to_owned()],
+                        pending_roles: None,
+                        bootstrap_role: Some("host".to_owned()),
+                        last_holder: Some(MembershipLastHolder {
+                            protect: "host".to_owned(),
+                        }),
+                        expiry: None,
+                        incidental: None,
+                        provenance: Some(MembershipProvenance::Full),
+                        transitions: Vec::new(),
+                        scope: MembershipScope::Resource,
+                        resource_table: Some("events".to_owned()),
+                    }),
                 },
             ],
             ..SchemaManifest::default()
@@ -3113,7 +3242,9 @@ mod membership_bridge_tests {
             || Ok(()),
         )
         .expect("sanctioned bridge commit");
-        let rows = db.scan_table("app_members", 10, 0).expect("membership rows");
+        let rows = db
+            .scan_table("app_members", 10, 0)
+            .expect("membership rows");
         assert_eq!(rows.total, 1);
         let id = rows.rows[0]["_id"].as_str().expect("member id");
         let provenance = db
@@ -3140,7 +3271,10 @@ mod membership_bridge_tests {
                 json!(null),
             )
             .expect_err("raw membership write remains refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
+        );
     }
 
     #[test]
@@ -3157,7 +3291,10 @@ mod membership_bridge_tests {
         let error = ctx
             .handle_host_call("membership.write", args)
             .expect_err("two snapshot-authorized commands must not compose");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
+        );
         let commands = std::mem::take(&mut ctx.membership_commands);
         drop(ctx);
         let plans = db
@@ -3202,7 +3339,10 @@ mod membership_bridge_tests {
             error.diagnostic.code,
             "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"
         );
-        assert_eq!(error.diagnostic.details["reason"], "effect_site_unconsented");
+        assert_eq!(
+            error.diagnostic.details["reason"],
+            "effect_site_unconsented"
+        );
 
         let mut explicitly_consented = service_context(&db, true);
         explicitly_consented
@@ -3219,10 +3359,7 @@ mod membership_bridge_tests {
                 "db.patch",
                 json!({ "table": "custom_acl", "id": "acl-a", "values": { "ownerId": "alice" } }),
             ),
-            (
-                "db.delete",
-                json!({ "table": "custom_acl", "id": "acl-a" }),
-            ),
+            ("db.delete", json!({ "table": "custom_acl", "id": "acl-a" })),
         ] {
             let mut unsupported_permission_backing = service_context(&db, true);
             let error = unsupported_permission_backing
@@ -3269,6 +3406,124 @@ mod membership_bridge_tests {
     }
 
     #[test]
+    fn require_role_rejects_empty_malformed_and_unknown_role_arguments() {
+        let db = ready_db();
+        for (roles, expected) in [
+            (json!([]), "SNAPBACK_HANDLER_HOST_CALL_INVALID"),
+            (json!([null]), "SNAPBACK_HANDLER_HOST_CALL_INVALID"),
+            (json!([""]), "SNAPBACK_HANDLER_HOST_CALL_INVALID"),
+            (json!(["admin"]), "SNAPBACK_MEMBERSHIP_UNKNOWN_ROLE"),
+        ] {
+            let mut ctx = context(&db);
+            let error = ctx
+                .handle_host_call(
+                    "permissions.requireRole",
+                    json!({
+                        "declaration": "app_members",
+                        "resource": null,
+                        "roles": roles,
+                    }),
+                )
+                .expect_err("malformed or unknown role arguments must fail closed");
+            assert_eq!(error.diagnostic.code, expected);
+        }
+
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async malformed(ctx) {
+    return await ctx.permissions.app_members.requireRole(null, undefined);
+  }
+};
+"#;
+        let mut ctx = context(&db);
+        let error = run_ibex_handler_with_context(
+            &IbexModule {
+                source: SOURCE.to_owned(),
+                export: "malformed".to_owned(),
+            },
+            &mut ctx,
+            None,
+        )
+        .expect_err("undefined must not degrade requireRole into memberOf");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_HOST_CALL_INVALID");
+    }
+
+    #[test]
+    fn generated_bootstrap_atomically_creates_resource_and_protected_holder() {
+        const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async bootstrap(ctx) {
+    return await ctx.membership.event_members.bootstrap({ title: 'Launch' });
+  }
+};
+"#;
+        let mut db = ready_db();
+        let mut ctx = context(&db);
+        let result = run_ibex_handler_with_context(
+            &IbexModule {
+                source: SOURCE.to_owned(),
+                export: "bootstrap".to_owned(),
+            },
+            &mut ctx,
+            None,
+        )
+        .expect("generated bootstrap helper");
+        let event_id = result
+            .as_str()
+            .expect("bootstrap returns the fresh resource id")
+            .to_owned();
+        let ctx_ledger = ctx.take_ctx_ledger().expect("bootstrap id ledger");
+        assert_eq!(ctx_ledger.ids, vec![event_id.clone()]);
+        let commands = std::mem::take(&mut ctx.membership_commands);
+        drop(ctx);
+        let plans = db
+            .authorize_membership_commands(commands)
+            .expect("bootstrap authorization");
+        db.commit_buffered_writes_idempotent_guarded(
+            &input(),
+            BufferedCommitPayload {
+                writes: Vec::new(),
+                membership_plans: plans,
+                read_dependencies: Vec::new(),
+                result: result.clone(),
+                ctx_ledger,
+            },
+            None,
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("atomic resource and bootstrap-holder commit");
+
+        let event = db
+            .get("events", &event_id)
+            .expect("event read")
+            .expect("created event");
+        assert_eq!(event["title"], "Launch");
+        let members = db
+            .scan_table("event_members", 10, 0)
+            .expect("membership scan");
+        assert_eq!(members.total, 1);
+        assert_eq!(members.rows[0]["eventId"], event_id);
+        assert_eq!(members.rows[0]["userId"], "alice");
+        assert_eq!(members.rows[0]["role"], "host");
+
+        let service_db = ready_db();
+        let mut service = service_context(&service_db, false);
+        let result = service
+            .handle_host_call(
+                "membership.write",
+                json!({
+                    "declaration": "event_members",
+                    "operation": "bootstrap",
+                    "values": { "title": "Agent launch" }
+                }),
+            )
+            .expect("bootstrap does not require authority-creating consent");
+        assert!(result.is_string());
+        assert_eq!(service.membership_commands.len(), 1);
+    }
+
+    #[test]
     fn aliased_and_computed_membership_calls_fail_at_the_dynamic_gate() {
         const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
@@ -3296,8 +3551,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("dynamic membership access must reach the host effect gate");
             assert_eq!(
-                error.diagnostic.code,
-                "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
+                error.diagnostic.code, "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
                 "{export} must fail with the host-owned effect diagnostic"
             );
             assert!(

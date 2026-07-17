@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (client-fence implementation closure: terminal
+**Revised:** 2026-07-16 (finite service-authority closure: scoped-token
+resolution now registers one exact process witness, terminal transactions
+premark only their read-only planned token set before any write, finite and
+connection publication use that witness, external native effects use a
+begin-to-initiated cut, and monotonic-observed expiry is persisted before it
+becomes terminal). 2026-07-16 (client-fence implementation closure: terminal
 classification defaults missing or malformed evidence to carrier-only,
 finite Agent failures await durable barrier settlement, browser transport
 pre-cuts are phase-deduplicated within the exact capture, request start and
@@ -828,6 +833,71 @@ the removed opaque grant id. Pressure eviction and authority mismatch therefore
 cannot leave a delayed HTTP body or predecessor socket with handoff authority,
 and cannot unregister a same-readable-id successor.
 
+### Finite service authority fence
+
+A successfully resolved scoped token registers one process-local witness while
+the caller still owns the database/app lock used for resolution:
+
+```text
+tokenId, grantId, actorUserId, effectiveUserId,
+credentialId, credentialGeneration, tokenDeadline, optionalGrantDeadline
+```
+
+The registry is owned by the database and shared by every clone of its one
+`AppState` graph. Constructing a second independent connection/lifecycle graph
+for that database is invalid: terminal publication, finite invocation, and
+connection acts must all meet at the same token fence. The witness retains no
+bearer secret. Re-registration of the same token must match the entire tuple
+and may only tighten its monotonic deadlines.
+
+Finite query, mutation, action, `/auth/session`, connection-open, and every
+later connection act carry this exact publication handle. Its closed result is
+`Current(witness)`, `Terminal(carrier | durableDelete)`, or `Unavailable`.
+Pending or ambiguous termination, clock rollback, poisoned state, a missing
+handle, and a deadline not yet persisted all produce `Unavailable`; none may be
+treated as current or terminal by inference. A bounded synchronous connection
+act holds the token-fence mutex through its app mutation/publication handoff.
+Nested local validation on that same thread reuses the already-sampled witness;
+it must not recursively acquire the non-reentrant mutex or take a later clock
+sample as a new linearization point.
+
+Every durable operation that can end scoped-token authority follows this exact
+transaction order:
+
+```text
+BEGIN IMMEDIATE
+-> read-only plan of exact affected token ids
+-> premark those token fences
+-> first durable write and remaining operation
+-> COMMIT
+-> settle the exact process ticket
+```
+
+A known rollback removes only that ticket. If rollback or commit cannot be
+proved, the exact planned token set stays unavailable until an operation-
+specific durable reread proves predecessor or successor and settles that same
+ticket. Planning and catalog validation before the premark are read-only, so
+an unprovable rollback there has made no ending write and cannot justify either
+a token marker or a process-global quarantine. Unrelated tokens always remain
+usable. Token revoke, token expiry, and token-cap eviction settle `carrier`;
+grant revoke/expiry, credential rotation/revoke, principal deactivation, and
+the other durable-family endings settle `durableDelete`.
+
+Both wall and monotonic deadlines are checked at every act. A bare monotonic
+observation is not yet a durable terminal fact: it first commits the exact
+token revocation, or grant plus all grant-token revocations for a grant
+deadline, through the transaction protocol above. Only the committed ticket
+publishes `Terminal`. This prevents a backward wall clock and process restart
+from reviving authority already observed terminal by the prior process.
+
+An Ibex action native fetch adds one smaller external-effect cut. After all
+application-controlled `Request` normalization, `Begin` reserves the exact
+current token fence; the trusted native fetch is invoked synchronously; and an
+`Initiated` acknowledgement releases the permit in `finally`, including a
+synchronous native refusal. A terminal premark waits for an already-open
+initiation and prevents every later begin. Workerd and the sealed ambient-deny
+slot retain their existing ownership and are not replaced by this wrapper.
+
 ## Fenced effects and live closure
 
 ### Effect stamp
@@ -1341,6 +1411,9 @@ non-terminal record that already consumed the maximum revision cannot be
 rewritten, but is durable poison: ownership still blanks the context and no
 predecessor publication callback may run. An exhausted epoch uses the
 dedicated diagnostic below and the same terminal marker when a revision remains.
+The same rule is normative for durable Agent custody: persist the terminal
+marker while revision space remains, and treat a legacy non-terminal record at
+the maximum revision as poison on every read, never as current authority.
 
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows

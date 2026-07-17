@@ -332,7 +332,10 @@ async fn cors_preflight_projects_registered_methods_including_delete() {
             .await
             .unwrap();
         assert_eq!(response.status(), StatusCode::NO_CONTENT, "{path}");
-        assert_eq!(response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN], origin);
+        assert_eq!(
+            response.headers()[header::ACCESS_CONTROL_ALLOW_ORIGIN],
+            origin
+        );
         let allowed = response.headers()[header::ACCESS_CONTROL_ALLOW_METHODS]
             .to_str()
             .unwrap()
@@ -621,11 +624,9 @@ fn session_overlay_closes_every_client_asserted_http_route() {
                     _ => CredentialResolution::OptionalSessionBearer,
                 };
                 assert_eq!(
-                    sessions.credential_resolution,
-                    expected_resolution,
+                    sessions.credential_resolution, expected_resolution,
                     "unexpected sessions carrier for {} {}",
-                    route.method,
-                    route.path
+                    route.method, route.path
                 );
                 assert_eq!(
                     sessions.invocation_authority,
@@ -2693,9 +2694,7 @@ async fn incomplete_chunked_body_cannot_starve_auth_mode_quiescence() {
             .begin_transition_async(|| Ok(()))
             .await
             .unwrap_or_else(|error| {
-                panic!(
-                    "round {round}: a slow public body forced the transition to fail: {error:?}"
-                )
+                panic!("round {round}: a slow public body forced the transition to fail: {error:?}")
             });
         let waited = attempted.elapsed();
         assert!(

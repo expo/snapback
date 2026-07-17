@@ -370,7 +370,11 @@ fn update_global_count(tx: &Transaction<'_>, created: bool, deleted: bool) -> Sn
         Some(value) => value.saturating_sub(1),
         None => count_global_episodes(tx)?,
     };
-    write_meta_u64(tx, RETRY_GLOBAL_COUNT_META_KEY, value.min(MAX_AUTHORIZATION_EPOCH))
+    write_meta_u64(
+        tx,
+        RETRY_GLOBAL_COUNT_META_KEY,
+        value.min(MAX_AUTHORIZATION_EPOCH),
+    )
 }
 
 #[cfg(test)]
@@ -484,8 +488,11 @@ pub(super) fn ensure_data_version_stream_in(tx: &Transaction<'_>) -> SnapbackRes
     }
 }
 
-pub(super) fn strict_meta_u64(tx: &Transaction<'_>, key: &str) -> SnapbackResult<Option<u64>> {
-    let value: Option<(String, Vec<u8>)> = tx
+pub(super) fn strict_meta_u64(
+    connection: &rusqlite::Connection,
+    key: &str,
+) -> SnapbackResult<Option<u64>> {
+    let value: Option<(String, Vec<u8>)> = connection
         .query_row(
             "SELECT typeof(value), CAST(value AS BLOB)
              FROM _snapback_meta WHERE key = ?1",
@@ -890,8 +897,14 @@ mod tests {
             query_key: "todos:{}".to_owned(),
         };
         let mut episodes = BTreeMap::new();
-        episodes.insert(key_a.clone(), exhausted_episode(&key_a, "retry-a".to_owned()));
-        episodes.insert(key_b.clone(), exhausted_episode(&key_b, "retry-b".to_owned()));
+        episodes.insert(
+            key_a.clone(),
+            exhausted_episode(&key_a, "retry-a".to_owned()),
+        );
+        episodes.insert(
+            key_b.clone(),
+            exhausted_episode(&key_b, "retry-b".to_owned()),
+        );
         db.seed_invalidation_retry_episodes_for_test(&episodes, 1_000_000)
             .unwrap();
         db.conn

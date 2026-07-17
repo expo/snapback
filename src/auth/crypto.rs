@@ -468,7 +468,11 @@ macro_rules! agent_secret_bearer {
 //   short-lived scoped token (`sbagt_`), single-use creation (`sbagi_`) and
 //   recovery (`sbagr_`) invitations, and the user-minted pairing code
 //   (`sbpc_`). All stored hashed; the lifecycle that consumes them is G3/G4.
-agent_secret_bearer!(AgentCredential, AGENT_CREDENTIAL_PREFIX, "AgentCredential([REDACTED])");
+agent_secret_bearer!(
+    AgentCredential,
+    AGENT_CREDENTIAL_PREFIX,
+    "AgentCredential([REDACTED])"
+);
 agent_secret_bearer!(ScopedToken, SCOPED_TOKEN_PREFIX, "ScopedToken([REDACTED])");
 agent_secret_bearer!(
     CreationInvitation,
@@ -574,11 +578,20 @@ impl CredentialClass {
 /// `starts_with` scan in [`classify_credential`] matches at most one class.
 pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     (SESSION_PREFIX, CredentialClass::Session),
-    (IMPERSONATION_PREFIX, CredentialClass::ImpersonationCapability),
+    (
+        IMPERSONATION_PREFIX,
+        CredentialClass::ImpersonationCapability,
+    ),
     (AGENT_CREDENTIAL_PREFIX, CredentialClass::AgentCredential),
     (SCOPED_TOKEN_PREFIX, CredentialClass::ScopedToken),
-    (CREATION_INVITATION_PREFIX, CredentialClass::CreationInvitation),
-    (RECOVERY_INVITATION_PREFIX, CredentialClass::RecoveryInvitation),
+    (
+        CREATION_INVITATION_PREFIX,
+        CredentialClass::CreationInvitation,
+    ),
+    (
+        RECOVERY_INVITATION_PREFIX,
+        CredentialClass::RecoveryInvitation,
+    ),
     (PAIRING_CODE_PREFIX, CredentialClass::PairingCode),
     (CHALLENGE_PREFIX, CredentialClass::ChallengeId),
     (KEY_PREFIX, CredentialClass::AuthKeyId),
@@ -973,13 +986,34 @@ mod tests {
     fn every_crc_bearer_class_rejects_every_other_class() {
         let random = ScriptedRandom::new(vec![vec![7_u8; 32]; 16]);
         // One concrete sample per CRC-bearer class, minted through its own type.
-        let session = SessionBearer::generate(&random).unwrap().expose_secret().to_string();
-        let impersonation = ImpersonationBearer::generate(&random).unwrap().expose_secret().to_string();
-        let credential = AgentCredential::generate(&random).unwrap().expose_secret().to_string();
-        let token = ScopedToken::generate(&random).unwrap().expose_secret().to_string();
-        let creation = CreationInvitation::generate(&random).unwrap().expose_secret().to_string();
-        let recovery = RecoveryInvitation::generate(&random).unwrap().expose_secret().to_string();
-        let pairing = PairingCode::generate(&random).unwrap().expose_secret().to_string();
+        let session = SessionBearer::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let impersonation = ImpersonationBearer::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let credential = AgentCredential::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let token = ScopedToken::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let creation = CreationInvitation::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let recovery = RecoveryInvitation::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
+        let pairing = PairingCode::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
 
         let samples: [(CredentialClass, &str); 7] = [
             (CredentialClass::Session, &session),
@@ -1033,7 +1067,10 @@ mod tests {
             CredentialClass::ChallengeId,
             CredentialClass::AuthKeyId,
         ] {
-            assert!(!class.is_authenticating(), "{class:?} must not authenticate");
+            assert!(
+                !class.is_authenticating(),
+                "{class:?} must not authenticate"
+            );
         }
         // A well-formed `sbrp_`/`sbrm_` value is refused by every bearer parser.
         for value in ["sbrp_00000000-0000-0000-0000-000000000000", "sbrm_deadbeef"] {
@@ -1054,7 +1091,10 @@ mod tests {
     #[test]
     fn dispatch_refuses_wrong_and_unknown_classes() {
         let random = ScriptedRandom::new(vec![vec![3_u8; 32]; 4]);
-        let token = ScopedToken::generate(&random).unwrap().expose_secret().to_string();
+        let token = ScopedToken::generate(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
 
         // Right class → ok.
         assert_eq!(
@@ -1082,7 +1122,10 @@ mod tests {
         let error = dispatch_credential_class(&token, CredentialClass::Session)
             .unwrap_err()
             .into_snapback_error();
-        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_CREDENTIAL_CLASS_MISMATCH"
+        );
         assert_eq!(error.diagnostic.details["expectedPrefix"], "sbs_");
         assert_eq!(error.diagnostic.details["presentedPrefix"], "sbagt_");
     }

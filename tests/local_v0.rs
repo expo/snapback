@@ -4299,7 +4299,10 @@ fn manifest_missing_function_id_fails_load_typed_and_preserves_generation() {
         .expect("functions array");
     assert!(!functions_json.is_empty());
     for function in functions_json.iter_mut() {
-        let removed = function.as_object_mut().expect("function object").remove("id");
+        let removed = function
+            .as_object_mut()
+            .expect("function object")
+            .remove("id");
         assert!(removed.is_some(), "fixture functions carry ids");
     }
     let missing_id: FunctionManifest =
@@ -4311,7 +4314,9 @@ fn manifest_missing_function_id_fails_load_typed_and_preserves_generation() {
         .find(|diagnostic| diagnostic.code == "SNAPBACK_FUNCTION_IDENTITY_INVALID")
         .expect("missing function id fails load with the typed identity diagnostic");
     assert!(
-        refusal.message.contains("missing the required stable function id"),
+        refusal
+            .message
+            .contains("missing the required stable function id"),
         "diagnostic names the missing id: {}",
         refusal.message
     );

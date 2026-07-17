@@ -23,6 +23,7 @@ use uuid::Uuid;
 pub(crate) const AUTHORIZATION_STREAM_FORMAT_VERSION: u32 = 1;
 pub(crate) const SESSION_PROJECTION_FORMAT_VERSION: u32 = 1;
 pub(crate) const AUTHORIZATION_STREAM_META_KEY: &str = "auth_stream_incarnation_v1";
+pub(crate) const SESSION_TERMINAL_CAUSE_META_PREFIX: &str = "auth_session_terminal_cause_v1/";
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
@@ -221,6 +222,7 @@ pub(crate) struct ProjectionSessionRow {
     pub expires_at_ms: i64,
     pub absolute_expires_at_ms: i64,
     pub revoked_at_ms: Option<i64>,
+    pub terminal_cause: Option<Vec<u8>>,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -314,8 +316,178 @@ pub(crate) enum RevocationReason {
     RefreshReuse,
     Reset,
     Restore,
+    ModeTransition,
     Expired,
     Uncertain,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum TerminalAuthorityDisposition {
+    Carrier,
+    DurableDelete,
+}
+
+impl RevocationReason {
+    pub(crate) fn authority_disposition(self) -> TerminalAuthorityDisposition {
+        match self {
+            Self::Expired | Self::CapEviction | Self::Uncertain => {
+                TerminalAuthorityDisposition::Carrier
+            }
+            Self::DurableRevocation
+            | Self::Logout
+            | Self::FamilyAlarm
+            | Self::RefreshReuse
+            | Self::Reset
+            | Self::Restore
+            | Self::ModeTransition => TerminalAuthorityDisposition::DurableDelete,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+enum PersistedSessionTerminalReason {
+    DurableRevocation,
+    Logout,
+    CapEviction,
+    FamilyAlarm,
+    RefreshReuse,
+    Reset,
+    Restore,
+    ModeTransition,
+}
+
+impl PersistedSessionTerminalReason {
+    fn from_revocation_reason(reason: RevocationReason) -> SnapbackResult<Self> {
+        Ok(match reason {
+            RevocationReason::DurableRevocation => Self::DurableRevocation,
+            RevocationReason::Logout => Self::Logout,
+            RevocationReason::CapEviction => Self::CapEviction,
+            RevocationReason::FamilyAlarm => Self::FamilyAlarm,
+            RevocationReason::RefreshReuse => Self::RefreshReuse,
+            RevocationReason::Reset => Self::Reset,
+            RevocationReason::Restore => Self::Restore,
+            RevocationReason::ModeTransition => Self::ModeTransition,
+            RevocationReason::Expired | RevocationReason::Uncertain => {
+                return Err(projection_corrupt(
+                    "a non-durable session ending cannot be persisted as a revocation cause",
+                ));
+            }
+        })
+    }
+
+    fn into_revocation_reason(self) -> RevocationReason {
+        match self {
+            Self::DurableRevocation => RevocationReason::DurableRevocation,
+            Self::Logout => RevocationReason::Logout,
+            Self::CapEviction => RevocationReason::CapEviction,
+            Self::FamilyAlarm => RevocationReason::FamilyAlarm,
+            Self::RefreshReuse => RevocationReason::RefreshReuse,
+            Self::Reset => RevocationReason::Reset,
+            Self::Restore => RevocationReason::Restore,
+            Self::ModeTransition => RevocationReason::ModeTransition,
+        }
+    }
+}
+
+/// Versioned durable witness for the cause that advanced one session into a
+/// revoked generation. The auth catalog's frozen v1/v2 table shapes carry only
+/// `revoked_at_ms`; this exact metadata record supplies the independent client
+/// disposition axis without mutating either recognized catalog schema.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub(crate) struct SessionTerminalCauseRecord {
+    format_version: u32,
+    session_id: String,
+    generation: u64,
+    revoked_at_ms: u64,
+    reason: PersistedSessionTerminalReason,
+}
+
+impl SessionTerminalCauseRecord {
+    pub(crate) fn new(
+        session_id: &str,
+        generation: u64,
+        revoked_at_ms: u64,
+        reason: RevocationReason,
+    ) -> SnapbackResult<Self> {
+        let record = Self {
+            format_version: 1,
+            session_id: session_id.to_owned(),
+            generation,
+            revoked_at_ms,
+            reason: PersistedSessionTerminalReason::from_revocation_reason(reason)?,
+        };
+        record.validate()?;
+        Ok(record)
+    }
+
+    pub(crate) fn parse_exact(bytes: &[u8]) -> SnapbackResult<Self> {
+        let record: Self = serde_json::from_slice(bytes).map_err(|_| {
+            projection_corrupt("a session terminal-cause witness is not a closed format-1 record")
+        })?;
+        record.validate()?;
+        if record.encode_bytes()? != bytes {
+            return Err(projection_corrupt(
+                "a session terminal-cause witness is not canonically encoded",
+            ));
+        }
+        Ok(record)
+    }
+
+    pub(crate) fn meta_key(session_id: &str) -> SnapbackResult<String> {
+        validate_projection_id(session_id, "session terminal-cause")?;
+        Ok(format!("{SESSION_TERMINAL_CAUSE_META_PREFIX}{session_id}"))
+    }
+
+    pub(crate) fn encode_string(&self) -> SnapbackResult<String> {
+        String::from_utf8(self.encode_bytes()?).map_err(|_| {
+            projection_corrupt("a session terminal-cause witness could not be encoded")
+        })
+    }
+
+    pub(crate) fn session_id(&self) -> &str {
+        &self.session_id
+    }
+
+    pub(crate) fn generation(&self) -> u64 {
+        self.generation
+    }
+
+    pub(crate) fn revoked_at_ms(&self) -> u64 {
+        self.revoked_at_ms
+    }
+
+    pub(crate) fn reason(&self) -> RevocationReason {
+        self.reason.into_revocation_reason()
+    }
+
+    fn encode_bytes(&self) -> SnapbackResult<Vec<u8>> {
+        self.validate()?;
+        serde_json::to_vec(self).map_err(|_| {
+            projection_corrupt("a session terminal-cause witness could not be encoded")
+        })
+    }
+
+    fn validate(&self) -> SnapbackResult<()> {
+        if self.format_version != 1 {
+            return Err(projection_corrupt(
+                "a session terminal-cause witness has an unsupported format",
+            ));
+        }
+        validate_projection_id(&self.session_id, "session terminal-cause")?;
+        if self.generation == 0 || self.generation > MAX_SAFE_GENERATION {
+            return Err(projection_corrupt(
+                "a session terminal-cause witness has an invalid generation",
+            ));
+        }
+        if self.revoked_at_ms > MAX_SAFE_TIMESTAMP {
+            return Err(projection_corrupt(
+                "a session terminal-cause witness has an invalid timestamp",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -458,7 +630,9 @@ pub(crate) enum ProjectedTokenResolution {
         authority: ProjectedSessionAuthority,
         superseded_at_ms: u64,
     },
-    Terminal,
+    Terminal {
+        reason: RevocationReason,
+    },
     Unavailable,
     Unknown,
 }
@@ -472,6 +646,13 @@ pub(crate) enum ProjectedConnectionTokenResolution {
     Superseded(ProjectedSessionAuthority),
     Unavailable { session_id: String, generation: u64 },
     Unknown,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) enum ProjectedBoundSessionResolution {
+    Current(ProjectedSessionAuthority),
+    Terminal { reason: RevocationReason },
+    Unavailable,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -531,6 +712,31 @@ impl SessionFence {
             && state.terminal.is_none()
             && state.pending_tickets.is_empty()
             && state.deadline.live_at(epoch_now_ms, monotonic_now)
+    }
+}
+
+/// Preserve the committed terminal cause through bearer resolution. The
+/// token-index terminal marker deliberately contains no public metadata, but
+/// its session leaf still owns the exact durable revocation reason. A deadline
+/// observed before the expiry worker finalizes is independently classifiable
+/// as ordinary carrier expiry.
+fn terminal_resolution_reason(
+    session: &ProjectedSession,
+    fence: &SessionFenceState,
+    epoch_now_ms: u64,
+    monotonic_now: Instant,
+) -> RevocationReason {
+    match session.state {
+        ProjectedSessionState::Revoked { reason } => reason,
+        ProjectedSessionState::Expired => RevocationReason::Expired,
+        ProjectedSessionState::Uncertain => RevocationReason::Uncertain,
+        ProjectedSessionState::Current => {
+            if !fence.deadline.live_at(epoch_now_ms, monotonic_now) {
+                RevocationReason::Expired
+            } else {
+                fence.terminal.unwrap_or(RevocationReason::Uncertain)
+            }
+        }
     }
 }
 
@@ -619,6 +825,35 @@ impl FencedPublication {
             return Ok(None);
         }
         publish().map(Some)
+    }
+
+    /// Return the exact committed session cause that made this publication
+    /// stale. Pending mutations and stream replacement intentionally have no
+    /// session cause yet; callers must use the non-destructive fallback.
+    pub(crate) fn session_terminal_reason(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<RevocationReason>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream = self.stream.lock()?;
+        if !StreamFence::admits_locked(&stream, &self.expected_incarnation) {
+            return Ok(None);
+        }
+        let Some(session) = &self.session else {
+            return Ok(None);
+        };
+        let state = session.session.lock()?;
+        if !state.pending_tickets.is_empty() {
+            return Ok(None);
+        }
+        if let Some(reason) = state.terminal {
+            return Ok(Some(reason));
+        }
+        if !state.deadline.live_at(epoch_now_ms, monotonic_now) {
+            return Ok(Some(RevocationReason::Expired));
+        }
+        Ok(None)
     }
 
     pub(crate) fn anonymous_for_unmanaged_dev_connection() -> (String, Self) {
@@ -770,13 +1005,36 @@ impl SessionProjection {
                 ));
             }
             let deadline = DeadlinePair::derive(expires_at_ms, epoch_now_ms, monotonic_now)?;
-            let (state, terminal) = if revoked_at_ms.is_some() {
-                (
-                    ProjectedSessionState::Revoked {
-                        reason: RevocationReason::DurableRevocation,
-                    },
-                    Some(RevocationReason::DurableRevocation),
-                )
+            let terminal_cause = row
+                .terminal_cause
+                .as_deref()
+                .map(SessionTerminalCauseRecord::parse_exact)
+                .transpose()?;
+            let (state, terminal) = if let Some(revoked_at_ms) = revoked_at_ms {
+                let reason = match terminal_cause {
+                    Some(cause)
+                        if cause.session_id() == row.id
+                            && cause.generation() == generation
+                            && cause.revoked_at_ms() == revoked_at_ms =>
+                    {
+                        cause.reason()
+                    }
+                    Some(_) => {
+                        return Err(projection_corrupt(
+                            "a session terminal-cause witness does not match its revoked row",
+                        ));
+                    }
+                    // Legacy v1/v2 rows predate the versioned witness. Their
+                    // revocation timestamp alone conflates carrier cap
+                    // eviction with durable authority deletion, so preserve
+                    // terminality with the non-destructive fallback.
+                    None => RevocationReason::Uncertain,
+                };
+                (ProjectedSessionState::Revoked { reason }, Some(reason))
+            } else if terminal_cause.is_some() {
+                return Err(projection_corrupt(
+                    "a current session carries a terminal-cause witness",
+                ));
             } else if expires_at_ms <= epoch_now_ms {
                 (
                     ProjectedSessionState::Expired,
@@ -1080,8 +1338,19 @@ impl SessionProjection {
                 session_id,
                 superseded_at_ms,
             }) => (session_id, Some(*superseded_at_ms)),
-            Some(ProjectedToken::Terminal { .. }) => {
-                return Ok(ProjectedTokenResolution::Terminal);
+            Some(ProjectedToken::Terminal { session_id }) => {
+                let session = self.by_session.get(session_id).ok_or_else(|| {
+                    projection_unavailable("a terminal projected token has a dangling session")
+                })?;
+                let session_fence = session.fence.lock()?;
+                return Ok(ProjectedTokenResolution::Terminal {
+                    reason: terminal_resolution_reason(
+                        session,
+                        &session_fence,
+                        epoch_now_ms,
+                        monotonic_now,
+                    ),
+                });
             }
             Some(ProjectedToken::Unavailable { .. }) => {
                 return Ok(ProjectedTokenResolution::Unavailable);
@@ -1098,7 +1367,14 @@ impl SessionProjection {
             || !session_fence.deadline.live_at(epoch_now_ms, monotonic_now)
             || session_fence.terminal.is_some()
         {
-            return Ok(ProjectedTokenResolution::Terminal);
+            return Ok(ProjectedTokenResolution::Terminal {
+                reason: terminal_resolution_reason(
+                    session,
+                    &session_fence,
+                    epoch_now_ms,
+                    monotonic_now,
+                ),
+            });
         }
         if !SessionFence::admits_locked(
             &session_fence,
@@ -1194,7 +1470,7 @@ impl SessionProjection {
         identity: BoundConnectionSessionIdentity<'_>,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<Option<ProjectedSessionAuthority>> {
+    ) -> SnapbackResult<ProjectedBoundSessionResolution> {
         let BoundConnectionSessionIdentity {
             expected_incarnation,
             session_id,
@@ -1207,29 +1483,45 @@ impl SessionProjection {
         if !StreamFence::admits_locked(&stream, expected_incarnation)
             || expected_incarnation != &self.incarnation
         {
-            return Ok(None);
+            return Ok(ProjectedBoundSessionResolution::Unavailable);
         }
         let Some(session) = self.by_session.get(session_id) else {
-            return Ok(None);
+            return Ok(ProjectedBoundSessionResolution::Unavailable);
         };
         let session_fence = session.fence.lock()?;
         if session.user_id != user_id
             || session.provider != provider
             || session.generation != generation
-            || session.state != ProjectedSessionState::Current
-            || !SessionFence::admits_locked(&session_fence, generation, epoch_now_ms, monotonic_now)
         {
-            return Ok(None);
+            return Ok(ProjectedBoundSessionResolution::Unavailable);
         }
-        Ok(Some(ProjectedSessionAuthority {
-            session_id: session.session_id.clone(),
-            user_id: session.user_id.clone(),
-            provider: session.provider.clone(),
-            generation: session.generation,
-            authority_instance_id: session.authority_instance_id.clone(),
-            expires_at_ms: session.expires_at_ms,
-            absolute_expires_at_ms: session.absolute_expires_at_ms,
-        }))
+        if session.state != ProjectedSessionState::Current
+            || !session_fence.deadline.live_at(epoch_now_ms, monotonic_now)
+            || session_fence.terminal.is_some()
+        {
+            return Ok(ProjectedBoundSessionResolution::Terminal {
+                reason: terminal_resolution_reason(
+                    session,
+                    &session_fence,
+                    epoch_now_ms,
+                    monotonic_now,
+                ),
+            });
+        }
+        if !SessionFence::admits_locked(&session_fence, generation, epoch_now_ms, monotonic_now) {
+            return Ok(ProjectedBoundSessionResolution::Unavailable);
+        }
+        Ok(ProjectedBoundSessionResolution::Current(
+            ProjectedSessionAuthority {
+                session_id: session.session_id.clone(),
+                user_id: session.user_id.clone(),
+                provider: session.provider.clone(),
+                generation: session.generation,
+                authority_instance_id: session.authority_instance_id.clone(),
+                expires_at_ms: session.expires_at_ms,
+                absolute_expires_at_ms: session.absolute_expires_at_ms,
+            },
+        ))
     }
 
     /// Publish the safe post-act deadline after either a coalesced durable
@@ -2351,6 +2643,7 @@ mod tests {
                 expires_at_ms: 200,
                 absolute_expires_at_ms: 300,
                 revoked_at_ms: None,
+                terminal_cause: None,
             }],
             superseded_tokens: vec![ProjectionTokenRow {
                 token_hash: vec![10; 32],
@@ -2441,20 +2734,26 @@ mod tests {
     }
 
     #[test]
-    fn restart_retains_terminal_classification_for_current_and_superseded_tokens() {
+    fn restart_uses_safe_fallback_for_legacy_revocation_and_retains_expiry() {
         let monotonic_now = Instant::now();
-        for terminal_source in [
-            {
-                let mut source = source();
-                source.sessions[0].generation = 2;
-                source.sessions[0].revoked_at_ms = Some(99);
-                source
-            },
-            {
-                let mut source = source();
-                source.sessions[0].expires_at_ms = EPOCH_NOW_MS as i64;
-                source
-            },
+        for (terminal_source, reason) in [
+            (
+                {
+                    let mut source = source();
+                    source.sessions[0].generation = 2;
+                    source.sessions[0].revoked_at_ms = Some(99);
+                    source
+                },
+                RevocationReason::Uncertain,
+            ),
+            (
+                {
+                    let mut source = source();
+                    source.sessions[0].expires_at_ms = EPOCH_NOW_MS as i64;
+                    source
+                },
+                RevocationReason::Expired,
+            ),
         ] {
             let projection = rebuild_at(terminal_source, monotonic_now);
             for digest in [[11; 32], [10; 32]] {
@@ -2466,7 +2765,7 @@ mod tests {
                             monotonic_now,
                         )
                         .unwrap(),
-                    ProjectedTokenResolution::Terminal
+                    ProjectedTokenResolution::Terminal { reason }
                 );
             }
             assert_eq!(
@@ -2479,6 +2778,56 @@ mod tests {
                     .unwrap(),
                 ProjectedTokenResolution::Unknown
             );
+            projection.check_invariants().unwrap();
+        }
+    }
+
+    #[test]
+    fn restart_retains_exact_committed_terminal_cause_and_disposition() {
+        let monotonic_now = Instant::now();
+        for (reason, disposition) in [
+            (
+                RevocationReason::CapEviction,
+                TerminalAuthorityDisposition::Carrier,
+            ),
+            (
+                RevocationReason::Logout,
+                TerminalAuthorityDisposition::DurableDelete,
+            ),
+            (
+                RevocationReason::FamilyAlarm,
+                TerminalAuthorityDisposition::DurableDelete,
+            ),
+            (
+                RevocationReason::RefreshReuse,
+                TerminalAuthorityDisposition::DurableDelete,
+            ),
+        ] {
+            let mut terminal_source = source();
+            let session_id = terminal_source.sessions[0].id.clone();
+            terminal_source.sessions[0].generation = 2;
+            terminal_source.sessions[0].revoked_at_ms = Some(99);
+            terminal_source.sessions[0].terminal_cause = Some(
+                SessionTerminalCauseRecord::new(&session_id, 2, 99, reason)
+                    .unwrap()
+                    .encode_string()
+                    .unwrap()
+                    .into_bytes(),
+            );
+            let projection = rebuild_at(terminal_source, monotonic_now);
+            for digest in [[11; 32], [10; 32]] {
+                assert_eq!(
+                    projection
+                        .resolve_token(
+                            &TokenDigest::from_slice(&digest).unwrap(),
+                            EPOCH_NOW_MS,
+                            monotonic_now,
+                        )
+                        .unwrap(),
+                    ProjectedTokenResolution::Terminal { reason },
+                );
+            }
+            assert_eq!(reason.authority_disposition(), disposition);
             projection.check_invariants().unwrap();
         }
     }
