@@ -11891,13 +11891,24 @@ async fn invoke_query(
     let Json(input) = input
         .map_err(ApiError::from_json_rejection)
         .map_err(|error| error.with_attribution(attribution.clone()))?;
-    let authority_to_validate = authority.clone();
-    with_snapback(&state, move |snapback| {
-        snapback.persist_and_validate_prepared_service_authority(&authority_to_validate)
-    })
-    .await
-    .map_err(ApiError::from)
-    .map_err(|error| error.with_attribution(attribution.clone()))?;
+    // Only finite service authority needs the SQLite-owned terminal cut.
+    // Anonymous and session queries are fenced by their process publication
+    // handles and must stay off the global write lane so WAL reads remain
+    // concurrent with long mutations.
+    // @ref LLP 0059#finite-service-authority-fence — service witnesses
+    // serialize with terminal writers; unrelated authority classes do not.
+    if matches!(
+        authority.resolved(),
+        ResolvedAppAuthority::ServicePrincipal { .. }
+    ) {
+        let authority_to_validate = authority.clone();
+        with_snapback(&state, move |snapback| {
+            snapback.persist_and_validate_prepared_service_authority(&authority_to_validate)
+        })
+        .await
+        .map_err(ApiError::from)
+        .map_err(|error| error.with_attribution(attribution.clone()))?;
+    }
     let output = if read.available() {
         with_read_lane(&read, move |lane| {
             lane.invoke_query_prepared(&name, input, authority)
