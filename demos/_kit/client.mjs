@@ -1395,13 +1395,13 @@ export class SnapbackClient {
   }
 
   handleTerminalAuthLoss(capture, error) {
+    if (this.#isTerminalAuthorityCapture(capture)) {
+      return this.__terminalAuthorityHandle ?? true;
+    }
     if (
       this.authorityFence
       && (!capture || !this.authorityFence.isCurrent?.(capture))
     ) return false;
-    if (
-      this.#isTerminalAuthorityCapture(capture)
-    ) return this.__terminalAuthorityHandle ?? true;
     this.__terminalAuthorityCapture = capture ?? null;
     const authorityDisposition = error?.authorityDisposition === 'durableDelete'
       ? 'durableDelete'

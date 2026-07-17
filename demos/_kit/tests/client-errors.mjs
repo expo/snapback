@@ -392,6 +392,7 @@ try {
         details: { authorityDisposition: 'durableDelete' },
       },
     }));
+    const terminalCapture = authority.capture();
     let rejected = false;
     const request = db.query('privateRows').catch((error) => {
       rejected = true;
@@ -399,6 +400,20 @@ try {
     });
     await deletionStarted;
     assertEqual(rejected, false, 'the HTTP caller remains pending during durable deletion');
+    const duplicateError = diagnosticError(
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'duplicate terminal observer',
+      401,
+    );
+    duplicateError.authorityDisposition = 'durableDelete';
+    const duplicateA = db.handleTerminalAuthLoss(terminalCapture, duplicateError);
+    const duplicateB = db.handleTerminalAuthLoss(terminalCapture, duplicateError);
+    assertEqual(duplicateA, duplicateB, 'same-capture terminal callers reuse one settlement handle');
+    assertEqual(
+      db.handleTerminalAuthLoss({ ...terminalCapture, tokenId: AGENT_TOKEN_B }, duplicateError),
+      false,
+      'a distinct stale carrier cannot attach to the terminal settlement',
+    );
     assertEqual(
       storage.snapshot('agent:finite-terminal-settlement').phase,
       'clearing',
