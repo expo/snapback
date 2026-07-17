@@ -136,6 +136,50 @@ const terminalCoordinatorSpy = () => {
   };
 };
 
+const missedWakeupCoordinatorSpy = () => {
+  const capture = Object.freeze({
+    authorityEpoch: 3,
+    custodyRevision: 5,
+    authorityKey: `sha256:${'b'.repeat(64)}`,
+  });
+  let durableCapture = capture;
+  let inCommit = false;
+  return {
+    appId: 'snapback.test/client-errors-missed-wakeup',
+    capture: () => capture,
+    synchronize: async () => capture,
+    credentialFor: () => ({ bearer: null }),
+    // Deliberately remains true after advanceDurable(): this models the lost
+    // broadcast wakeup that made the original client paths unsafe.
+    isCurrent: (candidate) => candidate === capture,
+    registerParticipant: () => async () => {},
+    advanceDurable() {
+      durableCapture = Object.freeze({
+        authorityEpoch: capture.authorityEpoch + 1,
+        custodyRevision: capture.custodyRevision + 1,
+        authorityKey: `sha256:${'c'.repeat(64)}`,
+      });
+    },
+    transitionDuringCommit() {
+      if (inCommit) throw new Error('transition refused during synchronous publication');
+    },
+    compareAndCommit: async (candidate, commit) => {
+      if (
+        candidate?.authorityEpoch !== durableCapture.authorityEpoch
+        || candidate?.custodyRevision !== durableCapture.custodyRevision
+        || candidate?.authorityKey !== durableCapture.authorityKey
+      ) return { committed: false };
+      inCommit = true;
+      try {
+        return { committed: true, value: commit({ ...candidate, authority: { kind: 'session' } }) };
+      } finally {
+        inCommit = false;
+      }
+    },
+    compareAndClear: async () => ({ cleared: false }),
+  };
+};
+
 const nextSocket = async (countBefore) => {
   for (let i = 0; i < 200; i += 1) {
     if (FakeWebSocket.instances.length > countBefore) return FakeWebSocket.instances.at(-1);
@@ -526,6 +570,118 @@ try {
     assertEqual(authCoordinator.clears[0].reason, 'SNAPBACK_AUTH_STREAM_RESET', 'managed clear uses fixed close-only code');
     await db.closeAuth();
     return { states: states.map(({ state }) => state), clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('auth custody: a missed wakeup cannot publish managed frames or receipts', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_missed_wakeup');
+    const authCoordinator = missedWakeupCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const capture = authCoordinator.capture();
+    let receiptObservers = 0;
+    db.onReceipt(() => {
+      receiptObservers += 1;
+      authCoordinator.transitionDuringCommit();
+    });
+    db.recordReceipt({ kind: 'before-peer-transition' }, capture);
+    await waitFor(() => db.receipts().length === 1, 'durably fenced predecessor receipt');
+    assertEqual(receiptObservers, 1, 'receipt observer ran once inside the publication fence');
+
+    const seen = [];
+    const before = FakeWebSocket.instances.length;
+    const manager = db.liveStreamManager('conn_missed_wakeup', {
+      reconnectBaseDelayMs: 10_000,
+      reconnectMaxDelayMs: 10_000,
+    });
+    const off = manager.onDurable((frame) => seen.push(frame));
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    authCoordinator.advanceDurable();
+    assert(
+      authCoordinator.isCurrent(capture),
+      'the process-local hint intentionally remains stale after the peer transition',
+    );
+    db.recordReceipt({ kind: 'after-peer-transition' }, capture);
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'live_replace',
+      subscription_id: 'sub_stale',
+      version: 9,
+      rows: [{ _id: 'private' }],
+    }) });
+    await sleep(20);
+    assertEqual(seen, [], 'durable custody rejected the delayed managed frame');
+    assertEqual(
+      db.receipts().map((receipt) => receipt.kind),
+      ['before-peer-transition'],
+      'durable custody rejected the delayed receipt',
+    );
+    off();
+    manager.close();
+    await db.closeAuth();
+    return { frames: seen.length, receipts: db.receipts().length };
+  });
+
+  await suite.check('terminal auth loss synchronously blanks direct live handles and receipt state', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      const body = path === '/connection/open'
+        ? { connectionId: 'conn_terminal_materialization', connectionToken: 'sct_terminal_materialization' }
+        : path === '/live/listTodos/subscribe'
+          ? {
+              subscription_id: 'sub_terminal_materialization',
+              snapshot: { version: 4, rows: [{ _id: 'private-row' }] },
+            }
+          : path === '/live/listTodos/unsubscribe'
+            ? { removed: true }
+            : null;
+      assert(body !== null, `unexpected terminal-materialization request ${path}`);
+      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+    };
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'sessions',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const handle = await db.liveQuery('listTodos', {
+      connectionId: 'conn_terminal_materialization',
+    });
+    const capture = authCoordinator.capture();
+    const overlay = new EphemeralOverlay(db, 'presence', {
+      connectionId: 'conn_terminal_materialization',
+      scope: { room: 'a' },
+    });
+    overlay.authorityCapture = capture;
+    const seeded = await db.commitAuthorityPublication(
+      capture,
+      () => overlay.apply(snapshot(1, [{ key: 'private-entry', version: 1, value: { x: 1 } }])),
+    );
+    assert(seeded.committed, 'private overlay snapshot committed under current custody');
+    db.recordReceipt({ kind: 'private-receipt' }, capture);
+    await waitFor(() => db.receipts().length > 0, 'private receipt publication');
+    assertEqual(handle.rows[0]._id, 'private-row', 'private live row is initially readable');
+    const error = diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401);
+    db.handleTerminalAuthLoss(capture, error);
+    assertEqual(handle.rows, [], 'terminal loss blanks the direct live handle synchronously');
+    assertEqual(handle.connection, 'disconnected', 'terminal loss quiesces the direct live handle');
+    assertEqual(
+      overlay.currentEntries({ prune: false }),
+      [],
+      'terminal loss blanks the direct ephemeral overlay synchronously',
+    );
+    assertEqual(
+      overlay.apply(snapshot(1, [{ key: 'late', version: 2, value: { x: 2 } }])),
+      'needs_resync',
+      'a delayed predecessor snapshot cannot repopulate a terminally blanked overlay',
+    );
+    assertEqual(db.receipts(), [], 'terminal loss clears authority-scoped receipts');
+    handle.dispose();
+    overlay.dispose();
+    await db.closeAuth();
+    return { rows: handle.rows.length, receipts: db.receipts().length };
   });
 
   await suite.check('eng_24372: a timed-out reader does not consume the next frame', async () => {

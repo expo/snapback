@@ -135,6 +135,20 @@ export class AgentAuthorityFence {
     return this.capture();
   }
 
+  terminate(capture) {
+    if (!this.isCurrent(capture)) return false;
+    // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a
+    // terminal scoped-token result closes its exact carrier generation.
+    // A terminal carrier outcome must retire the exact token generation
+    // before any transport teardown can synchronously re-enter the client.
+    // The durable grant tuple remains available to a separately supplied
+    // successor credential, but no work captured under this carrier can
+    // publish again.
+    this.#carrierGeneration += 1;
+    this.#authorityDescriptor = null;
+    return true;
+  }
+
   compareAndCommit(capture, commit) {
     if (typeof commit !== 'function') {
       throw new TypeError('compareAndCommit requires a commit callback');
