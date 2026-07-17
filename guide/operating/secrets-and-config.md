@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Secrets and deployment config

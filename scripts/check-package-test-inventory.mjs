@@ -86,6 +86,7 @@ const inventories = [
       'tests/kv-layout.mjs',
       'tests/setup-credential-errors.mjs',
       'tests/static-metadata.mjs',
+      'tests/theme-import-dependencies.mjs',
     ],
   },
 ];
@@ -135,7 +136,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 51, 'reviewed package/admin test count changed');
+assert.equal(total, 52, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

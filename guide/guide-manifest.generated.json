@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "5e75774a934c607cd093958d6326aa21ca3e09f3"
+    "commit": "654bbd174bbe162362a5b8e748b9b87d7b749ace"
   },
   "nav": {
     ".": [
@@ -315,8 +315,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "a77eca7b06af30c72f2d08c1699d3c7def8236edf1f26bdc29026690976d6659",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "cefafef04e5503c267129525ebffc2a03f552df143075443ca214e0a6e4d35f8",
       "snippets": [
         {
           "lang": "js",
@@ -358,8 +358,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "fff2a40d3a01e9a58906b9ca65457d9b25326998c4b8703db2f27bc323712bef",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "187702cb0d0f13625a9be11ecd8bb0602cacfe98b969f2a3afad60d924ab8ed7",
       "snippets": [
         {
           "lang": "js",
@@ -404,8 +404,8 @@
         "demos/todo-v2"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "0be0dacf049066ce1d67c14867ffbcaf7b83b7fa1c1b797e161242bab88106cf",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "6b4afe848fb1e4130af2ab74e7a83deebe4c11a56971d3f045d05f08bd2d9424",
       "snippets": [
         {
           "lang": "js",
@@ -454,8 +454,8 @@
         "demos/todo-v2"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "751fb25d76871e20e000b4dce5ab2fa49ddf68e48d734c947166ee461c3ff12d",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "7bc4d662ae3ae92faabc98e4c16f0f97c5f37f1d922c167ecd858883d6eaf67b",
       "snippets": [
         {
           "lang": "js",
@@ -486,8 +486,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "5e75774a934c607cd093958d6326aa21ca3e09f3",
-      "sha256": "f7041e8d59f2e23d36dba014bb40aa737e8fc2483669c0fe04f4680d7b8b1833",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "a3d78e0ab603294d8480ecdd83045dbd159c3cb2b193eb7f19cb1d482c14a873",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -514,8 +514,8 @@
         "demos/all-aboard/surfaces/contract"
       ],
       "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "923da52cf1f0195cf274f4c54b35d3242462f36b9ca83e17cc479e031e2bd277",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "a8562e6bdd39865bca769a077bf4707d064e173f2b276a8325335c2b8315cf18",
       "snippets": [
         {
           "lang": "contract",
@@ -729,8 +729,8 @@
         "demos/todo-v2/snapback"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "bae1defefd5fede699be28a2bfab755d8e92c15e3257fe4072af7dce7d81decf",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "d611a6a91e60e38c93e15ad5bc3bfae0733290d797343f6d9ce477181a95678b",
       "snippets": [
         {
           "lang": "js",
@@ -892,8 +892,8 @@
         "demos/todo"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "5e75774a934c607cd093958d6326aa21ca3e09f3",
-      "sha256": "79eb62af1521568295ab787d4ba20fcd85ff47e3dbc84538045a4d7ea15c7acd",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "51b8d879d50e1ac4e44ef33ad41bc335558af0d2a9ed1c088b5b96f285fb3b60",
       "snippets": [
         {
           "lang": "json",
@@ -925,8 +925,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "36091891cb59ee014bf64588af50c606a8c7324e2bd0356e15909a822f8e6360",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "e4704d0e24e4716db309dbbad11689c09aab309078126d0b24561e75a11d63aa",
       "snippets": [
         {
           "lang": "js",
@@ -969,8 +969,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "6056b8844dcdcb26027062b7e0d2f7e448144b880b9902d121f8e46773c0144c",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "855d99745ee8ffa035c4758fbe5eff19e79af3d76634769061494e60fd79c636",
       "snippets": [
         {
           "lang": "js",
@@ -1013,8 +1013,8 @@
         "demos/all-aboard/surfaces/react/src/main.tsx"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "5c4b39a936f0ba94e334d581bdafa2254c4968dc7ab4dc37ecae18d065dfcc83",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "cc2da2586192e982011d6de54e51e5b4f55b2149b1a903268f0194a348aaef78",
       "snippets": [
         {
           "lang": "js",
@@ -1119,8 +1119,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "9e95652e7502b737a972283b1cc835321d2093d9417ff546d74eaa05a232b30d",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "af0019190df14d9e26e147498f30a2fccb7b2cd15cb7cfd3ae566f3c8f09cb3c",
       "snippets": [
         {
           "lang": "js",
@@ -1181,8 +1181,8 @@
         "demos/todo-v2/surfaces/contract"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1e06be2458682673ce3bf389cb075a118d880856",
-      "sha256": "481b6608bffb90e41879b5f3b383c308ad632f56a4286d83f47ac087deecf9ad",
+      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
+      "sha256": "4207da5cd170917c518a917f1e53b30681ee717683aed9f993eb1ee7c029f0fa",
       "snippets": [
         {
           "lang": "js",
@@ -1284,5 +1284,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "db449dee9a740243bd13efd7d304eb0741b341e7997ef051d6fbd796dc558491"
+  "contentHash": "6ec4c8cfb9920c9cd88d0103497ccab19a89a467f9bea45c1465c590c4da34f8"
 }

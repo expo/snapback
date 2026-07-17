@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 5e75774a934c607cd093958d6326aa21ca3e09f3
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Capability index
@@ -979,7 +979,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Queries
@@ -1080,7 +1080,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Mutations
@@ -1203,7 +1203,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Actions and outbound fetch
@@ -1320,7 +1320,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Scheduled execution with cron
@@ -1427,7 +1427,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # The Contract adapter
@@ -2045,7 +2045,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Your first backend
@@ -2371,7 +2371,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Secrets and deployment config
@@ -2475,7 +2475,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 5e75774a934c607cd093958d6326aa21ca3e09f3
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Host operations
@@ -2840,7 +2840,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Live queries
@@ -2972,7 +2972,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Ephemeral realtime state
@@ -3148,7 +3148,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Recipe: presence cursors
@@ -3377,7 +3377,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1e06be2458682673ce3bf389cb075a118d880856
+reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 ---
 
 # Offline retention and mutation replay
