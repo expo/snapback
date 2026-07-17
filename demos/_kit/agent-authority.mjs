@@ -1046,7 +1046,21 @@ export class AgentAuthorityFence {
         open: false,
       });
     }
-    return true;
+    const barrierPromise = this.#barrierPromise;
+    const settlement = this.#awaitTerminationSettlement({
+      barrier,
+      barrierPromise,
+      expectedRecord: targetRecord,
+    });
+    // WebSocket terminal handling is deliberately best-effort and may ignore
+    // the handle after the synchronous confidentiality cut. Mark the Promise
+    // observed without changing what an HTTP caller receives when it awaits.
+    void settlement.catch(() => {});
+    return Object.freeze({
+      accepted: true,
+      authorityDisposition,
+      settlement,
+    });
   }
 
   compareAndCommit(capture, commit) {
@@ -1222,6 +1236,26 @@ export class AgentAuthorityFence {
     return this.#captureUnchecked();
   }
 
+  async #awaitTerminationSettlement({ barrier, barrierPromise, expectedRecord }) {
+    await barrierPromise;
+    if (this.#barrierError) throw this.#barrierError;
+    if (
+      barrier.generation !== this.#barrierGeneration
+      || this.#barrierActive
+      || !this.#terminated
+      || this.#publicationOpen
+    ) {
+      throw stale('agent terminal authority did not complete its exact local barrier');
+    }
+    // The barrier already confirms its final durable state under ownership.
+    // Reread once more at the public settlement boundary so a resolved handle
+    // is an exact statement about the tombstone/retained record, rather than
+    // merely an observation that participant callbacks stopped running.
+    if (this.#storage !== null && expectedRecord !== null) {
+      await this.#confirmDurableExact(expectedRecord);
+    }
+  }
+
   #invokeSyncParticipant(participant, method, context) {
     if (typeof participant?.[method] !== 'function') return undefined;
     const result = participant[method](context);
@@ -1255,8 +1289,8 @@ export class AgentAuthorityFence {
       return this.capture();
     }
     if (this.#barrierError) throw this.#barrierError;
+    if (this.#terminated) throw stale('agent authority has terminated');
     if (this.#storage === null) {
-      if (this.#terminated) throw stale('agent authority has terminated');
       return this.capture();
     }
 

@@ -406,7 +406,10 @@ const deferred = () => {
     clearMemory() {},
     async commitDurable() { carrierCommits += 1; },
   });
-  assert.equal(carrier.terminate(carrier.capture(), 'carrier'), true);
+  const carrierTermination = carrier.terminate(carrier.capture(), 'carrier');
+  assert.equal(carrierTermination.accepted, true);
+  assert.equal(carrierTermination.authorityDisposition, 'carrier');
+  await carrierTermination.settlement;
   await assert.rejects(carrier.synchronize(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
   assert.equal(carrierCommits, 0);
   assert.equal(storage.snapshot('agent:terminal').authorityEpoch, 0);
@@ -418,22 +421,44 @@ const deferred = () => {
   );
   assert.equal((await successorToken.synchronize()).authorityEpoch, 0);
   let deleteContext = null;
+  const deleteEntered = deferred();
+  const releaseDelete = deferred();
   successorToken.registerParticipant({
     quiesce() {},
     blank() {},
     clearMemory() {},
-    async commitDurable(context) { deleteContext = context; },
+    async commitDurable(context) {
+      deleteContext = context;
+      deleteEntered.resolve();
+      await releaseDelete.promise;
+    },
   });
-  assert.equal(
-    successorToken.terminate(successorToken.capture(), { authorityDisposition: 'durableDelete' }),
-    true,
+  const terminalCapture = successorToken.capture();
+  const deletion = successorToken.terminate(
+    terminalCapture,
+    { authorityDisposition: 'durableDelete' },
   );
+  assert.equal(deletion.accepted, true);
+  assert.equal(deletion.authorityDisposition, 'durableDelete');
+  assert.equal(successorToken.isCurrent(terminalCapture), false, 'the carrier cut is synchronous');
+  let deletionSettled = false;
+  void deletion.settlement.then(() => { deletionSettled = true; });
+  await deleteEntered.promise;
+  assert.equal(deletionSettled, false, 'settlement waits for participant deletion');
+  assert.equal(storage.snapshot('agent:terminal').phase, 'clearing');
+  assert.equal(storage.snapshot('agent:terminal').status, 'deleted');
+  releaseDelete.resolve();
+  await deletion.settlement;
+  assert.equal(deletionSettled, true);
+  assert.equal(storage.snapshot('agent:terminal').phase, 'settled');
+  assert.equal(storage.snapshot('agent:terminal').status, 'deleted');
   await assert.rejects(successorToken.synchronize(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
   assert.equal(deleteContext.authorityDisposition, 'durableDelete');
   assert.equal(deleteContext.disposition, 'delete');
   assert.equal(deleteContext.nextAuthority, null);
   assert.equal(storage.snapshot('agent:terminal').authorityEpoch, 1);
   assert.equal(storage.snapshot('agent:terminal').status, 'deleted');
+  assert.equal(successorToken.terminate(terminalCapture, 'carrier'), false);
 
   const forbiddenRestart = new AgentAuthorityFence(
     credential({ tokenId: TOKEN_C }),
