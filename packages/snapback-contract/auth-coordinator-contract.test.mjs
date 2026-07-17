@@ -442,4 +442,105 @@ providerSubscription.dispose();
 presenceSubscription.dispose();
 await surface.dispose();
 
+// A lost cross-context wakeup cannot let an old ephemeral expiry timer emit
+// predecessor entries. The final adapter emission reloads shared custody; its
+// refusal drives the ordinary transition barrier and successor re-subscribe.
+const ephemeralStorage = createMemoryAuthCustodyStorage();
+const ephemeralPrimary = new AuthCoordinator({
+  appId: `${APP}/ephemeral`,
+  storage: ephemeralStorage,
+  broadcastChannelFactory: null,
+  hintStorage: null,
+});
+const ephemeralPeer = new AuthCoordinator({
+  appId: `${APP}/ephemeral`,
+  storage: ephemeralStorage,
+  broadcastChannelFactory: null,
+  hintStorage: null,
+});
+const ephemeralA = anonymous('018f0d90-7b21-7a22-8c33-445566778899');
+const ephemeralB = anonymous('018f0d90-7b22-7a22-8c33-445566778899');
+await ephemeralPrimary.establishAnonymous(ephemeralA);
+await ephemeralPeer.synchronize();
+const ephemeralTagged = new WeakMap();
+const ephemeralClient = {
+  authCoordinator: ephemeralPrimary,
+  captureAuthority: () => ephemeralPrimary.capture(),
+  authorityCaptureFor: (value) => ephemeralTagged.get(value) ?? null,
+  registerAuthBarrierParticipant: (participant) => ephemeralPrimary.registerParticipant(participant),
+  query() {
+    const capture = ephemeralPrimary.capture();
+    const result = { rows: [{ _id: `row-${capture.authorityEpoch}` }], version: 1 };
+    ephemeralTagged.set(result, capture);
+    return Promise.resolve(result);
+  },
+  liveStreamManager() {
+    return { isOpen: () => true, onState: () => () => {} };
+  },
+  async subscribeEphemeral() {
+    const capture = ephemeralPrimary.capture();
+    const createdAt = Date.now();
+    const listeners = new Set();
+    return {
+      authorityCapture: capture,
+      currentEntries: () => [
+        {
+          key: `expiry-${capture.authorityEpoch}`,
+          value: { epoch: capture.authorityEpoch },
+          receivedAtMs: createdAt,
+          expiresAtMs: createdAt + 30,
+        },
+        {
+          key: `survivor-${capture.authorityEpoch}`,
+          value: { epoch: capture.authorityEpoch },
+          receivedAtMs: createdAt,
+          expiresAtMs: createdAt + 60_000,
+        },
+      ],
+      onChange(listener) { listeners.add(listener); },
+      dispose() { listeners.clear(); },
+    };
+  },
+  async unsubscribeEphemeral() {},
+  async publishEphemeral() {},
+};
+const ephemeralSurface = await createSnapbackContractSurface({
+  runtime,
+  client: ephemeralClient,
+  userId: null,
+  manifest,
+  queryName: 'listTodos',
+  boundaryKey: 'todos',
+  livePush: false,
+});
+const ephemeralCells = [];
+const ephemeralSubscription = ephemeralSurface.provider.subscribe(
+  'presence',
+  {},
+  (cell) => ephemeralCells.push(cell),
+);
+await waitFor(() => ephemeralCells.some((cell) => (
+  cell.entries?.some((entry) => entry.key === 'survivor-0')
+)));
+const predecessorDeliveries = ephemeralCells.filter((cell) => (
+  cell.entries?.some((entry) => entry.key === 'survivor-0')
+)).length;
+const peerCapture = ephemeralPeer.capture();
+await ephemeralPeer.transition(peerCapture, ephemeralB, 'lost-wakeup-ephemeral');
+assert(
+  ephemeralPrimary.isCurrent(ephemeralPrimary.capture()),
+  'the primary process-local hint intentionally missed the peer transition',
+);
+await new Promise((resolve) => setTimeout(resolve, 80));
+await ephemeralSurface.flush();
+assert.equal(
+  ephemeralCells.filter((cell) => (
+    cell.entries?.some((entry) => entry.key === 'survivor-0')
+  )).length,
+  predecessorDeliveries,
+  'the predecessor TTL turn cannot republish its still-live private entry',
+);
+ephemeralSubscription.dispose();
+await ephemeralSurface.dispose();
+
 console.log('auth-coordinator-contract.test.mjs: all assertions passed');

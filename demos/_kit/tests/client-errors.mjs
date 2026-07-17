@@ -13,7 +13,12 @@
 // failures, so one throwing app callback never discards the rest of a
 // destructively drained batch or escapes as an unhandled rejection.
 
-import { EphemeralOverlay, SnapbackClient as RuntimeSnapbackClient } from '../client.mjs';
+import {
+  AgentAuthorityFence,
+  createMemoryAgentAuthorityCustodyStorage,
+  EphemeralOverlay,
+  SnapbackClient as RuntimeSnapbackClient,
+} from '../client.mjs';
 import { AdminClient } from '../../../packages/snapback-admin-client/index.mjs';
 import {
   AuthCoordinator,
@@ -76,6 +81,18 @@ const grantFetch = (connectionId) => stubFetch(200, JSON.stringify({
 const AUTHORIZATION_INCARNATION = '018f0d90-7b11-7a22-8c33-445566778899';
 const SESSION_ID = '018f0d90-7b25-7a22-8c33-445566778899';
 const USER_ID = '018f0d90-7b26-7a22-8c33-445566778899';
+const AGENT_CREDENTIAL_ID = '018f0d90-7b27-7a22-8c33-445566778899';
+const AGENT_GRANT_ID = '018f0d90-7b28-7a22-8c33-445566778899';
+const AGENT_TOKEN_A = '018f0d90-7b29-7a22-8c33-445566778899';
+const AGENT_TOKEN_B = '018f0d90-7b2a-7a22-8c33-445566778899';
+const agentCredential = (tokenId, bearerToken) => ({
+  actorUserId: USER_ID,
+  credentialId: AGENT_CREDENTIAL_ID,
+  credentialGeneration: 1,
+  grantId: AGENT_GRANT_ID,
+  tokenId,
+  bearerToken,
+});
 let coordinatorSequence = 0;
 const coordinatorCustody = async ({ session = false } = {}) => {
   coordinatorSequence += 1;
@@ -144,6 +161,14 @@ const missedWakeupCoordinatorSpy = () => {
   });
   let durableCapture = capture;
   let inCommit = false;
+  let advanceAfterCommit = false;
+  const advanceDurable = () => {
+    durableCapture = Object.freeze({
+      authorityEpoch: capture.authorityEpoch + 1,
+      custodyRevision: capture.custodyRevision + 1,
+      authorityKey: `sha256:${'c'.repeat(64)}`,
+    });
+  };
   return {
     appId: 'snapback.test/client-errors-missed-wakeup',
     capture: () => capture,
@@ -153,12 +178,9 @@ const missedWakeupCoordinatorSpy = () => {
     // broadcast wakeup that made the original client paths unsafe.
     isCurrent: (candidate) => candidate === capture,
     registerParticipant: () => async () => {},
-    advanceDurable() {
-      durableCapture = Object.freeze({
-        authorityEpoch: capture.authorityEpoch + 1,
-        custodyRevision: capture.custodyRevision + 1,
-        authorityKey: `sha256:${'c'.repeat(64)}`,
-      });
+    advanceDurable,
+    advanceDurableAfterNextCommit() {
+      advanceAfterCommit = true;
     },
     transitionDuringCommit() {
       if (inCommit) throw new Error('transition refused during synchronous publication');
@@ -171,7 +193,12 @@ const missedWakeupCoordinatorSpy = () => {
       ) return { committed: false };
       inCommit = true;
       try {
-        return { committed: true, value: commit({ ...candidate, authority: { kind: 'session' } }) };
+        const value = commit({ ...candidate, authority: { kind: 'session' } });
+        if (advanceAfterCommit) {
+          advanceAfterCommit = false;
+          advanceDurable();
+        }
+        return { committed: true, value };
       } finally {
         inCommit = false;
       }
@@ -275,6 +302,144 @@ try {
     assertEqual(error.diagnostic, diagnostic, 'diagnostic object is the server payload');
     assertEqual(error.status, 400, 'status is carried on the error');
     return { code: error.diagnostic.code };
+  });
+
+  await suite.check('finite scoped-token carrier failures preserve durable custody', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'scoped agent token is invalid',
+        details: { authorityDisposition: 'carrier' },
+      },
+    }));
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const error = await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'carrier expiry must surface as a terminal request refusal',
+    );
+    assertEqual(error.authorityDisposition, 'carrier', 'the exact diagnostic classification is retained');
+    assertEqual(authCoordinator.clears.length, 0, 'carrier expiry does not clear durable custody');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('finite scoped-token durable revocation deletes exact custody', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'scoped agent token is invalid',
+        details: { authorityDisposition: 'durableDelete' },
+      },
+    }));
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const error = await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'durable revocation must surface as a terminal request refusal',
+    );
+    assertEqual(error.authorityDisposition, 'durableDelete', 'the exact diagnostic classification is retained');
+    assertEqual(authCoordinator.clears.length, 1, 'durable revocation clears exact custody');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('finite agent revocation waits for durable deletion before rejecting', async () => {
+    const storage = createMemoryAgentAuthorityCustodyStorage();
+    const authority = new AgentAuthorityFence(
+      agentCredential(AGENT_TOKEN_A, 'agent-token-a'),
+      { storage, custodyId: 'agent:finite-terminal-settlement' },
+    );
+    await authority.synchronize();
+    const db = new SnapbackClient('http://stub', { agentAuthority: authority });
+    db.authSession = async () => ({
+      activeMode: 'sessions',
+      authority: {
+        kind: 'servicePrincipal',
+        userId: USER_ID,
+        sessionId: null,
+        isAuthenticated: true,
+      },
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    let releaseDeletion;
+    let deletionEntered;
+    const deletionStarted = new Promise((resolve) => { deletionEntered = resolve; });
+    const deletionRelease = new Promise((resolve) => { releaseDeletion = resolve; });
+    authority.registerParticipant({
+      quiesce() {},
+      blank() {},
+      clearMemory() {},
+      async commitDurable() {
+        deletionEntered();
+        await deletionRelease;
+      },
+    });
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'scoped agent token is invalid',
+        details: { authorityDisposition: 'durableDelete' },
+      },
+    }));
+    let rejected = false;
+    const request = db.query('privateRows').catch((error) => {
+      rejected = true;
+      throw error;
+    });
+    await deletionStarted;
+    assertEqual(rejected, false, 'the HTTP caller remains pending during durable deletion');
+    assertEqual(
+      storage.snapshot('agent:finite-terminal-settlement').phase,
+      'clearing',
+      'a crash-replayable clearing intent exists before participant deletion',
+    );
+    releaseDeletion();
+    const error = await assertThrows(
+      () => request,
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'the classified server diagnostic surfaces after durable settlement',
+    );
+    const tombstone = storage.snapshot('agent:finite-terminal-settlement');
+    assertEqual(tombstone.phase, 'settled');
+    assertEqual(tombstone.status, 'deleted');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, status: tombstone.status };
+  });
+
+  await suite.check('legacy scoped-token refusals default to the non-destructive carrier path', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    globalThis.fetch = stubFetch(401, JSON.stringify({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+        message: 'scoped agent token is invalid',
+        details: { authorityDisposition: 'durable_delete' },
+      },
+    }));
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const error = await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      'malformed classification must still terminate the carrier',
+    );
+    assertEqual(error.authorityDisposition, 'carrier', 'missing or malformed metadata cannot select deletion');
+    assertEqual(authCoordinator.clears.length, 0, 'legacy ambiguity preserves durable custody');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
   });
 
   await suite.check('s5_d3: empty error body keeps the HTTP_<status> fallback', async () => {
@@ -472,6 +637,7 @@ try {
       kind: 'auth_error',
       code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
       reason: 'revoked',
+      authorityDisposition: 'durableDelete',
     }) });
     const error = await assertThrows(
       () => stream.nextUpdate(50),
@@ -499,6 +665,7 @@ try {
       kind: 'auth_error',
       code: 'SNAPBACK_AUTH_STREAM_RESET',
       reason: 'reset',
+      authorityDisposition: 'durableDelete',
     }) });
     await waitFor(
       () => states.some(({ state, detail }) => state === 'closed' && detail?.terminal),
@@ -514,7 +681,69 @@ try {
     return { states: states.map(({ state }) => state), sockets: 1 };
   });
 
-  await suite.check('item5: raw close-only 4401/auth_error latches and clears without reconnect', async () => {
+  await suite.check('item5: carrier terminal frames preserve browser durable custody', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_carrier');
+    const authCoordinator = terminalCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_terminal_carrier');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'auth_error',
+      code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
+      reason: 'expired',
+      authorityDisposition: 'carrier',
+    }) });
+    const error = await assertThrows(
+      () => stream.nextUpdate(50),
+      'SNAPBACK_AUTH_SESSION_EXPIRED',
+      'carrier terminal event must latch on the raw stream',
+    );
+    await sleep(10);
+    assertEqual(authCoordinator.clears.length, 0, 'carrier loss does not delete durable custody');
+    assertEqual(error.authorityDisposition, 'carrier', 'the exact wire classification reaches custody');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('item5: malformed terminal frames cut only the unclassified carrier', async () => {
+    globalThis.WebSocket = FakeWebSocket;
+    globalThis.fetch = grantFetch('conn_terminal_malformed');
+    const authCoordinator = terminalCoordinatorSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const before = FakeWebSocket.instances.length;
+    const stream = db.openLiveStream('conn_terminal_malformed');
+    const ws = await nextSocket(before);
+    ws.dispatch('open', {});
+    await stream.ready;
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'auth_error',
+      code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+      reason: 'expired',
+      authorityDisposition: 'durable_delete',
+    }) });
+    const error = await assertThrows(
+      () => stream.nextUpdate(50),
+      'SNAPBACK_AUTH_LIVE_FRAME_INVALID',
+      'malformed terminal control must latch and close the carrier',
+    );
+    await sleep(10);
+    assertEqual(error.authorityDisposition, 'carrier', 'malformed control cannot prove durable deletion');
+    assertEqual(authCoordinator.clears.length, 0, 'malformed control preserves durable custody');
+    await db.closeAuth();
+    return { disposition: error.authorityDisposition, clears: authCoordinator.clears.length };
+  });
+
+  await suite.check('item5: raw close-only 4401/auth_error latches without deleting custody', async () => {
     globalThis.WebSocket = FakeWebSocket;
     globalThis.fetch = grantFetch('conn_terminal_raw_close_only');
     const authCoordinator = terminalCoordinatorSpy();
@@ -533,10 +762,10 @@ try {
       'SNAPBACK_AUTH_STREAM_RESET',
       'close-only terminal event must latch on the raw stream',
     );
-    await waitFor(() => authCoordinator.clears.length === 1, 'raw close-only compareAndClear');
     await sleep(10);
     assertEqual(FakeWebSocket.instances.length, before + 1, 'raw terminal close constructs no replacement socket');
-    assertEqual(authCoordinator.clears[0].reason, 'SNAPBACK_AUTH_STREAM_RESET', 'raw clear uses fixed close-only code');
+    assertEqual(error.authorityDisposition, 'carrier', 'close-only control cannot prove durable deletion');
+    assertEqual(authCoordinator.clears.length, 0, 'raw close-only preserves durable custody');
     await db.closeAuth();
     return { code: error.code, clears: authCoordinator.clears.length };
   });
@@ -563,11 +792,10 @@ try {
       () => states.some(({ state, detail }) => state === 'closed' && detail?.terminal),
       'managed close-only terminal latch',
     );
-    await waitFor(() => authCoordinator.clears.length === 1, 'managed close-only compareAndClear');
     await sleep(10);
     assertEqual(FakeWebSocket.instances.length, before + 1, 'managed terminal close never reconnects');
     assertEqual(manager.isOpen(), false, 'managed close-only terminal latch remains closed');
-    assertEqual(authCoordinator.clears[0].reason, 'SNAPBACK_AUTH_STREAM_RESET', 'managed clear uses fixed close-only code');
+    assertEqual(authCoordinator.clears.length, 0, 'managed close-only preserves durable custody');
     await db.closeAuth();
     return { states: states.map(({ state }) => state), clears: authCoordinator.clears.length };
   });
@@ -591,12 +819,14 @@ try {
     assertEqual(receiptObservers, 1, 'receipt observer ran once inside the publication fence');
 
     const seen = [];
+    const seenEphemeral = [];
     const before = FakeWebSocket.instances.length;
     const manager = db.liveStreamManager('conn_missed_wakeup', {
       reconnectBaseDelayMs: 10_000,
       reconnectMaxDelayMs: 10_000,
     });
     const off = manager.onDurable((frame) => seen.push(frame));
+    const offEphemeral = manager.onEphemeral((frame) => seenEphemeral.push(frame));
     const ws = await nextSocket(before);
     ws.dispatch('open', {});
     authCoordinator.advanceDurable();
@@ -611,17 +841,276 @@ try {
       version: 9,
       rows: [{ _id: 'private' }],
     }) });
+    ws.dispatch('message', { data: JSON.stringify({
+      kind: 'ephemeral',
+      message: { Upsert: { entry: { key: 'private-ephemeral' } } },
+    }) });
     await sleep(20);
     assertEqual(seen, [], 'durable custody rejected the delayed managed frame');
+    assertEqual(seenEphemeral, [], 'durable custody rejected the delayed managed ephemeral frame');
     assertEqual(
       db.receipts().map((receipt) => receipt.kind),
       ['before-peer-transition'],
       'durable custody rejected the delayed receipt',
     );
     off();
+    offEphemeral();
     manager.close();
     await db.closeAuth();
-    return { frames: seen.length, receipts: db.receipts().length };
+    return {
+      frames: seen.length,
+      ephemeralFrames: seenEphemeral.length,
+      receipts: db.receipts().length,
+    };
+  });
+
+  await suite.check('auth custody: an expected-capture mutation cannot start under a peer successor', async () => {
+    const authCoordinator = missedWakeupCoordinatorSpy();
+    let fetches = 0;
+    globalThis.fetch = async () => {
+      fetches += 1;
+      return { ok: true, status: 200, text: async () => JSON.stringify({ result: null }) };
+    };
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    const capture = authCoordinator.capture();
+    authCoordinator.advanceDurable();
+    const error = await assertThrows(
+      () => db.mutate('mustNotCross', { authorityCapture: capture }),
+      'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'the old click must be refused at the final request-start comparison',
+    );
+    assertEqual(fetches, 0, 'no network request starts after durable custody advances');
+    await db.closeAuth();
+    return { code: error.code, fetches };
+  });
+
+  await suite.check('auth custody: a default direct mutation cannot start after a missed peer transition', async () => {
+    const authCoordinator = missedWakeupCoordinatorSpy();
+    let fetches = 0;
+    globalThis.fetch = async () => {
+      fetches += 1;
+      return { ok: true, status: 200, text: async () => JSON.stringify({ result: null }) };
+    };
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    authCoordinator.advanceDurable();
+    const error = await assertThrows(
+      () => db.mutate('mustNotCross'),
+      'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'public direct mutations must final-fence request start without an explicit capture',
+    );
+    assertEqual(fetches, 0, 'no default network effect starts after durable custody advances');
+    await db.closeAuth();
+    return { code: error.code, fetches };
+  });
+
+  await suite.check('auth custody: a missed wakeup cannot publish destructively drained envelopes', async () => {
+    const authCoordinator = missedWakeupCoordinatorSpy();
+    const connectionId = 'conn_missed_wakeup_drain';
+    const batch = [
+      {
+        Durable: {
+          payload: JSON.stringify({
+            kind: 'live_replace',
+            subscription_id: 'sub_stale_drain',
+            version: 10,
+            rows: [{ _id: 'private-drained-row' }],
+          }),
+        },
+      },
+      { Ephemeral: { Upsert: { entry: { key: 'private-drained-ephemeral' } } } },
+    ];
+    globalThis.fetch = async (url) => {
+      const path = new URL(String(url)).pathname;
+      const body = path === '/connection/open'
+        ? { connectionId, connectionToken: 'sct_missed_wakeup_drain' }
+        : path === `/outbox/${connectionId}`
+          ? batch
+          : null;
+      assert(body !== null, `unexpected missed-wakeup drain request ${path}`);
+      return { ok: true, status: 200, text: async () => JSON.stringify(body) };
+    };
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    await db.connectionGrant(connectionId);
+    const seenDurable = [];
+    const seenEphemeral = [];
+    db.registerDurableConsumer(connectionId, (frame) => seenDurable.push(frame));
+    db.registerEphemeralConsumer(connectionId, (frame) => seenEphemeral.push(frame));
+
+    // The outbox response itself linearizes under the predecessor. A peer
+    // then advances durable custody before drainConnection can expose either
+    // already-dequeued envelope; the per-envelope publication fence must
+    // discard both lanes despite the deliberately stale process-local hint.
+    authCoordinator.advanceDurableAfterNextCommit();
+    const error = await assertThrows(
+      () => db.drainConnection(connectionId),
+      'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'a custody transition after request start refuses the complete drained response',
+    );
+    assertEqual(seenDurable, [], 'stale drained durable observers never run');
+    assertEqual(seenEphemeral, [], 'stale drained ephemeral observers never run');
+    await db.closeAuth();
+    return { code: error.code, durableObservers: 0, ephemeralObservers: 0 };
+  });
+
+  await suite.check('auth custody: an observer transition attempt is refused without deadlock', async () => {
+    const authCoordinator = await coordinatorCustody();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    const capture = authCoordinator.capture();
+    let transitionAttempt = null;
+    db.onReceipt(() => {
+      // transition() is async, so the compareAndCommit reentrancy refusal is a
+      // rejected promise rather than a synchronous throw. Observe it here to
+      // prove an app callback cannot deadlock the ownership fence or create an
+      // unhandled rejection while publication remains atomic.
+      transitionAttempt = authCoordinator.transition(capture, {
+        authority: {
+          kind: 'anonymous',
+          authMode: 'dev',
+          authorizationStreamIncarnation: AUTHORIZATION_INCARNATION,
+        },
+        bearer: null,
+        refreshAfterMs: null,
+      }, 'observer_reentrancy_probe').catch((error) => error);
+    });
+    db.recordReceipt({ kind: 'observer-transition-probe' }, capture);
+    await waitFor(() => transitionAttempt !== null, 'observer transition attempt');
+    const error = await transitionAttempt;
+    assertEqual(
+      error?.code,
+      'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+      'coordinator refuses transition reentrancy with the stable diagnostic',
+    );
+    assert(authCoordinator.isCurrent(capture), 'the refused observer transition leaves custody unchanged');
+    assertEqual(
+      db.receipts().map((receipt) => receipt.kind),
+      ['observer-transition-probe'],
+      'the receipt linearized once without deadlock or stale successor publication',
+    );
+    await db.closeAuth();
+    await authCoordinator.close();
+    return { code: error.code, receipts: db.receipts().length };
+  });
+
+  await suite.check('auth custody: nested response receipts inherit the fenced response capture', async () => {
+    const authCoordinator = terminalCoordinatorSpy();
+    globalThis.fetch = async () => ({
+      ok: true,
+      status: 200,
+      text: async () => JSON.stringify({
+        result: { ok: true },
+        receipt: { kind: 'nested-response-receipt' },
+      }),
+    });
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    db.authSession = async () => ({
+      activeMode: 'dev',
+      availability: { onlineRequestResponse: { available: true } },
+    });
+    await db.mutate('receiptCapture');
+    await waitFor(() => db.receipts().length === 1, 'nested response receipt publication');
+    assertEqual(
+      db.receipts()[0].kind,
+      'nested-response-receipt',
+      'the response capture fences its nested receipt publication',
+    );
+    await db.closeAuth();
+    return { receipts: db.receipts().length };
+  });
+
+  await suite.check('terminal auth loss refuses a publication already queued behind custody', async () => {
+    const capture = Object.freeze({
+      authorityEpoch: 9,
+      custodyRevision: 13,
+      authorityKey: `sha256:${'d'.repeat(64)}`,
+    });
+    let releaseComparison;
+    let comparisonEntered;
+    const comparisonStarted = new Promise((resolve) => { comparisonEntered = resolve; });
+    const comparisonRelease = new Promise((resolve) => { releaseComparison = resolve; });
+    const coordinator = {
+      appId: 'snapback.test/client-errors-terminal-queue',
+      capture: () => capture,
+      synchronize: async () => capture,
+      credentialFor: () => ({ bearer: null }),
+      isCurrent: (candidate) => candidate === capture,
+      registerParticipant: () => async () => {},
+      async compareAndCommit(candidate, commit) {
+        if (candidate !== capture) return { committed: false };
+        comparisonEntered();
+        await comparisonRelease;
+        return { committed: true, value: commit() };
+      },
+      compareAndClear: async () => ({ cleared: false }),
+    };
+    const db = new SnapbackClient('http://stub', { authCoordinator: coordinator });
+    let publications = 0;
+    const pending = db.commitAuthorityPublication(capture, () => {
+      publications += 1;
+      return 'private predecessor value';
+    });
+    await comparisonStarted;
+    db.handleTerminalAuthLoss(
+      capture,
+      diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401),
+    );
+    releaseComparison();
+    const outcome = await pending;
+    assertEqual(outcome.committed, false, 'the queued predecessor publication is refused');
+    assertEqual(publications, 0, 'no callback runs after the synchronous terminal blank');
+    return { committed: outcome.committed, publications };
+  });
+
+  await suite.check('credential rotation cancels an authority-unknown initial live snapshot', async () => {
+    const authority = new AgentAuthorityFence(agentCredential(AGENT_TOKEN_A, 'agent-token-a'));
+    const db = new SnapbackClient('http://stub', { agentAuthority: authority });
+    let releaseSubscribe;
+    let subscribeEntered;
+    const subscribeStarted = new Promise((resolve) => { subscribeEntered = resolve; });
+    const subscribeRelease = new Promise((resolve) => { releaseSubscribe = resolve; });
+    const publishedRows = [];
+    let unsubscribeCalls = 0;
+    db.subscribeLive = async () => {
+      subscribeEntered();
+      await subscribeRelease;
+      return {
+        subscription_id: 'sub_predecessor_initial',
+        snapshot: { version: 1, rows: [{ secret: 'predecessor' }] },
+      };
+    };
+    db.unsubscribeLive = async () => {
+      unsubscribeCalls += 1;
+      return { removed: true };
+    };
+    const establishing = db.liveQuery('listPrivate', {
+      connectionId: 'conn_predecessor_initial',
+      onUpdate: (rows) => publishedRows.push(...rows),
+    });
+    await subscribeStarted;
+    const predecessor = authority.capture();
+    const replacement = db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b'));
+    assert(!authority.isCurrent(predecessor), 'the predecessor carrier was cut');
+    await replacement;
+    releaseSubscribe();
+    await assertThrows(
+      () => establishing,
+      undefined,
+      'the late predecessor subscribe must not establish a live handle',
+    );
+    assertEqual(publishedRows, [], 'the late predecessor snapshot was never app-visible');
+    assertEqual(unsubscribeCalls, 1, 'the persisted late subscription is retired best-effort');
+    return { publishedRows: publishedRows.length, unsubscribeCalls };
   });
 
   await suite.check('terminal auth loss synchronously blanks direct live handles and receipt state', async () => {
@@ -662,6 +1151,25 @@ try {
     assert(seeded.committed, 'private overlay snapshot committed under current custody');
     db.recordReceipt({ kind: 'private-receipt' }, capture);
     await waitFor(() => db.receipts().length > 0, 'private receipt publication');
+    const blankAttempts = [];
+    const unregisterFailingCapture = db.registerAuthMaterialization({
+      capture: () => {
+        blankAttempts.push('capture-failing');
+        throw new Error('injected capture failure');
+      },
+      blank: () => blankAttempts.push('capture-failing-blank'),
+    });
+    const unregisterFailingBlank = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => {
+        blankAttempts.push('failing');
+        throw new Error('injected blank failure');
+      },
+    });
+    const unregisterFollowingBlank = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => blankAttempts.push('following'),
+    });
     assertEqual(handle.rows[0]._id, 'private-row', 'private live row is initially readable');
     const error = diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401);
     db.handleTerminalAuthLoss(capture, error);
@@ -678,6 +1186,14 @@ try {
       'a delayed predecessor snapshot cannot repopulate a terminally blanked overlay',
     );
     assertEqual(db.receipts(), [], 'terminal loss clears authority-scoped receipts');
+    assertEqual(
+      blankAttempts,
+      ['capture-failing', 'capture-failing-blank', 'failing', 'following'],
+      'capture and blank failures cannot starve later private materializations',
+    );
+    unregisterFailingCapture();
+    unregisterFailingBlank();
+    unregisterFollowingBlank();
     handle.dispose();
     overlay.dispose();
     await db.closeAuth();

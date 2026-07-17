@@ -104,17 +104,26 @@ const waitFor = async (check, label) => {
 };
 
 const order = [];
+const appliedScopeSequences = [];
 const boundaries = [];
 const authorizationErrors = [];
 const outbox = [];
-const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged', 'discharged'];
+const ackOutcomes = ['discharged', 'stale', 'discharged', 'discharged', 'discharged', 'discharged'];
 let failQueueRevision3 = true;
+let blockedScopeSequence = null;
+let blockedQueueStarted = null;
+let releaseBlockedQueue = null;
 let namespace;
 let scopeId;
 
 const queue = {
   async applyObligation(value) {
     order.push(`queue-apply:${value.revision}`);
+    appliedScopeSequences.push(value.scopeId.scopeSequence);
+    if (value.scopeId.scopeSequence === blockedScopeSequence) {
+      blockedQueueStarted?.();
+      await new Promise((resolve) => { releaseBlockedQueue = resolve; });
+    }
     if (value.revision === 3 && failQueueRevision3) {
       failQueueRevision3 = false;
       throw new Error('injected queue custody failure');
@@ -355,6 +364,54 @@ try {
     authorizationErrors.length,
     errorsBeforeExactRefire,
     'same exact ticket does not report a stale-resolution fault',
+  );
+
+  // Independent scope roots coexist. A slow durable delete for scope A must
+  // not be cancelled merely because a retain+resolution for scope B arrives
+  // while A's queue write is pending.
+  const scopeA = { ...scopeId, scopeSequence: 41 };
+  const scopeB = { ...scopeId, scopeSequence: 42 };
+  const slowDelete = {
+    ...obligation(scopeA, 1, 15),
+    maxDisposition: 'delete',
+  };
+  const independentRetain = {
+    ...obligation(scopeB, 1, 15),
+    maxDisposition: 'retain',
+  };
+  blockedScopeSequence = scopeA.scopeSequence;
+  const queueStarted = new Promise((resolve) => { blockedQueueStarted = resolve; });
+  outbox.push([{ Durable: { payload: JSON.stringify({
+    kind: 'authorization_invalidation',
+    obligation: slowDelete,
+    resolution: null,
+    snapshot: null,
+  }) } }]);
+  await handle.poll();
+  await queueStarted;
+  outbox.push([{ Durable: { payload: JSON.stringify({
+    kind: 'authorization_invalidation',
+    obligation: independentRetain,
+    resolution: resolution(independentRetain, 'ack_5'),
+    snapshot: {
+      subscriptionId: 'sub_auth',
+      function: 'listTodos',
+      version: 15,
+      rows: [{ _id: 'scope_b_only' }],
+    },
+  }) } }]);
+  await handle.poll();
+  releaseBlockedQueue();
+  await waitFor(
+    () => assert.equal(order.filter((entry) => entry === 'ack:ack_5').length, 1),
+    'independent retain scope did not discharge after the slow delete root',
+  );
+  assert(appliedScopeSequences.includes(41), 'slow delete root reached durable queue custody');
+  assert.deepEqual(handle.rows, [], 'unresolved delete scope keeps the aggregate boundary blank');
+  assert.equal(
+    authorizationErrors.length,
+    errorsBeforeExactRefire,
+    'coexisting scope roots do not manufacture a stale-task fault',
   );
   assert.equal(ackOutcomes.length, 0);
 

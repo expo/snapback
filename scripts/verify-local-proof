@@ -127,6 +127,7 @@ run node demos/todo-v2/tests/acceptance/headless.mjs
 run node demos/all-aboard/tests/acceptance/egress.mjs
 run node demos/all-aboard/tests/acceptance/startup-timing.test.mjs
 run node demos/_kit/tests/auth-handshake.mjs
+run node demos/_kit/tests/agent-authority-custody.mjs
 # ENG-24991: kit half of the auth.session schema/validator parity proof; the
 # schema half runs inside cargo test over the same shared corpus.
 run node demos/_kit/tests/auth-session-schema-parity.mjs

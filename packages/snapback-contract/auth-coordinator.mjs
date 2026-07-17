@@ -75,8 +75,10 @@ function nextAuthorityEpoch(epoch) {
 
 // Synchronous SHA-256 keeps capture() and authority-key comparison synchronous
 // in browsers, Node, and native JS shells. Input is always UTF-8 protocol text.
-function sha256Hex(text) {
-  const bytes = Array.from(new TextEncoder().encode(text));
+function sha256Hex(input) {
+  const bytes = typeof input === 'string'
+    ? Array.from(new TextEncoder().encode(input))
+    : Array.from(input);
   const bitLength = BigInt(bytes.length) * 8n;
   bytes.push(0x80);
   while ((bytes.length % 64) !== 56) bytes.push(0);
@@ -241,6 +243,54 @@ export function canonicalAgentAuthorityKey({
     grantId,
   };
   return `sha256:${sha256Hex(`snapback.agent-authority.v1\n${JSON.stringify(ordered)}`)}`;
+}
+
+// Exact JS twin of src/auth/descriptor.rs::service_authority_instance_id.
+// The server descriptor is opaque, but deriving it on the custody side keeps
+// a crossed grant/credential handshake from binding queued work to the wrong
+// durable authority before replay discovers the mismatch.
+export function deriveServiceAuthorityInstanceId({
+  actorUserId,
+  credentialId,
+  credentialGeneration,
+  grantId,
+} = {}) {
+  // Reuse the durable-tuple validator before constructing the descriptor.
+  canonicalAgentAuthorityKey({
+    actorUserId,
+    credentialId,
+    credentialGeneration,
+    grantId,
+  });
+  const encoder = new TextEncoder();
+  const bytes = [...encoder.encode('snapback.service-authority.v1')];
+  const appendU64 = (value) => {
+    let remaining = BigInt(value);
+    const encoded = new Array(8);
+    for (let index = 7; index >= 0; index -= 1) {
+      encoded[index] = Number(remaining & 0xffn);
+      remaining >>= 8n;
+    }
+    bytes.push(...encoded);
+  };
+  for (const value of [actorUserId, credentialId, grantId]) {
+    const encoded = [...encoder.encode(value)];
+    appendU64(encoded.length);
+    bytes.push(...encoded);
+  }
+  appendU64(credentialGeneration);
+  const digest = sha256Hex(bytes);
+  const uuid = digest.slice(0, 32).split('');
+  uuid[12] = '7';
+  uuid[16] = ((Number.parseInt(uuid[16], 16) & 0x3) | 0x8).toString(16);
+  const compact = uuid.join('');
+  return [
+    compact.slice(0, 8),
+    compact.slice(8, 12),
+    compact.slice(12, 16),
+    compact.slice(16, 20),
+    compact.slice(20),
+  ].join('-');
 }
 
 export function authAppIdHash(appId) {

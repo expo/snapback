@@ -85,8 +85,13 @@ const handshake = (authority = anonymous) => ({
   provider: { key: 'email-code', available: true },
   transports: ['bearer'],
   authority: authority.kind === 'session'
-    ? { userId: authority.userId, sessionId: authority.sessionId, isAuthenticated: true }
-    : { userId: null, sessionId: null, isAuthenticated: false },
+    ? {
+        kind: 'humanSession',
+        userId: authority.userId,
+        sessionId: authority.sessionId,
+        isAuthenticated: true,
+      }
+    : { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false },
   authorityDescriptor: {
     descriptorVersion: 1,
     authorityInstanceId: authority.kind === 'session' ? authority.sessionId : INCARNATION,

@@ -20,6 +20,7 @@ export {
   canonicalAgentAuthorityKey,
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
+  deriveServiceAuthorityInstanceId,
   normalizeClientAuthority,
   SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
   validateAuthCustody,
@@ -229,6 +230,38 @@ function staleContractAuthorityError() {
   error.code = diagnostic.code;
   error.diagnostic = diagnostic;
   return error;
+}
+
+function effectiveContractUserId(coordinator, authSession, explicitUserId) {
+  if (authSession?.authority?.kind === 'servicePrincipal') {
+    const effectiveUserId = authSession.authority.userId;
+    if (typeof effectiveUserId !== 'string' || effectiveUserId.length === 0) {
+      const diagnostic = contractDiagnostic(
+        'SNAPBACK_CONTRACT_SERVICE_PRINCIPAL_USER_INVALID',
+        'service-principal auth handshake did not provide an effective user id',
+      );
+      const error = new Error(diagnostic.message);
+      error.code = diagnostic.code;
+      error.diagnostic = diagnostic;
+      throw error;
+    }
+    if (explicitUserId != null && explicitUserId !== effectiveUserId) {
+      const diagnostic = contractDiagnostic(
+        'SNAPBACK_CONTRACT_SERVICE_PRINCIPAL_USER_MISMATCH',
+        'the explicit Contract userId does not match the service principal effective user',
+        { explicitUserId, effectiveUserId },
+      );
+      const error = new Error(diagnostic.message);
+      error.code = diagnostic.code;
+      error.diagnostic = diagnostic;
+      throw error;
+    }
+    return effectiveUserId;
+  }
+  if (coordinator?.authority?.kind === 'session') {
+    return coordinator.authority.userId;
+  }
+  return explicitUserId;
 }
 
 function resolveAuthCoordinator(client, explicit) {
@@ -505,12 +538,8 @@ export async function createSnapbackContractSurface({
 }) {
   const coordinator = resolveAuthCoordinator(client, authCoordinator);
   const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
-  let {
-    capture: authorityCapture,
-    durableAuthorityRestored,
-  } = await bootContractAuthority(client, coordinator, {
-    durableOffline: Boolean(clientStore && !Array.isArray(liveQueries)),
-  });
+  let authorityCapture = null;
+  let durableAuthorityRestored = false;
   let releaseDurableStoreRegistration = null;
   let unregisterSurfaceParticipant = null;
   const pending = new Set();
@@ -526,6 +555,21 @@ export async function createSnapbackContractSurface({
   if (blockingDiagnostic) {
     const error = new Error(blockingDiagnostic.message);
     error.diagnostic = blockingDiagnostic;
+    throw error;
+  }
+  if (
+    coordinator
+    && clientStore
+    && client?.agentAuthority === coordinator
+    && coordinator.hasDurableCustody !== true
+  ) {
+    const diagnostic = contractDiagnostic(
+      'SNAPBACK_CONTRACT_AGENT_DURABLE_CUSTODY_REQUIRED',
+      'agent-backed offline replay requires transactional durable authority custody',
+    );
+    const error = new Error(diagnostic.message);
+    error.code = diagnostic.code;
+    error.diagnostic = diagnostic;
     throw error;
   }
   const surfaceRootId = rootId ?? defaultContractRootId();
@@ -549,25 +593,25 @@ export async function createSnapbackContractSurface({
   let detachReceiptListener = null;
   const attachReceiptListener = () => {
     if (!onReceipt || typeof client.onReceipt !== 'function' || detachReceiptListener) return;
-    detachReceiptListener = client.onReceipt((receipt) => {
+    detachReceiptListener = client.onReceipt((receipt, publication = null) => {
       const enriched = enrichReceipt(receipt);
-      if (!coordinator) {
+      // SnapbackClient invokes receipt listeners synchronously inside its final
+      // authority publication callback. Re-entering AuthCoordinator here is
+      // forbidden and used to drop every browser-custody receipt. Preserve
+      // that already-held fence and deliver the app callback in the same turn.
+      if (!coordinator || publication?.authorityFenced === true) {
         onReceipt(enriched);
         return;
       }
       const capture = captureForTransportValue(client, null, receipt);
       if (!capture) return;
-      // Delayed public callback delivery reloads durable custody: the commit
-      // is the durable currency check, isCurrent() after it is only a hint. A
-      // stale delivery also forces the missed-wakeup reload so this context
-      // blanks instead of continuing to expose predecessor state.
-      void compareContractCommit(coordinator, capture, () => undefined)
+      // Generic clients that do not advertise an already-held receipt fence
+      // run the complete app effect inside the final durable comparison.
+      void compareContractCommit(coordinator, capture, () => onReceipt(enriched))
         .then((outcome) => {
           if (!outcome.committed) {
             void confirmDurableAuthority();
-            return;
           }
-          if (coordinator.isCurrent(capture)) onReceipt(enriched);
         })
         .catch(() => {});
     });
@@ -575,13 +619,23 @@ export async function createSnapbackContractSurface({
   let liveHandle = null;
   let ephemeralWiring = null;
   try {
-    attachReceiptListener();
     if (coordinator && clientStore) {
       releaseDurableStoreRegistration = await acquireDurableStoreRegistration(
         client,
         coordinator,
         clientStore,
       );
+    }
+    // Durable agent custody may be recovering a persisted clearing intent.
+    // Register the physical store before synchronize/authSession so recovery
+    // cannot settle the intent without replaying this store's commitDurable.
+    ({ capture: authorityCapture, durableAuthorityRestored } = await bootContractAuthority(
+      client,
+      coordinator,
+      { durableOffline: Boolean(clientStore && !Array.isArray(liveQueries)) },
+    ));
+    attachReceiptListener();
+    if (coordinator && clientStore) {
       await clientStore.bindAuthority({
         authorityEpoch: authorityCapture.authorityEpoch,
         authorityKey: authorityCapture.authorityKey,
@@ -638,9 +692,7 @@ export async function createSnapbackContractSurface({
     let barrierPaused = false;
     let barrierBlanking = false;
     let barrierPreparing = false;
-    let activeUserId = coordinator?.authority?.kind === 'session'
-      ? coordinator.authority.userId
-      : userId;
+    let activeUserId = effectiveContractUserId(coordinator, null, userId);
     const queryNames = Object.keys(manifest?.queries ?? {});
     const mutationNames = Object.keys(manifest?.mutations ?? {});
     const boundQueryNames = new Set([queryName]);
@@ -758,6 +810,9 @@ export async function createSnapbackContractSurface({
         authSessionUnavailable = true;
       }
     }
+    activeUserId = effectiveContractUserId(coordinator, authSession, userId);
+    storeAuthFingerprint = snapbackAuthFingerprint(activeUserId ?? null);
+    storeExpectation.authFingerprint = storeAuthFingerprint;
     let storeAuthorization = null;
     if (offlineReplayEligible || retainedQueryEligible) {
       storeAuthorization = (
@@ -919,6 +974,15 @@ export async function createSnapbackContractSurface({
       userId: activeUserId,
       ephemeralPermissions,
       ephemeralIdleLingerMs,
+      authorityCapture,
+      commitAuthorityPublication: coordinator
+        ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
+          ? client.commitAuthorityPublication(capture, commit)
+          : compareContractCommit(coordinator, capture, commit)
+        : null,
+      onAuthorityRefused: () => {
+        void confirmDurableAuthority().catch(() => {});
+      },
     }));
 
     // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
@@ -1089,6 +1153,7 @@ export async function createSnapbackContractSurface({
         userId: activeUserId,
         leaseRequestId,
         authorizationNamespace: authorizedQueryNamespace,
+        authorityCapture: capture,
       });
       const resultCapture = captureForTransportValue(client, capture, response);
       await preflightDurable(resultCapture);
@@ -1275,6 +1340,7 @@ export async function createSnapbackContractSurface({
         connectionId: surfaceConnectionId,
         args: queryArgs,
         userId: activeUserId,
+        authorityCapture: capture,
         transport: 'stream',
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
@@ -1325,37 +1391,32 @@ export async function createSnapbackContractSurface({
         },
         onConnectionChange: (connection, detail) => {
           const callbackCapture = captureForTransportValue(client, capture, detail);
-          // @ref LLP 0059#cross-context-ownership — the commit runs the durable
-          // currency check only; observer re-emission (app-facing effect) runs
-          // after it resolves current, never inside compareAndCommit.
-          void compareContractCommit(coordinator, callbackCapture, () => (
-            [...liveCellObservers].filter((record) => record.confirmed && record.lastCell)
-          )).then((outcome) => {
+          // @ref LLP 0059#cross-context-ownership — observer emission is the
+          // app-visible effect, so it runs synchronously inside the durable
+          // comparison instead of after an await plus an in-memory hint.
+          void compareContractCommit(coordinator, callbackCapture, () => {
+            const observers = [...liveCellObservers]
+              .filter((record) => record.confirmed && record.lastCell);
+            for (const record of observers) {
+              if (!record.lastCell) continue;
+              try { record.emit({ ...record.lastCell, connection }); } catch { /* isolate */ }
+            }
+            try { onConnectionChange?.(connection, detail); } catch { /* isolate */ }
+          }).then((outcome) => {
             if (!outcome.committed) {
               void confirmDurableAuthority();
-              return;
-            }
-            if (!coordinator || coordinator.isCurrent(callbackCapture)) {
-              // Connection is data (Exact LLP 0284 §2.1 rule 2): re-emit each
-              // live observer's last cell with the new connection value.
-              for (const record of outcome.value) {
-                if (record.lastCell) record.emit({ ...record.lastCell, connection });
-              }
-              onConnectionChange?.(connection, detail);
             }
           }).catch(() => {});
         },
         onSubscriptionEvent: onSubscriptionEvent
           ? (event) => {
               const callbackCapture = captureForTransportValue(client, capture, event);
-              void compareContractCommit(coordinator, callbackCapture, () => undefined)
+              void compareContractCommit(coordinator, callbackCapture, () => {
+                try { onSubscriptionEvent(event); } catch { /* isolate */ }
+              })
                 .then((outcome) => {
                   if (!outcome.committed) {
                     void confirmDurableAuthority();
-                    return;
-                  }
-                  if (!coordinator || coordinator.isCurrent(callbackCapture)) {
-                    onSubscriptionEvent(event);
                   }
                 })
                 .catch(() => {});
@@ -1423,7 +1484,11 @@ export async function createSnapbackContractSurface({
         lastServerVersion = handle.version ?? maxServerRowVersion(initial);
       } else {
         const initialCapture = authorityCapture ?? operationCapture();
-        const snapshot = await client.query(queryName, { args: queryArgs, userId: activeUserId });
+        const snapshot = await client.query(queryName, {
+          args: queryArgs,
+          userId: activeUserId,
+          authorityCapture,
+        });
         const resultCapture = captureForTransportValue(client, initialCapture, snapshot);
         const current = await compareContractCommit(coordinator, resultCapture, () => undefined);
         if (!current.committed) throw staleContractAuthorityError();
@@ -1504,7 +1569,11 @@ export async function createSnapbackContractSurface({
     // optimistic overlay applied (other mutations may still be in flight);
     // returns the rows as written.
     const reconcile = async (capture = operationCapture()) => {
-      const snapshot = await client.query(queryName, { args: queryArgs, userId: activeUserId });
+      const snapshot = await client.query(queryName, {
+        args: queryArgs,
+        userId: activeUserId,
+        authorityCapture: capture,
+      });
       const resultCapture = captureForTransportValue(client, capture, snapshot);
       const published = await publishServerRows(
         resultCapture,
@@ -1572,7 +1641,11 @@ export async function createSnapbackContractSurface({
       );
       if (ids.length === 0) return true;
       try {
-        await client.acknowledgeMutations({ userId: activeUserId, clientMutationIds: ids });
+        await client.acknowledgeMutations({
+          userId: activeUserId,
+          clientMutationIds: ids,
+          authorityCapture: capture,
+        });
         await confirmSentAcknowledgements(ids, capture);
         return true;
       } catch (error) {
@@ -1660,6 +1733,7 @@ export async function createSnapbackContractSurface({
           acknowledgedClientMutationIds: sentAcknowledgements,
           ctxLedger: queued?.ctxLedger ?? null,
           authorityDescriptor: queued?.authorityDescriptor ?? null,
+          authorityCapture: capture,
         });
         const resultCapture = captureForTransportValue(client, capture, output);
         await commitCurrent(resultCapture, () => {
@@ -1791,6 +1865,14 @@ export async function createSnapbackContractSurface({
       if (!boundQueryNames.has(name)) continue;
       links[name] = (_args) => {
         assertActive();
+        if (coordinator) {
+          // A synchronous direct boundary read cannot atomically reload
+          // cross-context custody. Coordinated callers consume this query
+          // through the provider/mount path, whose first delivery is held
+          // until durable confirmation; keep this convenience link blank.
+          void confirmDurableAuthority().catch(() => {});
+          return [];
+        }
         return boundary.query(boundaryKey, (rows) => rows, { key: boundaryKey });
       };
     }
@@ -1810,110 +1892,114 @@ export async function createSnapbackContractSurface({
       links[name] = (args) => {
         assertActive();
         const capture = operationCapture();
-        const invoke = () => {
-          // The durable preflight above may yield before this synchronous
-          // optimistic write. Recheck the local barrier at the exact turn that
-          // can expose rows so transition blanking cannot be overwritten.
+        const publishOptimistic = () => {
+          // The optimistic boundary write is itself app-visible publication.
+          // Recheck the local barrier and perform the complete synchronous
+          // reducer/write turn inside the final durable authority comparison.
           assertActive();
           assertMutationAuthorizationVisible();
           const reducer = activeReducer;
-        // A derived plan runs against serde_json::Value on the server. Take
-        // one canonical snapshot and reuse it for the prediction, durable
-        // queue, and transport; evaluating raw args and serializing them again
-        // would let getters/toJSON/proxies disagree and could underfill the
-        // RuntimeId ledger if prediction aborted before the server invocation.
-        let mutationArgs = args;
-        if (derivedReducers[name]) {
-          try {
-            mutationArgs = canonicalizeJsonValue(args ?? {});
-          } catch (error) {
-            return track(Promise.reject(error));
-          }
-        }
-        let optimisticOp = null;
-        if (typeof reducer === 'function') {
-          const mutationId = createClientMutationId(`cm_${name}`);
-          const ledgerIds = [];
-          const nowMs = Date.now();
-          const runtimeId = () => {
-            if (ledgerIds.length >= 1024) {
-              const error = new Error('offline replay ledger exceeded 1024 ids');
-              error.code = 'SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED';
-              throw error;
-            }
-            const id = `${mutationId}_id_${ledgerIds.length + 1}`;
-            ledgerIds.push(id);
-            return id;
-          };
-          optimisticOp = {
-            mutationId,
-            reducer,
-            ledgerReducer: derivedReducers[name],
-            args: mutationArgs,
-            optimisticId: `optimistic_${++optimisticSeq}`,
-            baseVersion: maxServerRowVersion(lastServerRows),
-            ctxLedger: derivedReducers[name]
-              ? { version: 1, ids: ledgerIds, now: nowMs }
-              : null,
-          };
-          let rollbackRows = lastServerRows;
-          try {
-            // Reducers are app code and may mutate their input before throwing.
-            // Keep an isolated JSON-domain copy of server truth so rollback is
-            // real even for an impure failed reducer.
-            rollbackRows = JSON.parse(JSON.stringify(canonicalizeJsonValue(lastServerRows)));
-            inFlightOptimistic.add(optimisticOp);
-            boundary.write(boundaryKey, (rows) => {
-              const ledgerCtx = {
-                userId: activeUserId,
-                optimisticId: optimisticOp.optimisticId,
-                baseVersion: optimisticOp.baseVersion,
-                nowMs,
-                runtimeId,
-              };
-              // When an app reducer overrides the derived prediction, still run
-              // the shared IR evaluator once to capture every RuntimeId/implicit
-              // row-id answer for the durable replay ledger.
-              if (derivedReducers[name] && reducer !== derivedReducers[name]) {
-                derivedReducers[name](rows, mutationArgs, ledgerCtx);
-              }
-              return reducer(rows, mutationArgs, {
-                ...ledgerCtx,
-                runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
-              });
-            });
-          } catch (cause) {
-            // @ref LLP 0034#109-observational-callbacks-and-failed-optimistic-work-cannot-own-lifecycle-2026-07-12
-            // A synchronous reducer/derived-evaluator failure occurs before
-            // queue persistence or transport. Retire the op immediately so
-            // no later authoritative update can re-run it and poison the
-            // boundary indefinitely, then publish server truth again.
-            inFlightOptimistic.delete(optimisticOp);
-            const message = cause instanceof Error ? cause.message : String(cause);
-            const diagnostic = publishDiagnostic(
-              'SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED',
-              `Optimistic reducer for ${name} failed before mutation delivery: ${message}`,
-              { mutation: name, overlayClass: mutationOverlayClass[name] },
-            );
-            const error = new Error(diagnostic.message);
-            error.code = diagnostic.code;
-            error.diagnostic = diagnostic;
-            error.cause = cause;
-            lastServerRows = rollbackRows;
+          // A derived plan runs against serde_json::Value on the server. Take
+          // one canonical snapshot and reuse it for the prediction, durable
+          // queue, and transport; evaluating raw args and serializing them
+          // again could underfill the RuntimeId ledger.
+          let mutationArgs = args;
+          if (derivedReducers[name]) {
             try {
-              writeServerRows(rollbackRows, lastServerVersion);
-            } catch (rollbackCause) {
-              diagnostic.details.rollbackFailure = rollbackCause instanceof Error
-                ? rollbackCause.message
-                : String(rollbackCause);
+              mutationArgs = canonicalizeJsonValue(args ?? {});
+            } catch (error) {
+              return { error };
             }
-            return track(Promise.reject(error));
           }
-        }
-          return track(persistMutation(name, mutationArgs, optimisticOp, capture));
+          let optimisticOp = null;
+          if (typeof reducer === 'function') {
+            const mutationId = createClientMutationId(`cm_${name}`);
+            const ledgerIds = [];
+            const nowMs = Date.now();
+            const runtimeId = () => {
+              if (ledgerIds.length >= 1024) {
+                const error = new Error('offline replay ledger exceeded 1024 ids');
+                error.code = 'SNAPBACK_CTX_LEDGER_LIMIT_EXCEEDED';
+                throw error;
+              }
+              const id = `${mutationId}_id_${ledgerIds.length + 1}`;
+              ledgerIds.push(id);
+              return id;
+            };
+            optimisticOp = {
+              mutationId,
+              reducer,
+              ledgerReducer: derivedReducers[name],
+              args: mutationArgs,
+              optimisticId: `optimistic_${++optimisticSeq}`,
+              baseVersion: maxServerRowVersion(lastServerRows),
+              ctxLedger: derivedReducers[name]
+                ? { version: 1, ids: ledgerIds, now: nowMs }
+                : null,
+            };
+            let rollbackRows = lastServerRows;
+            try {
+              // Reducers are app code and may mutate their input before
+              // throwing. Preserve an isolated rollback source.
+              rollbackRows = JSON.parse(JSON.stringify(canonicalizeJsonValue(lastServerRows)));
+              inFlightOptimistic.add(optimisticOp);
+              boundary.write(boundaryKey, (rows) => {
+                const ledgerCtx = {
+                  userId: activeUserId,
+                  optimisticId: optimisticOp.optimisticId,
+                  baseVersion: optimisticOp.baseVersion,
+                  nowMs,
+                  runtimeId,
+                };
+                if (derivedReducers[name] && reducer !== derivedReducers[name]) {
+                  derivedReducers[name](rows, mutationArgs, ledgerCtx);
+                }
+                return reducer(rows, mutationArgs, {
+                  ...ledgerCtx,
+                  runtimeId: reducer === derivedReducers[name] ? runtimeId : null,
+                });
+              });
+            } catch (cause) {
+              // @ref LLP 0034#109-observational-callbacks-and-failed-optimistic-work-cannot-own-lifecycle-2026-07-12
+              inFlightOptimistic.delete(optimisticOp);
+              const message = cause instanceof Error ? cause.message : String(cause);
+              const diagnostic = publishDiagnostic(
+                'SNAPBACK_CONTRACT_OPTIMISTIC_REDUCER_FAILED',
+                `Optimistic reducer for ${name} failed before mutation delivery: ${message}`,
+                { mutation: name, overlayClass: mutationOverlayClass[name] },
+              );
+              const error = new Error(diagnostic.message);
+              error.code = diagnostic.code;
+              error.diagnostic = diagnostic;
+              error.cause = cause;
+              lastServerRows = rollbackRows;
+              try {
+                writeServerRows(rollbackRows, lastServerVersion);
+              } catch (rollbackCause) {
+                diagnostic.details.rollbackFailure = rollbackCause instanceof Error
+                  ? rollbackCause.message
+                  : String(rollbackCause);
+              }
+              return { error };
+            }
+          }
+          return { mutationArgs, optimisticOp };
         };
-        if (!coordinator) return invoke();
-        return track(commitCurrent(capture, () => undefined).then(invoke));
+        const persistPrepared = async (prepared) => {
+          if (prepared.error) return Promise.reject(prepared.error);
+          // The final publication comparison may complete before its Promise
+          // continuation runs. Refuse transport if a transition blanked the
+          // just-published optimistic row in that intervening turn.
+          if (coordinator) {
+            await preflightDurable(capture);
+            assertActive();
+          }
+          return persistMutation(name, prepared.mutationArgs, prepared.optimisticOp, capture);
+        };
+        if (!coordinator) {
+          return track(persistPrepared(publishOptimistic()));
+        }
+        return track(commitCurrent(capture, publishOptimistic).then(persistPrepared));
       };
     }
 
@@ -1939,7 +2025,11 @@ export async function createSnapbackContractSurface({
       ephemerals: ephemeralWiring.sources,
       rowSyncState: async (_table, rowId) => {
         const capture = operationCapture();
-        const result = await client.query(queryName, { args: queryArgs, userId: activeUserId });
+        const result = await client.query(queryName, {
+          args: queryArgs,
+          userId: activeUserId,
+          authorityCapture: capture,
+        });
         const resultCapture = captureForTransportValue(client, capture, result);
         const current = await compareContractCommit(coordinator, resultCapture, () => result.rows);
         if (!current.committed) throw staleContractAuthorityError();
@@ -2001,18 +2091,15 @@ export async function createSnapbackContractSurface({
             });
             if (coordinator && !record.confirmed) {
               void confirmDurableAuthority().then(() => {
-                if (record.confirmed) return;
-                record.confirmed = true;
-                if (disposed || !liveCellObservers.has(record)) return;
-                if (
-                  record.lastCell
-                  && !barrierPaused
-                  && !barrierPreparing
-                  && coordinator.isCurrent(authorityCapture)
-                ) {
-                  observer(decorateCell(record.lastCell));
-                }
-              });
+                const confirmationCapture = authorityCapture;
+                return compareContractCommit(coordinator, confirmationCapture, () => {
+                  if (record.confirmed || disposed || !liveCellObservers.has(record)) return;
+                  record.confirmed = true;
+                  if (record.lastCell && !barrierPaused && !barrierPreparing) {
+                    try { observer(decorateCell(record.lastCell)); } catch { /* isolate */ }
+                  }
+                });
+              }).catch(() => {});
             }
             return {
               dispose() {
@@ -2056,13 +2143,11 @@ export async function createSnapbackContractSurface({
     const refreshAfterAuthorityTransition = async (context, generation) => {
       const capture = context.capture;
       authorityCapture = capture;
-      activeUserId = context.authority?.kind === 'session'
-        ? context.authority.userId
-        : userId;
       coordinatedSessionsMode = context.authority?.authMode === 'sessions';
       authSession = coordinatedSessionsMode && typeof client.authSession === 'function'
         ? await client.authSession()
         : null;
+      activeUserId = effectiveContractUserId(coordinator, authSession, userId);
       const refreshedAuthorization = typeof client.currentAuthorizationScope === 'function'
         ? await client.currentAuthorizationScope({ devUserId: userId ?? null })
         : null;
@@ -2159,7 +2244,11 @@ export async function createSnapbackContractSurface({
         rows = handle.rows;
         version = handle.version ?? maxServerRowVersion(rows);
       } else {
-        const snapshot = await client.query(queryName, { args: queryArgs, userId: activeUserId });
+        const snapshot = await client.query(queryName, {
+          args: queryArgs,
+          userId: activeUserId,
+          authorityCapture: capture,
+        });
         const resultCapture = captureForTransportValue(client, capture, snapshot);
         if (
           resultCapture.authorityEpoch !== capture.authorityEpoch
@@ -2185,6 +2274,15 @@ export async function createSnapbackContractSurface({
           userId: activeUserId,
           ephemeralPermissions,
           ephemeralIdleLingerMs,
+          authorityCapture: capture,
+          commitAuthorityPublication: (candidate, commit) => (
+            typeof client.commitAuthorityPublication === 'function'
+              ? client.commitAuthorityPublication(candidate, commit)
+              : compareContractCommit(coordinator, candidate, commit)
+          ),
+          onAuthorityRefused: () => {
+            void confirmDurableAuthority().catch(() => {});
+          },
         });
         ephemeralWiring.prepare(successorEphemeral);
         await ephemeralWiring.prewarm();
@@ -2198,25 +2296,26 @@ export async function createSnapbackContractSurface({
       }
       const resolvedVersion = version ?? maxServerRowVersion(rows);
       barrierPreparing = true;
-      await commitCurrent(capture, () => {
+      const exposed = await compareContractCommit(coordinator, capture, () => {
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
         if (!disposed && boundary && !queryAuthorizationHidden) {
           boundary.write(boundaryKey, () => rows);
         }
+        barrierPreparing = false;
+        if (ephemeralMayResume) ephemeralWiring.expose();
+        attachReceiptListener();
+        barrierPaused = false;
+        for (const record of liveCellObservers) {
+          // Exposure and observer delivery are one synchronous authority turn.
+          record.confirmed = true;
+          if (record.lastCell) {
+            try { record.emit(decorateCell(record.lastCell)); } catch { /* isolate */ }
+          }
+        }
       });
-      if (generation !== resumeGeneration || !coordinator.isCurrent(capture)) return;
+      if (!exposed.committed) return;
       retainRows(rows, resolvedVersion, capture);
-      barrierPreparing = false;
-      if (ephemeralMayResume) ephemeralWiring.expose();
-      attachReceiptListener();
-      barrierPaused = false;
-      for (const record of liveCellObservers) {
-        // Exposure follows the barrier's own durable settle, which is the
-        // reload a pending confirmation was waiting for.
-        record.confirmed = true;
-        if (record.lastCell) record.emit(decorateCell(record.lastCell));
-      }
     };
 
     const scheduleAuthorityRefresh = (context) => {
@@ -2258,7 +2357,11 @@ export async function createSnapbackContractSurface({
       if (!offlineReplayEnabled) return { replayed: 0, failed: 0 };
       const capture = operationCapture();
 
-      const initialResync = await client.query(queryName, { args: queryArgs, userId: activeUserId });
+      const initialResync = await client.query(queryName, {
+        args: queryArgs,
+        userId: activeUserId,
+        authorityCapture: capture,
+      });
       const resyncCapture = captureForTransportValue(client, capture, initialResync);
       const resynced = await publishServerRows(
         resyncCapture,
@@ -2295,6 +2398,7 @@ export async function createSnapbackContractSurface({
             acknowledgedClientMutationIds: sentAcknowledgements,
             ctxLedger: record.ctxLedger,
             authorityDescriptor: record.authorityDescriptor ?? null,
+            authorityCapture: resyncCapture,
           });
           const resultCapture = captureForTransportValue(client, resyncCapture, output);
           await commitCurrent(resultCapture, () => undefined);
@@ -2453,14 +2557,14 @@ export async function createSnapbackContractSurface({
       rootId: surfaceRootId,
       receipts: () => {
         if (typeof client.receipts !== 'function') return [];
-        const receipts = client.receipts();
-        if (!coordinator) return receipts.map(enrichReceipt);
-        return receipts
-          .filter((receipt) => {
-            const capture = captureForTransportValue(client, null, receipt);
-            return capture && coordinator.isCurrent(capture);
-          })
-          .map(enrichReceipt);
+        if (coordinator) {
+          // Like direct query links, this synchronous accessor has no place to
+          // await the mandatory durable reload. `onReceipt` is the fenced
+          // coordinated receipt surface; snapshots remain blank here.
+          void confirmDurableAuthority().catch(() => {});
+          return [];
+        }
+        return client.receipts().map(enrichReceipt);
       },
       // Ephemeral facts (ENG-22479): the conformance gate's LOCAL-ONLY probe
       // reads source starts; prewarmScope subscribes a scoped room up front.
@@ -2587,7 +2691,17 @@ export async function createSnapbackContractSurface({
 // best-effort unsubscribed. Overridable per surface (ephemeralIdleLingerMs).
 export const EPHEMERAL_IDLE_LINGER_MS = 30_000;
 
-function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemeralPermissions = null, ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS }) {
+function buildEphemeralWiring({
+  client,
+  manifest,
+  connectionId,
+  userId,
+  ephemeralPermissions = null,
+  ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
+  authorityCapture = null,
+  commitAuthorityPublication = null,
+  onAuthorityRefused = null,
+}) {
   const descriptors = Object.entries(manifest?.queries ?? {}).filter(
     ([, descriptor]) => descriptor?.ephemeral === true,
   );
@@ -2610,6 +2724,24 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
   // the constants are mirrored rather than imported).
   const RESYNC_BASE_DELAY_MS = 250;
   const RESYNC_MAX_DELAY_MS = 10_000;
+
+  const publishAuthorityEffect = (capture, effect) => {
+    if (typeof commitAuthorityPublication !== 'function') {
+      effect();
+      return;
+    }
+    void Promise.resolve(commitAuthorityPublication(capture, effect))
+      .then((outcome) => {
+        if (!outcome?.committed) onAuthorityRefused?.();
+      })
+      .catch(() => onAuthorityRefused?.());
+  };
+
+  const captureForRecord = (record) => (
+    record?.overlay?.authorityCapture
+    ?? client?.authorityCaptureFor?.(record?.overlay)
+    ?? authorityCapture
+  );
 
   const scopeKeyOf = (args) => JSON.stringify(Object.entries(args ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)));
 
@@ -2731,10 +2863,10 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
       socketLossEpoch: 0,
       notify: null,
     };
-    record.notify = () => {
+    record.notify = () => publishAuthorityEffect(captureForRecord(record), () => {
       for (const listener of [...record.listeners]) listener();
       scheduleExpiryReemit(record);
-    };
+    });
 
     // Failed resync re-subscribes retry on bounded backoff while the map
     // presents its honest degraded state — no active subscription while
@@ -3019,7 +3151,7 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
             armIdleLinger(cacheKey, name, args, permissions, record);
           }
         };
-        emit(toMapCell(record, descriptor));
+        publishAuthorityEffect(captureForRecord(record), listener);
       };
       const scheduleInitialRetry = () => {
         if (!active || disposed || initialRetryTimer) return;
@@ -3040,7 +3172,9 @@ function buildEphemeralWiring({ client, manifest, connectionId, userId, ephemera
           .catch((error) => {
             if (!active || disposed) return;
             console.warn(`[snapback-contract] ephemeral subscribe failed for "${name}"`, error);
-            emit({ status: 'error', entries: [] });
+            publishAuthorityEffect(authorityCapture, () => {
+              emit({ status: 'error', entries: [] });
+            });
             scheduleInitialRetry();
           });
       };
@@ -3147,7 +3281,9 @@ function createSwappableEphemeralWiring(initialWiring) {
     record.off = source(record.args, (cell) => {
       if (!record.active || disposed || attachedGeneration !== generation) return;
       record.lastCell = cell;
-      if (!blanked) record.emit(cell);
+      if (!blanked) {
+        try { record.emit(cell); } catch { /* isolate */ }
+      }
     });
   };
 
@@ -3163,7 +3299,9 @@ function createSwappableEphemeralWiring(initialWiring) {
     };
     records.add(record);
     attach(record);
-    if (blanked) emit(blankCell());
+    if (blanked) {
+      try { emit(blankCell()); } catch { /* isolate */ }
+    }
     return () => {
       record.active = false;
       detach(record);
@@ -3200,7 +3338,7 @@ function createSwappableEphemeralWiring(initialWiring) {
       blanked = true;
       for (const record of records) {
         record.lastCell = blankCell();
-        record.emit(record.lastCell);
+        try { record.emit(record.lastCell); } catch { /* isolate */ }
       }
     },
     prepare(nextWiring) {
@@ -3212,7 +3350,9 @@ function createSwappableEphemeralWiring(initialWiring) {
     },
     expose() {
       blanked = false;
-      for (const record of records) record.emit(record.lastCell ?? blankCell());
+      for (const record of records) {
+        try { record.emit(record.lastCell ?? blankCell()); } catch { /* isolate */ }
+      }
     },
     dispose() {
       if (disposed) return;
@@ -3222,7 +3362,7 @@ function createSwappableEphemeralWiring(initialWiring) {
       for (const record of records) {
         detach(record);
         record.lastCell = blankCell();
-        record.emit(record.lastCell);
+        try { record.emit(record.lastCell); } catch { /* isolate */ }
         record.active = false;
       }
       records.clear();
@@ -3298,9 +3438,7 @@ async function createMultiLiveContractSurface({
   const authorizationHidden = new Set();
   let ephemeralWiring = null;
   let currentCapture = authorityCapture;
-  let activeUserId = coordinator?.authority?.kind === 'session'
-    ? coordinator.authority.userId
-    : userId;
+  let activeUserId = effectiveContractUserId(coordinator, null, userId);
   let unregisterSurfaceParticipant = null;
   try {
     if (typeof runtime.createProviderQueryHandle !== 'function') {
@@ -3349,9 +3487,17 @@ async function createMultiLiveContractSurface({
     let barrierBlanking = false;
     let barrierPreparing = false;
     let boundary = null;
+    if (
+      coordinator?.authority?.kind === 'servicePrincipal'
+      && typeof client.authSession === 'function'
+    ) {
+      const authSession = await client.authSession();
+      activeUserId = effectiveContractUserId(coordinator, authSession, userId);
+    }
     const sharedConnectionId = connectionId ?? defaultContractConnectionId();
     const liveCellObservers = new Map(); // query name -> Set<record>
     const wantLivePush = livePush && typeof client.liveQuery === 'function';
+    const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
     ephemeralWiring = createSwappableEphemeralWiring(buildEphemeralWiring({
       client,
       manifest,
@@ -3359,9 +3505,16 @@ async function createMultiLiveContractSurface({
       userId: activeUserId,
       ephemeralPermissions,
       ephemeralIdleLingerMs,
+      authorityCapture: currentCapture,
+      commitAuthorityPublication: coordinator
+        ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
+          ? client.commitAuthorityPublication(capture, commit)
+          : compareContractCommit(coordinator, capture, commit)
+        : null,
+      onAuthorityRefused: () => {
+        void confirmDurableAuthority().catch(() => {});
+      },
     }));
-
-    const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
     // isCurrent() below is only the synchronous fast hint; publication gates
     // reload durable custody through confirmDurableAuthority.
     const assertActive = () => {
@@ -3420,7 +3573,7 @@ async function createMultiLiveContractSurface({
     const reemitCells = (name, connection) => {
       for (const record of [...(liveCellObservers.get(name) ?? [])]) {
         if (record.confirmed && record.lastCell) {
-          record.emit({ ...record.lastCell, connection });
+          try { record.emit({ ...record.lastCell, connection }); } catch { /* isolate */ }
         }
       }
     };
@@ -3449,6 +3602,7 @@ async function createMultiLiveContractSurface({
         connectionId: sharedConnectionId,
         args,
         userId: activeUserId,
+        authorityCapture: capture,
         transport: 'stream',
         stream: liveStreamOptions,
         authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
@@ -3479,32 +3633,29 @@ async function createMultiLiveContractSurface({
         },
         onConnectionChange: (connection, detail) => {
           const callbackCapture = captureForTransportValue(client, capture, detail);
-          // @ref LLP 0059#cross-context-ownership — observer re-emission is an
-          // app-facing effect and runs after the durable currency check, not
-          // inside compareAndCommit.
-          void compareContractCommit(coordinator, callbackCapture, () => undefined)
+          // @ref LLP 0059#cross-context-ownership — observer re-emission is the
+          // app-facing effect and therefore stays inside the durable commit.
+          void compareContractCommit(coordinator, callbackCapture, () => {
+            reemitCells(name, connection);
+            try {
+              onConnectionChange?.(connection, { ...detail, queryName: name });
+            } catch { /* isolate */ }
+          })
             .then((outcome) => {
               if (!outcome.committed) {
                 void confirmDurableAuthority();
-                return;
-              }
-              if (!coordinator || coordinator.isCurrent(callbackCapture)) {
-                reemitCells(name, connection);
-                onConnectionChange?.(connection, { ...detail, queryName: name });
               }
             }).catch(() => {});
         },
         onSubscriptionEvent: onSubscriptionEvent
           ? (event) => {
               const callbackCapture = captureForTransportValue(client, capture, event);
-              void compareContractCommit(coordinator, callbackCapture, () => undefined)
+              void compareContractCommit(coordinator, callbackCapture, () => {
+                try { onSubscriptionEvent({ ...event, queryName: name }); } catch { /* isolate */ }
+              })
                 .then((outcome) => {
                   if (!outcome.committed) {
                     void confirmDurableAuthority();
-                    return;
-                  }
-                  if (!coordinator || coordinator.isCurrent(callbackCapture)) {
-                    onSubscriptionEvent({ ...event, queryName: name });
                   }
                 })
                 .catch(() => {});
@@ -3557,7 +3708,11 @@ async function createMultiLiveContractSurface({
       // silently committed server-side (ENG-23386).
       for (const { name, args } of liveQueryEntries) {
         const capture = currentCapture ?? operationCapture();
-        const snapshot = await client.query(name, { args, userId: activeUserId });
+        const snapshot = await client.query(name, {
+          args,
+          userId: activeUserId,
+          authorityCapture: capture,
+        });
         const resultCapture = captureForTransportValue(client, capture, snapshot);
         const current = await compareContractCommit(coordinator, resultCapture, () => undefined);
         if (!current.committed) throw staleContractAuthorityError();
@@ -3593,7 +3748,11 @@ async function createMultiLiveContractSurface({
     // onUpdate fan-out owns the boundary.
     const reconcileLiveQueries = async (capture = operationCapture()) => {
       for (const { name, args } of liveQueryEntries) {
-        const snapshot = await client.query(name, { args, userId: activeUserId });
+        const snapshot = await client.query(name, {
+          args,
+          userId: activeUserId,
+          authorityCapture: capture,
+        });
         const resultCapture = captureForTransportValue(client, capture, snapshot);
         const published = await publishRows(resultCapture, name, snapshot.rows);
         if (published === null) throw staleContractAuthorityError();
@@ -3606,6 +3765,7 @@ async function createMultiLiveContractSurface({
           args,
           userId: activeUserId,
           correlation: { rootId, bindingIds: [...liveQueryNames] },
+          authorityCapture: capture,
         });
         const resultCapture = captureForTransportValue(client, capture, output);
         await commitCurrent(resultCapture, () => undefined);
@@ -3713,18 +3873,17 @@ async function createMultiLiveContractSurface({
         });
         if (coordinator && !record.confirmed) {
           void confirmDurableAuthority().then(() => {
-            if (record.confirmed) return;
-            record.confirmed = true;
-            if (disposed || !records.has(record)) return;
-            if (
-              record.lastCell
-              && !barrierPaused
-              && !barrierPreparing
-              && coordinator.isCurrent(currentCapture)
-            ) {
-              observer(decorateCell(subscribedQuery, record.lastCell));
-            }
-          });
+            const confirmationCapture = currentCapture;
+            return compareContractCommit(coordinator, confirmationCapture, () => {
+              if (record.confirmed || disposed || !records.has(record)) return;
+              record.confirmed = true;
+              if (record.lastCell && !barrierPaused && !barrierPreparing) {
+                try {
+                  observer(decorateCell(subscribedQuery, record.lastCell));
+                } catch { /* isolate */ }
+              }
+            });
+          }).catch(() => {});
         }
         return {
           dispose() {
@@ -3740,6 +3899,7 @@ async function createMultiLiveContractSurface({
       if (manifest?.queries?.[name]?.ephemeral === true) continue; // bound below
       links[name] = (args = {}) => {
         assertActive();
+        if (coordinator) void confirmDurableAuthority().catch(() => {});
         return runtime.createProviderQueryHandle(provider, name, args ?? {});
       };
     }
@@ -3781,9 +3941,11 @@ async function createMultiLiveContractSurface({
       }).then(async () => {
         resumeTimer = null;
         currentCapture = context.capture;
-        activeUserId = context.authority?.kind === 'session'
-          ? context.authority.userId
-          : userId;
+        const authSession = context.authority?.kind === 'servicePrincipal'
+          && typeof client.authSession === 'function'
+          ? await client.authSession()
+          : null;
+        activeUserId = effectiveContractUserId(coordinator, authSession, userId);
         const stagedRows = new Map();
         const opened = [];
         try {
@@ -3808,7 +3970,11 @@ async function createMultiLiveContractSurface({
             }
           } else {
             for (const { name, args } of liveQueryEntries) {
-              const snapshot = await client.query(name, { args, userId: activeUserId });
+              const snapshot = await client.query(name, {
+                args,
+                userId: activeUserId,
+                authorityCapture: context.capture,
+              });
               const capture = captureForTransportValue(client, context.capture, snapshot);
               const current = await compareContractCommit(coordinator, capture, () => undefined);
               if (!current.committed) throw staleContractAuthorityError();
@@ -3832,6 +3998,15 @@ async function createMultiLiveContractSurface({
             userId: activeUserId,
             ephemeralPermissions,
             ephemeralIdleLingerMs,
+            authorityCapture: context.capture,
+            commitAuthorityPublication: (capture, commit) => (
+              typeof client.commitAuthorityPublication === 'function'
+                ? client.commitAuthorityPublication(capture, commit)
+                : compareContractCommit(coordinator, capture, commit)
+            ),
+            onAuthorityRefused: () => {
+              void confirmDurableAuthority().catch(() => {});
+            },
           });
           ephemeralWiring.prepare(successorEphemeral);
           await ephemeralWiring.prewarm();
@@ -3848,34 +4023,28 @@ async function createMultiLiveContractSurface({
         let installed = false;
         try {
           barrierPreparing = true;
-          await commitCurrent(context.capture, () => {
+          const exposed = await compareContractCommit(coordinator, context.capture, () => {
             for (const [name, rows] of stagedRows) {
               if (!authorizationHidden.has(name)) boundary.write(name, () => rows);
             }
-          });
-          if (
-            generation !== resumeGeneration
-            || disposed
-            || !coordinator.isCurrent(context.capture)
-          ) return;
-          for (const result of opened) {
-            liveHandles.set(result.name, result.handle);
-          }
-          installed = true;
-          barrierPreparing = false;
-          if (ephemeralMayResume) ephemeralWiring.expose();
-          attachReceiptListener?.();
-          barrierPaused = false;
-          for (const [name, records] of liveCellObservers) {
-            for (const record of records) {
-              // Exposure follows the barrier's own durable settle, which is
-              // the reload a pending confirmation was waiting for.
-              record.confirmed = true;
-              if (record.lastCell) {
-                record.emit(decorateCell(name, record.lastCell));
+            for (const result of opened) {
+              liveHandles.set(result.name, result.handle);
+            }
+            installed = true;
+            barrierPreparing = false;
+            if (ephemeralMayResume) ephemeralWiring.expose();
+            attachReceiptListener?.();
+            barrierPaused = false;
+            for (const [name, records] of liveCellObservers) {
+              for (const record of records) {
+                record.confirmed = true;
+                if (record.lastCell) {
+                  try { record.emit(decorateCell(name, record.lastCell)); } catch { /* isolate */ }
+                }
               }
             }
-          }
+          });
+          if (!exposed.committed) return;
         } finally {
           if (!installed) {
             for (const result of opened) result.handle.dispose?.();
@@ -3949,12 +4118,11 @@ async function createMultiLiveContractSurface({
       rootId,
       receipts: () => {
         if (typeof client.receipts !== 'function') return [];
-        const receipts = client.receipts();
-        if (!coordinator) return receipts;
-        return receipts.filter((receipt) => {
-          const capture = captureForTransportValue(client, null, receipt);
-          return capture && coordinator.isCurrent(capture);
-        });
+        if (coordinator) {
+          void confirmDurableAuthority().catch(() => {});
+          return [];
+        }
+        return client.receipts();
       },
       ephemeralSourceStarts: ephemeralWiring.sourceStarts,
       prewarmEphemeral: ephemeralWiring.prewarmScope,

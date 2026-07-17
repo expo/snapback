@@ -4,10 +4,14 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '../../../packages/snapback-contract/auth-coordinator.mjs';
-import { AgentAuthorityFence, SnapbackClient } from '../client.mjs';
+import {
+  AgentAuthorityFence,
+  SnapbackClient,
+  deriveServiceAuthorityInstanceId,
+} from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 17 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 19 });
 const originalFetch = globalThis.fetch;
 const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
@@ -72,8 +76,13 @@ const handshake = ({
   provider: { key: 'email-code', available: activeMode === 'sessions' },
   transports: ['bearer'],
   authority: activeMode === 'sessions'
-    ? { userId: USER_ID, sessionId: SESSION_ID, isAuthenticated: true }
-    : { userId: null, sessionId: null, isAuthenticated: false },
+    ? {
+        kind: 'humanSession',
+        userId: USER_ID,
+        sessionId: SESSION_ID,
+        isAuthenticated: true,
+      }
+    : { kind: 'anonymous', userId: null, sessionId: null, isAuthenticated: false },
   authorityDescriptor: {
     descriptorVersion: 1,
     authorityInstanceId: AUTHORITY,
@@ -137,6 +146,15 @@ const agentHandshake = () => {
   };
   value.availability.queuedReplay.minimumAuthorityDescriptorProtocol = 1;
   value.authorityDescriptor.sessionGeneration = 0;
+  value.authorityDescriptor.authorityInstanceId = deriveServiceAuthorityInstanceId(
+    agentCredential(AGENT_TOKEN_A, 'descriptor-only'),
+  );
+  value.authority = {
+    kind: 'servicePrincipal',
+    userId: USER_ID,
+    sessionId: null,
+    isAuthenticated: true,
+  };
   return value;
 };
 
@@ -501,11 +519,23 @@ try {
       clientStoreId: 'agent_store',
     });
     const established = await db.authSession();
-    assertEqual(established.authorityDescriptor.authorityInstanceId, AUTHORITY);
+    assertEqual(
+      established.authorityDescriptor.authorityInstanceId,
+      deriveServiceAuthorityInstanceId(agentCredential(AGENT_TOKEN_A, 'descriptor-only')),
+    );
+    assertEqual(established.authority.kind, 'servicePrincipal');
 
+    const tokenACapture = authority.capture();
     const staleQuery = db.query('listTodos');
     await queryStarted;
-    db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b'));
+    await db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b'));
+    const tokenBCapture = authority.capture();
+    assertEqual(
+      authority.terminate(tokenACapture),
+      false,
+      'a late terminal result for token A cannot close same-grant token B',
+    );
+    assert(authority.isCurrent(tokenBCapture), 'token B remains current after token A terminates');
     releaseQuery();
     const staleError = await assertThrows(() => staleQuery);
     assertEqual(staleError.code, 'SNAPBACK_CLIENT_AUTHORITY_STALE');
@@ -516,17 +546,80 @@ try {
     assertEqual(mutationCall.init.headers.authorization, 'Bearer agent-token-b');
     assertEqual(
       JSON.parse(mutationCall.init.body).authorityDescriptor.authorityInstanceId,
-      AUTHORITY,
+      deriveServiceAuthorityInstanceId(agentCredential(AGENT_TOKEN_B, 'agent-token-b')),
       'replacement tokens for one durable grant retain its replay axis',
     );
 
     const beforeGrantChange = authority.capture();
-    db.replaceAgentCredential(agentCredential(AGENT_TOKEN_A, 'other-grant-token', {
+    await db.replaceAgentCredential(agentCredential(AGENT_TOKEN_A, 'other-grant-token', {
       grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
     }));
     assert(!authority.isCurrent(beforeGrantChange), 'a changed durable grant invalidates prior work');
     assertEqual(authority.authorityDescriptor, null, 'a changed durable grant must rebind its descriptor');
     return { requests: calls.length, staleCarrierRefused: true };
+  });
+
+  await suite.check('agent custody rejects a browser-session authority projection', async () => {
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      const value = agentHandshake();
+      value.authority = {
+        kind: 'humanSession',
+        userId: USER_ID,
+        sessionId: SESSION_ID,
+        isAuthenticated: true,
+      };
+      value.authorityDescriptor = {
+        descriptorVersion: 1,
+        authorityInstanceId: SESSION_ID,
+        sessionGeneration: 1,
+      };
+      return response(value);
+    };
+    const authority = new AgentAuthorityFence(agentCredential(AGENT_TOKEN_A, 'agent-token-a'));
+    const db = new SnapbackClient('http://stub', {
+      agentAuthority: authority,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+    });
+    const error = await assertThrows(
+      () => db.authSession(),
+      'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+      'agent custody must not adopt a human browser session',
+    );
+    assert(
+      error.diagnostic.message.includes('service-principal'),
+      'the refusal identifies the required carrier kind',
+    );
+    return { rejectedKind: 'humanSession' };
+  });
+
+  await suite.check('agent credential replacement cuts the carrier despite a broken direct blank', async () => {
+    const authority = new AgentAuthorityFence(agentCredential(AGENT_TOKEN_A, 'agent-token-a'));
+    const db = new SnapbackClient('http://stub', {
+      agentAuthority: authority,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+    });
+    const predecessor = authority.capture();
+    const unregister = db.registerAuthMaterialization({
+      capture: () => predecessor,
+      blank: () => { throw new Error('injected direct blank failure'); },
+    });
+    const error = await assertThrows(
+      () => db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b')),
+      undefined,
+      'the broken direct blank is surfaced after replacement',
+    );
+    assert(error.message.includes('injected direct blank failure'));
+    assert(!authority.isCurrent(predecessor), 'the predecessor carrier is no longer current');
+    const closed = await assertThrows(
+      () => authority.capture(),
+      'SNAPBACK_CLIENT_AUTHORITY_STALE',
+      'a failed blank wedges publication instead of reopening a partial successor',
+    );
+    unregister();
+    return { predecessorCurrent: false, closedCode: closed.code };
   });
 
   await suite.check('exactly offered echoes still project on every axis', async () => {

@@ -4,11 +4,15 @@
 
 import assert from 'node:assert/strict';
 
-import { AgentAuthorityFence } from '../../demos/_kit/agent-authority.mjs';
+import {
+  AgentAuthorityFence,
+  createMemoryAgentAuthorityCustodyStorage,
+} from '../../demos/_kit/agent-authority.mjs';
 import {
   canonicalAgentAuthorityKey,
   createMemorySnapbackClientStore,
   createSnapbackContractSurface,
+  deriveServiceAuthorityInstanceId,
   snapbackAuthFingerprint,
 } from './index.mjs';
 
@@ -21,8 +25,6 @@ const TOKEN_B = '018f0d90-7b06-7a22-8c33-445566778899';
 const TOKEN_C = '018f0d90-7b07-7a22-8c33-445566778899';
 const EFFECTIVE_USER = '018f0d90-7b08-7a22-8c33-445566778899';
 const AUTH_STREAM = '018f0d90-7b09-7a22-8c33-445566778899';
-const DESCRIPTOR_A = '018f0d90-7b0a-7a22-8c33-445566778899';
-const DESCRIPTOR_B = '018f0d90-7b0b-7a22-8c33-445566778899';
 
 const credential = ({ grantId = GRANT_A, tokenId = TOKEN_A, bearerToken = 'agent-token-a' } = {}) => ({
   actorUserId: ACTOR,
@@ -144,9 +146,7 @@ function makeAgentClient(authority) {
     return value;
   };
   const currentDescriptor = () => descriptor(
-    authority.capture().authorityKey === canonicalAgentAuthorityKey(credential())
-      ? DESCRIPTOR_A
-      : DESCRIPTOR_B,
+    deriveServiceAuthorityInstanceId(authority.authority),
   );
   const offline = () => {
     throw new TypeError('network unavailable');
@@ -169,8 +169,9 @@ function makeAgentClient(authority) {
     },
     async authSession() {
       if (!state.online) offline();
-      const capture = authority.capture();
       const authorityDescriptor = currentDescriptor();
+      await authority.synchronizeValidated(authorityDescriptor);
+      const capture = authority.capture();
       authority.bindHandshake(capture, authorityDescriptor);
       return {
         activeMode: 'sessions',
@@ -239,11 +240,21 @@ function makeAgentClient(authority) {
   };
 }
 
-const authority = new AgentAuthorityFence(credential());
+const authorityStorage = createMemoryAgentAuthorityCustodyStorage();
+const authority = new AgentAuthorityFence(credential(), {
+  storage: authorityStorage,
+  custodyId: 'agent:contract-main',
+});
+await authority.synchronize();
 const keyA = authority.capture().authorityKey;
 assert.match(keyA, /^sha256:[0-9a-f]{64}$/);
 assert.equal(keyA, 'sha256:53904370b9f9cf1f73c126b94a0f59e781c24f703baa2167118c473246451046');
 assert.equal(keyA, canonicalAgentAuthorityKey(credential()));
+assert.equal(
+  deriveServiceAuthorityInstanceId(credential()),
+  '49082da1-0362-7c7d-bb41-1f6e925b688f',
+  'JS service descriptor derivation stays byte-for-byte aligned with the Rust fixture',
+);
 assert.equal(
   keyA,
   canonicalAgentAuthorityKey(credential({ tokenId: TOKEN_B, bearerToken: 'rotated-secret' })),
@@ -276,7 +287,7 @@ assert.throws(
   /quiesce\(\) must be synchronous/,
   'agent barriers refuse participants that cannot quiesce before synchronous blank',
 );
-orderedFence.replaceCredential(credential({
+const orderedTransition = orderedFence.replaceCredential(credential({
   grantId: GRANT_B,
   tokenId: TOKEN_C,
   bearerToken: 'ordered-token',
@@ -286,10 +297,46 @@ assert.deepEqual(
   ['quiesce', 'blank', 'clearMemory'],
   'the visibility cut is synchronous and ordered',
 );
+await orderedTransition;
 await orderedFence.synchronize();
 assert.deepEqual(
   barrierOrder,
   ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
+);
+
+const failedFence = new AgentAuthorityFence(credential());
+const failedBarrierOrder = [];
+const failedCapture = failedFence.capture();
+failedFence.registerParticipant({
+  quiesce() {
+    failedBarrierOrder.push('failing-quiesce');
+    throw new Error('injected quiesce failure');
+  },
+  blank() { failedBarrierOrder.push('failing-blank'); },
+  clearMemory() { failedBarrierOrder.push('failing-clear'); },
+});
+failedFence.registerParticipant({
+  quiesce() { failedBarrierOrder.push('following-quiesce'); },
+  blank() { failedBarrierOrder.push('following-blank'); },
+  clearMemory() { failedBarrierOrder.push('following-clear'); },
+});
+assert.throws(
+  () => failedFence.replaceCredential(credential({ grantId: GRANT_B })),
+  /injected quiesce failure/,
+  'the first participant failure is surfaced after fail-closed blanking',
+);
+assert.deepEqual(failedBarrierOrder, [
+  'failing-quiesce',
+  'following-quiesce',
+  'failing-blank',
+  'following-blank',
+  'failing-clear',
+  'following-clear',
+]);
+assert.equal(
+  failedFence.isCurrent(failedCapture),
+  false,
+  'a failed barrier remains publication-closed even though the credential did not change',
 );
 
 const client = makeAgentClient(authority);
@@ -328,7 +375,7 @@ assert.equal(queuedA.queued, true);
 assert.equal((await pendingFor(store, authority.capture())).length, 1);
 
 client.state.online = true;
-const rotatedCapture = authority.replaceCredential(credential({
+const rotatedCapture = await authority.replaceCredential(credential({
   tokenId: TOKEN_B,
   bearerToken: 'agent-token-b',
 }));
@@ -344,7 +391,10 @@ assert.equal((await pendingFor(store, authority.capture())).length, 0);
 assert.equal(client.state.deliveries.length, 1);
 assert.equal(client.state.deliveries[0].bearer, 'agent-token-b');
 assert.equal(client.state.deliveries[0].authorityKey, keyA);
-assert.equal(client.state.deliveries[0].authorityDescriptor.authorityInstanceId, DESCRIPTOR_A);
+assert.equal(
+  client.state.deliveries[0].authorityDescriptor.authorityInstanceId,
+  deriveServiceAuthorityInstanceId(credential()),
+);
 
 client.state.online = false;
 const queuedB = await surface.links.createTodo({ title: 'must not cross grant tuple' });
@@ -352,7 +402,7 @@ assert.equal(queuedB.queued, true);
 assert.equal((await pendingFor(store, authority.capture())).length, 1);
 
 client.state.online = true;
-const changedCapture = authority.replaceCredential(credential({
+const changedCapture = await authority.replaceCredential(credential({
   grantId: GRANT_B,
   tokenId: TOKEN_C,
   bearerToken: 'agent-token-c',
@@ -376,7 +426,9 @@ await waitFor(
 );
 
 const terminalCapture = authority.capture();
-assert.equal(authority.terminate(terminalCapture), true);
+const terminal = authority.terminate(terminalCapture);
+assert.equal(terminal.accepted, true);
+await terminal.settlement;
 assert.deepEqual(
   surface.boundary.current('todos'),
   [],
@@ -388,6 +440,116 @@ assert.throws(
 );
 
 surface.dispose();
+
+await assert.rejects(
+  () => createSnapbackContractSurface({
+    runtime,
+    client: makeAgentClient(new AgentAuthorityFence(credential())),
+    clientStore: createMemorySnapbackClientStore(),
+    userId: EFFECTIVE_USER,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    livePush: false,
+  }),
+  (error) => error?.code === 'SNAPBACK_CONTRACT_AGENT_DURABLE_CUSTODY_REQUIRED',
+  'agent-backed offline replay refuses process-local authority epochs',
+);
+
+// A process can crash after custody entered `clearing` but before its physical
+// store participant ran. Fresh Contract construction must register that store
+// before validated custody recovery, replay the exact transition, and only
+// then settle/open the successor.
+{
+  const recoveryStorage = createMemoryAgentAuthorityCustodyStorage();
+  const recoveryStore = createMemorySnapbackClientStore();
+  const writer = new AgentAuthorityFence(credential(), {
+    storage: recoveryStorage,
+    custodyId: 'agent:contract-clearing-recovery',
+  });
+  const predecessor = await writer.synchronize();
+  await recoveryStore.bindAuthority({
+    authorityEpoch: predecessor.authorityEpoch,
+    authorityKey: predecessor.authorityKey,
+    authMode: 'sessions',
+  });
+  writer.registerParticipant({
+    quiesce() {},
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {
+      throw new Error('injected crash before client-store participant');
+    },
+  });
+  await assert.rejects(
+    writer.replaceCredential(credential({
+      grantId: GRANT_B,
+      tokenId: TOKEN_C,
+      bearerToken: 'recovery-successor-token',
+    })),
+    /injected crash before client-store participant/,
+  );
+  assert.equal(
+    recoveryStorage.snapshot('agent:contract-clearing-recovery').phase,
+    'clearing',
+  );
+  assert.deepEqual(await recoveryStore.authorityScope(), {
+    authorityEpoch: predecessor.authorityEpoch,
+    authorityKey: predecessor.authorityKey,
+  });
+
+  const recoveryFence = new AgentAuthorityFence(credential({
+    grantId: GRANT_B,
+    tokenId: TOKEN_C,
+    bearerToken: 'recovery-successor-token',
+  }), {
+    storage: recoveryStorage,
+    custodyId: 'agent:contract-clearing-recovery',
+  });
+  const recoveryClient = makeAgentClient(recoveryFence);
+  const recoveredSurface = await createSnapbackContractSurface({
+    runtime,
+    client: recoveryClient,
+    clientStore: recoveryStore,
+    userId: EFFECTIVE_USER,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    livePush: false,
+    artifactIndex: { appId: 'agent-contract-app' },
+    schemaManifest: {
+      schemaHash: manifest.schemaHash,
+      targetProfile: 'local-dev-sqlite-ibex',
+    },
+    retainedIdentity: {
+      databaseId: 'agent-contract-recovery-db',
+      versionStreamId: 'agent-contract-recovery-stream',
+    },
+  });
+  const recovered = recoveryFence.capture();
+  assert.equal(recoveryStorage.snapshot('agent:contract-clearing-recovery').phase, 'settled');
+  assert.deepEqual(await recoveryStore.authorityScope(), {
+    authorityEpoch: recovered.authorityEpoch,
+    authorityKey: recovered.authorityKey,
+  });
+  assert.equal(recovered.authorityEpoch, predecessor.authorityEpoch + 1);
+  await recoveredSurface.dispose();
+}
+
+const delegatedAuthority = new AgentAuthorityFence(credential());
+await assert.rejects(
+  () => createSnapbackContractSurface({
+    runtime,
+    client: makeAgentClient(delegatedAuthority),
+    userId: ACTOR,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    livePush: false,
+  }),
+  (error) => error?.code === 'SNAPBACK_CONTRACT_SERVICE_PRINCIPAL_USER_MISMATCH',
+  'delegated service-principal surfaces reject caller-supplied actor identity in place of the effective user',
+);
 
 await assert.rejects(
   () => createSnapbackContractSurface({
