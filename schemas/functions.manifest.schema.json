@@ -708,6 +708,7 @@
       "type": "object"
     },
     "MembershipPredicate": {
+      "additionalProperties": false,
       "description": "A declaration-bound membership semi-join: the structured-filter IR node the\n`eventMembers.memberOf(resourceRef)` / `eventMembers.hasRole(resourceRef,\n…)` rule helpers lower to. There is deliberately **no** global\n`memberOf`/`hasRole` resolver — two declarations can target the same\nresource type, and that ambiguity is an authorization bug factory\n(LLP 0056 §Rule helpers), so every predicate names its declaration.\n\nSemantics: the predicate holds for the effective principal iff a membership\nrow exists in the bound declaration whose `principal` axis is that\nprincipal, whose `resource` axis equals the resolved `resource` reference,\nand whose `role` is one of the effective roles. A null effective principal\n(unauthenticated) matches no rows — fail-closed.\n\nThe node is **authoritative-only**: it is evaluated by a non-recursive\nstorage semi-join that deliberately bypasses the membership table's own\nrow-visibility rules (a locked-down roster must not break role evaluation\nfor guests), never by the pure/optimistic `ValueExpr` evaluator — which has\nno storage and no business consulting membership facts.\n\n@ref LLP 0056#rule-helpers — declaration-bound; `memberOf` excludes\n  `pendingRoles`; `hasRole` names roles explicitly; `resourceRef` is a row\n  field of the queried table or a query argument of the declared resource\n  type.\n@ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 —\n  admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,\n  with the pinned empty-result capture.",
       "properties": {
         "declaration": {
@@ -756,7 +757,24 @@
           "description": "A query argument (dotted path) of the declared resource type. The\nresource is fixed for the whole query, so v1 captures the fine-grained\n`(principal, resource)` index-range dependency, including the\nempty-result form.",
           "properties": {
             "arg": {
-              "type": "string"
+              "additionalProperties": false,
+              "properties": {
+                "path": {
+                  "description": "Dotted query-argument path evaluated at invocation time.",
+                  "type": "string"
+                },
+                "resourceTable": {
+                  "description": "Nominal resource type proven by codegen. Resource-scoped\ndeclarations require their exact `resourceTable`; app-scoped\ndeclarations require `null` and the closed synthetic path. Carrying\nthis provenance in the installed artifact keeps a hand-written\nmanifest from silently degrading an `Id<table>` to a bare string.",
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
             }
           },
           "required": [

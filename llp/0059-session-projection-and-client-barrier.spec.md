@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+**Revised:** 2026-07-16 (terminal authority-disposition closure: the typed
+terminal frame distinguishes a replaceable expired/evicted carrier from a
+durable authority deletion, with a closed two-value wire axis and exact source
+classification); 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this Spec after ENG-25001 closed the review findings, the corrected
 FINAL7 Codex review returned READY, and the FINAL5 Fable review returned READY;
 Status advanced to Accepted without advancing frozen LLP 0039 or LLP 0053);
@@ -1081,6 +1084,7 @@ type LiveAuthErrorFrameV1 = {
     | "SNAPBACK_AUTH_SESSION_EXPIRED"
     | "SNAPBACK_AUTH_STREAM_RESET"
     | "SNAPBACK_AUTH_MODE_PENDING"
+    | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
   reason:
     | "expired"
     | "revoked"
@@ -1088,12 +1092,25 @@ type LiveAuthErrorFrameV1 = {
     | "restore"
     | "downgrade"
     | "mode_transition"
+  authorityDisposition: "carrier" | "durableDelete"
 }
 ```
 
 The frame contains no session id, user id, address, provider subject, token,
 grant, or generation. Item 7 retains ownership of the public generation-bearing
-authority descriptor. A pending mutation ticket blocks new validation but is
+authority descriptor. `authorityDisposition` is independent of the diagnostic
+reason: `carrier` means only the exact presented session/scoped-token carrier
+ended and a surviving durable authority may establish a replacement;
+`durableDelete` means the server observed a committed ending of the backing
+authority and the client must compare-and-delete its matching durable local
+authority state. Session or scoped-token expiry and session/token cap eviction
+are `carrier`. Logout/family revocation, grant revocation (single or bulk),
+credential rotation, credential-family revoke-self, agent deactivation,
+stream reset/restore, and mode transition are `durableDelete`. A producer must
+choose from the committed cause; clients must not infer this axis from
+`reason: "revoked"`, which is shared by carrier eviction and durable deletion.
+
+A pending mutation ticket blocks new validation but is
 not itself a terminal event; a rollback emits no terminal frame. After durable
 revocation/reset commit is finalized, or after the expiry deadline is
 authoritatively observed, the terminal event wins the notifier-generation
@@ -1108,8 +1125,9 @@ latency consumes this budget; it does not add a second five-second wait. Failure
 to send the frame does not postpone close.
 
 The kit classifies this frame or close code as terminal for its captured
-authority, suppresses generic reconnect, and invokes coordinator
-`compareAndClear(capture, reason)`. A delayed terminal frame for A cannot clear
+authority and suppresses generic reconnect. It replaces/re-establishes only a
+`carrier` disposition; for `durableDelete` it invokes the coordinator's
+capture-guarded durable deletion. A delayed terminal frame for A cannot clear
 or close B because both the socket-generation guard and captured authority
 epoch must match. If the frame is lost, the next handshake/grant/request still
 converges through the projection and incarnation checks.

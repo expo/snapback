@@ -2353,7 +2353,6 @@ impl LocalSnapback {
             grant_id,
             token_id,
             effective_user_id,
-            scopes,
             ..
         } = retained.resolved()
         {
@@ -2375,21 +2374,28 @@ impl LocalSnapback {
                 )
                 .into_trusted_permission_denial());
             }
-            for scope in scopes {
-                let current = self.db.current_auth_scope_basis(
-                    scope.function_id(),
-                    scope.kind(),
-                    scope.authority_creating(),
-                )?;
-                if current != Some(scope.basis()) {
-                    return Err(SnapbackError::error(
-                        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-                        "auth",
-                        "the retained grant scope is terminally invalid",
-                    )
-                    .with_details(json!({ "reason": "terminally_invalid_entry" }))
-                    .into_trusted_permission_denial());
-                }
+            let scope = retained.matched_grant_scope().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                    "auth",
+                    "the retained live owner has no exact function scope",
+                )
+                .with_details(json!({ "reason": "missing_retained_entry" }))
+                .into_trusted_permission_denial()
+            })?;
+            let current = self.db.current_auth_scope_basis(
+                scope.function_id(),
+                scope.kind(),
+                scope.authority_creating(),
+            )?;
+            if current != Some(scope.basis()) {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+                    "auth",
+                    "the retained grant scope is terminally invalid",
+                )
+                .with_details(json!({ "reason": "terminally_invalid_entry" }))
+                .into_trusted_permission_denial());
             }
         }
         retained.prepare_rerun(admission)
@@ -2521,7 +2527,9 @@ impl LocalSnapback {
             .push_back(PreflightedArtifactPair {
                 deployment,
                 schema,
-                prepared_functions: PreparedFunctionGeneration { manifest: functions },
+                prepared_functions: PreparedFunctionGeneration {
+                    manifest: functions,
+                },
             });
         while self.preflighted_artifact_pairs.len() > 2 {
             self.preflighted_artifact_pairs.pop_front();
@@ -2992,8 +3000,7 @@ impl LocalSnapback {
         Ok(StartupArtifacts {
             format_version: STARTUP_ARTIFACT_FORMAT_VERSION,
             schema: schema.unwrap_or_else(|| sibling.schema.clone()),
-            functions: functions
-                .unwrap_or_else(|| sibling.prepared_functions.manifest.clone()),
+            functions: functions.unwrap_or_else(|| sibling.prepared_functions.manifest.clone()),
             seed,
         })
     }
@@ -3116,11 +3123,11 @@ impl LocalSnapback {
             let committed = self
                 .db
                 .apply_same_mode_network_deployment_with_functions_classified(
-                prepared.deployment,
-                prepared.artifacts.schema,
-                prepared.artifacts.functions.clone(),
-                prepared.artifacts.seed,
-            );
+                    prepared.deployment,
+                    prepared.artifacts.schema,
+                    prepared.artifacts.functions.clone(),
+                    prepared.artifacts.seed,
+                );
             let NetworkDeploymentCommit {
                 seed_outcome,
                 activation_changed,
@@ -4152,11 +4159,7 @@ impl LocalSnapback {
         // enforcement precede replay-settlement lookup and every effect.
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
-        refuse_unprovenanced_host_plan_authority_creation(
-            &prepared,
-            &function,
-            self.db.schema(),
-        )?;
+        refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
         let admission = prepared.admission_lease().clone();
         let input = prepared.canonicalize_input(input);
         let identity = if let Some(id) = client_mutation_id {
@@ -4255,11 +4258,7 @@ impl LocalSnapback {
                 format!("{name} is not a mutation"),
             ));
         }
-        refuse_unprovenanced_host_plan_authority_creation(
-            prepared,
-            &function,
-            self.db.schema(),
-        )?;
+        refuse_unprovenanced_host_plan_authority_creation(prepared, &function, self.db.schema())?;
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
         let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
             return Err(SnapbackError::error(
@@ -4630,7 +4629,16 @@ impl LocalSnapback {
         authority.validate_admission("live subscribe preparation")?;
         let effect_fence = invalidation.effect_fence.clone();
         let authority_subject = authority.resolved().invalidation_subject();
-        let retained_authority = authority.retain_live_owner()?;
+        let function = self.function(name)?.clone();
+        if function.kind != FunctionKind::LiveQuery {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_NOT_LIVE",
+                "runtime",
+                format!("{name} is not a live query"),
+            ));
+        }
+        let prepared_invocation = InvocationGate::prepare_function(authority.clone(), &function)?;
+        let retained_authority = prepared_invocation.retain_live_owner()?;
         self.prepare_live_rerun_authority(
             &retained_authority,
             authority.admission_lease().clone(),
@@ -4640,14 +4648,6 @@ impl LocalSnapback {
         // auth-scoped live subscription is admitted only when its connection
         // negotiated the exact protocol and supplied a stable query namespace.
         self.touch_connection(&input.connection_id, now_millis());
-        let function = self.function(name)?;
-        if function.kind != FunctionKind::LiveQuery {
-            return Err(SnapbackError::error(
-                "SNAPBACK_FUNCTION_NOT_LIVE",
-                "runtime",
-                format!("{name} is not a live query"),
-            ));
-        }
         let auth_scoped =
             authority.active_mode() == AuthMode::Sessions && !function.authority_independent;
         if auth_scoped && self.auth_invalidation.is_none() {
@@ -4753,10 +4753,14 @@ impl LocalSnapback {
             })));
         }
 
-        let query = self.invoke_query_with_dependencies_prepared(
+        let query = execute_query_invocation(
+            &function,
             name,
+            DbRead::Live(&self.db),
+            &self.permission_epochs,
             subscription_input.clone(),
-            authority,
+            &prepared_invocation,
+            Some(&self.warm_vms),
         )?;
         let permission_epochs = permission_epochs_from_dependencies(&query.read_dependencies);
         // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S2:
@@ -7168,10 +7172,11 @@ impl LocalSnapback {
         });
         if should_report {
             *last_reported = Some(now_ms);
-            let diagnostic = Diagnostic::warning(code, "maintenance", message).with_details(json!({
-                "causeCode": error.diagnostic.code.clone(),
-                "failureCount": *count,
-            }));
+            let diagnostic =
+                Diagnostic::warning(code, "maintenance", message).with_details(json!({
+                    "causeCode": error.diagnostic.code.clone(),
+                    "failureCount": *count,
+                }));
             self.record_diagnostics(vec![diagnostic]);
         }
     }
@@ -8737,11 +8742,12 @@ impl LocalSnapback {
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
             })?;
-        self.live_delivery
-            .authorization_blast_radius
-            .for_event(&authorization.membership_declarations, |counters| {
+        self.live_delivery.authorization_blast_radius.for_event(
+            &authorization.membership_declarations,
+            |counters| {
                 counters.version_advances += 1;
-            });
+            },
+        );
         let subscriptions = self
             .subscriptions
             .values()
@@ -8799,11 +8805,12 @@ impl LocalSnapback {
                     .collect());
             }
         };
-        self.live_delivery
-            .authorization_blast_radius
-            .for_event(&authorization.membership_declarations, |counters| {
+        self.live_delivery.authorization_blast_radius.for_event(
+            &authorization.membership_declarations,
+            |counters| {
                 counters.quarantined_subscriptions += preprojected.len() as u64;
-            });
+            },
+        );
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
@@ -8837,11 +8844,12 @@ impl LocalSnapback {
                     Ok(()) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
-                        self.live_delivery
-                            .authorization_blast_radius
-                            .for_event(&authorization.membership_declarations, |counters| {
+                        self.live_delivery.authorization_blast_radius.for_event(
+                            &authorization.membership_declarations,
+                            |counters| {
                                 counters.resnapshots += 1;
-                            });
+                            },
+                        );
                     }
                     Err(error) => self.fail_subscription_fanout(
                         &subscription,
@@ -9952,6 +9960,28 @@ fn validate_function_schema_references(
     let query = |plan: &QueryPlan| -> SnapbackResult<()> {
         crate::manifest::validate_query_plan_shape(plan)?;
         let table_manifest = table(&plan.table)?;
+        // A membership table is authorization data first and application data
+        // second. Until an explicit, closed row-visibility preset is carried by
+        // the declaration, generated/direct HostPlan readers (including live
+        // and retainable queries) may not expose it as their primary table.
+        // The storage boundary separately fences dynamic/Ibex reads, while
+        // internal declaration-bound probes bypass visibility non-recursively.
+        // @ref LLP 0056#declaring-a-membership-table — roster reads are private
+        //   by default on the enforceable direct/live/retained surfaces.
+        if let Some(membership) = &table_manifest.membership {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+                "runtime",
+                format!(
+                    "function manifest cannot expose membership declaration {:?} as a direct query primary table without an explicit visibility preset",
+                    membership.effective_id(&table_manifest.name)
+                ),
+            )
+            .with_details(json!({
+                "table": table_manifest.name,
+                "declaration": membership.effective_id(&table_manifest.name),
+            })));
+        }
         if let Some(index) = &plan.indexed_by
             && !table_manifest
                 .indexes
@@ -9982,6 +10012,13 @@ fn validate_function_schema_references(
                     ),
                 ));
             }
+        }
+        for predicate in &plan.membership_filters {
+            crate::membership_rules::validate_membership_predicate(
+                schema,
+                table_manifest,
+                predicate,
+            )?;
         }
         Ok(())
     };
@@ -10469,15 +10506,15 @@ mod auth_room_kick_acceptance;
 mod tests {
     use super::{
         AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
-        BEFORE_ACTION_RESULT_HANDOFF_HOOK,
-        BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK, BEFORE_MUTATION_POSTCOMMIT_HOOK,
-        BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation, DetachedMutationRead,
-        EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput, LiveSubscribeInput,
-        LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
+        BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
+        DetachedMutationRead, EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput,
+        LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MaintenanceOperation, PublicInspect,
         RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
         next_secret_read_reset_generation, now_millis,
         refuse_unprovenanced_host_plan_authority_creation, reserve_unique_generation,
+        validate_function_schema_references,
     };
     use crate::admin::ServerProfile;
     use crate::auth::admission::AdmissionController;
@@ -10499,7 +10536,8 @@ mod tests {
         CronActivationPolicy, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
         CronRetryMode, CronRetryPolicy, CronSchedule, CtxAnswerLedger, FieldManifest, FieldType,
         FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
-        HandlerInput, HandlerPlan, IbexModule, IndexManifest, MutationPlan, MutationStep,
+        HandlerInput, HandlerPlan, IbexModule, IndexManifest, MembershipManifest,
+        MembershipPredicate, MembershipResourceRef, MembershipScope, MutationPlan, MutationStep,
         QueryPlan, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
         ctx_ledger_version,
     };
@@ -10525,6 +10563,163 @@ mod tests {
             destination.fill(self.0.fetch_add(1, Ordering::SeqCst));
             Ok(())
         }
+    }
+
+    #[test]
+    fn direct_live_and_retainable_membership_readers_fail_closed_at_load() {
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "app_roles".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: None,
+                    principal: "userId".to_owned(),
+                    resource: None,
+                    role: "role".to_owned(),
+                    roles: vec!["admin".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: None,
+                    last_holder: None,
+                    expiry: None,
+                    incidental: None,
+                    provenance: None,
+                    transitions: Vec::new(),
+                    scope: MembershipScope::App,
+                    resource_table: None,
+                }),
+            }],
+            ..SchemaManifest::default()
+        };
+        for (kind, retainable) in [
+            (FunctionKind::Query, false),
+            (FunctionKind::LiveQuery, false),
+            (FunctionKind::Query, true),
+        ] {
+            let mut function = FunctionDefinition::new(
+                format!("reader-{kind:?}-{retainable}"),
+                kind,
+                FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                    table: "app_roles".to_owned(),
+                    filters: Vec::new(),
+                    order: Vec::new(),
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: None,
+                })),
+            );
+            function.retainable = retainable;
+            let manifest = FunctionManifest {
+                functions: vec![function],
+                ..FunctionManifest::default()
+            };
+            let error = validate_function_schema_references(&manifest, &schema)
+                .expect_err("membership roster primary readers are private");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_READ_PRIVATE");
+        }
+    }
+
+    #[test]
+    fn hand_written_membership_arg_with_wrong_nominal_table_fails_at_load() {
+        let events = TableManifest {
+            name: "events".to_owned(),
+            fields: Vec::new(),
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: None,
+        };
+        let members = TableManifest {
+            name: "event_members".to_owned(),
+            fields: vec![
+                FieldManifest {
+                    name: "userId".to_owned(),
+                    field_type: FieldType::Principal,
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "eventId".to_owned(),
+                    field_type: FieldType::Id {
+                        table: "events".to_owned(),
+                    },
+                    optional: false,
+                },
+                FieldManifest {
+                    name: "role".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                },
+            ],
+            indexes: Vec::new(),
+            syncable: true,
+            permission_backing: false,
+            permission_fields: None,
+            membership: Some(MembershipManifest {
+                id: Some("event_members".to_owned()),
+                principal: "userId".to_owned(),
+                resource: Some("eventId".to_owned()),
+                role: "role".to_owned(),
+                roles: vec!["host".to_owned()],
+                pending_roles: None,
+                bootstrap_role: None,
+                last_holder: None,
+                expiry: None,
+                incidental: None,
+                provenance: None,
+                transitions: Vec::new(),
+                scope: MembershipScope::Resource,
+                resource_table: Some("events".to_owned()),
+            }),
+        };
+        let schema = SchemaManifest {
+            tables: vec![events, members],
+            ..SchemaManifest::default()
+        };
+        let function = FunctionDefinition::new(
+            "events-for-project-id",
+            FunctionKind::Query,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(QueryPlan {
+                table: "events".to_owned(),
+                filters: Vec::new(),
+                order: Vec::new(),
+                limit: None,
+                membership_filters: vec![MembershipPredicate {
+                    declaration: "event_members".to_owned(),
+                    resource: MembershipResourceRef::Arg {
+                        path: "projectId".to_owned(),
+                        resource_table: Some("projects".to_owned()),
+                    },
+                    roles: None,
+                }],
+                indexed_by: None,
+            })),
+        );
+        let manifest = FunctionManifest {
+            functions: vec![function],
+            ..FunctionManifest::default()
+        };
+
+        let error = validate_function_schema_references(&manifest, &schema)
+            .expect_err("a forged Id<projects> resource argument must fail artifact load");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID"
+        );
     }
 
     #[test]
@@ -10557,9 +10752,7 @@ mod tests {
         assert_eq!(snapback.maintenance.permission_resolution_failures, 3);
         assert_eq!(snapback.maintenance.journal_prune_failures, 1);
         assert_eq!(
-            snapback
-                .maintenance
-                .last_permission_resolution_failure_ms,
+            snapback.maintenance.last_permission_resolution_failure_ms,
             Some(61_000)
         );
         assert_eq!(
@@ -10737,7 +10930,11 @@ mod tests {
                 .expect_err("unprepared executable generation must fail preflight");
             assert_eq!(error.diagnostic.code, expected);
             assert_eq!(
-                snapback.auth_database_mut().auth_mode_snapshot().unwrap().state,
+                snapback
+                    .auth_database_mut()
+                    .auth_mode_snapshot()
+                    .unwrap()
+                    .state,
                 AuthModeStateRecord::initial_dev(None)
             );
             assert!(snapback.function_kind(export).is_none());
@@ -10904,6 +11101,12 @@ mod tests {
                 .expect("issue activation credential");
             db.with_auth_transaction(|tx| {
                 tx.execute(
+                    "INSERT OR IGNORE INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:unrelatedLive', 'liveQuery', 0, 1, 0)",
+                    [],
+                )?;
+                tx.execute(
                     "INSERT INTO _auth_grants(
                        id, actor_user_id, effective_user_id, scopes, created_at_ms,
                        expires_at_ms, revoked_at_ms, created_by, request_id,
@@ -10911,7 +11114,7 @@ mod tests {
                      ) VALUES('activation-grant', 'activation-agent', 'activation-owner', ?1,
                               ?2, ?3, NULL, 'test', NULL, NULL, ?2)",
                     rusqlite::params![
-                        r#"[{"fn":"fn:listItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
+                        r#"[{"fn":"fn:listItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:unrelatedLive","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
                         now_ms as i64,
                         now_ms.saturating_add(60_000) as i64,
                     ],
@@ -10944,6 +11147,165 @@ mod tests {
             ResolvedAppAuthority::from_scoped_token(resolved),
         )
         .expect("prepare service live authority")
+    }
+
+    #[test]
+    fn retained_service_live_revalidates_only_its_matched_grant_entry() {
+        let (schema, mut predecessor_functions) = sessions_activation_pair('b', false);
+        predecessor_functions
+            .functions
+            .push(FunctionDefinition::new(
+                "unrelatedLive",
+                FunctionKind::LiveQuery,
+                predecessor_functions.functions[0].runtime.clone(),
+            ));
+        let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
+        let connection = install_test_invalidation(&mut snapback);
+        let authority = scoped_live_authority(&mut snapback);
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "matched-scope-live".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(93)),
+                    supersedes: None,
+                },
+                authority.clone(),
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection.clone()),
+                    effect_fence: None,
+                },
+            )
+            .expect("subscribe under the listItems entry");
+        let retained = snapback
+            .subscriptions
+            .get(&subscribed.subscription_id)
+            .expect("retained subscription")
+            .authority
+            .clone();
+        assert_eq!(
+            retained
+                .matched_grant_scope()
+                .expect("service live retains its exact entry")
+                .function_id(),
+            "fn:listItems"
+        );
+        let unrelated = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "unrelatedLive",
+                LiveSubscribeInput {
+                    connection_id: "matched-scope-live".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(94)),
+                    supersedes: None,
+                },
+                authority,
+                LiveInvalidationAdmission {
+                    session_mode: true,
+                    connection: Some(connection),
+                    effect_fence: None,
+                },
+            )
+            .expect("subscribe under the unrelatedLive entry");
+        let unrelated_retained = snapback
+            .subscriptions
+            .get(&unrelated.subscription_id)
+            .expect("retained unrelated subscription")
+            .authority
+            .clone();
+        assert_eq!(
+            unrelated_retained
+                .matched_grant_scope()
+                .expect("second service live retains its exact entry")
+                .function_id(),
+            "fn:unrelatedLive"
+        );
+
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_scope_bases
+                     SET generation = generation + 1, present = 0
+                     WHERE function_id = 'fn:unrelatedLive'
+                       AND kind = 'liveQuery' AND authority_creating = 0",
+                    [],
+                )?;
+                Ok(())
+            })
+            .expect("tombstone unrelated grant entry");
+        let unrelated_admission = snapback
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("fresh unrelated rerun admission");
+        let unrelated_error = snapback
+            .prepare_live_rerun_authority(&unrelated_retained, unrelated_admission)
+            .expect_err("the tombstoned B entry terminates B");
+        assert_eq!(
+            unrelated_error.diagnostic.code,
+            "SNAPBACK_AUTH_GRANT_SCOPE_DENIED"
+        );
+
+        let admission = snapback
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("fresh rerun admission");
+        let rerun = snapback
+            .prepare_live_rerun_authority(&retained, admission)
+            .expect("unrelated scope tombstone does not end listItems");
+        let mut inserted = BTreeMap::new();
+        inserted.insert(
+            "value".to_owned(),
+            ValueExpr::Literal(json!("visible-after-b-tombstone")),
+        );
+        snapback
+            .db
+            .execute_mutation(
+                &MutationPlan {
+                    steps: vec![MutationStep::Insert {
+                        table: "items".to_owned(),
+                        values: inserted,
+                        bind_id_as: None,
+                    }],
+                    return_value: Some(ReturnValue::ChangedCount),
+                },
+                &HandlerInput::default(),
+            )
+            .expect("commit a data update after B terminates");
+        let rerun = snapback
+            .invoke_query_with_dependencies_prepared("listItems", HandlerInput::default(), rerun)
+            .expect("A remains live and reruns after B terminates");
+        assert!(
+            rerun
+                .output
+                .rows
+                .iter()
+                .any(|row| { row["value"] == json!("visible-after-b-tombstone") })
+        );
+
+        snapback
+            .auth_database_mut()
+            .with_auth_transaction(|tx| {
+                tx.execute(
+                    "UPDATE _auth_scope_bases
+                     SET generation = generation + 1, present = 0
+                     WHERE function_id = 'fn:listItems'
+                       AND kind = 'liveQuery' AND authority_creating = 0",
+                    [],
+                )?;
+                Ok(())
+            })
+            .expect("tombstone matched grant entry");
+        let admission = snapback
+            .admission
+            .admit_for_mode(AuthMode::Sessions)
+            .expect("fresh terminal rerun admission");
+        let error = snapback
+            .prepare_live_rerun_authority(&retained, admission)
+            .expect_err("matched scope tombstone ends listItems");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
     }
 
     #[test]
@@ -11072,8 +11434,7 @@ mod tests {
     #[test]
     fn same_mode_activation_terminally_deletes_live_service_scope_tombstones() {
         let (schema, predecessor_functions) = sessions_activation_pair('b', false);
-        let mut snapback =
-            settled_sessions_activation_snapback(schema, predecessor_functions);
+        let mut snapback = settled_sessions_activation_snapback(schema, predecessor_functions);
         let connection = install_test_invalidation(&mut snapback);
         let authority = scoped_live_authority(&mut snapback);
         let subscribed = snapback
@@ -11125,10 +11486,7 @@ mod tests {
             })
             .expect("commit scope tombstone and terminal live projection");
 
-        let frames = drain_live_stream_through_test_sink(
-            &mut snapback,
-            "activation-service-live",
-        );
+        let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-service-live");
         let terminal = frames
             .iter()
             .filter_map(|frame| serde_json::from_str::<Value>(frame).ok())
@@ -11154,10 +11512,8 @@ mod tests {
     #[test]
     fn real_sessions_activation_keeps_removed_function_basis_terminal_across_readd() {
         let (schema, predecessor_functions) = sessions_activation_pair('b', false);
-        let mut snapback = settled_sessions_activation_snapback(
-            schema,
-            predecessor_functions.clone(),
-        );
+        let mut snapback =
+            settled_sessions_activation_snapback(schema, predecessor_functions.clone());
         install_test_invalidation(&mut snapback);
         assert_eq!(
             snapback
@@ -13437,7 +13793,8 @@ globalThis.__snapbackHandlers = {
             true, true, true, true, true, true, true,
         ))
         .expect("consume sessions mode");
-        db.activate_current_auth_catalog().expect("activate auth catalog");
+        db.activate_current_auth_catalog()
+            .expect("activate auth catalog");
         db.with_auth_transaction(|tx| {
             use rusqlite::params;
             tx.execute(
@@ -14218,12 +14575,9 @@ globalThis.__snapbackHandlers = {
         .expect("prepared service authority");
         let prepared = InvocationGate::prepare_function(authority, &function)
             .expect("explicit authority-creating scope");
-        let error = refuse_unprovenanced_host_plan_authority_creation(
-            &prepared,
-            &function,
-            &schema,
-        )
-        .expect_err("HostPlan has no full-provenance service lane");
+        let error =
+            refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, &schema)
+                .expect_err("HostPlan has no full-provenance service lane");
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED"

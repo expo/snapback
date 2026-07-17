@@ -8,7 +8,7 @@ use serde_json::Value;
 use tokio::sync::Notify;
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason};
+use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason, LiveAuthorityDisposition};
 use crate::storage::{
     AuthorizationCommitImpact, AuthorizationCommitInterlock, AuthorizationCommitWitness,
     AuthorizationVersion, ChangeOp, PreparedAuthorizationCommit,
@@ -65,6 +65,7 @@ struct DeliveryRegistration {
 pub(crate) struct DeliveryTerminalEvent {
     pub(crate) code: LiveAuthErrorCode,
     pub(crate) reason: LiveAuthErrorReason,
+    pub(crate) authority_disposition: LiveAuthorityDisposition,
     pub(crate) close_by: std::time::Instant,
 }
 
@@ -7590,6 +7591,7 @@ mod tests {
         let event = DeliveryTerminalEvent {
             code: LiveAuthErrorCode::SessionExpired,
             reason: LiveAuthErrorReason::Expired,
+            authority_disposition: LiveAuthorityDisposition::Carrier,
             close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
         };
 
@@ -7618,6 +7620,7 @@ mod tests {
         let event = DeliveryTerminalEvent {
             code: LiveAuthErrorCode::StreamReset,
             reason: LiveAuthErrorReason::Reset,
+            authority_disposition: LiveAuthorityDisposition::DurableDelete,
             close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
         };
 
@@ -8076,7 +8079,9 @@ mod tests {
                 },
                 FieldManifest {
                     name: "boardId".to_owned(),
-                    field_type: FieldType::String,
+                    field_type: FieldType::Id {
+                        table: "boards".to_owned(),
+                    },
                     optional: false,
                 },
                 FieldManifest {
@@ -8145,18 +8150,15 @@ mod tests {
             schema: &schema,
             changes: &role_downgrade,
         });
-        let affected = room_id_for(
-            &collection(),
-            &Scope::from_pairs([("boardId", "board-1")]),
-        )
-        .unwrap();
-        let unrelated = room_id_for(
-            &collection(),
-            &Scope::from_pairs([("boardId", "board-2")]),
-        )
-        .unwrap();
+        let affected =
+            room_id_for(&collection(), &Scope::from_pairs([("boardId", "board-1")])).unwrap();
+        let unrelated =
+            room_id_for(&collection(), &Scope::from_pairs([("boardId", "board-2")])).unwrap();
         assert!(selector.matches(&affected), "downgrade suspends its room");
-        assert!(!selector.matches(&unrelated), "scope attribution stays narrow");
+        assert!(
+            !selector.matches(&unrelated),
+            "scope attribution stays narrow"
+        );
 
         let expiry = [ChangedRow {
             changed_fields: vec!["expiresAt".to_owned()],
@@ -8167,7 +8169,10 @@ mod tests {
                 schema: &schema,
                 changes: &expiry,
             });
-        assert!(expiry_selector.matches(&affected), "expiry suspends its room");
+        assert!(
+            expiry_selector.matches(&affected),
+            "expiry suspends its room"
+        );
         assert!(!expiry_selector.matches(&unrelated));
 
         let incidental = [ChangedRow {

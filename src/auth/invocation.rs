@@ -15,8 +15,8 @@ use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthInput, AuthMode, AuthRequirement, FunctionDefinition, FunctionKind, HandlerInput,
 };
-use crate::storage::auth_grants::ExactGrantScope;
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
+use crate::storage::auth_grants::ExactGrantScope;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::BTreeMap;
@@ -391,9 +391,7 @@ impl ResolvedAppAuthority {
     pub fn carries_user(&self) -> bool {
         matches!(
             self,
-            Self::Session { .. }
-                | Self::DevImpersonation { .. }
-                | Self::ServicePrincipal { .. }
+            Self::Session { .. } | Self::DevImpersonation { .. } | Self::ServicePrincipal { .. }
         )
     }
 
@@ -495,12 +493,7 @@ impl ResolvedAppAuthority {
             } => AuthInput {
                 principal: None,
                 session_id: None,
-                user_id: Some(
-                    effective_user_id
-                        .as_ref()
-                        .unwrap_or(actor_user_id)
-                        .clone(),
-                ),
+                user_id: Some(effective_user_id.as_ref().unwrap_or(actor_user_id).clone()),
                 ..AuthInput::default()
             }
             .with_authorization_projection(
@@ -608,7 +601,6 @@ impl DirectAuthorizationProjection {
             kind: "human".to_owned(),
         }
     }
-
 }
 
 impl HandlerAuthProjection {
@@ -643,12 +635,7 @@ impl HandlerAuthProjection {
                 effective_user_id,
                 ..
             } => Self {
-                user_id: Some(
-                    effective_user_id
-                        .as_ref()
-                        .unwrap_or(actor_user_id)
-                        .clone(),
-                ),
+                user_id: Some(effective_user_id.as_ref().unwrap_or(actor_user_id).clone()),
                 session_id: None,
                 is_authenticated: true,
                 provider: Some("agent-credential".to_owned()),
@@ -658,11 +645,13 @@ impl HandlerAuthProjection {
                 } else {
                     "agent".to_owned()
                 }),
-                actor: effective_user_id.as_ref().map(|_| HandlerAuthActorProjection {
-                    user_id: actor_user_id.clone(),
-                    kind: "agent".to_owned(),
-                    grant_id: grant_id.clone(),
-                }),
+                actor: effective_user_id
+                    .as_ref()
+                    .map(|_| HandlerAuthActorProjection {
+                        user_id: actor_user_id.clone(),
+                        kind: "agent".to_owned(),
+                        grant_id: grant_id.clone(),
+                    }),
             },
             ResolvedAppAuthority::Anonymous
             | ResolvedAppAuthority::AdminBypass { .. }
@@ -859,6 +848,11 @@ pub(crate) struct RetainedLiveAuthority {
     active_mode: AuthMode,
     profile: ServerProfile,
     resolved: ResolvedAppAuthority,
+    /// The one immutable grant entry that authorized this live function.
+    /// Carrier validity remains grant-wide, but a sibling entry is not part of
+    /// this subscription's authority and cannot terminalize it when its basis
+    /// changes.
+    matched_grant_scope: Option<ResolvedGrantScope>,
 }
 
 impl PreparedAuthority {
@@ -974,6 +968,7 @@ impl PreparedAuthority {
             active_mode: self.active_mode,
             profile: self.profile,
             resolved: self.resolved.clone(),
+            matched_grant_scope: None,
         })
     }
 
@@ -1025,6 +1020,10 @@ impl RetainedLiveAuthority {
             && self.resolved == authority.resolved
     }
 
+    pub(crate) fn matched_grant_scope(&self) -> Option<&ResolvedGrantScope> {
+        self.matched_grant_scope.as_ref()
+    }
+
     pub(crate) fn prepare_rerun(
         &self,
         admission: AdmissionLease,
@@ -1054,6 +1053,10 @@ pub struct PreparedInvocation {
     function_kind: FunctionKind,
     requirement: AuthRequirement,
     authority_creating_consent: bool,
+    /// Exact service-grant entry selected for this function. Keeping the full
+    /// identity here prevents later live retention from reconstructing scope
+    /// authority from a grant-wide list.
+    matched_grant_scope: Option<ResolvedGrantScope>,
     invocation_id: String,
 }
 
@@ -1096,6 +1099,26 @@ impl PreparedInvocation {
 
     pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
         self.authority.effect_guard(effect)
+    }
+
+    /// Retain the exact service-grant entry selected by this function's
+    /// admission. The complete resolved grant remains on the owner for
+    /// resume-owner equality, while reruns revalidate only this immutable
+    /// `{fn, kind, basis, authorityCreating}` entry.
+    ///
+    /// @ref LLP 0055#grant-backed-live-and-queued-replay — a sibling entry on
+    ///   the same grant cannot terminalize this subscription.
+    pub(crate) fn retain_live_owner(&self) -> SnapbackResult<RetainedLiveAuthority> {
+        let mut retained = self.authority.retain_live_owner()?;
+        retained.matched_grant_scope = self.matched_grant_scope.clone();
+        if matches!(
+            &self.authority.resolved,
+            ResolvedAppAuthority::ServicePrincipal { .. }
+        ) && retained.matched_grant_scope.is_none()
+        {
+            return Err(missing_grant_scope());
+        }
+        Ok(retained)
     }
 
     /// Replace legacy wire authority with the server-derived compatibility
@@ -1304,19 +1327,14 @@ impl InvocationGate {
             ));
         }
         let mut authority_creating_consent = false;
+        let mut matched_grant_scope = None;
         if let ResolvedAppAuthority::ServicePrincipal { scopes, .. } = &authority.resolved {
             let scope = scopes
                 .iter()
                 .find(|scope| scope.function_id == function.id && scope.kind == function.kind)
-                .ok_or_else(|| {
-                    SnapbackError::error(
-                        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
-                        "auth",
-                        "the scoped grant does not authorize this function",
-                    )
-                    .with_details(serde_json::json!({ "reason": "missing_scope" }))
-                })?;
+                .ok_or_else(missing_grant_scope)?;
             authority_creating_consent = scope.authority_creating;
+            matched_grant_scope = Some(scope.clone());
             if function.authority_creating && !authority_creating_consent {
                 return Err(SnapbackError::error(
                     "SNAPBACK_AUTH_AUTHORITY_CREATING_UNCONSENTED",
@@ -1332,9 +1350,19 @@ impl InvocationGate {
             function_kind: function.kind.clone(),
             requirement,
             authority_creating_consent,
+            matched_grant_scope,
             invocation_id: format!("inv_{}", Uuid::now_v7().simple()),
         })
     }
+}
+
+fn missing_grant_scope() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_GRANT_SCOPE_DENIED",
+        "auth",
+        "the scoped grant does not authorize this function",
+    )
+    .with_details(serde_json::json!({ "reason": "missing_scope" }))
 }
 
 fn source_allows_authority(
@@ -1827,8 +1855,8 @@ mod tests {
         )
         .unwrap();
 
-        let denied = InvocationGate::prepare_function(prepare(service(Vec::new())), &function)
-            .unwrap_err();
+        let denied =
+            InvocationGate::prepare_function(prepare(service(Vec::new())), &function).unwrap_err();
         assert_eq!(denied.diagnostic.code, "SNAPBACK_AUTH_GRANT_SCOPE_DENIED");
         assert_eq!(denied.diagnostic.details["reason"], "missing_scope");
 
@@ -1959,12 +1987,10 @@ mod tests {
                 InvocationSource::HttpQuery
                 | InvocationSource::HttpMutation
                 | InvocationSource::HttpAction => {
-                    ordinary
-                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                    ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::ConnectionOpen => {
-                    ordinary
-                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                    ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::LiveInitialQuery
                 | InvocationSource::StandaloneAcknowledgement
@@ -1974,8 +2000,7 @@ mod tests {
                 | InvocationSource::LiveSupersede
                 | InvocationSource::LiveStream
                 | InvocationSource::OutboxDrain => {
-                    ordinary
-                        || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
+                    ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::EphemeralRegister
                 | InvocationSource::EphemeralPublish

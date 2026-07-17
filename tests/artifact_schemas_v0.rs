@@ -331,6 +331,7 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
                 "provider": { "key": "email-code", "available": false },
                 "transports": ["bearer"],
                 "authority": {
+                    "kind": "anonymous",
                     "userId": null,
                     "sessionId": null,
                     "isAuthenticated": false
@@ -592,8 +593,10 @@ fn auth_session_schema_rejects_the_eng_24991_negative_classes() {
 
     // Missing nullable nested members reject.
     for (parent, member) in [
+        (vec!["authority"], "kind"),
         (vec!["authority"], "userId"),
         (vec!["authority"], "sessionId"),
+        (vec!["authority"], "isAuthenticated"),
         (vec!["availability", "onlineRequestResponse"], "reason"),
         (
             vec!["availability", "authScopedLive"],
@@ -644,6 +647,51 @@ fn auth_session_schema_rejects_the_eng_24991_negative_classes() {
     generation_too_large["authorityDescriptor"]["sessionGeneration"] =
         json!(9_007_199_254_740_992_u64);
     assert_rejects("auth.session.output.schema.json", &generation_too_large);
+}
+
+#[test]
+fn auth_session_schema_closes_mode_authority_and_descriptor_generation_together() {
+    let corpus: Value =
+        serde_json::from_str(AUTH_SESSION_PARITY_CORPUS).expect("parse parity corpus");
+    let dev = &corpus["bases"]["settledDevAnonymous"];
+    let human = &corpus["bases"]["settledSessionsAuthenticated"];
+    assert_validates("auth.session.output.schema.json", dev);
+    assert_validates("auth.session.output.schema.json", human);
+
+    let mut dev_human = human.clone();
+    dev_human["activeMode"] = json!("dev");
+    assert_rejects("auth.session.output.schema.json", &dev_human);
+
+    let mut service = human.clone();
+    service["authority"] = json!({
+        "kind": "servicePrincipal",
+        "userId": "01890f3c-9d5b-7000-8000-000000000002",
+        "sessionId": null,
+        "isAuthenticated": true
+    });
+    service["authorityDescriptor"]["sessionGeneration"] = json!(0);
+    assert_validates("auth.session.output.schema.json", &service);
+
+    let mut dev_service = service.clone();
+    dev_service["activeMode"] = json!("dev");
+    assert_rejects("auth.session.output.schema.json", &dev_service);
+
+    let mut anonymous_sessions = dev.clone();
+    anonymous_sessions["activeMode"] = json!("sessions");
+    anonymous_sessions["desiredMode"] = json!("sessions");
+    assert_validates("auth.session.output.schema.json", &anonymous_sessions);
+
+    let mut anonymous_positive = anonymous_sessions;
+    anonymous_positive["authorityDescriptor"]["sessionGeneration"] = json!(1);
+    assert_rejects("auth.session.output.schema.json", &anonymous_positive);
+
+    let mut human_zero = human.clone();
+    human_zero["authorityDescriptor"]["sessionGeneration"] = json!(0);
+    assert_rejects("auth.session.output.schema.json", &human_zero);
+
+    let mut service_positive = service;
+    service_positive["authorityDescriptor"]["sessionGeneration"] = json!(1);
+    assert_rejects("auth.session.output.schema.json", &service_positive);
 }
 
 #[test]

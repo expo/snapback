@@ -143,6 +143,8 @@ pub enum LiveSocketServerFrame {
     AuthError {
         code: LiveAuthErrorCode,
         reason: LiveAuthErrorReason,
+        #[serde(rename = "authorityDisposition")]
+        authority_disposition: LiveAuthorityDisposition,
     },
     /// Answer to a client `ping` (LLP 0034 D1 liveness probe).
     Pong {
@@ -202,6 +204,16 @@ pub enum LiveAuthErrorReason {
     Restore,
     Downgrade,
     ModeTransition,
+}
+
+/// Whether a terminal frame ends only the presented carrier or reflects a
+/// durable authority deletion. Clients may replace an expired/evicted carrier,
+/// but must delete local durable authority state after `durableDelete`.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum LiveAuthorityDisposition {
+    Carrier,
+    DurableDelete,
 }
 
 /// A message a client sends on the live WebSocket. Tagged with `type` (not
@@ -441,6 +453,7 @@ mod tests {
         let terminal = LiveSocketServerFrame::AuthError {
             code: LiveAuthErrorCode::SessionExpired,
             reason: LiveAuthErrorReason::Expired,
+            authority_disposition: LiveAuthorityDisposition::Carrier,
         };
         assert_eq!(
             serde_json::to_value(&terminal).unwrap(),
@@ -448,12 +461,14 @@ mod tests {
                 "kind": "auth_error",
                 "code": "SNAPBACK_AUTH_SESSION_EXPIRED",
                 "reason": "expired",
+                "authorityDisposition": "carrier",
             })
         );
 
         let scoped_token_terminal = LiveSocketServerFrame::AuthError {
             code: LiveAuthErrorCode::ScopedTokenInvalid,
             reason: LiveAuthErrorReason::Revoked,
+            authority_disposition: LiveAuthorityDisposition::DurableDelete,
         };
         assert_eq!(
             serde_json::to_value(&scoped_token_terminal).unwrap(),
@@ -461,7 +476,19 @@ mod tests {
                 "kind": "auth_error",
                 "code": "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
                 "reason": "revoked",
+                "authorityDisposition": "durableDelete",
             })
+        );
+
+        assert!(
+            serde_json::from_value::<LiveSocketServerFrame>(json!({
+                "kind": "auth_error",
+                "code": "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                "reason": "revoked",
+                "authorityDisposition": "durable_delete",
+            }))
+            .is_err(),
+            "the authority disposition is a closed camel-case wire enum"
         );
 
         let pong = LiveSocketServerFrame::Pong {

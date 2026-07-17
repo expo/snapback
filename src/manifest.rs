@@ -392,6 +392,7 @@ impl From<SchemaManifest> for PublicSchemaManifest {
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct TableManifest {
     pub name: String,
     #[serde(default)]
@@ -425,7 +426,7 @@ pub struct TableManifest {
     /// At most one `.membership()` declaration per table. Its presence turns
     /// the table into a system-recognized role-per-resource membership table:
     /// a closed role vocabulary, immutable `(principal, resource)` axes, a
-    /// generated true-unique index, and (M2+) a host-enforced write contract.
+    /// generated true-unique index, and a host-enforced write contract.
     /// Declaring it alongside a hand-written `permissionBacking`/
     /// `permissionFields` is a typed manifest error — the derivation owns the
     /// table.
@@ -495,13 +496,14 @@ pub enum MembershipScope {
 }
 
 /// `lastHolder: { protect: <role> }` — the protected role's *eligible* holder
-/// set may never be left empty for any live resource. M1 records and validates
-/// the declaration shape (see `validate_schema`); the transition-time and
-/// concurrency enforcement is M2 write-path work.
+/// set may never be left empty for any live resource. Schema activation
+/// validates the declaration and existing rows; the write path preserves the
+/// invariant with commit-time concurrency checks.
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   protected role never empties; establishment requires `bootstrapRole == R`.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MembershipLastHolder {
     pub protect: String,
 }
@@ -512,8 +514,9 @@ pub struct MembershipLastHolder {
 /// non-escalating, so a `downgradeTo:` effect is a manifest error.
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only
-///   in v1; the sweep itself is M2/M4 host work.
+///   in v1; the host owns the rollback-checked sweep.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MembershipExpiry {
     pub field: String,
     /// The declared expiry effect. v1 accepts exactly `"remove"`; any other
@@ -523,9 +526,9 @@ pub struct MembershipExpiry {
 }
 
 /// The two host-filled attribution levels. `authorityCreating` (LLP 0055)
-/// requires `full`. M1 models the level on the declaration and enforces the
-/// `incidental` floor over the (future) generated provenance columns; the
-/// host-filled columns and the append-only transition log are M5 work.
+/// requires `full`. Schema validation enforces the `incidental` floor over
+/// the generated provenance columns; the membership writer fills those
+/// columns and records the append-only transition log.
 ///
 /// @ref LLP 0056#agents — creation attribution vs. the append-only transition
 ///   log; `full` is `authorityCreating`'s precondition.
@@ -536,9 +539,9 @@ pub enum MembershipProvenance {
     Full,
 }
 
-/// The op a transition governs. Modeled and shape-validated in M1; the host
-/// evaluation of the matrix (caller-class derivation, target binding, witness
-/// capture) is M2.
+/// The op a transition governs. The manifest loader shape-validates it, and
+/// the host evaluates the matrix with caller-class derivation, target binding,
+/// and witness capture at the central membership write seam.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum MembershipOp {
@@ -570,14 +573,16 @@ pub enum MembershipTarget {
 }
 
 /// One row of the closed, declaration-level transition matrix (`op` × caller
-/// class × self/other × `from`→`to`, or `patch` × `fields`). M1 parses and
+/// class × self/other × `from`→`to`, or `patch` × `fields`). Manifest loading
 /// **shape-validates** every entry — chiefly that no unknown role hides in
 /// `by`/`from`/`to` and no undeclared column hides in `fields`, so the closed
-/// vocabulary holds. The runtime evaluation of the matrix is M2.
+/// vocabulary holds. The runtime evaluates this same matrix for every
+/// declaration-bound membership write.
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
-///   policy is declared, closed by default, enforced by the host in M2.
+///   policy is declared, closed by default, and enforced by the host.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MembershipTransition {
     pub op: MembershipOp,
     /// Caller classes: a declared role, or the reserved classes `"self"` /
@@ -598,15 +603,16 @@ pub struct MembershipTransition {
 /// and `validate_membership_activation` for the fail-closed scan over existing
 /// data.
 ///
-/// M1 owns: the declaration shape, `v.principal()`, the generated true-unique
-/// `(principal, resource)` index, the stable id, and the activation scan. The
-/// write contract (transition execution, generated methods, raw-write
-/// refusal), the rule helpers, invalidation wiring, and provenance columns are
-/// M2–M5 and deliberately **not** implemented here.
+/// The public authoring path emits this exact shape from `.membership()`,
+/// including nominal `v.principal()` / `v.id(table)` axes. Schema activation
+/// validates existing rows and installs the generated indexes; the host then
+/// enforces transition writes, declaration-bound reads, invalidation, and
+/// provenance below every app writer.
 ///
 /// @ref LLP 0056#declaring-a-membership-table — the recognized membership
 ///   shape and its closed, non-null, exact-decoded vocabulary.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MembershipManifest {
     /// Stable declaration id. Absent means it defaults from the table name
     /// (see [`MembershipManifest::effective_id`]); pin it with `id:` to keep a
@@ -656,16 +662,17 @@ pub struct MembershipManifest {
     pub incidental: Option<Vec<String>>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provenance: Option<MembershipProvenance>,
-    /// The closed transition matrix. Shape-validated in M1; executed in M2.
+    /// The closed transition matrix. Shape-validated at manifest load and
+    /// executed at the central membership write seam.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub transitions: Vec<MembershipTransition>,
     #[serde(default)]
     pub scope: MembershipScope,
     /// The resource table the `resource` axis references (`v.id("events")`).
     /// Present for `scope: "resource"`; absent for `scope: "app"`. Used by the
-    /// activation scan's referential-integrity check. Codegen fills this from
-    /// `v.id(...)` once the LLP 0004 authoring spelling lands; until then a
-    /// declaration may set it directly.
+    /// activation scan's referential-integrity check. Codegen derives it from
+    /// the nominal `v.id(...)` resource-axis declaration; direct manifests are
+    /// still validated against the same binding.
     #[serde(
         default,
         rename = "resourceTable",
@@ -718,6 +725,16 @@ pub enum FieldType {
     /// @ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal
     ///   typing over the principal-id string space, not an existence check.
     Principal,
+    /// `v.id("table")` — a nominal application-table id. The value remains a
+    /// string on SQLite and the public wire, while the target table travels in
+    /// the manifest so membership resource bindings and helper arguments can
+    /// be checked rather than inferred from a bare string.
+    ///
+    /// @ref LLP 0056#rule-helpers — resource references must name the same
+    ///   declared resource type; a plain string cannot prove that equality.
+    Id {
+        table: String,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -2177,6 +2194,7 @@ pub struct QueryPlan {
 ///   admitted `DatabaseCaptured` declarative expression kind, snapshot-bound,
 ///   with the pinned empty-result capture.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct MembershipPredicate {
     /// The stable declaration id this predicate binds to
     /// (`MembershipManifest::effective_id`).
@@ -2197,7 +2215,7 @@ pub struct MembershipPredicate {
 ///
 /// @ref LLP 0056#rule-helpers — the two analyzable resource-reference forms.
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub enum MembershipResourceRef {
     /// A column of the queried (primary) table whose type is the declared
     /// resource reference. The per-row semi-join; v1 captures a **conservative
@@ -2208,7 +2226,17 @@ pub enum MembershipResourceRef {
     /// resource is fixed for the whole query, so v1 captures the fine-grained
     /// `(principal, resource)` index-range dependency, including the
     /// empty-result form.
-    Arg(String),
+    Arg {
+        /// Dotted query-argument path evaluated at invocation time.
+        path: String,
+        /// Nominal resource type proven by codegen. Resource-scoped
+        /// declarations require their exact `resourceTable`; app-scoped
+        /// declarations require `null` and the closed synthetic path. Carrying
+        /// this provenance in the installed artifact keeps a hand-written
+        /// manifest from silently degrading an `Id<table>` to a bare string.
+        #[serde(rename = "resourceTable", alias = "resource_table")]
+        resource_table: Option<String>,
+    },
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -3456,8 +3484,7 @@ impl CapabilityManifest {
             auth_mode: AuthMode::Dev,
         }];
         manifest.auth_protocols = None;
-        manifest.hosted_auth =
-            crate::auth::deployment::HostedAuthCapabilities::no_auth_target();
+        manifest.hosted_auth = crate::auth::deployment::HostedAuthCapabilities::no_auth_target();
         manifest.storage_engine = "durable-object-sqlite".to_owned();
         manifest.runtime_engine = "v8".to_owned();
         manifest.local_server_lifecycle = false;
@@ -3664,5 +3691,147 @@ impl ArtifactDiagnosticExt for SnapbackError {
             "inputsHash": inputs_hash,
         });
         self
+    }
+}
+
+#[cfg(test)]
+mod membership_manifest_grammar_tests {
+    use super::*;
+    use serde_json::json;
+
+    fn table_json() -> Value {
+        json!({
+            "name": "eventMembers",
+            "fields": [
+                { "name": "userId", "field_type": "Principal", "optional": false },
+                { "name": "eventId", "field_type": { "Id": { "table": "events" } }, "optional": false },
+                { "name": "role", "field_type": "String", "optional": false },
+                { "name": "expiresAt", "field_type": "Integer", "optional": true }
+            ],
+            "membership": {
+                "principal": "userId",
+                "resource": "eventId",
+                "resourceTable": "events",
+                "role": "role",
+                "roles": ["host", "guest"],
+                "bootstrapRole": "host",
+                "lastHolder": { "protect": "host" },
+                "expiry": { "field": "expiresAt", "onExpiry": "remove" },
+                "transitions": [{
+                    "op": "patch",
+                    "by": ["host"],
+                    "target": "other",
+                    "from": ["guest"],
+                    "fields": ["expiresAt"]
+                }]
+            }
+        })
+    }
+
+    #[test]
+    fn membership_security_grammar_rejects_unknown_fields_at_every_layer() {
+        let mut cases = Vec::new();
+
+        let mut outer = table_json();
+        outer
+            .as_object_mut()
+            .unwrap()
+            .insert("membershp".into(), json!({}));
+        cases.push(outer);
+
+        for (path, typo) in [
+            ("membership", "resourceTabel"),
+            ("membership", "lastHodler"),
+            ("lastHolder", "unknown"),
+            ("expiry", "unknown"),
+            ("transition", "frmo"),
+            ("transition", "unknown"),
+        ] {
+            let mut value = table_json();
+            let membership = value["membership"].as_object_mut().unwrap();
+            match path {
+                "membership" => {
+                    membership.insert(typo.into(), json!(null));
+                }
+                "lastHolder" => {
+                    membership["lastHolder"]
+                        .as_object_mut()
+                        .unwrap()
+                        .insert(typo.into(), json!(true));
+                }
+                "expiry" => {
+                    membership["expiry"]
+                        .as_object_mut()
+                        .unwrap()
+                        .insert(typo.into(), json!(true));
+                }
+                "transition" => {
+                    membership["transitions"][0]
+                        .as_object_mut()
+                        .unwrap()
+                        .insert(typo.into(), json!(["guest"]));
+                }
+                _ => unreachable!(),
+            }
+            cases.push(value);
+        }
+
+        for value in cases {
+            assert!(
+                serde_json::from_value::<TableManifest>(value).is_err(),
+                "unknown security field must fail closed"
+            );
+        }
+    }
+
+    #[test]
+    fn nominal_id_field_round_trips_its_target_table() {
+        let field = FieldType::Id {
+            table: "events".to_owned(),
+        };
+        let encoded = serde_json::to_value(&field).expect("serialize nominal id");
+        assert_eq!(encoded, json!({ "Id": { "table": "events" } }));
+        assert_eq!(
+            serde_json::from_value::<FieldType>(encoded).expect("parse nominal id"),
+            field
+        );
+    }
+
+    #[test]
+    fn membership_argument_resource_ref_carries_nominal_table_provenance() {
+        let resource = MembershipResourceRef::Arg {
+            path: "event.id".to_owned(),
+            resource_table: Some("events".to_owned()),
+        };
+        let encoded = serde_json::to_value(&resource).expect("serialize resource ref");
+        assert_eq!(
+            encoded,
+            json!({
+                "arg": {
+                    "path": "event.id",
+                    "resourceTable": "events"
+                }
+            })
+        );
+        assert_eq!(
+            serde_json::from_value::<MembershipResourceRef>(encoded)
+                .expect("parse nominal resource ref"),
+            resource
+        );
+        assert!(
+            serde_json::from_value::<MembershipResourceRef>(json!({ "arg": "event.id" })).is_err(),
+            "the old bare-string artifact shape erased nominal provenance"
+        );
+        assert!(
+            serde_json::from_value::<MembershipResourceRef>(json!({
+                "arg": {
+                    "path": "event.id",
+                    "resourceTable": "events",
+                    "resourceTabel": "projects"
+                }
+            }))
+            .is_err(),
+            "unknown fields inside the authorization reference fail closed"
+        );
     }
 }

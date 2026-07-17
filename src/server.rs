@@ -9,17 +9,17 @@ use crate::auth::coordinator::{
     IssuanceFinish, RevocationFinish, RotationFinish,
 };
 use crate::auth::crypto::{
-    AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer,
-    classify_credential, dispatch_credential_class,
+    AgentCredential, CredentialClass, PairingCode, ScopedToken, SessionBearer, classify_credential,
+    dispatch_credential_class,
 };
 use crate::auth::descriptor::descriptor_for_resolved_authority;
 use crate::auth::handshake::{
-    AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionFacts,
-    AuthSessionResponse,
+    AUTH_PROTOCOL_V1, AuthClientProtocolOffers, AuthSessionAuthority, AuthSessionAuthorityKind,
+    AuthSessionFacts, AuthSessionResponse,
 };
 use crate::auth::invocation::{
-    FunctionAttribution, InvocationGate, InvocationSource,
-    PreparedAuthority, ResolvedAppAuthority, WireAuthorityFields,
+    FunctionAttribution, InvocationGate, InvocationSource, PreparedAuthority, ResolvedAppAuthority,
+    WireAuthorityFields,
 };
 use crate::auth::lease::{
     AUTHORIZED_LEASE_PROTOCOL_VERSION, AuthorizedLease, AuthorizedLeaseRequestIdentity,
@@ -27,8 +27,7 @@ use crate::auth::lease::{
 use crate::auth::provider::{
     AddressAdmission, AuthProvider, AuthProviderReadiness, CredentialIssue, ExchangeAdmission,
     PlannedExchange, PlannedFamilyAlarmCommit, PlannedLogout, PlannedRefresh,
-    PlannedRevocationCommit, ProviderError, StepUpBinding,
-    auth_required as provider_auth_required,
+    PlannedRevocationCommit, ProviderError, StepUpBinding, auth_required as provider_auth_required,
     credential_superseded as provider_credential_superseded,
     refresh_superseded as provider_refresh_superseded, session_expired as provider_session_expired,
 };
@@ -52,8 +51,8 @@ use crate::local::{
     AuthorizationInvalidationManualRetryInput, ConfigVerifyStage, DetachedMutationRead,
     EnsureAppExplicitInput, EnsureAppMode, EnsureAppRequest, EnsureAppResponse, EphemeralApi,
     FunctionRunResult, InspectState, LiveInvalidationAdmission, LiveResumeInput,
-    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, PreparedAuthProvision, StagedAction,
-    MaintenanceOperation, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
+    LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MaintenanceOperation,
+    PreparedAuthProvision, StagedAction, StagedAppAction, StagedConfigVerify, StagedNestedMutation,
     live_stream_text,
 };
 use crate::manifest::{
@@ -76,8 +75,8 @@ use axum::{
 };
 use futures_util::{SinkExt, StreamExt};
 use http_body::Body as HttpBody;
-use serde::{Deserialize, Serialize};
 use serde::ser::SerializeStruct as _;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::convert::Infallible;
 use std::future::Future;
@@ -959,8 +958,7 @@ struct ConnectionRegistryState {
     used: std::collections::BTreeSet<(u64, String)>,
     anonymous_grants: std::collections::HashMap<String, std::collections::BTreeSet<String>>,
     session_grants: std::collections::HashMap<BoundSessionKey, std::collections::BTreeSet<String>>,
-    service_token_grants:
-        std::collections::HashMap<String, std::collections::BTreeSet<String>>,
+    service_token_grants: std::collections::HashMap<String, std::collections::BTreeSet<String>>,
     anonymous_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     unknown_open_attempts: std::collections::HashMap<String, std::collections::VecDeque<Instant>>,
     session_open_attempts:
@@ -1396,11 +1394,7 @@ pub(crate) struct BoundConnectionTerminalCapture {
 
 impl BoundConnectionTerminalCapture {
     fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
-        match (
-            &self.session_id,
-            self.generation,
-            &self.service_token_id,
-        ) {
+        match (&self.session_id, self.generation, &self.service_token_id) {
             (Some(session_id), Some(generation), None) => {
                 crate::ephemeral::ConnectionEffectFence::session(
                     self.authorization_stream_incarnation.clone(),
@@ -1504,22 +1498,43 @@ impl AuthTerminalLifecycle {
 
     fn expire_sessions(&self, expired: Vec<crate::auth::session_projection::ExpiredSession>) {
         for expired in expired {
-            self.terminate_session_generation(
+            self.terminate_session_generation_for_disposition(
                 &expired.authorization_stream_incarnation,
                 &expired.session_id,
                 expired.generation,
                 crate::live_wire::LiveAuthErrorReason::Expired,
+                crate::live_wire::LiveAuthorityDisposition::Carrier,
                 expired.close_by,
             );
         }
     }
 
+    #[cfg(test)]
     pub(crate) fn terminate_session_generation(
         &self,
         authorization_stream_incarnation: &str,
         session_id: &str,
         generation: u64,
         reason: crate::live_wire::LiveAuthErrorReason,
+        close_by: Instant,
+    ) {
+        self.terminate_session_generation_for_disposition(
+            authorization_stream_incarnation,
+            session_id,
+            generation,
+            reason,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            close_by,
+        );
+    }
+
+    fn terminate_session_generation_for_disposition(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        generation: u64,
+        reason: crate::live_wire::LiveAuthErrorReason,
+        authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
         let captures = self.connections.invalidate_session_generation(
@@ -1531,6 +1546,7 @@ impl AuthTerminalLifecycle {
             captures,
             crate::live_wire::LiveAuthErrorCode::SessionExpired,
             reason,
+            authority_disposition,
             close_by,
         );
     }
@@ -1539,6 +1555,16 @@ impl AuthTerminalLifecycle {
         self.terminate_service_tokens_for_reason(
             token_ids,
             crate::live_wire::LiveAuthErrorReason::Revoked,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            close_by,
+        );
+    }
+
+    fn evict_service_tokens(&self, token_ids: &[String], close_by: Instant) {
+        self.terminate_service_tokens_for_reason(
+            token_ids,
+            crate::live_wire::LiveAuthErrorReason::Revoked,
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
             close_by,
         );
     }
@@ -1547,6 +1573,7 @@ impl AuthTerminalLifecycle {
         self.terminate_service_tokens_for_reason(
             token_ids,
             crate::live_wire::LiveAuthErrorReason::Expired,
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
             close_by,
         );
     }
@@ -1555,6 +1582,7 @@ impl AuthTerminalLifecycle {
         &self,
         token_ids: &[String],
         reason: crate::live_wire::LiveAuthErrorReason,
+        authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
         let captures = self.connections.invalidate_service_tokens(token_ids);
@@ -1562,6 +1590,7 @@ impl AuthTerminalLifecycle {
             captures,
             crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid,
             reason,
+            authority_disposition,
             close_by,
         );
     }
@@ -1576,6 +1605,7 @@ impl AuthTerminalLifecycle {
             captures,
             crate::live_wire::LiveAuthErrorCode::StreamReset,
             reason,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
             close_by,
         );
     }
@@ -1590,6 +1620,7 @@ impl AuthTerminalLifecycle {
             captures,
             crate::live_wire::LiveAuthErrorCode::ModePending,
             reason,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
             close_by,
         );
     }
@@ -1599,11 +1630,13 @@ impl AuthTerminalLifecycle {
         captures: Vec<BoundConnectionTerminalCapture>,
         code: crate::live_wire::LiveAuthErrorCode,
         reason: crate::live_wire::LiveAuthErrorReason,
+        authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
         let event = crate::ephemeral::DeliveryTerminalEvent {
             code,
             reason,
+            authority_disposition,
             close_by,
         };
         for capture in captures {
@@ -1757,9 +1790,10 @@ impl ConnectionRegistryState {
         window: Duration,
         now: Instant,
     ) -> Result<(), u64> {
-        while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= window
-        }) {
+        while bucket
+            .front()
+            .is_some_and(|attempt| now.saturating_duration_since(*attempt) >= window)
+        {
             bucket.pop_front();
         }
         if bucket.len() >= limit {
@@ -1784,9 +1818,10 @@ impl ConnectionRegistryState {
         window: Duration,
         now: Instant,
     ) {
-        while bucket.front().is_some_and(|attempt| {
-            now.saturating_duration_since(*attempt) >= window
-        }) {
+        while bucket
+            .front()
+            .is_some_and(|attempt| now.saturating_duration_since(*attempt) >= window)
+        {
             bucket.pop_front();
         }
     }
@@ -1928,7 +1963,10 @@ impl ConnectionRegistryState {
             }
         }
         for (token_id, ids) in &self.service_token_grants {
-            assert!(!ids.is_empty(), "service token reverse index has a ghost set");
+            assert!(
+                !ids.is_empty(),
+                "service token reverse index has a ghost set"
+            );
             for connection_id in ids {
                 assert!(matches!(
                     self.grants.get(connection_id).map(|record| &record.authority),
@@ -4132,7 +4170,10 @@ pub const GUIDE_BUILD_COMMIT_HEADER: &str = "x-snapback-server-build-commit";
 fn embedded_guide_response(file: &'static crate::guide::EmbeddedGuideFile) -> Response {
     let mut response = Response::new(Body::from(file.bytes));
     let headers = response.headers_mut();
-    headers.insert(header::CONTENT_TYPE, HeaderValue::from_static(file.content_type));
+    headers.insert(
+        header::CONTENT_TYPE,
+        HeaderValue::from_static(file.content_type),
+    );
     headers.insert(
         HeaderName::from_static(GUIDE_CONTENT_HASH_HEADER),
         HeaderValue::from_static(crate::guide::GUIDE_CONTENT_SHA256),
@@ -4339,8 +4380,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::SensitiveApplicationData,
             ),
-            post(auth_grant_request_approve)
-                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+            post(auth_grant_request_approve).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -4353,8 +4393,7 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
                 LegacyBodyPolicy::NotApplicable,
                 ResponseSensitivity::SensitiveApplicationData,
             ),
-            post(auth_grant_request_deny)
-                .layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
+            post(auth_grant_request_deny).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
         RegisteredRoute::new(
             RouteSpec::new(
@@ -4434,7 +4473,10 @@ fn core_route_registrations() -> Vec<RegisteredRoute> {
             ),
             post(auth_agent_revoke_self).layer(DefaultBodyLimit::max(AUTH_REQUEST_BODY_LIMIT)),
         ),
-        RegisteredRoute::new(app_function_route("POST", "/query/{name}"), post(invoke_query)),
+        RegisteredRoute::new(
+            app_function_route("POST", "/query/{name}"),
+            post(invoke_query),
+        ),
         RegisteredRoute::new(
             app_auth_route("POST", "/query/{name}/authorized-lease"),
             post(invoke_authorized_lease_query),
@@ -4906,8 +4948,7 @@ async fn peek_policy_json_body(
 // below the 30000 ms quiescence deadline (ENG-24988).
 const ADMITTED_BODY_INGEST_DEADLINE_MS: u64 = 20_000;
 const _: () = assert!(
-    ADMITTED_BODY_INGEST_DEADLINE_MS
-        < crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS
+    ADMITTED_BODY_INGEST_DEADLINE_MS < crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS
 );
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -5023,7 +5064,8 @@ impl HttpBody for AdmittedBodyGuard {
         }
         // Frames that already arrived always win the race; the guard only
         // decides what happens while the network has nothing to deliver.
-        if let std::task::Poll::Ready(frame) = std::pin::Pin::new(&mut this.inner).poll_frame(context)
+        if let std::task::Poll::Ready(frame) =
+            std::pin::Pin::new(&mut this.inner).poll_frame(context)
         {
             return std::task::Poll::Ready(frame);
         }
@@ -5550,8 +5592,7 @@ async fn prepare_registered_route_authority(
     let mode_state = runtime.auth_mode_state();
     let active_mode = mode_state.active;
     if active_mode == crate::manifest::AuthMode::Sessions && queued_replay_requested(source, body) {
-        let offered =
-            AuthClientProtocolOffers::from_http_headers(headers).authority_descriptor;
+        let offered = AuthClientProtocolOffers::from_http_headers(headers).authority_descriptor;
         if !runtime.auth_program_readiness().authority_descriptor
             || offered != Some(AUTH_PROTOCOL_V1)
         {
@@ -5651,13 +5692,11 @@ async fn prepare_registered_route_authority(
                         .await?;
                         (ResolvedAppAuthority::from_scoped_token(resolved), None)
                     } else {
-                        if classify_credential(&bearer).is_some_and(|class| {
-                            class != CredentialClass::Session
-                        }) {
+                        if classify_credential(&bearer)
+                            .is_some_and(|class| class != CredentialClass::Session)
+                        {
                             dispatch_credential_class(&bearer, CredentialClass::Session)
-                                .map_err(|error| {
-                                    ApiError::from(error.into_snapback_error())
-                                })?;
+                                .map_err(|error| ApiError::from(error.into_snapback_error()))?;
                             unreachable!("wrong-class dispatch always refuses");
                         }
                         let prepared = if matches!(
@@ -5705,11 +5744,11 @@ async fn prepare_registered_route_authority(
     Ok(Some(match fenced_publication {
         Some(publication) => authority.with_fenced_publication(publication),
         None if source == InvocationSource::BootstrapHandshake => authority
-                .with_authorization_stream_incarnation(
-                    installed_auth_coordinator(runtime)?
-                        .authorization_stream_incarnation()
-                        .map_err(ApiError::from)?,
-                ),
+            .with_authorization_stream_incarnation(
+                installed_auth_coordinator(runtime)?
+                    .authorization_stream_incarnation()
+                    .map_err(ApiError::from)?,
+            ),
         None => authority,
     }))
 }
@@ -5812,9 +5851,7 @@ fn acquire_registered_route_admission(
     } else {
         controller.admit_for_mode(active_mode)
     };
-    admission
-        .map(Some)
-        .map_err(ApiError::from)
+    admission.map(Some).map_err(ApiError::from)
 }
 
 fn finish_registered_response(
@@ -6411,9 +6448,10 @@ async fn enforce_registered_route_policy(
     // the process-local key set without limit.
     if agent_route_throttle_limit(spec.path).is_some() && early_prepared_authority.is_none() {
         let source = agent_body_throttle_source(policy_body.as_ref());
-        if let Err(error) = runtime
-            .connections
-            .consume_agent_route(spec.path, source, Instant::now())
+        if let Err(error) =
+            runtime
+                .connections
+                .consume_agent_route(spec.path, source, Instant::now())
         {
             return finish_registered_response(
                 effective,
@@ -7343,7 +7381,9 @@ async fn auth_grants(
     let now_ms = provider.now_ms();
     Ok(Json(
         with_snapback(&runtime.snapback, move |snapback| {
-            snapback.auth_database_mut().grants_for_user(&user_id, now_ms)
+            snapback
+                .auth_database_mut()
+                .grants_for_user(&user_id, now_ms)
         })
         .await?,
     ))
@@ -7484,7 +7524,7 @@ async fn auth_agent_token(
             .await?
         }
     };
-    runtime.auth_terminal_lifecycle.terminate_service_tokens(
+    runtime.auth_terminal_lifecycle.evict_service_tokens(
         &issued.evicted_token_ids,
         Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
     );
@@ -7557,6 +7597,19 @@ async fn auth_session(
         .to_owned();
     let authority_descriptor =
         descriptor_for_resolved_authority(&resolved_authority, &authorization_stream_incarnation)?;
+    let authority_kind = match &resolved_authority {
+        ResolvedAppAuthority::ServicePrincipal { .. } => AuthSessionAuthorityKind::ServicePrincipal,
+        ResolvedAppAuthority::Session { .. } => AuthSessionAuthorityKind::HumanSession,
+        ResolvedAppAuthority::Anonymous
+        | ResolvedAppAuthority::AdminBypass { .. }
+        | ResolvedAppAuthority::System => AuthSessionAuthorityKind::Anonymous,
+        // BootstrapHandshake never admits dev body impersonation. Refuse if a
+        // future route composition violates that invariant rather than
+        // serializing a shape no closed handshake authority kind can express.
+        ResolvedAppAuthority::DevImpersonation { .. } => {
+            return Err(stale_prepared_authority(&authority).into());
+        }
+    };
     let response = AuthSessionResponse::from_facts(
         AuthSessionFacts {
             server_startup_nonce: runtime.server_startup_nonce().to_owned(),
@@ -7574,6 +7627,7 @@ async fn auth_session(
             provider_key: "email-code".to_owned(),
             provider_ready,
             authority: AuthSessionAuthority {
+                kind: authority_kind,
                 user_id: projection.user_id().map(str::to_owned),
                 session_id: projection.session_id().map(str::to_owned),
                 is_authenticated: projection.is_authenticated(),
@@ -7773,10 +7827,16 @@ fn finish_auth_with_terminal_propagation<T>(
     runtime: &AppState,
     provider: &AuthProvider,
     finish: AuthFinish<T>,
+    authority_disposition: crate::live_wire::LiveAuthorityDisposition,
 ) -> SnapbackResult<T> {
     let (outcome, committed_revocation) = finish.into_parts();
     if let Some(committed_revocation) = committed_revocation {
-        propagate_committed_revocation(runtime, provider, &committed_revocation);
+        propagate_committed_revocation(
+            runtime,
+            provider,
+            &committed_revocation,
+            authority_disposition,
+        );
     }
     outcome
 }
@@ -7785,6 +7845,7 @@ fn propagate_committed_revocation(
     runtime: &AppState,
     provider: &AuthProvider,
     target: &CommittedRevocationTarget,
+    authority_disposition: crate::live_wire::LiveAuthorityDisposition,
 ) {
     let monotonic_now = provider.monotonic_now();
     let close_by = monotonic_now
@@ -7792,11 +7853,12 @@ fn propagate_committed_revocation(
         .unwrap_or(monotonic_now);
     runtime
         .auth_terminal_lifecycle
-        .terminate_session_generation(
+        .terminate_session_generation_for_disposition(
             target.authorization_stream_incarnation(),
             target.session_id(),
             target.predecessor_generation(),
             crate::live_wire::LiveAuthErrorReason::Revoked,
+            authority_disposition,
             close_by,
         );
 }
@@ -7843,7 +7905,12 @@ async fn coordinated_mint_session(
             provider.now_ms(),
             provider.monotonic_now(),
         );
-        match finish_auth_with_terminal_propagation(runtime, provider, finish)? {
+        match finish_auth_with_terminal_propagation(
+            runtime,
+            provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
+        )? {
             IssuanceFinish::Committed(issue) => return Ok(issue),
             IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
                 return Err(auth_provider_unavailable_error());
@@ -7930,8 +7997,13 @@ async fn coordinated_exchange_session(
                     provider.now_ms(),
                     provider.monotonic_now(),
                 );
-                match finish_auth_with_terminal_propagation(runtime, provider, finish)
-                    .map_err(ProviderError::from)?
+                match finish_auth_with_terminal_propagation(
+                    runtime,
+                    provider,
+                    finish,
+                    crate::live_wire::LiveAuthorityDisposition::Carrier,
+                )
+                .map_err(ProviderError::from)?
                 {
                     IssuanceFinish::Committed(issue) => {
                         exchange.finish_exchange_cleanup();
@@ -8210,8 +8282,13 @@ async fn auth_refresh(
                 })
                 .await;
                 let finish = coordinator.finish_revocation(carrier, attempt);
-                match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
-                    .map_err(ApiError::from)?
+                match finish_auth_with_terminal_propagation(
+                    &runtime,
+                    &provider,
+                    finish,
+                    crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                )
+                .map_err(ApiError::from)?
                 {
                     RevocationFinish::Committed { .. } => {
                         return Err(map_provider_error(provider_session_expired()));
@@ -8282,8 +8359,13 @@ async fn auth_logout(
         })
         .await;
         let finish = coordinator.finish_revocation(carrier, attempt);
-        match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
-            .map_err(ApiError::from)?
+        match finish_auth_with_terminal_propagation(
+            &runtime,
+            &provider,
+            finish,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        )
+        .map_err(ApiError::from)?
         {
             RevocationFinish::Committed { outcome, .. } => {
                 let mut response = StatusCode::NO_CONTENT.into_response();
@@ -8426,8 +8508,13 @@ async fn auth_family_alarm(
                     }
                 };
                 let finish = coordinator.finish_revocation(carrier, attempt);
-                match finish_auth_with_terminal_propagation(&runtime, &provider, finish)
-                    .map_err(ApiError::from)?
+                match finish_auth_with_terminal_propagation(
+                    &runtime,
+                    &provider,
+                    finish,
+                    crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                )
+                .map_err(ApiError::from)?
                 {
                     RevocationFinish::Committed { outcome, .. } => {
                         committed_outcome = Some(outcome);
@@ -8578,10 +8665,7 @@ fn router_for_state(state: AppState) -> Router {
         .layer(middleware::from_fn(local_dev_cors))
 }
 
-fn app_from_registrations(
-    registrations: Vec<RegisteredRoute>,
-    state: AppState,
-) -> SnapbackApp {
+fn app_from_registrations(registrations: Vec<RegisteredRoute>, state: AppState) -> SnapbackApp {
     let router = router_from_registrations(registrations, state.clone())
         .with_state(state.clone())
         .layer(middleware::from_fn(local_dev_cors));
@@ -11504,12 +11588,14 @@ async fn invoke_mutation(
             .iter()
             .any(|acknowledged| acknowledged == current_id)
     {
-        return Err(ApiError::from(SnapbackError::error(
-            "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
-            "sync",
-            "the current client mutation id cannot be acknowledged by the same request",
+        return Err(ApiError::from(
+            SnapbackError::error(
+                "SNAPBACK_CLIENT_MUTATION_ACK_OVERLAP",
+                "sync",
+                "the current client mutation id cannot be acknowledged by the same request",
+            )
+            .with_details(json!({ "clientMutationId": current_id })),
         )
-        .with_details(json!({ "clientMutationId": current_id })))
         .with_attribution(attribution));
     }
     // Receipt emission rides the L7 blocking offload: the recording call
@@ -11534,9 +11620,7 @@ async fn invoke_mutation(
             MutationResponse::from_output(output, receipt),
             attribution,
         ))),
-        Err(error) => Err(
-            ApiError::with_receipt(error, receipt).with_attribution(attribution),
-        ),
+        Err(error) => Err(ApiError::with_receipt(error, receipt).with_attribution(attribution)),
     }
 }
 
@@ -11988,6 +12072,7 @@ async fn finish_terminal_live_write(
     let frame = LiveSocketServerFrame::AuthError {
         code: event.code,
         reason: event.reason,
+        authority_disposition: event.authority_disposition,
     };
     let payload = match serde_json::to_string(&frame) {
         Ok(payload) => payload,
@@ -12273,12 +12358,12 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             let delay_ms = deadline_ms.saturating_sub(now_millis());
             (
                 Some(token_id.clone()),
-                Some(Box::pin(tokio::time::sleep(Duration::from_millis(delay_ms)))),
+                Some(Box::pin(tokio::time::sleep(Duration::from_millis(
+                    delay_ms,
+                )))),
             )
         }
-        BoundGrantAuthority::Anonymous { .. } | BoundGrantAuthority::Session { .. } => {
-            (None, None)
-        }
+        BoundGrantAuthority::Anonymous { .. } | BoundGrantAuthority::Session { .. } => (None, None),
     };
 
     // Flush anything enqueued before (or racing) registration under one short
@@ -13979,7 +14064,9 @@ fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
 ) -> Result<T, ApiError> {
     let body = body.map_err(|error| ApiError::request_json_invalid(error.to_string()))?;
     if body.is_empty() {
-        return Err(ApiError::request_json_invalid("request body must not be empty"));
+        return Err(ApiError::request_json_invalid(
+            "request body must not be empty",
+        ));
     }
     let is_json = headers
         .get(header::CONTENT_TYPE)
@@ -13992,8 +14079,7 @@ fn parse_ephemeral_json<T: serde::de::DeserializeOwned>(
         ));
     }
     // Deserialize the original bytes so duplicate fields remain observable.
-    serde_json::from_slice(&body)
-        .map_err(|error| ApiError::request_json_invalid(error.to_string()))
+    serde_json::from_slice(&body).map_err(|error| ApiError::request_json_invalid(error.to_string()))
 }
 
 /// The ephemeral endpoints reach the sharded room authority directly: no
@@ -14025,10 +14111,8 @@ async fn publish_ephemeral(
 ) -> Result<Response, ApiError> {
     let policy_mode = runtime.active_policy_auth_mode();
     let mut request = match policy_mode {
-        PolicyAuthMode::Sessions => {
-            parse_ephemeral_json::<SessionPublishRequest>(&headers, body)?
-                .resolve(authority.resolved())
-        }
+        PolicyAuthMode::Sessions => parse_ephemeral_json::<SessionPublishRequest>(&headers, body)?
+            .resolve(authority.resolved()),
         PolicyAuthMode::Dev => parse_ephemeral_json::<WirePublishRequest>(&headers, body)?
             .resolve(policy_mode, authority.resolved())?,
     };
@@ -14337,6 +14421,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL"
         | "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER"
         | "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED"
+        | "SNAPBACK_MEMBERSHIP_READ_PRIVATE"
         | "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY"
         | "SNAPBACK_PROFILE_FORBIDS" => StatusCode::FORBIDDEN,
         "SNAPBACK_ADMIN_TOKEN_REQUIRED"
@@ -14419,6 +14504,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
+        | "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN"
         | "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN"
         | "SNAPBACK_AUTH_GRANT_STATE_CORRUPT"
         | "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT"
@@ -14549,7 +14635,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         //   schema or nonconforming data), never a server error.
         | "SNAPBACK_MEMBERSHIP_ACTIVATION_DANGLING_RESOURCE"
         | "SNAPBACK_MEMBERSHIP_ACTIVATION_DUPLICATE"
+        | "SNAPBACK_MEMBERSHIP_ACTIVATION_AXIS_MISSING"
         | "SNAPBACK_MEMBERSHIP_ACTIVATION_NULL_AXIS"
+        | "SNAPBACK_MEMBERSHIP_ACTIVATION_TABLE_MISSING"
         | "SNAPBACK_MEMBERSHIP_ACTIVATION_UNKNOWN_ROLE"
         | "SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE"
         | "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE"
@@ -14564,6 +14652,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS"
+        | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_TYPE"
         | "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_ID_COLLISION"
         | "SNAPBACK_MEMBERSHIP_ID_INVALID"
@@ -14582,6 +14671,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_RESERVED_ROLE"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_MISMATCH"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_REQUIRED"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_UNKNOWN"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE"
         | "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER"
         | "SNAPBACK_MEMBERSHIP_ROLE_EMPTY"
@@ -14589,6 +14681,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_ROLE_RESERVED_SEPARATOR"
         | "SNAPBACK_MEMBERSHIP_ROLE_TYPE"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD"
+        | "SNAPBACK_MEMBERSHIP_TRANSITION_EMPTY_SET"
+        | "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER"
         | "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD"
@@ -14686,15 +14780,15 @@ mod tests {
     use super::{
         ACTION_WATCHDOG_DEFAULT_MS, ACTION_WATCHDOG_MAX_MS, ACTION_WORKER_LIMIT_DEFAULT,
         ACTION_WORKER_LIMIT_MAX, ADMITTED_BODY_INGEST_DEADLINE_MS, AdmissionLease,
-        CRON_DISPATCH_CONCURRENCY_DEFAULT,
-        CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant, ConnectionOpenAttempt, DetachedActionHost,
-        DetachedActionWorkerCounters, OpenConnectionRequest, PolicyAuthMode, PreparedAuthority,
-        RealtimeEnvelope, SharedSnapback, SnapbackApp, app, configured_action_worker_limit,
-        configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-        finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
+        CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
+        ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
+        OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
+        SnapbackApp, app, configured_action_worker_limit, configured_cron_dispatch_concurrency,
+        coordinated_app_reset, dispatch_cron_tick_background, finish_registered_response,
+        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+        status_for_diagnostic_code, with_snapback,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -15617,6 +15711,21 @@ mod tests {
                 })),
             )
         };
+        let mut insert_values = BTreeMap::new();
+        insert_values.insert("value".to_owned(), ValueExpr::Arg("value".to_owned()));
+        let mut queued_write = FunctionDefinition::new(
+            "queuedWrite",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "items".to_owned(),
+                    values: insert_values,
+                    bind_id_as: None,
+                }],
+                return_value: Some(ReturnValue::ChangedCount),
+            })),
+        );
+        queued_write.write_set_summary.tables = vec!["items".to_owned()];
         FunctionManifest {
             schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
             app_id: "auth-activation-fixture".to_owned(),
@@ -15628,6 +15737,7 @@ mod tests {
             functions: vec![
                 query("listItems", FunctionKind::Query),
                 query("liveItems", FunctionKind::LiveQuery),
+                queued_write,
             ],
             ..FunctionManifest::default()
         }
@@ -16071,6 +16181,7 @@ mod tests {
         connection_id: &str,
         registration_generation: u64,
         waker: &tokio::sync::Notify,
+        expected_disposition: crate::live_wire::LiveAuthorityDisposition,
     ) {
         tokio::time::timeout(Duration::from_secs(1), waker.notified())
             .await
@@ -16084,6 +16195,7 @@ mod tests {
             crate::live_wire::LiveAuthErrorCode::SessionExpired
         );
         assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
+        assert_eq!(event.authority_disposition, expected_disposition);
         assert!(
             event.close_by
                 <= Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
@@ -16207,8 +16319,8 @@ mod tests {
                 &retained_authority,
                 incarnation.as_str(),
             )
-                .expect("prepared authority descriptor")
-                .authority_instance_id
+            .expect("prepared authority descriptor")
+            .authority_instance_id
         })
         .await;
         let identity = ClientMutationIdentity::for_authority(
@@ -16298,7 +16410,12 @@ mod tests {
         );
         assert_eq!(
             body["authority"],
-            json!({"userId": null, "sessionId": null, "isAuthenticated": false})
+            json!({
+                "kind": "anonymous",
+                "userId": null,
+                "sessionId": null,
+                "isAuthenticated": false,
+            })
         );
 
         let credential = router
@@ -16385,12 +16502,28 @@ mod tests {
             .await
             .unwrap();
         assert!(response.extensions().get::<PreparedAuthority>().is_some());
-        assert!(response.extensions().get::<PreparedAuthority>().unwrap().admission_lease().is_diagnostic());
+        assert!(
+            response
+                .extensions()
+                .get::<PreparedAuthority>()
+                .unwrap()
+                .admission_lease()
+                .is_diagnostic()
+        );
         assert!(response.extensions().get::<AdmissionLease>().is_some());
-        assert!(response.extensions().get::<AdmissionLease>().unwrap().is_diagnostic());
+        assert!(
+            response
+                .extensions()
+                .get::<AdmissionLease>()
+                .unwrap()
+                .is_diagnostic()
+        );
         assert_eq!(pending_controller.snapshot().in_flight, 1);
         let pending_body = response_json(response).await;
-        assert_eq!(pending_body["modeState"], "pendingRestart", "{pending_body:?}");
+        assert_eq!(
+            pending_body["modeState"], "pendingRestart",
+            "{pending_body:?}"
+        );
         assert_eq!(pending_controller.snapshot().in_flight, 0);
     }
 
@@ -16470,6 +16603,7 @@ mod tests {
         assert_eq!(body["authority"]["userId"], credential["session"]["userId"]);
         assert_eq!(body["authority"]["sessionId"], credential["session"]["id"]);
         assert_eq!(body["authority"]["isAuthenticated"], true);
+        assert_eq!(body["authority"]["kind"], "humanSession");
         assert_eq!(body["authorizationStreamIncarnation"], captured_incarnation);
         assert_eq!(
             body["availability"]["onlineRequestResponse"]["reason"],
@@ -16856,9 +16990,7 @@ mod tests {
         );
         assert!(
             elapsed
-                < Duration::from_millis(
-                    crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS
-                ),
+                < Duration::from_millis(crate::auth::admission::AUTH_MODE_QUIESCENCE_TIMEOUT_MS),
             "admitted request lifetime reached the quiescence deadline: {elapsed:?}"
         );
         assert_eq!(response.status(), StatusCode::REQUEST_TIMEOUT);
@@ -18275,7 +18407,7 @@ mod tests {
                     "INSERT INTO _auth_users(
                        id, created_at_ms, kind, display_name, operator_contact,
                        registration_provenance, deactivated_at_ms, owner_user_id
-                     ) VALUES('carrier-user', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
+                     ) VALUES('018f0d90-7b30-7a22-8c33-445566778899', ?1, 'human', NULL, NULL, NULL, NULL, NULL)",
                     rusqlite::params![now_ms as i64],
                 )?;
                 tx.execute(
@@ -18290,20 +18422,26 @@ mod tests {
                      ) VALUES('fn:liveItems', 'liveQuery', 0, 1, 0)",
                     [],
                 )?;
+                tx.execute(
+                    "INSERT INTO _auth_scope_bases(
+                       function_id, kind, generation, present, authority_creating
+                     ) VALUES('fn:queuedWrite', 'mutation', 0, 1, 0)",
+                    [],
+                )?;
                 Ok(())
             })?;
             db.create_agent_principal(
-                "carrier-agent",
+                "018f0d90-7b31-7a22-8c33-445566778899",
                 now_ms,
                 &crate::storage::auth_agents::AgentRegistration {
                     display_name: None,
                     operator_contact: None,
                     registration_provenance: "carrier-test".to_owned(),
-                    owner_user_id: Some("carrier-user".to_owned()),
+                    owner_user_id: Some("018f0d90-7b30-7a22-8c33-445566778899".to_owned()),
                 },
             )?;
             let credential = db.issue_initial_agent_credential(
-                "carrier-agent",
+                "018f0d90-7b31-7a22-8c33-445566778899",
                 now_ms,
                 provider.agent_random_source(),
             )?;
@@ -18313,10 +18451,12 @@ mod tests {
                        id, actor_user_id, effective_user_id, scopes, created_at_ms,
                        expires_at_ms, revoked_at_ms, created_by, request_id,
                        consent_digest, last_used_at_ms
-                     ) VALUES('carrier-grant', 'carrier-agent', 'carrier-user', ?1, ?2, ?3,
+                     ) VALUES('018f0d90-7b32-7a22-8c33-445566778899',
+                              '018f0d90-7b31-7a22-8c33-445566778899',
+                              '018f0d90-7b30-7a22-8c33-445566778899', ?1, ?2, ?3,
                               NULL, 'test', NULL, NULL, ?2)",
                     rusqlite::params![
-                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false}]"#,
+                        r#"[{"fn":"fn:allowed","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false}]"#,
                         now_ms as i64,
                         (now_ms + 60_000) as i64,
                     ],
@@ -18325,7 +18465,7 @@ mod tests {
             })?;
             let issued = db.mint_scoped_token(
                 &credential.secret,
-                "carrier-grant",
+                "018f0d90-7b32-7a22-8c33-445566778899",
                 None,
                 now_ms,
                 provider.agent_random_source(),
@@ -18354,8 +18494,66 @@ mod tests {
             .unwrap();
         assert_eq!(handshake.status(), StatusCode::OK);
         let handshake = response_json(handshake).await;
+        assert_eq!(handshake["authority"]["kind"], "servicePrincipal");
+        assert_eq!(handshake["authority"]["isAuthenticated"], true);
+        assert_eq!(
+            handshake["authority"]["userId"],
+            "018f0d90-7b30-7a22-8c33-445566778899"
+        );
+        assert_eq!(handshake["authority"]["sessionId"], Value::Null);
         assert_eq!(handshake["authorityDescriptor"]["descriptorVersion"], 1);
         assert_eq!(handshake["authorityDescriptor"]["sessionGeneration"], 0);
+        let authority_descriptor = handshake["authorityDescriptor"].clone();
+
+        // This is the real HTTP shape emitted by AgentAuthorityFence: the
+        // scoped bearer remains the credential, while queued replay carries
+        // the exact descriptor learned from /auth/session. The server must
+        // preserve the agent/effective-user attribution through the durable
+        // idempotency and receipt boundary.
+        let queued = connection_router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/mutation/queuedWrite")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-authority-descriptor-protocol", "1")
+                    .body(Body::from(
+                        serde_json::to_vec(&json!({
+                            "args": { "value": "queued-agent-visible" },
+                            "clientMutationId": "cm_agent_queued_1",
+                            "authorityDescriptor": authority_descriptor,
+                        }))
+                        .unwrap(),
+                    ))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        let queued_status = queued.status();
+        let queued = response_json(queued).await;
+        assert_eq!(
+            queued_status,
+            StatusCode::OK,
+            "unexpected scoped queued mutation response: {queued}"
+        );
+        assert_eq!(queued["changed_count"], 1);
+        assert_eq!(queued["receipt"]["kind"], "mutation");
+        assert_eq!(queued["receipt"]["mutationId"], "cm_agent_queued_1");
+        assert_eq!(queued["receipt"]["mutation"], "queuedWrite");
+        assert_eq!(queued["receipt"]["outcome"], "confirmed");
+        assert_eq!(queued["receipt"]["transport"], "http");
+        assert_eq!(
+            queued["attribution"],
+            json!({
+                "actorUserId": "018f0d90-7b31-7a22-8c33-445566778899",
+                "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
+                "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
+                "dryRun": false
+            })
+        );
 
         let opened = connection_router
             .clone()
@@ -18409,7 +18607,14 @@ mod tests {
             StatusCode::OK,
             "unexpected service live response: {subscribed}"
         );
-        assert_eq!(subscribed["snapshot"]["rows"][0]["value"], "predecessor-visible");
+        let subscribed_values = subscribed["snapshot"]["rows"]
+            .as_array()
+            .expect("live snapshot rows")
+            .iter()
+            .filter_map(|row| row["value"].as_str())
+            .collect::<BTreeSet<_>>();
+        assert!(subscribed_values.contains("predecessor-visible"));
+        assert!(subscribed_values.contains("queued-agent-visible"));
         assert!(subscribed["authorizationScope"].is_object());
 
         let wrong_open = connection_router
@@ -18473,16 +18678,22 @@ mod tests {
             .unwrap();
         assert_eq!(allowed.status(), StatusCode::OK);
         let projection = response_json(allowed).await;
-        assert_eq!(projection["userId"], "carrier-user");
+        assert_eq!(projection["userId"], "018f0d90-7b30-7a22-8c33-445566778899");
         assert_eq!(projection["kind"], "human");
-        assert_eq!(projection["actor"]["userId"], "carrier-agent");
-        assert_eq!(projection["actor"]["grantId"], "carrier-grant");
+        assert_eq!(
+            projection["actor"]["userId"],
+            "018f0d90-7b31-7a22-8c33-445566778899"
+        );
+        assert_eq!(
+            projection["actor"]["grantId"],
+            "018f0d90-7b32-7a22-8c33-445566778899"
+        );
         assert_eq!(
             projection["attribution"],
             json!({
-                "actorUserId": "carrier-agent",
-                "effectiveUserId": "carrier-user",
-                "grantId": "carrier-grant",
+                "actorUserId": "018f0d90-7b31-7a22-8c33-445566778899",
+                "effectiveUserId": "018f0d90-7b30-7a22-8c33-445566778899",
+                "grantId": "018f0d90-7b32-7a22-8c33-445566778899",
                 "dryRun": false
             })
         );
@@ -18560,8 +18771,8 @@ mod tests {
             .expect("register exact service socket");
         let revocation = with_snapback(&state.snapback, |snapback| {
             snapback.auth_database_mut().revoke_grant_for_user(
-                "carrier-user",
-                "carrier-grant",
+                "018f0d90-7b30-7a22-8c33-445566778899",
+                "018f0d90-7b32-7a22-8c33-445566778899",
                 super::now_millis(),
             )
         })
@@ -18585,6 +18796,10 @@ mod tests {
         assert_eq!(
             terminal.reason,
             crate::live_wire::LiveAuthErrorReason::Revoked
+        );
+        assert_eq!(
+            terminal.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete
         );
         assert!(
             state
@@ -19410,11 +19625,7 @@ mod tests {
             None,
         );
         offer_auth_client_protocol(&mut ordinary_request);
-        let ordinary = router
-            .clone()
-            .oneshot(ordinary_request)
-            .await
-            .unwrap();
+        let ordinary = router.clone().oneshot(ordinary_request).await.unwrap();
         let ordinary_status = ordinary.status();
         let ordinary = response_json(ordinary).await;
         assert_eq!(ordinary_status, StatusCode::OK, "{ordinary}");
@@ -19459,11 +19670,7 @@ mod tests {
             None,
         );
         offer_auth_client_protocol(&mut pairing_request);
-        let pairing = router
-            .clone()
-            .oneshot(pairing_request)
-            .await
-            .unwrap();
+        let pairing = router.clone().oneshot(pairing_request).await.unwrap();
         let pairing_status = pairing.status();
         let pairing = response_json(pairing).await;
         assert_eq!(pairing_status, StatusCode::OK, "{pairing}");
@@ -19540,7 +19747,14 @@ mod tests {
             terminal.code,
             crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
         );
-        assert_eq!(terminal.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
+        assert_eq!(
+            terminal.reason,
+            crate::live_wire::LiveAuthErrorReason::Revoked
+        );
+        assert_eq!(
+            terminal.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::Carrier
+        );
         assert!(
             notifier
                 .terminal_if_current(&second_connection_id, second_registration)
@@ -19550,9 +19764,12 @@ mod tests {
         {
             let connections = state.connections.lock();
             assert!(!connections.grants.contains_key(&first_connection_id));
-            assert!(connections.grants.get(&second_connection_id).is_some_and(|record| {
-                record.token == second_connection_token
-            }));
+            assert!(
+                connections
+                    .grants
+                    .get(&second_connection_id)
+                    .is_some_and(|record| { record.token == second_connection_token })
+            );
             assert_ne!(first_connection_token, second_connection_token);
             connections.assert_grant_indexes_consistent();
         }
@@ -19570,11 +19787,7 @@ mod tests {
             None,
         );
         offer_auth_client_protocol(&mut pending_request);
-        let pending = router
-            .clone()
-            .oneshot(pending_request)
-            .await
-            .unwrap();
+        let pending = router.clone().oneshot(pending_request).await.unwrap();
         assert_eq!(pending.status(), StatusCode::CONFLICT);
         assert_eq!(
             response_json(pending).await["diagnostic"]["code"],
@@ -19598,11 +19811,7 @@ mod tests {
                 None,
             );
             offer_auth_client_protocol(&mut request);
-            let response = router
-                .clone()
-                .oneshot(request)
-                .await
-                .unwrap();
+            let response = router.clone().oneshot(request).await.unwrap();
             assert_eq!(
                 response_json(response).await["diagnostic"]["code"],
                 "SNAPBACK_AUTH_REQUEST_INVALID"
@@ -19641,12 +19850,21 @@ mod tests {
             terminal.code,
             crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid
         );
-        assert_eq!(terminal.reason, crate::live_wire::LiveAuthErrorReason::Revoked);
-        assert!(!state
-            .connections
-            .lock()
-            .grants
-            .contains_key(&second_connection_id));
+        assert_eq!(
+            terminal.reason,
+            crate::live_wire::LiveAuthErrorReason::Revoked
+        );
+        assert_eq!(
+            terminal.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete
+        );
+        assert!(
+            !state
+                .connections
+                .lock()
+                .grants
+                .contains_key(&second_connection_id)
+        );
     }
 
     /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — the
@@ -19724,7 +19942,10 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(foreign.status(), StatusCode::NO_CONTENT);
-        assert_eq!(foreign.headers()[header::CACHE_CONTROL], "no-store, private");
+        assert_eq!(
+            foreign.headers()[header::CACHE_CONTROL],
+            "no-store, private"
+        );
 
         let before = router
             .clone()
@@ -19754,7 +19975,11 @@ mod tests {
                 ))
                 .await
                 .unwrap();
-            assert_eq!(revoked.status(), StatusCode::NO_CONTENT, "attempt {attempt}");
+            assert_eq!(
+                revoked.status(),
+                StatusCode::NO_CONTENT,
+                "attempt {attempt}"
+            );
             assert_eq!(
                 revoked.headers()[header::CACHE_CONTROL],
                 "no-store, private"
@@ -20030,17 +20255,10 @@ mod tests {
             .unwrap();
         assert_eq!(second_challenge_response.status(), StatusCode::OK);
         let second_challenge = response_json(second_challenge_response).await;
-        let second_challenge_id = second_challenge["challengeId"]
-            .as_str()
-            .unwrap()
-            .to_owned();
-        let second_mailbox = serde_json::to_value(
-            provider
-                .mailbox_entry(&second_challenge_id)
-                .await
-                .unwrap(),
-        )
-        .unwrap();
+        let second_challenge_id = second_challenge["challengeId"].as_str().unwrap().to_owned();
+        let second_mailbox =
+            serde_json::to_value(provider.mailbox_entry(&second_challenge_id).await.unwrap())
+                .unwrap();
         let second_code = second_mailbox["code"].as_str().unwrap().to_owned();
         crate::storage::auth_grants::inject_next_grant_reconciliation_failure(&other_request);
         let unavailable = router
@@ -21295,6 +21513,7 @@ mod tests {
             &connection_id,
             registration_generation,
             waker.as_ref(),
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
         )
         .await;
 
@@ -21386,6 +21605,7 @@ mod tests {
             &connection_id,
             registration_generation,
             waker.as_ref(),
+            crate::live_wire::LiveAuthorityDisposition::Carrier,
         )
         .await;
     }
@@ -21433,6 +21653,10 @@ mod tests {
             .terminal_if_current(&connection_id, registration_generation)
             .expect("expiry terminal event installed");
         assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Expired);
+        assert_eq!(
+            event.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::Carrier
+        );
         assert!(!notifier.is_deliverable(&connection_id, registration_generation));
         let registry = state.connections.lock();
         assert!(!registry.grants.contains_key(&connection_id));
@@ -22501,7 +22725,9 @@ mod tests {
         "SNAPBACK_LIVE_RESUME_FUNCTION_MISMATCH",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_DANGLING_RESOURCE",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_DUPLICATE",
+        "SNAPBACK_MEMBERSHIP_ACTIVATION_AXIS_MISSING",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_NULL_AXIS",
+        "SNAPBACK_MEMBERSHIP_ACTIVATION_TABLE_MISSING",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_UNKNOWN_ROLE",
         "SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE",
         "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE",
@@ -22516,6 +22742,7 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_EMPTY_VOCABULARY",
         "SNAPBACK_MEMBERSHIP_EXPIRY_EFFECT_UNSUPPORTED",
         "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS",
+        "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_TYPE",
         "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_ID_COLLISION",
         "SNAPBACK_MEMBERSHIP_ID_INVALID",
@@ -22534,6 +22761,9 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_RESERVED_ROLE",
         "SNAPBACK_MEMBERSHIP_RESOURCE_AXIS_REQUIRED",
         "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_MISMATCH",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_REQUIRED",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_UNKNOWN",
         "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE",
         "SNAPBACK_MEMBERSHIP_ROLE_CONTROL_CHARACTER",
         "SNAPBACK_MEMBERSHIP_ROLE_EMPTY",
@@ -22541,6 +22771,8 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_ROLE_RESERVED_SEPARATOR",
         "SNAPBACK_MEMBERSHIP_ROLE_TYPE",
         "SNAPBACK_MEMBERSHIP_TRANSITION_AXIS_FIELD",
+        "SNAPBACK_MEMBERSHIP_TRANSITION_EMPTY_SET",
+        "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR",
         "SNAPBACK_MEMBERSHIP_TRANSITION_SELF_ON_OTHER",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_CALLER",
         "SNAPBACK_MEMBERSHIP_TRANSITION_UNKNOWN_FIELD",
@@ -22641,6 +22873,7 @@ mod tests {
         "SNAPBACK_MEMBERSHIP_NO_EFFECTIVE_PRINCIPAL",
         "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER",
         "SNAPBACK_MEMBERSHIP_INSERT_FIELD_DENIED",
+        "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
         "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
         "SNAPBACK_PROFILE_FORBIDS",
     ];
@@ -22750,6 +22983,7 @@ mod tests {
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
+        "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
         "SNAPBACK_AUTH_GRANT_COMMIT_UNCERTAIN",
         "SNAPBACK_AUTH_GRANT_STATE_CORRUPT",
         "SNAPBACK_AUTH_SCOPE_BASIS_CORRUPT",
@@ -22843,6 +23077,7 @@ mod tests {
         "SNAPBACK_MAINTENANCE_JOURNAL_PRUNE_FAILED",
         "SNAPBACK_MAINTENANCE_PERMISSION_RESOLUTION_FAILED",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_STATE_CORRUPT",
+        "SNAPBACK_MEMBERSHIP_FINAL_STATE_SCHEMA_INVALID",
         "SNAPBACK_MEMBERSHIP_PROVENANCE_ROW_INVALID",
         "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
         "SNAPBACK_READY_FILE_PATH_COLLISION",
@@ -22941,10 +23176,9 @@ mod tests {
             ))
             .into_response();
             assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE, "{code}");
-            let body: Value = serde_json::from_slice(
-                &to_bytes(response.into_body(), 64 * 1024).await.unwrap(),
-            )
-            .unwrap();
+            let body: Value =
+                serde_json::from_slice(&to_bytes(response.into_body(), 64 * 1024).await.unwrap())
+                    .unwrap();
             assert_eq!(body["diagnostic"]["code"], code);
         }
     }
@@ -24039,12 +24273,7 @@ globalThis.__snapbackHandlers = {
             Err(60)
         );
         assert_eq!(
-            state.consume_agent_route(
-                path,
-                first.clone(),
-                limit,
-                start + Duration::from_secs(59)
-            ),
+            state.consume_agent_route(path, first.clone(), limit, start + Duration::from_secs(59)),
             Err(1)
         );
 
@@ -24059,12 +24288,7 @@ globalThis.__snapbackHandlers = {
 
         let sibling = "/auth/agents/revoke-self";
         state
-            .consume_agent_route(
-                sibling,
-                first.clone(),
-                agent_paths[sibling],
-                start,
-            )
+            .consume_agent_route(sibling, first.clone(), agent_paths[sibling], start)
             .expect("one route cannot exhaust another route's bucket");
         state
             .consume_agent_route(path, first, limit, start + Duration::from_secs(60))
@@ -24643,21 +24867,23 @@ globalThis.__snapbackHandlers = {
         let (first_generation, first_waker) = notifier
             .register_bound(&first.grant.connection_id, first.grant_id.clone())
             .unwrap();
-        let (second_generation, _) = notifier
+        let (second_generation, second_waker) = notifier
             .register_bound(&second.grant.connection_id, second.grant_id.clone())
             .unwrap();
 
-        state.auth_terminal_lifecycle.terminate_service_tokens(
+        state.auth_terminal_lifecycle.evict_service_tokens(
             &["token-a".to_owned()],
             Instant::now() + Duration::from_secs(5),
         );
         tokio::time::timeout(Duration::from_secs(1), first_waker.notified())
             .await
             .expect("exact carrier wakes");
-        assert!(
-            notifier
-                .terminal_if_current(&first.grant.connection_id, first_generation)
-                .is_some()
+        let terminal = notifier
+            .terminal_if_current(&first.grant.connection_id, first_generation)
+            .expect("evicted carrier receives a terminal event");
+        assert_eq!(
+            terminal.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::Carrier
         );
         assert!(
             notifier
@@ -24680,6 +24906,25 @@ globalThis.__snapbackHandlers = {
             second_act.resolved,
             ResolvedAppAuthority::ServicePrincipal { ref token_id, .. } if token_id == "token-b"
         ));
+
+        state.auth_terminal_lifecycle.expire_service_tokens(
+            &["token-b".to_owned()],
+            Instant::now() + Duration::from_secs(5),
+        );
+        tokio::time::timeout(Duration::from_secs(1), second_waker.notified())
+            .await
+            .expect("expired carrier wakes");
+        let expired = notifier
+            .terminal_if_current(&second.grant.connection_id, second_generation)
+            .expect("expired carrier receives a terminal event");
+        assert_eq!(
+            expired.reason,
+            crate::live_wire::LiveAuthErrorReason::Expired
+        );
+        assert_eq!(
+            expired.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::Carrier
+        );
         state.connections.lock().assert_grant_indexes_consistent();
     }
 
@@ -24718,6 +24963,10 @@ globalThis.__snapbackHandlers = {
             .expect("terminal event installed");
         assert_eq!(event.code, crate::live_wire::LiveAuthErrorCode::StreamReset);
         assert_eq!(event.reason, crate::live_wire::LiveAuthErrorReason::Reset);
+        assert_eq!(
+            event.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete
+        );
         assert_eq!(event.close_by, close_by);
         assert!(!notifier.is_deliverable(&grant.connection_id, generation));
         assert!(
@@ -25328,6 +25577,7 @@ globalThis.__snapbackHandlers = {
                 "kind": "auth_error",
                 "code": "SNAPBACK_AUTH_STREAM_RESET",
                 "reason": "reset",
+                "authorityDisposition": "durableDelete",
             })
         );
         let close = tokio::time::timeout(Duration::from_secs(2), socket.next())

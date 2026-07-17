@@ -1093,6 +1093,7 @@ impl LocalDatabase {
                 "declared restore time is outside the portable timestamp range",
             ));
         }
+        let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self
             .conn
@@ -1134,6 +1135,12 @@ impl LocalDatabase {
             // and pairing secrets permanently non-actionable after restart.
             terminate_agent_authority_in(&tx)?;
         }
+        // A destructive restore may delete the sole live credential family of
+        // an unowned protected holder. Refuse that final state atomically; the
+        // caller must first seat a durably recoverable replacement (or use a
+        // future explicit emergency transfer/quarantine carrier).
+        // @ref LLP 0055#ending-authority-revocation-expiry-deactivation
+        super::auth_agents::validate_protected_membership_final_state(&tx, &schema)?;
         restore_transaction_step_completed(1)?;
 
         // Capture the exact durable predecessor before the destructive hook
@@ -2093,7 +2100,8 @@ mod tests {
             db.inspect_auth_catalog().expect("inspect empty catalog"),
             AuthCatalogState::Uninitialized
         );
-        db.activate_current_auth_catalog().expect("activate catalog");
+        db.activate_current_auth_catalog()
+            .expect("activate catalog");
         db
     }
 
@@ -2312,11 +2320,8 @@ mod tests {
             )
             .unwrap();
 
-        db.apply_auth_restore_declaration(
-            "0197f862-f196-7bb2-b3f0-2a67185dfd20",
-            100,
-        )
-        .unwrap();
+        db.apply_auth_restore_declaration("0197f862-f196-7bb2-b3f0-2a67185dfd20", 100)
+            .unwrap();
 
         for table in [
             "_auth_grant_tokens",
@@ -2327,7 +2332,11 @@ mod tests {
         ] {
             assert_eq!(row_count(&db, table), 0, "restore purged {table}");
         }
-        assert_eq!(row_count(&db, "_auth_users"), 2, "principals are not bearers");
+        assert_eq!(
+            row_count(&db, "_auth_users"),
+            2,
+            "principals are not bearers"
+        );
     }
 
     #[test]
@@ -2500,7 +2509,10 @@ mod tests {
         db.apply_auth_restore_declaration(&Uuid::now_v7().to_string(), 50)
             .unwrap();
 
-        assert_eq!(db.inspect_auth_catalog().unwrap(), AuthCatalogState::ReadyV1);
+        assert_eq!(
+            db.inspect_auth_catalog().unwrap(),
+            AuthCatalogState::ReadyV1
+        );
         assert_eq!(auth_catalog_marker(&db.conn).unwrap().as_deref(), Some("1"));
         assert_eq!(db.auth_session_clock_floor().unwrap(), 1700);
         assert_eq!(
@@ -2743,7 +2755,8 @@ mod tests {
                 params![META_AUTH_CATALOG_VERSION],
             )
             .expect("clear marker");
-        db.activate_current_auth_catalog().expect("activate catalog");
+        db.activate_current_auth_catalog()
+            .expect("activate catalog");
         db.conn
             .execute("DROP INDEX \"_auth_sessions_token_uq\"", [])
             .expect("corrupt index");

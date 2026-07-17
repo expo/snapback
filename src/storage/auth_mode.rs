@@ -153,7 +153,10 @@ fn inject_auth_mode_failure_after_step(step: usize) {
 #[cfg(test)]
 fn inject_before_auth_mode_consume_transaction(callback: impl FnOnce() + 'static) {
     BEFORE_AUTH_MODE_CONSUME_TRANSACTION.with(|slot| {
-        assert!(slot.borrow().is_none(), "auth-mode consume hook must be one-shot");
+        assert!(
+            slot.borrow().is_none(),
+            "auth-mode consume hook must be one-shot"
+        );
         *slot.borrow_mut() = Some(Box::new(callback));
     });
 }
@@ -559,17 +562,13 @@ impl LocalDatabase {
                     require_fresh_seed_target(tx, &current.state)?;
                 }
 
-                // DDL precedes seed, and both precede mode metadata in this transaction.
-                super::validate_membership_activation(tx, &schema_manifest)?;
-                for table in &schema_manifest.tables {
-                    create_or_update_table(tx, table)?;
-                    for index in &table.indexes {
-                        create_index(tx, table, index.name.as_str(), &index.fields, index.unique)?;
-                    }
-                    if let Some((name, fields)) = super::membership_unique_index(table) {
-                        create_index(tx, table, &name, &fields, true)?;
-                    }
-                }
+                // One final-state activation sequence on every deployment lane:
+                // tables/columns -> same-transaction seed -> membership scan ->
+                // generated/user indexes. The scan must judge the state that
+                // will actually activate, and typed duplicate/null/role errors
+                // must precede raw SQLite constraint failures.
+                // @ref LLP 0056#declaring-a-membership-table
+                apply_schema_tables(tx, &schema_manifest)?;
                 transaction_step_completed(0)?;
 
                 let authorization = if let Some(seed) = seed {
@@ -592,6 +591,8 @@ impl LocalDatabase {
                     None
                 };
                 transaction_step_completed(1)?;
+                super::validate_membership_activation(tx, &schema_manifest)?;
+                apply_schema_indexes(tx, &schema_manifest)?;
 
                 let generation = current.state.next_generation()?;
                 let staged = StagedAuthModeRecord {
@@ -1007,7 +1008,7 @@ impl LocalDatabase {
         }
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest)
             || current.state.active_deployment.as_ref() != Some(&deployment);
-        apply_schema_ddl(&tx, &manifest)?;
+        apply_schema_tables(&tx, &manifest)?;
         let mut seeded_changes = Vec::new();
         if let Some(seed) = seed {
             require_fresh_seed_target(&tx, &current.state)?;
@@ -1019,6 +1020,8 @@ impl LocalDatabase {
                 set_version(&tx, next_version)?;
             }
         }
+        super::validate_membership_activation(&tx, &manifest)?;
+        apply_schema_indexes(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let next = AuthModeStateRecord {
@@ -1156,7 +1159,7 @@ impl LocalDatabase {
                     ));
                 }
 
-                apply_schema_ddl(tx, &manifest)?;
+                apply_schema_tables(tx, &manifest)?;
                 if deployment.auth_mode == AuthMode::Sessions {
                     // @ref LLP 0055#grants — basis changes and the activation
                     //   authorization event share this transaction; the
@@ -1202,6 +1205,8 @@ impl LocalDatabase {
                         }
                     }
                 };
+                super::validate_membership_activation(tx, &manifest)?;
+                apply_schema_indexes(tx, &manifest)?;
 
                 let raw = serialize_json(&manifest)?;
                 save_active_manifest_in(tx, &current.state, &raw)?;
@@ -1309,16 +1314,12 @@ impl LocalDatabase {
         if let Some(identity) = &current.state.active_deployment {
             identity.validate_schema_half(&manifest)?;
         }
-        // Fail-closed activation over existing data: a `.membership()`
-        // declaration adopted over a table that already holds rows must find
-        // them conforming (vocabulary, uniqueness, nullability, referential
-        // integrity, lastHolder) or activation is refused with a typed
-        // diagnostic — before the generated unique index DDL would fail with a
-        // raw SQLite error.
-        // @ref LLP 0056#declaring-a-membership-table — activation is fail-closed.
-        super::validate_membership_activation(&tx, &manifest)?;
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
-        apply_schema_ddl(&tx, &manifest)?;
+        apply_schema_tables(&tx, &manifest)?;
+        // Raw dev has no same-activation seed, but it uses the same post-DDL,
+        // pre-index validator as staged and same-mode deployment.
+        super::validate_membership_activation(&tx, &manifest)?;
+        apply_schema_indexes(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
         let authorization_predecessor = if activation_changed {
@@ -1605,9 +1606,15 @@ fn require_fresh_seed_target(conn: &Connection, state: &AuthModeStateRecord) -> 
     Ok(())
 }
 
-fn apply_schema_ddl(tx: &Transaction<'_>, manifest: &SchemaManifest) -> SnapbackResult<()> {
+fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> SnapbackResult<()> {
     for table in &manifest.tables {
         create_or_update_table(tx, table)?;
+    }
+    Ok(())
+}
+
+fn apply_schema_indexes(tx: &Transaction<'_>, manifest: &SchemaManifest) -> SnapbackResult<()> {
+    for table in &manifest.tables {
         for index in &table.indexes {
             create_index(tx, table, index.name.as_str(), &index.fields, index.unique)?;
         }
@@ -1618,6 +1625,9 @@ fn apply_schema_ddl(tx: &Transaction<'_>, manifest: &SchemaManifest) -> Snapback
         // @ref LLP 0056#declaring-a-membership-table — the generated index.
         if let Some((name, fields)) = super::membership_unique_index(table) {
             create_index(tx, table, &name, &fields, true)?;
+        }
+        if let Some((name, fields)) = super::membership_reverse_index(table) {
+            create_index(tx, table, &name, &fields, false)?;
         }
     }
     Ok(())
@@ -1723,7 +1733,10 @@ fn valid_quarantine_code(value: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::manifest::{AuthManifest, FieldManifest, FieldType, TableManifest};
+    use crate::manifest::{
+        AuthManifest, FieldManifest, FieldType, MembershipLastHolder, MembershipManifest,
+        MembershipScope, TableManifest,
+    };
     use serde_json::Map;
     use tempfile::tempdir;
 
@@ -1794,6 +1807,70 @@ mod tests {
             },
             manifest,
         )
+    }
+
+    fn membership_dev_pair() -> (DeploymentIdentity, SchemaManifest) {
+        let (identity, mut manifest) = dev_pair(None);
+        manifest.tables = vec![
+            TableManifest {
+                name: "events".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "title".to_owned(),
+                    field_type: FieldType::String,
+                    optional: true,
+                }],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            },
+            TableManifest {
+                name: "event_members".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "userId".to_owned(),
+                        field_type: FieldType::Principal,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "eventId".to_owned(),
+                        field_type: FieldType::Id {
+                            table: "events".to_owned(),
+                        },
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "role".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: false,
+                permission_backing: false,
+                permission_fields: None,
+                membership: Some(MembershipManifest {
+                    id: None,
+                    principal: "userId".to_owned(),
+                    resource: Some("eventId".to_owned()),
+                    role: "role".to_owned(),
+                    roles: vec!["host".to_owned()],
+                    pending_roles: None,
+                    bootstrap_role: Some("host".to_owned()),
+                    last_holder: Some(MembershipLastHolder {
+                        protect: "host".to_owned(),
+                    }),
+                    expiry: None,
+                    incidental: None,
+                    provenance: None,
+                    transitions: Vec::new(),
+                    scope: MembershipScope::Resource,
+                    resource_table: Some("events".to_owned()),
+                }),
+            },
+        ];
+        (identity, manifest)
     }
 
     fn function_half(identity: &DeploymentIdentity) -> FunctionManifest {
@@ -2091,6 +2168,96 @@ mod tests {
     }
 
     #[test]
+    fn membership_activation_judges_same_transaction_seed_before_indexes() {
+        let (identity, manifest) = membership_dev_pair();
+        let resource = Map::from_iter([
+            ("_id".to_owned(), serde_json::json!("event-1")),
+            ("title".to_owned(), serde_json::json!("seeded")),
+        ]);
+        let holder = Map::from_iter([
+            ("_id".to_owned(), serde_json::json!("member-1")),
+            ("userId".to_owned(), serde_json::json!("alice")),
+            ("eventId".to_owned(), serde_json::json!("event-1")),
+            ("role".to_owned(), serde_json::json!("host")),
+        ]);
+        let complete_seed = SeedData {
+            tables: BTreeMap::from([
+                ("events".to_owned(), vec![resource.clone()]),
+                ("event_members".to_owned(), vec![holder]),
+            ]),
+        };
+        let mut complete = LocalDatabase::memory().unwrap();
+        complete
+            .apply_same_mode_network_deployment(
+                identity.clone(),
+                manifest.clone(),
+                Some(complete_seed),
+            )
+            .expect("holder seeded in the activation transaction");
+
+        let mut incomplete = LocalDatabase::memory().unwrap();
+        let error = incomplete
+            .apply_same_mode_network_deployment(
+                identity,
+                manifest,
+                Some(SeedData {
+                    tables: BTreeMap::from([("events".to_owned(), vec![resource])]),
+                }),
+            )
+            .expect_err("a fresh protected resource cannot activate without its holder");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE"
+        );
+        let table_count: i64 = incomplete
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'table' AND name IN ('events', 'event_members')",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(table_count, 0, "failed activation rolls DDL and seed back");
+    }
+
+    #[test]
+    fn brownfield_membership_activation_treats_a_new_roster_as_empty() {
+        let (_, full) = membership_dev_pair();
+        let mut base = full.clone();
+        base.tables.truncate(1);
+        let mut db = LocalDatabase::memory().unwrap();
+        db.apply_schema(base).unwrap();
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "events".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), serde_json::json!("event-1")),
+                    ("title".to_owned(), serde_json::json!("brownfield")),
+                ])],
+            )]),
+        })
+        .unwrap();
+        let error = db
+            .apply_schema(full)
+            .expect_err("new empty roster must not silently protect existing resources");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_ACTIVATION_UNPROTECTED_RESOURCE"
+        );
+        let membership_table: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema
+                 WHERE type = 'table' AND name = 'event_members'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(membership_table, 0);
+    }
+
+    #[test]
     fn same_mode_network_commit_returns_the_exact_activation_witness_and_floor() {
         let mut database = LocalDatabase::memory().unwrap();
         let (identity, manifest) = dev_pair(None);
@@ -2297,12 +2464,7 @@ mod tests {
             let mut restager = LocalDatabase::open(&hook_path).unwrap();
             restager.unstage_auth_mode().unwrap();
             restager
-                .stage_auth_mode_with_functions(
-                    hook_sessions,
-                    hook_manifest,
-                    &hook_functions,
-                    None,
-                )
+                .stage_auth_mode_with_functions(hook_sessions, hook_manifest, &hook_functions, None)
                 .unwrap();
         });
         let sessions_error = database
@@ -2362,12 +2524,7 @@ mod tests {
             let mut restager = LocalDatabase::open(&hook_path).unwrap();
             restager.unstage_auth_mode().unwrap();
             restager
-                .stage_auth_mode_with_functions(
-                    dev_b,
-                    dev_manifest,
-                    &dev_functions_b,
-                    None,
-                )
+                .stage_auth_mode_with_functions(dev_b, dev_manifest, &dev_functions_b, None)
                 .unwrap();
         });
         let dev_error = database

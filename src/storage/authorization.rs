@@ -183,7 +183,9 @@ mod tests {
                     },
                     FieldManifest {
                         name: "eventId".to_owned(),
-                        field_type: FieldType::String,
+                        field_type: FieldType::Id {
+                            table: "events".to_owned(),
+                        },
                         optional: false,
                     },
                     FieldManifest {

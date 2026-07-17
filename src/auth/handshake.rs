@@ -135,16 +135,29 @@ fn decimal_protocol_offer(
 
 // @ref LLP 0058#exact-response-dto — the schema is the executable client
 // contract: every member is mandatory (nullable is expressed by value, never
-// by omission) and an authenticated authority carries non-empty identifiers.
+// by omission). The authority kind distinguishes a human session from a
+// service principal so admitting the latter's null session id cannot weaken
+// browser-session custody.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum AuthSessionAuthorityKind {
+    Anonymous,
+    HumanSession,
+    ServicePrincipal,
+}
+
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 #[schemars(extend(
-    "required" = ["userId", "sessionId", "isAuthenticated"],
-    "if" = {"properties": {"isAuthenticated": {"const": true}}},
-    "then" = {"properties": {"userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}}},
-    "else" = {"properties": {"userId": {"type": "null"}, "sessionId": {"type": "null"}}}
+    "required" = ["kind", "userId", "sessionId", "isAuthenticated"],
+    "oneOf" = [
+      {"properties": {"kind": {"const": "anonymous"}, "userId": {"type": "null"}, "sessionId": {"type": "null"}, "isAuthenticated": {"const": false}}},
+      {"properties": {"kind": {"const": "humanSession"}, "userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "isAuthenticated": {"const": true}}},
+      {"properties": {"kind": {"const": "servicePrincipal"}, "userId": {"type": "string", "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"}, "sessionId": {"type": "null"}, "isAuthenticated": {"const": true}}}
+    ]
 ))]
 pub struct AuthSessionAuthority {
+    pub kind: AuthSessionAuthorityKind,
     pub user_id: Option<String>,
     pub session_id: Option<String>,
     pub is_authenticated: bool,
@@ -158,9 +171,7 @@ pub struct AuthSessionAuthority {
 pub struct AuthSessionAuthorityDescriptor {
     #[schemars(range(min = 1, max = 1))]
     pub descriptor_version: u64,
-    #[schemars(pattern(
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    ))]
+    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
     pub authority_instance_id: String,
     /// Zero is the anonymous/no-session sentinel; authenticated session
     /// descriptors are positive and every value stays JavaScript-safe.
@@ -181,6 +192,7 @@ impl From<AuthorityDescriptor> for AuthSessionAuthorityDescriptor {
 impl AuthSessionAuthority {
     pub fn anonymous() -> Self {
         Self {
+            kind: AuthSessionAuthorityKind::Anonymous,
             user_id: None,
             session_id: None,
             is_authenticated: false,
@@ -297,6 +309,36 @@ pub struct AuthSessionAvailability {
         "authorityDescriptor",
         "deploymentIdentity",
         "authorizedLease"
+    ],
+    "allOf" = [
+      {
+        "if": {"properties": {"activeMode": {"const": "dev"}}},
+        "then": {"properties": {"authority": {"properties": {"kind": {"const": "anonymous"}}}}}
+      },
+      {
+        "if": {"properties": {"authority": {"properties": {"kind": {"enum": ["humanSession", "servicePrincipal"]}}}}},
+        "then": {"properties": {"activeMode": {"const": "sessions"}}}
+      }
+    ],
+    "oneOf" = [
+      {
+        "properties": {
+          "authority": {"properties": {"kind": {"const": "anonymous"}}},
+          "authorityDescriptor": {"properties": {"sessionGeneration": {"const": 0}}}
+        }
+      },
+      {
+        "properties": {
+          "authority": {"properties": {"kind": {"const": "humanSession"}}},
+          "authorityDescriptor": {"properties": {"sessionGeneration": {"minimum": 1}}}
+        }
+      },
+      {
+        "properties": {
+          "authority": {"properties": {"kind": {"const": "servicePrincipal"}}},
+          "authorityDescriptor": {"properties": {"sessionGeneration": {"const": 0}}}
+        }
+      }
     ]
 ))]
 pub struct AuthSessionResponse {
@@ -307,9 +349,7 @@ pub struct AuthSessionResponse {
     pub protocol_version: u64,
     #[schemars(length(min = 1))]
     pub server_startup_nonce: String,
-    #[schemars(pattern(
-        r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
-    ))]
+    #[schemars(pattern(r"^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"))]
     pub authorization_stream_incarnation: String,
     #[schemars(range(min = 0, max = 9007199254740991_u64))]
     pub transition_generation: u64,

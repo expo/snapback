@@ -16,7 +16,7 @@
 
 use super::LocalDatabase;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use crate::manifest::{MembershipScope, SchemaManifest};
+use crate::manifest::{AuthMode, MembershipScope, SchemaManifest};
 use rusqlite::{Connection, OptionalExtension, params};
 use serde_json::json;
 
@@ -118,10 +118,10 @@ impl LocalDatabase {
     /// replacement first. Re-deactivating an already-deactivated agent is an
     /// idempotent success.
     ///
-    /// @ref LLP 0055#principal-kinds — the predicate is eligibility, not
-    ///   sole-ness (a two-step schedule defeats sole-ness); a holder is eligible
-    ///   iff its principal is not permanently deactivated. Same predicate as
-    ///   LLP 0056 M2's eligible-holder rule, from the other side.
+    /// @ref LLP 0055#principal-kinds — the predicate is durable eligibility,
+    ///   not sole-ness (a two-step schedule defeats sole-ness). The typed
+    ///   precheck is followed by the same transaction-final evaluator used by
+    ///   membership and credential-lifecycle commits.
     pub(crate) fn deactivate_agent(
         &mut self,
         user_id: &str,
@@ -158,6 +158,7 @@ impl LocalDatabase {
                  WHERE id = ?2 AND kind = 'agent' AND deactivated_at_ms IS NULL",
                 params![now_ms as i64, user_id],
             )?;
+            validate_protected_membership_final_state(tx, manifest)?;
             Ok(())
         })
     }
@@ -174,21 +175,97 @@ fn is_deactivated_on(conn: &Connection, user_id: &str) -> rusqlite::Result<bool>
     Ok(matches!(deactivated, Some(Some(_))))
 }
 
-/// LLP 0056 M2 reuses G1's eligibility predicate from the write side: a holder
-/// principal is **eligible** iff it is not permanently deactivated. A principal
-/// absent from `_auth_users` (e.g. a plain human user) is not deactivated, hence
-/// eligible. This is the exact predicate `has_other_eligible_holder` uses, kept
-/// in one module so the two sides can never disagree.
+/// The shared durable-recoverability predicate. In sessions mode a principal
+/// must exist. Humans remain recoverable through their provider identity; an
+/// agent must be active and either owned (the owner re-credential path) or have
+/// a live credential family. Agent-held recovery keys are not yet a catalog
+/// fact, so they cannot be guessed into eligibility. Dev impersonation is the
+/// deliberate exception: it asserts principal existence by fiat.
 ///
 /// @ref LLP 0055#principal-kinds — eligibility, not sole-ness; same predicate as
 ///   LLP 0056 M2's eligible-holder rule.
-pub(crate) fn principal_is_eligible_on(conn: &Connection, principal: &str) -> SnapbackResult<bool> {
-    // No auth catalog means no deactivation state, so every principal is
-    // eligible — the same fallback the activation scan uses.
+pub(crate) fn principal_is_eligible_on(
+    conn: &Connection,
+    principal: &str,
+    require_catalog_principal: bool,
+) -> SnapbackResult<bool> {
     if !table_exists(conn, "_auth_users")? {
+        return Ok(!require_catalog_principal);
+    }
+    let principal_row = conn
+        .query_row(
+            "SELECT kind, deactivated_at_ms, owner_user_id
+             FROM _auth_users WHERE id = ?1",
+            params![principal],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                    row.get::<_, Option<String>>(2)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((kind, deactivated_at_ms, owner_user_id)) = principal_row else {
+        return Ok(!require_catalog_principal);
+    };
+    if deactivated_at_ms.is_some() {
+        return Ok(false);
+    }
+    // Dev impersonation is an explicit local recovery carrier: a live agent
+    // or human principal remains reachable without production credential
+    // material. Sessions/network modes have no such escape hatch and therefore
+    // require one of the durable carriers below.
+    if !require_catalog_principal {
         return Ok(true);
     }
-    Ok(!is_deactivated_on(conn, principal)?)
+    if kind == "human" {
+        if !table_exists(conn, "_auth_identities")? {
+            return Ok(false);
+        }
+        return Ok(conn
+            .query_row(
+                "SELECT 1 FROM _auth_identities
+                 WHERE user_id = ?1 AND provider <> 'agent-credential' LIMIT 1",
+                params![principal],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some());
+    }
+    if kind != "agent" {
+        return Ok(false);
+    }
+    if let Some(owner_user_id) = owner_user_id {
+        let owner_can_recover = conn
+            .query_row(
+                "SELECT 1 FROM _auth_users AS owner
+                 JOIN _auth_identities AS identity ON identity.user_id = owner.id
+                 WHERE owner.id = ?1 AND owner.kind = 'human'
+                   AND owner.deactivated_at_ms IS NULL
+                   AND identity.provider <> 'agent-credential'
+                 LIMIT 1",
+                params![owner_user_id],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        if owner_can_recover {
+            return Ok(true);
+        }
+    }
+    if !table_exists(conn, "_auth_agent_credentials")? {
+        return Ok(false);
+    }
+    Ok(conn
+        .query_row(
+            "SELECT 1 FROM _auth_agent_credentials
+             WHERE user_id = ?1 AND revoked_at_ms IS NULL LIMIT 1",
+            params![principal],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some())
 }
 
 /// The **eligible** holder member rows of the protected role on one resource,
@@ -211,23 +288,11 @@ pub(crate) fn eligible_protected_holder_rows(
     resource: &str,
     protect: &str,
     excluding_principal: &str,
+    require_catalog_principal: bool,
 ) -> SnapbackResult<Vec<(String, u64, String)>> {
-    // The `NOT IN` deactivation filter only applies when the auth catalog
-    // exists; without it, no principal is deactivated so every holder is eligible.
-    let deactivation_filter = if table_exists(conn, "_auth_users")? {
-        format!(
-            "AND m.{principal} NOT IN (
-               SELECT id FROM _auth_users WHERE deactivated_at_ms IS NOT NULL
-             )",
-            principal = quote_ident(principal_column),
-        )
-    } else {
-        String::new()
-    };
     let sql = format!(
         "SELECT m._id, m._version, m.{principal} FROM {table} AS m
          WHERE m.{resource} = ?1 AND m.{role} = ?2 AND m.{principal} <> ?3
-           {deactivation_filter}
          ORDER BY m._id",
         table = quote_ident(table),
         resource = quote_ident(resource_column),
@@ -242,7 +307,14 @@ pub(crate) fn eligible_protected_holder_rows(
             row.get::<_, String>(2)?,
         ))
     })?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let candidates = rows.collect::<Result<Vec<_>, _>>()?;
+    let mut eligible = Vec::new();
+    for candidate in candidates {
+        if principal_is_eligible_on(conn, &candidate.2, require_catalog_principal)? {
+            eligible.push(candidate);
+        }
+    }
+    Ok(eligible)
 }
 
 /// The `lastHolder`-protected resources that deactivating `principal` would
@@ -255,6 +327,7 @@ fn stranded_protected_resources(
     principal: &str,
     manifest: &SchemaManifest,
 ) -> SnapbackResult<Vec<String>> {
+    let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
     let mut stranded = Vec::new();
     for table in &manifest.tables {
         let Some(membership) = &table.membership else {
@@ -281,12 +354,7 @@ fn stranded_protected_resources(
             resource: resource_column,
             role: &membership.role,
         };
-        let held = resources_held_by(
-            conn,
-            columns,
-            principal,
-            protect,
-        )?;
+        let held = resources_held_by(conn, columns, principal, protect)?;
         for resource in held {
             if !has_other_eligible_holder(
                 conn,
@@ -294,6 +362,7 @@ fn stranded_protected_resources(
                 principal,
                 &resource,
                 protect,
+                require_catalog_principal,
             )? {
                 stranded.push(format!("{}:{resource}", table.name));
             }
@@ -334,32 +403,138 @@ fn resources_held_by(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
-/// Whether `resource` still has a holder of the protected role that is neither
-/// `principal` (about to be deactivated) nor a permanently-deactivated agent. A
-/// holder principal absent from `_auth_users` is not deactivated, hence eligible.
+/// Whether `resource` still has a holder of the protected role other than
+/// `principal` (about to be deactivated) that satisfies the shared durable-
+/// recoverability predicate. In sessions mode an absent catalog principal is
+/// ineligible; dev impersonation is the deliberate catalog-free exception.
 fn has_other_eligible_holder(
     conn: &Connection,
     columns: ProtectedMembershipColumns<'_>,
     principal: &str,
     resource: &str,
     protect: &str,
+    require_catalog_principal: bool,
 ) -> SnapbackResult<bool> {
     let sql = format!(
-        "SELECT 1 FROM {table} AS m
+        "SELECT m.{principal} FROM {table} AS m
          WHERE m.{resource} = ?1 AND m.{role} = ?2 AND m.{principal} <> ?3
-           AND m.{principal} NOT IN (
-             SELECT id FROM _auth_users WHERE deactivated_at_ms IS NOT NULL
-           )
-         LIMIT 1",
+         ORDER BY m.{principal}",
         table = quote_ident(columns.table),
         resource = quote_ident(columns.resource),
         role = quote_ident(columns.role),
         principal = quote_ident(columns.principal),
     );
-    Ok(conn
-        .query_row(&sql, params![resource, protect, principal], |_| Ok(()))
-        .optional()?
-        .is_some())
+    let mut statement = conn.prepare(&sql)?;
+    let candidates = statement
+        .query_map(params![resource, protect, principal], |row| {
+            row.get::<_, String>(0)
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    for candidate in candidates {
+        if principal_is_eligible_on(conn, &candidate, require_catalog_principal)? {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+/// Validate the transaction-final protected-holder invariant across every live
+/// resource. Membership writers call this after applying their effects and auth
+/// lifecycle writers use the same predicate from their serialized transaction.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
+///   complete eligible-holder set is a commit-stage property shared with LLP
+///   0055 lifecycle changes, not a planning-time approximation.
+pub(crate) fn validate_protected_membership_final_state(
+    conn: &Connection,
+    manifest: &SchemaManifest,
+) -> SnapbackResult<()> {
+    let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
+    let mut stranded = Vec::new();
+    for table in &manifest.tables {
+        let Some(membership) = &table.membership else {
+            continue;
+        };
+        let Some(last_holder) = &membership.last_holder else {
+            continue;
+        };
+        let resource_column = membership.resource.as_deref().ok_or_else(|| {
+            protected_membership_final_state_invalid(
+                &table.name,
+                "lastHolder requires a resource axis",
+            )
+        })?;
+        let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
+            protected_membership_final_state_invalid(
+                &table.name,
+                "lastHolder requires a resourceTable binding",
+            )
+        })?;
+        if !table_exists(conn, &table.name)? {
+            return Err(protected_membership_final_state_invalid(
+                &table.name,
+                "membership table is absent at the final-state check",
+            ));
+        }
+        if !table_exists(conn, resource_table)? {
+            return Err(protected_membership_final_state_invalid(
+                &table.name,
+                "resource table is absent at the final-state check",
+            ));
+        }
+        let mut resources_statement = conn.prepare(&format!(
+            "SELECT _id FROM {} ORDER BY _id",
+            quote_ident(resource_table)
+        ))?;
+        let resources = resources_statement
+            .query_map([], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?;
+        let holder_sql = format!(
+            "SELECT {principal} FROM {table}
+             WHERE {resource} = ?1 AND {role} = ?2
+             ORDER BY {principal}",
+            principal = quote_ident(&membership.principal),
+            table = quote_ident(&table.name),
+            resource = quote_ident(resource_column),
+            role = quote_ident(&membership.role),
+        );
+        for resource in resources {
+            let mut holder_statement = conn.prepare(&holder_sql)?;
+            let principals = holder_statement
+                .query_map(params![resource, last_holder.protect], |row| {
+                    row.get::<_, String>(0)
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut eligible = false;
+            for principal in principals {
+                if principal_is_eligible_on(conn, &principal, require_catalog_principal)? {
+                    eligible = true;
+                    break;
+                }
+            }
+            if !eligible {
+                stranded.push(format!("{}:{resource}", table.name));
+            }
+        }
+    }
+    if stranded.is_empty() {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND",
+        "auth",
+        "the transaction would leave a protected resource with no durably recoverable holder",
+    )
+    .with_details(json!({ "resources": stranded })))
+}
+
+fn protected_membership_final_state_invalid(table: &str, message: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_MEMBERSHIP_FINAL_STATE_SCHEMA_INVALID",
+        "auth",
+        format!("membership declaration {table:?} cannot be evaluated: {message}"),
+    )
+    .with_details(json!({ "table": table }))
 }
 
 /// Quote a SQLite identifier. Membership table/column names are validated
@@ -404,7 +579,8 @@ mod tests {
 
     fn ready_database() -> LocalDatabase {
         let mut db = LocalDatabase::memory().expect("memory database");
-        db.activate_current_auth_catalog().expect("activate catalog v2");
+        db.activate_current_auth_catalog()
+            .expect("activate catalog v2");
         db
     }
 
@@ -444,6 +620,9 @@ mod tests {
     /// physical app table the eligibility scan reads.
     fn host_membership(db: &LocalDatabase) -> SchemaManifest {
         db.conn
+            .execute("CREATE TABLE events (_id TEXT PRIMARY KEY)", [])
+            .expect("create resource table");
+        db.conn
             .execute(
                 "CREATE TABLE eventMembers (principal TEXT, resource TEXT, role TEXT)",
                 [],
@@ -457,7 +636,8 @@ mod tests {
                     "resource": "resource",
                     "role": "role",
                     "roles": ["host"],
-                    "lastHolder": { "protect": "host" }
+                    "lastHolder": { "protect": "host" },
+                    "resourceTable": "events"
                 }
             }]
         }))
@@ -465,6 +645,12 @@ mod tests {
     }
 
     fn seat(db: &LocalDatabase, principal: &str, resource: &str, role: &str) {
+        db.conn
+            .execute(
+                "INSERT OR IGNORE INTO events(_id) VALUES(?1)",
+                params![resource],
+            )
+            .expect("seat resource");
         db.conn
             .execute(
                 "INSERT INTO eventMembers(principal, resource, role) VALUES(?1, ?2, ?3)",
@@ -492,7 +678,10 @@ mod tests {
         assert_eq!(owner.as_deref(), Some("owner-1"));
         assert!(provenance.contains("\"invitedBy\":\"users\""));
         assert_eq!(deactivated, None);
-        assert_eq!(db.agent_owner("agent-1").unwrap().as_deref(), Some("owner-1"));
+        assert_eq!(
+            db.agent_owner("agent-1").unwrap().as_deref(),
+            Some("owner-1")
+        );
         assert!(!db.agent_is_deactivated("agent-1").unwrap());
     }
 
@@ -597,6 +786,100 @@ mod tests {
         db.deactivate_agent("agent-a", 100, &manifest)
             .expect("another eligible holder remains");
         assert!(db.agent_is_deactivated("agent-a").unwrap());
+    }
+
+    #[test]
+    fn production_does_not_count_a_nonexistent_principal_as_a_surviving_holder() {
+        let mut db = ready_database();
+        let mut manifest = host_membership(&db);
+        manifest.auth = Some(crate::manifest::AuthManifest {
+            mode: AuthMode::Sessions,
+        });
+        create_agent(&mut db, "agent-a", None);
+        seat(&db, "agent-a", "event-1", "host");
+        seat(&db, "missing-agent", "event-1", "host");
+
+        let error = db
+            .deactivate_agent("agent-a", 100, &manifest)
+            .expect_err("an absent catalog row is not durable recovery");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        );
+        assert!(!db.agent_is_deactivated("agent-a").unwrap());
+    }
+
+    #[test]
+    fn sessions_eligibility_requires_a_durable_human_provider_identity() {
+        let mut db = ready_database();
+        seed_human(&db, "human-1");
+        assert!(
+            !principal_is_eligible_on(&db.conn, "human-1", true).unwrap(),
+            "a catalog row alone cannot prove that a human can authenticate"
+        );
+
+        db.conn
+            .execute(
+                "INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES('wrong-class', 'human-1', 'agent-credential', 'credential-x', 0)",
+                [],
+            )
+            .unwrap();
+        assert!(
+            !principal_is_eligible_on(&db.conn, "human-1", true).unwrap(),
+            "an agent-credential identity cannot authenticate a human principal"
+        );
+        db.conn
+            .execute("DELETE FROM _auth_identities WHERE id = 'wrong-class'", [])
+            .unwrap();
+
+        db.conn
+            .execute(
+                "INSERT INTO _auth_identities(
+                   id, user_id, provider, subject, verified_at_ms
+                 ) VALUES('identity-1', 'human-1', 'email-code', 'human@example.com', 0)",
+                [],
+            )
+            .unwrap();
+        assert!(principal_is_eligible_on(&db.conn, "human-1", true).unwrap());
+
+        create_agent(&mut db, "owned-agent", Some("human-1"));
+        assert!(
+            principal_is_eligible_on(&db.conn, "owned-agent", true).unwrap(),
+            "a live owner's provider identity is the owned-agent recovery carrier"
+        );
+
+        db.conn
+            .execute("DELETE FROM _auth_identities WHERE id = 'identity-1'", [])
+            .unwrap();
+        assert!(!principal_is_eligible_on(&db.conn, "human-1", true).unwrap());
+        assert!(
+            !principal_is_eligible_on(&db.conn, "owned-agent", true).unwrap(),
+            "ownership without an authenticating owner identity is not durable recovery"
+        );
+    }
+
+    #[test]
+    fn deactivation_runs_the_shared_transaction_final_holder_evaluator() {
+        let mut db = ready_database();
+        let manifest = host_membership(&db);
+        create_agent(&mut db, "agent-a", None);
+        db.conn
+            .execute("INSERT INTO events(_id) VALUES('already-unprotected')", [])
+            .unwrap();
+
+        let error = db
+            .deactivate_agent("agent-a", 100, &manifest)
+            .expect_err("transaction-final evaluator sees every live resource");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        assert!(
+            !db.agent_is_deactivated("agent-a").unwrap(),
+            "final-state refusal rolls the UPDATE back"
+        );
     }
 
     #[test]

@@ -700,6 +700,27 @@
           "const": "Principal",
           "description": "`v.principal()` — nominal typing over the auth-principal id string space\n(the same space as `ctx.auth.userId`, including LLP 0055 agent\nprincipals). It stores and compares exactly like [`FieldType::String`];\nthe distinct variant lets the schema surface *name* an axis as a\nprincipal reference. It is validated by **shape**, never by a\nforeign-key existence check, because memberships may outlive a\nprincipal's deactivation and LLP 0055 recovery preserves the id.\n\n@ref LLP 0056#declaring-a-membership-table — `v.principal()` is nominal\n  typing over the principal-id string space, not an existence check.",
           "type": "string"
+        },
+        {
+          "additionalProperties": false,
+          "description": "`v.id(\"table\")` — a nominal application-table id. The value remains a\nstring on SQLite and the public wire, while the target table travels in\nthe manifest so membership resource bindings and helper arguments can\nbe checked rather than inferred from a bare string.\n\n@ref LLP 0056#rule-helpers — resource references must name the same\n  declared resource type; a plain string cannot prove that equality.",
+          "properties": {
+            "Id": {
+              "properties": {
+                "table": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "table"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "Id"
+          ],
+          "type": "object"
         }
       ]
     },
@@ -876,7 +897,8 @@
       "type": "object"
     },
     "MembershipExpiry": {
-      "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only\n  in v1; the sweep itself is M2/M4 host work.",
+      "additionalProperties": false,
+      "description": "`expiry: { field, onExpiry }` — a time-bounded membership materialized by\nthe host-bound sweep. In v1 the only `onExpiry` effect is `remove`: with no\ndeclared role ordering the host cannot prove any downgrade is\nnon-escalating, so a `downgradeTo:` effect is a manifest error.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — remove-only\n  in v1; the host owns the rollback-checked sweep.",
       "properties": {
         "field": {
           "type": "string"
@@ -893,7 +915,8 @@
       "type": "object"
     },
     "MembershipLastHolder": {
-      "description": "`lastHolder: { protect: <role> }` — the protected role's *eligible* holder\nset may never be left empty for any live resource. M1 records and validates\nthe declaration shape (see `validate_schema`); the transition-time and\nconcurrency enforcement is M2 write-path work.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  protected role never empties; establishment requires `bootstrapRole == R`.",
+      "additionalProperties": false,
+      "description": "`lastHolder: { protect: <role> }` — the protected role's *eligible* holder\nset may never be left empty for any live resource. Schema activation\nvalidates the declaration and existing rows; the write path preserves the\ninvariant with commit-time concurrency checks.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  protected role never empties; establishment requires `bootstrapRole == R`.",
       "properties": {
         "protect": {
           "type": "string"
@@ -905,7 +928,8 @@
       "type": "object"
     },
     "MembershipManifest": {
-      "description": "The `.membership()` metadata carried by a [`TableManifest`]. See\n`crate::storage`'s `validate_schema` for the declaration-shape enforcement\nand `validate_membership_activation` for the fail-closed scan over existing\ndata.\n\nM1 owns: the declaration shape, `v.principal()`, the generated true-unique\n`(principal, resource)` index, the stable id, and the activation scan. The\nwrite contract (transition execution, generated methods, raw-write\nrefusal), the rule helpers, invalidation wiring, and provenance columns are\nM2–M5 and deliberately **not** implemented here.\n\n@ref LLP 0056#declaring-a-membership-table — the recognized membership\n  shape and its closed, non-null, exact-decoded vocabulary.",
+      "additionalProperties": false,
+      "description": "The `.membership()` metadata carried by a [`TableManifest`]. See\n`crate::storage`'s `validate_schema` for the declaration-shape enforcement\nand `validate_membership_activation` for the fail-closed scan over existing\ndata.\n\nThe public authoring path emits this exact shape from `.membership()`,\nincluding nominal `v.principal()` / `v.id(table)` axes. Schema activation\nvalidates existing rows and installs the generated indexes; the host then\nenforces transition writes, declaration-bound reads, invalidation, and\nprovenance below every app writer.\n\n@ref LLP 0056#declaring-a-membership-table — the recognized membership\n  shape and its closed, non-null, exact-decoded vocabulary.",
       "properties": {
         "bootstrapRole": {
           "description": "The role the creation witness seats. Required to equal `lastHolder`'s\nprotected role when `lastHolder` is declared.",
@@ -983,7 +1007,7 @@
           ]
         },
         "resourceTable": {
-          "description": "The resource table the `resource` axis references (`v.id(\"events\")`).\nPresent for `scope: \"resource\"`; absent for `scope: \"app\"`. Used by the\nactivation scan's referential-integrity check. Codegen fills this from\n`v.id(...)` once the LLP 0004 authoring spelling lands; until then a\ndeclaration may set it directly.",
+          "description": "The resource table the `resource` axis references (`v.id(\"events\")`).\nPresent for `scope: \"resource\"`; absent for `scope: \"app\"`. Used by the\nactivation scan's referential-integrity check. Codegen derives it from\nthe nominal `v.id(...)` resource-axis declaration; direct manifests are\nstill validated against the same binding.",
           "type": [
             "string",
             "null"
@@ -1005,7 +1029,7 @@
           "default": "resource"
         },
         "transitions": {
-          "description": "The closed transition matrix. Shape-validated in M1; executed in M2.",
+          "description": "The closed transition matrix. Shape-validated at manifest load and\nexecuted at the central membership write seam.",
           "items": {
             "$ref": "#/$defs/MembershipTransition"
           },
@@ -1020,7 +1044,7 @@
       "type": "object"
     },
     "MembershipOp": {
-      "description": "The op a transition governs. Modeled and shape-validated in M1; the host\nevaluation of the matrix (caller-class derivation, target binding, witness\ncapture) is M2.",
+      "description": "The op a transition governs. The manifest loader shape-validates it, and\nthe host evaluates the matrix with caller-class derivation, target binding,\nand witness capture at the central membership write seam.",
       "enum": [
         "insert",
         "setRole",
@@ -1030,7 +1054,7 @@
       "type": "string"
     },
     "MembershipProvenance": {
-      "description": "The two host-filled attribution levels. `authorityCreating` (LLP 0055)\nrequires `full`. M1 models the level on the declaration and enforces the\n`incidental` floor over the (future) generated provenance columns; the\nhost-filled columns and the append-only transition log are M5 work.\n\n@ref LLP 0056#agents — creation attribution vs. the append-only transition\n  log; `full` is `authorityCreating`'s precondition.",
+      "description": "The two host-filled attribution levels. `authorityCreating` (LLP 0055)\nrequires `full`. Schema validation enforces the `incidental` floor over\nthe generated provenance columns; the membership writer fills those\ncolumns and records the append-only transition log.\n\n@ref LLP 0056#agents — creation attribution vs. the append-only transition\n  log; `full` is `authorityCreating`'s precondition.",
       "enum": [
         "creation",
         "full"
@@ -1069,7 +1093,8 @@
       ]
     },
     "MembershipTransition": {
-      "description": "One row of the closed, declaration-level transition matrix (`op` × caller\nclass × self/other × `from`→`to`, or `patch` × `fields`). M1 parses and\n**shape-validates** every entry — chiefly that no unknown role hides in\n`by`/`from`/`to` and no undeclared column hides in `fields`, so the closed\nvocabulary holds. The runtime evaluation of the matrix is M2.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  policy is declared, closed by default, enforced by the host in M2.",
+      "additionalProperties": false,
+      "description": "One row of the closed, declaration-level transition matrix (`op` × caller\nclass × self/other × `from`→`to`, or `patch` × `fields`). Manifest loading\n**shape-validates** every entry — chiefly that no unknown role hides in\n`by`/`from`/`to` and no undeclared column hides in `fields`, so the closed\nvocabulary holds. The runtime evaluates this same matrix for every\ndeclaration-bound membership write.\n\n@ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the\n  policy is declared, closed by default, and enforced by the host.",
       "properties": {
         "by": {
           "description": "Caller classes: a declared role, or the reserved classes `\"self\"` /\n`\"none\"`.",
@@ -1947,6 +1972,7 @@
       "type": "object"
     },
     "TableManifest": {
+      "additionalProperties": false,
       "properties": {
         "fields": {
           "default": [],
@@ -1971,7 +1997,7 @@
               "type": "null"
             }
           ],
-          "description": "At most one `.membership()` declaration per table. Its presence turns\nthe table into a system-recognized role-per-resource membership table:\na closed role vocabulary, immutable `(principal, resource)` axes, a\ngenerated true-unique index, and (M2+) a host-enforced write contract.\nDeclaring it alongside a hand-written `permissionBacking`/\n`permissionFields` is a typed manifest error — the derivation owns the\ntable.\n\n@ref LLP 0056#declaring-a-membership-table — the membership declaration\n  is the recognized shape; the derivation, not the app, owns the table."
+          "description": "At most one `.membership()` declaration per table. Its presence turns\nthe table into a system-recognized role-per-resource membership table:\na closed role vocabulary, immutable `(principal, resource)` axes, a\ngenerated true-unique index, and a host-enforced write contract.\nDeclaring it alongside a hand-written `permissionBacking`/\n`permissionFields` is a typed manifest error — the derivation owns the\ntable.\n\n@ref LLP 0056#declaring-a-membership-table — the membership declaration\n  is the recognized shape; the derivation, not the app, owns the table."
         },
         "name": {
           "type": "string"

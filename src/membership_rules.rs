@@ -32,7 +32,7 @@
 
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{
-    FilterExpr, FilterOp, HandlerInput, MembershipManifest, MembershipPredicate,
+    FieldType, FilterExpr, FilterOp, HandlerInput, MembershipManifest, MembershipPredicate,
     MembershipResourceRef, QueryPlan, SchemaManifest, TableManifest, ValueExpr,
 };
 use crate::storage::{CapturedReadDependency, CapturedReadKind, DbRead};
@@ -279,7 +279,7 @@ pub(crate) fn membership_read(
     roles: &[String],
 ) -> SnapbackResult<MembershipReadOutcome> {
     let probe = membership_probe_plan(membership, table_name, principal, &resource, roles);
-    let output = db.query(&probe, &HandlerInput::default())?;
+    let output = db.query_private_membership(&probe, &HandlerInput::default())?;
     let ids: Vec<String> = output
         .rows
         .iter()
@@ -288,7 +288,10 @@ pub(crate) fn membership_read(
     let table_version = db.table_change_version(table_name)?;
     let present = !ids.is_empty();
     let dependency = membership_capture_dependency(&probe, table_version, ids)?;
-    Ok(MembershipReadOutcome { present, dependency })
+    Ok(MembershipReadOutcome {
+        present,
+        dependency,
+    })
 }
 
 /// The trusted, **invariant** role denial. It reuses the EXISTING trusted
@@ -350,16 +353,12 @@ pub(crate) fn require_role(
 /// Load-time validation of a membership predicate carried by a query over
 /// `queried_table`. The declaration must exist; a `hasRole` role list must lie
 /// within the declaration's write vocabulary; and a row-field resource
-/// reference must name an existing field of the queried table. A predicate that
-/// names a nonexistent declaration, an unknown role, or a missing row field is a
-/// **load-time error** (fail-closed).
-///
-/// The stricter "row field / argument **of the declared resource type**" check
-/// — rejecting a *different* resource type or a join through a third table —
-/// depends on reference-type metadata (`v.id("events")`) that the manifest does
-/// not yet encode on `FieldManifest`; it is filled by the same LLP 0004 codegen
-/// that fills `resourceTable`, and is enforced conservatively (field existence)
-/// until then, matching M1's posture.
+/// reference must be `_id` on the declared resource table or a nominal
+/// `v.id(resourceTable)` field. A predicate that names a nonexistent
+/// declaration, an unknown role, or a differently typed row field is a
+/// **load-time error** (fail-closed). Query arguments remain dynamically typed
+/// on this wire and are value-checked at execution; the authoring surface does
+/// the corresponding nominal check while it still has argument validators.
 ///
 /// @ref LLP 0056#rule-helpers — `resourceRef` is a row field of the queried
 ///   table or a query argument of the declared resource type; anything else is
@@ -410,21 +409,69 @@ pub(crate) fn validate_membership_predicate(
 
     match &predicate.resource {
         MembershipResourceRef::RowField(field) => {
-            if queried_table.field(field).is_none() {
+            let valid = match membership.resource_table.as_deref() {
+                // App-scoped declarations use the singleton regardless of the
+                // syntactic resource placeholder.
+                None if membership.resource.is_none() => true,
+                Some(resource_table) if field == "_id" => queried_table.name == resource_table,
+                Some(resource_table) => queried_table.field(field).is_some_and(|field| {
+                    matches!(
+                        &field.field_type,
+                        FieldType::Id { table } if table == resource_table
+                    )
+                }),
+                None => false,
+            };
+            if !valid {
                 return Err(SnapbackError::error(
                     "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID",
                     "manifest",
                     format!(
-                        "membership predicate resource row field {field:?} is not a field of queried table {:?}",
-                        queried_table.name
+                        "membership predicate resource row field {field:?} is not nominally typed for resource table {:?}",
+                        membership.resource_table
                     ),
                 )
-                .with_details(json!({ "field": field.clone() })));
+                .with_details(json!({
+                    "field": field.clone(),
+                    "resourceTable": membership.resource_table.clone(),
+                })));
             }
         }
-        // A query argument's concrete type is dynamic at load time; the declared
-        // resource type is checked at subscribe time against the resolved value.
-        MembershipResourceRef::Arg(_) => {}
+        MembershipResourceRef::Arg {
+            path,
+            resource_table,
+        } => {
+            let path_is_valid =
+                !path.is_empty() && path.split('.').all(|segment| !segment.is_empty());
+            let type_is_valid = match (
+                membership.resource.as_deref(),
+                membership.resource_table.as_deref(),
+            ) {
+                (Some(_), Some(expected_table)) => {
+                    resource_table.as_deref() == Some(expected_table)
+                }
+                // App scope has no resource axis. Codegen still lowers the
+                // helper through one closed synthetic argument reference so
+                // it cannot be confused with a resource-scoped `Id<table>`.
+                (None, None) => resource_table.is_none() && path == "__snapbackApp",
+                _ => false,
+            };
+            if !path_is_valid || !type_is_valid {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_REF_INVALID",
+                    "manifest",
+                    format!(
+                        "membership predicate resource argument {path:?} is not nominally typed for resource table {:?}",
+                        membership.resource_table
+                    ),
+                )
+                .with_details(json!({
+                    "path": path.clone(),
+                    "resourceTable": resource_table.clone(),
+                    "expectedResourceTable": membership.resource_table.clone(),
+                })));
+            }
+        }
     }
     Ok(())
 }
@@ -481,7 +528,7 @@ pub(crate) fn query_membership_dependencies(
 
     let binding = match &predicate.resource {
         MembershipResourceRef::RowField(_) => ResourceBinding::PerRow,
-        MembershipResourceRef::Arg(path) => {
+        MembershipResourceRef::Arg { path, .. } => {
             if membership.resource.is_none() {
                 ResourceBinding::AppSingleton
             } else {
@@ -492,8 +539,13 @@ pub(crate) fn query_membership_dependencies(
 
     match binding {
         ResourceBinding::PerRow => {
-            let probe =
-                membership_probe_plan(membership, table_name, principal, &ResourceBinding::PerRow, &roles);
+            let probe = membership_probe_plan(
+                membership,
+                table_name,
+                principal,
+                &ResourceBinding::PerRow,
+                &roles,
+            );
             Ok(vec![membership_capture_dependency(
                 &probe,
                 table_version,
@@ -502,13 +554,17 @@ pub(crate) fn query_membership_dependencies(
         }
         fixed => {
             let probe = membership_probe_plan(membership, table_name, principal, &fixed, &roles);
-            let output = db.query(&probe, &HandlerInput::default())?;
+            let output = db.query_private_membership(&probe, &HandlerInput::default())?;
             let ids: Vec<String> = output
                 .rows
                 .iter()
                 .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
                 .collect();
-            Ok(vec![membership_capture_dependency(&probe, table_version, ids)?])
+            Ok(vec![membership_capture_dependency(
+                &probe,
+                table_version,
+                ids,
+            )?])
         }
     }
 }
@@ -516,7 +572,9 @@ pub(crate) fn query_membership_dependencies(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::live_matcher::{live_subscription_may_be_affected, query_dependency_change_may_affect};
+    use crate::live_matcher::{
+        live_subscription_may_be_affected, query_dependency_change_may_affect,
+    };
     use crate::manifest::{
         FieldManifest, FieldType, FunctionDefinition, FunctionKind, FunctionRuntime, IbexModule,
     };
@@ -635,7 +693,12 @@ mod tests {
         // nothing must wake.
         let changes = vec![membership_change(ChangeOp::Insert, "m1", "guest")];
         assert!(
-            live_subscription_may_be_affected(&ibex_live_query(), &input(), &dependencies, &changes),
+            live_subscription_may_be_affected(
+                &ibex_live_query(),
+                &input(),
+                &dependencies,
+                &changes
+            ),
             "an insert must wake a previously-empty membership subscription",
         );
     }
@@ -663,7 +726,12 @@ mod tests {
             changed_fields: Vec::new(),
         }];
         assert!(
-            live_subscription_may_be_affected(&ibex_live_query(), &input(), &dependencies, &changes),
+            live_subscription_may_be_affected(
+                &ibex_live_query(),
+                &input(),
+                &dependencies,
+                &changes
+            ),
             "a delete must wake a membership subscription that matched",
         );
     }
@@ -684,7 +752,12 @@ mod tests {
         let dependencies = vec![primary_events_query_dependency(), present_dep];
         let changes = vec![membership_change(ChangeOp::Update, "m1", "invited")];
         assert!(
-            live_subscription_may_be_affected(&ibex_live_query(), &input(), &dependencies, &changes),
+            live_subscription_may_be_affected(
+                &ibex_live_query(),
+                &input(),
+                &dependencies,
+                &changes
+            ),
             "a role downgrade out of the member set must wake the subscription",
         );
     }
@@ -829,7 +902,9 @@ mod tests {
                 },
                 FieldManifest {
                     name: "eventId".to_owned(),
-                    field_type: FieldType::String,
+                    field_type: FieldType::Id {
+                        table: "events".to_owned(),
+                    },
                     optional: false,
                 },
                 FieldManifest {
@@ -863,7 +938,10 @@ mod tests {
         // Unknown declaration.
         let bad_decl = MembershipPredicate {
             declaration: "nope".to_owned(),
-            resource: MembershipResourceRef::Arg("eventId".to_owned()),
+            resource: MembershipResourceRef::Arg {
+                path: "eventId".to_owned(),
+                resource_table: Some("events".to_owned()),
+            },
             roles: None,
         };
         assert!(validate_membership_predicate(&schema, &events, &bad_decl).is_err());
@@ -871,7 +949,10 @@ mod tests {
         // Unknown role.
         let bad_role = MembershipPredicate {
             declaration: "event_members".to_owned(),
-            resource: MembershipResourceRef::Arg("eventId".to_owned()),
+            resource: MembershipResourceRef::Arg {
+                path: "eventId".to_owned(),
+                resource_table: Some("events".to_owned()),
+            },
             roles: Some(vec!["owner".to_owned()]),
         };
         assert!(validate_membership_predicate(&schema, &events, &bad_role).is_err());
@@ -884,10 +965,41 @@ mod tests {
         };
         assert!(validate_membership_predicate(&schema, &events, &bad_field).is_err());
 
-        // Valid: memberOf on a real row field of the queried table.
-        let ok = MembershipPredicate {
+        // A present but plain-string field is still the wrong nominal resource
+        // type, while `_id` on the bound resource table is valid.
+        let wrong_type = MembershipPredicate {
             declaration: "event_members".to_owned(),
             resource: MembershipResourceRef::RowField("title".to_owned()),
+            roles: None,
+        };
+        assert!(validate_membership_predicate(&schema, &events, &wrong_type).is_err());
+
+        // A direct/hand-written artifact cannot erase or lie about the
+        // nominal query-argument resource table that codegen proved.
+        let wrong_arg_type = MembershipPredicate {
+            declaration: "event_members".to_owned(),
+            resource: MembershipResourceRef::Arg {
+                path: "eventId".to_owned(),
+                resource_table: Some("projects".to_owned()),
+            },
+            roles: None,
+        };
+        assert!(validate_membership_predicate(&schema, &events, &wrong_arg_type).is_err());
+
+        let good_arg_type = MembershipPredicate {
+            declaration: "event_members".to_owned(),
+            resource: MembershipResourceRef::Arg {
+                path: "eventId".to_owned(),
+                resource_table: Some("events".to_owned()),
+            },
+            roles: None,
+        };
+        assert!(validate_membership_predicate(&schema, &events, &good_arg_type).is_ok());
+
+        // Valid: memberOf on the bound resource table's own id.
+        let ok = MembershipPredicate {
+            declaration: "event_members".to_owned(),
+            resource: MembershipResourceRef::RowField("_id".to_owned()),
             roles: Some(vec!["host".to_owned(), "cohost".to_owned()]),
         };
         assert!(validate_membership_predicate(&schema, &events, &ok).is_ok());
@@ -914,7 +1026,9 @@ mod tests {
         if resource_scoped {
             fields.push(FieldManifest {
                 name: "eventId".to_owned(),
-                field_type: FieldType::String,
+                field_type: FieldType::Id {
+                    table: "events".to_owned(),
+                },
                 optional: false,
             });
         }

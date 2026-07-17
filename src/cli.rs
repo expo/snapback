@@ -181,7 +181,9 @@ async fn compose_auth_mode_startup(
                         None,
                     )
                 })?;
-                let observed = snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)?;
+                let observed = startup_blocking(|| {
+                    snapback.preflight_auth_artifacts(carrier, AuthMode::Sessions)
+                })?;
                 carrier.require_deployment(expected).map_err(|error| {
                     with_expected_deployment(error, Some(expected), Some(&observed))
                 })?;
@@ -209,7 +211,9 @@ async fn compose_auth_mode_startup(
                     return Ok(snapshot.state);
                 };
                 let requested_mode = carrier.schema.effective_auth_mode();
-                let deployment = snapback.preflight_auth_artifacts(carrier, requested_mode)?;
+                let deployment = startup_blocking(|| {
+                    snapback.preflight_auth_artifacts(carrier, requested_mode)
+                })?;
                 if requested_mode == AuthMode::Dev {
                     let publication_generation =
                         snapback.reserve_function_publication_generation()?;
@@ -258,10 +262,11 @@ async fn compose_auth_mode_startup(
         );
     };
     let requested_mode = carrier.schema.effective_auth_mode();
-    let deployment = match snapback.preflight_auth_artifacts(carrier, requested_mode) {
-        Ok(deployment) => deployment,
-        Err(error) => return quarantine_pending_startup(snapback, error),
-    };
+    let deployment =
+        match startup_blocking(|| snapback.preflight_auth_artifacts(carrier, requested_mode)) {
+            Ok(deployment) => deployment,
+            Err(error) => return quarantine_pending_startup(snapback, error),
+        };
     let expected = snapshot
         .state
         .requested_deployment
@@ -346,17 +351,15 @@ async fn compose_auth_mode_startup(
                     return Err(error);
                 }
             };
-            snapback.record_startup_diagnostics(&[
-                crate::diagnostic::Diagnostic::info(
-                    "SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED",
-                    "auth-mode",
-                    "sessions-to-dev downgrade committed before listener bind",
-                )
-                .with_details(json!({
-                    "sessionsRevoked": result.sessions_revoked,
-                    "transitionGeneration": result.state.transition_generation,
-                })),
-            ]);
+            snapback.record_startup_diagnostics(&[crate::diagnostic::Diagnostic::info(
+                "SNAPBACK_AUTH_MODE_DOWNGRADE_COMMITTED",
+                "auth-mode",
+                "sessions-to-dev downgrade committed before listener bind",
+            )
+            .with_details(json!({
+                "sessionsRevoked": result.sessions_revoked,
+                "transitionGeneration": result.state.transition_generation,
+            }))]);
             auth_runtime
                 .provider()
                 .exclusive_maintenance()
@@ -1010,13 +1013,12 @@ fn resolve_http_target_for_operation(
     requires_impersonation: bool,
 ) -> anyhow::Result<ResolvedHttpTarget> {
     if let Some(url) = &target.url {
-        let impersonation_capability = if requires_impersonation
-            && target.impersonation_capability_stdin
-        {
-            Some(read_impersonation_capability_from_stdin()?)
-        } else {
-            None
-        };
+        let impersonation_capability =
+            if requires_impersonation && target.impersonation_capability_stdin {
+                Some(read_impersonation_capability_from_stdin()?)
+            } else {
+                None
+            };
         return Ok(ResolvedHttpTarget {
             server_url: url.trim_end_matches('/').to_owned(),
             minted_token: None,
@@ -1093,8 +1095,8 @@ fn resolve_http_target_for_operation(
     anyhow::bail!("no target: pass --url or --ready-file")
 }
 
-fn read_impersonation_capability_from_stdin(
-) -> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
+fn read_impersonation_capability_from_stdin()
+-> anyhow::Result<crate::auth::crypto::ImpersonationBearer> {
     use std::io::Read as _;
     use zeroize::{Zeroize as _, Zeroizing};
 
@@ -1758,8 +1760,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // boot-local invalidation issuer and item 8's lease service are installed
     // later in this startup sequence.
     let connection_binding_receipt = server::connection_binding_construction_receipt();
-    let two_phase_revocation_receipt =
-        auth_runtime.two_phase_revocation_construction_receipt();
+    let two_phase_revocation_receipt = auth_runtime.two_phase_revocation_construction_receipt();
     let auth_coordinator_receipt = auth_runtime.auth_coordinator_construction_receipt();
     #[cfg(test)]
     let auth_coordinator_receipt = match args.auth_construction_failure {
@@ -3967,6 +3968,14 @@ mod tests {
 
     #[cfg(unix)]
     fn sessions_startup_carrier(path: &Path) {
+        sessions_startup_carrier_with_functions(path, Vec::new());
+    }
+
+    #[cfg(unix)]
+    fn sessions_startup_carrier_with_functions(
+        path: &Path,
+        declared_functions: Vec<crate::manifest::FunctionDefinition>,
+    ) {
         use crate::auth::mode::{FUNCTION_V1_PREFIX, INPUTS_V1_PREFIX, SCHEMA_V1_PREFIX};
         use crate::manifest::{
             AuthManifest, AuthMode, FunctionManifest, SNAPBACK_SESSIONS_SCHEMA_VERSION,
@@ -3993,6 +4002,7 @@ mod tests {
             app_id: "startup-auth-test".to_owned(),
             bundle_hash: Some(digest(FUNCTION_V1_PREFIX, 'b')),
             inputs_hash: Some(inputs),
+            functions: declared_functions,
             ..FunctionManifest::default()
         };
         std::fs::write(
@@ -4159,16 +4169,29 @@ mod tests {
 
     #[cfg(unix)]
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn sessions_consume_offloads_sqlite_from_async_workers() {
+    async fn sessions_startup_offloads_sqlite_and_ibex_from_async_workers() {
         use crate::auth::mode::AuthProgramReadiness;
         use crate::auth::provider::AuthProviderProfile;
         use crate::local::LocalSnapback;
-        use crate::manifest::AuthMode;
+        use crate::manifest::{
+            AuthMode, FunctionDefinition, FunctionKind, FunctionRuntime, IbexModule,
+        };
 
         let directory = tempfile::tempdir().unwrap();
         let database = directory.path().join("app.sqlite3");
         let carrier = directory.path().join("startup.json");
-        sessions_startup_carrier(&carrier);
+        sessions_startup_carrier_with_functions(
+            &carrier,
+            vec![FunctionDefinition::new(
+                "startupProbe",
+                FunctionKind::Query,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: "globalThis.__snapbackHandlers = { startupProbe() { return null; } };"
+                        .to_owned(),
+                    export: "startupProbe".to_owned(),
+                }),
+            )],
+        );
         let args = Args {
             db: database.clone(),
             startup_artifacts: Some(carrier),
@@ -4189,6 +4212,15 @@ mod tests {
                 .unwrap();
         assert_eq!(state.active, AuthMode::Sessions);
         assert!(runtime.catalog_ready());
+
+        // A settled sessions restart takes a separate preflight branch. It
+        // must keep Hermes module preparation behind the same blocking
+        // boundary as the initial stage/consume path.
+        let restarted =
+            super::compose_auth_mode_startup(&args, &mut snapback, &mut runtime, &readiness)
+                .await
+                .unwrap();
+        assert_eq!(restarted.active, AuthMode::Sessions);
     }
 
     #[cfg(unix)]

@@ -1,14 +1,14 @@
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::ephemeral::{validate_collection_definitions, validate_collection_permission_backing};
 use crate::manifest::{
-    AuthInput, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS, CTX_ANSWER_LEDGER_VERSION,
-    CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput, MembershipManifest,
-    MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget, MutationOutput,
-    MutationPlan, MutationStep,
-    OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS,
-    QueryOutput, QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest,
-    ValueExpr, auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid,
-    validate_ctx_answer_ledger, validate_portable_timestamp_millis, validate_query_plan_shape,
+    AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
+    CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
+    MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
+    MutationOutput, MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX,
+    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
+    ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr, auth_fingerprint,
+    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
 use rusqlite::{
@@ -707,6 +707,11 @@ fn reset_and_seed_transaction(
         None => Ok(None),
         Some(seed) => {
             let changes = seed_into_transaction(tx, schema, seed, 1)?;
+            // Reset seed is another declaration-privileged writer. Judge its
+            // complete same-transaction resource/roster state before the reset
+            // cut can publish, including closed roles, referential integrity,
+            // and eligible last holders.
+            validate_membership_activation(tx, schema)?;
             let changed_count = changes.len();
             if changed_count > 0 {
                 set_version(tx, 1)?;
@@ -863,11 +868,7 @@ impl LocalDatabase {
         authority_instance_id: &str,
         ids: &[String],
     ) -> SnapbackResult<u64> {
-        self.acknowledge_client_mutations_inner(
-            auth_fingerprint,
-            Some(authority_instance_id),
-            ids,
-        )
+        self.acknowledge_client_mutations_inner(auth_fingerprint, Some(authority_instance_id), ids)
     }
 
     fn acknowledge_client_mutations_inner(
@@ -1500,6 +1501,10 @@ impl LocalDatabase {
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
         let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        // The standalone seed API has the same invariant obligations as a
+        // deployment seed; it cannot bypass membership activation checks just
+        // because DDL was already active.
+        validate_membership_activation(&tx, &schema)?;
         let changed_count = changes.len();
 
         if changed_count > 0 {
@@ -2523,12 +2528,7 @@ impl LocalDatabase {
                     let table = schema_table(&schema, &table)?;
                     let changed_fields = changed_field_names(&values);
                     let document = insert_document(&tx, table, &id, &values, next_version, now_ms)?;
-                    write_membership_creation_provenance(
-                        &tx,
-                        table,
-                        &id,
-                        write_writer.as_ref(),
-                    )?;
+                    write_membership_creation_provenance(&tx, table, &id, write_writer.as_ref())?;
                     record_membership_transition(
                         &tx,
                         table,
@@ -2626,6 +2626,26 @@ impl LocalDatabase {
                     }
                 }
             }
+        }
+
+        // Re-evaluate the complete protected-holder invariant only when this
+        // transaction changed a protected roster or its resource table. This
+        // remains the serialized final-state linearization point for every
+        // relevant app write without turning unrelated app mutations into an
+        // all-resource scan; auth lifecycle writers run the same predicate in
+        // their own serialized transaction.
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+        let protected_membership_change = changes.iter().any(|change| {
+            schema.tables.iter().any(|table| {
+                table.membership.as_ref().is_some_and(|membership| {
+                    membership.last_holder.is_some()
+                        && (table.name == change.table
+                            || membership.resource_table.as_deref() == Some(change.table.as_str()))
+                })
+            })
+        });
+        if protected_membership_change {
+            auth_agents::validate_protected_membership_final_state(&tx, &schema)?;
         }
 
         if !changes.is_empty() {
@@ -3028,9 +3048,34 @@ pub(crate) fn query_on_with_storage_limit(
     input: &HandlerInput,
     storage_limit: usize,
 ) -> SnapbackResult<QueryOutput> {
+    query_on_with_storage_limit_visibility(conn, schema, plan, input, storage_limit, false)
+}
+
+fn query_on_with_storage_limit_visibility(
+    conn: &Connection,
+    schema: &SchemaManifest,
+    plan: &QueryPlan,
+    input: &HandlerInput,
+    storage_limit: usize,
+    allow_private_membership: bool,
+) -> SnapbackResult<QueryOutput> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
     let table = schema_table(schema, &plan.table)?;
     validate_query_plan_shape(plan)?;
+    // Membership declarations are authorization data and have no public
+    // roster-visibility preset in v1. Refuse every generic primary-table read
+    // at the storage boundary, including pinned/live/replay callers. Internal
+    // declaration-bound semi-joins are lowered below this boundary and remain
+    // deliberately non-recursive.
+    // @ref LLP 0056#declaring-a-membership-table — private by default.
+    if !allow_private_membership && let Some(membership) = &table.membership {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+            &table.name,
+            membership.effective_id(&table.name),
+            "a membership table cannot be the primary table of a generic query without an explicit visibility preset",
+        ));
+    }
     // LLP 0056 M3: fail-closed validation of each declaration-bound membership
     // predicate against the schema and the queried table — an unknown
     // declaration, an out-of-vocabulary `hasRole`, or a resource row field that
@@ -3086,6 +3131,14 @@ pub(crate) fn get_on(
 ) -> SnapbackResult<Option<Value>> {
     crate::exec_guard::debug_assert_off_async_worker("a SQLite point read");
     let table = schema_table(schema, table)?;
+    if let Some(membership) = &table.membership {
+        return Err(membership_error(
+            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+            &table.name,
+            membership.effective_id(&table.name),
+            "a membership table cannot be read through the generic point-read surface without an explicit visibility preset",
+        ));
+    }
     let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
     let mut statement = conn.prepare(&sql)?;
     let columns = statement
@@ -3150,6 +3203,34 @@ impl DbRead<'_> {
         match self {
             DbRead::Pinned { conn, schema } => query_on(conn, schema, plan, input),
             _ => self.live().expect("live db").query(plan, input),
+        }
+    }
+
+    /// Narrow, non-application-returning bypass used only by the declaration-
+    /// bound membership evaluator. Keeping this as a distinct method prevents
+    /// generic/live/retained query callers from opting around private rosters.
+    pub(crate) fn query_private_membership(
+        &self,
+        plan: &QueryPlan,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryOutput> {
+        match self {
+            DbRead::Pinned { conn, schema } => query_on_with_storage_limit_visibility(
+                conn,
+                schema,
+                plan,
+                input,
+                effective_query_limit(plan),
+                true,
+            ),
+            DbRead::Live(db) => query_on_with_storage_limit_visibility(
+                &db.conn,
+                &db.schema,
+                plan,
+                input,
+                effective_query_limit(plan),
+                true,
+            ),
         }
     }
 
@@ -3374,11 +3455,12 @@ fn validate_membership_role_literal(
 }
 
 /// Fail-closed structural validation of one `.membership()` declaration. This
-/// is the M1 declaration surface for LLP 0056: it enforces the closed, non-null,
-/// exact-decoded vocabulary, the immutable-axis field shape, the reserved-name
-/// traps, the `roles`/`pendingRoles` disjointness, the stable-id uniqueness, and
-/// reserves the generated unique index's physical name. It does **not** execute
-/// the transition matrix (M2), wire invalidation (M5), or fill provenance (M5).
+/// enforces the closed, non-null, exact-decoded vocabulary, nominal immutable
+/// axes, the exact per-operation transition grammar, reserved-name traps,
+/// `roles`/`pendingRoles` disjointness, stable-id uniqueness, and both generated
+/// index names. Runtime transition authorization is performed by the sanctioned
+/// membership write planner below; provenance and invalidation are applied at
+/// commit.
 fn validate_membership_declaration(
     table: &TableManifest,
     field_names: &BTreeSet<String>,
@@ -3488,23 +3570,54 @@ fn validate_membership_declaration(
             })?;
             let resource_field =
                 require_membership_axis_field(table, &declaration, resource, "resource")?;
-            if !matches!(
-                resource_field.field_type,
-                FieldType::String | FieldType::Principal
-            ) {
+            if !matches!(resource_field.field_type, FieldType::Id { .. }) {
                 return Err(membership_error(
                     "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE",
                     &table.name,
                     &declaration,
                     format!(
-                        "resource axis {resource:?} must be an id/string reference; found {}",
+                        "resource axis {resource:?} must be declared v.id(resourceTable); found {}",
                         field_type_name(&resource_field.field_type)
                     ),
                 ));
             }
+            let FieldType::Id {
+                table: resource_target,
+            } = &resource_field.field_type
+            else {
+                unreachable!("resource field type checked above")
+            };
+            let declared_target = membership.resource_table.as_deref().ok_or_else(|| {
+                membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_REQUIRED",
+                    &table.name,
+                    &declaration,
+                    "a resource-scoped membership must declare resourceTable",
+                )
+            })?;
+            if resource_target != declared_target {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_MISMATCH",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "resource axis {resource:?} targets {resource_target:?}, but resourceTable is {declared_target:?}"
+                    ),
+                )
+                .with_detail("fieldTarget", resource_target.clone())
+                .with_detail("resourceTable", declared_target.to_owned()));
+            }
             axis_fields.push(resource);
         }
         MembershipScope::App => {
+            if membership.bootstrap_role.is_some() {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
+                    &table.name,
+                    &declaration,
+                    "bootstrapRole is not available on scope: \"app\" declarations because the singleton has no resource-creation witness",
+                ));
+            }
             if membership.resource.is_some() {
                 return Err(membership_error(
                     "SNAPBACK_MEMBERSHIP_APP_SCOPE_RESOURCE",
@@ -3665,14 +3778,14 @@ fn validate_membership_declaration(
 
     // --- expiry: field is a declared non-axis column; remove-only in v1. ---
     if let Some(expiry) = &membership.expiry {
-        if !field_names.contains(&expiry.field) {
-            return Err(membership_error(
+        let expiry_field = table.field(&expiry.field).ok_or_else(|| {
+            membership_error(
                 "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN",
                 &table.name,
                 &declaration,
                 format!("expiry.field {:?} is not a declared column", expiry.field),
-            ));
-        }
+            )
+        })?;
         if axis_fields.contains(&expiry.field.as_str()) {
             return Err(membership_error(
                 "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_AXIS",
@@ -3683,6 +3796,20 @@ fn validate_membership_declaration(
                     expiry.field
                 ),
             ));
+        }
+        if expiry_field.field_type != FieldType::Integer || !expiry_field.optional {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_EXPIRY_FIELD_TYPE",
+                &table.name,
+                &declaration,
+                format!(
+                    "expiry.field {:?} must be an optional epoch-millisecond Integer",
+                    expiry.field
+                ),
+            )
+            .with_detail("field", expiry.field.clone())
+            .with_detail("type", field_type_name(&expiry_field.field_type))
+            .with_detail("optional", expiry_field.optional));
         }
         // Remove is the only v1 effect: with no declared role ordering the host
         // cannot prove a downgrade is non-escalating.
@@ -3713,8 +3840,8 @@ fn validate_membership_declaration(
             ));
         }
         // The floor: the principal/resource/role axes can never be attested
-        // incidental. (Generated provenance columns join the floor in M5, when
-        // they exist as columns.)
+        // incidental. Generated provenance columns are separately reserved and
+        // remain permanently below this floor.
         // @ref LLP 0056#invalidation-the-llp-0053-mapping — the incidental floor.
         if axis_fields.contains(&column.as_str()) {
             return Err(membership_error(
@@ -3730,9 +3857,40 @@ fn validate_membership_declaration(
         }
     }
 
-    // --- Transition shape: no unknown role hides in by/from/to, no undeclared
-    //     column hides in a patch's fields. Runtime evaluation is M2. ---
+    // --- Transition shape: exact op grammar, no unknown role in by/from/to,
+    //     and no undeclared column in a patch's fields. ---
     for transition in &membership.transitions {
+        if transition.by.is_empty() {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_TRANSITION_EMPTY_SET",
+                &table.name,
+                &declaration,
+                format!(
+                    "transition {:?} has an empty by set; transition sets must be non-empty",
+                    transition.op.as_str()
+                ),
+            )
+            .with_detail("field", "by"));
+        }
+        for (field, values) in [
+            ("from", transition.from.as_ref()),
+            ("to", transition.to.as_ref()),
+            ("fields", transition.fields.as_ref()),
+        ] {
+            if values.is_some_and(Vec::is_empty) {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_EMPTY_SET",
+                    &table.name,
+                    &declaration,
+                    format!(
+                        "transition {:?} has an empty {field} set; transition sets must be non-empty",
+                        transition.op.as_str()
+                    ),
+                )
+                .with_detail("field", field));
+            }
+        }
+
         for by in &transition.by {
             let reserved = MEMBERSHIP_RESERVED_ROLE_NAMES.contains(&by.as_str());
             if !reserved && !vocabulary.contains(by.as_str()) {
@@ -3746,6 +3904,102 @@ fn validate_membership_declaration(
                         transition.op.as_str()
                     ),
                 ));
+            }
+        }
+
+        let has_none = transition.by.iter().any(|by| by == "none");
+        let has_self = transition.by.iter().any(|by| by == "self");
+        let has_role = transition
+            .by
+            .iter()
+            .any(|by| vocabulary.contains(by.as_str()));
+        let invalid_shape = |reason: &str| {
+            membership_error(
+                "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR",
+                &table.name,
+                &declaration,
+                format!(
+                    "transition {:?} violates the closed per-operation grammar: {reason}",
+                    transition.op.as_str()
+                ),
+            )
+        };
+        match transition.op {
+            MembershipOp::Insert => {
+                if has_self {
+                    return Err(invalid_shape(
+                        "insert cannot use caller class self; self/other is represented by target",
+                    ));
+                }
+                if transition.from.is_some() {
+                    return Err(invalid_shape(
+                        "insert forbids from because no old row exists",
+                    ));
+                }
+                if transition.to.is_none() {
+                    return Err(invalid_shape("insert requires a non-empty to set"));
+                }
+                if transition.target == MembershipTarget::Own && has_role {
+                    return Err(invalid_shape(
+                        "a role caller class with target self is unreachable on insert; use none",
+                    ));
+                }
+            }
+            MembershipOp::SetRole => {
+                if has_none {
+                    return Err(invalid_shape(
+                        "setRole admits only declared roles or self in by",
+                    ));
+                }
+                if transition.to.is_none() {
+                    return Err(invalid_shape("setRole requires a non-empty to set"));
+                }
+                if transition.fields.is_some() {
+                    return Err(invalid_shape("setRole forbids fields"));
+                }
+                if transition.target == MembershipTarget::Own && has_role {
+                    return Err(invalid_shape(
+                        "a role caller class with target self is unreachable; self wins",
+                    ));
+                }
+            }
+            MembershipOp::Remove => {
+                if has_none {
+                    return Err(invalid_shape(
+                        "remove admits only declared roles or self in by",
+                    ));
+                }
+                if transition.to.is_some() {
+                    return Err(invalid_shape("remove forbids to"));
+                }
+                if transition.fields.is_some() {
+                    return Err(invalid_shape("remove forbids fields"));
+                }
+                if transition.target == MembershipTarget::Own && has_role {
+                    return Err(invalid_shape(
+                        "a role caller class with target self is unreachable; self wins",
+                    ));
+                }
+            }
+            MembershipOp::Patch => {
+                if has_none {
+                    return Err(invalid_shape(
+                        "patch admits only declared roles or self in by",
+                    ));
+                }
+                if transition.to.is_some() {
+                    return Err(invalid_shape(
+                        "patch forbids to because it never changes role",
+                    ));
+                }
+                if transition.fields.is_none() {
+                    return Err(invalid_shape("patch requires a non-empty fields set"));
+                }
+                if transition.target == MembershipTarget::Own && has_role {
+                    return Err(invalid_shape(
+                        "a role caller class with target self is unreachable; self wins",
+                    ));
+                }
             }
         }
         for role in transition
@@ -3793,8 +4047,8 @@ fn validate_membership_declaration(
                 ));
             }
         }
-        // `by` on an effect-bearing transition targeting `other` cannot be the
-        // reserved `self`. Deeper reachability diagnostics are M2.
+        // `by: self` targeting another principal is contradictory for every
+        // target-row operation.
         if matches!(transition.target, MembershipTarget::Other)
             && transition.by.iter().any(|by| by == "self")
         {
@@ -3813,7 +4067,13 @@ fn validate_membership_declaration(
 
     // --- Reserve the generated unique index's physical name so a user index
     //     cannot silently collide with it. ---
-    if let Some((index_name, _)) = membership_unique_index(table) {
+    for (index_name, _) in [
+        membership_unique_index(table),
+        membership_reverse_index(table),
+    ]
+    .into_iter()
+    .flatten()
+    {
         let physical = format!("{}_{}", table.name, index_name);
         let owner = format!("{}.{} (generated membership index)", table.name, index_name);
         if let Some(previous) = physical_index_names.insert(physical.clone(), owner) {
@@ -3913,12 +4173,12 @@ fn nonnull_activation_axis(
 /// generated unique index and the non-null columns, but this scan produces a
 /// **typed** diagnostic naming the declaration rather than a raw SQLite error.
 ///
-/// The `lastHolder` leg counts **eligible** holders — a principal that is not
-/// permanently deactivated (LLP 0055 `deactivated_at`, landed in G1) — reusing
-/// G1's predicate ([`auth_agents::principal_is_eligible_on`]). Referential
-/// integrity and the live-resource enumeration require the declaration's
-/// `resourceTable` binding, which codegen fills from `v.id(...)` under the
-/// LLP 0004 follow-on.
+/// The `lastHolder` leg counts **durably recoverable eligible** holders — a
+/// catalog principal that is live and, for production agents, owned or backed
+/// by a live credential family — by reusing
+/// [`auth_agents::principal_is_eligible_on`]. Referential integrity and live-
+/// resource enumeration use the declaration's required nominal
+/// `resourceTable`/`v.id(...)` binding.
 ///
 /// @ref LLP 0056#declaring-a-membership-table — activation over existing data
 ///   is fail-closed across vocabulary, uniqueness, nullability, and referential
@@ -3933,15 +4193,22 @@ fn validate_membership_activation(
         };
         let declaration = membership.effective_id(&table.name).to_owned();
         if !sqlite_object_exists(tx, "table", &table.name)? {
-            // Fresh apply: nothing exists to be nonconforming.
-            continue;
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_ACTIVATION_TABLE_MISSING",
+                &table.name,
+                &declaration,
+                "membership activation ran before its table DDL was installed",
+            ));
         }
         let physical = physical_columns(tx, &table.name)?;
         if !physical.contains_key(&membership.principal) || !physical.contains_key(&membership.role)
         {
-            // A key column is being added in this same apply, so there are no
-            // pre-existing values in it to validate.
-            continue;
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_ACTIVATION_AXIS_MISSING",
+                &table.name,
+                &declaration,
+                "membership activation ran before its principal/role column DDL was installed",
+            ));
         }
         let resource_column = match membership.scope {
             MembershipScope::Resource => {
@@ -3950,21 +4217,24 @@ fn validate_membership_activation(
                     .as_deref()
                     .expect("resource axis validated by validate_membership_declaration");
                 if !physical.contains_key(resource) {
-                    continue;
+                    return Err(membership_error(
+                        "SNAPBACK_MEMBERSHIP_ACTIVATION_AXIS_MISSING",
+                        &table.name,
+                        &declaration,
+                        format!(
+                            "membership activation ran before resource column {resource:?} was installed"
+                        ),
+                    ));
                 }
                 Some(resource)
             }
             MembershipScope::App => None,
         };
         let vocabulary: BTreeSet<&str> = membership.vocabulary().collect();
-        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
-        //   Validation leg: activation/import refuse when a live resource lacks
-        //   an *eligible* holder. G1 (LLP 0055 `deactivated_at`) has landed, so
-        //   this scan now excludes permanently-deactivated principals rather than
-        //   counting rows (the M1 boundary). A missing `_auth_users` (no auth
-        //   catalog yet) means no deactivation state, so every holder is eligible.
-        let deactivation_state_available =
-            sqlite_object_exists(tx, "table", "_auth_users")?;
+        // Sessions requires a real catalog principal; dev impersonation asserts
+        // existence by fiat. The shared predicate additionally accounts for
+        // ownership and live credential-family recoverability for agents.
+        let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
 
         let mut select_columns = vec![membership.principal.clone(), membership.role.clone()];
         if let Some(resource) = resource_column {
@@ -4039,10 +4309,11 @@ fn validate_membership_activation(
                         .last_holder
                         .as_ref()
                         .is_some_and(|last_holder| last_holder.protect == role)
-                        && (!deactivation_state_available
-                            || crate::storage::auth_agents::principal_is_eligible_on(
-                                tx, &principal,
-                            )?)
+                        && crate::storage::auth_agents::principal_is_eligible_on(
+                            tx,
+                            &principal,
+                            require_catalog_principal,
+                        )?
                     {
                         protected_resources.insert(resource.clone());
                     }
@@ -4053,10 +4324,24 @@ fn validate_membership_activation(
 
         // Referential integrity and the live-resource enumeration both require
         // the resource-table binding.
-        if let Some(resource_table) = membership.resource_table.as_deref()
-            && resource_column.is_some()
-            && sqlite_object_exists(tx, "table", resource_table)?
-        {
+        if resource_column.is_some() {
+            let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
+                membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_REQUIRED",
+                    &table.name,
+                    &declaration,
+                    "resource-scoped activation requires resourceTable",
+                )
+            })?;
+            if !sqlite_object_exists(tx, "table", resource_table)? {
+                return Err(membership_error(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_UNKNOWN",
+                    &table.name,
+                    &declaration,
+                    format!("resourceTable {resource_table:?} has no active physical table"),
+                )
+                .with_detail("resourceTable", resource_table.to_owned()));
+            }
             for resource in &referenced_resources {
                 if !sqlite_object_exists_row(tx, resource_table, resource)? {
                     return Err(membership_error(
@@ -4246,6 +4531,36 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
         )?;
     }
 
+    // Complete the nominal resource binding after every table name is known.
+    // Declaration validation already proves `v.id(table)` agrees with
+    // `resourceTable`; this proves that target participates in the activation.
+    for table in &manifest.tables {
+        let Some(membership) = &table.membership else {
+            continue;
+        };
+        if membership.scope != MembershipScope::Resource {
+            continue;
+        }
+        let declaration = membership.effective_id(&table.name);
+        let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
+            membership_error(
+                "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_REQUIRED",
+                &table.name,
+                declaration,
+                "a resource-scoped membership must declare resourceTable",
+            )
+        })?;
+        if manifest.table(resource_table).is_none() {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_UNKNOWN",
+                &table.name,
+                declaration,
+                format!("resourceTable {resource_table:?} is not an active table in this schema"),
+            )
+            .with_detail("resourceTable", resource_table.to_owned()));
+        }
+    }
+
     validate_collection_permission_backing(
         &manifest.ephemeral_collections,
         &manifest.tables,
@@ -4416,6 +4731,7 @@ fn field_type_name(field_type: &FieldType) -> &'static str {
         FieldType::Real => "Real",
         FieldType::Json => "Json",
         FieldType::Principal => "Principal",
+        FieldType::Id { .. } => "Id",
     }
 }
 
@@ -4693,6 +5009,7 @@ fn safe_rebuild_column_type(column: &PhysicalColumn) -> SnapbackResult<&'static 
 /// `validate_schema` reserves its physical name, so a user index cannot collide
 /// with it.
 pub(crate) const MEMBERSHIP_UNIQUE_INDEX_NAME: &str = "_membership_pk";
+pub(crate) const MEMBERSHIP_REVERSE_INDEX_NAME: &str = "_membership_reverse";
 pub(crate) const MEMBERSHIP_GRANTED_BY_ACTOR: &str = "grantedByActor";
 pub(crate) const MEMBERSHIP_GRANTED_BY_EFFECTIVE: &str = "grantedByEffective";
 pub(crate) const MEMBERSHIP_GRANTED_BY_GRANT: &str = "grantedByGrant";
@@ -4718,6 +5035,24 @@ pub(crate) fn membership_unique_index(table: &TableManifest) -> Option<(String, 
         fields.push(resource.clone());
     }
     Some((MEMBERSHIP_UNIQUE_INDEX_NAME.to_owned(), fields))
+}
+
+/// The resource-leading lookup used by protected-holder checks and membership
+/// invalidation. Resource scope gets `(resource, role, principal)`; app scope
+/// drops the singleton resource and gets `(role, principal)`.
+///
+/// @ref LLP 0056#declaring-a-membership-table — generate the reverse covering
+///   direction rather than scanning a principal-leading unique index while a
+///   writer transaction is held.
+pub(crate) fn membership_reverse_index(table: &TableManifest) -> Option<(String, Vec<String>)> {
+    let membership = table.membership.as_ref()?;
+    let mut fields = Vec::new();
+    if let Some(resource) = &membership.resource {
+        fields.push(resource.clone());
+    }
+    fields.push(membership.role.clone());
+    fields.push(membership.principal.clone());
+    Some((MEMBERSHIP_REVERSE_INDEX_NAME.to_owned(), fields))
 }
 
 /// Create or rebuild a declared index so the physical index always matches
@@ -4923,7 +5258,17 @@ fn build_query_sql(
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
     sql_limit: Option<usize>,
 ) -> SnapbackResult<(String, Vec<SqlValue>)> {
-    let mut sql = format!("SELECT * FROM {}", quote_ident(&table.name)?);
+    // Always give the primary table an explicit alias. A membership table may
+    // itself be the query's primary table; without distinct aliases the inner
+    // membership subquery shadows the outer physical name and turns the
+    // resource correlation into `inner.resource = inner.resource`.
+    // @ref LLP 0056#rule-helpers — membership predicates correlate against the
+    //   actual outer row and remain non-recursive even for a same-table query.
+    let outer_alias = quote_ident("__snapback_outer")?;
+    let mut sql = format!(
+        "SELECT {outer_alias}.* FROM {} AS {outer_alias}",
+        quote_ident(&table.name)?
+    );
     let mut values = Vec::new();
     let mut where_parts = Vec::new();
     let mut in_items = 0usize;
@@ -5149,6 +5494,7 @@ fn build_membership_exists_sql(
     };
 
     let mtable_ident = quote_ident(&mtable.name)?;
+    let membership_alias = quote_ident("__snapback_membership")?;
     let principal_ident = quote_ident(&membership.principal)?;
     let role_ident = quote_ident(&membership.role)?;
     let mut params: Vec<SqlValue> = Vec::new();
@@ -5160,7 +5506,7 @@ fn build_membership_exists_sql(
         &Value::String(user_id.to_owned()),
         Some(&FieldType::Principal),
     )?);
-    conds.push(format!("{mtable_ident}.{principal_ident} = ?"));
+    conds.push(format!("{membership_alias}.{principal_ident} = ?"));
 
     // resource axis (absent for scope: "app").
     if let Some(resource_field) = &membership.resource {
@@ -5169,12 +5515,12 @@ fn build_membership_exists_sql(
             crate::manifest::MembershipResourceRef::RowField(field) => {
                 ensure_field_or_system(outer, field)?;
                 conds.push(format!(
-                    "{mtable_ident}.{resource_ident} = {}.{}",
-                    quote_ident(&outer.name)?,
+                    "{membership_alias}.{resource_ident} = {}.{}",
+                    quote_ident("__snapback_outer")?,
                     quote_ident(field)?
                 ));
             }
-            crate::manifest::MembershipResourceRef::Arg(path) => {
+            crate::manifest::MembershipResourceRef::Arg { path, .. } => {
                 let value = eval_expr(
                     &ValueExpr::Arg(path.clone()),
                     input,
@@ -5183,8 +5529,11 @@ fn build_membership_exists_sql(
                     runtime_id,
                 )?;
                 add_query_filter_bindings(filter_bindings, 1, resource_field)?;
-                params.push(json_to_sql_value(&value, field_type(mtable, resource_field))?);
-                conds.push(format!("{mtable_ident}.{resource_ident} = ?"));
+                params.push(json_to_sql_value(
+                    &value,
+                    field_type(mtable, resource_field),
+                )?);
+                conds.push(format!("{membership_alias}.{resource_ident} = ?"));
             }
         }
     }
@@ -5204,12 +5553,12 @@ fn build_membership_exists_sql(
         placeholders.push("?");
     }
     conds.push(format!(
-        "{mtable_ident}.{role_ident} IN ({})",
+        "{membership_alias}.{role_ident} IN ({})",
         placeholders.join(", ")
     ));
 
     let clause = format!(
-        "EXISTS (SELECT 1 FROM {mtable_ident} WHERE {})",
+        "EXISTS (SELECT 1 FROM {mtable_ident} AS {membership_alias} WHERE {})",
         conds.join(" AND ")
     );
     Ok((clause, params))
@@ -5255,7 +5604,9 @@ fn validate_query_filter_value(
             field.optional
         } else {
             match field.field_type {
-                FieldType::String | FieldType::Principal => value.is_string(),
+                FieldType::String | FieldType::Principal | FieldType::Id { .. } => {
+                    value.is_string()
+                }
                 FieldType::Boolean => value.is_boolean(),
                 FieldType::Integer => portable_integer_value(value).is_some(),
                 FieldType::Real => value.as_f64().is_some(),
@@ -5641,16 +5992,9 @@ fn eval_authorization_decision_values(
     now_ms: u64,
     runtime_id: Option<&dyn Fn() -> SnapbackResult<String>>,
 ) -> SnapbackResult<Vec<Value>> {
-    let is_actor_aware = authorization_expr_depends_on_projection(
-        expr,
-        input,
-        bindings,
-        direct_bindings,
-    );
-    if input.auth.authorization_is_delegated
-        && is_actor_aware
-        && expr.uses_runtime_intrinsic()
-    {
+    let is_actor_aware =
+        authorization_expr_depends_on_projection(expr, input, bindings, direct_bindings);
+    if input.auth.authorization_is_delegated && is_actor_aware && expr.uses_runtime_intrinsic() {
         return Err(SnapbackError::error(
             "SNAPBACK_AUTH_MUTABLE_INPUT_DENIED",
             "auth",
@@ -5802,7 +6146,7 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 }
 
 // ============================================================================
-// LLP 0056 M2: the membership write path
+// LLP 0056: the membership write path
 //
 // The write surface the review loop reshaped most (§Writes). Its shape here:
 //   * a declared transition matrix, closed by default — every fact (caller
@@ -5811,16 +6155,16 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 //   * a writer-class seam below BOTH buffered Ibex writes and HostPlan (the
 //     `enforce_membership_write_gate` / HostPlan pre-pass above) — a `ctx.db`-only
 //     gate would be a hole;
-//   * `lastHolder` counting ELIGIBLE holders (LLP 0055 `deactivated_at`, reused
-//     from G1) with the holder-set, resource-existence, and roster-emptiness
-//     aggregates CAPTURED so concurrent finals cannot both commit;
+//   * `lastHolder` counting durably recoverable eligible holders, with captured
+//     caller/row/resource facts plus a serialized transaction-final evaluator
+//     so concurrent finals and auth-lifecycle changes cannot strand a resource;
 //   * creation/deletion witnesses (bootstrap/teardown) bound to the resource row
 //     actually appearing/disappearing in this transaction.
 //
 // The generated JS methods (`ctx.membership.<decl>.*`) dispatch through the
 // host-owned command/authority carrier into these methods (see
-// `IbexHostContext::handle_host_call`). Cron->sweep remains the separate LLP
-// 0004 follow-on.
+// `IbexHostContext::handle_host_call`). The system expiry sweep enters through
+// the same sanctioned commit and final-state invariant.
 // ============================================================================
 
 /// The resolved authority a membership write runs under, mapped from
@@ -5836,7 +6180,9 @@ fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
 ///   writer-class matrix; userless authorities are refused.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MembershipWriter {
-    User { effective_principal: String },
+    User {
+        effective_principal: String,
+    },
     Delegated {
         actor_principal: String,
         effective_principal: String,
@@ -5928,7 +6274,9 @@ impl MembershipWriter {
     /// unreachable by a userless authority.
     fn effective_principal(&self) -> Option<&str> {
         match self {
-            Self::User { effective_principal }
+            Self::User {
+                effective_principal,
+            }
             | Self::Delegated {
                 effective_principal,
                 ..
@@ -5946,7 +6294,9 @@ impl MembershipWriter {
 
     fn provenance(&self) -> Option<MembershipWriteProvenance> {
         let values = match self {
-            Self::User { effective_principal } => MembershipWriteProvenance {
+            Self::User {
+                effective_principal,
+            } => MembershipWriteProvenance {
                 actor: effective_principal.clone(),
                 effective: effective_principal.clone(),
                 grant: None,
@@ -6259,20 +6609,24 @@ fn read_membership_row(
     Ok(row)
 }
 
-/// The caller's own role over a resource, read in the same connection. `None`
-/// means the caller holds no membership for that resource in this declaration
-/// (the `"none"` open-join class).
-fn read_caller_role(
+/// The caller's own role over a resource, together with the exact captured
+/// `(principal, resource)` lookup that produced it. The empty-result witness is
+/// just as load-bearing as a present row: an absent caller class must not remain
+/// authorized after a concurrent membership insert.
+///
+/// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — stale
+///   caller-role decisions are validated at commit on both lookup outcomes.
+fn read_caller_role_with_dependency(
     conn: &Connection,
     table: &TableManifest,
     membership: &MembershipManifest,
     resource: Option<&str>,
     principal: &str,
-) -> SnapbackResult<Option<String>> {
+) -> SnapbackResult<(Option<String>, CapturedReadDependency)> {
     let (sql, bound): (String, Vec<String>) = match (&membership.resource, resource) {
         (Some(resource_col), Some(resource_value)) => (
             format!(
-                "SELECT {role} FROM {table} WHERE {principal} = ?1 AND {resource} = ?2",
+                "SELECT _id, {role} FROM {table} WHERE {principal} = ?1 AND {resource} = ?2",
                 role = quote_ident(&membership.role)?,
                 table = quote_ident(&table.name)?,
                 principal = quote_ident(&membership.principal)?,
@@ -6282,21 +6636,53 @@ fn read_caller_role(
         ),
         (None, _) => (
             format!(
-                "SELECT {role} FROM {table} WHERE {principal} = ?1",
+                "SELECT _id, {role} FROM {table} WHERE {principal} = ?1",
                 role = quote_ident(&membership.role)?,
                 table = quote_ident(&table.name)?,
                 principal = quote_ident(&membership.principal)?,
             ),
             vec![principal.to_owned()],
         ),
-        (Some(_), None) => return Ok(None),
+        (Some(_), None) => {
+            return Err(membership_refusal(
+                "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                "resource-scoped caller-role lookup is missing its resource",
+            ));
+        }
     };
-    let role = conn
+    let row = conn
         .query_row(&sql, params_from_iter(bound.iter()), |row| {
-            row.get::<_, String>(0)
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })
         .optional()?;
-    Ok(role)
+    let roles = membership
+        .vocabulary()
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    let resource = match (&membership.resource, resource) {
+        (Some(_), Some(resource)) => {
+            crate::membership_rules::ResourceBinding::Fixed(Value::String(resource.to_owned()))
+        }
+        (None, _) => crate::membership_rules::ResourceBinding::AppSingleton,
+        (Some(_), None) => unreachable!("resource-scoped absence refused above"),
+    };
+    let probe = crate::membership_rules::membership_probe_plan(
+        membership,
+        &table.name,
+        principal,
+        &resource,
+        &roles,
+    );
+    let matching_ids = row
+        .as_ref()
+        .map(|(id, _)| vec![id.clone()])
+        .unwrap_or_default();
+    let dependency = crate::membership_rules::membership_capture_dependency(
+        &probe,
+        table_change_version_from_connection(conn, &table.name)?,
+        matching_ids,
+    )?;
+    Ok((row.map(|(_, role)| role), dependency))
 }
 
 fn read_resource_version(
@@ -6321,11 +6707,19 @@ fn read_resource_version(
 /// Closed by default: `None` means refuse. Field-binding is validated by the
 /// caller once a candidate op/class/target/role match is found — an op match
 /// that fails field-binding is still a refusal, never a silent narrowing.
-fn matches_role_lists(transition: &crate::manifest::MembershipTransition, from: Option<&str>, to: Option<&str>) -> bool {
+fn matches_role_lists(
+    transition: &crate::manifest::MembershipTransition,
+    from: Option<&str>,
+    to: Option<&str>,
+) -> bool {
     let from_ok = match (from, &transition.from) {
         (None, _) => true,
         (Some(from), Some(list)) => list.iter().any(|role| role == from),
-        (Some(_), None) => false,
+        // `from` is optional for setRole/remove/patch. Omission means any
+        // current role; operation-specific required lists are enforced when
+        // the manifest is loaded.
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+        (Some(_), None) => true,
     };
     let to_ok = match (to, &transition.to) {
         (None, _) => true,
@@ -6357,8 +6751,9 @@ impl LocalDatabase {
                             &member_id,
                             &role,
                         )?,
-                    BufferedMembershipOp::Remove { member_id } => self
-                        .plan_membership_remove(&command.writer, &command.table, &member_id)?,
+                    BufferedMembershipOp::Remove { member_id } => {
+                        self.plan_membership_remove(&command.writer, &command.table, &member_id)?
+                    }
                     BufferedMembershipOp::Patch { member_id, values } => self
                         .plan_membership_patch(
                             &command.writer,
@@ -6367,7 +6762,10 @@ impl LocalDatabase {
                             values,
                         )?,
                 };
-                Ok(AuthorizedMembershipPlan::user_transition(command.writer, plan))
+                Ok(AuthorizedMembershipPlan::user_transition(
+                    command.writer,
+                    plan,
+                ))
             })
             .collect()
     }
@@ -6539,9 +6937,10 @@ impl LocalDatabase {
 
         // Referential integrity: the resource row must exist, and we capture it
         // so a concurrent teardown/delete linearizes at commit.
-        if let (Some(resource_id), Some(resource_table)) =
-            (inserted_resource.as_deref(), membership.resource_table.as_deref())
-        {
+        if let (Some(resource_id), Some(resource_table)) = (
+            inserted_resource.as_deref(),
+            membership.resource_table.as_deref(),
+        ) {
             let version = read_resource_version(&self.conn, resource_table, resource_id)?
                 .ok_or_else(|| {
                     membership_refusal(
@@ -6552,7 +6951,11 @@ impl LocalDatabase {
                         ),
                     )
                 })?;
-            read_dependencies.push(resource_row_dependency(resource_table, resource_id, version));
+            read_dependencies.push(resource_row_dependency(
+                resource_table,
+                resource_id,
+                version,
+            ));
         }
 
         // Caller class over the inserted resource, and target self/other.
@@ -6561,7 +6964,7 @@ impl LocalDatabase {
         } else {
             MembershipTarget::Other
         };
-        let caller_role = read_caller_role(
+        let (caller_role, caller_dependency) = read_caller_role_with_dependency(
             &self.conn,
             table_manifest,
             membership,
@@ -6572,6 +6975,7 @@ impl LocalDatabase {
             Some(role) => MembershipCallerClass::Role(role),
             None => MembershipCallerClass::None,
         };
+        read_dependencies.push(caller_dependency);
 
         let matched = membership
             .transitions
@@ -6624,7 +7028,7 @@ impl LocalDatabase {
 
         let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
             .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target) = self.derive_class_and_target(
+        let (class, target, caller_dependency) = self.derive_class_and_target(
             table_manifest,
             membership,
             row.resource.as_deref(),
@@ -6645,6 +7049,7 @@ impl LocalDatabase {
         let _ = matched;
 
         let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
+        read_dependencies.extend(caller_dependency);
 
         // Demotion out of a protected role must leave an eligible holder; capture
         // the survivor so two concurrent demotions of the final two cannot both
@@ -6688,7 +7093,7 @@ impl LocalDatabase {
 
         let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
             .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target) = self.derive_class_and_target(
+        let (class, target, caller_dependency) = self.derive_class_and_target(
             table_manifest,
             membership,
             row.resource.as_deref(),
@@ -6708,7 +7113,14 @@ impl LocalDatabase {
             .ok_or_else(|| transition_denied(MembershipOp::Remove, class.token(), target))?;
 
         let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
-        self.guard_protected_departure(table_manifest, membership, &row, true, &mut read_dependencies)?;
+        read_dependencies.extend(caller_dependency);
+        self.guard_protected_departure(
+            table_manifest,
+            membership,
+            &row,
+            true,
+            &mut read_dependencies,
+        )?;
 
         Ok(MembershipPlan {
             writes: vec![BufferedWrite::Delete {
@@ -6738,7 +7150,7 @@ impl LocalDatabase {
 
         let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
             .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target) = self.derive_class_and_target(
+        let (class, target, caller_dependency) = self.derive_class_and_target(
             table_manifest,
             membership,
             row.resource.as_deref(),
@@ -6768,6 +7180,7 @@ impl LocalDatabase {
                 transition.op == MembershipOp::Patch
                     && transition.target == target
                     && transition.by.iter().any(|by| by == class.token())
+                    && matches_role_lists(transition, Some(&row.role), None)
                     && values
                         .keys()
                         .all(|key| transition.fields.iter().flatten().any(|field| field == key))
@@ -6781,7 +7194,9 @@ impl LocalDatabase {
                 id: row.id.clone(),
                 values,
             }],
-            read_dependencies: vec![target_row_dependency(&table_manifest.name, &row)],
+            read_dependencies: std::iter::once(target_row_dependency(&table_manifest.name, &row))
+                .chain(caller_dependency)
+                .collect(),
             result: Value::Null,
             skipped_protected: Vec::new(),
         })
@@ -6937,7 +7352,10 @@ impl LocalDatabase {
                 kind: CapturedReadKind::Query,
                 table: Some(table.name.clone()),
                 id: None,
-                version: Some(table_change_version_from_connection(&self.conn, &table.name)?),
+                version: Some(table_change_version_from_connection(
+                    &self.conn,
+                    &table.name,
+                )?),
                 predicate: None,
                 rows: Vec::new(),
                 field: None,
@@ -7008,7 +7426,7 @@ impl LocalDatabase {
             .collect::<SnapbackResult<Vec<_>>>()?
             .join(", ");
         let sql = format!(
-            "SELECT _id, {quoted} FROM {} WHERE {field} IS NOT NULL AND {field} < ?1 ORDER BY _id",
+            "SELECT _id, _version, {quoted} FROM {} WHERE {field} IS NOT NULL AND {field} < ?1 ORDER BY _id",
             quote_ident(&table_manifest.name)?,
             field = quote_ident(&expiry.field)?
         );
@@ -7017,21 +7435,44 @@ impl LocalDatabase {
         let expired = statement
             .query_map(params![now_ms as i64], |row| {
                 let id: String = row.get(0)?;
-                let principal: String = row.get(1)?;
-                let role: String = row.get(2)?;
-                let resource: Option<String> = if has_resource { row.get(3)? } else { None };
-                Ok((id, principal, role, resource))
+                let version: i64 = row.get(1)?;
+                let principal: String = row.get(2)?;
+                let role: String = row.get(3)?;
+                let resource: Option<String> = if has_resource { row.get(4)? } else { None };
+                Ok((id, version as u64, principal, role, resource))
             })?
             .collect::<Result<Vec<_>, _>>()?;
 
-        let protect = membership.last_holder.as_ref().map(|last| last.protect.clone());
+        let protect = membership
+            .last_holder
+            .as_ref()
+            .map(|last| last.protect.clone());
         let mut writes = Vec::new();
+        let mut read_dependencies = Vec::new();
         let mut skipped_protected = Vec::new();
         // Sequential accounting: a row already marked for removal is no longer a
         // surviving eligible holder, so two expired protected holders cannot both
         // be swept into a strand.
         let mut removed: BTreeSet<String> = BTreeSet::new();
-        for (id, principal, role, resource) in expired {
+        for (id, version, principal, role, resource) in expired {
+            // The sweep may delete this exact row only if its expiry/role/axes
+            // are unchanged at commit. Renewal, promotion, or any other patch
+            // bumps the row version and invalidates the stale plan.
+            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+            read_dependencies.push(CapturedReadDependency {
+                kind: CapturedReadKind::Row,
+                table: Some(table_manifest.name.clone()),
+                id: Some(id.clone()),
+                version: Some(version),
+                predicate: None,
+                rows: Vec::new(),
+                field: None,
+                value: None,
+                order: None,
+                limit: None,
+                result_count: None,
+                boundary: None,
+            });
             let is_protected_final = match (&protect, &resource) {
                 (Some(protect), Some(resource)) if protect == &role => {
                     let survivors = crate::storage::auth_agents::eligible_protected_holder_rows(
@@ -7043,8 +7484,11 @@ impl LocalDatabase {
                         resource,
                         protect,
                         &principal,
+                        schema.effective_auth_mode() == AuthMode::Sessions,
                     )?;
-                    !survivors.iter().any(|(member_id, _, _)| !removed.contains(member_id))
+                    !survivors
+                        .iter()
+                        .any(|(member_id, _, _)| !removed.contains(member_id))
                 }
                 _ => false,
             };
@@ -7061,7 +7505,7 @@ impl LocalDatabase {
 
         Ok(MembershipPlan {
             writes,
-            read_dependencies: Vec::new(),
+            read_dependencies,
             result: Value::Null,
             skipped_protected,
         })
@@ -7097,16 +7541,28 @@ impl LocalDatabase {
         resource: Option<&str>,
         target_principal: &str,
         effective: &str,
-    ) -> SnapbackResult<(MembershipCallerClass, MembershipTarget)> {
+    ) -> SnapbackResult<(
+        MembershipCallerClass,
+        MembershipTarget,
+        Option<CapturedReadDependency>,
+    )> {
         if effective == target_principal {
-            return Ok((MembershipCallerClass::Own, MembershipTarget::Own));
+            let (_, dependency) = read_caller_role_with_dependency(
+                &self.conn, table, membership, resource, effective,
+            )?;
+            return Ok((
+                MembershipCallerClass::Own,
+                MembershipTarget::Own,
+                Some(dependency),
+            ));
         }
-        let caller_role = read_caller_role(&self.conn, table, membership, resource, effective)?;
+        let (caller_role, dependency) =
+            read_caller_role_with_dependency(&self.conn, table, membership, resource, effective)?;
         let class = match caller_role {
             Some(role) => MembershipCallerClass::Role(role),
             None => MembershipCallerClass::None,
         };
-        Ok((class, MembershipTarget::Other))
+        Ok((class, MembershipTarget::Other, Some(dependency)))
     }
 
     /// A departure (remove, or a demotion whose `to` leaves the protected role)
@@ -7138,6 +7594,7 @@ impl LocalDatabase {
             resource,
             &last_holder.protect,
             &row.principal,
+            self.schema.effective_auth_mode() == AuthMode::Sessions,
         )?;
         let Some((survivor_id, survivor_version, _)) = survivors.into_iter().next() else {
             return Err(membership_refusal(
@@ -7170,9 +7627,9 @@ impl LocalDatabase {
         Ok(())
     }
 
-    /// Seating or promoting a principal into a protected role requires that
-    /// principal to be eligible (not permanently deactivated): the eligible
-    /// holder set cannot be kept full with corpses.
+    /// Seating or promoting a principal into a protected role requires the
+    /// shared durable-recoverability predicate: the eligible holder set cannot
+    /// be kept full with absent, deactivated, or credential-stranded principals.
     fn require_eligible_if_protected(
         &self,
         membership: &MembershipManifest,
@@ -7185,11 +7642,15 @@ impl LocalDatabase {
         if role != last_holder.protect {
             return Ok(());
         }
-        if !crate::storage::auth_agents::principal_is_eligible_on(&self.conn, principal)? {
+        if !crate::storage::auth_agents::principal_is_eligible_on(
+            &self.conn,
+            principal,
+            self.schema.effective_auth_mode() == AuthMode::Sessions,
+        )? {
             return Err(membership_refusal(
                 "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER",
                 format!(
-                    "principal {principal:?} is permanently deactivated and cannot hold the \
+                    "principal {principal:?} has no durable recovery carrier and cannot hold the \
                      protected role {:?}",
                     last_holder.protect
                 ),
@@ -7346,29 +7807,69 @@ fn revalidate_sanctioned_membership_write(
     tx: &Transaction<'_>,
     write: &BufferedWrite,
 ) -> SnapbackResult<()> {
-    let BufferedWrite::Insert { table, values, .. } = write else {
-        return Ok(());
-    };
+    let table = write.table();
     let Some(table_manifest) = schema.table(table) else {
         return Ok(());
     };
     let Some(membership) = &table_manifest.membership else {
         return Ok(());
     };
-    let (Some(resource_field), Some(resource_table)) =
-        (&membership.resource, &membership.resource_table)
-    else {
+
+    if let BufferedWrite::Insert { values, .. } = write
+        && let (Some(resource_field), Some(resource_table)) =
+            (&membership.resource, &membership.resource_table)
+    {
+        let resource = extract_axis(values, resource_field, "resource")?;
+        if read_resource_version(tx, resource_table, &resource)?.is_none() {
+            return Err(membership_refusal(
+                "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                format!(
+                    "membership insert names resource {resource:?}, which no longer exists in \
+                     {resource_table}"
+                ),
+            ));
+        }
+    }
+
+    // Planning-time eligibility is insufficient: an auth-lifecycle transaction
+    // can deactivate the target or destroy its final recovery carrier before
+    // this serialized commit begins. Recheck every insert/promotion into the
+    // protected role against the same transaction snapshot. The complete
+    // final-state evaluator below still proves that departures retain a holder;
+    // this leg proves that a raced promotion cannot add an ineligible holder
+    // merely because some other eligible holder also remains.
+    let Some(protected) = membership.last_holder.as_ref().map(|last| &last.protect) else {
         return Ok(());
     };
-    let resource = extract_axis(values, resource_field, "resource")?;
-    if read_resource_version(tx, resource_table, &resource)?.is_none() {
+    let promoted_principal = match write {
+        BufferedWrite::Insert { values, .. }
+            if values.get(&membership.role).and_then(Value::as_str) == Some(protected.as_str()) =>
+        {
+            Some(extract_axis(values, &membership.principal, "principal")?)
+        }
+        BufferedWrite::Patch { id, values, .. }
+            if values.get(&membership.role).and_then(Value::as_str) == Some(protected.as_str()) =>
+        {
+            read_membership_row(tx, table_manifest, membership, id)?.map(|row| row.principal)
+        }
+        _ => None,
+    };
+    if let Some(principal) = promoted_principal
+        && !auth_agents::principal_is_eligible_on(
+            tx,
+            &principal,
+            schema.effective_auth_mode() == AuthMode::Sessions,
+        )?
+    {
         return Err(membership_refusal(
-            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+            "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER",
             format!(
-                "membership insert names resource {resource:?}, which no longer exists in \
-                 {resource_table}"
+                "principal {principal:?} has no durable recovery carrier and cannot enter the \
+                 protected role {protected:?}"
             ),
-        ));
+        )
+        .with_detail("principal", principal)
+        .with_detail("role", protected.clone()));
     }
     Ok(())
 }
@@ -7530,12 +8031,14 @@ fn membership_hostplan_write_denied(table: &str) -> SnapbackError {
 fn membership_write_provenance(
     writer: Option<&MembershipWriter>,
 ) -> SnapbackResult<MembershipWriteProvenance> {
-    writer.and_then(MembershipWriter::provenance).ok_or_else(|| {
-        membership_refusal(
-            "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
-            "a provenance-enabled membership write lacks a resolved writer attribution",
-        )
-    })
+    writer
+        .and_then(MembershipWriter::provenance)
+        .ok_or_else(|| {
+            membership_refusal(
+                "SNAPBACK_MEMBERSHIP_PROVENANCE_UNAVAILABLE",
+                "a provenance-enabled membership write lacks a resolved writer attribution",
+            )
+        })
 }
 
 fn write_membership_creation_provenance(
@@ -7559,12 +8062,7 @@ fn write_membership_creation_provenance(
             quote_ident(MEMBERSHIP_GRANTED_BY_EFFECTIVE)?,
             quote_ident(MEMBERSHIP_GRANTED_BY_GRANT)?,
         ),
-        params![
-            provenance.actor,
-            provenance.effective,
-            provenance.grant,
-            id
-        ],
+        params![provenance.actor, provenance.effective, provenance.grant, id],
     )?;
     Ok(())
 }
@@ -7993,7 +8491,7 @@ fn json_to_sql_value(value: &Value, field_type: Option<&FieldType>) -> SnapbackR
         None => Err(type_error("portable scalar", value)),
         // A principal is nominal typing over the string space: it stores and
         // coerces exactly like a String (LLP 0056 §Declaring a membership table).
-        Some(FieldType::String) | Some(FieldType::Principal) => value
+        Some(FieldType::String) | Some(FieldType::Principal) | Some(FieldType::Id { .. }) => value
             .as_str()
             .map(|value| SqlValue::Text(value.to_owned()))
             .ok_or_else(|| type_error("string", value)),
@@ -8106,7 +8604,7 @@ fn is_system_field(field: &str) -> bool {
 
 fn sqlite_type(field_type: &FieldType) -> &'static str {
     match field_type {
-        FieldType::String | FieldType::Json | FieldType::Principal => "TEXT",
+        FieldType::String | FieldType::Json | FieldType::Principal | FieldType::Id { .. } => "TEXT",
         FieldType::Boolean | FieldType::Integer => "INTEGER",
         FieldType::Real => "REAL",
     }
@@ -8641,9 +9139,17 @@ mod guarded_commit_tests {
             .query(&disjunctive_query, &delegated)
             .expect("intersect a disjunctive delegated row rule")
             .rows;
-        assert_eq!(intersected.len(), 1, "the delegated disjunct cannot widen the row set");
+        assert_eq!(
+            intersected.len(),
+            1,
+            "the delegated disjunct cannot widen the row set"
+        );
         assert_eq!(intersected[0]["title"], "direct");
-        assert_eq!(intersected.len(), 1, "aggregate count derives only from admitted rows");
+        assert_eq!(
+            intersected.len(),
+            1,
+            "aggregate count derives only from admitted rows"
+        );
         assert_eq!(
             intersected
                 .iter()
@@ -10070,7 +10576,7 @@ mod guarded_commit_tests {
     }
 }
 
-// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the M2
+// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 //   write-path acceptance suite: the writer-class seam, the closed transition
 //   matrix and its negatives, field-binding, the eligible-holder invariant (the
 //   two-step schedule and the concurrent-finals race), witnesses, and the sweep.
@@ -10120,7 +10626,13 @@ mod membership_write_tests {
                             field_type: FieldType::Principal,
                             optional: false,
                         },
-                        string("eventId", false),
+                        FieldManifest {
+                            name: "eventId".to_owned(),
+                            field_type: FieldType::Id {
+                                table: "events".to_owned(),
+                            },
+                            optional: false,
+                        },
                         string("role", false),
                         FieldManifest {
                             name: "expiresAt".to_owned(),
@@ -10154,14 +10666,63 @@ mod membership_write_tests {
                         incidental: Some(vec!["notifyPrefs".to_owned()]),
                         provenance: Some(MembershipProvenance::Full),
                         transitions: vec![
-                            transition(Insert, &["host", "cohost"], Other, None, Some(&["invited"]), None),
+                            transition(
+                                Insert,
+                                &["host", "cohost"],
+                                Other,
+                                None,
+                                Some(&["invited"]),
+                                None,
+                            ),
                             transition(Insert, &["none"], Own, None, Some(&["guest"]), None),
-                            transition(SetRole, &["self"], Own, Some(&["invited"]), Some(&["guest"]), None),
-                            transition(SetRole, &["host"], Other, Some(&["guest"]), Some(&["cohost"]), None),
-                            transition(SetRole, &["host"], Other, Some(&["cohost"]), Some(&["guest"]), None),
-                            transition(SetRole, &["host"], Other, Some(&["cohost"]), Some(&["host"]), None),
-                            transition(Remove, &["self"], Own, Some(&["invited", "guest", "cohost", "host"]), None, None),
-                            transition(Remove, &["host"], Other, Some(&["guest", "cohost"]), None, None),
+                            transition(
+                                SetRole,
+                                &["self"],
+                                Own,
+                                Some(&["invited"]),
+                                Some(&["guest"]),
+                                None,
+                            ),
+                            transition(
+                                SetRole,
+                                &["host"],
+                                Other,
+                                Some(&["guest"]),
+                                Some(&["cohost"]),
+                                None,
+                            ),
+                            transition(
+                                SetRole,
+                                &["host"],
+                                Other,
+                                Some(&["cohost"]),
+                                Some(&["guest"]),
+                                None,
+                            ),
+                            transition(
+                                SetRole,
+                                &["host"],
+                                Other,
+                                Some(&["cohost"]),
+                                Some(&["host"]),
+                                None,
+                            ),
+                            transition(
+                                Remove,
+                                &["self"],
+                                Own,
+                                Some(&["invited", "guest", "cohost", "host"]),
+                                None,
+                                None,
+                            ),
+                            transition(
+                                Remove,
+                                &["host"],
+                                Other,
+                                Some(&["guest", "cohost"]),
+                                None,
+                                None,
+                            ),
                             transition(Patch, &["host"], Other, None, None, Some(&["expiresAt"])),
                             transition(Patch, &["self"], Own, None, None, Some(&["notifyPrefs"])),
                         ],
@@ -10179,6 +10740,86 @@ mod membership_write_tests {
         db.activate_current_auth_catalog().expect("auth catalog");
         db.apply_schema(membership_schema()).expect("apply schema");
         db
+    }
+
+    #[test]
+    fn membership_transition_grammar_rejects_empty_forbidden_and_unreachable_shapes() {
+        let invalid = [
+            crate::manifest::MembershipTransition {
+                op: MembershipOp::Insert,
+                by: vec!["none".to_owned()],
+                target: MembershipTarget::Own,
+                from: Some(vec!["guest".to_owned()]),
+                to: Some(vec!["guest".to_owned()]),
+                fields: None,
+            },
+            crate::manifest::MembershipTransition {
+                op: MembershipOp::SetRole,
+                by: vec!["host".to_owned()],
+                target: MembershipTarget::Other,
+                from: Some(vec!["guest".to_owned()]),
+                to: None,
+                fields: None,
+            },
+            crate::manifest::MembershipTransition {
+                op: MembershipOp::Remove,
+                by: vec!["host".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: Some(vec!["guest".to_owned()]),
+                fields: None,
+            },
+            crate::manifest::MembershipTransition {
+                op: MembershipOp::Patch,
+                by: Vec::new(),
+                target: MembershipTarget::Other,
+                from: None,
+                to: None,
+                fields: Some(vec!["expiresAt".to_owned()]),
+            },
+            crate::manifest::MembershipTransition {
+                op: MembershipOp::Patch,
+                by: vec!["host".to_owned()],
+                target: MembershipTarget::Own,
+                from: None,
+                to: None,
+                fields: Some(vec!["expiresAt".to_owned()]),
+            },
+        ];
+        for transition in invalid {
+            let mut schema = membership_schema();
+            schema.tables[1].membership.as_mut().unwrap().transitions = vec![transition];
+            let error = validate_schema(&schema).expect_err("invalid transition grammar");
+            assert!(
+                matches!(
+                    error.diagnostic.code.as_str(),
+                    "SNAPBACK_MEMBERSHIP_TRANSITION_GRAMMAR"
+                        | "SNAPBACK_MEMBERSHIP_TRANSITION_EMPTY_SET"
+                ),
+                "unexpected diagnostic: {:?}",
+                error.diagnostic
+            );
+        }
+    }
+
+    #[test]
+    fn app_membership_rejects_resource_bootstrap_role_at_manifest_load() {
+        let mut schema = membership_schema();
+        let membership = schema.tables[1]
+            .membership
+            .as_mut()
+            .expect("membership declaration");
+        membership.scope = MembershipScope::App;
+        membership.resource = None;
+        membership.resource_table = None;
+        membership.last_holder = None;
+
+        let error = validate_schema(&schema)
+            .expect_err("app scope has no resource creation witness for bootstrapRole");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE"
+        );
     }
 
     #[test]
@@ -10277,9 +10918,7 @@ mod membership_write_tests {
                         table: "events".to_owned(),
                         id: event_id.to_owned(),
                     }],
-                    membership_plans: vec![AuthorizedMembershipPlan::user_transition(
-                        writer, plan,
-                    )],
+                    membership_plans: vec![AuthorizedMembershipPlan::user_transition(writer, plan)],
                     read_dependencies: Vec::new(),
                     result: Value::Null,
                     ctx_ledger: CtxAnswerLedger {
@@ -10298,11 +10937,7 @@ mod membership_write_tests {
             error.diagnostic.code,
             "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
         );
-        assert!(
-            db.get("events", event_id)
-                .expect("resource read")
-                .is_some()
-        );
+        assert!(db.get("events", event_id).expect("resource read").is_some());
         assert_eq!(
             db.scan_table("event_members", 10, 0)
                 .expect("membership scan")
@@ -10348,7 +10983,9 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_bootstrap(&writer, "events", values, "event_members")
             .expect("bootstrap plan");
-        let commit = db.commit_membership_plan(&writer, plan).expect("bootstrap commit");
+        let commit = db
+            .commit_membership_plan(&writer, plan)
+            .expect("bootstrap commit");
         let event_id = commit_id_for_table(&commit, "events");
         let host_id = commit_id_for_table(&commit, "event_members");
         (event_id, host_id)
@@ -10384,10 +11021,16 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_insert(&writer, "event_members", values)
             .expect("invite plan");
-        db.commit_membership_plan(&writer, plan).expect("invite commit");
+        db.commit_membership_plan(&writer, plan)
+            .expect("invite commit");
     }
 
-    fn set_role(db: &mut LocalDatabase, actor: &str, member_id: &str, to: &str) -> SnapbackResult<()> {
+    fn set_role(
+        db: &mut LocalDatabase,
+        actor: &str,
+        member_id: &str,
+        to: &str,
+    ) -> SnapbackResult<()> {
         let writer = user(actor);
         let plan = db.plan_membership_set_role(&writer, "event_members", member_id, to)?;
         db.commit_membership_plan(&writer, plan).map(|_| ())
@@ -10472,7 +11115,12 @@ mod membership_write_tests {
         let expiry_commit = db
             .commit_membership_plan(&user("alice"), expiry_plan)
             .expect("expiry commit");
-        assert!(expiry_commit.authorization.as_ref().is_some_and(|w| w.event));
+        assert!(
+            expiry_commit
+                .authorization
+                .as_ref()
+                .is_some_and(|w| w.event)
+        );
         assert_eq!(
             db.authorization_version().unwrap().epoch,
             after_role.epoch + 1
@@ -10484,7 +11132,12 @@ mod membership_write_tests {
         let remove_commit = db
             .commit_membership_plan(&user("alice"), remove_plan)
             .expect("remove commit");
-        assert!(remove_commit.authorization.as_ref().is_some_and(|w| w.event));
+        assert!(
+            remove_commit
+                .authorization
+                .as_ref()
+                .is_some_and(|w| w.event)
+        );
     }
 
     #[test]
@@ -10678,7 +11331,8 @@ mod membership_write_tests {
         let (host_id, bob_id) = {
             let mut db = LocalDatabase::open(&path).expect("file database");
             db.activate_current_auth_catalog().expect("auth catalog");
-            db.apply_schema(membership_schema()).expect("membership schema");
+            db.apply_schema(membership_schema())
+                .expect("membership schema");
             let (event_id, host_id) = create_event(&mut db, "alice");
             invite(&mut db, "alice", &event_id, "bob");
             let bob_id = member_id(&db, &event_id, "bob");
@@ -10708,13 +11362,11 @@ mod membership_write_tests {
                 .iter()
                 .any(|record| record.op == "insert" && record.to_role.as_deref() == Some("invited"))
         );
-        assert!(
-            bob_log.iter().any(|record| {
-                record.op == "setRole"
-                    && record.from_role.as_deref() == Some("invited")
-                    && record.to_role.as_deref() == Some("guest")
-            })
-        );
+        assert!(bob_log.iter().any(|record| {
+            record.op == "setRole"
+                && record.from_role.as_deref() == Some("invited")
+                && record.to_role.as_deref() == Some("guest")
+        }));
         assert_eq!(role_of(&reopened, &bob_id).as_deref(), Some("guest"));
     }
 
@@ -10796,7 +11448,10 @@ mod membership_write_tests {
             &["admin".to_owned()],
         )
         .expect("real seeded global-role lookup");
-        assert!(real_row.present, "the app gate reads durable membership data");
+        assert!(
+            real_row.present,
+            "the app gate reads durable membership data"
+        );
 
         let admin = MembershipWriter::Admin;
         let admin_plan = db
@@ -10867,7 +11522,10 @@ mod membership_write_tests {
         let error = db
             .commit_membership_plan(&MembershipWriter::Admin, duplicate)
             .expect_err("one global role per declaration");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
     }
 
     #[test]
@@ -10946,7 +11604,10 @@ mod membership_write_tests {
                 Value::Null,
             )
             .expect_err("raw membership write must be refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED"
+        );
     }
 
     #[test]
@@ -11041,7 +11702,10 @@ mod membership_write_tests {
             .plan_membership_insert(&writer, "event_members", values.clone())
             .expect("open join plan");
         db.commit_membership_plan(&writer, plan).expect("open join");
-        assert_eq!(role_of(&db, &member_id(&db, &event_id, "carol")).as_deref(), Some("guest"));
+        assert_eq!(
+            role_of(&db, &member_id(&db, &event_id, "carol")).as_deref(),
+            Some("guest")
+        );
 
         // The open-join transition names no `fields`, so seating a far-future
         // expiresAt is refused (the field-bound insert hole).
@@ -11067,9 +11731,11 @@ mod membership_write_tests {
         let bob = member_id(&db, &event_id, "bob");
         set_role(&mut db, "bob", &bob, "guest").expect("accept");
         // No transition lets a guest promote themselves.
-        let error = set_role(&mut db, "bob", &bob, "host")
-            .expect_err("guest self-promote refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        let error = set_role(&mut db, "bob", &bob, "host").expect_err("guest self-promote refused");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
     }
 
     #[test]
@@ -11082,7 +11748,10 @@ mod membership_write_tests {
         // Bob (invited) tries to accept Carol's invite (target other) -> refused.
         let error = set_role(&mut db, "bob", &carol, "guest")
             .expect_err("acting on another's row is refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
         // And bob cannot kick carol (remove other requires host).
         let plan = db.plan_membership_remove(&user("bob"), "event_members", &carol);
         assert_eq!(
@@ -11105,7 +11774,8 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_patch(&user("bob"), "event_members", &bob, prefs)
             .expect("prefs plan");
-        db.commit_membership_plan(&user("bob"), plan).expect("prefs");
+        db.commit_membership_plan(&user("bob"), plan)
+            .expect("prefs");
 
         // Self may NOT extend own expiresAt (the self-renewal hole).
         let mut extend = Map::new();
@@ -11113,13 +11783,65 @@ mod membership_write_tests {
         let error = db
             .plan_membership_patch(&user("bob"), "event_members", &bob, extend.clone())
             .expect_err("self expiry extend refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
 
         // But a host may extend a guest's expiresAt.
         let plan = db
             .plan_membership_patch(&user("alice"), "event_members", &bob, extend)
             .expect("host extend plan");
-        db.commit_membership_plan(&user("alice"), plan).expect("host extend");
+        db.commit_membership_plan(&user("alice"), plan)
+            .expect("host extend");
+    }
+
+    #[test]
+    fn patch_from_roles_allow_guest_refuse_cohost_and_omission_means_any_role() {
+        let mut restricted_schema = membership_schema();
+        restricted_schema.tables[1]
+            .membership
+            .as_mut()
+            .unwrap()
+            .transitions
+            .iter_mut()
+            .find(|transition| {
+                transition.op == MembershipOp::Patch && transition.target == MembershipTarget::Other
+            })
+            .unwrap()
+            .from = Some(vec!["guest".to_owned()]);
+        let mut restricted = LocalDatabase::memory().unwrap();
+        restricted.activate_current_auth_catalog().unwrap();
+        restricted.apply_schema(restricted_schema).unwrap();
+        let (event_id, _) = create_event(&mut restricted, "alice");
+        invite(&mut restricted, "alice", &event_id, "bob");
+        let bob = member_id(&restricted, &event_id, "bob");
+        set_role(&mut restricted, "bob", &bob, "guest").unwrap();
+        let expiry = Map::from_iter([("expiresAt".to_owned(), json!(5000))]);
+        let guest_patch = restricted
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .expect("guest is in from set");
+        restricted
+            .commit_membership_plan(&user("alice"), guest_patch)
+            .unwrap();
+        set_role(&mut restricted, "alice", &bob, "cohost").unwrap();
+        let error = restricted
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry.clone())
+            .expect_err("cohost is outside from set");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
+
+        let mut unrestricted = ready_db();
+        let (event_id, _) = create_event(&mut unrestricted, "alice");
+        invite(&mut unrestricted, "alice", &event_id, "bob");
+        let bob = member_id(&unrestricted, &event_id, "bob");
+        set_role(&mut unrestricted, "bob", &bob, "guest").unwrap();
+        set_role(&mut unrestricted, "alice", &bob, "cohost").unwrap();
+        unrestricted
+            .plan_membership_patch(&user("alice"), "event_members", &bob, expiry)
+            .expect("omitted from accepts any current role");
     }
 
     // --- lastHolder: establishment, preservation, the eligible-holder rule --
@@ -11141,7 +11863,10 @@ mod membership_write_tests {
                 Value::Null,
             )
             .expect_err("bare protected resource insert refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
+        );
         // The bootstrap path succeeds and seats the host.
         let (event_id, host_id) = create_event(&mut db, "alice");
         assert_eq!(role_of(&db, &host_id).as_deref(), Some("host"));
@@ -11159,7 +11884,10 @@ mod membership_write_tests {
         let error = db
             .plan_membership_insert(&user("mallory"), "event_members", usurp)
             .expect_err("no bootstrap witness on an existing resource");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_TRANSITION_DENIED"
+        );
     }
 
     #[test]
@@ -11170,20 +11898,27 @@ mod membership_write_tests {
         let error = db
             .plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect_err("lone host leave refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
 
         // Seat a second host; now alice may leave.
         promote_to_host(&mut db, "alice", &event_id, "bob");
         let plan = db
             .plan_membership_remove(&user("alice"), "event_members", &host_id)
             .expect("second host present");
-        db.commit_membership_plan(&user("alice"), plan).expect("alice leaves");
+        db.commit_membership_plan(&user("alice"), plan)
+            .expect("alice leaves");
         // And now bob is the lone host again.
         let bob_id = member_id(&db, &event_id, "bob");
         let error = db
             .plan_membership_remove(&user("bob"), "event_members", &bob_id)
             .expect_err("bob is now the lone host");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
     }
 
     #[test]
@@ -11206,8 +11941,65 @@ mod membership_write_tests {
         let error = db
             .plan_membership_remove(&user("agent-b"), "event_members", &agent_b_host)
             .expect_err("second-step leave must be refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
         let _ = agent_a_host;
+    }
+
+    #[test]
+    fn final_holder_removal_racing_deactivation_refuses_the_second_commit_in_both_orders() {
+        let prepare = || {
+            let mut db = ready_db();
+            seed_agent(&mut db, "agent-a");
+            seed_agent(&mut db, "agent-b");
+            let (event_id, agent_a) = create_event(&mut db, "agent-a");
+            promote_to_host(&mut db, "agent-a", &event_id, "agent-b");
+            let agent_b = member_id(&db, &event_id, "agent-b");
+            (db, agent_a, agent_b)
+        };
+
+        // Deactivation commits first. The removal's captured survivor row did
+        // not change, so only the shared commit-stage eligibility evaluator can
+        // detect that spending the stale plan would strand the resource.
+        let (mut auth_first, agent_a, agent_b) = prepare();
+        let stale_remove = auth_first
+            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .unwrap();
+        auth_first
+            .deactivate_agent("agent-a", 100, &membership_schema())
+            .unwrap();
+        let error = auth_first
+            .commit_membership_plan(&user("agent-b"), stale_remove)
+            .expect_err("stale removal must observe the survivor's ineligibility");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        assert_eq!(role_of(&auth_first, &agent_b).as_deref(), Some("host"));
+        let _ = agent_a;
+
+        // Removal commits first. Deactivation then runs the same predicate from
+        // the auth side and is the refused second writer.
+        let (mut membership_first, agent_a, agent_b) = prepare();
+        let remove = membership_first
+            .plan_membership_remove(&user("agent-b"), "event_members", &agent_b)
+            .unwrap();
+        membership_first
+            .commit_membership_plan(&user("agent-b"), remove)
+            .unwrap();
+        let error = membership_first
+            .deactivate_agent("agent-a", 100, &membership_schema())
+            .expect_err("deactivation cannot strand the post-removal resource");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        );
+        assert_eq!(
+            role_of(&membership_first, &agent_a).as_deref(),
+            Some("host")
+        );
     }
 
     #[test]
@@ -11227,7 +12019,59 @@ mod membership_write_tests {
         // kept full with corpses.
         let error = set_role(&mut db, "agent-a", &dead, "host")
             .expect_err("promoting a corpse into the protected role is refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER"
+        );
+    }
+
+    #[test]
+    fn promotion_racing_deactivation_rechecks_eligibility_in_both_commit_orders() {
+        let prepare = || {
+            let mut db = ready_db();
+            seed_agent(&mut db, "agent-a");
+            seed_agent(&mut db, "agent-b");
+            let (event_id, _) = create_event(&mut db, "agent-a");
+            invite(&mut db, "agent-a", &event_id, "agent-b");
+            let target = member_id(&db, &event_id, "agent-b");
+            set_role(&mut db, "agent-b", &target, "guest").unwrap();
+            set_role(&mut db, "agent-a", &target, "cohost").unwrap();
+            (db, target)
+        };
+
+        // Auth lifecycle wins first: the stale planned promotion must not add
+        // an ineligible protected holder just because agent-a still protects
+        // the resource and the aggregate final state is otherwise nonempty.
+        let (mut auth_first, target) = prepare();
+        let stale_promotion = auth_first
+            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .unwrap();
+        auth_first
+            .deactivate_agent("agent-b", 100, &membership_schema())
+            .unwrap();
+        let error = auth_first
+            .commit_membership_plan(&user("agent-a"), stale_promotion)
+            .expect_err("commit must recheck target eligibility after deactivation");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_INELIGIBLE_HOLDER"
+        );
+        assert_eq!(role_of(&auth_first, &target).as_deref(), Some("cohost"));
+
+        // Membership wins first: the promotion is valid while the target is
+        // live, then deactivation may commit because agent-a remains an
+        // eligible holder. Both serialized outcomes preserve the invariant.
+        let (mut membership_first, target) = prepare();
+        let promotion = membership_first
+            .plan_membership_set_role(&user("agent-a"), "event_members", &target, "host")
+            .unwrap();
+        membership_first
+            .commit_membership_plan(&user("agent-a"), promotion)
+            .unwrap();
+        membership_first
+            .deactivate_agent("agent-b", 100, &membership_schema())
+            .unwrap();
+        assert_eq!(role_of(&membership_first, &target).as_deref(), Some("host"));
     }
 
     #[test]
@@ -11258,6 +12102,82 @@ mod membership_write_tests {
         assert_eq!(role_of(&db, &alice_host), None);
     }
 
+    #[test]
+    fn stale_privileged_plan_conflicts_after_caller_membership_is_removed() {
+        let mut db = ready_db();
+        let (event_id, alice_host) = create_event(&mut db, "alice");
+        promote_to_host(&mut db, "alice", &event_id, "bob");
+        let invite_plan = db
+            .plan_membership_insert(
+                &user("alice"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("carol")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("invited")),
+                ]),
+            )
+            .expect("host invite planned");
+        let leave = db
+            .plan_membership_remove(&user("alice"), "event_members", &alice_host)
+            .expect("other host preserves resource");
+        db.commit_membership_plan(&user("alice"), leave)
+            .expect("caller membership removed first");
+        let error = db
+            .commit_membership_plan(&user("alice"), invite_plan)
+            .expect_err("obsolete host authority must not commit");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
+
+    #[test]
+    fn absent_caller_witness_conflicts_when_the_caller_becomes_a_member() {
+        let mut schema = membership_schema();
+        schema.tables[1]
+            .membership
+            .as_mut()
+            .unwrap()
+            .transitions
+            .push(crate::manifest::MembershipTransition {
+                op: MembershipOp::Insert,
+                by: vec!["none".to_owned()],
+                target: MembershipTarget::Other,
+                from: None,
+                to: Some(vec!["invited".to_owned()]),
+                fields: None,
+            });
+        let mut db = LocalDatabase::memory().unwrap();
+        db.activate_current_auth_catalog().unwrap();
+        db.apply_schema(schema).unwrap();
+        let (event_id, _) = create_event(&mut db, "alice");
+        let stale = db
+            .plan_membership_insert(
+                &user("mallory"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("carol")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("invited")),
+                ]),
+            )
+            .expect("none-class other insert plan");
+        let join = db
+            .plan_membership_insert(
+                &user("mallory"),
+                "event_members",
+                Map::from_iter([
+                    ("userId".to_owned(), json!("mallory")),
+                    ("eventId".to_owned(), json!(event_id)),
+                    ("role".to_owned(), json!("guest")),
+                ]),
+            )
+            .expect("caller joins");
+        db.commit_membership_plan(&user("mallory"), join).unwrap();
+        let error = db
+            .commit_membership_plan(&user("mallory"), stale)
+            .expect_err("empty caller witness must invalidate");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
+
     // --- Referential integrity + teardown witness ---------------------------
 
     #[test]
@@ -11270,7 +12190,10 @@ mod membership_write_tests {
         let error = db
             .plan_membership_insert(&user("carol"), "event_members", values)
             .expect_err("insert on a missing resource is refused");
-        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        );
     }
 
     #[test]
@@ -11298,7 +12221,8 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_teardown(&user("alice"), "events", &event_id)
             .expect("teardown plan");
-        db.commit_membership_plan(&user("alice"), plan).expect("teardown");
+        db.commit_membership_plan(&user("alice"), plan)
+            .expect("teardown");
         let remaining: i64 = db
             .conn
             .query_row(
@@ -11308,7 +12232,11 @@ mod membership_write_tests {
             )
             .expect("count");
         assert_eq!(remaining, 0);
-        assert!(read_resource_version(&db.conn, "events", &event_id).unwrap().is_none());
+        assert!(
+            read_resource_version(&db.conn, "events", &event_id)
+                .unwrap()
+                .is_none()
+        );
     }
 
     #[test]
@@ -11383,7 +12311,8 @@ mod membership_write_tests {
         let plan = db
             .plan_membership_insert(&user("carol"), "event_members", carol)
             .expect("carol join");
-        db.commit_membership_plan(&user("carol"), plan).expect("carol commit");
+        db.commit_membership_plan(&user("carol"), plan)
+            .expect("carol commit");
         let carol_id = member_id(&db, &event_id, "carol");
         db.conn
             .execute(
@@ -11424,6 +12353,283 @@ mod membership_write_tests {
         assert_eq!(sweep_record.actor, "system");
         assert_eq!(sweep_record.writer_class, "system");
         assert_eq!(role_of(&db, &carol_id), None, "expired guest swept");
-        assert_eq!(role_of(&db, &host_id).as_deref(), Some("host"), "protected host survives expiry");
+        assert_eq!(
+            role_of(&db, &host_id).as_deref(),
+            Some("host"),
+            "protected host survives expiry"
+        );
+    }
+
+    #[test]
+    fn stale_expiry_sweep_conflicts_after_a_membership_is_renewed() {
+        let mut db = ready_db();
+        let (event_id, _) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "carol");
+        let carol = member_id(&db, &event_id, "carol");
+        set_role(&mut db, "carol", &carol, "guest").unwrap();
+        db.conn
+            .execute(
+                "UPDATE event_members SET expiresAt = 10 WHERE _id = ?1",
+                params![carol],
+            )
+            .unwrap();
+        let sweep = db
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .expect("expired row planned");
+        let renewal = db
+            .plan_membership_patch(
+                &user("alice"),
+                "event_members",
+                &carol,
+                Map::from_iter([("expiresAt".to_owned(), json!(1000))]),
+            )
+            .expect("host renewal plan");
+        db.commit_membership_plan(&user("alice"), renewal)
+            .expect("renewal commits first");
+        let error = db
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .expect_err("stale sweep cannot delete a renewed row");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(role_of(&db, &carol).as_deref(), Some("guest"));
+    }
+
+    #[test]
+    fn stale_expiry_sweep_conflicts_after_the_target_role_changes() {
+        let mut db = ready_db();
+        let (event_id, _) = create_event(&mut db, "alice");
+        invite(&mut db, "alice", &event_id, "carol");
+        let carol = member_id(&db, &event_id, "carol");
+        set_role(&mut db, "carol", &carol, "guest").unwrap();
+        db.conn
+            .execute(
+                "UPDATE event_members SET expiresAt = 10 WHERE _id = ?1",
+                params![carol],
+            )
+            .unwrap();
+        let sweep = db
+            .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+            .unwrap();
+        set_role(&mut db, "alice", &carol, "cohost").unwrap();
+        let error = db
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .expect_err("a stale sweep cannot delete a promoted row");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+        assert_eq!(role_of(&db, &carol).as_deref(), Some("cohost"));
+    }
+
+    #[test]
+    fn two_expired_protected_holders_and_deactivation_serialize_safely() {
+        let prepare = || {
+            let mut db = ready_db();
+            seed_agent(&mut db, "agent-a");
+            seed_agent(&mut db, "agent-b");
+            let (event_id, agent_a) = create_event(&mut db, "agent-a");
+            promote_to_host(&mut db, "agent-a", &event_id, "agent-b");
+            let agent_b = member_id(&db, &event_id, "agent-b");
+            db.conn
+                .execute(
+                    "UPDATE event_members SET expiresAt = 10 WHERE _id IN (?1, ?2)",
+                    params![agent_a, agent_b],
+                )
+                .unwrap();
+            let sweep = db
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .unwrap();
+            assert_eq!(
+                sweep.writes.len(),
+                1,
+                "only one protected holder is removable"
+            );
+            assert_eq!(sweep.skipped_protected().len(), 1);
+            let survivor_id = sweep.skipped_protected()[0].clone();
+            let survivor: String = db
+                .conn
+                .query_row(
+                    "SELECT userId FROM event_members WHERE _id = ?1",
+                    params![survivor_id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            (db, sweep, survivor, survivor_id)
+        };
+
+        // Auth lifecycle wins: the sweep's target rows remain byte-for-byte
+        // unchanged, but deleting its chosen expired holder would leave only a
+        // deactivated skipped holder. The transaction-final evaluator refuses.
+        let (mut auth_first, sweep, survivor, survivor_id) = prepare();
+        auth_first
+            .deactivate_agent(&survivor, 100, &membership_schema())
+            .unwrap();
+        let error = auth_first
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .expect_err("sweep cannot spend a now-ineligible survivor");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        assert_eq!(role_of(&auth_first, &survivor_id).as_deref(), Some("host"));
+
+        // Sweep wins: it leaves exactly the deliberately skipped holder, whose
+        // later deactivation is then refused from the auth side.
+        let (mut sweep_first, sweep, survivor, survivor_id) = prepare();
+        sweep_first
+            .commit_membership_plan(&MembershipWriter::System, sweep)
+            .unwrap();
+        let error = sweep_first
+            .deactivate_agent(&survivor, 100, &membership_schema())
+            .expect_err("the skipped protected holder remains authoritative");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND"
+        );
+        assert_eq!(role_of(&sweep_first, &survivor_id).as_deref(), Some("host"));
+    }
+
+    #[test]
+    fn same_table_membership_semijoin_uses_the_outer_row_and_generic_roster_reads_are_private() {
+        let mut db = ready_db();
+        let (event_one, _) = create_event(&mut db, "u1");
+        invite(&mut db, "u1", &event_one, "u2");
+        let u2 = member_id(&db, &event_one, "u2");
+        set_role(&mut db, "u2", &u2, "guest").unwrap();
+        let (event_two, _) = create_event(&mut db, "u3");
+
+        let plan = QueryPlan {
+            table: "event_members".to_owned(),
+            filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            membership_filters: vec![crate::manifest::MembershipPredicate {
+                declaration: "event_members".to_owned(),
+                resource: crate::manifest::MembershipResourceRef::RowField("eventId".to_owned()),
+                roles: None,
+            }],
+            indexed_by: None,
+        };
+        let input = HandlerInput {
+            auth: AuthInput {
+                user_id: Some("u1".to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let table = db.schema().table("event_members").unwrap();
+        let (sql, values) = build_query_sql(
+            table,
+            db.schema(),
+            &plan,
+            &input,
+            &BTreeMap::new(),
+            None,
+            0,
+            None,
+            None,
+        )
+        .expect("lower internal semi-join");
+        assert!(sql.contains("AS \"__snapback_outer\""));
+        assert!(sql.contains("AS \"__snapback_membership\""));
+        let mut statement = db.conn.prepare(&sql).unwrap();
+        let event_column = statement
+            .column_names()
+            .iter()
+            .position(|column| *column == "eventId")
+            .expect("eventId result column");
+        let event_ids = statement
+            .query_map(params_from_iter(values.iter()), |row| {
+                row.get::<_, String>(event_column)
+            })
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert!(!event_ids.is_empty());
+        assert!(event_ids.iter().all(|event| event == &event_one));
+        assert!(!event_ids.iter().any(|event| event == &event_two));
+
+        let error = db
+            .query(&plan, &input)
+            .expect_err("generic roster primary reads are private by default");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_MEMBERSHIP_READ_PRIVATE");
+    }
+
+    #[test]
+    fn generated_reverse_index_is_covering_for_holder_lookup() {
+        let db = ready_db();
+        let index = "event_members__membership_reverse";
+        let mut statement = db
+            .conn
+            .prepare(&format!(
+                "PRAGMA index_info({})",
+                quote_ident(index).unwrap()
+            ))
+            .unwrap();
+        let columns = statement
+            .query_map([], |row| row.get::<_, String>(2))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(columns, ["eventId", "role", "userId", "_id"]);
+        drop(statement);
+        db.conn
+            .execute_batch(
+                "WITH RECURSIVE sequence(value) AS (
+                   VALUES(1) UNION ALL SELECT value + 1 FROM sequence WHERE value < 2048
+                 )
+                 INSERT INTO event_members(
+                   _id, _version, _createdAt, _updatedAt,
+                   userId, eventId, role,
+                   grantedByActor, grantedByEffective, grantedByGrant
+                 )
+                 SELECT printf('member-%04d', value), 1, 1, 1,
+                        printf('user-%04d', value),
+                        printf('event-%04d', value % 32),
+                        CASE WHEN value % 8 = 0 THEN 'host' ELSE 'guest' END,
+                        'test', 'test', NULL
+                 FROM sequence;
+                 ANALYZE event_members;",
+            )
+            .unwrap();
+        let roster_count: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM event_members", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(roster_count, 2048);
+        let detail: String = db
+            .conn
+            .query_row(
+                "EXPLAIN QUERY PLAN
+                 SELECT _id, _version, userId FROM event_members
+                 WHERE eventId = ?1 AND role = ?2 AND userId <> ?3",
+                params!["event", "host", "excluded"],
+                |row| row.get(3),
+            )
+            .unwrap();
+        assert!(
+            detail.contains(index),
+            "query plan did not use {index}: {detail}"
+        );
+
+        let mut app_schema = membership_schema();
+        app_schema.tables.remove(0);
+        let role_table = &mut app_schema.tables[0];
+        role_table.fields.retain(|field| field.name != "eventId");
+        let membership = role_table.membership.as_mut().unwrap();
+        membership.scope = MembershipScope::App;
+        membership.resource = None;
+        membership.resource_table = None;
+        membership.bootstrap_role = None;
+        membership.last_holder = None;
+        let mut app = LocalDatabase::memory().unwrap();
+        app.activate_current_auth_catalog().unwrap();
+        app.apply_schema(app_schema).unwrap();
+        let mut statement = app
+            .conn
+            .prepare("PRAGMA index_info('event_members__membership_reverse')")
+            .unwrap();
+        let columns = statement
+            .query_map([], |row| row.get::<_, String>(2))
+            .unwrap()
+            .collect::<Result<Vec<_>, _>>()
+            .unwrap();
+        assert_eq!(columns, ["role", "userId", "_id"]);
     }
 }

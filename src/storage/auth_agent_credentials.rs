@@ -14,7 +14,8 @@ use super::auth_invalidation::{AUTH_CLOCK_META_KEY, strict_meta_u64, write_meta_
 use super::{LocalDatabase, MAX_AUTHORIZATION_EPOCH, new_id};
 use crate::auth::crypto::{AgentCredential, RandomSource, ScopedToken};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
-use rusqlite::{OptionalExtension, Transaction, params};
+use crate::storage::auth::AuthTransactionAttempt;
+use rusqlite::{Connection, OptionalExtension, Transaction, params};
 use serde_json::Value;
 
 pub const AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS: u64 = 60 * 60 * 1_000;
@@ -116,7 +117,8 @@ impl LocalDatabase {
         self.observe_agent_authorization_clock(now_ms)?;
         let credential_id = new_id();
         let identity_id = new_id();
-        let secret = self.with_auth_transaction(|tx| {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_active_on(tx, user_id)?;
             require_agent_clock_on(tx, now_ms)?;
             let secret = generate_unique_agent_credential_on(tx, random)?;
@@ -135,14 +137,32 @@ impl LocalDatabase {
                  ) VALUES(?1, ?2, 'agent-credential', ?3, ?4)",
                 params![identity_id, user_id, credential_id, now_ms as i64],
             )?;
-            Ok(secret)
-        })?;
-        Ok(IssuedAgentCredential {
-            credential_id,
-            user_id: user_id.to_owned(),
-            generation: 1,
-            secret,
-        })
+            body_outcome = Some(IssuedAgentCredential {
+                credential_id: credential_id.clone(),
+                user_id: user_id.to_owned(),
+                generation: 1,
+                secret,
+            });
+            Ok(())
+        });
+        let attempt =
+            inject_agent_lifecycle_commit_uncertainty(attempt, "issue-credential", &credential_id);
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_issued_agent_credential(connection, expected)
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
     }
 
     /// Resolve only the current live generation. Rotated and revoked family
@@ -176,7 +196,8 @@ impl LocalDatabase {
     ) -> SnapbackResult<RotatedAgentCredential> {
         self.observe_agent_authorization_clock(now_ms)?;
         let predecessor_hash = credential.token_hash();
-        self.with_auth_transaction(|tx| {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             sweep_credential_family_on(tx, now_ms)?;
             let row = credential_row_by_hash(tx, predecessor_hash.as_bytes())?
@@ -231,15 +252,41 @@ impl LocalDatabase {
                     row.id,
                 ],
             )?;
-            Ok(RotatedAgentCredential {
+            body_outcome = Some(RotatedAgentCredential {
                 credential_id: row.id,
                 user_id: row.user_id,
                 predecessor_generation: row.generation,
                 generation: successor_generation,
                 invalidated_token_ids,
                 secret: successor,
-            })
-        })
+            });
+            Ok(())
+        });
+        let operation_key = body_outcome
+            .as_ref()
+            .map_or("unresolved", |outcome| outcome.credential_id.as_str());
+        let attempt =
+            inject_agent_lifecycle_commit_uncertainty(attempt, "rotate-credential", operation_key);
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_rotated_agent_credential(
+                        connection,
+                        predecessor_hash.as_bytes(),
+                        expected,
+                    )
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
     }
 
     /// Destroy the complete attributable credential family. Any family secret
@@ -252,7 +299,9 @@ impl LocalDatabase {
     ) -> SnapbackResult<AgentFamilyRevocation> {
         self.observe_agent_authorization_clock(now_ms)?;
         let hash = attributable.token_hash();
-        self.with_auth_transaction(|tx| {
+        let manifest = self.schema.clone();
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             sweep_credential_family_on(tx, now_ms)?;
             let Some(row) = credential_row_by_hash(tx, hash.as_bytes())? else {
@@ -278,13 +327,46 @@ impl LocalDatabase {
                  WHERE actor_user_id = ?2",
                 params![now_ms as i64, row.user_id],
             )?;
-            Ok(AgentFamilyRevocation {
+            // Revocation is allowed to end compromised authority, but it may
+            // not silently make an unowned production holder permanently
+            // unrecoverable. The app must seat a replacement (or use the
+            // explicit emergency transfer/quarantine surface) first.
+            // @ref LLP 0055#principal-kinds — durable recoverability is shared
+            //   with LLP 0056's transaction-final lastHolder invariant.
+            super::auth_agents::validate_protected_membership_final_state(tx, &manifest)?;
+            body_outcome = Some(AgentFamilyRevocation {
                 user_id: Some(row.user_id),
                 credential_ids,
                 token_ids,
                 grant_ids,
-            })
-        })
+            });
+            Ok(())
+        });
+        let operation_key = body_outcome
+            .as_ref()
+            .and_then(|outcome| outcome.user_id.as_deref())
+            .unwrap_or("unresolved");
+        let attempt = inject_agent_lifecycle_commit_uncertainty(
+            attempt,
+            "revoke-credential-family",
+            operation_key,
+        );
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_agent_family_revocation(connection, expected)
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
     }
 
     /// Mint one grant-bound scoped token under the current live credential
@@ -310,15 +392,16 @@ impl LocalDatabase {
         let secret = ScopedToken::generate(random).map_err(|_| secret_generation_failed())?;
         let token_hash = secret.token_hash();
         let token_id = new_id();
-        self.with_auth_transaction(|tx| {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
             require_agent_active_on(tx, &resolved.user_id)?;
             let grant = require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
-            let expires_at_ms = grant
-                .expires_at_ms
-                .map_or(expires_at_ms, |grant_expiry| expires_at_ms.min(grant_expiry));
+            let expires_at_ms = grant.expires_at_ms.map_or(expires_at_ms, |grant_expiry| {
+                expires_at_ms.min(grant_expiry)
+            });
             let mut live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
             let mut evicted_token_ids = Vec::new();
             while live.len() as u64 >= SCOPED_TOKEN_LIVE_CAP {
@@ -346,8 +429,8 @@ impl LocalDatabase {
                 ],
             )?;
             coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
-            Ok(IssuedScopedToken {
-                token_id,
+            body_outcome = Some(IssuedScopedToken {
+                token_id: token_id.clone(),
                 grant_id: grant_id.to_owned(),
                 credential_id: resolved.credential_id,
                 credential_generation: resolved.generation,
@@ -356,8 +439,27 @@ impl LocalDatabase {
                 scopes: grant.scopes,
                 evicted_token_ids,
                 secret,
-            })
-        })
+            });
+            Ok(())
+        });
+        let attempt =
+            inject_agent_lifecycle_commit_uncertainty(attempt, "mint-scoped-token", grant_id);
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_issued_scoped_token(connection, expected)
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
     }
 
     /// Poll an approved pairing request for its first grant token. Every
@@ -384,7 +486,8 @@ impl LocalDatabase {
         let secret = ScopedToken::generate(random).map_err(|_| secret_generation_failed())?;
         let token_hash = secret.token_hash();
         let token_id = format!("{pairing_request_id}:{}", new_id());
-        self.with_auth_transaction(|tx| {
+        let mut body_outcome = None;
+        let attempt = self.attempt_auth_transaction(|tx| {
             require_agent_clock_on(tx, now_ms)?;
             let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
                 .ok_or_else(agent_credential_invalid)?;
@@ -422,9 +525,11 @@ impl LocalDatabase {
             }
             let grant_id = grant_id.ok_or_else(grant_invalid)?;
             let grant = require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
-            let expires_at_ms = grant.expires_at_ms.map_or(requested_expires_at_ms, |expiry| {
-                requested_expires_at_ms.min(expiry)
-            });
+            let expires_at_ms = grant
+                .expires_at_ms
+                .map_or(requested_expires_at_ms, |expiry| {
+                    requested_expires_at_ms.min(expiry)
+                });
 
             let pairing_prefix = format!("{pairing_request_id}:%");
             let mut replaced_token_ids = collect_token_ids(
@@ -467,8 +572,8 @@ impl LocalDatabase {
                 ],
             )?;
             coalesce_credential_use(tx, &resolved.credential_id, now_ms)?;
-            Ok(IssuedScopedToken {
-                token_id,
+            body_outcome = Some(IssuedScopedToken {
+                token_id: token_id.clone(),
                 grant_id,
                 credential_id: resolved.credential_id,
                 credential_generation: resolved.generation,
@@ -477,8 +582,30 @@ impl LocalDatabase {
                 scopes: grant.scopes,
                 evicted_token_ids: replaced_token_ids,
                 secret,
-            })
-        })
+            });
+            Ok(())
+        });
+        let attempt = inject_agent_lifecycle_commit_uncertainty(
+            attempt,
+            "mint-pairing-scoped-token",
+            pairing_request_id,
+        );
+        match attempt {
+            AuthTransactionAttempt::Committed(()) => {
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+            AuthTransactionAttempt::RolledBack(error) => Err(error),
+            AuthTransactionAttempt::CommitUncertain(_) => {
+                let expected = body_outcome
+                    .as_ref()
+                    .ok_or_else(agent_lifecycle_commit_uncertain)?;
+                self.with_auth_read(|connection| {
+                    reconcile_issued_scoped_token(connection, expected)
+                })
+                .map_err(|_| agent_lifecycle_commit_uncertain())?;
+                body_outcome.ok_or_else(agent_lifecycle_commit_uncertain)
+            }
+        }
     }
 
     /// Per-invocation scoped-token validation. TTL is only a theft-window
@@ -733,8 +860,7 @@ fn generate_unique_agent_credential_on(
     random: &dyn RandomSource,
 ) -> SnapbackResult<AgentCredential> {
     for _ in 0..SECRET_COLLISION_RETRY_LIMIT {
-        let secret =
-            AgentCredential::generate(random).map_err(|_| secret_generation_failed())?;
+        let secret = AgentCredential::generate(random).map_err(|_| secret_generation_failed())?;
         let hash = secret.token_hash();
         let collision = tx
             .query_row(
@@ -785,12 +911,7 @@ fn require_live_grant_for_actor(
              WHERE id = ?1 AND actor_user_id = ?2 AND revoked_at_ms IS NULL
                AND (expires_at_ms IS NULL OR expires_at_ms > ?3)",
             params![grant_id, actor_user_id, now_ms as i64],
-            |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, Option<i64>>(1)?,
-                ))
-            },
+            |row| Ok((row.get::<_, String>(0)?, row.get::<_, Option<i64>>(1)?)),
         )
         .optional()?;
     let (scopes, expires_at_ms) = grant.ok_or_else(grant_invalid)?;
@@ -874,6 +995,266 @@ fn collect_token_ids<P: rusqlite::Params>(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
+fn reconcile_issued_agent_credential(
+    connection: &Connection,
+    expected: &IssuedAgentCredential,
+) -> SnapbackResult<()> {
+    let stored = connection
+        .query_row(
+            "SELECT user_id, secret_hash, generation, revoked_at_ms
+             FROM _auth_agent_credentials WHERE id = ?1",
+            params![expected.credential_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                ))
+            },
+        )
+        .optional()?;
+    let hash = expected.secret.token_hash();
+    if stored
+        != Some((
+            expected.user_id.clone(),
+            hash.as_bytes().to_vec(),
+            expected.generation as i64,
+            None,
+        ))
+    {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    let identity_exists = connection
+        .query_row(
+            "SELECT 1 FROM _auth_identities
+             WHERE user_id = ?1 AND provider = 'agent-credential' AND subject = ?2",
+            params![expected.user_id, expected.credential_id],
+            |_| Ok(()),
+        )
+        .optional()?
+        .is_some();
+    if !identity_exists {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    Ok(())
+}
+
+fn reconcile_rotated_agent_credential(
+    connection: &Connection,
+    predecessor_hash: &[u8],
+    expected: &RotatedAgentCredential,
+) -> SnapbackResult<()> {
+    let live = connection
+        .query_row(
+            "SELECT user_id, secret_hash, generation, revoked_at_ms
+             FROM _auth_agent_credentials WHERE id = ?1",
+            params![expected.credential_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Vec<u8>>(1)?,
+                    row.get::<_, i64>(2)?,
+                    row.get::<_, Option<i64>>(3)?,
+                ))
+            },
+        )
+        .optional()?;
+    let successor_hash = expected.secret.token_hash();
+    if live
+        != Some((
+            expected.user_id.clone(),
+            successor_hash.as_bytes().to_vec(),
+            expected.generation as i64,
+            None,
+        ))
+    {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    let predecessor_count: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_agent_credentials
+         WHERE user_id = ?1 AND secret_hash = ?2 AND generation = ?3
+           AND revoked_at_ms IS NOT NULL",
+        params![
+            expected.user_id,
+            predecessor_hash,
+            expected.predecessor_generation as i64,
+        ],
+        |row| row.get(0),
+    )?;
+    if predecessor_count != 1 {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    for token_id in &expected.invalidated_token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(true) {
+            return Err(agent_lifecycle_commit_uncertain());
+        }
+    }
+    let old_generation_live: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_grant_tokens
+         WHERE credential_id = ?1 AND credential_generation = ?2
+           AND revoked_at_ms IS NULL",
+        params![
+            expected.credential_id,
+            expected.predecessor_generation as i64,
+        ],
+        |row| row.get(0),
+    )?;
+    if old_generation_live != 0 {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    Ok(())
+}
+
+fn reconcile_issued_scoped_token(
+    connection: &Connection,
+    expected: &IssuedScopedToken,
+) -> SnapbackResult<()> {
+    let stored = connection
+        .query_row(
+            "SELECT token_hash, grant_id, credential_id, credential_generation,
+                    expires_at_ms, revoked_at_ms
+             FROM _auth_grant_tokens WHERE id = ?1",
+            params![expected.token_id],
+            |row| {
+                Ok((
+                    row.get::<_, Vec<u8>>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                    row.get::<_, i64>(4)?,
+                    row.get::<_, Option<i64>>(5)?,
+                ))
+            },
+        )
+        .optional()?;
+    let hash = expected.secret.token_hash();
+    if stored
+        != Some((
+            hash.as_bytes().to_vec(),
+            expected.grant_id.clone(),
+            expected.credential_id.clone(),
+            expected.credential_generation as i64,
+            expected.expires_at_ms as i64,
+            None,
+        ))
+    {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    let grant = connection
+        .query_row(
+            "SELECT scopes, expires_at_ms, revoked_at_ms FROM _auth_grants WHERE id = ?1",
+            params![expected.grant_id],
+            |row| {
+                Ok((
+                    row.get::<_, String>(0)?,
+                    row.get::<_, Option<i64>>(1)?,
+                    row.get::<_, Option<i64>>(2)?,
+                ))
+            },
+        )
+        .optional()?;
+    let Some((scopes, grant_expires_at_ms, grant_revoked_at_ms)) = grant else {
+        return Err(agent_lifecycle_commit_uncertain());
+    };
+    let scopes: Value =
+        serde_json::from_str(&scopes).map_err(|_| agent_lifecycle_commit_uncertain())?;
+    if scopes != expected.scopes
+        || grant_expires_at_ms.map(|value| value as u64) != expected.grant_expires_at_ms
+        || grant_revoked_at_ms.is_some()
+    {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    for token_id in &expected.evicted_token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(true) {
+            return Err(agent_lifecycle_commit_uncertain());
+        }
+    }
+    Ok(())
+}
+
+fn reconcile_agent_family_revocation(
+    connection: &Connection,
+    expected: &AgentFamilyRevocation,
+) -> SnapbackResult<()> {
+    let user_id = expected
+        .user_id
+        .as_deref()
+        .ok_or_else(agent_lifecycle_commit_uncertain)?;
+    let mut statement = connection.prepare(
+        "SELECT id, revoked_at_ms IS NOT NULL FROM _auth_agent_credentials
+         WHERE user_id = ?1 ORDER BY id",
+    )?;
+    let credential_rows = statement
+        .query_map(params![user_id], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, bool>(1)?))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    if credential_rows.iter().any(|(_, revoked)| !revoked)
+        || credential_rows
+            .iter()
+            .map(|(id, _)| id)
+            .ne(expected.credential_ids.iter())
+    {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    for token_id in &expected.token_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grant_tokens WHERE id = ?1",
+                params![token_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(true) {
+            return Err(agent_lifecycle_commit_uncertain());
+        }
+    }
+    for grant_id in &expected.grant_ids {
+        let revoked = connection
+            .query_row(
+                "SELECT revoked_at_ms IS NOT NULL FROM _auth_grants WHERE id = ?1",
+                params![grant_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .optional()?;
+        if revoked != Some(true) {
+            return Err(agent_lifecycle_commit_uncertain());
+        }
+    }
+    let live_tokens: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_grant_tokens AS token
+         JOIN _auth_agent_credentials AS credential ON credential.id = token.credential_id
+         WHERE credential.user_id = ?1 AND token.revoked_at_ms IS NULL",
+        params![user_id],
+        |row| row.get(0),
+    )?;
+    let live_grants: i64 = connection.query_row(
+        "SELECT COUNT(*) FROM _auth_grants
+         WHERE actor_user_id = ?1 AND revoked_at_ms IS NULL",
+        params![user_id],
+        |row| row.get(0),
+    )?;
+    if live_tokens != 0 || live_grants != 0 {
+        return Err(agent_lifecycle_commit_uncertain());
+    }
+    Ok(())
+}
+
 fn sweep_credential_family_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
     let cutoff = now_ms.saturating_sub(AGENT_CREDENTIAL_FAMILY_RETENTION_MS);
     tx.execute(
@@ -896,6 +1277,63 @@ fn map_live_credential_constraint(error: rusqlite::Error) -> SnapbackError {
     } else {
         error.into()
     }
+}
+
+#[cfg(test)]
+static INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN: std::sync::Mutex<Option<(String, String)>> =
+    std::sync::Mutex::new(None);
+
+#[cfg(test)]
+pub(crate) fn inject_next_agent_lifecycle_commit_uncertain(operation: &str, key: &str) {
+    *INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
+        .lock()
+        .expect("agent lifecycle commit uncertainty injector lock") =
+        Some((operation.to_owned(), key.to_owned()));
+}
+
+fn inject_agent_lifecycle_commit_uncertainty<T>(
+    attempt: AuthTransactionAttempt<T>,
+    _operation: &str,
+    _key: &str,
+) -> AuthTransactionAttempt<T> {
+    #[cfg(test)]
+    {
+        let should_inject = {
+            let mut target = INJECT_AGENT_LIFECYCLE_COMMIT_UNCERTAIN
+                .lock()
+                .expect("agent lifecycle commit uncertainty injector lock");
+            if target
+                .as_ref()
+                .is_some_and(|(operation, key)| operation == _operation && key == _key)
+            {
+                target.take();
+                true
+            } else {
+                false
+            }
+        };
+        if should_inject {
+            return match attempt {
+                AuthTransactionAttempt::Committed(_) => {
+                    AuthTransactionAttempt::CommitUncertain(SnapbackError::error(
+                        "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
+                        "auth",
+                        "agent lifecycle commit acknowledgement was unavailable",
+                    ))
+                }
+                other => other,
+            };
+        }
+    }
+    attempt
+}
+
+fn agent_lifecycle_commit_uncertain() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
+        "auth",
+        "agent lifecycle outcome could not be reconciled",
+    )
 }
 
 fn secret_generation_failed() -> SnapbackError {
@@ -1431,5 +1869,110 @@ mod tests {
                 .code,
             "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
         );
+    }
+
+    #[test]
+    fn lost_commit_acknowledgements_reconcile_rotation_mint_and_family_revocation() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        let issued = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap();
+        let original = issued.secret.expose_secret().to_owned();
+        inject_next_agent_lifecycle_commit_uncertain("rotate-credential", &issued.credential_id);
+        let rotation_at = 1_000 + AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
+        let rotated = db
+            .rotate_agent_credential(&issued.secret, rotation_at, &random)
+            .expect("durable successor is reconciled and returned");
+        assert_eq!(rotated.generation, 2);
+        db.resolve_agent_credential(&rotated.secret, rotation_at)
+            .expect("reconciled successor authenticates");
+
+        seed_grant(&db, "grant-a", rotation_at);
+        inject_next_agent_lifecycle_commit_uncertain("mint-scoped-token", "grant-a");
+        let token = db
+            .mint_scoped_token(&rotated.secret, "grant-a", None, rotation_at + 1, &random)
+            .expect("durable token is reconciled with its plaintext secret");
+        db.resolve_scoped_token(&token.secret, rotation_at + 1)
+            .expect("reconciled token authenticates");
+
+        inject_next_agent_lifecycle_commit_uncertain("revoke-credential-family", "agent-a");
+        let original = AgentCredential::parse(&original).unwrap();
+        let revoked = db
+            .revoke_agent_credential_family(&original, rotation_at + 2)
+            .expect("durable revocation returns its exact topology witness");
+        assert!(revoked.token_ids.contains(&token.token_id));
+        assert!(revoked.grant_ids.contains(&"grant-a".to_owned()));
+        assert!(
+            db.resolve_agent_credential(&rotated.secret, rotation_at + 2)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn sole_unowned_production_holder_cannot_destroy_its_last_credential_family() {
+        let random = CounterRandom::new();
+        let mut db = ready();
+        let issued = db
+            .issue_initial_agent_credential("agent-a", 1_000, &random)
+            .unwrap();
+        db.conn
+            .execute("CREATE TABLE events (_id TEXT PRIMARY KEY)", [])
+            .unwrap();
+        db.conn
+            .execute(
+                "CREATE TABLE event_members (userId TEXT, eventId TEXT, role TEXT)",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute("INSERT INTO events(_id) VALUES('event-1')", [])
+            .unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO event_members(userId, eventId, role)
+                 VALUES('agent-a', 'event-1', 'host')",
+                [],
+            )
+            .unwrap();
+        db.schema = serde_json::from_value(serde_json::json!({
+            "auth": { "mode": "sessions" },
+            "tables": [
+                { "name": "events" },
+                {
+                    "name": "event_members",
+                    "membership": {
+                        "principal": "userId",
+                        "resource": "eventId",
+                        "resourceTable": "events",
+                        "role": "role",
+                        "roles": ["host"],
+                        "bootstrapRole": "host",
+                        "lastHolder": { "protect": "host" }
+                    }
+                }
+            ]
+        }))
+        .unwrap();
+
+        let error = db
+            .revoke_agent_credential_family(&issued.secret, 1_001)
+            .expect_err("revoke-self must not strand a protected resource");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        db.resolve_agent_credential(&issued.secret, 1_001)
+            .expect("refused revocation rolls the family back");
+
+        let restore_error = db
+            .apply_auth_restore_declaration("0197f862-f196-7bb2-b3f0-2a67185dfd20", 1_002)
+            .expect_err("restore must not purge the sole recovery carrier");
+        assert_eq!(
+            restore_error.diagnostic.code,
+            "SNAPBACK_MEMBERSHIP_LAST_HOLDER_STRAND"
+        );
+        db.resolve_agent_credential(&issued.secret, 1_002)
+            .expect("refused restore rolls the authority purge back");
     }
 }

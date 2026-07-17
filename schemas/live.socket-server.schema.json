@@ -349,6 +349,14 @@
       ],
       "type": "string"
     },
+    "LiveAuthorityDisposition": {
+      "description": "Whether a terminal frame ends only the presented carrier or reflects a\ndurable authority deletion. Clients may replace an expired/evicted carrier,\nbut must delete local durable authority state after `durableDelete`.",
+      "enum": [
+        "carrier",
+        "durableDelete"
+      ],
+      "type": "string"
+    },
     "RemoveReason": {
       "description": "Why an entry was removed. `AuthRevoked` was removed 2026-07-02: durable\npermission-change revocation is not integrated yet (LLP 0026 §Auth and\nrevocation), so the variant was unreachable vocabulary. Reintroduce it with\nthe event that owns it.\n\n@ref LLP 0026#finding-scope-epoch-machinery-was-dead-code-recorded-2026-07-02 — live-or-removed resolution.",
       "enum": [
@@ -400,6 +408,9 @@
     {
       "description": "Terminal authority loss for the exact socket/grant generation. The\nframe intentionally carries no authority identifier; a client applies\nit only to the capture that owns this socket and then treats close code\n4401 as terminal rather than reconnectable.\n\n@ref LLP 0059#typed-terminal-auth-error — terminal live closure is a\n  closed, identifier-free wire event.",
       "properties": {
+        "authorityDisposition": {
+          "$ref": "#/$defs/LiveAuthorityDisposition"
+        },
         "code": {
           "$ref": "#/$defs/LiveAuthErrorCode"
         },
@@ -414,7 +425,8 @@
       "required": [
         "kind",
         "code",
-        "reason"
+        "reason",
+        "authorityDisposition"
       ],
       "type": "object"
     },

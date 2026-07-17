@@ -57,26 +57,65 @@
     },
     "AuthSessionAuthority": {
       "additionalProperties": false,
-      "else": {
-        "properties": {
-          "sessionId": {
-            "type": "null"
-          },
-          "userId": {
-            "type": "null"
+      "oneOf": [
+        {
+          "properties": {
+            "isAuthenticated": {
+              "const": false
+            },
+            "kind": {
+              "const": "anonymous"
+            },
+            "sessionId": {
+              "type": "null"
+            },
+            "userId": {
+              "type": "null"
+            }
+          }
+        },
+        {
+          "properties": {
+            "isAuthenticated": {
+              "const": true
+            },
+            "kind": {
+              "const": "humanSession"
+            },
+            "sessionId": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            },
+            "userId": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
+          }
+        },
+        {
+          "properties": {
+            "isAuthenticated": {
+              "const": true
+            },
+            "kind": {
+              "const": "servicePrincipal"
+            },
+            "sessionId": {
+              "type": "null"
+            },
+            "userId": {
+              "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+              "type": "string"
+            }
           }
         }
-      },
-      "if": {
-        "properties": {
-          "isAuthenticated": {
-            "const": true
-          }
-        }
-      },
+      ],
       "properties": {
         "isAuthenticated": {
           "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/AuthSessionAuthorityKind"
         },
         "sessionId": {
           "type": [
@@ -92,22 +131,11 @@
         }
       },
       "required": [
+        "kind",
         "userId",
         "sessionId",
         "isAuthenticated"
       ],
-      "then": {
-        "properties": {
-          "sessionId": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "type": "string"
-          },
-          "userId": {
-            "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
-            "type": "string"
-          }
-        }
-      },
       "type": "object"
     },
     "AuthSessionAuthorityDescriptor": {
@@ -138,6 +166,14 @@
         "sessionGeneration"
       ],
       "type": "object"
+    },
+    "AuthSessionAuthorityKind": {
+      "enum": [
+        "anonymous",
+        "humanSession",
+        "servicePrincipal"
+      ],
+      "type": "string"
     },
     "AuthSessionAvailability": {
       "additionalProperties": false,
@@ -485,6 +521,107 @@
   "$id": "https://schemas.snapback.dev/snapback.v0/auth.session.output.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "activeMode": {
+            "const": "dev"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "kind": {
+                "const": "anonymous"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "authority": {
+            "properties": {
+              "kind": {
+                "enum": [
+                  "humanSession",
+                  "servicePrincipal"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "activeMode": {
+            "const": "sessions"
+          }
+        }
+      }
+    }
+  ],
+  "oneOf": [
+    {
+      "properties": {
+        "authority": {
+          "properties": {
+            "kind": {
+              "const": "anonymous"
+            }
+          }
+        },
+        "authorityDescriptor": {
+          "properties": {
+            "sessionGeneration": {
+              "const": 0
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "authority": {
+          "properties": {
+            "kind": {
+              "const": "humanSession"
+            }
+          }
+        },
+        "authorityDescriptor": {
+          "properties": {
+            "sessionGeneration": {
+              "minimum": 1
+            }
+          }
+        }
+      }
+    },
+    {
+      "properties": {
+        "authority": {
+          "properties": {
+            "kind": {
+              "const": "servicePrincipal"
+            }
+          }
+        },
+        "authorityDescriptor": {
+          "properties": {
+            "sessionGeneration": {
+              "const": 0
+            }
+          }
+        }
+      }
+    }
+  ],
   "properties": {
     "activeMode": {
       "$ref": "#/$defs/AuthMode"
