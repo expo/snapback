@@ -38,3 +38,10 @@ regeneration is clean.
 The required-surface production build also refreshed the Cursors Contract web
 bundle against those regenerated inputs; its new content-addressed assets are
 committed with the artifact update.
+
+Follow-up on 2026-07-16: the subsequent public RBAC authoring change updated
+the Cursors generated manifests again. The required-surface build produced a
+new content-addressed JavaScript bundle and source map; commit `728c754`
+records that output. The pinned canonical proof rebuilds this surface as a
+required gate, so a clean proof also establishes that the checked-in bundle is
+stable against the final RBAC inputs.
