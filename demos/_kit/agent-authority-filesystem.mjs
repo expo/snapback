@@ -415,6 +415,10 @@ const lockCommand = () => {
       executable: '/usr/bin/flock',
       argumentsFor: (lockPath, timeoutMs, helper) => [
         '--exclusive',
+        // Keep the lock holder and helper as one killable process. Without
+        // --no-fork, an acquisition-timeout race could terminate flock while
+        // leaving its just-spawned helper holding an orphaned lock.
+        '--no-fork',
         '--timeout',
         String(timeoutMs / 1000),
         lockPath,
@@ -457,6 +461,7 @@ const acquireLock = async (path, timeoutMs) => {
   let stderr = '';
   child.stdout.setEncoding('utf8');
   child.stderr.setEncoding('utf8');
+  child.stdin.on('error', () => {});
   child.stdout.on('data', (chunk) => { stdout += chunk; });
   child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-4096); });
 
@@ -668,7 +673,9 @@ export function createFilesystemAgentAuthorityCustodyStorage({
       },
     });
     try {
-      return await operation(owner);
+      const result = await operation(owner);
+      lock.assertActive();
+      return result;
     } finally {
       active = false;
       await lock.release();
