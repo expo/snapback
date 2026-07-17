@@ -59,8 +59,22 @@ fn cli_mcp_serves_manifest_derived_read_only_resources_with_one_identity() {
             .is_none()
     );
 
+    let manifest: Value = serde_json::from_str(
+        responses[2]["result"]["contents"][0]["text"]
+            .as_str()
+            .unwrap(),
+    )
+    .expect("embedded guide manifest");
+    let page_count = manifest["pages"]
+        .as_object()
+        .expect("embedded guide manifest pages")
+        .len();
     let resources = responses[1]["result"]["resources"].as_array().unwrap();
-    assert_eq!(resources.len(), 29, "manifest + flat + 27 pages");
+    assert_eq!(
+        resources.len(),
+        page_count + 2,
+        "manifest + flat + every manifest page"
+    );
     let identity = &responses[1]["result"]["_meta"];
     assert!(
         resources
@@ -70,12 +84,6 @@ fn cli_mcp_serves_manifest_derived_read_only_resources_with_one_identity() {
     assert_eq!(responses[2]["result"]["_meta"], *identity);
     assert_eq!(responses[2]["result"]["contents"][0]["_meta"], *identity);
 
-    let manifest: Value = serde_json::from_str(
-        responses[2]["result"]["contents"][0]["text"]
-            .as_str()
-            .unwrap(),
-    )
-    .expect("embedded guide manifest");
     assert_eq!(
         manifest["contentHash"],
         identity["snapback/guideContentHash"]
