@@ -140,7 +140,9 @@ try {
   // one observable last-run summary exists for the one terminal claim.
   state = await retry();
   const finished = await client.query('feedState', {});
-  const finishedStatus = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  const finishedStatus = (await (await fetch(`${base}/cron/status`, {
+    headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+  })).json()).jobs[0];
   if (state.claims[0]?.state !== 'done' || Number(state.claims[0]?.attempt) !== 5) {
     throw new Error(`recovered claim did not become terminal: ${JSON.stringify(state)}`);
   }
@@ -225,7 +227,9 @@ try {
   });
   const afterRetry = await client.query('feedState', {});
   recovery = await postJson('/__test/cron-claims');
-  const statusAfterRetry = (await (await fetch(`${base}/cron/status`)).json()).jobs[0];
+  const statusAfterRetry = (await (await fetch(`${base}/cron/status`, {
+    headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+  })).json()).jobs[0];
   const stored = recovery.cronState[0];
   if (
     second.outcome !== 'ok' ||

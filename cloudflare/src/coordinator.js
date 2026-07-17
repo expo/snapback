@@ -82,6 +82,30 @@ const DEFAULT_CONNECTION_OPEN_RATE_PER_MINUTE = 120;
 const MAX_CONNECTION_ID_BYTES = 128;
 const CONNECTION_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
 const UTF8_ENCODER = new TextEncoder();
+const MAX_LIVE_SOCKET_FRAME_BYTES = 64 * 1024;
+const MAX_CRON_DIAGNOSTIC_BYTES = 1024;
+const CRON_STATUS_RESPONSE_HEADERS = Object.freeze({
+  'cache-control': 'private, no-store',
+  vary: 'x-snapback-admin-token',
+});
+// Public cron status is deliberately a closed classification surface. The
+// retained/operator diagnostic may carry scrubbed bounded detail, but
+// arbitrary handler or exception text must never mint a new code.
+const PUBLIC_CRON_ERROR_CODES = new Set([
+  'SNAPBACK_ACTION_MUTATION_UNKNOWN',
+  'SNAPBACK_ACTION_RATE_LIMITED',
+  'SNAPBACK_ACTION_REPLAY_DIVERGED',
+  'SNAPBACK_ACTION_RESET_ABORTED',
+  'SNAPBACK_ACTION_TIMEOUT',
+  'SNAPBACK_ACTION_UNKNOWN',
+  'SNAPBACK_FUNCTION_KIND_MISMATCH',
+]);
+const FAN_OUT_FAILURE_CODES = Object.freeze([
+  'SNAPBACK_LIVE_FANOUT_QUERY_FAILED',
+  'SNAPBACK_LIVE_FANOUT_SERIALIZATION_FAILED',
+  'SNAPBACK_LIVE_FANOUT_SEND_FAILED',
+  'SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED',
+]);
 
 export class Coordinator {
   constructor(ctx, env) {
@@ -111,6 +135,13 @@ export class Coordinator {
     this.testCronStopBeforeFinishRemaining = env.SNAPBACK_TEST_CRON_STOP_BEFORE_FINISH === '1' ? 1 : 0;
     this.testCronStopAfterTerminalUpdateRemaining =
       env.SNAPBACK_TEST_CRON_STOP_AFTER_TERMINAL_UPDATE === '1' ? 1 : 0;
+    this.testFanOutQueryFailuresRemaining = configuredTestFailureCount(env.SNAPBACK_TEST_FANOUT_QUERY_FAILURES, env);
+    this.testFanOutSerializationFailuresRemaining = configuredTestFailureCount(
+      env.SNAPBACK_TEST_FANOUT_SERIALIZATION_FAILURES,
+      env
+    );
+    this.testFanOutSendFailuresRemaining = configuredTestFailureCount(env.SNAPBACK_TEST_FANOUT_SEND_FAILURES, env);
+    this.fanOutFailureCounters = Object.fromEntries(FAN_OUT_FAILURE_CODES.map((code) => [code, 0]));
     this.testSocketLimitOverrides = null;
     this.initializeSchema();
     // Hibernated sockets survive Worker deployments. Reconcile pre-cap state
@@ -220,6 +251,17 @@ export class Coordinator {
          changed_at_ms INTEGER NOT NULL
        )`
     );
+    // Fixed-cardinality post-commit delivery diagnostics. The code set is
+    // closed in FAN_OUT_FAILURE_CODES, so a failing stream cannot create an
+    // unbounded label/key space. Recording is best effort and never changes
+    // the already-committed mutation outcome.
+    this.sql.exec(
+      `CREATE TABLE IF NOT EXISTS _snapback_fanout_diagnostics (
+         code TEXT PRIMARY KEY,
+         count INTEGER NOT NULL,
+         last_at_ms INTEGER NOT NULL
+       )`
+    );
     // Storage-backed subscription registry (one-way door 4): query identity,
     // args, and connection id — rehydrated lazily on wake. In-memory
     // registries die at eviction while their sockets live on. The identity
@@ -280,10 +322,13 @@ export class Coordinator {
          last_trigger TEXT,
          last_outcome TEXT,
          last_duration_ms INTEGER,
+         last_error_code TEXT,
          last_error TEXT,
          last_finished_at_ms INTEGER
        )`
     );
+    this.ensureColumn('_snapback_cron_state', 'last_error_code', 'TEXT');
+    this.migrateCronDiagnostics();
     this.sql.exec(
       `CREATE TABLE IF NOT EXISTS _snapback_cron_claims (
          idempotency_key TEXT PRIMARY KEY,
@@ -811,7 +856,7 @@ export class Coordinator {
       return this.adminReadGated(request, () => this.configStatus());
     }
     if (path === '/cron/status') {
-      return this.cronStatus();
+      return this.cronStatus(request);
     }
     // Admin-gated manual run trigger on the existing SNAPBACK_ADMIN_TOKEN
     // POST surface (LLP 0049 §Warm Polling / ENG-23587) — never a public
@@ -920,9 +965,12 @@ export class Coordinator {
         // substitute the action target while retaining the real cron runner.
         // The enclosing testingGated boundary makes this unavailable on a
         // production deployment.
-        const selectedJob = typeof payload.actionOverride === 'string'
+        let selectedJob = typeof payload.actionOverride === 'string'
           ? { ...job, action: payload.actionOverride }
           : job;
+        if (typeof payload.rawErrorOverride === 'string') {
+          selectedJob = { ...selectedJob, testThrowMessage: payload.rawErrorOverride };
+        }
         const trigger = payload.trigger === 'scheduled' ? 'scheduled' : 'manual';
         const scheduledAtMs = Number.isSafeInteger(payload.scheduledAtMs) && payload.scheduledAtMs >= 0
           ? payload.scheduledAtMs
@@ -941,6 +989,27 @@ export class Coordinator {
         const cronState = [...this.sql.exec('SELECT * FROM _snapback_cron_state ORDER BY job_name')];
         return json(200, { claims, mutationResults, cronState });
       });
+    }
+    if (path === '/__test/migrate-legacy-cron-diagnostic') {
+      return this.testingGated(request, () => this.withJsonObject(request, (payload) => {
+        const job = this.alarmJobs()[0];
+        if (!job) return json(404, { ok: false, code: 'SNAPBACK_TEST_CRON_JOB_MISSING' });
+        this.writeCronState(job.name, {
+          last_run_id: crypto.randomUUID(),
+          last_scheduled_at_ms: Date.now(),
+          last_trigger: 'scheduled',
+          last_outcome: 'failed',
+          last_duration_ms: 1,
+          last_error_code: payload.errorCode ?? null,
+          last_error: String(payload.error ?? ''),
+          last_finished_at_ms: Date.now(),
+        });
+        this.migrateCronDiagnostics();
+        return json(200, { ok: true, state: this.readCronState(job.name) });
+      }));
+    }
+    if (path === '/__test/fanout-diagnostics') {
+      return this.testingGated(request, () => json(200, this.fanOutDiagnostics()));
     }
     // @ref LLP 0028#scheduler-state-and-run-ledger — deterministic test
     // evidence must cross the durable nominal-state and DO-alarm seam, not
@@ -976,7 +1045,10 @@ export class Coordinator {
     if (path === '/__test/connection-state') {
       return this.testingGated(request, () => json(200, {
         connections: [...this.sql.exec('SELECT connection_id, opened_at_ms, socket_session_id FROM _snapback_connections ORDER BY connection_id')],
-        subscriptions: [...this.sql.exec('SELECT subscription_id, connection_id, socket_session_id FROM _snapback_subscriptions ORDER BY subscription_id')],
+        subscriptions: [...this.sql.exec(
+          `SELECT subscription_id, connection_id, socket_session_id, function_name, args_json
+           FROM _snapback_subscriptions ORDER BY subscription_id`,
+        )],
         acceptedSocketCount: this.ctx.getWebSockets().length,
       }));
     }
@@ -1210,6 +1282,12 @@ export class Coordinator {
       return json(403, { ok: false, code: 'SNAPBACK_ADMIN_TOKEN_INVALID', message: 'missing or invalid admin token' });
     }
     return run();
+  }
+
+  hasAdminReadAuthority(request) {
+    const expected = this.env.SNAPBACK_ADMIN_TOKEN;
+    if (typeof expected !== 'string' || expected.length === 0) return false;
+    return (request.headers.get('x-snapback-admin-token') || '') === expected;
   }
 
   testingGated(request, run) {
@@ -1807,6 +1885,28 @@ export class Coordinator {
     );
   }
 
+  migrateCronDiagnostics() {
+    for (const state of this.sql.exec(
+      'SELECT job_name, last_error_code, last_error FROM _snapback_cron_state',
+    )) {
+      const previousError = String(state.last_error || '');
+      const error = this.sanitizeCronDiagnostic(previousError);
+      let errorCode = this.sanitizeCronDiagnosticCode(state.last_error_code);
+      if (error.length === 0) errorCode = null;
+      else if (errorCode === null) errorCode = 'SNAPBACK_CRON_ACTION_FAILED';
+      if (error !== previousError || errorCode !== (state.last_error_code ?? null)) {
+        this.sql.exec(
+          `UPDATE _snapback_cron_state
+           SET last_error_code = ?, last_error = ?
+           WHERE job_name = ?`,
+          errorCode,
+          error,
+          String(state.job_name),
+        );
+      }
+    }
+  }
+
   // Reconcile activation with current demand, then recompute the single
   // object alarm. Called from every subscribe/unsubscribe/close/reset seam.
   async reconcileCronActivation() {
@@ -1910,6 +2010,7 @@ export class Coordinator {
     }
     const startedAt = Date.now();
     let outcome = 'ok';
+    let errorCode = null;
     let errorText = '';
     // Testing-only upstream override so the Miniflare acceptance can point
     // scheduled runs at a local mock 511; never read on real deploys.
@@ -1935,10 +2036,12 @@ export class Coordinator {
           return { duplicate: false, interruptedDuringAction: true, runId, idempotencyKey: key };
         }
         outcome = 'failed';
+        errorCode = result.diagnostic.code;
         errorText = `${result.diagnostic.code}: ${result.diagnostic.message}`;
       }
     } catch (error) {
       outcome = 'failed';
+      errorCode = 'SNAPBACK_CRON_ACTION_FAILED';
       errorText = String((error && error.message) || error);
     }
     if (this.appGeneration() !== runGeneration) {
@@ -1958,6 +2061,7 @@ export class Coordinator {
       runId,
       interval,
       outcome,
+      errorCode,
       errorText,
       startedAt,
       finishedAt,
@@ -1995,10 +2099,13 @@ export class Coordinator {
     runId,
     interval,
     outcome,
+    errorCode,
     errorText,
     startedAt,
     finishedAt,
   }) {
+    const retainedError = this.sanitizeCronDiagnostic(errorText);
+    const retainedErrorCode = this.sanitizeCronDiagnosticCode(errorCode);
     let committed = false;
     let interruptedAfterTerminalUpdate = false;
     try {
@@ -2031,7 +2138,8 @@ export class Coordinator {
           last_trigger: trigger,
           last_outcome: outcome,
           last_duration_ms: finishedAt - startedAt,
-          last_error: errorText,
+          last_error_code: retainedErrorCode,
+          last_error: retainedError,
           last_finished_at_ms: finishedAt,
         });
         if (!idempotencyKey) {
@@ -2052,28 +2160,40 @@ export class Coordinator {
     const runId = crypto.randomUUID();
     const startedAt = Date.now();
     let outcome = 'ok';
+    let errorCode = null;
     let errorText = '';
     try {
+      if (
+        this.env.SNAPBACK_TESTING === '1'
+        && typeof job.testThrowMessage === 'string'
+      ) {
+        throw new Error(job.testThrowMessage);
+      }
       const result = await this.executeAction(job.action, this.cronActionArgs(), 'manual', { jobName: job.name });
       if (!result.ok) {
         outcome = 'failed';
+        errorCode = result.diagnostic.code;
         errorText = `${result.diagnostic.code}: ${result.diagnostic.message}`;
       }
     } catch (error) {
       outcome = 'failed';
+      errorCode = 'SNAPBACK_CRON_ACTION_FAILED';
       errorText = String((error && error.message) || error);
     }
     if (this.appGeneration() !== runGeneration) {
       return { duplicate: false, runId, outcome: 'reset', resetAbandoned: true };
     }
     const finishedAt = Date.now();
+    const retainedError = this.sanitizeCronDiagnostic(errorText);
+    const retainedErrorCode = this.sanitizeCronDiagnosticCode(errorCode);
     this.writeCronState(job.name, {
       last_run_id: runId,
       last_scheduled_at_ms: scheduledAtMs,
       last_trigger: 'manual',
       last_outcome: outcome,
       last_duration_ms: finishedAt - startedAt,
-      last_error: errorText,
+      last_error_code: retainedErrorCode,
+      last_error: retainedError,
       last_finished_at_ms: finishedAt,
     });
     return { duplicate: false, runId, outcome };
@@ -2216,10 +2336,21 @@ export class Coordinator {
     });
   }
 
-  // GET /cron/status — the ledger fields the local target exposes: last run
-  // (id, nominal, trigger, outcome, duration, failure), next run, activation
-  // state, and demand. No values, no secrets.
-  cronStatus() {
+  // GET /cron/status has a public operational projection and a more useful
+  // admin-token projection. Public callers see only bounded classifications;
+  // the gateway forwards the original headers so an operator can see the
+  // scrubbed, bounded detail retained here.
+  // @ref LLP 0060#diagnostics-and-observability — public diagnostics never
+  // expose credentials or unbounded application failure text.
+  cronStatus(request) {
+    if (request.method !== 'GET') {
+      return json(405, {
+        ok: false,
+        code: 'SNAPBACK_CRON_STATUS_METHOD_NOT_ALLOWED',
+        message: 'cron status is GET-only',
+      }, CRON_STATUS_RESPONSE_HEADERS);
+    }
+    const includeOperatorDetail = this.hasAdminReadAuthority(request);
     const jobs = [];
     for (const job of this.alarmJobs()) {
       const state = this.readCronState(job.name);
@@ -2239,21 +2370,62 @@ export class Coordinator {
           state && Number(state.armed) === 1 && state.next_nominal_at_ms != null
             ? { nominalAtMs: Number(state.next_nominal_at_ms) }
             : null,
-        lastRun:
-          state && state.last_run_id
-            ? {
-                runId: String(state.last_run_id),
-                scheduledAtMs: Number(state.last_scheduled_at_ms),
-                trigger: String(state.last_trigger || ''),
-                outcome: String(state.last_outcome || ''),
-                durationMs: Number(state.last_duration_ms || 0),
-                error: String(state.last_error || ''),
-                finishedAtMs: Number(state.last_finished_at_ms || 0),
-              }
-            : null,
+        lastRun: state && state.last_run_id
+          ? this.cronLastRunProjection(state, includeOperatorDetail)
+          : null,
       });
     }
-    return json(200, { jobs });
+    return json(200, { jobs }, CRON_STATUS_RESPONSE_HEADERS);
+  }
+
+  cronLastRunProjection(state, includeOperatorDetail) {
+    const error = this.sanitizeCronDiagnostic(state.last_error || '');
+    const retainedCode = this.sanitizeCronDiagnosticCode(state.last_error_code);
+    const errorCode = error.length === 0
+      ? null
+      : PUBLIC_CRON_ERROR_CODES.has(retainedCode)
+        ? retainedCode
+        : 'SNAPBACK_CRON_ACTION_FAILED';
+    const projected = {
+      scheduledAtMs: Number(state.last_scheduled_at_ms),
+      trigger: String(state.last_trigger || ''),
+      outcome: String(state.last_outcome || ''),
+      durationMs: Number(state.last_duration_ms || 0),
+      errorCode,
+      finishedAtMs: Number(state.last_finished_at_ms || 0),
+    };
+    if (includeOperatorDetail) {
+      projected.runId = String(state.last_run_id);
+      projected.errorCode = retainedCode || errorCode;
+      projected.error = error;
+    }
+    return projected;
+  }
+
+  sanitizeCronDiagnostic(value) {
+    let text = String(value || '');
+    const sensitive = new Set();
+    if (typeof this.env.SNAPBACK_ADMIN_TOKEN === 'string') sensitive.add(this.env.SNAPBACK_ADMIN_TOKEN);
+    for (const entry of appConfig || []) {
+      for (const member of this.poolMembers(entry.name)) sensitive.add(member);
+    }
+    for (const secret of sensitive) {
+      if (!secret) continue;
+      for (const pattern of secretRedactionPatterns(secret)) text = text.replace(pattern, '[redacted]');
+    }
+    // Redact against the exact configured bytes before normalizing controls;
+    // otherwise a secret containing a newline or tab changes shape first and
+    // evades every raw/escaped redaction pattern.
+    text = text.replace(/[\u0000-\u001f\u007f]/g, ' ');
+    return boundUtf8Text(text, MAX_CRON_DIAGNOSTIC_BYTES);
+  }
+
+  sanitizeCronDiagnosticCode(value) {
+    const code = String(value || '');
+    if (code.length === 0) return null;
+    return PUBLIC_CRON_ERROR_CODES.has(code) || code === 'SNAPBACK_CRON_ACTION_FAILED'
+      ? code
+      : 'SNAPBACK_CRON_ACTION_FAILED';
   }
 
   // --- handler invocation across the RPC seam ----------------------------
@@ -3425,51 +3597,62 @@ export class Coordinator {
       try { ws.close(1013, 'socket limits reconciling'); } catch (_) {}
       return;
     }
-    let parsed;
-    try {
-      parsed = JSON.parse(typeof message === 'string' ? message : new TextDecoder().decode(message));
-    } catch (_) {
+    // @ref LLP 0013#transport-contract — refuse over-limit or open-shaped
+    // frames at the socket boundary before parsing or touching storage.
+    const decoded = decodeLiveSocketFrame(message);
+    if (!decoded.ok) {
+      closeSocketWithDiagnostic(ws, decoded.closeCode, decoded.code);
       return;
     }
-    const connectionId = this.connectionIdFor(ws);
-    if (this.socketProtocolFor(ws) === 'kit') {
-      const socketSessionId = this.socketSessionFor(ws);
-      if (!socketSessionId || socketSessionId !== this.currentSocketSession(connectionId)) {
-        try { ws.close(1008, 'socket session replaced'); } catch (_) {}
-        return;
-      }
+    const validated = validateLiveSocketFrame(decoded.value);
+    if (!validated.ok) {
+      closeSocketWithDiagnostic(ws, 1008, validated.code);
+      return;
     }
-    if (parsed.type === 'subscribe') {
-      // Under the invocation mutex: the snapshot query, the version read, and
-      // the registry insert must not interleave with a commit, or the rows
-      // the snapshot carried predate a commit whose fan-out never saw the
-      // registration — a silently skipped delta (ENG-23575).
-      const socketSessionId = this.socketProtocolFor(ws) === 'kit' ? this.socketSessionFor(ws) : null;
-      await this.runExclusive(() => {
-        if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
-        return this.subscribe(ws, connectionId, parsed, socketSessionId);
-      });
-      await this.reconcileCronActivation();
-    } else if (parsed.type === 'unsubscribe') {
+    const parsed = validated.value;
+    try {
+      const connectionId = this.connectionIdFor(ws);
       if (this.socketProtocolFor(ws) === 'kit') {
-        this.sql.exec(
-          'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
-          parsed.subscriptionId,
-          connectionId,
-          this.socketSessionFor(ws)
-        );
-      } else {
-        this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?', parsed.subscriptionId, connectionId);
+        const socketSessionId = this.socketSessionFor(ws);
+        if (!socketSessionId || socketSessionId !== this.currentSocketSession(connectionId)) {
+          try { ws.close(1008, 'socket session replaced'); } catch (_) {}
+          return;
+        }
       }
-      await this.reconcileCronActivation();
-    } else if (parsed.type === 'ping') {
-      // The kit heartbeat expects the local server's `kind` field (any frame
-      // refreshes its freshness budget); the proof protocol pins `type`.
-      if (this.socketProtocolFor(ws) === 'kit') {
-        ws.send(JSON.stringify({ kind: 'pong', requestId: parsed.requestId }));
-      } else {
-        ws.send(JSON.stringify({ type: 'pong' }));
+      if (parsed.type === 'subscribe') {
+        // Under the invocation mutex: the snapshot query, the version read, and
+        // the registry insert must not interleave with a commit, or the rows
+        // the snapshot carried predate a commit whose fan-out never saw the
+        // registration — a silently skipped delta (ENG-23575).
+        const socketSessionId = this.socketProtocolFor(ws) === 'kit' ? this.socketSessionFor(ws) : null;
+        await this.runExclusive(() => {
+          if (socketSessionId && socketSessionId !== this.currentSocketSession(connectionId)) return;
+          return this.subscribe(ws, connectionId, parsed, socketSessionId);
+        });
+        await this.reconcileCronActivation();
+      } else if (parsed.type === 'unsubscribe') {
+        if (this.socketProtocolFor(ws) === 'kit') {
+          this.sql.exec(
+            'DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ? AND socket_session_id = ?',
+            parsed.subscriptionId,
+            connectionId,
+            this.socketSessionFor(ws)
+          );
+        } else {
+          this.sql.exec('DELETE FROM _snapback_subscriptions WHERE subscription_id = ? AND connection_id = ?', parsed.subscriptionId, connectionId);
+        }
+        await this.reconcileCronActivation();
+      } else if (parsed.type === 'ping') {
+        // The kit heartbeat expects the local server's `kind` field (any frame
+        // refreshes its freshness budget); the proof protocol pins `type`.
+        if (this.socketProtocolFor(ws) === 'kit') {
+          ws.send(JSON.stringify({ kind: 'pong', requestId: parsed.requestId }));
+        } else {
+          ws.send(JSON.stringify({ type: 'pong' }));
+        }
       }
+    } catch (_) {
+      closeSocketWithDiagnostic(ws, 1011, 'SNAPBACK_LIVE_FRAME_PROCESSING_FAILED');
     }
   }
 
@@ -3555,110 +3738,196 @@ export class Coordinator {
   // the mutation response returns (ENG-23576).
   async fanOut(commit) {
     if (commit.changes.length === 0) return;
-    const changedTables = new Set(commit.changes.map((change) => change.table));
-    const affectedFunctions = new Set(
-      functions
-        .filter((fn) => fn.kind === 'LiveQuery')
-        .filter((fn) => functionTables(fn).some((table) => changedTables.has(table)))
-        .map((fn) => fn.name)
-    );
-    const sockets = this.ctx.getWebSockets();
-    const byConnection = new Map();
-    for (const ws of sockets) {
-      const id = this.connectionIdFor(ws);
-      if (!id) continue;
-      if (this.socketProtocolFor(ws) === 'kit') {
-        const session = this.socketSessionFor(ws);
-        if (!session || session !== this.currentSocketSession(id)) continue;
+    // @ref LLP 0008#realtime-delivery — post-commit positive-data loss tears
+    // down the affected socket and recovers through a fresh reconnect snapshot.
+    try {
+      const changedTables = new Set(commit.changes.map((change) => change.table));
+      const affectedFunctions = new Set(
+        functions
+          .filter((fn) => fn.kind === 'LiveQuery')
+          .filter((fn) => functionTables(fn).some((table) => changedTables.has(table)))
+          .map((fn) => fn.name)
+      );
+      const sockets = this.ctx.getWebSockets();
+      const byConnection = new Map();
+      for (const ws of sockets) {
+        const id = this.connectionIdFor(ws);
+        if (!id) continue;
+        if (this.socketProtocolFor(ws) === 'kit') {
+          const session = this.socketSessionFor(ws);
+          if (!session || session !== this.currentSocketSession(id)) continue;
+        }
+        byConnection.set(id, ws);
       }
-      byConnection.set(id, ws);
-    }
-    const subs = [];
-    const affectedNames = [...affectedFunctions];
-    if (affectedNames.length === 0) return;
-    const selection = compileSubscriptionSelection(affectedNames);
-    for (const record of this.sql.exec(selection.sql, ...selection.params)) {
-      subs.push(record);
-    }
-    const groups = new Map();
-    for (const sub of subs) {
-      if (!affectedFunctions.has(sub.function_name)) continue;
-      const ws = byConnection.get(sub.connection_id);
-      if (!ws) continue;
-      if (
-        this.socketProtocolFor(ws) === 'kit' &&
-        String(sub.socket_session_id || '') !== String(this.socketSessionFor(ws) || '')
-      ) continue;
-      const key = `${sub.function_name}\0${sub.args_json}`;
-      let group = groups.get(key);
-      if (!group) {
-        group = { functionName: String(sub.function_name), argsJson: String(sub.args_json), members: [] };
-        groups.set(key, group);
+      const subs = [];
+      const affectedNames = [...affectedFunctions];
+      if (affectedNames.length === 0) return;
+      const selection = compileSubscriptionSelection(affectedNames);
+      for (const record of this.sql.exec(selection.sql, ...selection.params)) {
+        subs.push(record);
       }
-      group.members.push({
-        ws,
-        subscriptionId: String(sub.subscription_id),
-        protocol: this.socketProtocolFor(ws),
-        connectionId: String(sub.connection_id),
-        socketSessionId: sub.socket_session_id == null ? null : String(sub.socket_session_id),
-      });
+      const groups = new Map();
+      for (const sub of subs) {
+        if (!affectedFunctions.has(sub.function_name)) continue;
+        const ws = byConnection.get(sub.connection_id);
+        if (!ws) continue;
+        if (
+          this.socketProtocolFor(ws) === 'kit' &&
+          String(sub.socket_session_id || '') !== String(this.socketSessionFor(ws) || '')
+        ) continue;
+        const key = `${sub.function_name}\0${sub.args_json}`;
+        let group = groups.get(key);
+        if (!group) {
+          group = { functionName: String(sub.function_name), argsJson: String(sub.args_json), members: [] };
+          groups.set(key, group);
+        }
+        group.members.push({
+          ws,
+          subscriptionId: String(sub.subscription_id),
+          protocol: this.socketProtocolFor(ws),
+          connectionId: String(sub.connection_id),
+          socketSessionId: sub.socket_session_id == null ? null : String(sub.socket_session_id),
+        });
+      }
+      const pushes = [];
+      for (const group of groups.values()) {
+        // A woken object may have no live HostContext; re-run the query through
+        // a fresh query invocation and share the result across identical
+        // subscription shapes.
+        pushes.push(this.pushReplaceGroup(group));
+      }
+      await Promise.all(pushes);
+    } catch (_) {
+      try { this.recordFanOutFailure('SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED'); } catch (_) {}
+      try {
+        for (const ws of this.ctx.getWebSockets()) {
+          closeSocketWithDiagnostic(ws, 1011, 'SNAPBACK_LIVE_FANOUT_INTERNAL_FAILED');
+        }
+      } catch (_) {}
     }
-    const pushes = [];
-    for (const group of groups.values()) {
-      // A woken object may have no live HostContext; re-run the query through
-      // a fresh query invocation and share the result across identical
-      // subscription shapes.
-      pushes.push(this.pushReplaceGroup(group));
-    }
-    await Promise.all(pushes);
   }
 
   async pushReplaceGroup(group) {
+    let result;
     try {
-      const result = await this.invokeHandler(group.functionName, 'query', JSON.parse(group.argsJson));
-      if (!result.ok) {
-        console.warn('snapback fan-out query failed', group.functionName, result.code);
-        return;
+      if (this.testFanOutQueryFailuresRemaining > 0) {
+        this.testFanOutQueryFailuresRemaining -= 1;
+        throw codedError('SNAPBACK_TEST_FANOUT_QUERY_FAILED', 'injected fan-out query failure');
       }
-      const version = result.observedVersion ?? this.currentVersion();
-      for (const member of group.members) {
-        // Per-member isolation: one dead socket (a hibernation socket can
-        // race its close event) must not suppress delivery to the rest of
-        // the group.
-        try {
-          if (
-            member.protocol === 'kit' &&
-            member.socketSessionId !== this.currentSocketSession(member.connectionId)
-          ) continue;
-          // Frame shape follows the socket's wire protocol: the kit client
-          // consumes the local server's snake_case `kind` frames; the proof
-          // acceptance suite pins the original camelCase `type` frames.
-          const frame =
-            member.protocol === 'kit'
-              ? {
-                  kind: 'live_replace',
-                  subscription_id: member.subscriptionId,
-                  function: group.functionName,
-                  version,
-                  rows: result.value,
-                }
-              : {
-                  type: 'live_replace',
-                  subscriptionId: member.subscriptionId,
-                  function: group.functionName,
-                  version,
-                  rows: result.value,
-                };
-          member.ws.send(JSON.stringify(frame));
-        } catch (error) {
-          console.warn('snapback fan-out send failed', member.subscriptionId, String(error));
-        }
-      }
-    } catch (error) {
-      // Diagnostics, never control flow: a failed push must not fail the
-      // committed mutation. A dead socket is pruned by the disconnect handler.
-      console.warn('snapback fan-out push failed', group.functionName, String(error));
+      result = await this.invokeHandler(group.functionName, 'query', JSON.parse(group.argsJson));
+    } catch (_) {
+      this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_QUERY_FAILED');
+      return;
     }
+    if (!result.ok) {
+      this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_QUERY_FAILED');
+      return;
+    }
+
+    const version = result.observedVersion ?? this.currentVersion();
+    let encodedMembers;
+    try {
+      if (this.testFanOutSerializationFailuresRemaining > 0) {
+        this.testFanOutSerializationFailuresRemaining -= 1;
+        throw codedError('SNAPBACK_TEST_FANOUT_SERIALIZATION_FAILED', 'injected fan-out serialization failure');
+      }
+      encodedMembers = this.currentFanOutMembers(group.members).map((member) => {
+        // Frame shape follows the socket's wire protocol: the kit client
+        // consumes the local server's snake_case `kind` frames; the proof
+        // acceptance suite pins the original camelCase `type` frames.
+        const frame = member.protocol === 'kit'
+          ? {
+              kind: 'live_replace',
+              subscription_id: member.subscriptionId,
+              function: group.functionName,
+              version,
+              rows: result.value,
+            }
+          : {
+              type: 'live_replace',
+              subscriptionId: member.subscriptionId,
+              function: group.functionName,
+              version,
+              rows: result.value,
+            };
+        return { member, encoded: JSON.stringify(frame) };
+      });
+    } catch (_) {
+      this.recoverFanOutGroup(group, 'SNAPBACK_LIVE_FANOUT_SERIALIZATION_FAILED');
+      return;
+    }
+
+    for (const { member, encoded } of encodedMembers) {
+      // Per-member isolation: one dead socket (a hibernation socket can race
+      // its close event) must not suppress delivery to the rest of the group.
+      if (!this.currentFanOutMembers([member]).length) continue;
+      try {
+        if (this.testFanOutSendFailuresRemaining > 0) {
+          this.testFanOutSendFailuresRemaining -= 1;
+          throw codedError('SNAPBACK_TEST_FANOUT_SEND_FAILED', 'injected fan-out send failure');
+        }
+        member.ws.send(encoded);
+      } catch (_) {
+        this.recordFanOutFailure('SNAPBACK_LIVE_FANOUT_SEND_FAILED');
+        closeSocketWithDiagnostic(member.ws, 1011, 'SNAPBACK_LIVE_FANOUT_SEND_FAILED');
+      }
+    }
+  }
+
+  currentFanOutMembers(members) {
+    return members.filter((member) =>
+      member.protocol !== 'kit' ||
+      member.socketSessionId === this.currentSocketSession(member.connectionId)
+    );
+  }
+
+  recoverFanOutGroup(group, code) {
+    this.recordFanOutFailure(code);
+    for (const member of this.currentFanOutMembers(group.members)) {
+      closeSocketWithDiagnostic(member.ws, 1011, code);
+    }
+  }
+
+  recordFanOutFailure(code) {
+    if (!Object.hasOwn(this.fanOutFailureCounters, code)) return;
+    let persisted = false;
+    try {
+      this.sql.exec(
+        `INSERT INTO _snapback_fanout_diagnostics (code, count, last_at_ms) VALUES (?, 1, ?)
+         ON CONFLICT(code) DO UPDATE SET
+           count = CASE WHEN count < ? THEN count + 1 ELSE count END,
+           last_at_ms = excluded.last_at_ms`,
+        code,
+        Date.now(),
+        Number.MAX_SAFE_INTEGER
+      );
+      persisted = true;
+    } catch (_) {}
+    if (!persisted) {
+      this.fanOutFailureCounters[code] = Math.min(
+        Number.MAX_SAFE_INTEGER,
+        this.fanOutFailureCounters[code] + 1
+      );
+    }
+    try { console.warn('snapback live fan-out recovery', code); } catch (_) {}
+  }
+
+  fanOutDiagnostics() {
+    const counters = { ...this.fanOutFailureCounters };
+    try {
+      for (const record of this.sql.exec('SELECT code, count FROM _snapback_fanout_diagnostics')) {
+        const code = String(record.code);
+        if (!Object.hasOwn(counters, code)) continue;
+        counters[code] = Math.min(Number.MAX_SAFE_INTEGER, counters[code] + Number(record.count || 0));
+      }
+    } catch (_) {}
+    return {
+      counters,
+      total: Math.min(
+        Number.MAX_SAFE_INTEGER,
+        Object.values(counters).reduce((sum, count) => sum + count, 0)
+      ),
+    };
   }
 
   async webSocketClose(ws) {
@@ -3707,6 +3976,7 @@ export class Coordinator {
     const systemTables = [
       '_snapback_meta',
       '_snapback_changes',
+      '_snapback_fanout_diagnostics',
       '_snapback_version',
       '_snapback_subscriptions_next',
       '_snapback_subscriptions',
@@ -3847,6 +4117,132 @@ function canonicalJson(value) {
   return JSON.stringify(sortJson(value ?? {}));
 }
 
+function decodeLiveSocketFrame(message) {
+  let text;
+  if (typeof message === 'string') {
+    if (utf8ByteLengthExceeds(message, MAX_LIVE_SOCKET_FRAME_BYTES)) {
+      return { ok: false, closeCode: 1009, code: 'SNAPBACK_LIVE_FRAME_TOO_LARGE' };
+    }
+    text = message;
+  } else {
+    let bytes;
+    if (message instanceof ArrayBuffer) {
+      bytes = new Uint8Array(message);
+    } else if (ArrayBuffer.isView(message)) {
+      bytes = new Uint8Array(message.buffer, message.byteOffset, message.byteLength);
+    } else {
+      return { ok: false, closeCode: 1003, code: 'SNAPBACK_LIVE_FRAME_TYPE_UNSUPPORTED' };
+    }
+    if (bytes.byteLength > MAX_LIVE_SOCKET_FRAME_BYTES) {
+      return { ok: false, closeCode: 1009, code: 'SNAPBACK_LIVE_FRAME_TOO_LARGE' };
+    }
+    try {
+      text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    } catch (_) {
+      return { ok: false, closeCode: 1007, code: 'SNAPBACK_LIVE_FRAME_INVALID_UTF8' };
+    }
+  }
+  let value;
+  try {
+    value = JSON.parse(text);
+  } catch (_) {
+    return { ok: false, closeCode: 1007, code: 'SNAPBACK_LIVE_FRAME_INVALID_JSON' };
+  }
+  return { ok: true, value };
+}
+
+function utf8ByteLengthExceeds(value, limitBytes) {
+  let bytes = 0;
+  for (let index = 0; index < value.length; index += 1) {
+    const unit = value.charCodeAt(index);
+    if (unit <= 0x7f) {
+      bytes += 1;
+    } else if (unit <= 0x7ff) {
+      bytes += 2;
+    } else if (unit >= 0xd800 && unit <= 0xdbff && index + 1 < value.length) {
+      const next = value.charCodeAt(index + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        index += 1;
+      } else {
+        bytes += 3;
+      }
+    } else {
+      // BMP code points and unpaired surrogates both occupy three bytes under
+      // TextEncoder's well-formed replacement behavior.
+      bytes += 3;
+    }
+    if (bytes > limitBytes) return true;
+  }
+  return false;
+}
+
+function validateLiveSocketFrame(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+  }
+  const keys = Object.keys(value);
+  const hasClosedKeys = (required, optional = []) => {
+    const allowed = new Set([...required, ...optional]);
+    return required.every((key) => Object.hasOwn(value, key)) && keys.every((key) => allowed.has(key));
+  };
+  if (value.type === 'subscribe') {
+    if (
+      !hasClosedKeys(['type', 'name', 'args'], ['supersedes']) ||
+      typeof value.name !== 'string' ||
+      value.name.length === 0 ||
+      !value.args ||
+      typeof value.args !== 'object' ||
+      Array.isArray(value.args) ||
+      (Object.hasOwn(value, 'supersedes') && (typeof value.supersedes !== 'string' || value.supersedes.length === 0))
+    ) {
+      return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+    }
+    return { ok: true, value };
+  }
+  if (value.type === 'unsubscribe') {
+    if (
+      !hasClosedKeys(['type', 'subscriptionId']) ||
+      typeof value.subscriptionId !== 'string' ||
+      value.subscriptionId.length === 0
+    ) {
+      return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+    }
+    return { ok: true, value };
+  }
+  if (value.type === 'ping') {
+    if (
+      !hasClosedKeys(['type'], ['requestId']) ||
+      (Object.hasOwn(value, 'requestId') && typeof value.requestId !== 'string')
+    ) {
+      return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+    }
+    return { ok: true, value };
+  }
+  return { ok: false, code: 'SNAPBACK_LIVE_FRAME_INVALID' };
+}
+
+function closeSocketWithDiagnostic(ws, closeCode, diagnosticCode) {
+  try { ws.close(closeCode, diagnosticCode); } catch (_) {}
+}
+
+function configuredTestFailureCount(value, env) {
+  if (env.SNAPBACK_TESTING !== '1') return 0;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) && parsed > 0 ? Math.min(parsed, 10) : 0;
+}
+
+function boundUtf8Text(value, limitBytes) {
+  const text = String(value || '');
+  const encoded = UTF8_ENCODER.encode(text);
+  if (encoded.byteLength <= limitBytes) return text;
+  const suffix = '...[truncated]';
+  const suffixBytes = UTF8_ENCODER.encode(suffix).byteLength;
+  let end = Math.max(0, limitBytes - suffixBytes);
+  while (end > 0 && (encoded[end] & 0xc0) === 0x80) end -= 1;
+  return `${new TextDecoder().decode(encoded.subarray(0, end))}${suffix}`;
+}
+
 function secretRedactionPatterns(value) {
   const raw = String(value || '');
   if (!raw) return [];
@@ -3970,7 +4366,10 @@ async function readBoundedTextStream(stream, limitBytes) {
 function sortJson(value) {
   if (Array.isArray(value)) return value.map(sortJson);
   if (!value || typeof value !== 'object') return value;
-  const sorted = {};
+  // A normal object's magic __proto__ setter can swallow an owned JSON key,
+  // making the persisted subscription args differ from the initial query.
+  // Null-prototype output preserves every JSON-owned key through stringify.
+  const sorted = Object.create(null);
   for (const key of Object.keys(value).sort()) {
     sorted[key] = sortJson(value[key]);
   }
@@ -4119,6 +4518,9 @@ async function parseJsonObjectRequest(request, { allowEmpty = false } = {}) {
   return { ok: true, value };
 }
 
-function json(status, value) {
-  return new Response(JSON.stringify(value), { status, headers: { 'content-type': 'application/json' } });
+function json(status, value, headers = {}) {
+  return new Response(JSON.stringify(value), {
+    status,
+    headers: { 'content-type': 'application/json', ...headers },
+  });
 }

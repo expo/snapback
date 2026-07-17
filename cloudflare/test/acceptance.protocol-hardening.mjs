@@ -310,8 +310,8 @@ try {
     });
     return { status: response.status, body: await response.json() };
   };
-  const get = async (path) => {
-    const response = await kindProof.raw(path);
+  const get = async (path, headers = {}) => {
+    const response = await kindProof.raw(path, { headers });
     return { status: response.status, body: await response.json() };
   };
   const functionsByKind = [
@@ -473,7 +473,7 @@ try {
       actionOverride: entry.name,
     });
     assert.equal(attempt.status, 200, JSON.stringify(attempt.body));
-    const status = await get('/cron/status');
+    const status = await get('/cron/status', { 'x-snapback-admin-token': ADMIN_TOKEN });
     const job = status.body.jobs.find((candidate) => candidate.name === 'warmPoll');
     assert.equal(job.lastRun.runId, attempt.body.runId);
     assert.equal((await kindProof.health()).version, versionBefore, 'kind-probe cron target changed app data');

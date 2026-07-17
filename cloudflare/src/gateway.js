@@ -87,10 +87,15 @@ async function gatewayFetch(request, env) {
         headers: request.headers,
       });
     }
-    // Cron ledger/activation status (LLP 0049 Phase 3), and the admin-gated
-    // manual run trigger — forwarded with the caller's method and headers so
-    // the coordinator enforces the token gate (ENG-23587).
-    if (path === '/cron/status') return stub.fetch('http://coordinator/cron/status');
+    // Cron ledger/activation status (public bounded projection, with scrubbed
+    // detail for an authenticated operator), and the admin-gated manual run
+    // trigger — forward method/headers so the coordinator owns both decisions.
+    if (path === '/cron/status') {
+      return stub.fetch('http://coordinator/cron/status', {
+        method: request.method,
+        headers: request.headers,
+      });
+    }
     if (path === '/cron/run') {
       return stub.fetch('http://coordinator/cron/run', {
         method: request.method,

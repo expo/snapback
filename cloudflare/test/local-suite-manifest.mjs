@@ -12,6 +12,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'acceptance-cron',
   'acceptance-cron-recovery',
   'acceptance-egress',
+  'acceptance-live-and-diagnostics-hardening',
   'acceptance-protocol-hardening',
   'acceptance-reset-atomic',
   'acceptance-secrets',
@@ -26,7 +27,7 @@ export const EXPECTED_LOCAL_SUITE_IDS = Object.freeze([
   'proof-runtime-preflight',
 ]);
 
-export const EXPECTED_LOCAL_SUITE_CHECKS = 20;
+export const EXPECTED_LOCAL_SUITE_CHECKS = 21;
 
 export const LOCAL_SUITES = Object.freeze([
   { id: 'compatibility', file: 'scripts/cf-check-compat', runtime: 'direct' },
@@ -68,6 +69,13 @@ export const LOCAL_SUITES = Object.freeze([
     id: 'acceptance-egress',
     file: 'cloudflare/test/acceptance.egress.mjs',
     evidence: ['cloudflare egress acceptance: 17/17 checks passed'],
+  },
+  {
+    id: 'acceptance-live-and-diagnostics-hardening',
+    file: 'cloudflare/test/acceptance.live-and-diagnostics-hardening.mjs',
+    evidence: [
+      'cloudflare live/diagnostics hardening acceptance: bounded frames, recoverable fan-out, and private cron diagnostics passed',
+    ],
   },
   {
     id: 'acceptance-protocol-hardening',
@@ -138,6 +146,7 @@ export const TEST_FILE_CLASSIFICATIONS = Object.freeze([
   ['acceptance.cron-recovery.mjs', 'gate'],
   ['acceptance.cron.mjs', 'gate'],
   ['acceptance.egress.mjs', 'gate'],
+  ['acceptance.live-and-diagnostics-hardening.mjs', 'gate'],
   ['acceptance.mjs', 'gate'],
   ['acceptance.protocol-hardening.mjs', 'gate'],
   ['acceptance.remote.all-aboard.mjs', 'remote-credentialed'],

@@ -154,7 +154,9 @@ async function main() {
   // host) may hold live demand of their own the whole run. Record it before
   // this suite subscribes, so the disarm check at the end asserts only what
   // the suite controls — that ITS demand is released (ENG-23643).
-  const cronStatus = async () => (await (await fetch(`${BASE}/cron/status`)).json()).jobs[0];
+  const cronStatus = async () => (await (await fetch(`${BASE}/cron/status`, {
+    headers: { 'x-snapback-admin-token': ADMIN_TOKEN },
+  })).json()).jobs[0];
   const baselineDemand = (await cronStatus()).activation.demand;
   const connectionId = `remote-${Date.now()}`;
   const live = await client.liveQuery('liveTrainStatus', { connectionId, transport: 'stream' });

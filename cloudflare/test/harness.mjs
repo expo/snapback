@@ -357,16 +357,28 @@ class LiveSocket {
     this.ws = ws;
     this.queue = [];
     this.waiters = [];
+    this.closeQueue = [];
+    this.closeWaiters = [];
     ws.addEventListener('message', (event) => {
       const message = JSON.parse(event.data);
       const waiter = this.waiters.shift();
       if (waiter) waiter(message);
       else this.queue.push(message);
     });
+    ws.addEventListener('close', (event) => {
+      const closed = { code: event.code, reason: event.reason, wasClean: event.wasClean };
+      const waiter = this.closeWaiters.shift();
+      if (waiter) waiter(closed);
+      else this.closeQueue.push(closed);
+    });
   }
 
   send(value) {
     this.ws.send(JSON.stringify(value));
+  }
+
+  sendRaw(value) {
+    this.ws.send(value);
   }
 
   next(timeoutMs = 4000) {
@@ -388,6 +400,17 @@ class LiveSocket {
       const message = await this.next(remaining);
       if (message.type === type) return message;
     }
+  }
+
+  waitForClose(timeoutMs = 4000) {
+    if (this.closeQueue.length) return Promise.resolve(this.closeQueue.shift());
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('timed out waiting for the live socket to close')), timeoutMs);
+      this.closeWaiters.push((closed) => {
+        clearTimeout(timer);
+        resolve(closed);
+      });
+    });
   }
 
   close() {
