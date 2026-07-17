@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61
+reviewed-commit: de78f0d44076bb9bebbb81b4d67178ab5b64b053
 ---
 
 # Host operations
