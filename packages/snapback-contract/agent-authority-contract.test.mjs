@@ -862,8 +862,9 @@ for (const {
   );
 }
 
-// Witness storage failure is still a terminal confidentiality cut. It blocks
-// durable settlement, but cannot leave the exact B client store readable.
+// Terminal-ledger bucket storage failure is still a confidentiality cut. It
+// blocks durable settlement, but cannot leave the exact B client store
+// readable.
 {
   const custodyId = 'agent:contract-terminal-witness-io-failure';
   const base = createMemoryAgentAuthorityCustodyStorage();
@@ -881,8 +882,8 @@ for (const {
       return base.withOwnership(partition, (owner) => operation(Object.freeze({
         ...owner,
         async withPartition(childPartition, childOperation) {
-          if (childPartition.startsWith('snapback.agent-terminal-witness.v1:')) {
-            throw new Error('injected terminal witness storage failure');
+          if (childPartition.startsWith('snapback.agent-terminal-bucket.v2:')) {
+            throw new Error('injected terminal bucket storage failure');
           }
           return owner.withPartition(childPartition, childOperation);
         },
@@ -909,7 +910,7 @@ for (const {
     terminalFence.credentialOfferForHandshake(),
     { authorityDisposition: 'durableDelete' },
   );
-  await assert.rejects(terminal.settlement, /injected terminal witness storage failure/);
+  await assert.rejects(terminal.settlement, /injected terminal bucket storage failure/);
   assert.deepEqual(base.snapshot(custodyId), predecessor);
   assert.deepEqual(await clientStore.authorityScope(), {
     authorityEpoch: null,
@@ -921,9 +922,9 @@ for (const {
   );
 }
 
-// Corrupt primary custody cannot veto the tuple-specific terminal witness.
-// Repairing/removing the malformed primary later must not let the exact
-// rejected durable tuple initialize as active again.
+// Corrupt primary custody cannot veto insertion into the bounded terminal
+// ledger. Repairing/removing the malformed primary later must not let the
+// exact rejected durable tuple initialize as active again.
 {
   const custodyId = 'agent:contract-terminal-witness-before-corrupt-primary';
   const custodyState = { custody: {} };
@@ -961,11 +962,14 @@ for (const {
     terminal.settlement,
     (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT',
   );
-  const witnessPartitions = Object.keys(custodyState.custody).filter((partition) => (
-    partition.startsWith('snapback.agent-terminal-witness.v1:')
+  const bucketPartitions = Object.keys(custodyState.custody).filter((partition) => (
+    partition.startsWith('snapback.agent-terminal-bucket.v2:')
   ));
-  assert.equal(witnessPartitions.length, 1);
-  assert.equal(custodyState.custody[witnessPartitions[0]].status, 'deleted');
+  assert.equal(bucketPartitions.length, 1);
+  assert.deepEqual(
+    custodyState.custody[bucketPartitions[0]].entries.map((entry) => entry.authorityKey),
+    [capture.authorityKey],
+  );
   assert.equal(
     JSON.stringify(await clientStore.snapshot()).includes('corrupt-primary-secret'),
     false,
@@ -988,7 +992,7 @@ for (const {
   assert.notEqual(custodyStorage.snapshot(custodyId)?.status, 'active');
 }
 
-// The same witness-before-primary rule applies when this process already
+// The same ledger-before-primary rule applies when this process already
 // synchronized the active row and enters the direct terminal CAS path.
 {
   const custodyId = 'agent:contract-active-terminal-witness-before-corrupt-primary';
@@ -1026,11 +1030,14 @@ for (const {
     terminal.settlement,
     (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT',
   );
-  const witnessPartitions = Object.keys(custodyState.custody).filter((partition) => (
-    partition.startsWith('snapback.agent-terminal-witness.v1:')
+  const bucketPartitions = Object.keys(custodyState.custody).filter((partition) => (
+    partition.startsWith('snapback.agent-terminal-bucket.v2:')
   ));
-  assert.equal(witnessPartitions.length, 1);
-  assert.equal(custodyState.custody[witnessPartitions[0]].status, 'deleted');
+  assert.equal(bucketPartitions.length, 1);
+  assert.deepEqual(
+    custodyState.custody[bucketPartitions[0]].entries.map((entry) => entry.authorityKey),
+    [capture.authorityKey],
+  );
   assert.equal(
     JSON.stringify(await clientStore.snapshot()).includes('active-corrupt-primary-secret'),
     false,

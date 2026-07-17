@@ -5,7 +5,7 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room-authority barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Revised:** 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053
 
 ## Summary
@@ -268,6 +268,22 @@ keys in the same room are latest-state values, not a causally ordered log.
 Clients compare `(scopeEpoch, entryVersion)` only within one room, one key, and
 one epoch. If the authority restarts, loses sequencing continuity, or changes
 epoch, clients must resubscribe instead of comparing versions across epochs.
+
+The shipped plain-JSON profile bounds `scopeEpoch`, `entryVersion`, and
+`roomAuthorityGeneration` to `0..=9_007_199_254_740_991`
+(`Number.MAX_SAFE_INTEGER`). The final value is usable exactly once; no counter
+may cross the boundary or wrap. Scope exhaustion refuses room creation before
+insertion. Entry exhaustion is a terminal loss of sequencing continuity for
+the whole incarnation: mark the exact room and protected authority control
+retired, purge queued data for that room epoch and producer fence, then enqueue
+only an authority-independent `EpochChanged` clearing boundary. No partial
+delete, expiry, disconnect, or reauthorization result and no replacement
+snapshot may escape. The protected control remains a tombstone while any
+predecessor permit is alive, and a stale permit must revalidate under the
+registry→routing-map cut before it can create a room. Once those permits drain,
+a later subscribe may create a fresh checked scope epoch. If the bounded outbox
+cannot retain the clearing boundary, its existing all-authority poison marker
+is the fail-closed substitute, never silent stale data.
 
 ### Room store model
 
@@ -559,6 +575,11 @@ compare the captured non-pending generation **atomically with that sink's act**;
 a check released before the act is non-conforming. The room then takes a fresh
 durable permission snapshot at or after the cause, re-resolves the
 connection-bound authority from LLP 0039, and atomically either:
+
+Room-authority generation itself uses the portable counter domain above. A
+transition that would require a successor after the maximum is refused while
+the dependency is still precommit; it may not durably change authorization and
+then discover that the in-memory sink cannot name its successor.
 
 - rebuilds `authContext`/`visibleKeys`, installs a fresh room snapshot, and
   resumes; or

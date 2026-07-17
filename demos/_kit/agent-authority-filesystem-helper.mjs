@@ -26,7 +26,6 @@ import {
   unlink,
   rename,
 } from 'node:fs/promises';
-import { randomBytes } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { DatabaseSync } from 'node:sqlite';
@@ -35,16 +34,18 @@ const DIRECTORY_MODE = 0o700;
 const FILE_MODE = 0o600;
 const MAX_RECORD_BYTES = 64 * 1_024;
 const MAX_DIRECTORY_SCAN_ENTRIES = 4_096;
-const MAX_ORPHAN_FILES = 128;
-const MAX_ORPHAN_BYTES = MAX_ORPHAN_FILES * MAX_RECORD_BYTES;
+const MAX_ORPHAN_FILES = 1;
+const MAX_ORPHAN_BYTES = MAX_RECORD_BYTES;
 const LOCK_RETRY_MS = 10;
 const COMPONENT = /^[a-f0-9]{64}\.(?:json|lock)$/u;
+const RECORD_COMPONENT = /^[a-f0-9]{64}\.json$/u;
 const SESSIONS = new Map();
 const PENDING_HOOKS = new Map();
 const execFileAsync = promisify(execFile);
 let nextHookId = 1;
 let initialized = false;
 let closing = false;
+let correlationFailure = null;
 
 const CODES = Object.freeze({
   directoryInsecure: 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_INSECURE',
@@ -55,6 +56,8 @@ const CODES = Object.freeze({
   ioFailed: 'SNAPBACK_AUTH_CUSTODY_IO_FAILED',
   orphanLimit: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_LIMIT',
   orphanCleanupFailed: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_CLEANUP_FAILED',
+  partitionScanLimit: 'SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT',
+  correlationExhausted: 'SNAPBACK_AUTH_CUSTODY_CORRELATION_EXHAUSTED',
 });
 
 const coded = (code, message, details = undefined, cause = undefined) => {
@@ -229,7 +232,7 @@ const ensurePrivateLockFile = async (lockName) => {
   }
 };
 
-const readRecordBytes = async (recordName) => {
+const readRecordSnapshot = async (recordName) => {
   let handle;
   try {
     handle = await open(
@@ -279,7 +282,16 @@ const readRecordBytes = async (recordName) => {
     ) {
       throw coded(CODES.fileInsecure, 'filesystem agent custody record changed while being read');
     }
-    return Buffer.concat(chunks, totalBytes).toString('utf8');
+    return Object.freeze({
+      bytes: Buffer.concat(chunks, totalBytes).toString('utf8'),
+      byteLength: totalBytes,
+      identity: Object.freeze({
+        dev: finalInfo.dev,
+        ino: finalInfo.ino,
+        uid: finalInfo.uid,
+        size: finalInfo.size,
+      }),
+    });
   } catch (error) {
     if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
     throw ioFailure('read-record-relative', error);
@@ -287,6 +299,10 @@ const readRecordBytes = async (recordName) => {
     await handle.close().catch(() => {});
   }
 };
+
+const readRecordBytes = async (recordName) => (
+  (await readRecordSnapshot(recordName))?.bytes ?? null
+);
 
 const recordRevision = (bytes) => {
   if (bytes === null) return null;
@@ -301,14 +317,20 @@ const recordRevision = (bytes) => {
     : Symbol.for('invalid-revision');
 };
 
-const temporaryPattern = (recordName) => {
-  const escaped = recordName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-  return new RegExp(`^${escaped}\\.[1-9][0-9]*\\.[a-f0-9]{32}\\.tmp$`, 'u');
-};
+const temporaryNameFor = (recordName) => `${recordName}.tmp`;
 
 const callHook = async (sessionId, name, context) => {
+  if (nextHookId === null) {
+    correlationFailure ??= coded(
+      CODES.correlationExhausted,
+      'filesystem agent custody helper hook correlation space is exhausted',
+      { axis: 'hook', maximum: Number.MAX_SAFE_INTEGER },
+    );
+    closeAll(correlationFailure);
+    throw correlationFailure;
+  }
   const hookId = nextHookId;
-  nextHookId += 1;
+  nextHookId = hookId === Number.MAX_SAFE_INTEGER ? null : hookId + 1;
   const outcome = new Promise((resolve, reject) => {
     PENDING_HOOKS.set(hookId, { resolve, reject });
   });
@@ -320,48 +342,23 @@ const callHook = async (sessionId, name, context) => {
 };
 
 const cleanupOrphans = async (sessionId, recordName) => {
-  const pattern = temporaryPattern(recordName);
+  const temporaryName = temporaryNameFor(recordName);
   const candidates = [];
-  let scannedEntries = 0;
+  const scannedEntries = 1;
   let totalBytes = 0;
-  let directory;
   try {
-    directory = await opendir('.');
-    for await (const entry of directory) {
-      scannedEntries += 1;
-      if (scannedEntries > MAX_DIRECTORY_SCAN_ENTRIES) {
-        throw coded(
-          CODES.orphanLimit,
-          'filesystem agent custody orphan scan exceeded its bounded directory budget',
-          { maximumEntries: MAX_DIRECTORY_SCAN_ENTRIES },
-        );
-      }
-      if (!pattern.test(entry.name)) continue;
-      const info = await lstat(entry.name);
-      await assertPrivateFile(entry.name, info, { maximumBytes: MAX_RECORD_BYTES });
-      candidates.push(Object.freeze({
-        name: entry.name,
+    const info = await lstat(temporaryName);
+    await assertPrivateFile(temporaryName, info, { maximumBytes: MAX_RECORD_BYTES });
+    candidates.push(Object.freeze({
+        name: temporaryName,
         dev: info.dev,
         ino: info.ino,
         uid: info.uid,
         size: info.size,
       }));
-      totalBytes += info.size;
-      if (candidates.length > MAX_ORPHAN_FILES || totalBytes > MAX_ORPHAN_BYTES) {
-        throw coded(
-          CODES.orphanLimit,
-          'filesystem agent custody orphan cleanup exceeded its bounded debris budget',
-          {
-            orphanCount: candidates.length,
-            orphanBytes: totalBytes,
-            maximumOrphans: MAX_ORPHAN_FILES,
-            maximumBytes: MAX_ORPHAN_BYTES,
-          },
-        );
-      }
-    }
-  } finally {
-    await directory?.close().catch(() => {});
+    totalBytes = info.size;
+  } catch (error) {
+    if (error?.code !== 'ENOENT') throw error;
   }
 
   await callHook(sessionId, 'beforeOrphanCleanup', Object.freeze({
@@ -458,7 +455,18 @@ const acquireLock = async (sessionId, lockName, recordName, timeoutMs) => {
     if (!sameIdentity(before, after)) {
       throw coded(CODES.fileInsecure, 'filesystem agent custody SQLite lock inode changed during acquisition');
     }
-    SESSIONS.set(sessionId, Object.freeze({ database, lockName, recordName }));
+    SESSIONS.set(sessionId, {
+      database,
+      lockName,
+      lockIdentity: Object.freeze({
+        dev: after.dev,
+        ino: after.ino,
+        uid: after.uid,
+      }),
+      recordName,
+      retired: false,
+      scanSnapshot: null,
+    });
     const cleanup = await cleanupOrphans(sessionId, recordName);
     return cleanup;
   } catch (error) {
@@ -474,7 +482,32 @@ const assertSession = (sessionId, recordName = null) => {
   if (session === undefined || (recordName !== null && session.recordName !== recordName)) {
     throw coded(CODES.lockLost, 'filesystem agent custody ownership was released');
   }
+  if (session.retired) {
+    throw coded(CODES.lockLost, 'filesystem agent custody ownership was retired');
+  }
   return session;
+};
+
+const closeSessionDatabaseForRetirement = (session) => {
+  let rollbackError = null;
+  let closeError = null;
+  try {
+    session.database.exec('ROLLBACK');
+  } catch (error) {
+    rollbackError = error;
+  }
+  try {
+    session.database.close();
+    session.database = null;
+  } catch (error) {
+    closeError = error;
+  }
+  if (closeError !== null) {
+    throw ioFailure('close-relative-sqlite-lock-before-retirement', closeError);
+  }
+  if (rollbackError !== null) {
+    throw ioFailure('rollback-relative-sqlite-lock-before-retirement', rollbackError);
+  }
 };
 
 const replaceRecord = async (sessionId, recordName, expectedRevision, encoded) => {
@@ -498,7 +531,7 @@ const replaceRecord = async (sessionId, recordName, expectedRevision, encoded) =
       { maximumBytes: MAX_RECORD_BYTES },
     );
   }
-  const temporaryName = `${recordName}.${process.pid}.${randomBytes(16).toString('hex')}.tmp`;
+  const temporaryName = temporaryNameFor(recordName);
   let handle;
   let renamed = false;
   try {
@@ -555,6 +588,234 @@ const replaceRecord = async (sessionId, recordName, expectedRevision, encoded) =
   }
 };
 
+const removeRecord = async (sessionId, recordName, expectedRevision) => {
+  assertSession(sessionId, recordName);
+  if (!Number.isSafeInteger(expectedRevision) || expectedRevision <= 0) {
+    throw coded(CODES.casStale, 'filesystem agent custody removal requires an exact positive revision');
+  }
+  const snapshot = await readRecordSnapshot(recordName);
+  const actualRevision = recordRevision(snapshot?.bytes ?? null);
+  if (actualRevision !== expectedRevision) {
+    throw coded(
+      CODES.casStale,
+      'durable filesystem agent custody changed before compare-and-remove',
+      {
+        expectedRevision,
+        actualRevision: typeof actualRevision === 'symbol' ? null : actualRevision,
+      },
+    );
+  }
+  try {
+    const current = await lstat(recordName);
+    await assertPrivateFile(recordName, current, { maximumBytes: MAX_RECORD_BYTES });
+    if (
+      !sameIdentity(current, snapshot.identity)
+      || current.size !== snapshot.identity.size
+    ) {
+      throw coded(CODES.fileInsecure, 'filesystem agent custody record changed before removal');
+    }
+    await callHook(sessionId, 'beforeRecordRemove', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    const finalInfo = await lstat(recordName);
+    if (
+      !sameIdentity(finalInfo, snapshot.identity)
+      || finalInfo.size !== snapshot.identity.size
+    ) {
+      throw coded(CODES.fileInsecure, 'filesystem agent custody record changed during removal');
+    }
+    assertSession(sessionId, recordName);
+    await unlink(recordName);
+    await callHook(sessionId, 'afterRecordUnlink', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    await syncPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+    assertSession(sessionId, recordName);
+    await callHook(sessionId, 'afterRecordRemove', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    return true;
+  } catch (error) {
+    if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+    throw ioFailure('remove-record-relative', error);
+  }
+};
+
+const retireRecord = async (sessionId, recordName, expectedRevision) => {
+  const session = assertSession(sessionId, recordName);
+  if (
+    expectedRevision !== null
+    && (!Number.isSafeInteger(expectedRevision) || expectedRevision <= 0)
+  ) {
+    throw coded(CODES.casStale, 'filesystem agent custody retirement requires null or an exact positive revision');
+  }
+  const snapshot = await readRecordSnapshot(recordName);
+  const actualRevision = recordRevision(snapshot?.bytes ?? null);
+  if (actualRevision !== expectedRevision) {
+    throw coded(
+      CODES.casStale,
+      'durable filesystem agent custody changed before compare-and-retire',
+      {
+        expectedRevision,
+        actualRevision: typeof actualRevision === 'symbol' ? null : actualRevision,
+      },
+    );
+  }
+  try {
+    const lockInfo = await lstat(session.lockName);
+    await assertPrivateFile(session.lockName, lockInfo);
+    if (!sameIdentity(lockInfo, session.lockIdentity)) {
+      throw coded(CODES.fileInsecure, 'filesystem agent custody lock changed before retirement');
+    }
+    await callHook(sessionId, 'beforeLockRetire', Object.freeze({
+      recordName,
+      lockName: session.lockName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    // `retire` is a consuming operation. Close SQLite while its stable carrier
+    // pathname still exists so rollback-journal cleanup completes before the
+    // carrier is removed. The universal custody gate excludes every
+    // conforming partition writer across this close-to-unlink interval.
+    session.retired = true;
+    await callHook(sessionId, 'beforeLockClose', Object.freeze({
+      recordName,
+      lockName: session.lockName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    closeSessionDatabaseForRetirement(session);
+    await callHook(sessionId, 'afterLockClose', Object.freeze({
+      recordName,
+      lockName: session.lockName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    const closedLockInfo = await lstat(session.lockName);
+    await assertPrivateFile(session.lockName, closedLockInfo);
+    if (!sameIdentity(closedLockInfo, session.lockIdentity)) {
+      throw coded(CODES.fileInsecure, 'filesystem agent custody lock changed before retired-carrier unlink');
+    }
+    await unlink(session.lockName);
+    await callHook(sessionId, 'afterLockUnlink', Object.freeze({
+      recordName,
+      lockName: session.lockName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    await syncPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+    await callHook(sessionId, 'afterLockRetireSync', Object.freeze({
+      recordName,
+      lockName: session.lockName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    if (snapshot === null) return false;
+    const current = await lstat(recordName);
+    await assertPrivateFile(recordName, current, { maximumBytes: MAX_RECORD_BYTES });
+    if (!sameIdentity(current, snapshot.identity) || current.size !== snapshot.identity.size) {
+      throw coded(CODES.fileInsecure, 'filesystem agent custody record changed before retirement');
+    }
+    await callHook(sessionId, 'beforeRecordRemove', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    await unlink(recordName);
+    await callHook(sessionId, 'afterRecordUnlink', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    await syncPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+    await callHook(sessionId, 'afterRecordRemove', Object.freeze({
+      recordName,
+      expectedRevision,
+      helperPid: process.pid,
+    }));
+    return true;
+  } catch (error) {
+    if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+    throw ioFailure('retire-record-and-lock-relative', error);
+  }
+};
+
+const scanRecords = async (sessionId, cursor, limit) => {
+  const session = assertSession(sessionId);
+  if (cursor !== null && (typeof cursor !== 'string' || !RECORD_COMPONENT.test(cursor))) {
+    throw coded(CODES.fileInsecure, 'filesystem agent custody scan cursor is invalid');
+  }
+  if (!Number.isSafeInteger(limit) || limit < 1 || limit > 128) {
+    throw coded(CODES.fileInsecure, 'filesystem agent custody scan limit is invalid');
+  }
+  await assertPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+  if (cursor === null || session.scanSnapshot === null) {
+    const names = [];
+    let scannedEntries = 0;
+    let directory;
+    try {
+      directory = await opendir('.');
+      for await (const entry of directory) {
+        scannedEntries += 1;
+        if (scannedEntries > MAX_DIRECTORY_SCAN_ENTRIES) {
+          throw coded(
+            CODES.partitionScanLimit,
+            'filesystem agent custody partition scan exceeded its bounded directory budget',
+            { maximumEntries: MAX_DIRECTORY_SCAN_ENTRIES },
+          );
+        }
+        if (RECORD_COMPONENT.test(entry.name)) names.push(entry.name);
+      }
+    } catch (error) {
+      if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+      throw ioFailure('scan-records-relative', error);
+    } finally {
+      await directory?.close().catch(() => {});
+    }
+    names.sort();
+    session.scanSnapshot = Object.freeze(names);
+  }
+  const start = cursor === null
+    ? 0
+    : session.scanSnapshot.findIndex((name) => name > cursor);
+  const normalizedStart = start < 0 ? session.scanSnapshot.length : start;
+  const page = session.scanSnapshot.slice(normalizedStart, normalizedStart + limit);
+  const hasMore = normalizedStart + page.length < session.scanSnapshot.length;
+  const records = [];
+  for (const recordName of page) {
+    try {
+      const snapshot = await readRecordSnapshot(recordName);
+      if (snapshot === null) continue;
+      records.push(Object.freeze({
+        recordName,
+        bytes: snapshot.bytes,
+        byteLength: snapshot.byteLength,
+      }));
+    } catch (error) {
+      // The universal gate excludes this custody's conforming writers. A file
+      // that disappears or changes here is therefore unrelated churn; skip it
+      // and preserve strict validation for later exact partition reads.
+      if (
+        error?.code === CODES.fileInsecure
+        || error?.cause?.code === 'ENOENT'
+      ) continue;
+      throw error;
+    }
+  }
+  await assertPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+  assertSession(sessionId);
+  return Object.freeze({
+    records: Object.freeze(records),
+    nextCursor: hasMore ? page.at(-1) : null,
+  });
+};
+
 const releaseSession = (sessionId) => {
   const session = SESSIONS.get(sessionId);
   if (session === undefined) return;
@@ -563,34 +824,42 @@ const releaseSession = (sessionId) => {
   // mutated. Closing the exact connection releases its inode lock. ROLLBACK is
   // best-effort because SQLite may have cached the directory's former name,
   // which can disappear while the retained CWD capability remains valid.
-  try {
-    session.database.exec('ROLLBACK');
-  } catch { /* close below is the crash-released lock boundary */ }
-  try {
-    session.database.close();
-  } catch (error) {
-    throw ioFailure('close-relative-sqlite-lock', error);
+  if (session.database !== null) {
+    try {
+      session.database.exec('ROLLBACK');
+    } catch { /* close below is the crash-released lock boundary */ }
+    try {
+      session.database.close();
+    } catch (error) {
+      throw ioFailure('close-relative-sqlite-lock', error);
+    }
   }
 };
 
-const closeAll = () => {
+const closeAll = (failure = coded(CODES.lockLost, 'filesystem agent custody parent disconnected')) => {
   if (closing) return;
   closing = true;
   for (const [sessionId, session] of SESSIONS) {
     SESSIONS.delete(sessionId);
-    try { session.database.exec('ROLLBACK'); } catch { /* process exit releases the lock */ }
-    try { session.database.close(); } catch { /* process exit releases the lock */ }
+    try { session.database?.exec('ROLLBACK'); } catch { /* process exit releases the lock */ }
+    try { session.database?.close(); } catch { /* process exit releases the lock */ }
   }
   for (const { reject } of PENDING_HOOKS.values()) {
-    reject(coded(CODES.lockLost, 'filesystem agent custody parent disconnected'));
+    reject(failure);
   }
   PENDING_HOOKS.clear();
 };
 
-const initialize = async ({ directory, expectedIdentity }) => {
+const initialize = async ({ directory, expectedIdentity, testNextHookId = null }) => {
   if (initialized) throw coded(CODES.directoryInsecure, 'filesystem custody helper was initialized twice');
   if (process.platform === 'win32' || typeof process.geteuid !== 'function') {
     throw coded(CODES.directoryInsecure, 'filesystem custody directory capabilities require POSIX');
+  }
+  if (
+    testNextHookId !== null
+    && (!Number.isSafeInteger(testNextHookId) || testNextHookId < 1)
+  ) {
+    throw coded(CODES.correlationExhausted, 'filesystem custody helper hook seed is invalid');
   }
   let before;
   try {
@@ -619,6 +888,7 @@ const initialize = async ({ directory, expectedIdentity }) => {
     uid: after.uid,
   });
   await assertPinnedDirectory(SESSION_DIRECTORY_IDENTITY);
+  nextHookId = testNextHookId ?? 1;
   initialized = true;
   return SESSION_DIRECTORY_IDENTITY;
 };
@@ -626,6 +896,7 @@ const initialize = async ({ directory, expectedIdentity }) => {
 const dispatch = async (message) => {
   const { command } = message;
   if (command === 'initialize') return initialize(message);
+  if (correlationFailure !== null) throw correlationFailure;
   if (!initialized) throw coded(CODES.lockLost, 'filesystem custody helper is not initialized');
   if (command === 'begin') {
     const lockName = assertComponent(message.lockName, '.lock');
@@ -646,6 +917,25 @@ const dispatch = async (message) => {
       message.expectedRevision,
       message.encoded,
     );
+  }
+  if (command === 'remove') {
+    const recordName = assertComponent(message.recordName, '.json');
+    return removeRecord(
+      message.sessionId,
+      recordName,
+      message.expectedRevision,
+    );
+  }
+  if (command === 'retire') {
+    const recordName = assertComponent(message.recordName, '.json');
+    return retireRecord(
+      message.sessionId,
+      recordName,
+      message.expectedRevision,
+    );
+  }
+  if (command === 'scan') {
+    return scanRecords(message.sessionId, message.cursor, message.limit);
   }
   if (command === 'release') {
     releaseSession(message.sessionId);

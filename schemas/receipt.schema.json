@@ -62,6 +62,7 @@
         },
         "snapshotVersion": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -133,6 +134,7 @@
         "snapshotVersion": {
           "description": "`null` when no storage read is safe at the emission site (the\ndisconnect teardown path) — the honest \"unknown at death\" value.",
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": [
             "integer",

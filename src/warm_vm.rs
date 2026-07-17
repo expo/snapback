@@ -102,6 +102,9 @@ struct PoolInner {
     /// dropped on check-in rather than pooled.
     generation: u64,
     next_lru_tick: u64,
+    /// Once the generation space is exhausted this pool lineage can never be
+    /// made warm again. Fresh invocation remains available through `enabled`.
+    generation_exhausted: bool,
 }
 
 /// The per-instance warm VM pool. One per `LocalSnapback` — two local app
@@ -137,9 +140,23 @@ impl WarmVmPool {
     /// Force the fresh path (bench `vm_cost_us` keeps its fresh-create
     /// definition; tests exercise opt-out semantics without env mutation).
     pub(crate) fn set_enabled(&self, enabled: bool) {
-        self.enabled.store(enabled, Ordering::Relaxed);
-        if !enabled {
-            self.clear();
+        if enabled {
+            let inner = self
+                .inner
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            self.enabled
+                .store(!inner.generation_exhausted, Ordering::Relaxed);
+        } else {
+            let drained = {
+                let mut inner = self
+                    .inner
+                    .lock()
+                    .unwrap_or_else(|poisoned| poisoned.into_inner());
+                self.enabled.store(false, Ordering::Relaxed);
+                self.clear_locked(&mut inner)
+            };
+            drop(drained);
         }
     }
 
@@ -202,6 +219,9 @@ impl WarmVmPool {
             .inner
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if inner.generation_exhausted || !self.enabled() {
+            return;
+        }
         // A VM checked out before a `clear()` carries a stale generation; drop
         // it rather than return pre-reload module state to the cleared pool.
         if vm.generation != inner.generation {
@@ -213,9 +233,12 @@ impl WarmVmPool {
         if inner.pooled >= WARM_VM_POOL_CAP {
             return; // cap is zero or eviction found nothing; drop = burn
         }
+        if inner.next_lru_tick == u64::MAX {
+            rebase_lru_ticks_locked(&mut inner);
+        }
         let mut vm = vm;
         vm.last_pooled_at = inner.next_lru_tick;
-        inner.next_lru_tick = inner.next_lru_tick.wrapping_add(1);
+        inner.next_lru_tick += 1;
         inner.pooled += 1;
         inner.vms.entry(vm.source_hash).or_default().push(vm);
     }
@@ -231,11 +254,22 @@ impl WarmVmPool {
                 .inner
                 .lock()
                 .unwrap_or_else(|poisoned| poisoned.into_inner());
-            inner.pooled = 0;
-            inner.generation = inner.generation.wrapping_add(1);
-            std::mem::take(&mut inner.vms)
+            self.clear_locked(&mut inner)
         };
         drop(drained); // destroy outside the lock
+    }
+
+    fn clear_locked(&self, inner: &mut PoolInner) -> HashMap<u64, Vec<WarmVm>> {
+        inner.pooled = 0;
+        if let Some(next_generation) = inner.generation.checked_add(1) {
+            inner.generation = next_generation;
+        } else {
+            // Reusing a generation would admit an arbitrarily old checked-out
+            // VM. Permanently fall back to fresh invocation for this lineage.
+            inner.generation_exhausted = true;
+            self.enabled.store(false, Ordering::Relaxed);
+        }
+        std::mem::take(&mut inner.vms)
     }
 
     #[cfg(test)]
@@ -279,6 +313,30 @@ fn evict_oldest_locked(inner: &mut PoolInner) {
     if remove_bucket {
         inner.vms.remove(&source_hash);
     }
+}
+
+/// The pool is tiny and bounded, so rebasing its LRU order is cheaper and
+/// safer than letting the ordering identity wrap. Equal legacy ticks retain a
+/// deterministic hash/index tie-break; normal operation always has unique
+/// ticks.
+fn rebase_lru_ticks_locked(inner: &mut PoolInner) {
+    let mut order = Vec::with_capacity(inner.pooled);
+    for (source_hash, vms) in &inner.vms {
+        for (index, vm) in vms.iter().enumerate() {
+            order.push((vm.last_pooled_at, *source_hash, index));
+        }
+    }
+    order.sort_unstable();
+    for (tick, (_, source_hash, index)) in order.into_iter().enumerate() {
+        if let Some(vm) = inner
+            .vms
+            .get_mut(&source_hash)
+            .and_then(|vms| vms.get_mut(index))
+        {
+            vm.last_pooled_at = tick as u64;
+        }
+    }
+    inner.next_lru_tick = inner.pooled as u64;
 }
 
 fn reset_verdict_ok(verdict: &str) -> bool {
@@ -574,6 +632,89 @@ globalThis.__snapbackHandlers = {{
             pool.check_in(vm);
         }
         assert_eq!(pool.pooled_count(), WARM_VM_POOL_CAP);
+    }
+
+    #[test]
+    fn dk4_generation_exhaustion_permanently_falls_back_to_fresh_vms() {
+        let pool = WarmVmPool::from_env();
+        pool.set_enabled(true);
+        {
+            let mut inner = pool.inner.lock().expect("pool lock");
+            inner.generation = u64::MAX - 1;
+        }
+
+        let mut penultimate = pool.checkout("// penultimate").expect("checkout");
+        penultimate.mark_set_up();
+        pool.clear();
+        assert_eq!(pool.inner.lock().expect("pool lock").generation, u64::MAX);
+
+        let mut final_generation = pool.checkout("// final").expect("checkout");
+        final_generation.mark_set_up();
+        pool.clear();
+
+        assert!(
+            !pool.enabled(),
+            "generation exhaustion forces the fresh path"
+        );
+        assert!(
+            pool.inner.lock().expect("pool lock").generation_exhausted,
+            "the exhausted lineage must be terminal"
+        );
+        pool.set_enabled(true);
+        assert!(
+            !pool.enabled(),
+            "an opt-in cannot resurrect an exhausted generation lineage"
+        );
+
+        pool.check_in(penultimate);
+        pool.check_in(final_generation);
+        assert_eq!(
+            pool.pooled_count(),
+            0,
+            "no checkout stamped before the terminal clear may return"
+        );
+    }
+
+    #[test]
+    fn dk4_lru_rebases_before_tick_exhaustion_without_reversing_recency() {
+        let pool = WarmVmPool::from_env();
+        pool.set_enabled(true);
+        for source in ["// oldest", "// middle"] {
+            let mut vm = pool.checkout(source).expect("checkout");
+            vm.mark_set_up();
+            pool.check_in(vm);
+        }
+        {
+            let mut inner = pool.inner.lock().expect("pool lock");
+            inner.vms.values_mut().flatten().for_each(|vm| {
+                vm.last_pooled_at = match vm.key.as_str() {
+                    "// oldest" => u64::MAX - 2,
+                    "// middle" => u64::MAX - 1,
+                    other => panic!("unexpected pooled source {other}"),
+                };
+            });
+            inner.next_lru_tick = u64::MAX;
+        }
+
+        let mut newest = pool.checkout("// newest").expect("checkout");
+        newest.mark_set_up();
+        pool.check_in(newest);
+
+        let inner = pool.inner.lock().expect("pool lock");
+        let tick = |key: &str| {
+            inner
+                .vms
+                .values()
+                .flatten()
+                .find(|vm| vm.key == key)
+                .map(|vm| vm.last_pooled_at)
+                .expect("pooled source")
+        };
+        assert_eq!(
+            (tick("// oldest"), tick("// middle"), tick("// newest")),
+            (0, 1, 2)
+        );
+        assert_eq!(inner.next_lru_tick, 3);
     }
 
     /// DK-4 global cap eviction: an active fifth bundle must be able to reuse

@@ -189,6 +189,19 @@ impl LocalDatabase {
         })
     }
 
+    /// Read the exact token family that credential rotation must close before
+    /// its durable writer enters. The transaction repeats this plan and the
+    /// process interlock compares it with the asynchronously drained gate.
+    pub(crate) fn plan_agent_credential_rotation_service_terminal(
+        &self,
+        credential: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_agent_credential_rotation_token_ids(connection, credential, now_ms)
+        })
+    }
+
     /// Rotate with revocation strength. The predecessor hash becomes a
     /// time-retained revoked family row, every prior-generation token is
     /// terminally revoked, and the live row keeps its stable id.
@@ -203,14 +216,7 @@ impl LocalDatabase {
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let row = credential_row_by_hash(tx, predecessor_hash.as_bytes())?
-                    .filter(|row| row.revoked_at_ms.is_none())
-                    .ok_or_else(agent_credential_invalid)?;
-                require_agent_active_on(tx, &row.user_id)?;
-                token_ids_for_credential(tx, &row.id)
-            },
+            |tx| planned_agent_credential_rotation_token_ids(tx, credential, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 sweep_credential_family_on(tx, now_ms)?;
@@ -320,6 +326,16 @@ impl LocalDatabase {
         }
     }
 
+    pub(crate) fn plan_agent_credential_family_service_terminal(
+        &self,
+        attributable: &AgentCredential,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_agent_credential_family_token_ids(connection, attributable, now_ms)
+        })
+    }
+
     /// Destroy the complete attributable credential family. Any family secret
     /// retained inside the thirty-day horizon reaches this path, including N-2
     /// and older generations; none can authenticate or mint authority.
@@ -334,12 +350,7 @@ impl LocalDatabase {
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let row = credential_row_by_hash(tx, hash.as_bytes())?
-                    .ok_or_else(agent_credential_invalid)?;
-                token_ids_for_user(tx, &row.user_id)
-            },
+            |tx| planned_agent_credential_family_token_ids(tx, attributable, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 sweep_credential_family_on(tx, now_ms)?;
@@ -418,6 +429,17 @@ impl LocalDatabase {
         }
     }
 
+    pub(crate) fn plan_scoped_token_service_terminal(
+        &self,
+        credential: &AgentCredential,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_scoped_token_terminal_token_ids(connection, credential, grant_id, now_ms)
+        })
+    }
+
     /// Mint one grant-bound scoped token under the current live credential
     /// generation. The eleventh live token atomically revokes the oldest and
     /// returns its id for connection invalidation projection.
@@ -444,18 +466,7 @@ impl LocalDatabase {
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::Carrier,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
-                    .ok_or_else(agent_credential_invalid)?;
-                require_agent_active_on(tx, &resolved.user_id)?;
-                require_live_grant_for_actor(tx, grant_id, &resolved.user_id, now_ms)?;
-                let live = live_token_ids_for_grant(tx, grant_id, now_ms)?;
-                let evict_count = live
-                    .len()
-                    .saturating_sub(SCOPED_TOKEN_LIVE_CAP as usize - 1);
-                Ok(live.into_iter().take(evict_count).collect())
-            },
+            |tx| planned_scoped_token_terminal_token_ids(tx, credential, grant_id, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
@@ -536,6 +547,17 @@ impl LocalDatabase {
                 Err(agent_lifecycle_commit_uncertain())
             }
         }
+    }
+
+    pub(crate) fn plan_pairing_scoped_token_service_terminal(
+        &self,
+        credential: &AgentCredential,
+        pairing_request_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_pairing_terminal_token_ids(connection, credential, pairing_request_id, now_ms)
+        })
     }
 
     /// Poll an approved pairing request for its first grant token. Every
@@ -845,6 +867,15 @@ impl LocalDatabase {
             .is_some())
     }
 
+    pub(crate) fn plan_expired_service_authority_terminal(
+        &self,
+        deadline: &ServiceAuthorityDeadlineTerminal,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_expired_service_authority_token_ids(connection, deadline)
+        })
+    }
+
     /// Persist a monotonic-observed scoped-token/grant deadline before the
     /// process publishes that terminal result. This prevents a backward wall
     /// clock plus restart from reviving authority that this process already
@@ -856,17 +887,7 @@ impl LocalDatabase {
         let disposition = deadline.disposition;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             disposition,
-            |tx| {
-                let token_ids = match disposition {
-                    ServiceAuthorityDisposition::Carrier => vec![deadline.token_id.clone()],
-                    ServiceAuthorityDisposition::DurableDelete => collect_token_ids(
-                        tx,
-                        "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
-                        params![deadline.grant_id],
-                    )?,
-                };
-                Ok(token_ids)
-            },
+            |tx| planned_expired_service_authority_token_ids(tx, deadline),
             |tx| {
                 match disposition {
                     ServiceAuthorityDisposition::Carrier => {
@@ -979,16 +1000,19 @@ fn advance_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<(
     write_meta_u64(tx, AUTH_CLOCK_META_KEY, now_ms)
 }
 
-pub(super) fn require_agent_clock_on(tx: &Transaction<'_>, now_ms: u64) -> SnapbackResult<()> {
-    let high_water = strict_meta_u64(tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
+pub(super) fn require_agent_clock_on(connection: &Connection, now_ms: u64) -> SnapbackResult<()> {
+    let high_water = strict_meta_u64(connection, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
     if now_ms < high_water || now_ms > MAX_AUTHORIZATION_EPOCH {
         return Err(auth_clock_rollback());
     }
     Ok(())
 }
 
-pub(super) fn require_agent_active_on(tx: &Transaction<'_>, user_id: &str) -> SnapbackResult<()> {
-    let active = tx
+pub(super) fn require_agent_active_on(
+    connection: &Connection,
+    user_id: &str,
+) -> SnapbackResult<()> {
+    let active = connection
         .query_row(
             "SELECT 1 FROM _auth_users
              WHERE id = ?1 AND kind = 'agent' AND deactivated_at_ms IS NULL",
@@ -1009,10 +1033,10 @@ pub(super) fn require_agent_active_on(tx: &Transaction<'_>, user_id: &str) -> Sn
 }
 
 fn credential_row_by_hash(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     hash: &[u8],
 ) -> SnapbackResult<Option<CredentialRow>> {
-    let mut statement = tx.prepare(
+    let mut statement = connection.prepare(
         "SELECT id, user_id, generation, created_at_ms, rotated_at_ms,
                 last_used_at_ms, revoked_at_ms
          FROM _auth_agent_credentials WHERE secret_hash = ?1
@@ -1033,10 +1057,10 @@ fn credential_row_by_hash(
 }
 
 pub(super) fn live_credential_by_hash(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     hash: &[u8],
 ) -> SnapbackResult<Option<ResolvedAgentCredential>> {
-    let mut statement = tx.prepare(
+    let mut statement = connection.prepare(
         "SELECT id, user_id, generation, revoked_at_ms FROM _auth_agent_credentials
          WHERE secret_hash = ?1
          ORDER BY id LIMIT 2",
@@ -1119,12 +1143,12 @@ struct LiveGrant {
 }
 
 fn require_live_grant_for_actor(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     grant_id: &str,
     actor_user_id: &str,
     now_ms: u64,
 ) -> SnapbackResult<LiveGrant> {
-    let grant = tx
+    let grant = connection
         .query_row(
             "SELECT scopes, expires_at_ms FROM _auth_grants
              WHERE id = ?1 AND actor_user_id = ?2 AND revoked_at_ms IS NULL
@@ -1146,11 +1170,11 @@ fn require_live_grant_for_actor(
 }
 
 fn live_token_ids_for_grant(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     grant_id: &str,
     now_ms: u64,
 ) -> SnapbackResult<Vec<String>> {
-    let mut statement = tx.prepare(
+    let mut statement = connection.prepare(
         "SELECT id FROM _auth_grant_tokens
          WHERE grant_id = ?1 AND revoked_at_ms IS NULL AND expires_at_ms > ?2
          ORDER BY created_at_ms, id",
@@ -1161,17 +1185,61 @@ fn live_token_ids_for_grant(
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }
 
+fn planned_agent_credential_rotation_token_ids(
+    connection: &Connection,
+    credential: &AgentCredential,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let hash = credential.token_hash();
+    let row = credential_row_by_hash(connection, hash.as_bytes())?
+        .filter(|row| row.revoked_at_ms.is_none())
+        .ok_or_else(agent_credential_invalid)?;
+    require_agent_active_on(connection, &row.user_id)?;
+    token_ids_for_credential(connection, &row.id)
+}
+
+fn planned_agent_credential_family_token_ids(
+    connection: &Connection,
+    attributable: &AgentCredential,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let hash = attributable.token_hash();
+    let row = credential_row_by_hash(connection, hash.as_bytes())?
+        .ok_or_else(agent_credential_invalid)?;
+    token_ids_for_user(connection, &row.user_id)
+}
+
+fn planned_scoped_token_terminal_token_ids(
+    connection: &Connection,
+    credential: &AgentCredential,
+    grant_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let resolved = live_credential_by_hash(connection, credential.token_hash().as_bytes())?
+        .ok_or_else(agent_credential_invalid)?;
+    require_agent_active_on(connection, &resolved.user_id)?;
+    require_live_grant_for_actor(connection, grant_id, &resolved.user_id, now_ms)?;
+    let live = live_token_ids_for_grant(connection, grant_id, now_ms)?;
+    let evict_count = live
+        .len()
+        .saturating_sub(SCOPED_TOKEN_LIVE_CAP as usize - 1);
+    Ok(live.into_iter().take(evict_count).collect())
+}
+
 fn planned_pairing_terminal_token_ids(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     credential: &AgentCredential,
     pairing_request_id: &str,
     now_ms: u64,
 ) -> SnapbackResult<Vec<String>> {
-    require_agent_clock_on(tx, now_ms)?;
-    let resolved = live_credential_by_hash(tx, credential.token_hash().as_bytes())?
+    require_agent_clock_on(connection, now_ms)?;
+    let resolved = live_credential_by_hash(connection, credential.token_hash().as_bytes())?
         .ok_or_else(agent_credential_invalid)?;
-    require_agent_active_on(tx, &resolved.user_id)?;
-    let pairing = tx
+    require_agent_active_on(connection, &resolved.user_id)?;
+    let pairing = connection
         .query_row(
             "SELECT agent_user_id, state, expires_at_ms, grant_id
              FROM _auth_pairing_requests WHERE id = ?1",
@@ -1202,18 +1270,18 @@ fn planned_pairing_terminal_token_ids(
         return Err(grant_invalid());
     }
     let grant_id = grant_id.ok_or_else(grant_invalid)?;
-    require_live_grant_for_actor(tx, &grant_id, &resolved.user_id, now_ms)?;
+    require_live_grant_for_actor(connection, &grant_id, &resolved.user_id, now_ms)?;
 
     let pairing_prefix = format!("{pairing_request_id}:%");
     let mut terminal = collect_token_ids(
-        tx,
+        connection,
         "SELECT id FROM _auth_grant_tokens
          WHERE grant_id = ?1 AND id LIKE ?2 AND revoked_at_ms IS NULL
          ORDER BY created_at_ms, id",
         params![grant_id, pairing_prefix],
     )?;
     let replaced = terminal.iter().cloned().collect::<BTreeSet<_>>();
-    let remaining_live = live_token_ids_for_grant(tx, &grant_id, now_ms)?
+    let remaining_live = live_token_ids_for_grant(connection, &grant_id, now_ms)?
         .into_iter()
         .filter(|token_id| !replaced.contains(token_id))
         .collect::<Vec<_>>();
@@ -1224,6 +1292,20 @@ fn planned_pairing_terminal_token_ids(
     terminal.sort();
     terminal.dedup();
     Ok(terminal)
+}
+
+fn planned_expired_service_authority_token_ids(
+    connection: &Connection,
+    deadline: &ServiceAuthorityDeadlineTerminal,
+) -> SnapbackResult<Vec<String>> {
+    match deadline.disposition {
+        ServiceAuthorityDisposition::Carrier => Ok(vec![deadline.token_id.clone()]),
+        ServiceAuthorityDisposition::DurableDelete => collect_token_ids(
+            connection,
+            "SELECT id FROM _auth_grant_tokens WHERE grant_id = ?1 ORDER BY id",
+            params![deadline.grant_id],
+        ),
+    }
 }
 
 fn live_token_ids_for_credential(
@@ -1239,11 +1321,11 @@ fn live_token_ids_for_credential(
 }
 
 fn token_ids_for_credential(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     credential_id: &str,
 ) -> SnapbackResult<Vec<String>> {
     collect_token_ids(
-        tx,
+        connection,
         "SELECT id FROM _auth_grant_tokens
          WHERE credential_id = ?1 ORDER BY created_at_ms, id",
         params![credential_id],
@@ -1272,11 +1354,11 @@ pub(super) fn live_token_ids_for_user(
 }
 
 pub(super) fn token_ids_for_user(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     user_id: &str,
 ) -> SnapbackResult<Vec<String>> {
     collect_token_ids(
-        tx,
+        connection,
         "SELECT tokens.id
          FROM _auth_grant_tokens AS tokens
          JOIN _auth_agent_credentials AS credentials
@@ -1301,11 +1383,11 @@ fn collect_ids(tx: &Transaction<'_>, sql: &str, value: &str) -> SnapbackResult<V
 }
 
 fn collect_token_ids<P: rusqlite::Params>(
-    tx: &Transaction<'_>,
+    connection: &Connection,
     sql: &str,
     params: P,
 ) -> SnapbackResult<Vec<String>> {
-    let mut statement = tx.prepare(sql)?;
+    let mut statement = connection.prepare(sql)?;
     let rows = statement.query_map(params, |row| row.get::<_, String>(0))?;
     Ok(rows.collect::<Result<Vec<_>, _>>()?)
 }

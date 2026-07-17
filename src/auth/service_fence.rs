@@ -13,13 +13,14 @@
 use crate::auth::provider::AuthProvider;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth_agent_credentials::ResolvedScopedToken;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::{BTreeSet, HashMap};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
+use tokio::sync::Notify;
 
-const EXTERNAL_EFFECT_INITIATION_WAIT: Duration = Duration::from_secs(1);
-const EXTERNAL_EFFECT_INITIATION_POLL: Duration = Duration::from_millis(1);
+const MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK: usize = 4_096;
 
 thread_local! {
     /// Connection acts deliberately keep the publication mutex across their
@@ -29,6 +30,14 @@ thread_local! {
     /// the guarded closure cannot suspend or migrate.
     static ACTIVE_SERVICE_AUTHORITY_ACTS: RefCell<Vec<(usize, ServiceAuthorityWitness)>> =
         const { RefCell::new(Vec::new()) };
+
+    /// One independently drained exact-token reservation may be installed by
+    /// the blocking owner before it invokes a synchronous storage operation.
+    /// `prepare_terminal` consumes only an exact registry/token/disposition
+    /// match, so a nested or unrelated transaction cannot adopt the gate.
+    static ACTIVE_SERVICE_TERMINAL_GATE: RefCell<Option<ServiceAuthorityTerminalGate>> =
+        const { RefCell::new(None) };
+    static SERVICE_TERMINAL_GATE_SCOPE_ACTIVE: Cell<bool> = const { Cell::new(false) };
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -98,15 +107,25 @@ struct ServiceAuthorityFenceState {
     validated_at_ms: u64,
     monotonic_deadline: Instant,
     grant_monotonic_deadline: Option<Instant>,
-    pending_tickets: BTreeSet<u64>,
     terminal: Option<ServiceAuthorityDisposition>,
-    next_external_effect: u64,
-    active_external_effects: BTreeSet<u64>,
+}
+
+#[derive(Debug, Default)]
+struct ServiceAuthorityDomainState {
+    pending_tickets: BTreeSet<u64>,
+}
+
+#[derive(Debug, Default)]
+struct ServiceAuthorityDomain {
+    state: Mutex<ServiceAuthorityDomainState>,
+    active_work: AtomicUsize,
+    changed: Notify,
 }
 
 #[derive(Clone, Debug)]
 pub(crate) struct ServiceAuthorityPublication {
     fence: Arc<Mutex<ServiceAuthorityFenceState>>,
+    domain: Arc<ServiceAuthorityDomain>,
     /// The provider owns the durable-floor-clamped epoch and injected
     /// monotonic clock used at resolution. Carry it with every retained
     /// publication so later server/local cuts cannot accidentally sample a
@@ -129,14 +148,33 @@ pub(crate) struct ServiceAuthorityDeadlineTerminal {
     pub(crate) disposition: ServiceAuthorityDisposition,
 }
 
+#[derive(Debug)]
 pub(crate) struct ServiceAuthorityExternalEffectPermit {
-    effect: u64,
     fence: Arc<Mutex<ServiceAuthorityFenceState>>,
+    domain: Arc<ServiceAuthorityDomain>,
+    witness: ServiceAuthorityWitness,
     settled: bool,
+}
+
+/// The external-effect permit is also the retained finite-authority work
+/// permit. Both operations need the same begin-before-terminal interlock.
+pub(crate) type ServiceAuthorityWorkPermit = ServiceAuthorityExternalEffectPermit;
+
+/// Owned exact-token terminal intent. Acquisition closes only the planned
+/// tokens and asynchronously drains their predecessor work. The blocking
+/// owner must install it with [`with_service_authority_terminal_gate`] around
+/// the matching synchronous storage operation.
+#[derive(Debug)]
+pub(crate) struct ServiceAuthorityTerminalGate {
+    prepared: Option<PremarkedServiceAuthorityTerminal>,
 }
 
 struct ActiveServiceAuthorityAct {
     key: usize,
+}
+
+struct ServiceDomainPublicationPermit {
+    domain: Arc<ServiceAuthorityDomain>,
 }
 
 impl Drop for ActiveServiceAuthorityAct {
@@ -148,6 +186,21 @@ impl Drop for ActiveServiceAuthorityAct {
     }
 }
 
+impl Drop for ServiceDomainPublicationPermit {
+    fn drop(&mut self) {
+        let released =
+            self.domain
+                .active_work
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                    current.checked_sub(1)
+                });
+        debug_assert!(released.is_ok());
+        if matches!(released, Ok(1)) {
+            self.domain.changed.notify_waiters();
+        }
+    }
+}
+
 impl ServiceAuthorityExternalEffectPermit {
     /// Acknowledge that the native effect was synchronously initiated (or
     /// synchronously refused). Terminal premark may commit only after this
@@ -156,15 +209,33 @@ impl ServiceAuthorityExternalEffectPermit {
         self.settle();
     }
 
+    /// Complete work that already linearized before a terminal marker. The
+    /// exact retained permit, rather than ambient token activity, installs the
+    /// nested witness, so unrelated/new callers cannot publish through a
+    /// pending ending while this predecessor drains.
+    pub(crate) fn with_retained_authority<T>(&self, operation: impl FnOnce() -> T) -> T {
+        let key = Arc::as_ptr(&self.fence) as usize;
+        ACTIVE_SERVICE_AUTHORITY_ACTS.with(|active| {
+            active.borrow_mut().push((key, self.witness.clone()));
+        });
+        let _active = ActiveServiceAuthorityAct { key };
+        operation()
+    }
+
     fn settle(&mut self) {
         if self.settled {
             return;
         }
-        let mut state = self
-            .fence
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        state.active_external_effects.remove(&self.effect);
+        let released =
+            self.domain
+                .active_work
+                .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+                    current.checked_sub(1)
+                });
+        debug_assert!(released.is_ok());
+        if matches!(released, Ok(1)) {
+            self.domain.changed.notify_waiters();
+        }
         self.settled = true;
     }
 }
@@ -173,6 +244,15 @@ impl Drop for ServiceAuthorityExternalEffectPermit {
     fn drop(&mut self) {
         self.settle();
     }
+}
+
+fn try_acquire_service_domain_work(domain: &ServiceAuthorityDomain) -> bool {
+    domain
+        .active_work
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            (current < MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK).then_some(current + 1)
+        })
+        .is_ok()
 }
 
 impl ServiceAuthorityPublication {
@@ -199,6 +279,7 @@ impl ServiceAuthorityPublication {
 
     #[cfg(test)]
     pub(crate) fn synthetic_for_test(token_id: &str) -> Self {
+        let domain = Arc::new(ServiceAuthorityDomain::default());
         Self {
             fence: Arc::new(Mutex::new(ServiceAuthorityFenceState {
                 witness: ServiceAuthorityWitness {
@@ -214,11 +295,9 @@ impl ServiceAuthorityPublication {
                 validated_at_ms: 0,
                 monotonic_deadline: Instant::now() + Duration::from_secs(10 * 365 * 24 * 60 * 60),
                 grant_monotonic_deadline: None,
-                pending_tickets: BTreeSet::new(),
                 terminal: None,
-                next_external_effect: 0,
-                active_external_effects: BTreeSet::new(),
             })),
+            domain,
             clock: None,
         }
     }
@@ -271,11 +350,16 @@ impl ServiceAuthorityPublication {
             return Ok(None);
         }
         let (now_ms, monotonic_now) = self.sample_clock(now_ms, monotonic_now);
+        let domain_state = self.domain.state.lock().map_err(|_| {
+            service_authority_unavailable("the service authority domain gate is poisoned")
+        })?;
         let state = self
             .fence
             .lock()
             .map_err(|_| service_authority_unavailable("a service authority fence is poisoned"))?;
-        if state.terminal.is_some() || !Self::deadline_expired_locked(&state, now_ms, monotonic_now)
+        if state.terminal.is_some()
+            || !domain_state.pending_tickets.is_empty()
+            || !Self::deadline_expired_locked(&state, now_ms, monotonic_now)
         {
             return Ok(None);
         }
@@ -336,10 +420,39 @@ impl ServiceAuthorityPublication {
             return publish().map(Some);
         }
         let (now_ms, monotonic_now) = self.sample_clock(now_ms, monotonic_now);
+        let domain_state = self.domain.state.lock().map_err(|_| {
+            service_authority_unavailable("the service authority domain gate is poisoned")
+        })?;
+        let terminal_preflight = self
+            .fence
+            .lock()
+            .map_err(|_| service_authority_unavailable("a service authority fence is poisoned"))?;
+        if terminal_preflight.terminal.is_some() {
+            return Ok(None);
+        }
+        if !domain_state.pending_tickets.is_empty() {
+            return Err(service_authority_unavailable(
+                "finite service authority termination is unresolved",
+            ));
+        }
+        drop(terminal_preflight);
+        if !try_acquire_service_domain_work(&self.domain) {
+            return Err(service_authority_unavailable(
+                "the service authority domain has too much in-flight work",
+            ));
+        }
+        // Declare the exact-token permit before the leaf guard. Rust unwinding
+        // then releases the leaf before the counter, preserving the drain
+        // witness even if the bounded publication panics.
+        let _domain_work = ServiceDomainPublicationPermit {
+            domain: Arc::clone(&self.domain),
+        };
         let state = self
             .fence
             .lock()
             .map_err(|_| service_authority_unavailable("a service authority fence is poisoned"))?;
+        // The domain lock excludes terminal ticket installation between the
+        // preflight and this retained leaf guard.
         if state.terminal.is_some() {
             return Ok(None);
         }
@@ -353,14 +466,17 @@ impl ServiceAuthorityPublication {
                 "finite service authority expiry is not yet durably terminal",
             ));
         }
-        if !state.pending_tickets.is_empty() {
-            return Err(service_authority_unavailable(
-                "finite service authority termination is unresolved",
-            ));
-        }
+        drop(domain_state);
         let witness = state.witness.clone();
         let _active = self.enter_active_act(witness);
-        publish().map(Some)
+        let result = publish().map(Some);
+        // The token counter is the async drain's completion witness. Release
+        // the exact fence first so observing zero also proves a
+        // terminal transaction will not block on this predecessor mutex.
+        drop(_active);
+        drop(state);
+        drop(_domain_work);
+        result
     }
 
     pub(crate) fn terminal_disposition(
@@ -391,6 +507,9 @@ impl ServiceAuthorityPublication {
             return Ok(ServiceAuthorityActResolution::Current(witness));
         }
         let (now_ms, monotonic_now) = self.sample_clock(now_ms, monotonic_now);
+        let domain_state = self.domain.state.lock().map_err(|_| {
+            service_authority_unavailable("the service authority domain gate is poisoned")
+        })?;
         let state = self
             .fence
             .lock()
@@ -398,13 +517,13 @@ impl ServiceAuthorityPublication {
         if let Some(disposition) = state.terminal {
             return Ok(ServiceAuthorityActResolution::Terminal(disposition));
         }
+        if !domain_state.pending_tickets.is_empty() {
+            return Ok(ServiceAuthorityActResolution::Unavailable);
+        }
         if now_ms < state.validated_at_ms {
             return Ok(ServiceAuthorityActResolution::Unavailable);
         }
         if Self::deadline_expired_locked(&state, now_ms, monotonic_now) {
-            return Ok(ServiceAuthorityActResolution::Unavailable);
-        }
-        if !state.pending_tickets.is_empty() {
             return Ok(ServiceAuthorityActResolution::Unavailable);
         }
         Ok(ServiceAuthorityActResolution::Current(
@@ -412,18 +531,45 @@ impl ServiceAuthorityPublication {
         ))
     }
 
-    pub(crate) fn begin_external_effect(
+    pub(crate) fn begin_authority_work(
         &self,
         now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<ServiceAuthorityExternalEffectPermit> {
+    ) -> SnapbackResult<ServiceAuthorityWorkPermit> {
+        let domain_state = self.domain.state.lock().map_err(|_| {
+            service_authority_unavailable("the service authority domain gate is poisoned")
+        })?;
+        if let Some(witness) = self.active_witness() {
+            if !domain_state.pending_tickets.is_empty() {
+                return Err(service_authority_unavailable(
+                    "finite service authority termination is pending",
+                ));
+            }
+            if !try_acquire_service_domain_work(&self.domain) {
+                return Err(service_authority_unavailable(
+                    "finite service authority has too much in-flight work",
+                ));
+            }
+            drop(domain_state);
+            return Ok(ServiceAuthorityExternalEffectPermit {
+                fence: Arc::clone(&self.fence),
+                domain: Arc::clone(&self.domain),
+                witness,
+                settled: false,
+            });
+        }
         let (now_ms, monotonic_now) = self.sample_clock(now_ms, monotonic_now);
-        let mut state = self
+        let state = self
             .fence
             .lock()
             .map_err(|_| service_authority_unavailable("a service authority fence is poisoned"))?;
         if let Some(disposition) = state.terminal {
             return Err(service_authority_terminal(disposition));
+        }
+        if !domain_state.pending_tickets.is_empty() {
+            return Err(service_authority_unavailable(
+                "finite service authority termination is pending",
+            ));
         }
         if now_ms < state.validated_at_ms {
             return Err(service_authority_unavailable(
@@ -435,27 +581,28 @@ impl ServiceAuthorityPublication {
                 "finite service authority expiry is not yet durably terminal",
             ));
         }
-        if !state.pending_tickets.is_empty() {
+        if !try_acquire_service_domain_work(&self.domain) {
             return Err(service_authority_unavailable(
-                "finite service authority termination is unresolved",
+                "finite service authority has too much in-flight work",
             ));
         }
-        state.next_external_effect =
-            state.next_external_effect.checked_add(1).ok_or_else(|| {
-                service_authority_unavailable("service authority effect tickets are exhausted")
-            })?;
-        let effect = state.next_external_effect;
-        if !state.active_external_effects.insert(effect) {
-            return Err(service_authority_unavailable(
-                "a service authority effect ticket was reused",
-            ));
-        }
+        let witness = state.witness.clone();
+        drop(domain_state);
         drop(state);
         Ok(ServiceAuthorityExternalEffectPermit {
-            effect,
             fence: Arc::clone(&self.fence),
+            domain: Arc::clone(&self.domain),
+            witness,
             settled: false,
         })
+    }
+
+    pub(crate) fn begin_external_effect(
+        &self,
+        now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<ServiceAuthorityExternalEffectPermit> {
+        self.begin_authority_work(now_ms, monotonic_now)
     }
 }
 
@@ -477,11 +624,25 @@ pub(crate) trait ServiceAuthorityCommitInterlock: Send + Sync {
 struct ServiceAuthorityFenceRegistryState {
     next_ticket: u64,
     by_token: HashMap<String, Weak<Mutex<ServiceAuthorityFenceState>>>,
+    domains_by_token: HashMap<String, Weak<ServiceAuthorityDomain>>,
+    /// Pending/ambiguous intents retain their exact domain even when no
+    /// publication exists, so a later registration cannot bypass the ticket.
+    pending_domains: HashMap<String, Arc<ServiceAuthorityDomain>>,
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct ServiceAuthorityFenceRegistry {
     state: Arc<Mutex<ServiceAuthorityFenceRegistryState>>,
+    changed: Arc<Notify>,
+}
+
+impl Default for ServiceAuthorityFenceRegistry {
+    fn default() -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ServiceAuthorityFenceRegistryState::default())),
+            changed: Arc::new(Notify::new()),
+        }
+    }
 }
 
 impl std::fmt::Debug for ServiceAuthorityFenceRegistry {
@@ -494,6 +655,115 @@ impl ServiceAuthorityFenceRegistry {
     #[cfg(test)]
     pub(crate) fn is_same_registry(&self, other: &Self) -> bool {
         Arc::ptr_eq(&self.state, &other.state)
+    }
+
+    fn install_terminal_intent(
+        &self,
+        token_ids: &BTreeSet<String>,
+        disposition: ServiceAuthorityDisposition,
+    ) -> SnapbackResult<Option<PremarkedServiceAuthorityTerminal>> {
+        let mut registry = self
+            .state
+            .lock()
+            .map_err(|_| service_authority_unavailable("the service fence registry is poisoned"))?;
+        if token_ids
+            .iter()
+            .any(|token_id| registry.pending_domains.contains_key(token_id))
+        {
+            return Ok(None);
+        }
+        registry.next_ticket = registry
+            .next_ticket
+            .checked_add(1)
+            .ok_or_else(|| service_authority_unavailable("service fence tickets are exhausted"))?;
+        let ticket = registry.next_ticket;
+        let domains = token_ids
+            .iter()
+            .map(|token_id| {
+                let domain = registry
+                    .pending_domains
+                    .get(token_id)
+                    .cloned()
+                    .or_else(|| {
+                        registry
+                            .domains_by_token
+                            .get(token_id)
+                            .and_then(Weak::upgrade)
+                    })
+                    .unwrap_or_else(|| Arc::new(ServiceAuthorityDomain::default()));
+                registry
+                    .domains_by_token
+                    .insert(token_id.clone(), Arc::downgrade(&domain));
+                registry
+                    .pending_domains
+                    .insert(token_id.clone(), Arc::clone(&domain));
+                (token_id.clone(), domain)
+            })
+            .collect::<Vec<_>>();
+        drop(registry);
+
+        let prepared = PremarkedServiceAuthorityTerminal {
+            registry: self.clone(),
+            ticket,
+            domains,
+            disposition,
+            settled: false,
+            ambiguous: false,
+        };
+        for (_, domain) in &prepared.domains {
+            let mut state = domain.state.lock().map_err(|_| {
+                service_authority_unavailable("a service authority domain gate is poisoned")
+            })?;
+            if !state.pending_tickets.insert(ticket) {
+                return Err(service_authority_unavailable(
+                    "a service authority terminal ticket was reused",
+                ));
+            }
+        }
+        Ok(Some(prepared))
+    }
+
+    /// Close only the exact planned tokens to new finite-service work, then
+    /// asynchronously drain their predecessor operations. Overlapping gates
+    /// serialize; disjoint tokens remain live and drain independently.
+    pub(crate) async fn acquire_terminal_gate(
+        &self,
+        token_ids: &[String],
+        disposition: ServiceAuthorityDisposition,
+    ) -> SnapbackResult<ServiceAuthorityTerminalGate> {
+        let token_ids = token_ids.iter().cloned().collect::<BTreeSet<_>>();
+        loop {
+            let notified = self.changed.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if let Some(prepared) = self.install_terminal_intent(&token_ids, disposition)? {
+                let gate = ServiceAuthorityTerminalGate {
+                    prepared: Some(prepared),
+                };
+                for (_, domain) in &gate
+                    .prepared
+                    .as_ref()
+                    .expect("terminal gate retains its reservation")
+                    .domains
+                {
+                    loop {
+                        let drained = domain.active_work.load(Ordering::SeqCst) == 0;
+                        if drained {
+                            break;
+                        }
+                        let changed = domain.changed.notified();
+                        tokio::pin!(changed);
+                        changed.as_mut().enable();
+                        if domain.active_work.load(Ordering::SeqCst) == 0 {
+                            break;
+                        }
+                        changed.await;
+                    }
+                }
+                return Ok(gate);
+            }
+            notified.await;
+        }
     }
 
     #[cfg(test)]
@@ -573,6 +843,24 @@ impl ServiceAuthorityFenceRegistry {
         registry
             .by_token
             .retain(|_, candidate| candidate.strong_count() != 0);
+        registry
+            .domains_by_token
+            .retain(|_, candidate| candidate.strong_count() != 0);
+        let token_id = witness.token_id.clone();
+        let domain = registry
+            .pending_domains
+            .get(&token_id)
+            .cloned()
+            .or_else(|| {
+                registry
+                    .domains_by_token
+                    .get(&token_id)
+                    .and_then(Weak::upgrade)
+            })
+            .unwrap_or_else(|| Arc::new(ServiceAuthorityDomain::default()));
+        registry
+            .domains_by_token
+            .insert(token_id.clone(), Arc::downgrade(&domain));
         let fence = match registry
             .by_token
             .get(witness.token_id())
@@ -607,28 +895,30 @@ impl ServiceAuthorityFenceRegistry {
                 fence
             }
             None => {
-                let token_id = witness.token_id.clone();
                 let fence = Arc::new(Mutex::new(ServiceAuthorityFenceState {
                     witness,
                     validated_at_ms,
                     monotonic_deadline,
                     grant_monotonic_deadline,
-                    pending_tickets: BTreeSet::new(),
                     terminal: None,
-                    next_external_effect: 0,
-                    active_external_effects: BTreeSet::new(),
                 }));
                 registry.by_token.insert(token_id, Arc::downgrade(&fence));
                 fence
             }
         };
-        Ok(ServiceAuthorityPublication { fence, clock: None })
+        Ok(ServiceAuthorityPublication {
+            fence,
+            domain,
+            clock: None,
+        })
     }
 }
 
+#[derive(Debug)]
 struct PremarkedServiceAuthorityTerminal {
+    registry: ServiceAuthorityFenceRegistry,
     ticket: u64,
-    fences: Vec<Arc<Mutex<ServiceAuthorityFenceState>>>,
+    domains: Vec<(String, Arc<ServiceAuthorityDomain>)>,
     disposition: ServiceAuthorityDisposition,
     settled: bool,
     ambiguous: bool,
@@ -636,23 +926,112 @@ struct PremarkedServiceAuthorityTerminal {
 
 impl PremarkedServiceAuthorityTerminal {
     fn settle(&mut self, committed: bool) {
-        for fence in &self.fences {
-            let mut state = fence
+        let mut registry = self
+            .registry
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (token_id, domain) in &self.domains {
+            let mut domain_state = domain
+                .state
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            state.pending_tickets.remove(&self.ticket);
             if committed {
-                state.terminal = Some(match (state.terminal, self.disposition) {
-                    (Some(ServiceAuthorityDisposition::DurableDelete), _)
-                    | (_, ServiceAuthorityDisposition::DurableDelete) => {
-                        ServiceAuthorityDisposition::DurableDelete
-                    }
-                    _ => ServiceAuthorityDisposition::Carrier,
-                });
+                if let Some(fence) = registry.by_token.get(token_id).and_then(Weak::upgrade) {
+                    let mut state = fence
+                        .lock()
+                        .unwrap_or_else(std::sync::PoisonError::into_inner);
+                    state.terminal = Some(match (state.terminal, self.disposition) {
+                        (Some(ServiceAuthorityDisposition::DurableDelete), _)
+                        | (_, ServiceAuthorityDisposition::DurableDelete) => {
+                            ServiceAuthorityDisposition::DurableDelete
+                        }
+                        _ => ServiceAuthorityDisposition::Carrier,
+                    });
+                }
             }
+            domain_state.pending_tickets.remove(&self.ticket);
+            if domain_state.pending_tickets.is_empty()
+                && registry
+                    .pending_domains
+                    .get(token_id)
+                    .is_some_and(|pending| Arc::ptr_eq(pending, domain))
+            {
+                registry.pending_domains.remove(token_id);
+            }
+            drop(domain_state);
+            domain.changed.notify_waiters();
         }
         self.settled = true;
+        drop(registry);
+        self.registry.changed.notify_waiters();
     }
+}
+
+impl ServiceAuthorityTerminalGate {
+    fn matches(
+        &self,
+        registry: &ServiceAuthorityFenceRegistry,
+        token_ids: &BTreeSet<String>,
+        disposition: ServiceAuthorityDisposition,
+    ) -> bool {
+        self.prepared.as_ref().is_some_and(|prepared| {
+            Arc::ptr_eq(&prepared.registry.state, &registry.state)
+                && prepared.disposition == disposition
+                && prepared
+                    .domains
+                    .iter()
+                    .map(|(token_id, _)| token_id)
+                    .eq(token_ids.iter())
+        })
+    }
+
+    fn take_prepared(&mut self) -> PremarkedServiceAuthorityTerminal {
+        self.prepared
+            .take()
+            .expect("an exact terminal gate is consumed only once")
+    }
+}
+
+impl Drop for ServiceAuthorityTerminalGate {
+    fn drop(&mut self) {
+        drop(self.prepared.take());
+    }
+}
+
+struct ActiveServiceTerminalGateScope;
+
+impl Drop for ActiveServiceTerminalGateScope {
+    fn drop(&mut self) {
+        ACTIVE_SERVICE_TERMINAL_GATE.with(|slot| {
+            drop(slot.borrow_mut().take());
+        });
+        SERVICE_TERMINAL_GATE_SCOPE_ACTIVE.with(|active| active.set(false));
+    }
+}
+
+/// Bind an asynchronously drained exact-token gate to one synchronous storage
+/// call. The storage interlock consumes it only after its own transaction plan
+/// reproduces the exact token set and disposition.
+pub(crate) fn with_service_authority_terminal_gate<T>(
+    gate: ServiceAuthorityTerminalGate,
+    operation: impl FnOnce() -> T,
+) -> T {
+    SERVICE_TERMINAL_GATE_SCOPE_ACTIVE.with(|active| {
+        assert!(
+            !active.replace(true),
+            "an exact service terminal gate scope is already active"
+        );
+    });
+    let _scope = ActiveServiceTerminalGateScope;
+    ACTIVE_SERVICE_TERMINAL_GATE.with(|slot| {
+        let previous = slot.borrow_mut().replace(gate);
+        assert!(
+            previous.is_none(),
+            "an exact service terminal gate is already installed"
+        );
+    });
+    operation()
 }
 
 impl Drop for PremarkedServiceAuthorityTerminal {
@@ -687,55 +1066,50 @@ impl ServiceAuthorityCommitInterlock for ServiceAuthorityFenceRegistry {
         token_ids: &[String],
         disposition: ServiceAuthorityDisposition,
     ) -> SnapbackResult<Box<dyn PreparedServiceAuthorityTerminal>> {
-        let token_ids = token_ids.iter().collect::<BTreeSet<_>>();
-        let mut registry = self
-            .state
-            .lock()
-            .map_err(|_| service_authority_unavailable("the service fence registry is poisoned"))?;
-        registry.next_ticket = registry
-            .next_ticket
-            .checked_add(1)
-            .ok_or_else(|| service_authority_unavailable("service fence tickets are exhausted"))?;
-        let ticket = registry.next_ticket;
-        let fences = token_ids
-            .into_iter()
-            .filter_map(|token_id| registry.by_token.get(token_id).and_then(Weak::upgrade))
-            .collect::<Vec<_>>();
-        let prepared = PremarkedServiceAuthorityTerminal {
-            ticket,
-            fences,
-            disposition,
-            settled: false,
-            ambiguous: false,
-        };
-        for fence in &prepared.fences {
-            let mut state = fence.lock().map_err(|_| {
-                service_authority_unavailable("a service authority fence is poisoned")
-            })?;
-            if !state.pending_tickets.insert(ticket) {
-                return Err(service_authority_unavailable(
-                    "a service authority terminal ticket was reused",
-                ));
-            }
-            let wait_deadline = Instant::now()
-                .checked_add(EXTERNAL_EFFECT_INITIATION_WAIT)
-                .unwrap_or_else(Instant::now);
-            while !state.active_external_effects.is_empty() {
-                drop(state);
-                if Instant::now() >= wait_deadline {
+        let token_ids = token_ids.iter().cloned().collect::<BTreeSet<_>>();
+        let gate_scope_active = SERVICE_TERMINAL_GATE_SCOPE_ACTIVE.with(Cell::get);
+        if gate_scope_active {
+            return ACTIVE_SERVICE_TERMINAL_GATE.with(|slot| {
+                let borrowed = slot.borrow();
+                let Some(installed) = borrowed.as_ref() else {
                     return Err(service_authority_unavailable(
-                        "an external service-authority effect did not finish initiation",
+                        "the installed service terminal gate was already consumed",
+                    ));
+                };
+                let matches = installed.matches(self, &token_ids, disposition);
+                drop(borrowed);
+                if !matches {
+                    return Err(service_authority_unavailable(
+                        "the installed service terminal gate does not match the durable plan",
                     ));
                 }
-                std::thread::park_timeout(EXTERNAL_EFFECT_INITIATION_POLL);
-                state = fence.lock().map_err(|_| {
-                    service_authority_unavailable("a service authority fence is poisoned")
-                })?;
-            }
+                let mut gate = slot
+                    .borrow_mut()
+                    .take()
+                    .expect("the exact installed terminal gate was just matched");
+                let output: Box<dyn PreparedServiceAuthorityTerminal> =
+                    Box::new(gate.take_prepared());
+                Ok(output)
+            });
         }
-        // Prevent Drop from observing a partially initialized carrier only
-        // after every marker has been installed; on an early error Drop
-        // compare-removes whatever prefix was installed.
+
+        // Direct-library callers have no async owner. Install the same exact
+        // intent, but never wait while Local/SQLite may be held: retained work
+        // is a fail-closed refusal and Drop exact-unmarks the unused ticket.
+        let Some(prepared) = self.install_terminal_intent(&token_ids, disposition)? else {
+            return Err(service_authority_unavailable(
+                "another exact service-authority termination is pending",
+            ));
+        };
+        if prepared
+            .domains
+            .iter()
+            .any(|(_, domain)| domain.active_work.load(Ordering::SeqCst) != 0)
+        {
+            return Err(service_authority_unavailable(
+                "retained service-authority work requires an async exact-token gate",
+            ));
+        }
         let output: Box<dyn PreparedServiceAuthorityTerminal> = Box::new(prepared);
         Ok(output)
     }
@@ -892,12 +1266,15 @@ mod tests {
     }
 
     #[test]
-    fn ambiguous_reconciliation_settles_only_its_exact_ticket() {
+    fn ambiguous_reconciliation_settles_only_its_exact_token_domain() {
         let registry = ServiceAuthorityFenceRegistry::default();
         let monotonic = Instant::now();
-        let publication = registry
+        let first_publication = registry
             .register(witness("token-a", 200), 100, monotonic)
-            .expect("register witness");
+            .expect("register first witness");
+        let second_publication = registry
+            .register(witness("token-b", 200), 100, monotonic)
+            .expect("register second witness");
         let mut first = registry
             .prepare_terminal(
                 &["token-a".to_owned()],
@@ -906,7 +1283,7 @@ mod tests {
             .expect("premark first");
         let mut second = registry
             .prepare_terminal(
-                &["token-a".to_owned()],
+                &["token-b".to_owned()],
                 ServiceAuthorityDisposition::DurableDelete,
             )
             .expect("premark second");
@@ -914,14 +1291,18 @@ mod tests {
         second.mark_ambiguous();
 
         first.rolled_back();
+        assert!(matches!(
+            first_publication.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Current(_)
+        ));
         assert_eq!(
-            publication.resolve_act(101, monotonic).unwrap(),
+            second_publication.resolve_act(101, monotonic).unwrap(),
             ServiceAuthorityActResolution::Unavailable,
-            "settling one ambiguous transaction must not clear another ticket"
+            "settling one ambiguous token must not clear another token's ticket"
         );
         second.committed().expect("settle exact successor");
         assert_eq!(
-            publication.resolve_act(101, monotonic).unwrap(),
+            second_publication.resolve_act(101, monotonic).unwrap(),
             ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete)
         );
     }
@@ -1217,8 +1598,8 @@ mod tests {
         }
     }
 
-    #[test]
-    fn terminal_commit_waits_for_external_effect_initiation_cut() {
+    #[tokio::test]
+    async fn terminal_gate_closes_new_effects_then_drains_predecessor_initiation() {
         let registry = ServiceAuthorityFenceRegistry::default();
         let monotonic = Instant::now();
         let publication = registry
@@ -1228,30 +1609,408 @@ mod tests {
             .begin_external_effect(100, monotonic)
             .expect("begin effect");
         let terminal_registry = registry.clone();
-        let (sender, receiver) = std::sync::mpsc::channel();
-        let terminal = std::thread::spawn(move || {
-            let prepared = terminal_registry
-                .prepare_terminal(
+        let terminal = tokio::spawn(async move {
+            let gate = terminal_registry
+                .acquire_terminal_gate(
                     &["token-a".to_owned()],
                     ServiceAuthorityDisposition::DurableDelete,
                 )
-                .expect("premark after initiation");
+                .await
+                .expect("close and drain service domain");
+            let prepared = with_service_authority_terminal_gate(gate, || {
+                terminal_registry.prepare_terminal(
+                    &["token-a".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+            .expect("adopt exact drained premark after initiation");
             prepared.committed().expect("commit terminal");
-            sender.send(()).expect("report terminal");
         });
 
-        while !matches!(
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                match publication.begin_external_effect(101, monotonic) {
+                    Ok(extra) => extra.initiated(),
+                    Err(_) => break,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal intent closes later effect initiation");
+        assert!(
+            !terminal.is_finished(),
+            "terminal cannot pass an already-initiated native effect"
+        );
+        permit.initiated();
+        tokio::time::timeout(Duration::from_secs(1), terminal)
+            .await
+            .expect("terminal completes after initiation")
+            .expect("terminal task");
+        assert!(publication.begin_external_effect(101, monotonic).is_err());
+    }
+
+    #[tokio::test]
+    async fn retained_authority_work_and_terminal_gate_are_mutually_exclusive() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-retained", 1_000), 100, monotonic)
+            .expect("register witness");
+
+        let terminal = registry
+            .prepare_terminal(
+                &["token-retained".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .expect("terminal premark wins");
+        assert!(
+            publication.begin_authority_work(101, monotonic).is_err(),
+            "a retained permit cannot start after terminal premark"
+        );
+        drop(terminal);
+
+        let permit = publication
+            .begin_authority_work(101, monotonic)
+            .expect("rolled-back terminal premark reopens authority work");
+        let terminal_registry = registry.clone();
+        let terminal = tokio::spawn(async move {
+            terminal_registry
+                .acquire_terminal_gate(
+                    &["token-retained".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+                .await
+                .expect("terminal waits behind retained work")
+        });
+
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                match publication.begin_authority_work(101, monotonic) {
+                    Ok(extra) => drop(extra),
+                    Err(_) => break,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal intent closes later retained work");
+        assert!(!terminal.is_finished());
+        drop(permit);
+        let gate = tokio::time::timeout(Duration::from_secs(1), terminal)
+            .await
+            .expect("terminal gate completes after retained work drops")
+            .expect("terminal task");
+        let prepared = with_service_authority_terminal_gate(gate, || {
+            registry.prepare_terminal(
+                &["token-retained".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+        })
+        .expect("exact premark adopts the asynchronously drained domain");
+        drop(prepared);
+        assert!(publication.begin_authority_work(101, monotonic).is_ok());
+    }
+
+    #[test]
+    fn direct_terminal_prepare_refuses_an_active_publication_without_waiting_on_its_fence() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-direct", 1_000), 100, monotonic)
+            .expect("register witness");
+        let (entered_tx, entered_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let publisher = std::thread::spawn(move || {
+            publication
+                .try_publish(101, monotonic, || {
+                    entered_tx.send(()).expect("report held publication");
+                    release_rx.recv().expect("release held publication");
+                    Ok(())
+                })
+                .expect("held publication remains valid")
+        });
+        entered_rx
+            .recv_timeout(Duration::from_secs(1))
+            .expect("publication holds its exact fence");
+
+        let terminal_registry = registry.clone();
+        let (terminal_tx, terminal_rx) = std::sync::mpsc::channel();
+        let terminal = std::thread::spawn(move || {
+            let result = terminal_registry.prepare_terminal(
+                &["token-direct".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            );
+            terminal_tx.send(result).expect("report direct prepare");
+        });
+        let result = terminal_rx.recv_timeout(Duration::from_millis(250));
+        release_tx.send(()).expect("release held publication");
+        assert_eq!(publisher.join().expect("publisher joins"), Some(()));
+        terminal.join().expect("terminal thread joins");
+        let error =
+            match result.expect("direct prepare must refuse without waiting on the exact fence") {
+                Ok(_) => panic!("an active publication requires the async domain drain"),
+                Err(error) => error,
+            };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+    }
+
+    #[tokio::test]
+    async fn exact_token_gate_drains_only_its_token_and_leaves_unrelated_work_live() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let token_a = registry
+            .register(witness("token-a", 1_000), 100, monotonic)
+            .expect("register token A");
+        let token_b = registry
+            .register(witness("token-b", 1_000), 100, monotonic)
+            .expect("register token B");
+        let predecessor = token_a
+            .begin_authority_work(101, monotonic)
+            .expect("retain token A predecessor");
+
+        let terminal_registry = registry.clone();
+        let terminal = tokio::spawn(async move {
+            terminal_registry
+                .acquire_terminal_gate(
+                    &["token-a".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+                .await
+                .expect("drain token A only")
+        });
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while token_a.begin_authority_work(101, monotonic).is_ok() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("token A intent becomes visible");
+        assert!(!terminal.is_finished());
+
+        let unrelated = token_b
+            .begin_authority_work(101, monotonic)
+            .expect("token B work remains available");
+        assert_eq!(
+            token_b
+                .try_publish(101, monotonic, || Ok("token-b-live"))
+                .expect("token B publication remains available"),
+            Some("token-b-live")
+        );
+        drop(unrelated);
+
+        drop(predecessor);
+        let gate = tokio::time::timeout(Duration::from_secs(1), terminal)
+            .await
+            .expect("token A drain completes")
+            .expect("token A terminal task");
+        let prepared = with_service_authority_terminal_gate(gate, || {
+            registry.prepare_terminal(
+                &["token-a".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+        })
+        .expect("transaction adopts token A gate");
+        prepared.committed().expect("commit token A ending");
+        assert_eq!(
+            token_a.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete)
+        );
+        assert!(matches!(
+            token_b.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Current(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn absent_token_registration_joins_the_pending_exact_domain() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let gate = registry
+            .acquire_terminal_gate(
+                &["token-late".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .await
+            .expect("reserve an absent token");
+        let publication = registry
+            .register(witness("token-late", 1_000), 100, monotonic)
+            .expect("late registration attaches to pending domain");
+        assert_eq!(
             publication.resolve_act(101, monotonic).unwrap(),
             ServiceAuthorityActResolution::Unavailable
-        ) {
-            std::thread::yield_now();
+        );
+
+        let prepared = with_service_authority_terminal_gate(gate, || {
+            registry.prepare_terminal(
+                &["token-late".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+        })
+        .expect("late token transaction adopts its exact gate");
+        prepared.committed().expect("commit late token ending");
+        assert_eq!(
+            publication.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete)
+        );
+    }
+
+    #[tokio::test]
+    async fn overlapping_gates_serialize_while_disjoint_gates_proceed() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let first = registry
+            .acquire_terminal_gate(
+                &["token-a".to_owned()],
+                ServiceAuthorityDisposition::Carrier,
+            )
+            .await
+            .expect("acquire first token A gate");
+        let overlapping_registry = registry.clone();
+        let overlapping = tokio::spawn(async move {
+            overlapping_registry
+                .acquire_terminal_gate(
+                    &["token-a".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+                .await
+                .expect("acquire successor token A gate")
+        });
+        tokio::task::yield_now().await;
+        assert!(!overlapping.is_finished());
+
+        let disjoint = tokio::time::timeout(
+            Duration::from_secs(1),
+            registry.acquire_terminal_gate(
+                &["token-b".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            ),
+        )
+        .await
+        .expect("disjoint token B gate is not serialized")
+        .expect("acquire token B gate");
+        drop(disjoint);
+
+        drop(first);
+        let successor = tokio::time::timeout(Duration::from_secs(1), overlapping)
+            .await
+            .expect("overlapping gate proceeds after predecessor settles")
+            .expect("overlapping task");
+        drop(successor);
+    }
+
+    #[tokio::test]
+    async fn transaction_must_reproduce_the_gate_exact_token_set() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-a", 1_000), 100, monotonic)
+            .expect("register token A");
+        let gate = registry
+            .acquire_terminal_gate(
+                &["token-a".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .await
+            .expect("acquire token A gate");
+        let mismatch = with_service_authority_terminal_gate(gate, || {
+            registry.prepare_terminal(
+                &["token-b".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+        });
+        let error = match mismatch {
+            Ok(_) => panic!("a different durable token plan cannot adopt the gate"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_POLICY_UNAVAILABLE");
+        assert!(matches!(
+            publication.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Current(_)
+        ));
+    }
+
+    #[tokio::test]
+    async fn cancelling_terminal_gate_drain_reopens_the_service_domain() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-cancel", 1_000), 100, monotonic)
+            .expect("register witness");
+        let predecessor = publication
+            .begin_authority_work(101, monotonic)
+            .expect("retain predecessor work");
+        let terminal_registry = registry.clone();
+        let terminal = tokio::spawn(async move {
+            terminal_registry
+                .acquire_terminal_gate(
+                    &["token-cancel".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+                .await
+        });
+
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while publication.begin_authority_work(101, monotonic).is_ok() {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal intent becomes visible");
+        assert!(!terminal.is_finished());
+        terminal.abort();
+        assert!(
+            terminal
+                .await
+                .expect_err("terminal task is cancelled")
+                .is_cancelled()
+        );
+
+        let reopened = publication
+            .begin_authority_work(101, monotonic)
+            .expect("cancellation drops the exact coarse marker");
+        drop(reopened);
+        drop(predecessor);
+    }
+
+    #[test]
+    fn retained_service_work_counter_is_bounded_and_releases_on_error_unwind() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-capacity", 1_000), 100, monotonic)
+            .expect("register witness");
+        let mut permits = Vec::with_capacity(MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK);
+        for _ in 0..MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK {
+            permits.push(
+                publication
+                    .begin_authority_work(101, monotonic)
+                    .expect("capacity slot"),
+            );
         }
-        assert!(receiver.try_recv().is_err());
-        permit.initiated();
-        receiver
-            .recv_timeout(Duration::from_secs(1))
-            .expect("terminal completes after initiation");
-        terminal.join().expect("terminal thread");
-        assert!(publication.begin_external_effect(101, monotonic).is_err());
+        assert_eq!(
+            publication
+                .begin_authority_work(101, monotonic)
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        );
+        assert_eq!(
+            publication.domain.active_work.load(Ordering::SeqCst),
+            MAX_IN_FLIGHT_SERVICE_AUTHORITY_WORK
+        );
+        drop(permits);
+
+        let failed = (|| -> SnapbackResult<()> {
+            let _permit = publication.begin_authority_work(101, monotonic)?;
+            Err(service_authority_unavailable(
+                "synthetic staged closure failure",
+            ))
+        })();
+        assert_eq!(
+            failed.expect_err("synthetic closure fails").diagnostic.code,
+            "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+        );
+        assert_eq!(publication.domain.active_work.load(Ordering::SeqCst), 0);
     }
 }

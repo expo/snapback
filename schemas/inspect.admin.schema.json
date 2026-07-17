@@ -894,6 +894,7 @@
         },
         "consecutiveFailures": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -1363,6 +1364,23 @@
           "minimum": 0,
           "type": "integer"
         },
+        "generationExhaustions": {
+          "default": 0,
+          "description": "Room/scope/entry identities that reached the final portable integer.\nVoid maintenance paths cannot return an error, so they retain this\ntyped diagnostic while terminally retiring the affected room.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "lastGenerationExhaustion": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/EphemeralError"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
         "limitRejections": {
           "default": 0,
           "description": "Operations rejected by a hard room/store limit (L9). Structured\nrejection, never silent eviction.\n\n@ref LLP 0026#limits-and-diagnostics — limits are capability facts.",
@@ -1474,6 +1492,60 @@
       ],
       "type": "object"
     },
+    "EphemeralError": {
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/EphemeralErrorCode"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "EphemeralErrorCode": {
+      "oneOf": [
+        {
+          "enum": [
+            "UnknownCollection",
+            "Unauthorized",
+            "InvalidScope",
+            "MissingKey",
+            "MissingOwner",
+            "InvalidTtl",
+            "ValueTooLarge",
+            "MetadataTooLarge",
+            "RateLimited",
+            "IncompatibleCollectionDefinition"
+          ],
+          "type": "string"
+        },
+        {
+          "const": "RoomLimitExceeded",
+          "description": "A hard room/store limit (active rooms, entries per room, subscribers\nper room, aggregate room bytes) rejected the operation. The limits are\ncapability facts; hitting one is a structured rejection, never a\nsilent eviction of live entries.\n\n@ref LLP 0013#room-store-model — memory pressure must be explicit.",
+          "type": "string"
+        },
+        {
+          "const": "GenerationExhausted",
+          "description": "A client-visible room, entry, or delivery identity reached the final\nexact plain-JSON integer. Reuse would create an ABA, so the operation\nis refused without mutating predecessor state.",
+          "type": "string"
+        },
+        {
+          "const": "AuthorityPending",
+          "description": "A permission-changing transaction installed the room's precommit\nauthority barrier. No protected sink may act until exact finalization\nand fresh reauthorization complete.",
+          "type": "string"
+        },
+        {
+          "const": "PermissionDenied",
+          "description": "Trusted server-side durable membership denial. Unlike the legacy\n`Unauthorized` code, this is safe for the client auth coordinator to\ntreat as an authorization-loss transition.",
+          "type": "string"
+        }
+      ]
+    },
     "EphemeralRoomDiagnostics": {
       "properties": {
         "collection": {
@@ -1500,6 +1572,7 @@
         },
         "scopeEpoch": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -3186,6 +3259,7 @@
         },
         "version": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }

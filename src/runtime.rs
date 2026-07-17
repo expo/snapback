@@ -98,6 +98,7 @@ pub trait IbexActionHost {
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
 /// action-hosted mutations execute into this owned value outside the global
 /// instance mutex; only the bounded validation/SQLite commit re-enters it.
+#[derive(Clone)]
 pub(crate) struct ExecutedIbexMutation {
     pub writes: Vec<BufferedWrite>,
     pub membership_commands: Vec<BufferedMembershipCommand>,
@@ -246,7 +247,7 @@ impl RuntimeManager {
             run,
             host,
             grants,
-        );
+        )?;
         // Actions always run fresh by the DK-4 scope fence. Per-invocation
         // config grants therefore cannot leak through a pooled VM.
         run_ibex_handler_with_context_until(module, &mut invocation, None, deadline)
@@ -525,8 +526,81 @@ pub fn bench_runtime_create_us(iterations: usize) -> f64 {
 /// @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 — stale-continuation guard.
 static NEXT_INVOCATION_EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
-fn next_invocation_epoch() -> u64 {
-    NEXT_INVOCATION_EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+fn invocation_epoch_exhausted() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED",
+        "runtime",
+        "handler invocation identities are exhausted; restart the process before running more handlers",
+    )
+}
+
+/// Allocate a never-reused non-zero invocation identity. Zero is the terminal
+/// sentinel: the final `u64::MAX` identity is returned once while atomically
+/// moving the allocator to zero, and every later invocation is refused before
+/// application code can run.
+fn allocate_invocation_epoch(next: &std::sync::atomic::AtomicU64) -> SnapbackResult<u64> {
+    use std::sync::atomic::Ordering as AtomicOrdering;
+
+    let mut current = next.load(AtomicOrdering::Relaxed);
+    loop {
+        if current == 0 {
+            return Err(invocation_epoch_exhausted());
+        }
+        let successor = current.checked_add(1).unwrap_or(0);
+        match next.compare_exchange_weak(
+            current,
+            successor,
+            AtomicOrdering::Relaxed,
+            AtomicOrdering::Relaxed,
+        ) {
+            Ok(_) => return Ok(current),
+            Err(observed) => current = observed,
+        }
+    }
+}
+
+fn next_invocation_epoch() -> SnapbackResult<u64> {
+    allocate_invocation_epoch(&NEXT_INVOCATION_EPOCH)
+}
+
+#[cfg(test)]
+mod invocation_epoch_tests {
+    use super::allocate_invocation_epoch;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    #[test]
+    fn final_invocation_identity_is_unique_then_allocator_is_terminal() {
+        let next = AtomicU64::new(u64::MAX - 1);
+
+        assert_eq!(
+            allocate_invocation_epoch(&next).expect("penultimate identity"),
+            u64::MAX - 1
+        );
+        assert_eq!(
+            allocate_invocation_epoch(&next).expect("final identity"),
+            u64::MAX
+        );
+        let error = allocate_invocation_epoch(&next)
+            .expect_err("an exhausted identity allocator must never wrap");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED"
+        );
+        assert_eq!(next.load(Ordering::Relaxed), 0);
+    }
+
+    #[test]
+    fn terminal_invocation_allocator_stays_terminal() {
+        let next = AtomicU64::new(0);
+        for _ in 0..2 {
+            let error = allocate_invocation_epoch(&next)
+                .expect_err("zero is a permanent terminal sentinel");
+            assert_eq!(
+                error.diagnostic.code,
+                "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED"
+            );
+        }
+    }
 }
 
 fn action_host_missing() -> SnapbackError {
@@ -676,7 +750,7 @@ impl<'a> IbexHostContext<'a> {
             now_ms,
             action_run: None,
             action_host: None,
-            epoch: next_invocation_epoch(),
+            epoch: next_invocation_epoch()?,
             grants: Value::Null,
             recorded_ids: Vec::new(),
             replay,
@@ -690,7 +764,7 @@ impl<'a> IbexHostContext<'a> {
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
         grants: Value,
-    ) -> Self {
+    ) -> SnapbackResult<Self> {
         let projection = HandlerAuthProjection::from_authority(
             &ResolvedAppAuthority::dev_from_auth(&input.auth),
         );
@@ -711,10 +785,10 @@ impl<'a> IbexHostContext<'a> {
         run: CronRunMetadata,
         host: &'a mut dyn IbexActionHost,
         grants: Value,
-    ) -> Self {
+    ) -> SnapbackResult<Self> {
         let reads = auth_dependencies(&input);
         let read_keys = read_dependency_keys(&reads);
-        Self {
+        Ok(Self {
             db: None,
             input,
             handler_auth,
@@ -729,12 +803,12 @@ impl<'a> IbexHostContext<'a> {
             now_ms: run.due_at_ms,
             action_run: Some(run),
             action_host: Some(host),
-            epoch: next_invocation_epoch(),
+            epoch: next_invocation_epoch()?,
             grants,
             recorded_ids: Vec::new(),
             replay: None,
             terminal_denial: None,
-        }
+        })
     }
 
     /// Take the recorded ctx-answer ledger (LLP 0051 D1) after the handler
@@ -2859,7 +2933,8 @@ mod action_db_boundary_tests {
             metadata(),
             &mut host,
             json!(null),
-        );
+        )
+        .expect("action context");
 
         for (op, args) in [
             ("db.get", json!({ "table": "items", "id": "secret" })),
@@ -2882,7 +2957,8 @@ mod action_db_boundary_tests {
             metadata(),
             &mut host,
             json!(null),
-        );
+        )
+        .expect("action context");
 
         for op in ["runtime.now", "runtime.id", "action.metadata"] {
             let error = context

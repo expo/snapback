@@ -2585,9 +2585,25 @@ mod tests {
         committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     }
 
-    impl crate::storage::AuthorizationCommitInterlock for RecordingRestoreInterlock {
-        fn prepare(
-            &self,
+    struct RecordingRestoreReservation {
+        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        expect_incarnation_rotated: bool,
+    }
+
+    impl RecordingRestoreInterlock {
+        fn reservation(&self) -> Box<dyn crate::storage::AuthorizationCommitReservation> {
+            Box::new(RecordingRestoreReservation {
+                prepared: self.prepared.clone(),
+                committed: self.committed.clone(),
+                expect_incarnation_rotated: self.expect_incarnation_rotated,
+            })
+        }
+    }
+
+    impl crate::storage::AuthorizationCommitReservation for RecordingRestoreReservation {
+        fn bind(
+            self: Box<Self>,
             witness: &crate::storage::AuthorizationCommitWitness,
             impact: crate::storage::AuthorizationCommitImpact<'_>,
         ) -> SnapbackResult<Box<dyn crate::storage::PreparedAuthorizationCommit>> {
@@ -2603,7 +2619,31 @@ mod tests {
                 committed: self.committed.clone(),
             }))
         }
+
+        fn cancel(self: Box<Self>) {}
     }
+
+    fn with_recording_restore_reservation<T>(
+        interlock: &RecordingRestoreInterlock,
+        work: impl FnOnce() -> T,
+    ) -> T {
+        crate::storage::install_managed_authorization_reservation(interlock.reservation());
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
+        let unused = crate::storage::take_managed_authorization_reservation();
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        if let Some(unused) = unused {
+            unused.cancel();
+        }
+        crate::exec_guard::run_after_local_batch(batch);
+        match output {
+            Ok(output) => output,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    impl crate::storage::AuthorizationCommitInterlock for RecordingRestoreInterlock {}
 
     impl crate::storage::PreparedAuthorizationCommit for RecordingRestoreCommit {
         fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
@@ -2622,20 +2662,27 @@ mod tests {
         let mut db = catalog_database();
         let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+        let interlock = std::sync::Arc::new(RecordingRestoreInterlock {
             prepared: prepared.clone(),
             committed: committed.clone(),
             expect_incarnation_rotated: true,
-        }));
+        });
+        db.install_authorization_interlock(interlock.clone());
 
         let declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd17";
-        let result = db.apply_auth_restore_declaration(declaration, 100).unwrap();
+        let result = with_recording_restore_reservation(&interlock, || {
+            db.apply_auth_restore_declaration(declaration, 100)
+        })
+        .unwrap();
         assert!(matches!(result, AuthRestoreResult::Applied { .. }));
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
 
         assert_eq!(
-            db.apply_auth_restore_declaration(declaration, 101).unwrap(),
+            with_recording_restore_reservation(&interlock, || {
+                db.apply_auth_restore_declaration(declaration, 101)
+            })
+            .unwrap(),
             AuthRestoreResult::AlreadyApplied
         );
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 1);
@@ -2887,17 +2934,18 @@ mod tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+        let interlock = std::sync::Arc::new(RecordingRestoreInterlock {
             prepared: prepared.clone(),
             committed: committed.clone(),
             expect_incarnation_rotated: false,
-        }));
+        });
+        db.install_authorization_interlock(interlock.clone());
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::AfterRollback,
         );
-        let error = db
-            .activate_current_auth_catalog()
-            .expect_err("absent durable predecessor proves activation rolled back");
+        let error =
+            with_recording_restore_reservation(&interlock, || db.activate_current_auth_catalog())
+                .expect_err("absent durable predecessor proves activation rolled back");
         assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
@@ -2908,7 +2956,7 @@ mod tests {
             crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
         );
 
-        db.activate_current_auth_catalog()
+        with_recording_restore_reservation(&interlock, || db.activate_current_auth_catalog())
             .expect("exact catalog successor proves activation committed");
         assert_eq!(
             db.inspect_auth_catalog().unwrap(),
@@ -2924,19 +2972,21 @@ mod tests {
         let predecessor = db.authorization_version().unwrap();
         let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        db.install_authorization_interlock(std::sync::Arc::new(RecordingRestoreInterlock {
+        let interlock = std::sync::Arc::new(RecordingRestoreInterlock {
             prepared: prepared.clone(),
             committed: committed.clone(),
             expect_incarnation_rotated: true,
-        }));
+        });
+        db.install_authorization_interlock(interlock.clone());
 
         let rolled_back_declaration = "0197f862-f196-7bb2-b3f0-2a67185dfd18";
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::BeforeCommit,
         );
-        let error = db
-            .apply_auth_restore_declaration(rolled_back_declaration, 100)
-            .expect_err("explicit SQLite rollback is definite");
+        let error = with_recording_restore_reservation(&interlock, || {
+            db.apply_auth_restore_declaration(rolled_back_declaration, 100)
+        })
+        .expect_err("explicit SQLite rollback is definite");
         assert_eq!(error.diagnostic.code, "TEST_AUTHORIZATION_COMMIT_FAILURE");
         assert_eq!(db.authorization_version().unwrap(), predecessor);
 
@@ -2944,16 +2994,19 @@ mod tests {
         crate::storage::inject_authorization_commit_fault_for_test(
             crate::storage::AuthorizationCommitFaultForTest::AfterCommit,
         );
-        let applied = db
-            .apply_auth_restore_declaration(committed_declaration, 101)
-            .expect("rotated durable successor proves the lost acknowledgement");
+        let applied = with_recording_restore_reservation(&interlock, || {
+            db.apply_auth_restore_declaration(committed_declaration, 101)
+        })
+        .expect("rotated durable successor proves the lost acknowledgement");
         assert!(matches!(applied, AuthRestoreResult::Applied { .. }));
         assert_ne!(db.authorization_version().unwrap(), predecessor);
         assert_eq!(prepared.load(std::sync::atomic::Ordering::SeqCst), 2);
         assert_eq!(committed.load(std::sync::atomic::Ordering::SeqCst), 1);
         assert_eq!(
-            db.apply_auth_restore_declaration(committed_declaration, 102)
-                .unwrap(),
+            with_recording_restore_reservation(&interlock, || {
+                db.apply_auth_restore_declaration(committed_declaration, 102)
+            })
+            .unwrap(),
             AuthRestoreResult::AlreadyApplied
         );
     }

@@ -44,6 +44,7 @@ pub enum LiveEnvelope {
     LiveReplace {
         subscription_id: String,
         function: String,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
         rows: Vec<Value>,
     },
@@ -53,6 +54,7 @@ pub enum LiveEnvelope {
     LiveDelta {
         subscription_id: String,
         function: String,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         version: u64,
         ops: Vec<LiveDeltaWireOp>,
     },
@@ -105,6 +107,7 @@ impl LiveEnvelope {
 pub struct AuthorizationInvalidationSnapshot {
     pub subscription_id: String,
     pub function: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
 }
@@ -284,6 +287,7 @@ pub enum Receipt {
         #[serde(rename = "affectedTables")]
         affected_tables: Option<Vec<String>>,
         #[serde(rename = "snapshotVersion")]
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         snapshot_version: u64,
         transport: String,
         /// Adapter-supplied opaque correlation, echoed verbatim (capped).
@@ -323,6 +327,7 @@ pub enum Receipt {
         /// `null` when no storage read is safe at the emission site (the
         /// disconnect teardown path) — the honest "unknown at death" value.
         #[serde(rename = "snapshotVersion")]
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         snapshot_version: Option<u64>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
         correlation: Option<Value>,

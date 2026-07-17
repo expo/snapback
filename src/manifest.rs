@@ -2736,6 +2736,14 @@ pub const CTX_ANSWER_LEDGER_MAX_IDS: usize = 1024;
 /// bounded on every target.
 pub const PORTABLE_TIMESTAMP_MAX_MS: u64 = 9_007_199_254_740_991;
 
+/// Largest exact global storage version in the plain-JSON v0 profile. Commit
+/// versions are client cursors and row system fields, so they share the same
+/// cross-target integer domain rather than SQLite's wider signed range.
+///
+/// @ref LLP 0007#data-model — `_version` must round-trip without JavaScript
+/// aliasing on every supported target.
+pub const PORTABLE_STORAGE_VERSION_MAX: u64 = 9_007_199_254_740_991;
+
 /// Shared wire/storage bound for client mutation ids and captured generated
 /// ids. The alphabet makes JSON Schema `maxLength` byte-equivalent to the Rust
 /// runtime check and keeps ids safe as opaque SQLite/document keys.
@@ -2881,17 +2889,20 @@ pub fn legacy_auth_fingerprint(auth: &AuthInput) -> String {
 pub struct ReadDependency {
     pub table: String,
     pub id: String,
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct QueryOutput {
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct MutationOutput {
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,

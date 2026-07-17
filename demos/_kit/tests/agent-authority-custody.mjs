@@ -7,7 +7,10 @@ import {
   AgentAuthorityFence,
   createMemoryAgentAuthorityCustodyStorage,
 } from '../agent-authority.mjs';
-import { deriveServiceAuthorityInstanceId } from '../../../packages/snapback-contract/auth-coordinator.mjs';
+import {
+  canonicalAgentAuthorityKey,
+  deriveServiceAuthorityInstanceId,
+} from '../../../packages/snapback-contract/auth-coordinator.mjs';
 
 const ACTOR = '018f0d90-7b26-7a22-8c33-445566778899';
 const CREDENTIAL = '018f0d90-7b27-7a22-8c33-445566778899';
@@ -20,11 +23,12 @@ const TOKEN_C = '018f0d90-7b2c-7a22-8c33-445566778899';
 const credential = ({
   grantId = GRANT_A,
   tokenId = TOKEN_A,
+  credentialGeneration = 3,
   bearerToken = `bearer:${grantId}:${tokenId}`,
 } = {}) => ({
   actorUserId: ACTOR,
   credentialId: CREDENTIAL,
-  credentialGeneration: 3,
+  credentialGeneration,
   grantId,
   tokenId,
   bearerToken,
@@ -105,6 +109,222 @@ const deferred = () => {
       storage.withOwnership('agent:memory-direct-reentry', () => assert.fail('reentered')),
       code('SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE'),
     );
+  });
+}
+
+// The ownership callback is a structured-concurrency boundary. An unawaited
+// nested partition operation remains owned by the outer scope: late starts
+// are closed, and a successor cannot enter the outer partition until that
+// exact child settles.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const nestedEntered = deferred();
+  const releaseNested = deferred();
+  let capturedOwner = null;
+  let nestedOperation = null;
+  let successorEntered = false;
+  const outer = storage.withOwnership('agent:memory-joined-owner', (owner) => {
+    capturedOwner = owner;
+    nestedOperation = owner.withPartition('agent:memory-joined-child', async () => {
+      nestedEntered.resolve();
+      await releaseNested.promise;
+    });
+    return 'outer-result';
+  });
+  await nestedEntered.promise;
+  await new Promise((resolve) => setImmediate(resolve));
+
+  await assert.rejects(
+    capturedOwner.read(),
+    (error) => (
+      error?.code === 'SNAPBACK_AUTH_CUSTODY_LOCK_LOST'
+      && /released/u.test(error.message)
+    ),
+    'returning from the callback closes the owner to new starts before joining children',
+  );
+  const refusedUnhandled = [];
+  const onRefusedUnhandled = (error) => { refusedUnhandled.push(error); };
+  process.on('unhandledRejection', onRefusedUnhandled);
+  void capturedOwner.read();
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', onRefusedUnhandled);
+  assert.deepEqual(
+    refusedUnhandled,
+    [],
+    'an unawaited late owner refusal is observed at the custody boundary',
+  );
+  let outerSettled = false;
+  void outer.then(() => { outerSettled = true; }, () => { outerSettled = true; });
+  const successor = storage.withOwnership('agent:memory-joined-owner', () => {
+    successorEntered = true;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(outerSettled, false, 'the unawaited nested owner keeps the outer scope pending');
+  assert.equal(successorEntered, false, 'the outer partition gate remains closed while joining');
+
+  releaseNested.resolve();
+  await nestedOperation;
+  assert.equal(outerSettled, false, 'the observed child settles before the outer ownership releases');
+  assert.equal(successorEntered, false, 'child settlement alone does not bypass outer release');
+  assert.equal(await outer, 'outer-result');
+  await successor;
+  assert.equal(successorEntered, true);
+
+  const failedChildEntered = deferred();
+  const releaseFailedChild = deferred();
+  const unhandled = [];
+  const onUnhandled = (error) => { unhandled.push(error); };
+  process.on('unhandledRejection', onUnhandled);
+  let failedChildOuterSettled = false;
+  const joinedFailure = storage.withOwnership('agent:memory-missed-child-error', (owner) => {
+    void owner.withPartition('agent:memory-missed-child-error-nested', async () => {
+      failedChildEntered.resolve();
+      await releaseFailedChild.promise;
+      throw new Error('memory missed-await child failed');
+    });
+    return 'joined-child-rejection';
+  });
+  void joinedFailure.then(
+    () => { failedChildOuterSettled = true; },
+    () => { failedChildOuterSettled = true; },
+  );
+  await failedChildEntered.promise;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(failedChildOuterSettled, false, 'a rejected child must first settle before release');
+  releaseFailedChild.resolve();
+  assert.equal(await joinedFailure, 'joined-child-rejection');
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', onUnhandled);
+  assert.deepEqual(unhandled, [], 'missed child rejection is observed by its ownership scope');
+  await storage.withOwnership('agent:memory-missed-child-error', async (owner) => {
+    assert.equal(await owner.read(), null, 'child rejection still releases for a fresh owner');
+  });
+
+  const primaryFailure = new Error('memory ownership callback failed');
+  await assert.rejects(
+    storage.withOwnership('agent:memory-primary-child-error', (owner) => {
+      void owner.withPartition('agent:memory-primary-child-error-nested', async () => {
+        throw new Error('secondary memory child failure');
+      });
+      throw primaryFailure;
+    }),
+    (error) => error === primaryFailure,
+    'the callback error remains primary after rejected children are joined',
+  );
+}
+
+// The memory reference adapter has the same linear owner contract as the
+// filesystem adapter. Two operations cannot observe one predecessor through a
+// shared owner, and a missed-await overlap refusal is handled at creation.
+{
+  const custodyId = 'agent:memory-owner-overlap';
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
+  await synchronizeValidated(fence);
+  const current = storage.snapshot(custodyId);
+  const marker = {
+    ...current,
+    revision: current.revision + 1,
+    phase: 'exhausted',
+    status: 'deleted',
+    transition: null,
+  };
+  const results = await storage.withOwnership(custodyId, (owner) => Promise.allSettled([
+    owner.replace(current.revision, marker),
+    owner.replace(current.revision, marker),
+  ]));
+  assert.deepEqual(results.map((result) => result.status).sort(), ['fulfilled', 'rejected']);
+  assert.equal(
+    results.find((result) => result.status === 'rejected').reason.code,
+    'SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP',
+  );
+  assert.deepEqual(storage.snapshot(custodyId), marker);
+
+  const entered = deferred();
+  const release = deferred();
+  const unhandled = [];
+  const onUnhandled = (error) => { unhandled.push(error); };
+  process.on('unhandledRejection', onUnhandled);
+  await storage.withOwnership('agent:memory-unawaited-overlap', async (owner) => {
+    const nested = owner.withPartition('agent:memory-unawaited-overlap-child', async () => {
+      entered.resolve();
+      await release.promise;
+    });
+    await entered.promise;
+    void owner.read();
+    await new Promise((resolve) => setImmediate(resolve));
+    release.resolve();
+    await nested;
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  process.off('unhandledRejection', onUnhandled);
+  assert.deepEqual(unhandled, [], 'an unawaited memory overlap refusal is observed immediately');
+  await storage.withOwnership('agent:memory-unawaited-overlap', async (owner) => {
+    assert.equal(await owner.read(), null, 'a fresh owner proceeds after the predecessor joins');
+  });
+}
+
+// `retire` consumes a memory partition owner just as it consumes a physical
+// filesystem owner. No same-callback operation may recreate the retired row;
+// only a later ownership interval may use that partition again.
+{
+  const custodyId = 'agent:memory-retired-owner';
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
+  await synchronizeValidated(fence);
+  const record = storage.snapshot(custodyId);
+
+  await storage.withOwnership(custodyId, async (owner) => {
+    assert.equal(await owner.retire(record.revision), true);
+    for (const operation of [
+      () => owner.read(),
+      () => owner.replace(null, record),
+      () => owner.remove(record.revision),
+      () => owner.retire(null),
+      () => owner.scanPartitions({ cursor: null, limit: 1 }),
+      () => owner.withPartition(
+        'agent:memory-retired-owner-child',
+        () => assert.fail('a retired owner entered a nested partition'),
+      ),
+    ]) {
+      await assert.rejects(
+        operation,
+        (error) => (
+          error?.code === 'SNAPBACK_AUTH_CUSTODY_LOCK_LOST'
+          && /retired/u.test(error.message)
+        ),
+      );
+    }
+  });
+  assert.equal(storage.snapshot(custodyId), null);
+
+  await storage.withOwnership(custodyId, async (owner) => {
+    assert.equal(await owner.read(), null);
+    await owner.replace(null, record);
+  });
+  assert.deepEqual(storage.snapshot(custodyId), record);
+
+  const emptyCustodyId = 'agent:memory-retired-empty-owner';
+  await storage.withOwnership(emptyCustodyId, async (owner) => {
+    await assert.rejects(
+      owner.retire(1),
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_CUSTODY_CAS_STALE'
+        && error?.diagnostic?.details?.actualRevision === null
+      ),
+    );
+    assert.equal(await owner.read(), null, 'a memory CAS refusal does not consume the owner');
+    assert.equal(await owner.retire(null), false);
+    await assert.rejects(
+      owner.read,
+      (error) => (
+        error?.code === 'SNAPBACK_AUTH_CUSTODY_LOCK_LOST'
+        && /retired/u.test(error.message)
+      ),
+    );
+  });
+  await storage.withOwnership(emptyCustodyId, async (owner) => {
+    assert.equal(await owner.read(), null);
   });
 }
 
@@ -452,8 +672,14 @@ for (const durable of [false, true]) {
       return base.withOwnership(custodyId, (owner) => operation(Object.freeze({
         ...owner,
         async withPartition(partition, partitionOperation) {
+          const beforeRevision = base.snapshot(partition)?.revision ?? null;
           const result = await owner.withPartition(partition, partitionOperation);
-          if (partition === 'agent:ambiguous' && throwAfterCommit) {
+          const afterRevision = base.snapshot(partition)?.revision ?? null;
+          if (
+            partition === 'agent:ambiguous'
+            && throwAfterCommit
+            && afterRevision !== beforeRevision
+          ) {
             throwAfterCommit = false;
             const error = new Error('injected response loss after custody commit');
             error.code = 'TEST_AMBIGUOUS_AFTER_COMMIT';
@@ -1534,9 +1760,9 @@ for (const field of ['authorityEpoch', 'revision']) {
   assert.equal(storage.snapshot(custodyId).authority.grantId, GRANT_B);
 }
 
-// Pre-side-ledger main-row tombstones are migrated before a distinct active
-// tuple replaces them. Removing the synthetic sidecar models an old on-disk
-// record; after C installs, a delayed validated B still cannot reopen B.
+// A pre-ledger v1 main-row tombstone is absorbed into the bounded exact ledger
+// before a distinct active tuple replaces it. After C installs, delayed B
+// remains excluded without retaining a tuple-specific sidecar.
 {
   const state = { custody: Object.create(null) };
   const storage = createMemoryAgentAuthorityCustodyStorage({ state });
@@ -1548,11 +1774,15 @@ for (const field of ['authorityEpoch', 'revision']) {
     authorityDisposition: 'durableDelete',
   });
   await deletion.settlement;
-  const witnessId = Object.keys(state.custody).find((partition) => (
-    partition.startsWith('snapback.agent-terminal-witness.v1:')
-  ));
-  assert(witnessId, 'modern deletion creates the migration sidecar fixture');
-  delete state.custody[witnessId];
+  const modernTombstone = state.custody[custodyId];
+  const { terminalLedgerVersion: _, ...legacyTombstone } = modernTombstone;
+  state.custody[custodyId] = { ...legacyTombstone, formatVersion: 1 };
+  for (const partition of Object.keys(state.custody)) {
+    if (
+      partition.startsWith('snapback.agent-terminal-ledger.v2:')
+      || partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    ) delete state.custody[partition];
+  }
   assert.equal(storage.snapshot(custodyId).status, 'deleted');
 
   const c = credential({ grantId: GRANT_A, tokenId: TOKEN_C });
@@ -1560,7 +1790,16 @@ for (const field of ['authorityEpoch', 'revision']) {
   await synchronizeValidated(successorC, c);
   const activeC = storage.snapshot(custodyId);
   assert.equal(activeC.status, 'active');
-  assert(Object.hasOwn(state.custody, witnessId), 'replacement backfills legacy terminal evidence');
+  assert.equal(activeC.formatVersion, 2);
+  const inspection = await successorC.inspectCustody();
+  assert.equal(inspection.ledgerFormat, 'bucket-v2');
+  assert.equal(inspection.witnessCount, 1);
+  assert.equal(
+    Object.keys(state.custody).some((partition) => (
+      partition.startsWith('snapback.agent-terminal-witness.v1:')
+    )),
+    false,
+  );
 
   const delayedBValue = credential({ grantId: GRANT_B, tokenId: TOKEN_C });
   const delayedB = new AgentAuthorityFence(delayedBValue, { storage, custodyId });
@@ -1621,7 +1860,589 @@ for (const field of ['authorityEpoch', 'revision']) {
   assert.deepEqual(base.snapshot(custodyId), predecessor);
 }
 
-// A failure while consulting the tuple-specific terminal witness is a custody
+// A fresh v2 primary is never published without an active exact ledger. Fixed
+// buckets bound growth; overflowing any one bucket closes the whole custody
+// fail-closed, after which recorded, overflowing, unseen, and formerly active
+// tuples are all refused without allocating another witness partition.
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({
+    state,
+    terminalLedgerParameters: { bucketCount: 1, bucketCapacity: 2 },
+  });
+  const custodyId = 'agent:bounded-terminal-ledger';
+  const activeValue = credential({ credentialGeneration: 3 });
+  const active = new AgentAuthorityFence(activeValue, { storage, custodyId });
+  await synchronizeValidated(active, activeValue);
+
+  const rootId = `snapback.agent-terminal-ledger.v2:${custodyId}`;
+  assert.equal(storage.snapshot(custodyId).formatVersion, 2);
+  assert.equal(storage.snapshot(custodyId).terminalLedgerVersion, 1);
+  assert.equal(storage.snapshot(rootId).phase, 'active');
+  assert.equal(storage.snapshot(rootId).legacyCut, true);
+
+  const terminalValues = [4, 5, 6].map((credentialGeneration) => credential({
+    credentialGeneration,
+    tokenId: TOKEN_B,
+  }));
+  for (const value of terminalValues) {
+    const terminal = new AgentAuthorityFence(value, { storage, custodyId });
+    const deletion = terminal.terminateValidatedCredential(
+      terminal.credentialOfferForHandshake(),
+      { authorityDisposition: 'durableDelete' },
+    );
+    await deletion.settlement;
+  }
+
+  const closed = storage.snapshot(rootId);
+  assert.equal(closed.phase, 'closed');
+  assert.equal(closed.legacyCut, true);
+  const inspection = await active.inspectCustody();
+  assert.deepEqual(
+    {
+      ledgerFormat: inspection.ledgerFormat,
+      state: inspection.state,
+      witnessCount: inspection.witnessCount,
+      capacity: inspection.capacity,
+      warningThreshold: inspection.warningThreshold,
+      bucketCapacity: inspection.bucketCapacity,
+      bucketWarningThreshold: inspection.bucketWarningThreshold,
+      largestBucketCount: inspection.largestBucketCount,
+      warning: inspection.warning,
+    },
+    {
+      ledgerFormat: 'bucket-v2',
+      state: 'closed',
+      witnessCount: 2,
+      capacity: 2,
+      warningThreshold: 2,
+      bucketCapacity: 2,
+      bucketWarningThreshold: 2,
+      largestBucketCount: 2,
+      warning: true,
+    },
+  );
+  assert(inspection.witnessBytes > 0);
+  assert.equal(
+    Object.keys(state.custody).filter((partition) => (
+      partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    )).length,
+    1,
+  );
+  assert.equal(
+    Object.keys(state.custody).some((partition) => (
+      partition.startsWith('snapback.agent-terminal-witness.v1:')
+    )),
+    false,
+  );
+
+  const partitionCount = Object.keys(state.custody).length;
+  for (const value of [
+    terminalValues[0],
+    terminalValues[1],
+    terminalValues[2],
+    credential({ credentialGeneration: 99, tokenId: TOKEN_C }),
+    activeValue,
+  ]) {
+    const delayed = new AgentAuthorityFence(value, { storage, custodyId });
+    await assert.rejects(
+      synchronizeValidated(delayed, value),
+      code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+    );
+    assert.equal(Object.keys(state.custody).length, partitionCount);
+  }
+}
+
+// The v1-to-v2 cut is restart-safe at every durable checkpoint. Until the v2
+// primary is visible the exact v1 witness remains; once it is visible the root
+// is already active, and restart completes physical retirement before sealing
+// the cut without forgetting the delayed tuple. The retirement checkpoint
+// reports the exact remaining count.
+for (const checkpoint of [
+  'afterLedgerPreparing',
+  'afterLedgerBuckets',
+  'afterLedgerActive',
+  'afterPrimaryV2',
+  'afterLegacyWitnessRemove',
+]) {
+  const state = { custody: Object.create(null) };
+  const custodyId = `agent:terminal-ledger-crash-${checkpoint}`;
+  const activeValue = credential({ credentialGeneration: 30 });
+  const seedStorage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const seed = new AgentAuthorityFence(activeValue, { storage: seedStorage, custodyId });
+  await synchronizeValidated(seed, activeValue);
+  const modernPrimary = state.custody[custodyId];
+  const { terminalLedgerVersion: _, ...legacyPrimary } = modernPrimary;
+  state.custody[custodyId] = { ...legacyPrimary, formatVersion: 1 };
+  for (const partition of Object.keys(state.custody)) {
+    if (
+      partition.startsWith('snapback.agent-terminal-ledger.v2:')
+      || partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    ) delete state.custody[partition];
+  }
+
+  const delayedValue = credential({ credentialGeneration: 31, tokenId: TOKEN_B });
+  const delayedAuthority = new AgentAuthorityFence(delayedValue).authority;
+  const delayedKey = canonicalAgentAuthorityKey(delayedAuthority);
+  const witnessId = `snapback.agent-terminal-witness.v1:${delayedKey}:${custodyId}`;
+  state.custody[witnessId] = {
+    formatVersion: 1,
+    custodyId: witnessId,
+    authorityEpoch: 0,
+    revision: 2,
+    phase: 'settled',
+    status: 'deleted',
+    authorityKey: delayedKey,
+    authority: delayedAuthority,
+    transition: null,
+  };
+
+  const events = [];
+  let inject = true;
+  const crashingStorage = createMemoryAgentAuthorityCustodyStorage({
+    state,
+    async terminalLedgerCheckpoint(name, context) {
+      events.push({ name, context });
+      if (inject && name === checkpoint) {
+        inject = false;
+        throw new Error(`injected terminal-ledger crash at ${checkpoint}`);
+      }
+    },
+  });
+  const crashing = new AgentAuthorityFence(activeValue, {
+    storage: crashingStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(crashing, activeValue),
+    new RegExp(`injected terminal-ledger crash at ${checkpoint}`),
+  );
+  assert(events.some((event) => event.name === checkpoint));
+
+  const crashedPrimary = state.custody[custodyId];
+  const rootId = `snapback.agent-terminal-ledger.v2:${custodyId}`;
+  const crashedRoot = state.custody[rootId];
+  if (crashedPrimary.formatVersion === 2) {
+    assert(
+      crashedRoot.phase === 'active' || crashedRoot.phase === 'closed',
+      'a v2 primary is never visible beside a preparing ledger',
+    );
+  }
+  if (
+    crashedRoot.legacyCut
+    || events.some((event) => event.name === 'afterLegacyWitnessRemove')
+  ) {
+    assert.equal(Object.hasOwn(state.custody, witnessId), false);
+  } else {
+    assert.equal(Object.hasOwn(state.custody, witnessId), true);
+  }
+  if (checkpoint === 'afterLegacyWitnessRemove') {
+    const removal = events.findLast((event) => event.name === checkpoint);
+    assert.equal(removal.context.remainingWitnessCount, 0);
+  }
+
+  const recoveredStorage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const recovered = new AgentAuthorityFence(activeValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  await synchronizeValidated(recovered, activeValue);
+  assert.equal(recoveredStorage.snapshot(custodyId).formatVersion, 2);
+  assert.equal(recoveredStorage.snapshot(rootId).phase, 'active');
+  assert.equal(recoveredStorage.snapshot(rootId).legacyCut, true);
+  assert.equal(Object.hasOwn(state.custody, witnessId), false);
+  assert.equal((await recovered.inspectCustody()).witnessCount, 1);
+
+  const delayed = new AgentAuthorityFence(delayedValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(delayed, delayedValue),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.equal(recoveredStorage.snapshot(custodyId).authorityKey, modernPrimary.authorityKey);
+}
+
+// While the migration compatibility cut is open, a terminal tuple is first
+// settled in the v1 witness journal and only then copied into its v2 bucket.
+// Crashing between those writes therefore remains exclusion-safe for an old
+// reader and gives v2 restart an exact source from which to rebuild.
+{
+  const state = { custody: Object.create(null) };
+  const custodyId = 'agent:terminal-ledger-dual-write-crash';
+  const activeValue = credential({ credentialGeneration: 32 });
+  const seedStorage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const seed = new AgentAuthorityFence(activeValue, { storage: seedStorage, custodyId });
+  await synchronizeValidated(seed, activeValue);
+  const { terminalLedgerVersion: _, ...legacyPrimary } = state.custody[custodyId];
+  state.custody[custodyId] = { ...legacyPrimary, formatVersion: 1 };
+  for (const partition of Object.keys(state.custody)) {
+    if (
+      partition.startsWith('snapback.agent-terminal-ledger.v2:')
+      || partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    ) delete state.custody[partition];
+  }
+
+  const terminalValue = credential({ credentialGeneration: 33, tokenId: TOKEN_B });
+  const terminalAuthority = new AgentAuthorityFence(terminalValue).authority;
+  const terminalKey = canonicalAgentAuthorityKey(terminalAuthority);
+  const witnessId = `snapback.agent-terminal-witness.v1:${terminalKey}:${custodyId}`;
+  let inject = true;
+  const crashingStorage = createMemoryAgentAuthorityCustodyStorage({
+    state,
+    async terminalLedgerCheckpoint(name) {
+      if (inject && name === 'afterLegacyWitnessWrite') {
+        inject = false;
+        throw new Error('injected crash between v1 witness and v2 bucket');
+      }
+    },
+  });
+  const terminal = new AgentAuthorityFence(terminalValue, {
+    storage: crashingStorage,
+    custodyId,
+  });
+  const crashedDeletion = terminal.terminateValidatedCredential(
+    terminal.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await assert.rejects(
+    crashedDeletion.settlement,
+    /injected crash between v1 witness and v2 bucket/,
+  );
+  const legacyWitness = state.custody[witnessId];
+  assert.equal(legacyWitness.formatVersion, 1);
+  assert.equal(legacyWitness.phase, 'settled');
+  assert.equal(legacyWitness.status, 'deleted');
+  assert.equal(legacyWitness.authorityKey, terminalKey);
+  assert.equal(
+    Object.keys(state.custody).some((partition) => (
+      partition.startsWith('snapback.agent-terminal-bucket.v2:')
+      && partition.endsWith(`:${custodyId}`)
+    )),
+    false,
+  );
+  assert.throws(
+    () => new AgentAuthorityFence(terminalValue, {
+      storage: { ...crashingStorage, partitionOwnership: 'partitioned-v1' },
+      custodyId,
+    }),
+    code('SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED'),
+  );
+
+  const recoveredStorage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const recoveredTerminal = new AgentAuthorityFence(terminalValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  const recoveredDeletion = recoveredTerminal.terminateValidatedCredential(
+    recoveredTerminal.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await recoveredDeletion.settlement;
+  const delayed = new AgentAuthorityFence(terminalValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(delayed, terminalValue),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+
+  const cut = new AgentAuthorityFence(activeValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  await synchronizeValidated(cut, activeValue);
+  assert.equal(recoveredStorage.snapshot(custodyId).formatVersion, 2);
+  assert.equal(
+    recoveredStorage.snapshot(`snapback.agent-terminal-ledger.v2:${custodyId}`).legacyCut,
+    true,
+  );
+  assert.equal(Object.hasOwn(state.custody, witnessId), false);
+}
+
+// A straggling v1 terminal process can still journal a verdict before it reads
+// and rejects the already-format-2 primary. A v2 gate derives that candidate's
+// exact journal partition, absorbs it before comparison, and retires it only
+// after its bucket entry is durable; unrelated partitions are never scanned.
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:terminal-ledger-post-cut-v1-straggler';
+  const activeValue = credential({ credentialGeneration: 37 });
+  const active = new AgentAuthorityFence(activeValue, { storage, custodyId });
+  await synchronizeValidated(active, activeValue);
+  const rootId = `snapback.agent-terminal-ledger.v2:${custodyId}`;
+  assert.equal(storage.snapshot(rootId).legacyCut, true);
+
+  const stragglerValue = credential({ credentialGeneration: 38, tokenId: TOKEN_B });
+  const stragglerAuthority = new AgentAuthorityFence(stragglerValue).authority;
+  const stragglerKey = canonicalAgentAuthorityKey(stragglerAuthority);
+  const witnessId = `snapback.agent-terminal-witness.v1:${stragglerKey}:${custodyId}`;
+  state.custody[witnessId] = {
+    formatVersion: 1,
+    custodyId: witnessId,
+    authorityEpoch: 0,
+    revision: 2,
+    phase: 'settled',
+    status: 'deleted',
+    authorityKey: stragglerKey,
+    authority: stragglerAuthority,
+    transition: null,
+  };
+
+  const delayed = new AgentAuthorityFence(stragglerValue, { storage, custodyId });
+  await assert.rejects(
+    synchronizeValidated(delayed, stragglerValue),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.equal(Object.hasOwn(state.custody, witnessId), false);
+  assert.equal(storage.snapshot(custodyId).authorityKey, active.capture().authorityKey);
+  assert.equal((await active.inspectCustody()).witnessCount, 1);
+}
+
+// The initial compatibility scan is a migration-only operation. Once the cut
+// is sealed, publication comparison and redacted inspection stay within the
+// deterministic root/bucket/tuple namespace even amid large unrelated and
+// malformed state.
+{
+  const state = { custody: Object.create(null) };
+  const base = createMemoryAgentAuthorityCustodyStorage({ state });
+  let scanCalls = 0;
+  const storage = {
+    ...base,
+    async withOwnership(custodyId, operation) {
+      return base.withOwnership(custodyId, (owner) => operation(Object.freeze({
+        ...owner,
+        async scanPartitions(options) {
+          scanCalls += 1;
+          return owner.scanPartitions(options);
+        },
+      })));
+    },
+  };
+  const custodyId = 'agent:terminal-ledger-steady-local';
+  const value = credential({ credentialGeneration: 39 });
+  const fence = new AgentAuthorityFence(value, { storage, custodyId });
+  await synchronizeValidated(fence, value);
+  const migrationScanCalls = scanCalls;
+  assert(migrationScanCalls > 0);
+  for (let index = 0; index < 1_000; index += 1) {
+    state.custody[`unrelated-steady-fixture:${index}`] = index % 2 === 0
+      ? null
+      : { malformed: true, revision: 'not-a-counter' };
+  }
+  const capture = fence.capture();
+  assert.deepEqual(await fence.compareAndCommit(capture, () => 'committed'), {
+    committed: true,
+    value: 'committed',
+  });
+  assert.equal((await fence.inspectCustody()).witnessCount, 0);
+  assert.equal(scanCalls, migrationScanCalls);
+}
+
+// If legacy migration itself overflows a fixed bucket, the exact current v1
+// primary is journaled before the root's global closed state commits. Killing
+// the migrator immediately after that root CAS leaves no mixed-version window
+// in which an old reader can keep publishing the current tuple.
+{
+  const state = { custody: Object.create(null) };
+  const custodyId = 'agent:terminal-ledger-mixed-close-crash';
+  const activeValue = credential({ credentialGeneration: 34 });
+  const seedStorage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const seed = new AgentAuthorityFence(activeValue, { storage: seedStorage, custodyId });
+  await synchronizeValidated(seed, activeValue);
+  const { terminalLedgerVersion: _, ...legacyPrimary } = state.custody[custodyId];
+  state.custody[custodyId] = { ...legacyPrimary, formatVersion: 1 };
+  for (const partition of Object.keys(state.custody)) {
+    if (
+      partition.startsWith('snapback.agent-terminal-ledger.v2:')
+      || partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    ) delete state.custody[partition];
+  }
+  const addLegacyWitness = (value) => {
+    const authority = new AgentAuthorityFence(value).authority;
+    const authorityKey = canonicalAgentAuthorityKey(authority);
+    const witnessId = `snapback.agent-terminal-witness.v1:${authorityKey}:${custodyId}`;
+    state.custody[witnessId] = {
+      formatVersion: 1,
+      custodyId: witnessId,
+      authorityEpoch: 0,
+      revision: 2,
+      phase: 'settled',
+      status: 'deleted',
+      authorityKey,
+      authority,
+      transition: null,
+    };
+    return witnessId;
+  };
+  addLegacyWitness(credential({ credentialGeneration: 35 }));
+  addLegacyWitness(credential({ credentialGeneration: 36 }));
+
+  let inject = true;
+  const crashingStorage = createMemoryAgentAuthorityCustodyStorage({
+    state,
+    terminalLedgerParameters: { bucketCount: 1, bucketCapacity: 1 },
+    async terminalLedgerCheckpoint(name) {
+      if (inject && name === 'afterLedgerClosed') {
+        inject = false;
+        throw new Error('injected mixed-version crash after ledger close');
+      }
+    },
+  });
+  const crashing = new AgentAuthorityFence(activeValue, {
+    storage: crashingStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(crashing, activeValue),
+    /injected mixed-version crash after ledger close/,
+  );
+  const rootId = `snapback.agent-terminal-ledger.v2:${custodyId}`;
+  assert.equal(state.custody[rootId].phase, 'closed');
+  assert.equal(state.custody[rootId].legacyCut, false);
+  assert.equal(state.custody[custodyId].formatVersion, 1);
+  const activeKey = canonicalAgentAuthorityKey(new AgentAuthorityFence(activeValue).authority);
+  const activeWitnessId = `snapback.agent-terminal-witness.v1:${activeKey}:${custodyId}`;
+  assert.equal(state.custody[activeWitnessId].status, 'deleted');
+
+  const recoveredStorage = createMemoryAgentAuthorityCustodyStorage({
+    state,
+    terminalLedgerParameters: { bucketCount: 1, bucketCapacity: 1 },
+  });
+  const recovered = new AgentAuthorityFence(activeValue, {
+    storage: recoveredStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    synchronizeValidated(recovered, activeValue),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
+  assert.equal(recoveredStorage.snapshot(custodyId).formatVersion, 2);
+  assert.equal(recoveredStorage.snapshot(rootId).legacyCut, true);
+  assert.equal(
+    Object.keys(state.custody).some((partition) => (
+      partition.startsWith('snapback.agent-terminal-witness.v1:')
+      && partition.endsWith(`:${custodyId}`)
+    )),
+    false,
+  );
+}
+
+// Diagnostics count only this custody's strict buckets. Another custody's
+// valid bucket is ignored; a same-source bucket whose fixed parameters differ
+// from the active root is corruption, not silently inflated telemetry.
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const targetCustodyId = 'agent:terminal-ledger-diagnostics-target';
+  const targetValue = credential({ credentialGeneration: 40 });
+  const target = new AgentAuthorityFence(targetValue, {
+    storage,
+    custodyId: targetCustodyId,
+  });
+  await synchronizeValidated(target, targetValue);
+
+  const otherCustodyId = 'agent:terminal-ledger-diagnostics-other';
+  const otherValue = credential({ credentialGeneration: 41 });
+  const other = new AgentAuthorityFence(otherValue, {
+    storage,
+    custodyId: otherCustodyId,
+  });
+  await synchronizeValidated(other, otherValue);
+  const terminalOtherValue = credential({ credentialGeneration: 42 });
+  const terminalOther = new AgentAuthorityFence(terminalOtherValue, {
+    storage,
+    custodyId: otherCustodyId,
+  });
+  const otherDeletion = terminalOther.terminateValidatedCredential(
+    terminalOther.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await otherDeletion.settlement;
+  const otherBucketId = Object.keys(state.custody).find((partition) => (
+    partition.startsWith('snapback.agent-terminal-bucket.v2:')
+    && partition.endsWith(`:${otherCustodyId}`)
+  ));
+  assert(otherBucketId);
+  state.custody[otherBucketId] = {
+    ...state.custody[otherBucketId],
+    sourceCustodyId: 'agent:structurally-corrupt-unrelated-source',
+    unexpectedUnrelatedField: true,
+  };
+  assert.equal((await target.inspectCustody()).witnessCount, 0);
+
+  const rogueValue = credential({ credentialGeneration: 43 });
+  const rogueAuthority = new AgentAuthorityFence(rogueValue).authority;
+  const rogueKey = canonicalAgentAuthorityKey(rogueAuthority);
+  const rogueHashPrefix = Number.parseInt(
+    rogueKey.slice('sha256:'.length, 'sha256:'.length + 8),
+    16,
+  );
+  const relatedIndex = rogueHashPrefix % 64;
+  const relatedId = `snapback.agent-terminal-bucket.v2:${relatedIndex}:${targetCustodyId}`;
+  state.custody[relatedId] = {
+    formatVersion: 1,
+    recordType: 'agentTerminalBucket',
+    custodyId: relatedId,
+    sourceCustodyId: otherCustodyId,
+    revision: 1,
+    bucketIndex: relatedIndex,
+    bucketCount: 64,
+    bucketCapacity: 64,
+    entries: [{ authorityKey: rogueKey, authority: rogueAuthority }],
+  };
+  await assert.rejects(
+    target.inspectCustody(),
+    code('SNAPBACK_AUTH_CUSTODY_CORRUPT'),
+  );
+  delete state.custody[relatedId];
+
+  const rogueIndex = rogueHashPrefix % 2;
+  const rogueId = `snapback.agent-terminal-bucket.v2:${rogueIndex}:${targetCustodyId}`;
+  state.custody[rogueId] = {
+    formatVersion: 1,
+    recordType: 'agentTerminalBucket',
+    custodyId: rogueId,
+    sourceCustodyId: targetCustodyId,
+    revision: 1,
+    bucketIndex: rogueIndex,
+    bucketCount: 2,
+    bucketCapacity: 2,
+    entries: [{ authorityKey: rogueKey, authority: rogueAuthority }],
+  };
+  await assert.rejects(
+    target.inspectCustody(),
+    code('SNAPBACK_AUTH_CUSTODY_CORRUPT'),
+  );
+}
+
+// Partition scans are an explicitly bounded migration operation. A custom or
+// in-memory store above the same 4,096-entry ceiling refuses before publishing
+// a v2 primary, leaving a preparing root as fail-closed restart evidence.
+{
+  const state = { custody: Object.create(null) };
+  for (let index = 0; index < 4_097; index += 1) {
+    state.custody[`oversized-scan-fixture:${index}`] = null;
+  }
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const custodyId = 'agent:terminal-ledger-scan-limit';
+  const value = credential({ credentialGeneration: 50 });
+  const fence = new AgentAuthorityFence(value, { storage, custodyId });
+  await assert.rejects(
+    synchronizeValidated(fence, value),
+    code('SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT'),
+  );
+  assert.equal(state.custody[custodyId], undefined);
+  assert.equal(
+    state.custody[`snapback.agent-terminal-ledger.v2:${custodyId}`].phase,
+    'preparing',
+  );
+}
+
+// A failure while consulting the tuple-specific terminal bucket is a custody
 // read failure, not a harmless auxiliary miss. An already-open peer blanks and
 // wedges before surfacing the storage error, so its prior capture cannot keep
 // publishing after exclusion state becomes unknowable.
@@ -1637,9 +2458,9 @@ for (const field of ['authorityEpoch', 'revision']) {
         async withPartition(childPartition, childOperation) {
           if (
             failWitnessReads
-            && childPartition.startsWith('snapback.agent-terminal-witness.v1:')
+            && childPartition.startsWith('snapback.agent-terminal-bucket.v2:')
           ) {
-            throw new Error('injected terminal witness read failure');
+            throw new Error('injected terminal bucket read failure');
           }
           return owner.withPartition(childPartition, childOperation);
         },
@@ -1662,7 +2483,7 @@ for (const field of ['authorityEpoch', 'revision']) {
   failWitnessReads = true;
   await assert.rejects(
     synchronizeValidated(fence, value),
-    /injected terminal witness read failure/,
+    /injected terminal bucket read failure/,
   );
   assert(blanks > blanksBeforeFailure, 'witness read failure blanks the open peer');
   assert.throws(() => fence.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));

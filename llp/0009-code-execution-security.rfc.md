@@ -508,6 +508,22 @@ outer epoch alongside the outer context (same save/restore stack). Pinned by
 `dk4_stale_continuation_cannot_inject_into_another_invocation`, which fails
 against the pre-guard code.
 
+These identities are exhaustion-safe, not merely practically large. Epoch
+zero is a permanent terminal sentinel: the allocator returns `u64::MAX` once
+while moving atomically to zero, after which construction fails with
+`SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED` before setup or application
+evaluation. It never wraps to an identity that a predecessor continuation
+could still carry. The warm-pool reload generation follows the same rule in
+the only safe way available to a per-instance optimization: exhausting its
+generation permanently disables warming for that pool lineage and burns all
+subsequent check-ins, while normal fresh-per-invocation execution stays
+available. The bounded pool rebases its LRU ticks in their existing order
+before tick exhaustion, so eviction recency cannot invert through wrapping.
+`final_invocation_identity_is_unique_then_allocator_is_terminal`,
+`dk4_generation_exhaustion_permanently_falls_back_to_fresh_vms`, and
+`dk4_lru_rebases_before_tick_exhaustion_without_reversing_recency` pin these
+terminal behaviors.
+
 #### Harness control-plane boundary
 
 The ctx bootstrap evaluates before any application module and installs

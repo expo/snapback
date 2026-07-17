@@ -315,13 +315,11 @@ fn commit_mode_transaction<T>(
         return rollback_mode_transaction(&tx, predecessor, predecessor_marker.as_ref(), error);
     }
     let prepared = match authorization.as_ref() {
-        Some((witness, _)) if witness.event => match interlock
-            .as_ref()
-            .map(|interlock| {
-                interlock.prepare(witness, super::AuthorizationCommitImpact::AllProtectedRooms)
-            })
-            .transpose()
-        {
+        Some((witness, _)) if witness.event => match super::prepare_authorization_commit_interlock(
+            witness,
+            super::AuthorizationCommitImpact::AllProtectedRooms,
+            interlock.as_ref(),
+        ) {
             Ok(prepared) => prepared,
             Err(error) => {
                 return rollback_mode_transaction(
@@ -1915,9 +1913,23 @@ mod tests {
         committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
     }
 
-    impl super::super::AuthorizationCommitInterlock for RecordingModeInterlock {
-        fn prepare(
-            &self,
+    struct RecordingModeReservation {
+        prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+    }
+
+    impl RecordingModeInterlock {
+        fn reservation(&self) -> Box<dyn super::super::AuthorizationCommitReservation> {
+            Box::new(RecordingModeReservation {
+                prepared: self.prepared.clone(),
+                committed: self.committed.clone(),
+            })
+        }
+    }
+
+    impl super::super::AuthorizationCommitReservation for RecordingModeReservation {
+        fn bind(
+            self: Box<Self>,
             witness: &super::super::AuthorizationCommitWitness,
             impact: super::super::AuthorizationCommitImpact<'_>,
         ) -> SnapbackResult<Box<dyn super::super::PreparedAuthorizationCommit>> {
@@ -1932,7 +1944,31 @@ mod tests {
                 committed: self.committed.clone(),
             }))
         }
+
+        fn cancel(self: Box<Self>) {}
     }
+
+    fn with_recording_mode_reservation<T>(
+        interlock: &RecordingModeInterlock,
+        work: impl FnOnce() -> T,
+    ) -> T {
+        super::super::install_managed_authorization_reservation(interlock.reservation());
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(work));
+        let unused = super::super::take_managed_authorization_reservation();
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        if let Some(unused) = unused {
+            unused.cancel();
+        }
+        crate::exec_guard::run_after_local_batch(batch);
+        match output {
+            Ok(output) => output,
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
+    }
+
+    impl super::super::AuthorizationCommitInterlock for RecordingModeInterlock {}
 
     impl super::super::PreparedAuthorizationCommit for RecordingModeCommit {
         fn committed(self: Box<Self>, _min_commit_version: u64) -> SnapbackResult<()> {
@@ -2311,10 +2347,11 @@ mod tests {
 
         let prepared = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
         let committed = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
-        database.install_authorization_interlock(std::sync::Arc::new(RecordingModeInterlock {
+        let interlock = std::sync::Arc::new(RecordingModeInterlock {
             prepared: prepared.clone(),
             committed: committed.clone(),
-        }));
+        });
+        database.install_authorization_interlock(interlock.clone());
         let seed = SeedData {
             tables: BTreeMap::from([(
                 "permission_items".to_owned(),
@@ -2325,8 +2362,9 @@ mod tests {
             )]),
         };
         inject_auth_mode_commit_boundary_failure(AuthModeCommitBoundary::AfterRollback);
-        match database.apply_same_mode_network_deployment_classified(identity, manifest, Some(seed))
-        {
+        match with_recording_mode_reservation(&interlock, || {
+            database.apply_same_mode_network_deployment_classified(identity, manifest, Some(seed))
+        }) {
             DurableModeCommit::RolledBack(error) => assert_eq!(
                 error.diagnostic.code,
                 "TEST_AUTH_MODE_COMMIT_BOUNDARY_FAILURE"

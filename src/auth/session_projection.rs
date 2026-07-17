@@ -16,8 +16,10 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::fmt;
 use std::num::NonZeroU64;
 use std::ops::{Deref, DerefMut};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::{Duration, Instant};
+use tokio::sync::Notify;
 use uuid::Uuid;
 
 pub(crate) const AUTHORIZATION_STREAM_FORMAT_VERSION: u32 = 1;
@@ -27,6 +29,7 @@ pub(crate) const SESSION_TERMINAL_CAUSE_META_PREFIX: &str = "auth_session_termin
 const MAX_SAFE_TIMESTAMP: u64 = 9_007_199_254_740_991;
 const MAX_SAFE_GENERATION: u64 = 9_007_199_254_740_991;
 pub(crate) const TERMINAL_CLOSE_GRACE: Duration = Duration::from_millis(5_000);
+const MAX_IN_FLIGHT_AUTHORITY_WORK: usize = 4_096;
 
 std::thread_local! {
     static HELD_AUTH_LOCK_RANKS: std::cell::RefCell<Vec<u8>> = const { std::cell::RefCell::new(Vec::new()) };
@@ -35,11 +38,17 @@ std::thread_local! {
 pub(crate) const AUTH_LOCK_RANK_TOPOLOGY: u8 = 10;
 const AUTH_LOCK_RANK_STREAM: u8 = 20;
 const AUTH_LOCK_RANK_SESSION: u8 = 30;
+// @ref LLP 0059#locking-and-linearization — the independent mode cut is the
+// final lock in a composed publication; registry and mode ranks make that
+// cross-module order executable in every debug/test build.
+pub(crate) const AUTH_LOCK_RANK_CONNECTION_REGISTRY: u8 = 40;
+pub(crate) const AUTH_LOCK_RANK_MODE_ADMISSION: u8 = 50;
 
-struct LockRankGuard(u8);
+pub(crate) struct AuthLockRankGuard(u8);
 
-impl LockRankGuard {
-    fn enter(rank: u8) -> Self {
+impl AuthLockRankGuard {
+    pub(crate) fn enter(rank: u8) -> Self {
+        crate::exec_guard::debug_assert_auth_lock_outside_local_snapback(rank);
         HELD_AUTH_LOCK_RANKS.with(|held| {
             let mut held = held.borrow_mut();
             if cfg!(debug_assertions) {
@@ -55,7 +64,7 @@ impl LockRankGuard {
     }
 }
 
-impl Drop for LockRankGuard {
+impl Drop for AuthLockRankGuard {
     fn drop(&mut self) {
         HELD_AUTH_LOCK_RANKS.with(|held| {
             let popped = held.borrow_mut().pop();
@@ -70,7 +79,7 @@ impl Drop for LockRankGuard {
 
 pub(crate) struct RankedMutexGuard<'a, T> {
     guard: MutexGuard<'a, T>,
-    _rank: LockRankGuard,
+    _rank: AuthLockRankGuard,
 }
 
 impl<T> Deref for RankedMutexGuard<'_, T> {
@@ -90,12 +99,26 @@ pub(crate) fn ranked_mutex_lock<'a, T>(
     mutex: &'a Mutex<T>,
     rank: u8,
 ) -> Result<RankedMutexGuard<'a, T>, std::sync::PoisonError<MutexGuard<'a, T>>> {
-    let rank_guard = LockRankGuard::enter(rank);
+    let rank_guard = AuthLockRankGuard::enter(rank);
     let guard = mutex.lock()?;
     Ok(RankedMutexGuard {
         guard,
         _rank: rank_guard,
     })
+}
+
+pub(crate) fn ranked_mutex_lock_unpoisoned<T>(
+    mutex: &Mutex<T>,
+    rank: u8,
+) -> RankedMutexGuard<'_, T> {
+    let rank_guard = AuthLockRankGuard::enter(rank);
+    let guard = mutex
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    RankedMutexGuard {
+        guard,
+        _rank: rank_guard,
+    }
 }
 
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
@@ -610,6 +633,47 @@ struct SampledDueExpiry {
     close_by: Instant,
 }
 
+#[derive(Debug)]
+pub(crate) struct PremarkedDueExpiry {
+    pub(crate) ticket: MutationTicket,
+    pub(crate) session_id: String,
+    pub(crate) drain: AuthorityWorkDrain,
+    generation: u64,
+    deadline: DeadlinePair,
+    close_by: Instant,
+}
+
+#[derive(Debug)]
+pub(crate) struct PremarkedDueExpiryBatch {
+    pub(crate) entries: Vec<PremarkedDueExpiry>,
+    sampled_epoch_ms: u64,
+    sampled_monotonic: Instant,
+}
+
+#[derive(Debug)]
+pub(crate) struct DueExpiryFinalization {
+    expired: Vec<ExpiredSession>,
+    failed_closed: bool,
+}
+
+impl DueExpiryFinalization {
+    pub(crate) fn failed_closed(&self) -> bool {
+        self.failed_closed
+    }
+
+    pub(crate) fn into_parts(self) -> (Vec<ExpiredSession>, bool) {
+        (self.expired, self.failed_closed)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn failed_for_test(expired: Vec<ExpiredSession>) -> Self {
+        Self {
+            expired,
+            failed_closed: true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct ProjectedSessionInsert {
     pub session_id: String,
@@ -675,6 +739,7 @@ enum ProjectedToken {
 #[derive(Debug)]
 pub(crate) struct SessionFence {
     state: Mutex<SessionFenceState>,
+    in_flight_authority_work: Arc<AuthorityWorkCounter>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -694,6 +759,7 @@ impl SessionFence {
                 terminal,
                 pending_tickets: BTreeSet::new(),
             }),
+            in_flight_authority_work: Arc::new(AuthorityWorkCounter::default()),
         }
     }
 
@@ -743,6 +809,7 @@ fn terminal_resolution_reason(
 #[derive(Debug)]
 pub(crate) struct StreamFence {
     state: Mutex<StreamFenceState>,
+    in_flight_authority_work: Arc<AuthorityWorkCounter>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -758,6 +825,7 @@ impl StreamFence {
                 incarnation,
                 pending_tickets: BTreeSet::new(),
             }),
+            in_flight_authority_work: Arc::new(AuthorityWorkCounter::default()),
         }
     }
 
@@ -783,6 +851,111 @@ pub(crate) struct FencedPublication {
     expected_incarnation: AuthorizationStreamIncarnation,
     stream: Arc<StreamFence>,
     session: Option<SessionPublicationFence>,
+}
+
+/// A retained proof that one bounded unit of authority work linearized while
+/// its exact stream/session predecessor was current. Terminal mutation begins
+/// under the same fence locks and refuses while the matching counter is
+/// nonzero. Releasing the proof is intentionally lock-free so callers may
+/// carry it across work that must not acquire authorization locks.
+#[derive(Debug)]
+#[must_use = "dropping the permit releases its authority-work reservation"]
+pub(crate) struct FencedAuthorityWorkPermit {
+    stream: Arc<StreamFence>,
+    session: Option<Arc<SessionFence>>,
+}
+
+#[derive(Debug, Default)]
+struct AuthorityWorkCounter {
+    active: AtomicUsize,
+    drained: Notify,
+}
+
+/// Cloneable waiter returned only after its exact pending marker has closed
+/// new reservations. Waiting owns no topology or leaf guard and never blocks
+/// a Tokio worker thread.
+#[derive(Clone, Debug)]
+pub(crate) struct AuthorityWorkDrain {
+    counter: Arc<AuthorityWorkCounter>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct PremarkedAuthorityMutation {
+    pub(crate) ticket: MutationTicket,
+    pub(crate) drain: AuthorityWorkDrain,
+}
+
+impl Deref for PremarkedAuthorityMutation {
+    type Target = MutationTicket;
+
+    fn deref(&self) -> &Self::Target {
+        &self.ticket
+    }
+}
+
+impl fmt::Display for PremarkedAuthorityMutation {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        self.ticket.fmt(formatter)
+    }
+}
+
+impl PartialEq for PremarkedAuthorityMutation {
+    fn eq(&self, other: &Self) -> bool {
+        self.ticket == other.ticket
+    }
+}
+
+impl Eq for PremarkedAuthorityMutation {}
+
+impl AuthorityWorkDrain {
+    pub(crate) fn is_drained(&self) -> bool {
+        self.counter.active.load(Ordering::SeqCst) == 0
+    }
+
+    pub(crate) async fn wait(self) {
+        loop {
+            let notified = self.counter.drained.notified();
+            tokio::pin!(notified);
+            notified.as_mut().enable();
+            if self.is_drained() {
+                return;
+            }
+            notified.await;
+        }
+    }
+}
+
+fn try_acquire_authority_work(counter: &AuthorityWorkCounter) -> bool {
+    counter
+        .active
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            (current < MAX_IN_FLIGHT_AUTHORITY_WORK).then_some(current + 1)
+        })
+        .is_ok()
+}
+
+fn release_authority_work(counter: &AuthorityWorkCounter) {
+    let released = counter
+        .active
+        .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |current| {
+            current.checked_sub(1)
+        });
+    debug_assert!(
+        released.is_ok(),
+        "an authority-work permit counter was released below zero"
+    );
+    if matches!(released, Ok(1)) {
+        counter.drained.notify_waiters();
+    }
+}
+
+impl Drop for FencedAuthorityWorkPermit {
+    fn drop(&mut self) {
+        if let Some(session) = &self.session {
+            release_authority_work(&session.in_flight_authority_work);
+        }
+        release_authority_work(&self.stream.in_flight_authority_work);
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -825,6 +998,61 @@ impl FencedPublication {
             return Ok(None);
         }
         publish().map(Some)
+    }
+
+    /// Reserve one bounded unit of work only while the exact stream/session
+    /// authority is current. The returned permit retains that authorization
+    /// cut after the guards are released; a matching terminal mutation cannot
+    /// install its durable premark until the permit is dropped.
+    pub(crate) fn try_reserve_work(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<Option<FencedAuthorityWorkPermit>> {
+        validate_timestamp_u64(epoch_now_ms)?;
+        let stream_state = self.stream.lock()?;
+        if !StreamFence::admits_locked(&stream_state, &self.expected_incarnation) {
+            return Ok(None);
+        }
+
+        let session = match &self.session {
+            Some(session) => {
+                let session_state = session.session.lock()?;
+                if !SessionFence::admits_locked(
+                    &session_state,
+                    session.expected_generation,
+                    epoch_now_ms,
+                    monotonic_now,
+                ) {
+                    return Ok(None);
+                }
+                if !try_acquire_authority_work(&self.stream.in_flight_authority_work) {
+                    return Err(projection_unavailable(
+                        "the authorization stream has too much in-flight authority work",
+                    ));
+                }
+                if !try_acquire_authority_work(&session.session.in_flight_authority_work) {
+                    release_authority_work(&self.stream.in_flight_authority_work);
+                    return Err(projection_unavailable(
+                        "the session has too much in-flight authority work",
+                    ));
+                }
+                Some(Arc::clone(&session.session))
+            }
+            None => {
+                if !try_acquire_authority_work(&self.stream.in_flight_authority_work) {
+                    return Err(projection_unavailable(
+                        "the authorization stream has too much in-flight authority work",
+                    ));
+                }
+                None
+            }
+        };
+
+        Ok(Some(FencedAuthorityWorkPermit {
+            stream: Arc::clone(&self.stream),
+            session,
+        }))
     }
 
     /// Return the exact committed session cause that made this publication
@@ -1263,11 +1491,11 @@ impl SessionProjection {
     /// Terminalize only the sampled predecessors whose complete deadline
     /// frontier has already been persisted. An extended/revoked replacement
     /// is skipped; it is never confused with the sampled generation/deadline.
-    pub(crate) fn expire_sampled_due(
+    pub(crate) fn begin_sampled_due_expiries(
         &mut self,
         batch: DueExpiryBatch,
-    ) -> SnapbackResult<Vec<ExpiredSession>> {
-        let mut expired = Vec::with_capacity(batch.entries.len());
+    ) -> SnapbackResult<PremarkedDueExpiryBatch> {
+        let mut premarked: Vec<PremarkedDueExpiry> = Vec::with_capacity(batch.entries.len());
         for entry in batch.entries {
             let still_matches = self
                 .by_session
@@ -1280,18 +1508,75 @@ impl SessionProjection {
             if !still_matches {
                 continue;
             }
-            let ticket = self.begin_expiry(
+            let premarked_expiry = match self.begin_expiry(
                 &entry.session_id,
                 entry.generation,
                 batch.sampled_epoch_ms,
                 batch.sampled_monotonic,
-            )?;
-            self.finalize_expiry(
-                &ticket,
-                &entry.session_id,
+            ) {
+                Ok(premarked) => premarked,
+                Err(error) => {
+                    for prior in premarked.iter().rev() {
+                        let _ = self.compare_unmark_session(&prior.ticket, &prior.session_id);
+                    }
+                    return Err(error);
+                }
+            };
+            premarked.push(PremarkedDueExpiry {
+                ticket: premarked_expiry.ticket,
+                session_id: entry.session_id,
+                drain: premarked_expiry.drain,
+                generation: entry.generation,
+                deadline: entry.deadline,
+                close_by: entry.close_by,
+            });
+        }
+        Ok(PremarkedDueExpiryBatch {
+            entries: premarked,
+            sampled_epoch_ms: batch.sampled_epoch_ms,
+            sampled_monotonic: batch.sampled_monotonic,
+        })
+    }
+
+    pub(crate) fn finalize_sampled_due_expiries(
+        &mut self,
+        batch: PremarkedDueExpiryBatch,
+    ) -> DueExpiryFinalization {
+        let mut expired = Vec::with_capacity(batch.entries.len());
+        let mut failed_closed = false;
+        for entry in batch.entries {
+            let still_matches = match self.sampled_due_expiry_still_matches(
+                &entry,
                 batch.sampled_epoch_ms,
                 batch.sampled_monotonic,
-            )?;
+            ) {
+                Ok(still_matches) => still_matches,
+                Err(_) => {
+                    failed_closed = true;
+                    continue;
+                }
+            };
+            if !still_matches {
+                if !matches!(
+                    self.compare_unmark_session(&entry.ticket, &entry.session_id),
+                    Ok(true)
+                ) {
+                    failed_closed = true;
+                }
+                continue;
+            }
+            if self
+                .finalize_expiry(
+                    &entry.ticket,
+                    &entry.session_id,
+                    batch.sampled_epoch_ms,
+                    batch.sampled_monotonic,
+                )
+                .is_err()
+            {
+                failed_closed = true;
+                continue;
+            }
             expired.push(ExpiredSession {
                 authorization_stream_incarnation: self.incarnation.as_str().to_owned(),
                 session_id: entry.session_id,
@@ -1299,7 +1584,90 @@ impl SessionProjection {
                 close_by: entry.close_by,
             });
         }
-        Ok(expired)
+        DueExpiryFinalization {
+            expired,
+            failed_closed,
+        }
+    }
+
+    /// Classify a sampled expiry while the topology lock excludes any further
+    /// session mutation. A sibling terminal mutation or deadline replacement
+    /// is an expected CAS loss: the expiry must exact-unmark its own ticket and
+    /// leave the sibling's authoritative state intact. Ticket/fence
+    /// contradictions remain fail-closed projection errors.
+    ///
+    /// @ref LLP 0059#operation-specific-publication — batch siblings settle
+    /// independently without discarding successful terminal outputs.
+    fn sampled_due_expiry_still_matches(
+        &self,
+        entry: &PremarkedDueExpiry,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> SnapbackResult<bool> {
+        let session = self.session_for_ticket(&entry.ticket, &entry.session_id)?;
+        let pending = session
+            .pending
+            .get(&entry.ticket)
+            .ok_or_else(|| projection_unavailable("sampled expiry ticket is not pending"))?;
+        if pending.expected_generation != entry.generation
+            || pending.kind
+                != (PendingMutationKind::Expire {
+                    deadline: entry.deadline,
+                })
+            || entry.deadline.live_at(epoch_now_ms, monotonic_now)
+        {
+            return Err(projection_unavailable(
+                "sampled expiry ticket does not own its exact due predecessor",
+            ));
+        }
+
+        let fence = session.fence.lock()?;
+        let expected_terminal = match session.state {
+            ProjectedSessionState::Current => None,
+            ProjectedSessionState::Revoked { reason } => Some(reason),
+            ProjectedSessionState::Expired => Some(RevocationReason::Expired),
+            ProjectedSessionState::Uncertain => Some(RevocationReason::Uncertain),
+        };
+        if !fence.pending_tickets.contains(&entry.ticket)
+            || fence.generation != session.generation
+            || fence.deadline != session.deadline
+            || fence.terminal != expected_terminal
+        {
+            return Err(projection_unavailable(
+                "sampled expiry ticket does not match its session leaf",
+            ));
+        }
+        Ok(session.generation == entry.generation
+            && session.state == ProjectedSessionState::Current
+            && session.deadline == entry.deadline)
+    }
+
+    #[cfg(test)]
+    pub(crate) fn expire_sampled_due(
+        &mut self,
+        batch: DueExpiryBatch,
+    ) -> SnapbackResult<Vec<ExpiredSession>> {
+        let premarked = self.begin_sampled_due_expiries(batch)?;
+        if premarked
+            .entries
+            .iter()
+            .any(|entry| !entry.drain.is_drained())
+        {
+            for entry in &premarked.entries {
+                let _ = self.compare_unmark_session(&entry.ticket, &entry.session_id);
+            }
+            return Err(projection_unavailable(
+                "sampled expiry still has in-flight authority work",
+            ));
+        }
+        let (expired, failed_closed) = self.finalize_sampled_due_expiries(premarked).into_parts();
+        if failed_closed {
+            Err(projection_unavailable(
+                "sampled expiry finalization failed closed",
+            ))
+        } else {
+            Ok(expired)
+        }
     }
 
     /// Expiry scheduling never sleeps more than one second, so a forward wall
@@ -1798,7 +2166,7 @@ impl SessionProjection {
         session_id: &str,
         expected_generation: u64,
         kind: PendingMutationKind,
-    ) -> SnapbackResult<MutationTicket> {
+    ) -> SnapbackResult<PremarkedAuthorityMutation> {
         if matches!(kind, PendingMutationKind::Expire { .. }) {
             return Err(projection_unavailable(
                 "expiry must use the deadline-proving begin operation",
@@ -1844,13 +2212,13 @@ impl SessionProjection {
             }
             Arc::clone(&session.fence)
         };
-        let ticket = self.allocate_ticket()?;
         let mut fence_state = fence.lock()?;
         if fence_state.generation != expected_generation || fence_state.terminal.is_some() {
             return Err(projection_unavailable(
                 "the planned session no longer matches its leaf fence",
             ));
         }
+        let ticket = self.allocate_ticket()?;
         let session = self
             .by_session
             .get_mut(session_id)
@@ -1865,7 +2233,12 @@ impl SessionProjection {
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
         fence_state.pending_tickets.insert(ticket.clone());
-        Ok(ticket)
+        Ok(PremarkedAuthorityMutation {
+            ticket,
+            drain: AuthorityWorkDrain {
+                counter: Arc::clone(&fence.in_flight_authority_work),
+            },
+        })
     }
 
     /// Atomically prove an authoritative deadline has elapsed and install its
@@ -1878,7 +2251,7 @@ impl SessionProjection {
         expected_generation: u64,
         epoch_now_ms: u64,
         monotonic_now: Instant,
-    ) -> SnapbackResult<MutationTicket> {
+    ) -> SnapbackResult<PremarkedAuthorityMutation> {
         validate_timestamp_u64(epoch_now_ms)?;
         let stream_fence = Arc::clone(&self.stream_fence);
         let stream_state = stream_fence.lock()?;
@@ -1901,7 +2274,6 @@ impl SessionProjection {
             }
             (Arc::clone(&session.fence), session.deadline)
         };
-        let ticket = self.allocate_ticket()?;
         let mut fence_state = fence.lock()?;
         if fence_state.generation != expected_generation
             || fence_state.terminal.is_some()
@@ -1912,6 +2284,7 @@ impl SessionProjection {
                 "the expiry deadline no longer matches its leaf fence",
             ));
         }
+        let ticket = self.allocate_ticket()?;
         self.by_session
             .get_mut(session_id)
             .expect("session validated before leaf acquisition")
@@ -1926,7 +2299,12 @@ impl SessionProjection {
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Session(session_id.to_owned()));
         fence_state.pending_tickets.insert(ticket.clone());
-        Ok(ticket)
+        Ok(PremarkedAuthorityMutation {
+            ticket,
+            drain: AuthorityWorkDrain {
+                counter: Arc::clone(&fence.in_flight_authority_work),
+            },
+        })
     }
 
     /// Remove only the marker still owned by this exact ticket. Generation or
@@ -2195,7 +2573,7 @@ impl SessionProjection {
     pub(crate) fn begin_stream_mutation(
         &mut self,
         successor: AuthorizationStreamIncarnation,
-    ) -> SnapbackResult<MutationTicket> {
+    ) -> SnapbackResult<PremarkedAuthorityMutation> {
         if !self.ticket_index.is_empty() {
             return Err(projection_unavailable(
                 "the authorization stream has in-flight session mutations",
@@ -2218,7 +2596,12 @@ impl SessionProjection {
         self.ticket_index
             .insert(ticket.clone(), TicketOwner::Stream);
         self.stream_pending.insert(ticket.clone(), successor);
-        Ok(ticket)
+        Ok(PremarkedAuthorityMutation {
+            ticket,
+            drain: AuthorityWorkDrain {
+                counter: Arc::clone(&fence.in_flight_authority_work),
+            },
+        })
     }
 
     pub(crate) fn compare_unmark_stream(
@@ -2653,6 +3036,16 @@ mod tests {
         }
     }
 
+    fn two_session_source() -> ProjectionSource {
+        let mut source = source();
+        let mut second = source.sessions[0].clone();
+        second.id = uuid_v7(6, 6);
+        second.authority_instance_id = uuid_v7(7, 7);
+        second.token_hash = vec![12; 32];
+        source.sessions.push(second);
+        source
+    }
+
     fn startup_id() -> String {
         uuid_v7(10, 10)
     }
@@ -2953,6 +3346,227 @@ mod tests {
     }
 
     #[test]
+    fn session_premark_closes_new_work_then_drains_the_exact_predecessor() {
+        let monotonic_now = Instant::now();
+        let mut projection = rebuild_at(source(), monotonic_now);
+        let session_id = only_session_id(&projection);
+        let publication = projection
+            .session_publication_fence(&session_id, 1)
+            .unwrap();
+
+        let permit = publication
+            .try_reserve_work(101, monotonic_now)
+            .unwrap()
+            .expect("current session reserves retained work");
+        let terminal = projection
+            .begin_session_mutation(
+                &session_id,
+                1,
+                PendingMutationKind::Revoke {
+                    reason: RevocationReason::Logout,
+                },
+            )
+            .expect("terminal marker closes admission before existing work drains");
+        assert_eq!(terminal.to_string(), format!("{}:1", startup_id()));
+        assert!(!terminal.drain.is_drained());
+        assert!(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap()
+                .is_none(),
+            "a terminal premark that wins must refuse later work"
+        );
+        drop(permit);
+        assert!(terminal.drain.is_drained());
+        assert!(
+            projection
+                .compare_unmark_session(&terminal, &session_id)
+                .unwrap()
+        );
+        assert!(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn expiry_premark_closes_new_work_then_drains_the_exact_predecessor() {
+        let monotonic_now = Instant::now();
+        let mut projection = rebuild_at(source(), monotonic_now);
+        let session_id = only_session_id(&projection);
+        let publication = projection
+            .session_publication_fence(&session_id, 1)
+            .unwrap();
+        let permit = publication
+            .try_reserve_work(199, monotonic_now + Duration::from_millis(99))
+            .unwrap()
+            .expect("work starts immediately before the exact deadline");
+
+        let expiry = projection
+            .begin_expiry(
+                &session_id,
+                1,
+                200,
+                monotonic_now + Duration::from_millis(100),
+            )
+            .expect("expiry marker closes admission before existing work drains");
+        assert!(!expiry.drain.is_drained());
+        assert!(
+            publication
+                .try_reserve_work(199, monotonic_now + Duration::from_millis(99))
+                .unwrap()
+                .is_none()
+        );
+        drop(permit);
+        assert!(expiry.drain.is_drained());
+        assert!(
+            projection
+                .compare_unmark_session(&expiry, &session_id)
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn stream_premark_closes_new_work_then_drains_the_exact_predecessor() {
+        let monotonic_now = Instant::now();
+        let mut projection = rebuild_at(source(), monotonic_now);
+        let publication = projection.anonymous_publication_fence();
+        let permit = publication
+            .try_reserve_work(101, monotonic_now)
+            .unwrap()
+            .expect("current stream reserves retained work");
+        let successor = AuthorizationStreamIncarnation::parse(&uuid_v7(21, 21)).unwrap();
+
+        let reset = projection
+            .begin_stream_mutation(successor)
+            .expect("stream marker closes admission before existing work drains");
+        assert!(!reset.drain.is_drained());
+        assert!(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap()
+                .is_none(),
+            "a stream-reset premark that wins must refuse later work"
+        );
+        drop(permit);
+        assert!(reset.drain.is_drained());
+        assert!(projection.compare_unmark_stream(&reset).unwrap());
+        assert!(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap()
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn retained_work_counters_are_bounded_and_release_on_error_unwind() {
+        let monotonic_now = Instant::now();
+        let projection = rebuild_at(source(), monotonic_now);
+        let session_id = only_session_id(&projection);
+        let publication = projection
+            .session_publication_fence(&session_id, 1)
+            .unwrap();
+        let mut permits = Vec::with_capacity(MAX_IN_FLIGHT_AUTHORITY_WORK);
+        for _ in 0..MAX_IN_FLIGHT_AUTHORITY_WORK {
+            permits.push(
+                publication
+                    .try_reserve_work(101, monotonic_now)
+                    .unwrap()
+                    .expect("capacity slot"),
+            );
+        }
+        assert_code(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap_err(),
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert_eq!(
+            publication
+                .stream
+                .in_flight_authority_work
+                .active
+                .load(Ordering::SeqCst),
+            MAX_IN_FLIGHT_AUTHORITY_WORK
+        );
+        assert_eq!(
+            publication
+                .session
+                .as_ref()
+                .unwrap()
+                .session
+                .in_flight_authority_work
+                .active
+                .load(Ordering::SeqCst),
+            MAX_IN_FLIGHT_AUTHORITY_WORK
+        );
+        drop(permits);
+
+        let session_counter = &publication
+            .session
+            .as_ref()
+            .unwrap()
+            .session
+            .in_flight_authority_work;
+        session_counter
+            .active
+            .store(MAX_IN_FLIGHT_AUTHORITY_WORK, Ordering::SeqCst);
+        assert_code(
+            publication
+                .try_reserve_work(101, monotonic_now)
+                .unwrap_err(),
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert_eq!(
+            publication
+                .stream
+                .in_flight_authority_work
+                .active
+                .load(Ordering::SeqCst),
+            0,
+            "a session-cap refusal must roll back its provisional stream slot"
+        );
+        assert_eq!(
+            session_counter.active.load(Ordering::SeqCst),
+            MAX_IN_FLIGHT_AUTHORITY_WORK
+        );
+        session_counter.active.store(0, Ordering::SeqCst);
+
+        let failed = (|| -> SnapbackResult<()> {
+            let _permit = publication
+                .try_reserve_work(101, monotonic_now)?
+                .expect("released capacity can be reused");
+            Err(projection_unavailable("synthetic staged closure failure"))
+        })();
+        assert_code(
+            failed.expect_err("synthetic closure fails"),
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert_eq!(
+            publication
+                .stream
+                .in_flight_authority_work
+                .active
+                .load(Ordering::SeqCst),
+            0
+        );
+        assert_eq!(
+            publication
+                .session
+                .as_ref()
+                .unwrap()
+                .session
+                .in_flight_authority_work
+                .active
+                .load(Ordering::SeqCst),
+            0
+        );
+    }
+
+    #[test]
     fn due_expiry_is_terminal_even_if_wall_clock_moves_backward() {
         let monotonic_now = Instant::now();
         let mut projection = rebuild_at(source(), monotonic_now);
@@ -2982,6 +3596,120 @@ mod tests {
                     monotonic_now + Duration::from_millis(50),
                 )
                 .unwrap()
+        );
+        projection.check_invariants().unwrap();
+    }
+
+    /// A sampled batch owns one exact ticket per session. If a concurrent
+    /// logout or security revocation wins one leaf after both expiry tickets
+    /// are installed, that expected CAS loser must not discard the other
+    /// session's successful terminal result or leave its own ticket stranded.
+    #[test]
+    fn sampled_expiry_settles_sibling_revocation_without_losing_successes() {
+        for reason in [RevocationReason::Logout, RevocationReason::FamilyAlarm] {
+            let monotonic_now = Instant::now();
+            let mut projection = rebuild_at(two_session_source(), monotonic_now);
+            let expired_session_id = uuid_v7(4, 4);
+            let revoked_session_id = uuid_v7(6, 6);
+            let incarnation = projection.incarnation().as_str().to_owned();
+            let due = projection
+                .sample_due_expiries(200, monotonic_now + Duration::from_millis(50))
+                .unwrap()
+                .expect("both sessions are sampled due");
+            assert_eq!(due.entries.len(), 2);
+            let premarked = projection.begin_sampled_due_expiries(due).unwrap();
+            assert_eq!(premarked.entries.len(), 2);
+
+            let sibling = projection
+                .begin_session_mutation(
+                    &revoked_session_id,
+                    1,
+                    PendingMutationKind::Revoke { reason },
+                )
+                .expect("sibling terminal mutation may race the installed expiry");
+            projection
+                .finalize_revocation(&sibling.ticket, &revoked_session_id, 2)
+                .expect("sibling revocation wins its leaf");
+
+            let finalized = projection.finalize_sampled_due_expiries(premarked);
+            assert!(
+                !finalized.failed_closed(),
+                "the losing expiry is an expected CAS outcome",
+            );
+            let (expired, failed_closed) = finalized.into_parts();
+            assert!(!failed_closed);
+            assert_eq!(
+                expired,
+                vec![ExpiredSession {
+                    authorization_stream_incarnation: incarnation,
+                    session_id: expired_session_id.clone(),
+                    generation: 1,
+                    close_by: monotonic_now + Duration::from_millis(50) + TERMINAL_CLOSE_GRACE,
+                }],
+                "the sibling loss cannot discard an already-terminalized session",
+            );
+            assert_eq!(
+                projection.by_session[&expired_session_id].state,
+                ProjectedSessionState::Expired,
+            );
+            assert_eq!(
+                projection.by_session[&revoked_session_id].state,
+                ProjectedSessionState::Revoked { reason },
+            );
+            assert!(
+                projection.ticket_index.is_empty()
+                    && projection
+                        .by_session
+                        .values()
+                        .all(|session| session.pending.is_empty()),
+                "both the winning sibling and losing expiry tickets are settled",
+            );
+            projection.check_invariants().unwrap();
+        }
+    }
+
+    #[test]
+    fn contradictory_expiry_entry_preserves_successful_terminal_outputs() {
+        let monotonic_now = Instant::now();
+        let mut projection = rebuild_at(two_session_source(), monotonic_now);
+        let expired_session_id = uuid_v7(4, 4);
+        let contradictory_session_id = uuid_v7(6, 6);
+        let due = projection
+            .sample_due_expiries(200, monotonic_now + Duration::from_millis(50))
+            .unwrap()
+            .expect("both sessions are sampled due");
+        let premarked = projection.begin_sampled_due_expiries(due).unwrap();
+        assert_eq!(premarked.entries[0].session_id, expired_session_id);
+        assert_eq!(premarked.entries[1].session_id, contradictory_session_id);
+        let contradictory_ticket = premarked.entries[1].ticket.clone();
+        projection
+            .by_session
+            .get_mut(&contradictory_session_id)
+            .unwrap()
+            .pending
+            .get_mut(&contradictory_ticket)
+            .unwrap()
+            .expected_generation = 2;
+
+        let finalized = projection.finalize_sampled_due_expiries(premarked);
+        let (expired, failed_closed) = finalized.into_parts();
+        assert!(failed_closed, "the contradictory entry fails closed");
+        assert_eq!(expired.len(), 1);
+        assert_eq!(expired[0].session_id, expired_session_id);
+        assert_eq!(
+            projection.by_session[&expired_session_id].state,
+            ProjectedSessionState::Expired,
+        );
+        assert!(
+            projection.by_session[&contradictory_session_id]
+                .pending
+                .contains_key(&contradictory_ticket),
+            "the contradictory leaf retains its fail-closed barrier",
+        );
+        assert!(
+            projection
+                .compare_unmark_session(&contradictory_ticket, &contradictory_session_id)
+                .unwrap(),
         );
         projection.check_invariants().unwrap();
     }

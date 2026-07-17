@@ -5,7 +5,27 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (client-store format-6 terminal fencing: the persisted anti-rebind marker is mandatory, v5 migration is deletion-only, delayed adoption compares store generation, the final safe generation is reserved for terminal deletion, and shared client-store writers require coordinated rollout). 2026-07-16 (Agent terminal-ledger reconciliation: tuple witnesses
+**Revised:** 2026-07-17 (Contract client lifecycle generation closure: resume, socket-loss, and swappable-ephemeral identities share one checked allocator; exhaustion synchronously blanks and terminally detaches the affected publication surface, settles pending barrier work, and never requires a disposal generation). 2026-07-17 (managed-Local/ephemeral separation and room-commit
+interlock closure: authorization writes reserve and quiesce their exact room
+selector before Local and SQLite, bind only lock-free transaction witnesses,
+revalidate durable/app/definition/issuer generations, and settle committed or
+known-rollback effects only after Local; neutral writes touch no room registry,
+ambiguous commits remain closed, cancellation exact-unmarks, direct embedders
+use the same synchronous scoped handoff, and inspect/reset/definition/notifier
+effects are split from Local ownership). 2026-07-17 (terminal delivery and retired-id cleanup closure: the
+registry installs the exact typed event and wake before infallibly removing
+the checked grant, the following exact purge releases predecessor leases
+silently, and a mint-only retired grant receives
+ephemeral/Local/ephemeral whole-id cleanup; bulk maintenance spawns every
+owned cleanup before awaiting any child).
+2026-07-17 (post-drain cancellation closure: session/reset
+carriers and the drained finite-service domain gate synchronously transfer to
+independently owned Local/SQLite/finalize/propagate tasks before another await,
+so request cancellation drops only a response waiter). 2026-07-17 (Agent filesystem capability closure: one dedicated
+helper retains the validated custody-directory inode and performs the relative
+SQLite lock, record, atomic replacement, fsync, and bounded orphan cleanup;
+helper loss closes that process until restart rather than re-resolving a mutable
+pathname). 2026-07-16 (connection-live staging and teardown closure: reservation-only Local stages cross one exact CAS under the canonical auth/registry/mode order, an owned finalizer retains lock-free stream/session/service work permits through post-cut Local work, terminal premark closes new admission before asynchronously draining predecessor permits, and socket/admin/idle cleanup splits exact grant or generation ownership from ephemeral and Local phases). 2026-07-16 (composed publication lock order: the stream/session leaf and exact connection registry precede the independent mode-admission effect guard at every bounded handoff, forbidding the reverse edge that deadlocked concurrent authenticated live subscriptions). 2026-07-16 (client-store format-6 terminal fencing: the persisted anti-rebind marker is mandatory, v5 migration is deletion-only, delayed adoption compares store generation, the final safe generation is reserved for terminal deletion, and shared client-store writers require coordinated rollout). 2026-07-16 (Agent terminal-ledger reconciliation: tuple witnesses
 share one universal gate with primary custody, persist before primary
 interpretation, old tombstones backfill before
 replacement, adapter partition ownership and coordinated rollout are explicit,
@@ -549,8 +569,15 @@ operations. Neither substitutes for the other.
   grant/effect for the predecessor generation.
 - **Expiry:** observation of either authoritative deadline installs
   `Expired` through a unique ticket that is allocated, finalized, and removed
-  under the topology/fence update; sibling pending tickets remain. Time cannot
-  roll back into a live session. It immediately starts terminal close. Durable
+  under the topology/fence update; sibling pending tickets remain. A sampled
+  multi-session batch settles every exact ticket independently: a sibling
+  terminal mutation or deadline replacement is an expected compare-and-swap
+  loss that exact-unmarks only the expiry ticket, while other successfully
+  expired sessions remain terminal outputs. A contradictory entry fails the
+  projection closed only after all otherwise-settleable entries have been
+  processed, and every successful terminal output reaches Propagate before the
+  batch error is surfaced. Time cannot roll back into a live session. It
+  immediately starts terminal close. Durable
   `expires_at_ms` already proves the state, so expiry does not invent a
   generation bump or require a write to become authoritative. Any later
   GC/bookkeeping write is detached, and restart derives the same terminal
@@ -608,9 +635,9 @@ is not use.
 The following rules are unconditional:
 
 - Never hold the projection topology mutex, stream fence, session fence,
-  connection-registry mutex, room mutex, or notifier mutex while holding
-  `LocalSnapback`, the provider/catalog mutex, a SQLite writer, or a SQLite
-  transaction.
+  finite-service fence, connection-registry mutex, room mutex, or notifier
+  mutex while holding `LocalSnapback`, the provider/catalog mutex, a SQLite
+  writer, or a SQLite transaction.
 - The narrow existing post-commit live fan-out may take its per-connection
   outbox enqueue mutex while `with_snapback` still holds the global write guard.
   That enqueue may only copy an already-prepared effect stamp and bytes; it may
@@ -621,6 +648,90 @@ The following rules are unconditional:
 - Never invoke app/Contract code while any server or coordinator lock is held.
 - The projection topology lock is not a substitute for the global database
   writer and is never acquired underneath it.
+- Never acquire a stream/session publication fence or the connection registry
+  from beneath a mode-admission effect guard. The mode fence is independent,
+  but when the two cuts compose it is always the later lock.
+- Connection teardown never acquires activity, room, room-authority, notifier,
+  outbox, or rate-bucket locks while the managed `LocalSnapback` write scope is
+  active. Direct-library compatibility orchestration is permitted only outside
+  that managed scope; debug/test builds make the boundary executable.
+- Reset, collection-definition publication, authorization-issuer publication,
+  room-authority settlement, notifier wake, and ephemeral diagnostics likewise
+  never acquire their process locks while a managed or direct
+  `LocalSnapback` write scope is active. A committed Local phase transfers
+  immutable callbacks and any exact admission owner to its blocking owner,
+  releases Local and the scope, and only then executes those callbacks. The
+  logical managed writer remains closed until the callback batch finishes.
+  Ordinary successor projections (reset, collection definitions, issuer
+  installation, and notifier wakes) form the first callback phase;
+  authorization-ticket commit/rollback settlement is a distinct final phase.
+  A projection panic skips settlement and leaves the exact protected sinks
+  closed.
+
+### Authorization-write handoff
+
+Every storage call capable of advancing or rotating the durable authorization
+version uses this choreography:
+
+```text
+stage immutable write effects and exact changed rows
+-> classify NoAuthorizationEvent, exact AppWrites, or AllProtectedRooms
+-> outside Local and SQLite, install the matching room dependency and wait for
+   already-admitted affected-room/final-send permits to drain
+-> acquire Local; recheck app generation, data head, durable authorization pair,
+   protected-collection generation, and exact issuer predecessor
+-> install one thread-local reservation carrier
+-> open SQLite and bind the carrier to the transaction-derived witness without
+   taking a process mutex
+-> commit or establish exact durable rollback/ambiguous evidence
+-> release SQLite and Local
+-> known commit: after every ordinary successor projection, advance the issuer
+   and finalize the exact room ticket;
+   known rollback or unused carrier: after ordinary cleanup, exact-unmark;
+   ambiguous: retain the ticket
+```
+
+`NoAuthorizationEvent` allocates no room ticket and does not consult the room
+registry. `AppWrites` carries the normalized stored plan or already-buffered
+handler effects; a one-shot Ibex handler is never rerun merely because the
+reservation became stale. Scope-attributed changes reserve only the exact room,
+so another room in the same protected collection remains live while the
+affected room drains. Schema, mode, activation, restore, and destructive reset
+use the explicit all-protected-room form.
+
+Actions preserve that granularity per nested mutation, not per outer action. A
+managed HostPlan action releases Local and runs the full choreography above for
+each `RunMutation` step before exposing that step's result binding to the next
+step. A detached Ibex action stages a HostPlan target under one short Local
+window; an Ibex target executes once against its detached read view and then
+re-enters Local only to preview the immutable buffered effects. Both release
+Local before room quiescence, revalidate the action generation and durable
+snapshot before commit, and retain the existing watchdog commit gate only for
+the final SQLite cut. The watchdog cancels an in-flight room reservation after
+linearizing abandonment, so an already-admitted room permit cannot strand the
+action worker or publish a late receipt/live effect. Direct-library HostPlan
+and Ibex actions remain synchronous, but each nested mutation uses the same
+off-scope compatibility reservation rather than acquiring a room lock inside
+its logical Local scope.
+
+Binding is valid only when the protected-collection generation is unchanged,
+the actual transaction selector is covered, and a non-rotating authorization
+witness is exactly the reserved issuer successor (same incarnation and epoch
+`+1`). The server also rechecks the app generation and both the SQLite data head
+and durable authorization version after quiescence. Drift returns the typed
+stale result and cancels the carrier after Local; it never widens silently or
+prepares a replacement from inside the transaction. An installed interlock has
+no transaction-time preparation fallback: reaching SQLite without a carrier
+fails closed.
+
+The reservation wait is cancellation-aware. Cancellation before ownership
+transfer removes only that ticket and all of its per-room pending marks, even
+while predecessor permits remain active. Once the blocking Local owner has the
+carrier, request cancellation cannot drop it; that owner always consumes or
+cancels it and flushes the after-Local batch. Direct-library calls reserve
+before entering a synchronous `LocalSnapback` write scope and drain after
+leaving it, so their externally synchronous behavior does not reintroduce a
+SQLite-to-room/notifier edge.
 
 ### Allowed order
 
@@ -636,8 +747,9 @@ connection grant, uses its prepared stream/session publication fence and then
 one bounded leaf operation. An exact connection act instead uses this order:
 
 ```text
-stream fence -> optional session fence
+stream fence -> optional session fence -> optional finite-service fence
 -> connection registry (verify the exact opaque grant id and retain the guard)
+-> mode-admission effect guard for the exact counted root
 -> exactly one bounded branch:
    - room act -> room -> outbox enqueue -> generation-matched notifier wake; or
    - drain/handoff -> optional generation-matched notifier
@@ -645,11 +757,15 @@ stream fence -> optional session fence
 -> release in reverse order
 ```
 
-The stream/session publication fence is therefore acquired before the
-connection-registry mutex. The registry guard stays held through only the
-bounded synchronous ownership transfer, so pressure eviction or authority
+The stream/session and optional finite-service publication fences are therefore
+acquired before the connection-registry mutex, and the registry precedes the
+mode-admission effect guard. A direct finite response has no connection
+registry and uses stream/session, optional finite service, then mode admission.
+The registry guard stays held through only
+the bounded synchronous ownership transfer, so pressure eviction or authority
 mismatch cannot retire the exact grant between validation and handoff. No path
-may acquire a stream/session fence from beneath the registry. The only
+may acquire a stream/session fence from beneath either the registry or a mode
+effect guard. The only
 network-facing operations nested beneath these locks are a bounded in-memory
 writer handoff and the first-frame acknowledgement of an already-built leased
 HTTP response. `try_commit(buffer)` and batch acknowledgement are synchronous,
@@ -657,6 +773,57 @@ nonblocking, and perform no socket I/O; a connection-writer task or HTTP stack
 flushes accepted bytes only after every auth lock is released. A full/closed or
 invalidated handoff accepts nothing and returns immediate backpressure or a
 fail-closed empty body.
+
+Five connection-bound operations need Local work whose result cannot be
+computed safely before the final authority cut: live subscribe, resume,
+unsubscribe, authorization-invalidation acknowledgement, and manual retry.
+They use this reservation-first exception to the ordinary complete-buffer
+shape:
+
+```text
+Local: reserve one exact-fence stage and immutable inputs; do no Hermes/SQLite
+or obligation/subscription mutation
+-> release Local
+-> stream/session: reserve bounded authority-work ownership and release locks
+-> optional finite-service fence: reserve the same ownership class
+-> exact connection act: stream -> session -> optional service -> registry
+   -> mode effect guard -> one stage-state CAS(PENDING -> COMMITTED)
+-> release every synchronous lock
+-> synchronously spawn an owned finalizer carrying the stage, mode root, and
+   retained authority-work permits
+-> Local: claim COMMITTED, execute the operation, publish or roll back its
+   complete local effect, remove the stage
+-> release the retained permits with atomic-only drops
+```
+
+The request future never owns the post-cut finalization lifetime. Once the CAS
+wins, dropping the request-side join handle cannot cancel the owned task or
+release its authority permits early. Disconnect and terminal purge change the
+same stage control word to terminal under Local; whichever side claims Local
+first either completes an honestly pre-terminal effect that teardown then
+purges, or prevents finalization altogether. A refused act abandons the stage
+without running app/database work. Stage count, per-connection subscription
+capacity, and conflicting subscription/obligation keys are reserved and
+bounded before the cut.
+
+Retained permits are not mutex guards. A session or stream terminal mutation
+first installs its exact pending ticket under the ordinary fence locks, thereby
+closing every later reservation, then releases all locks and asynchronously
+waits for predecessor permits to reach zero before any durable terminal write.
+Finite service authority uses the same pending-first drain rule. Cancellation
+while waiting compare-unmarks only the still-owned ticket; it cannot leave a
+stranded marker or reopen over a sibling/committed terminal state. This
+pending-first choreography gives terminal work priority over a continuous
+stream of live requests and forbids revocation starvation.
+
+After a drain returns, there is no further cancellation point while the
+request transfers the marker carrier into an independently owned task. That
+task owns the Local/SQLite attempt, exact rollback or finalize, and terminal
+propagation; the request awaits only its join handle. Dropping that waiter
+therefore cannot orphan a marker while queued for Local, reopen authority while
+a blocking commit continues, or skip propagation after a known commit. Reset
+uses the same ownership boundary around its complete premark-through-finalize
+operation.
 
 The room in the first branch is the data-room mutex; the room-authority
 registry in the drain branch is a separate control mutex. A generation notifier
@@ -669,9 +836,13 @@ Finalization is sequenced, not nested:
 
 ```text
 projection/fence finalize and release
--> connection reverse-index invalidation and release
--> outbox/room purge and release
--> generation-matched notifier terminal wake and release
+-> under registry then notifier: generation/grant-matched typed terminal-event
+   install and wake, then infallible checked-grant/reverse-index removal
+-> release registry
+-> silent exact-fence outbox/room purge and active-lease release
+-> for a mint-only retired grant: whole-id ephemeral cleanup
+-> Local topology cleanup
+-> whole-id ephemeral post-Local sweep
 ```
 
 No later stage calls back into an earlier stage while holding its lock. The
@@ -679,6 +850,36 @@ existing notifier generation remains part of the compare key so teardown of an
 old socket cannot unregister or close its replacement. Terminal purge may
 remove still-uncommitted outbox/room work, but it cannot retract a buffer already
 accepted by a writer handoff before `Begin`; that buffer is honestly in flight.
+Terminal installation occurs while the registry still owns the checked grant:
+a wake that checked before installation must queue on that registry owner, and
+grant removal cannot become visible until the event is visible. The following
+exact purge is intentionally silent even when it releases an active lease
+containing preserved work. Whole-id cleanup never unregisters or erases the
+installed terminal event.
+
+Connection teardown is also sequenced. Ordinary WebSocket close preserves its
+reusable grant: while holding registry then notifier, it atomically replaces
+the exact socket generation with a teardown claim and marks that grant
+temporarily suspended. It then releases both locks, performs whole-connection
+ephemeral cleanup, performs Local topology cleanup, repeats the exact-fence
+ephemeral purge, and only then clears the suspension/claim under registry then
+notifier. A stale socket cannot claim a newer generation. If terminal
+retirement already removed the grant, the claim performs exact-fence rather
+than readable-id cleanup, so it cannot erase a successor.
+
+Administrator disconnect and idle reaping have different semantics: under the
+registry they remove the exact grant and permanently enable mint-only
+containment before returning a terminal capture. An independently owned task
+then retires only the matching notifier registration, performs whole-id
+ephemeral then Local cleanup with no overlap, and repeats the whole-id
+ephemeral sweep after Local. The admin
+route awaits that task before acknowledging success; cancellation of the
+request or maintenance worker does not cancel cleanup. The retired bearer is
+invalid before asynchronous cleanup begins, and a caller-suggested readable id
+cannot be adopted during whole-id cleanup. Maintenance retirement spawns every
+captured cleanup task before awaiting the first one, so cancellation while one
+task is blocked cannot drop the unspawned captures for the remainder of a
+batch.
 
 The server supplies test/dev lock-rank assertions for projection topology →
 authorization stream → session leaf. An intentional inversion fails before the
@@ -818,25 +1019,32 @@ connection grant. Both paths then:
 2. for a session, validate exact generation, availability, and deadline under
    `SessionFence`; and
 3. for a connection act, revalidate and retain the exact registry grant; and
-4. perform the synchronous in-memory leaf act or transfer its complete buffer
-   into a bounded writer/HTTP ownership handoff while every relevant guard
-   remains locked.
+4. perform the synchronous in-memory leaf act, transfer its complete buffer
+   into a bounded writer/HTTP ownership handoff, or commit one reservation-only
+   Local stage by CAS while every relevant guard remains locked.
 
 The leaf operation must be small and nonblocking. A direct finite response or
 effect is computed before it in an unpublished buffer. A queued live delta may
 already have been computed and enqueued under the global write guard; for that
-path the leaf operation is drain/send, never enqueue. This removes the old
-check-then-act delivery window without putting app execution beneath an auth
-lock.
+path the leaf operation is drain/send, never enqueue. The five staged Local
+operations are the explicit exception: only their immutable reservation exists
+before the cut, and a retained non-locking authority-work permit excludes
+terminal durable commit until owned post-cut finalization finishes. This
+removes the old check-then-act delivery window without putting app execution
+beneath an auth lock.
 
 Every path that removes a grant outside ordinary auth finalization returns its
 exact terminal capture after releasing the publication and registry locks. The
 retirement sink then purges the captured effect fence, releases any leased
-batch bound to it, wakes the current registration for preserved successor or
-authority-independent work, and retires only a notifier registration carrying
-the removed opaque grant id. Pressure eviction and authority mismatch therefore
-cannot leave a delayed HTTP body or predecessor socket with handoff authority,
-and cannot unregister a same-readable-id successor.
+batch bound to it, and retires only a notifier registration carrying the
+removed opaque grant id. An unused or unpublished exact retirement has no
+whole-id activity and may wake preserved successor or authority-independent
+work after its exact purge. A used pressure eviction, authority mismatch, or
+auth-terminal retirement first enables mint-only containment and then runs
+whole-id ephemeral/Local/ephemeral cleanup; there can be no same-readable-id
+successor to preserve or unregister. These paths therefore cannot leave a
+delayed HTTP body, rate bucket, owned outbox entry, room subscription, Local
+topology, or predecessor socket with handoff authority.
 
 ### Finite service authority fence
 
@@ -870,7 +1078,11 @@ Every durable operation that can end scoped-token authority follows this exact
 transaction order:
 
 ```text
-BEGIN IMMEDIATE
+read-only terminal plan
+-> install exact service-fence pending ticket outside LocalSnapback
+-> asynchronously drain predecessor authority-work permits with no Local,
+   provider, or SQLite lock held
+-> BEGIN IMMEDIATE
 -> read-only plan of exact affected token ids
 -> premark those token fences
 -> first durable write and remaining operation
@@ -881,12 +1093,21 @@ BEGIN IMMEDIATE
 A known rollback removes only that ticket. If rollback or commit cannot be
 proved, the exact planned token set stays unavailable until an operation-
 specific durable reread proves predecessor or successor and settles that same
-ticket. Planning and catalog validation before the premark are read-only, so
+ticket. The process-fence premark/drain happens before entering the Local
+database owner; it may never wait for a live finalizer while holding Local.
+Planning and catalog validation before the premark are read-only, so
 an unprovable rollback there has made no ending write and cannot justify either
 a token marker or a process-global quarantine. Unrelated tokens always remain
 usable. Token revoke, token expiry, and token-cap eviction settle `carrier`;
 grant revoke/expiry, credential rotation/revoke, principal deactivation, and
 the other durable-family endings settle `durableDelete`.
+
+The drained process-domain gate is itself a carrier. The code synchronously
+hands that gate to an independently owned task before awaiting again; the task
+retains it through Local/SQLite work, exact ticket settlement, and connection
+lifecycle propagation. Request cancellation drops only the join waiter. This
+rule applies equally to explicit grant/credential/token endings, on-demand
+deadline maintenance, and connection deadline observation.
 
 Both wall and monotonic deadlines are checked at every act. A bare monotonic
 observation is not yet a durable terminal fact: it first commits the exact
@@ -942,6 +1163,14 @@ not published and the caller receives the matching auth/backpressure outcome. A
 revocation marker that begins after a successful transfer sees the effect as
 already in flight and need not retract it; a marker that begins before the
 transfer prevents publication.
+
+A reservation-only Local stage is not a response buffer and carries no query
+snapshot, acknowledgement result, retry result, or provisional live state.
+Its exact CAS is the authority cut; its retained work permit makes the
+subsequent Local operation part of the already-admitted predecessor work for
+terminal ordering. A terminal marker that wins first blocks reservation/CAS.
+A marker that begins after CAS closes new work and drains this owner before its
+durable terminal write, so it cannot commit between the act and Local effect.
 
 A leased HTTP outbox drain is deliberately not transferred when its handler
 selects or serializes the batch. The response body retains the leases,
@@ -1449,6 +1678,20 @@ is the current compaction boundary. This protocol requires coordinated process
 rollout: every process sharing one custody store is drained before upgrade,
 because a pre-ledger binary does not take the universal gate or inspect the
 side ledger.
+
+The reference Node adapter acquires one retained POSIX directory capability
+before its first partition lock. A dedicated helper validates the configured
+directory's exact device/inode/owner, changes into it once, and thereafter
+accepts only derived single-component names. SQLite `BEGIN IMMEDIATE`, record
+reads, temporary creation, atomic rename, unlink, and directory fsync therefore
+share that kernel-held CWD inode even if the configured pathname is renamed or
+replaced. The helper is the lock owner and sole file actor; if it dies, the
+lock and stale writer die together and the parent permanently refuses that
+capability until process restart. The process retains at most 32 directory
+capabilities and does not idle-evict them. Under each primary or witness
+partition lock it scans at most 4,096 entries and removes only up to 128 / 8 MiB
+of validated files in that exact record's temporary namespace; limit and
+partial-cleanup outcomes are typed diagnostics.
 
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
@@ -2004,6 +2247,21 @@ Mandatory participants are:
 - each durable Contract store, registered once per physical app partition, so
   duplicate surfaces cannot race the epoch CAS.
 
+Contract participant resume generations, ephemeral socket-loss epochs, and
+swappable ephemeral-wiring generations are safe nonnegative integers allocated
+through one checked client allocator. The last exact identity may be consumed
+once; a request for a successor after `Number.MAX_SAFE_INTEGER` produces
+`SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED` with the owning axis. The
+affected surface synchronously publishes its non-sensitive blank, detaches
+predecessor callbacks and transport demand, permanently refuses resume or
+replacement, and settles any pending resume timer so the surrounding barrier
+can finish. A callback whose captured value equals the terminal numeric value
+is still refused by the permanent terminal gate. Disposal is idempotent and
+uses that gate rather than allocating another generation. A terminal
+socket-loss record dispatches its exact room unsubscribe before releasing
+socket demand and repeats the unsubscribe after any already-in-flight
+subscribe resolves, so the late registration is consumed rather than leaked.
+
 Exact/Contract host callbacks, mutation completion, retained write chains,
 optimistic settle/rollback, subscription result/error, ephemeral acknowledgement,
 and reconnect completion each carry the capture from their initiating work.
@@ -2242,11 +2500,15 @@ wall-clock sleeps are not proof of ordering.
 5. Begin a marker then roll it back while an outbox batch is leased. Entries are
    retained and later drain under the still-current exact fence. Terminal
    finalize purges them. A stale cleanup cannot purge successor entries. Hold a
-   predecessor HTTP batch unpolled while a successor's initial drain parks,
-   then pressure-evict, authority-mismatch-retire, and exact-purge the
-   predecessor independently. The old body emits no bytes, the successor is
-   awakened without a heartbeat, and preserved unbound/global recovery work
-   drains exactly once.
+   predecessor HTTP batch unpolled, then pressure-evict or
+   authority-mismatch-retire it. The old body emits no bytes, mint-only
+   containment prevents same-id adoption, and whole-id activity, rate, owned
+   outbox, room, and Local topology state disappear. Separately force exact
+   stale cleanup while a real same-readable-id successor's initial drain parks;
+   the successor is awakened without a heartbeat and preserved
+   unbound/global recovery work drains exactly once. For maintenance bulk
+   retirement, block the first cleanup on Local, abort the worker, and prove all
+   later captures were already transferred into independently owned tasks.
 6. For finite responses, live results, durable outbox, ephemeral effects, room
    receipts, and callback envelopes, independently pause between computation
    and commit and prove the final fence rejects old authority.
@@ -2268,7 +2530,13 @@ wall-clock sleeps are not proof of ordering.
    transport test is only the liveness smoke proving close still occurs when
    the writer handoff/socket cannot accept the frame. Old-socket teardown
    cannot close or unregister a replacement. A pending ticket that rolls back
-   produces no terminal frame or close.
+   produces no terminal frame or close. Hold an active exact outbox lease at
+   terminal retirement: the registry installs the typed event and performs the
+   terminal wake before grant removal; the following lease release produces no
+   extra wake, and the socket observes that event even after the mint-only
+   whole-id cleanup and post-Local sweep. Also inject an unrelated pre-event
+   notifier wake while terminal retirement owns the registry and prove the
+   socket's failed exact act converges on the already-installed typed event.
 8. Reset and declared restore each change incarnation in the same durable
    transaction, invalidate all old anonymous/session grants and queues, and
    survive crash at every phase. Restore declaration validation failure causes
@@ -2415,6 +2683,11 @@ return after clean synchronization.
 7. The item-5 producer matrix emits `delete` for every session-authority loss
    and never emits `retain` or `quarantine`; unsupported injected values fail
    rather than bypassing the barrier.
+8. Seed single- and multi-surface resume, ephemeral socket-loss, and swappable
+   wiring generations at the final exact values. Retain predecessor timer,
+   subscribe, and source callbacks across exhaustion; each surface blanks,
+   pending barrier work settles, delayed callbacks cannot publish even at
+   equal numeric generations, and repeated disposal performs no allocation.
 
 ### Handshake and activation
 

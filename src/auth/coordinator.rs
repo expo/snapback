@@ -15,11 +15,11 @@ use super::provider::{
     SessionRevocation,
 };
 use super::session_projection::{
-    AUTH_LOCK_RANK_TOPOLOGY, AuthorizationStreamIncarnation, BoundConnectionSessionIdentity,
-    DueExpiryBatch, ExpiredSession, FencedPublication, MutationTicket, PendingMutationKind,
-    ProjectedBoundSessionResolution, ProjectedConnectionTokenResolution, ProjectedSessionAuthority,
-    ProjectedTokenResolution, RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest,
-    ranked_mutex_lock,
+    AUTH_LOCK_RANK_TOPOLOGY, AuthorityWorkDrain, AuthorizationStreamIncarnation,
+    BoundConnectionSessionIdentity, DueExpiryBatch, DueExpiryFinalization, FencedPublication,
+    MutationTicket, PendingMutationKind, ProjectedBoundSessionResolution,
+    ProjectedConnectionTokenResolution, ProjectedSessionAuthority, ProjectedTokenResolution,
+    RankedMutexGuard, RevocationReason, SessionProjection, TokenDigest, ranked_mutex_lock,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -37,6 +37,51 @@ struct CoordinatorTopology {
     projection: SessionProjection,
     rebuild_required_sessions: BTreeSet<String>,
     global_rebuild_required: bool,
+}
+
+enum PendingDrainCleanup {
+    Session {
+        ticket: MutationTicket,
+        session_id: String,
+    },
+    Issuance {
+        issuance_ticket: MutationTicket,
+        session_id: String,
+        eviction: Option<(MutationTicket, String)>,
+    },
+    Stream {
+        ticket: MutationTicket,
+    },
+    Expiries {
+        entries: Vec<(MutationTicket, String)>,
+    },
+}
+
+struct PendingDrainRollback {
+    coordinator: Arc<AuthCoordinator>,
+    cleanup: Option<PendingDrainCleanup>,
+}
+
+impl PendingDrainRollback {
+    fn new(coordinator: Arc<AuthCoordinator>, cleanup: PendingDrainCleanup) -> Self {
+        Self {
+            coordinator,
+            cleanup: Some(cleanup),
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.cleanup = None;
+    }
+}
+
+impl Drop for PendingDrainRollback {
+    fn drop(&mut self) {
+        let Some(cleanup) = self.cleanup.take() else {
+            return;
+        };
+        self.coordinator.rollback_cancelled_drain(cleanup);
+    }
 }
 
 impl std::fmt::Debug for AuthCoordinator {
@@ -375,30 +420,94 @@ impl AuthCoordinator {
         })
     }
 
+    fn rollback_cancelled_drain(&self, cleanup: PendingDrainCleanup) {
+        let Ok(mut topology) = self.lock_topology() else {
+            // A poisoned coordinator is already fail-closed. Leaving the
+            // marker installed is safer than guessing at projection state.
+            return;
+        };
+        let cleaned = match cleanup {
+            PendingDrainCleanup::Session { ticket, session_id } => topology
+                .projection
+                .compare_unmark_session(&ticket, &session_id)
+                .unwrap_or(false),
+            PendingDrainCleanup::Issuance {
+                issuance_ticket,
+                session_id,
+                eviction,
+            } => {
+                let eviction_cleaned = eviction.is_none_or(|(ticket, eviction_session_id)| {
+                    topology
+                        .projection
+                        .compare_unmark_session(&ticket, &eviction_session_id)
+                        .unwrap_or(false)
+                });
+                let issuance_cleaned = topology
+                    .projection
+                    .compare_unmark_issuance(&issuance_ticket, &session_id)
+                    .unwrap_or(false);
+                eviction_cleaned && issuance_cleaned
+            }
+            PendingDrainCleanup::Stream { ticket } => topology
+                .projection
+                .compare_unmark_stream(&ticket)
+                .unwrap_or(false),
+            PendingDrainCleanup::Expiries { entries } => {
+                let mut cleaned = true;
+                for (ticket, session_id) in entries {
+                    cleaned &= topology
+                        .projection
+                        .compare_unmark_session(&ticket, &session_id)
+                        .unwrap_or(false);
+                }
+                cleaned
+            }
+        };
+        if !cleaned {
+            topology.global_rebuild_required = true;
+        }
+    }
+
     /// Install the leaf marker, then return only immutable CAS inputs plus the
     /// ticket. The returned carrier owns no lock and may cross the provider
     /// transaction boundary safely.
     ///
     /// @ref LLP 0059#plan-begin-commit-finalize — the leaf is blocked before
     /// commit begins, and no projection/fence guard enters SQLite.
-    pub(crate) fn premark_revocation(
-        &self,
+    pub(crate) async fn premark_revocation(
+        self: &Arc<Self>,
         plan: ProviderRevocationPlan,
     ) -> SnapbackResult<PremarkedRevocation> {
-        let mut topology = self.lock_topology()?;
-        topology.require_session_available(plan.session_id())?;
-        let terminal_target = CommittedRevocationTarget {
-            authorization_stream_incarnation: topology.projection.incarnation().as_str().to_owned(),
-            session_id: plan.session_id().to_owned(),
-            predecessor_generation: plan.expected_generation(),
+        let (ticket, drain, terminal_target) = {
+            let mut topology = self.lock_topology()?;
+            topology.require_session_available(plan.session_id())?;
+            let terminal_target = CommittedRevocationTarget {
+                authorization_stream_incarnation: topology
+                    .projection
+                    .incarnation()
+                    .as_str()
+                    .to_owned(),
+                session_id: plan.session_id().to_owned(),
+                predecessor_generation: plan.expected_generation(),
+            };
+            let premarked = topology.projection.begin_session_mutation(
+                plan.session_id(),
+                plan.expected_generation(),
+                PendingMutationKind::Revoke {
+                    reason: plan.reason(),
+                },
+            )?;
+            (premarked.ticket, premarked.drain, terminal_target)
         };
-        let ticket = topology.projection.begin_session_mutation(
-            plan.session_id(),
-            plan.expected_generation(),
-            PendingMutationKind::Revoke {
-                reason: plan.reason(),
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::Session {
+                ticket: ticket.clone(),
+                session_id: plan.session_id().to_owned(),
             },
-        )?;
+        );
+        drain.wait().await;
+        rollback.disarm();
         Ok(PremarkedRevocation {
             plan,
             ticket,
@@ -406,61 +515,101 @@ impl AuthCoordinator {
         })
     }
 
-    pub(crate) fn premark_rotation(
-        &self,
+    pub(crate) async fn premark_rotation(
+        self: &Arc<Self>,
         plan: ProviderTokenRotationPlan,
     ) -> SnapbackResult<PremarkedRotation> {
-        let mut topology = self.lock_topology()?;
-        topology.require_session_available(plan.session_id())?;
-        let ticket = topology.projection.begin_session_mutation(
-            plan.session_id(),
-            plan.expected_generation(),
-            PendingMutationKind::TokenSupersede {
-                predecessor: plan.predecessor_digest(),
-                successor: plan.successor_digest(),
-                superseded_at_ms: plan.superseded_at_ms(),
+        let (ticket, drain) = {
+            let mut topology = self.lock_topology()?;
+            topology.require_session_available(plan.session_id())?;
+            let premarked = topology.projection.begin_session_mutation(
+                plan.session_id(),
+                plan.expected_generation(),
+                PendingMutationKind::TokenSupersede {
+                    predecessor: plan.predecessor_digest(),
+                    successor: plan.successor_digest(),
+                    superseded_at_ms: plan.superseded_at_ms(),
+                },
+            )?;
+            (premarked.ticket, premarked.drain)
+        };
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::Session {
+                ticket: ticket.clone(),
+                session_id: plan.session_id().to_owned(),
             },
-        )?;
+        );
+        drain.wait().await;
+        rollback.disarm();
         Ok(PremarkedRotation { plan, ticket })
     }
 
-    pub(crate) fn premark_issuance(
-        &self,
+    pub(crate) async fn premark_issuance(
+        self: &Arc<Self>,
         plan: ProviderSessionIssuancePlan,
     ) -> SnapbackResult<PremarkedIssuance> {
-        let mut topology = self.lock_topology()?;
-        if topology.global_rebuild_required {
-            return Err(projection_unavailable());
-        }
-        if let Some(eviction) = plan.eviction() {
-            topology.require_session_available(eviction.session_id())?;
-        }
-        let eviction_terminal_target = plan.eviction().map(|eviction| CommittedRevocationTarget {
-            authorization_stream_incarnation: topology.projection.incarnation().as_str().to_owned(),
-            session_id: eviction.session_id().to_owned(),
-            predecessor_generation: eviction.expected_generation(),
-        });
-        let insert = plan.projected_insert();
-        let issuance_ticket = topology.projection.begin_issuance(insert)?;
-        let eviction_ticket = match plan.eviction() {
-            Some(eviction) => match topology.projection.begin_session_mutation(
-                eviction.session_id(),
-                eviction.expected_generation(),
-                PendingMutationKind::Revoke {
-                    reason: RevocationReason::CapEviction,
+        let (issuance_ticket, eviction_ticket, eviction_drain, eviction_terminal_target) = {
+            let mut topology = self.lock_topology()?;
+            if topology.global_rebuild_required {
+                return Err(projection_unavailable());
+            }
+            if let Some(eviction) = plan.eviction() {
+                topology.require_session_available(eviction.session_id())?;
+            }
+            let eviction_terminal_target =
+                plan.eviction().map(|eviction| CommittedRevocationTarget {
+                    authorization_stream_incarnation: topology
+                        .projection
+                        .incarnation()
+                        .as_str()
+                        .to_owned(),
+                    session_id: eviction.session_id().to_owned(),
+                    predecessor_generation: eviction.expected_generation(),
+                });
+            let insert = plan.projected_insert();
+            let issuance_ticket = topology.projection.begin_issuance(insert)?;
+            let (eviction_ticket, eviction_drain) = match plan.eviction() {
+                Some(eviction) => match topology.projection.begin_session_mutation(
+                    eviction.session_id(),
+                    eviction.expected_generation(),
+                    PendingMutationKind::Revoke {
+                        reason: RevocationReason::CapEviction,
+                    },
+                ) {
+                    Ok(premarked) => (Some(premarked.ticket), Some(premarked.drain)),
+                    Err(error) => {
+                        let _ = topology.projection.compare_unmark_issuance(
+                            &issuance_ticket,
+                            &plan.projected_insert().session_id,
+                        );
+                        return Err(error);
+                    }
                 },
-            ) {
-                Ok(ticket) => Some(ticket),
-                Err(error) => {
-                    let _ = topology.projection.compare_unmark_issuance(
-                        &issuance_ticket,
-                        &plan.projected_insert().session_id,
-                    );
-                    return Err(error);
-                }
-            },
-            None => None,
+                None => (None, None),
+            };
+            (
+                issuance_ticket,
+                eviction_ticket,
+                eviction_drain,
+                eviction_terminal_target,
+            )
         };
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::Issuance {
+                issuance_ticket: issuance_ticket.clone(),
+                session_id: plan.projected_insert().session_id,
+                eviction: eviction_ticket
+                    .as_ref()
+                    .zip(plan.eviction())
+                    .map(|(ticket, eviction)| (ticket.clone(), eviction.session_id().to_owned())),
+            },
+        );
+        if let Some(drain) = eviction_drain {
+            drain.wait().await;
+        }
+        rollback.disarm();
         Ok(PremarkedIssuance {
             plan,
             issuance_ticket,
@@ -475,21 +624,60 @@ impl AuthCoordinator {
     ///
     /// @ref LLP 0059#reset-restore-and-stream-publication — reset uses the
     /// same premark/commit/finalize protocol as session leaf mutations.
-    pub(crate) fn premark_stream_reset(&self) -> SnapbackResult<PremarkedStreamReset> {
+    pub(crate) async fn premark_stream_reset(
+        self: &Arc<Self>,
+    ) -> SnapbackResult<PremarkedStreamReset> {
+        let (predecessor, successor, ticket, drain) = self.begin_stream_reset_marker()?;
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::Stream {
+                ticket: ticket.clone(),
+            },
+        );
+        drain.wait().await;
+        rollback.disarm();
+        Ok(PremarkedStreamReset {
+            predecessor,
+            successor,
+            ticket,
+        })
+    }
+
+    pub(crate) fn premark_stream_reset_if_drained(
+        self: &Arc<Self>,
+    ) -> SnapbackResult<PremarkedStreamReset> {
+        let (predecessor, successor, ticket, drain) = self.begin_stream_reset_marker()?;
+        if !drain.is_drained() {
+            self.rollback_cancelled_drain(PendingDrainCleanup::Stream {
+                ticket: ticket.clone(),
+            });
+            return Err(projection_unavailable());
+        }
+        Ok(PremarkedStreamReset {
+            predecessor,
+            successor,
+            ticket,
+        })
+    }
+
+    fn begin_stream_reset_marker(
+        &self,
+    ) -> SnapbackResult<(
+        AuthorizationStreamIncarnation,
+        AuthorizationStreamIncarnation,
+        MutationTicket,
+        AuthorityWorkDrain,
+    )> {
         let mut topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
         }
         let predecessor = topology.projection.incarnation().clone();
         let successor = AuthorizationStreamIncarnation::fresh();
-        let ticket = topology
+        let premarked = topology
             .projection
             .begin_stream_mutation(successor.clone())?;
-        Ok(PremarkedStreamReset {
-            predecessor,
-            successor,
-            ticket,
-        })
+        Ok((predecessor, successor, premarked.ticket, premarked.drain))
     }
 
     pub(crate) fn finish_stream_reset<T>(
@@ -1052,15 +1240,46 @@ impl AuthCoordinator {
             .sample_due_expiries(epoch_now_ms, monotonic_now)
     }
 
-    pub(crate) fn expire_sampled_due(
-        &self,
+    pub(crate) async fn expire_sampled_due(
+        self: &Arc<Self>,
         batch: DueExpiryBatch,
-    ) -> SnapbackResult<Vec<ExpiredSession>> {
+    ) -> SnapbackResult<DueExpiryFinalization> {
+        let premarked = {
+            let mut topology = self.lock_topology()?;
+            if topology.global_rebuild_required {
+                return Err(projection_unavailable());
+            }
+            topology.projection.begin_sampled_due_expiries(batch)?
+        };
+        let cleanup_entries = premarked
+            .entries
+            .iter()
+            .map(|entry| (entry.ticket.clone(), entry.session_id.clone()))
+            .collect();
+        let drains = premarked
+            .entries
+            .iter()
+            .map(|entry| entry.drain.clone())
+            .collect::<Vec<_>>();
+        let mut rollback = PendingDrainRollback::new(
+            Arc::clone(self),
+            PendingDrainCleanup::Expiries {
+                entries: cleanup_entries,
+            },
+        );
+        for drain in drains {
+            drain.wait().await;
+        }
+        rollback.disarm();
         let mut topology = self.lock_topology()?;
         if topology.global_rebuild_required {
             return Err(projection_unavailable());
         }
-        topology.projection.expire_sampled_due(batch)
+        let finalized = topology.projection.finalize_sampled_due_expiries(premarked);
+        if finalized.failed_closed() {
+            topology.global_rebuild_required = true;
+        }
+        Ok(finalized)
     }
 
     pub(crate) fn expiry_scan_delay(&self, monotonic_now: Instant) -> SnapbackResult<Duration> {
@@ -1303,9 +1522,12 @@ mod tests {
     use crate::auth::crypto::{CryptoError, RandomSource};
     use crate::auth::provider::PlannedTokenSource;
     use crate::auth::session_projection::{
-        AuthorizationStreamIncarnation, AuthorizationStreamRecord, ProjectionIdentityRow,
-        ProjectionSessionRow, ProjectionSource, ProjectionUserRow, RevocationReason,
+        AuthorizationStreamIncarnation, AuthorizationStreamRecord, ProjectedSessionInsert,
+        ProjectionIdentityRow, ProjectionSessionRow, ProjectionSource, ProjectionUserRow,
+        RevocationReason,
     };
+    use crate::local::LocalSnapback;
+    use crate::server::{SharedSnapback, spawn_owned_auth_transaction, with_snapback};
     use std::sync::Arc;
     use std::time::Duration;
 
@@ -1408,6 +1630,79 @@ mod tests {
         }))
     }
 
+    async fn wait_until_publication_closed(
+        publication: &FencedPublication,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) {
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match publication
+                    .try_reserve_work(epoch_now_ms, monotonic_now)
+                    .expect("probe publication")
+                {
+                    Some(probe) => drop(probe),
+                    None => return,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("pending marker closes publication");
+    }
+
+    /// Model request cancellation at the dangerous boundary: the request owns
+    /// only the join waiter while the carrier and its exact finish are already
+    /// owned by a task queued on the real LocalSnapback mutex.
+    async fn cancel_waiter_with_owned_rollback_blocked_on_local<P, T, F, Probe>(
+        local: SharedSnapback,
+        finish: F,
+        blocked_probe: Probe,
+    ) -> T
+    where
+        P: Send + 'static,
+        T: Send + 'static,
+        F: FnOnce(AuthTransactionAttempt<P>) -> T + Send + 'static,
+        Probe: FnOnce(),
+    {
+        let blocker = local.clone().lock_owned().await;
+        let (queued_tx, queued_rx) = tokio::sync::oneshot::channel();
+        let (finished_tx, finished_rx) = tokio::sync::oneshot::channel();
+        let transaction = spawn_owned_auth_transaction(async move {
+            let _ = queued_tx.send(());
+            let attempt = with_snapback(&local, |_snapback| {
+                AuthTransactionAttempt::<P>::RolledBack(SnapbackError::error(
+                    "TEST_ROLLBACK",
+                    "test",
+                    "known rollback",
+                ))
+            })
+            .await;
+            assert!(finished_tx.send(finish(attempt)).is_ok());
+        });
+        let waiter = tokio::spawn(async move { transaction.await });
+        queued_rx.await.expect("owned transaction reaches Local");
+        tokio::task::yield_now().await;
+        assert!(
+            !waiter.is_finished(),
+            "owned transaction remains queued behind the Local blocker"
+        );
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        blocked_probe();
+        drop(blocker);
+        tokio::time::timeout(Duration::from_secs(2), finished_rx)
+            .await
+            .expect("owned transaction completes after Local reopens")
+            .expect("owned transaction publishes its finish")
+    }
+
+    fn local_blocker_fixture() -> SharedSnapback {
+        Arc::new(tokio::sync::Mutex::new(
+            LocalSnapback::memory().expect("owned auth transaction Local fixture"),
+        ))
+    }
+
     #[test]
     fn required_bearer_resolution_is_memory_only_and_retains_authority_instance() {
         let fixture = fixture();
@@ -1429,12 +1724,13 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn premark_carrier_holds_no_topology_or_leaf_guard() {
+    #[tokio::test]
+    async fn premark_carrier_holds_no_topology_or_leaf_guard() {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         assert!(fixture.coordinator.topology.try_lock().is_ok());
         let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
@@ -1446,8 +1742,335 @@ mod tests {
         fixture.coordinator.check_invariants().unwrap();
     }
 
-    #[test]
-    fn rotation_ticket_binds_exact_predecessor_successor_and_timestamp() {
+    #[tokio::test]
+    async fn session_premark_closes_continuous_reservations_then_drains() {
+        let fixture = fixture();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let permit = publication
+            .try_reserve_work(200, fixture.monotonic_start)
+            .unwrap()
+            .expect("initial retained session work");
+        let coordinator = fixture.coordinator.clone();
+        let revocation = plan(&fixture, RevocationReason::Logout);
+        let mut pending =
+            tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
+        wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
+        assert!(!pending.is_finished());
+        for _ in 0..256 {
+            assert!(
+                publication
+                    .try_reserve_work(200, fixture.monotonic_start)
+                    .unwrap()
+                    .is_none(),
+                "fresh work cannot starve a pending terminal mutation"
+            );
+        }
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), &mut pending)
+                .await
+                .is_err()
+        );
+        drop(permit);
+        let carrier = tokio::time::timeout(Duration::from_secs(2), pending)
+            .await
+            .expect("session drain completes")
+            .expect("premark task joins")
+            .expect("premark succeeds");
+        let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
+        assert_eq!(
+            fixture
+                .coordinator
+                .finish_revocation(carrier, AuthTransactionAttempt::RolledBack(rollback))
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "TEST_ROLLBACK"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancelling_session_drain_exactly_rolls_back_its_pending_marker() {
+        let fixture = fixture();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let permit = publication
+            .try_reserve_work(200, fixture.monotonic_start)
+            .unwrap()
+            .expect("initial retained session work");
+        let coordinator = fixture.coordinator.clone();
+        let revocation = plan(&fixture, RevocationReason::Logout);
+        let pending = tokio::spawn(async move { coordinator.premark_revocation(revocation).await });
+        wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
+        pending.abort();
+        assert!(pending.await.unwrap_err().is_cancelled());
+        assert!(
+            publication
+                .try_reserve_work(200, fixture.monotonic_start)
+                .unwrap()
+                .is_some(),
+            "cancelling the drain removes only its exact marker"
+        );
+        drop(permit);
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelling_stream_drain_reopens_the_exact_predecessor() {
+        let fixture = fixture();
+        let publication = fixture.coordinator.prepare_anonymous_publication().unwrap();
+        let permit = publication
+            .try_reserve_work(200, fixture.monotonic_start)
+            .unwrap()
+            .expect("initial retained stream work");
+        let coordinator = fixture.coordinator.clone();
+        let pending = tokio::spawn(async move { coordinator.premark_stream_reset().await });
+        wait_until_publication_closed(&publication, 200, fixture.monotonic_start).await;
+        pending.abort();
+        assert!(pending.await.unwrap_err().is_cancelled());
+        assert!(
+            publication
+                .try_reserve_work(200, fixture.monotonic_start)
+                .unwrap()
+                .is_some()
+        );
+        drop(permit);
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelling_expiry_drain_removes_every_exact_due_marker() {
+        let fixture = fixture();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 999, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let permit = publication
+            .try_reserve_work(999, fixture.monotonic_start)
+            .unwrap()
+            .expect("work starts immediately before expiry");
+        let batch = fixture
+            .coordinator
+            .sample_due_expiries(1_000, fixture.monotonic_start + Duration::from_millis(900))
+            .unwrap()
+            .expect("one due expiry");
+        let coordinator = fixture.coordinator.clone();
+        let pending = tokio::spawn(async move { coordinator.expire_sampled_due(batch).await });
+        wait_until_publication_closed(&publication, 999, fixture.monotonic_start).await;
+        pending.abort();
+        assert!(pending.await.unwrap_err().is_cancelled());
+        assert!(
+            publication
+                .try_reserve_work(999, fixture.monotonic_start)
+                .unwrap()
+                .is_some()
+        );
+        drop(permit);
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_revocation_waiter_leaves_owned_local_transaction_to_exact_rollback() {
+        let fixture = fixture();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let carrier = fixture
+            .coordinator
+            .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
+            .unwrap();
+        let finish_coordinator = fixture.coordinator.clone();
+        let blocked_publication = publication.clone();
+        let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
+            local_blocker_fixture(),
+            move |attempt| finish_coordinator.finish_revocation(carrier, attempt),
+            move || {
+                assert!(
+                    blocked_publication
+                        .try_reserve_work(200, fixture.monotonic_start)
+                        .unwrap()
+                        .is_none(),
+                    "cancelling only the waiter must not reopen the revocation predecessor"
+                );
+            },
+        )
+        .await;
+        assert_eq!(outcome.unwrap_err().diagnostic.code, "TEST_ROLLBACK");
+        assert!(
+            publication
+                .try_reserve_work(200, fixture.monotonic_start)
+                .unwrap()
+                .is_some(),
+            "the independently owned exact rollback reopens the predecessor"
+        );
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_rotation_waiter_leaves_owned_local_transaction_to_exact_rollback() {
+        let fixture = fixture();
+        let (_, publication) = fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .unwrap()
+            .into_parts();
+        let successor_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
+        let carrier = fixture
+            .coordinator
+            .premark_rotation(ProviderTokenRotationPlan::for_test(
+                fixture.session_id.clone(),
+                1,
+                fixture.digest,
+                successor_bearer,
+                250,
+            ))
+            .await
+            .unwrap();
+        let finish_coordinator = fixture.coordinator.clone();
+        let blocked_publication = publication.clone();
+        let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
+            local_blocker_fixture(),
+            move |attempt| finish_coordinator.finish_rotation(carrier, attempt),
+            move || {
+                assert!(
+                    blocked_publication
+                        .try_reserve_work(200, fixture.monotonic_start)
+                        .unwrap()
+                        .is_none(),
+                    "cancelling only the waiter must not reopen the rotation predecessor"
+                );
+            },
+        )
+        .await;
+        assert_eq!(outcome.unwrap_err().diagnostic.code, "TEST_ROLLBACK");
+        fixture
+            .coordinator
+            .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
+            .expect("the predecessor bearer is live after exact rollback");
+        assert!(
+            publication
+                .try_reserve_work(200, fixture.monotonic_start)
+                .unwrap()
+                .is_some()
+        );
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_issuance_waiter_leaves_owned_local_transaction_to_exact_rollback() {
+        let fixture = fixture();
+        let bearer = SessionBearer::generate(&FixedRandom(9)).unwrap();
+        let projected = ProjectedSessionInsert {
+            session_id: uuid_v7(20, 20),
+            user_id: uuid_v7(21, 21),
+            provider: "email-code".to_owned(),
+            authority_instance_id: uuid_v7(22, 22),
+            generation: 1,
+            token_digest: TokenDigest::from_token_hash(&bearer.token_hash()),
+            created_at_ms: 200,
+            expires_at_ms: 1_000,
+            absolute_expires_at_ms: 2_000,
+        };
+        let carrier = fixture
+            .coordinator
+            .premark_issuance(ProviderSessionIssuancePlan::for_test(projected, bearer))
+            .await
+            .unwrap();
+        let finish_coordinator = fixture.coordinator.clone();
+        let blocked_coordinator = fixture.coordinator.clone();
+        let monotonic_start = fixture.monotonic_start;
+        let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
+            local_blocker_fixture(),
+            move |attempt| {
+                finish_coordinator.finish_issuance(carrier, attempt, 200, monotonic_start)
+            },
+            move || {
+                assert!(
+                    blocked_coordinator
+                        .premark_stream_reset_if_drained()
+                        .is_err(),
+                    "the issuance ticket remains installed after only its waiter is cancelled"
+                );
+            },
+        )
+        .await;
+        assert_eq!(outcome.unwrap_err().diagnostic.code, "TEST_ROLLBACK");
+        let reset = fixture.coordinator.premark_stream_reset().await.unwrap();
+        assert_eq!(
+            fixture
+                .coordinator
+                .finish_stream_reset::<()>(
+                    reset,
+                    AuthTransactionAttempt::RolledBack(SnapbackError::error(
+                        "TEST_ROLLBACK",
+                        "test",
+                        "known rollback",
+                    )),
+                )
+                .unwrap_err()
+                .diagnostic
+                .code,
+            "TEST_ROLLBACK"
+        );
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn cancelled_stream_reset_waiter_leaves_owned_local_transaction_to_exact_rollback() {
+        let fixture = fixture();
+        let publication = fixture.coordinator.prepare_anonymous_publication().unwrap();
+        let predecessor = fixture
+            .coordinator
+            .authorization_stream_incarnation()
+            .unwrap();
+        let carrier = fixture.coordinator.premark_stream_reset().await.unwrap();
+        let finish_coordinator = fixture.coordinator.clone();
+        let blocked_publication = publication.clone();
+        let outcome = cancel_waiter_with_owned_rollback_blocked_on_local(
+            local_blocker_fixture(),
+            move |attempt: AuthTransactionAttempt<()>| {
+                finish_coordinator.finish_stream_reset(carrier, attempt)
+            },
+            move || {
+                assert!(
+                    blocked_publication
+                        .try_reserve_work(200, fixture.monotonic_start)
+                        .unwrap()
+                        .is_none(),
+                    "cancelling only the waiter must not reopen the predecessor stream"
+                );
+            },
+        )
+        .await;
+        assert_eq!(outcome.unwrap_err().diagnostic.code, "TEST_ROLLBACK");
+        assert_eq!(
+            fixture
+                .coordinator
+                .authorization_stream_incarnation()
+                .unwrap(),
+            predecessor
+        );
+        assert!(
+            publication
+                .try_reserve_work(200, fixture.monotonic_start)
+                .unwrap()
+                .is_some()
+        );
+        fixture.coordinator.check_invariants().unwrap();
+    }
+
+    #[tokio::test]
+    async fn rotation_ticket_binds_exact_predecessor_successor_and_timestamp() {
         let fixture = fixture();
         let successor_bearer = SessionBearer::generate(&FixedRandom(8)).unwrap();
         let successor_digest = TokenDigest::from_token_hash(&successor_bearer.token_hash());
@@ -1458,7 +2081,7 @@ mod tests {
             successor_bearer,
             250,
         );
-        let carrier = fixture.coordinator.premark_rotation(plan).unwrap();
+        let carrier = fixture.coordinator.premark_rotation(plan).await.unwrap();
         {
             let topology = fixture.coordinator.topology.lock().unwrap();
             assert_eq!(
@@ -1488,17 +2111,19 @@ mod tests {
         fixture.coordinator.check_invariants().unwrap();
     }
 
-    #[test]
-    fn sibling_rollback_never_reopens_a_committed_revocation_in_either_order() {
+    #[tokio::test]
+    async fn sibling_rollback_never_reopens_a_committed_revocation_in_either_order() {
         for second_wins in [false, true] {
             let fixture = fixture();
             let a = fixture
                 .coordinator
                 .premark_revocation(plan(&fixture, RevocationReason::Logout))
+                .await
                 .unwrap();
             let b = fixture
                 .coordinator
                 .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+                .await
                 .unwrap();
             let (winner, loser) = if second_wins { (b, a) } else { (a, b) };
             let outcome = fixture
@@ -1529,12 +2154,13 @@ mod tests {
         }
     }
 
-    #[test]
-    fn committed_outcome_is_one_shot_and_response_class_bound() {
+    #[tokio::test]
+    async fn committed_outcome_is_one_shot_and_response_class_bound() {
         let logout_fixture = fixture();
         let carrier = logout_fixture
             .coordinator
             .premark_revocation(plan(&logout_fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = logout_fixture
             .coordinator
@@ -1573,6 +2199,7 @@ mod tests {
         let carrier = family_fixture
             .coordinator
             .premark_revocation(plan(&family_fixture, RevocationReason::FamilyAlarm))
+            .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = family_fixture
             .coordinator
@@ -1596,12 +2223,13 @@ mod tests {
         );
     }
 
-    #[test]
-    fn committed_outcome_does_not_survive_stream_incarnation_change() {
+    #[tokio::test]
+    async fn committed_outcome_does_not_survive_stream_incarnation_change() {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         let RevocationFinish::Committed { outcome, .. } = fixture
             .coordinator
@@ -1610,7 +2238,7 @@ mod tests {
         else {
             panic!("logout revocation committed");
         };
-        let reset = fixture.coordinator.premark_stream_reset().unwrap();
+        let reset = fixture.coordinator.premark_stream_reset().await.unwrap();
         fixture
             .coordinator
             .finish_stream_reset(reset, AuthTransactionAttempt::Committed(()))
@@ -1628,16 +2256,18 @@ mod tests {
         );
     }
 
-    #[test]
-    fn already_terminal_loser_exact_unmarks_after_sibling_finalize() {
+    #[tokio::test]
+    async fn already_terminal_loser_exact_unmarks_after_sibling_finalize() {
         let fixture = fixture();
         let winner = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         let loser = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::FamilyAlarm))
+            .await
             .unwrap();
         fixture
             .coordinator
@@ -1663,12 +2293,13 @@ mod tests {
         fixture.coordinator.check_invariants().unwrap();
     }
 
-    #[test]
-    fn known_commit_finalize_failure_marks_session_uncertain_and_requires_rebuild() {
+    #[tokio::test]
+    async fn known_commit_finalize_failure_marks_session_uncertain_and_requires_rebuild() {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         fixture.coordinator.inject_finalize_failure();
         let (outcome, terminal_target) = fixture
@@ -1698,12 +2329,13 @@ mod tests {
         fixture.coordinator.check_invariants().unwrap();
     }
 
-    #[test]
-    fn ambiguous_commit_never_exact_unmarks_and_requires_rebuild() {
+    #[tokio::test]
+    async fn ambiguous_commit_never_exact_unmarks_and_requires_rebuild() {
         let fixture = fixture();
         let carrier = fixture
             .coordinator
             .premark_revocation(plan(&fixture, RevocationReason::Logout))
+            .await
             .unwrap();
         let error = fixture
             .coordinator
@@ -1726,8 +2358,8 @@ mod tests {
         fixture.coordinator.check_invariants().unwrap();
     }
 
-    #[test]
-    fn stream_reset_rollback_exactly_reopens_predecessor_publication() {
+    #[tokio::test]
+    async fn stream_reset_rollback_exactly_reopens_predecessor_publication() {
         let fixture = fixture();
         let predecessor = fixture
             .coordinator
@@ -1738,7 +2370,7 @@ mod tests {
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
             .unwrap()
             .into_parts();
-        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        let carrier = fixture.coordinator.premark_stream_reset().await.unwrap();
         assert!(
             publication
                 .try_publish(200, fixture.monotonic_start, || Ok(()))
@@ -1772,8 +2404,8 @@ mod tests {
         );
     }
 
-    #[test]
-    fn committed_stream_reset_installs_exact_successor_and_fences_predecessor() {
+    #[tokio::test]
+    async fn committed_stream_reset_installs_exact_successor_and_fences_predecessor() {
         let fixture = fixture();
         let predecessor = fixture
             .coordinator
@@ -1784,7 +2416,7 @@ mod tests {
             .resolve_required_bearer(&fixture.bearer, 200, fixture.monotonic_start)
             .unwrap()
             .into_parts();
-        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        let carrier = fixture.coordinator.premark_stream_reset().await.unwrap();
         let successor = carrier.successor().as_str().to_owned();
         fixture
             .coordinator
@@ -1815,10 +2447,10 @@ mod tests {
         );
     }
 
-    #[test]
-    fn uncertain_stream_reset_stays_globally_blocked() {
+    #[tokio::test]
+    async fn uncertain_stream_reset_stays_globally_blocked() {
         let fixture = fixture();
-        let carrier = fixture.coordinator.premark_stream_reset().unwrap();
+        let carrier = fixture.coordinator.premark_stream_reset().await.unwrap();
         let error = fixture
             .coordinator
             .finish_stream_reset::<()>(

@@ -671,6 +671,38 @@ impl LocalDatabase {
         })
     }
 
+    /// Read the exact token set that a later single-grant revocation must
+    /// close before it enters the durable writer lane. The mutation replans
+    /// the same query inside its transaction and the process interlock
+    /// refuses a mismatch.
+    pub(crate) fn plan_grant_revocation_service_terminal(
+        &self,
+        effective_user_id: &str,
+        grant_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_grant_revocation_token_ids(connection, effective_user_id, grant_id, now_ms)
+        })
+    }
+
+    /// Read the exact token set affected by a later revoke-by-actor write.
+    pub(crate) fn plan_bulk_grant_revocation_service_terminal(
+        &self,
+        effective_user_id: &str,
+        actor_user_id: &str,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<String>> {
+        self.with_auth_read(|connection| {
+            planned_bulk_grant_revocation_token_ids(
+                connection,
+                effective_user_id,
+                actor_user_id,
+                now_ms,
+            )
+        })
+    }
+
     pub(crate) fn revoke_grant_for_user(
         &mut self,
         effective_user_id: &str,
@@ -681,28 +713,7 @@ impl LocalDatabase {
         let mut body_outcome = None;
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
-            |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let revoked_at_ms = tx
-                    .query_row(
-                        "SELECT revoked_at_ms FROM _auth_grants
-                         WHERE id = ?1 AND effective_user_id = ?2",
-                        params![grant_id, effective_user_id],
-                        |row| row.get::<_, Option<i64>>(0),
-                    )
-                    .optional()?
-                    .ok_or_else(grant_invalid)?;
-                if revoked_at_ms.is_some() {
-                    return Ok(Vec::new());
-                }
-                let mut statement = tx.prepare(
-                    "SELECT id FROM _auth_grant_tokens
-                     WHERE grant_id = ?1 ORDER BY id",
-                )?;
-                Ok(statement
-                    .query_map(params![grant_id], |row| row.get::<_, String>(0))?
-                    .collect::<Result<Vec<_>, _>>()?)
-            },
+            |tx| planned_grant_revocation_token_ids(tx, effective_user_id, grant_id, now_ms),
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
                 let revoked_at_ms = tx
@@ -794,21 +805,12 @@ impl LocalDatabase {
         let attempt = self.attempt_auth_transaction_with_service_terminal(
             crate::auth::service_fence::ServiceAuthorityDisposition::DurableDelete,
             |tx| {
-                require_agent_clock_on(tx, now_ms)?;
-                let mut statement = tx.prepare(
-                    "SELECT tokens.id
-                     FROM _auth_grant_tokens AS tokens
-                     JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
-                     WHERE grants.effective_user_id = ?1
-                       AND grants.actor_user_id = ?2
-                       AND grants.revoked_at_ms IS NULL
-                     ORDER BY tokens.id",
-                )?;
-                Ok(statement
-                    .query_map(params![effective_user_id, actor_user_id], |row| {
-                        row.get::<_, String>(0)
-                    })?
-                    .collect::<Result<Vec<_>, _>>()?)
+                planned_bulk_grant_revocation_token_ids(
+                    tx,
+                    effective_user_id,
+                    actor_user_id,
+                    now_ms,
+                )
             },
             |tx| {
                 require_agent_clock_on(tx, now_ms)?;
@@ -903,6 +905,57 @@ impl LocalDatabase {
             }
         }
     }
+}
+
+fn planned_grant_revocation_token_ids(
+    connection: &Connection,
+    effective_user_id: &str,
+    grant_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let revoked_at_ms = connection
+        .query_row(
+            "SELECT revoked_at_ms FROM _auth_grants
+             WHERE id = ?1 AND effective_user_id = ?2",
+            params![grant_id, effective_user_id],
+            |row| row.get::<_, Option<i64>>(0),
+        )
+        .optional()?
+        .ok_or_else(grant_invalid)?;
+    if revoked_at_ms.is_some() {
+        return Ok(Vec::new());
+    }
+    let mut statement = connection.prepare(
+        "SELECT id FROM _auth_grant_tokens
+         WHERE grant_id = ?1 ORDER BY id",
+    )?;
+    Ok(statement
+        .query_map(params![grant_id], |row| row.get::<_, String>(0))?
+        .collect::<Result<Vec<_>, _>>()?)
+}
+
+fn planned_bulk_grant_revocation_token_ids(
+    connection: &Connection,
+    effective_user_id: &str,
+    actor_user_id: &str,
+    now_ms: u64,
+) -> SnapbackResult<Vec<String>> {
+    require_agent_clock_on(connection, now_ms)?;
+    let mut statement = connection.prepare(
+        "SELECT tokens.id
+         FROM _auth_grant_tokens AS tokens
+         JOIN _auth_grants AS grants ON grants.id = tokens.grant_id
+         WHERE grants.effective_user_id = ?1
+           AND grants.actor_user_id = ?2
+           AND grants.revoked_at_ms IS NULL
+         ORDER BY tokens.id",
+    )?;
+    Ok(statement
+        .query_map(params![effective_user_id, actor_user_id], |row| {
+            row.get::<_, String>(0)
+        })?
+        .collect::<Result<Vec<_>, _>>()?)
 }
 
 struct ApprovalRequestRow {

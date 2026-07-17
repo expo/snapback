@@ -60,6 +60,7 @@ const inventories = [
       'exact-conformance.test.mjs',
       'exact-package.test.mjs',
       'index.test.mjs',
+      'lifecycle-generation-exhaustion.test.mjs',
       'multi-live-poll-reconcile.test.mjs',
       'mutation-reconcile-failure.test.mjs',
       'offline-replay.test.mjs',
@@ -138,7 +139,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 54, 'reviewed package/admin test count changed');
+assert.equal(total, 55, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

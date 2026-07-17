@@ -506,11 +506,25 @@ tests) produced five pre-merge fixes, all landed:
    re-indexes the unvisited rooms into the ENG-23348 reverse index so
    the connection's eventual final disconnect still reaches them. The
    reaper and the admin disconnect route keep the unconditional wipe.
-   Residual:
-   ownership is defined by registration order — a client that
-   `subscribe_live`s durably *before* opening its WebSocket can still
-   lose that subscription to a stalled teardown, since the server has no
-   registration to attribute it to.
+   **Revised 2026-07-16:** the mutex-first/guarded-wipe implementation above is
+   now historical. It composed the global Local writer with notifier and
+   ephemeral shard locks and admitted a reverse edge against authenticated
+   live publication. Ordinary socket close now atomically replaces the exact
+   notifier generation with a teardown claim while temporarily suspending its
+   still-reusable registry grant; after releasing registry/notifier locks it
+   runs whole-id ephemeral cleanup, Local-only topology cleanup, and a final
+   exact-fence purge before clearing the claim. A stale generation cannot
+   acquire that ownership. Admin disconnect and idle maintenance instead
+   remove the exact grant (and enable mint-only containment) before spawning
+   owned notifier → ephemeral → Local → exact-purge cleanup; the old bearer is
+   invalid before the admin route can acknowledge success. Direct-library
+   combined disconnect/reaper methods remain compatibility seams only outside
+   the managed Local write scope, with a debug/test assertion enforcing that
+   boundary.
+   The former registration-order residual is closed: a pre-socket durable
+   subscribe must win the exact registry act before suspension and is then
+   either finalized before cleanup or terminalized by it; a subscribe that
+   loses the suspension cut is refused without a Local effect.
 2. **Honest resubscribe** — `live` is claimed only when a subscribe
    actually lands; failures surface, retry on bounded backoff, and every
    drain tick re-enters the fresh subscribe while needed (covers the

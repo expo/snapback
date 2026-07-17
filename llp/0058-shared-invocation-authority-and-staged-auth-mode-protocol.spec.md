@@ -5,7 +5,10 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+**Revised:** 2026-07-17 (post-commit carrier closure: an independently owned
+transition task receives a fail-closed carrier from Local projection, performs
+terminal lifecycle and runtime-mode publication off the committing Local
+scope, then explicitly opens the successor). 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this Spec after ENG-25001 closed the review findings and the FINAL4
 Codex and Fable reviews both returned READY; Status advanced to Accepted
 without advancing frozen LLP 0039); 2026-07-15 (FINAL3 closure: reconciles sessions-to-dev with LLP
@@ -799,6 +802,15 @@ projection admission for those local reruns/publications; it is never exposed
 as ordinary request admission and is dropped before reopen. Only after every
 required projection succeeds does the controller retire the predecessor and
 open a fresh increasing `admissionEpoch` for the still-settled sessions mode.
+
+The Local commit/private-projection phase returns a committed carrier that
+still owns the closed `ModeTransitionGuard`; it does not reopen admission.
+An independently owned task then performs connection terminal lifecycle and
+the clone-shared runtime mode-state publication outside the committing Local
+scope, and finally consumes the carrier to publish the successor epoch. The
+request owns only a join waiter. Cancellation or unwind after the durable cut
+drops the carrier fail-closed and can neither reopen before terminal
+propagation nor strand a known commit merely because the client disconnected.
 
 **The composed authorization commit witness is owned here** (this Spec owns
 same-mode activation): the completing transaction returns the concrete

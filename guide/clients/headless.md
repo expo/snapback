@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -85,27 +85,46 @@ capabilities and refuses the next one with
 The directory must be a normalized absolute path to an effective-user-owned
 `0700` directory. The adapter rejects untrusted symlink components, unsafe
 ancestor owners/ACLs, hard-linked or non-`0600` custody files, and records over
-64 KiB. Under each primary or terminal-witness partition lock it scans at most
-4,096 entries and removes only validated files in that exact record's temporary
-namespace, capped at 128 files / 8 MiB. `maintenanceSnapshot()` reports the
-last successful scan; limit and partial-cleanup failures use the exported
-`SNAPBACK_AUTH_CUSTODY_ORPHAN_*` diagnostics. Do not share the directory with
-another Unix account. The retained capability closes directory-name ABA, but
-it does not protect against a malicious same-uid process mutating entries
-inside the pinned inode.
+64 KiB. Under each primary, ledger-root, bucket, or migration-witness partition
+lock it removes only validated files in that exact record's temporary
+namespace: one deterministic `<record>.tmp` sidecar capped at 64 KiB.
+`maintenanceSnapshot()` reports the last exact cleanup; partial-cleanup failures use the
+exported `SNAPBACK_AUTH_CUSTODY_ORPHAN_*` diagnostics. A ledger/migration scan
+examines at most 4,096 directory entries and fails closed with
+`SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT` above that operator-rotation
+boundary. Do not share the directory with another Unix account. The retained
+capability closes directory-name ABA, but it does not protect against a
+malicious same-uid process mutating entries inside the pinned inode.
 
-Durable deletion also writes a permanent witness for the exact
-actor/credential-generation/grant tuple. That witness contains no bearer or
-token id, but it intentionally survives later primary-row replacement so an
-old validated descriptor cannot reopen. The witness commits before Snapback
-reads or validates the primary row, so a corrupt primary can fail settlement
-without letting later repair erase the terminal fact. Witness partitions are
-reclaimed only by explicit custody-store replacement. Upgrade every process sharing one
-custody directory together; old and new Agent custody binaries must not run
-concurrently across this protocol change. Custom storage adapters must
-advertise `partitionOwnership: "partitioned-v1"` and implement the gate
-owner's independent `withPartition(...)` operation; a single global mutex
-adapter is refused.
+Durable deletion records the exact actor/credential-generation/grant tuple in
+a bounded terminal ledger. By default the ledger has 64 deterministic buckets
+of at most 64 exact entries; it stores no bearer, token id, or carrier id. If a
+bucket fills, the root becomes globally `closed` and every tuple is refused —
+Snapback never evicts an entry or risks reopening an old validated descriptor.
+Call `await agentAuthority.inspectCustody()` for redacted operations data:
+format/state, unique witness count, stored ledger bytes, capacity, the 75%
+total and per-bucket warning thresholds, largest bucket count, and a warning
+bit. It does not return tuple identities, and closed state always warns.
+
+Upgrading from tuple-specific v1 witness files is automatic and crash-safe
+under the universal custody gate. Until the primary moves to format 2, new
+terminal facts are written to the v1 journal first so an interrupted old reader
+still sees them. Once the bucket ledger is active (or closed), Snapback cuts the
+primary to format 2, retires each identified journal JSON and lock file, and
+writes the legacy-cut cleanup seal last. Steady v2 gates do not scan the shared
+directory. They derive and strictly inspect only a candidate tuple's exact v1
+filename, so an unidentifiable malformed related witness still fails that
+candidate closed, while malformed unrelated files are isolated. This exact
+lookup also absorbs and retires a post-cut journal from a straggling v1
+terminal process before comparing publication authority. Drain
+and upgrade every process sharing one custody directory together; mixed
+versions are not a supported availability mode, although the journal/format
+cut fails closed instead of forgetting evidence. Custom storage adapters must
+advertise `partitionOwnership: "partitioned-v2"` and implement the gate owner's
+independent `withPartition(...)`, paged `scanPartitions(...)`, exact-revision
+`remove(...)`, and both-file `retire(...)` operations. A v1 or
+single-global-mutex adapter is
+refused.
 
 Contract's durable client store is a separate coordinated protocol. Its current
 format 6 makes the terminally-unbound anti-rebind marker mandatory and migrates
@@ -179,6 +198,13 @@ surface. Do not use them to bypass an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
 fences. `authorizedLeaseQuery` is the only lease-renewal query path;
 `acknowledgeAuthorizationInvalidation` closes the live authorization barrier.
+
+Contract resume and ephemeral reconnect generations fail closed if their
+safe-integer identity space is exhausted. The affected boundary or room is
+blanked and permanently detached with
+`SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED`; dispose remains safe and
+idempotent, but recovery requires constructing a new client process/surface
+rather than retrying the terminal instance.
 
 ## Complete public method inventory
 

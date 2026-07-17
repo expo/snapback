@@ -160,6 +160,7 @@ pub enum AuthenticatedUse {
 /// Redacted result of the first, read-only exchange lookup. It carries only
 /// enough state to select the address stripe and key before the writer starts;
 /// the transaction treats every field as untrusted and re-reads the row.
+#[derive(Clone)]
 pub struct ExchangeCoordination {
     challenge_id: ChallengeId,
     address: CanonicalAddress,
@@ -936,6 +937,38 @@ impl ProviderSessionIssuancePlan {
             projected: self.projected.clone(),
             eviction: self.eviction.clone(),
             challenge: self.challenge.clone(),
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn for_test(projected: ProjectedSessionInsert, bearer: SessionBearer) -> Self {
+        let token_hash = bearer.token_hash();
+        assert_eq!(
+            projected.token_digest,
+            TokenDigest::from_token_hash(&token_hash),
+            "test issuance projection must name its candidate bearer"
+        );
+        let identity_id = uuid::Uuid::from_u128(0x100).to_string();
+        let candidate = SessionCandidate {
+            user_id: projected.user_id.clone(),
+            identity_id: identity_id.clone(),
+            session_id: projected.session_id.clone(),
+            authority_instance_id: projected.authority_instance_id.clone(),
+            bearer: Some(bearer),
+            token_hash,
+        };
+        Self {
+            address: CanonicalAddress::parse("issuance-test@example.com")
+                .expect("fixed issuance test address"),
+            now_ms: projected.created_at_ms,
+            identity: PlannedIdentityState::Existing {
+                identity_id,
+                user_id: projected.user_id.clone(),
+            },
+            candidate,
+            projected,
+            eviction: None,
+            challenge: None,
         }
     }
 
@@ -2005,6 +2038,13 @@ impl fmt::Debug for ExchangeAdmission {
 }
 
 impl ExchangeAdmission {
+    /// Immutable lock-selection facts that may cross the projection Begin
+    /// boundary. The guard-bearing admission itself must be dropped first and
+    /// reacquired from these facts for the later exact durable CAS.
+    pub(crate) fn reacquisition_key(&self) -> ExchangeCoordination {
+        self.coordination.clone()
+    }
+
     pub(crate) fn plan_exchange(
         &self,
         database: &LocalDatabase,

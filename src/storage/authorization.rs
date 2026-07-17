@@ -50,9 +50,7 @@ pub(super) fn authorization_commit_hook_in(
             })
         }
         AuthorizationCommitCause::AppWrites { schema, changes } => {
-            let event = changes
-                .iter()
-                .any(|change| change_is_authorization_event(schema, change));
+            let event = app_writes_are_authorization_event(schema, changes);
             let version = if event {
                 auth_stream::advance_authorization_epoch_in(tx)?
             } else {
@@ -70,6 +68,15 @@ pub(super) fn authorization_commit_hook_in(
             })
         }
     }
+}
+
+pub(super) fn app_writes_are_authorization_event(
+    schema: &SchemaManifest,
+    changes: &[ChangedRow],
+) -> bool {
+    changes
+        .iter()
+        .any(|change| change_is_authorization_event(schema, change))
 }
 
 fn affected_membership_declarations(

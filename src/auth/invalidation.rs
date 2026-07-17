@@ -856,6 +856,7 @@ impl ScopeId {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct DataWitness {
     pub version_stream: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub min_commit_version: u64,
 }
 

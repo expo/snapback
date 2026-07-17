@@ -1574,7 +1574,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let mut database_lock = None;
     let database_path = prepared_database_path;
     let mut snapback = match database_path.as_ref() {
-        None => LocalSnapback::memory()?,
+        None => startup_blocking(LocalSnapback::memory)?,
         Some(db_path) => {
             // @ref LLP 0003#decision — one local server process owns the SQLite
             // database and process-local runtime state for this app instance.
@@ -1589,7 +1589,7 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
                     .ensure_valid()
                     .context("database target changed while acquiring its inner lock")?;
             }
-            let opened = LocalSnapback::open(db_path);
+            let opened = startup_blocking(|| LocalSnapback::open(db_path));
             if let Some(reservation) = &startup_target_reservation {
                 reservation
                     .ensure_valid()
@@ -4197,7 +4197,7 @@ mod tests {
             startup_artifacts: Some(carrier),
             ..Args::default()
         };
-        let mut snapback = LocalSnapback::open(&database).unwrap();
+        let mut snapback = super::startup_blocking(|| LocalSnapback::open(&database)).unwrap();
         let mut runtime = crate::auth::runtime::AuthRuntime::inspect(
             &mut snapback,
             Some(&database),

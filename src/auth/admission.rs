@@ -12,6 +12,7 @@
 // durable transition generation and process-local admission epoch atomically.
 
 use crate::auth::mode::{AppDataAvailability, AuthModeStateRecord, AuthModeStatus};
+use crate::auth::session_projection::{AUTH_LOCK_RANK_MODE_ADMISSION, AuthLockRankGuard};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::AuthMode;
 use std::collections::BTreeMap;
@@ -870,11 +871,22 @@ impl AdmissionLease {
     /// same mutex and therefore cannot cross that effect's linearization cut.
     pub fn effect_guard(&self, effect: &'static str) -> SnapbackResult<AdmissionEffectGuard<'_>> {
         let Some(controller) = &self.token.controller else {
-            return Ok(AdmissionEffectGuard { state: None });
+            let guard = AdmissionEffectGuard {
+                state: None,
+                _rank: None,
+            };
+            crate::exec_guard::retain_through_after_local(self.clone());
+            return Ok(guard);
         };
+        let rank = AuthLockRankGuard::enter(AUTH_LOCK_RANK_MODE_ADMISSION);
         let state = lock(&controller.state);
         validate_lease(&state, self, effect)?;
-        Ok(AdmissionEffectGuard { state: Some(state) })
+        let guard = AdmissionEffectGuard {
+            state: Some(state),
+            _rank: Some(rank),
+        };
+        crate::exec_guard::retain_through_after_local(self.clone());
+        Ok(guard)
     }
 }
 
@@ -882,6 +894,7 @@ impl AdmissionLease {
 pub struct AdmissionEffectGuard<'a> {
     #[allow(dead_code)]
     state: Option<MutexGuard<'a, AdmissionState>>,
+    _rank: Option<AuthLockRankGuard>,
 }
 
 impl fmt::Debug for AdmissionEffectGuard<'_> {
@@ -902,6 +915,47 @@ pub struct ModeTransitionGuard {
     active_mode: AuthMode,
     reopen_on_abort: bool,
     finished: bool,
+}
+
+/// A known committed mode transition whose durable/private Local projection
+/// finished while predecessor admission remained closed. This carrier owns the
+/// transition guard until off-Local lifecycle and runtime projections finish;
+/// dropping it leaves a fresh epoch non-accepting rather than reopening either
+/// predecessor or successor authority.
+pub(crate) struct CommittedModeTransition<T> {
+    transition: ModeTransitionGuard,
+    output: T,
+    mode: AuthModeStateRecord,
+}
+
+impl<T> fmt::Debug for CommittedModeTransition<T> {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter
+            .debug_struct("CommittedModeTransition")
+            .field("transition", &self.transition)
+            .field("mode", &self.mode)
+            .finish_non_exhaustive()
+    }
+}
+
+impl<T> CommittedModeTransition<T> {
+    pub(crate) fn mode(&self) -> &AuthModeStateRecord {
+        &self.mode
+    }
+
+    /// Explicitly publish the already-projected successor only after every
+    /// off-Local terminal/runtime projection has completed.
+    pub(crate) fn publish_successor(
+        self,
+    ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
+        let Self {
+            transition,
+            output,
+            mode,
+        } = self;
+        let snapshot = transition.publish_committed_mode_state(&mode)?;
+        Ok((output, mode, snapshot))
+    }
 }
 
 impl fmt::Debug for ModeTransitionGuard {
@@ -994,10 +1048,10 @@ impl ModeTransitionGuard {
     /// @ref LLP 0058#same-mode-provisioning — the transition's private
     /// projection root is the only work admitted between durable activation
     /// and successor reopen.
-    pub(crate) fn commit_project_and_publish_mode_state<T>(
+    pub(crate) fn commit_and_project_mode_state<T>(
         mut self,
         commit: impl FnOnce(&AdmissionLease) -> Result<(T, AuthModeStateRecord), ModeCommitFailure>,
-    ) -> SnapbackResult<(T, AuthModeStateRecord, AdmissionSnapshot)> {
+    ) -> SnapbackResult<CommittedModeTransition<T>> {
         self.validate_closed()?;
         let projection_admission = self.admit_transition_projection()?;
         // The closure may cross the durable cut before running arbitrary
@@ -1016,21 +1070,17 @@ impl ModeTransitionGuard {
             Err(ModeCommitFailure::Uncertain(error)) => return Err(error),
         };
 
-        // From the durable cut onward, even a process-local projection or
-        // publication failure must not reopen the predecessor.
+        // From the durable cut onward, even a process-local or off-Local
+        // publication failure must not reopen the predecessor. Return the
+        // still-closed guard as an owned carrier; its caller must complete all
+        // remaining projection before explicitly publishing the successor.
         self.validate_closed()?;
         mode.validate_shape()?;
-        let accepting = mode.mode_state == AuthModeStatus::Settled
-            && mode.app_data_availability == AppDataAvailability::Available;
-        let snapshot = self.controller.retire_and_reopen(
-            self.admission_epoch,
-            self.transition_generation,
-            mode.transition_generation,
-            mode.active,
-            accepting,
-        )?;
-        self.finished = true;
-        Ok((output, mode, snapshot))
+        Ok(CommittedModeTransition {
+            transition: self,
+            output,
+            mode,
+        })
     }
 
     fn admit_transition_projection(&self) -> SnapbackResult<AdmissionLease> {
@@ -1309,6 +1359,17 @@ mod tests {
     }
 
     #[test]
+    #[should_panic(expected = "auth lock-rank inversion")]
+    fn mode_publication_guard_rejects_stream_fence_inversion() {
+        let controller = AdmissionController::new(7, true).unwrap();
+        let lease = controller.admit().unwrap();
+        let _mode = lease.effect_guard("intentional inverse").unwrap();
+        let (_, publication) =
+            crate::auth::session_projection::FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let _ = publication.try_publish(0, Instant::now(), || Ok(()));
+    }
+
+    #[test]
     fn paused_invocation_closes_new_admission_then_yields_transition_guard() {
         let controller = AdmissionController::new(3, true).unwrap();
         let lease = controller.admit().unwrap();
@@ -1363,8 +1424,8 @@ mod tests {
         let guard = worker.join().unwrap();
         let projected = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let observed = projected.clone();
-        let (_, returned, reopened) = guard
-            .commit_project_and_publish_mode_state(|projection_admission| {
+        let committed = guard
+            .commit_and_project_mode_state(|projection_admission| {
                 assert_eq!(projection_admission.active_mode(), Some(AuthMode::Sessions));
                 projection_admission
                     .effect_guard("activation invalidation projection")
@@ -1376,6 +1437,11 @@ mod tests {
             })
             .unwrap();
         assert!(projected.load(Ordering::SeqCst));
+        assert!(
+            !controller.snapshot().accepting,
+            "the committed carrier keeps successor admission closed"
+        );
+        let (_, returned, reopened) = committed.publish_successor().unwrap();
         assert_eq!(returned, settled);
         assert_ne!(reopened.admission_epoch, old_epoch);
         assert!(reopened.accepting);
@@ -1390,7 +1456,7 @@ mod tests {
         let error = controller
             .begin_transition()
             .unwrap()
-            .commit_project_and_publish_mode_state::<()>(|projection_admission| {
+            .commit_and_project_mode_state::<()>(|projection_admission| {
                 projection_admission
                     .effect_guard("ambiguous activation projection")
                     .map_err(ModeCommitFailure::Uncertain)?;
@@ -1410,6 +1476,34 @@ mod tests {
     }
 
     #[test]
+    fn dropping_known_committed_transition_carrier_never_reopens_authority() {
+        let settled = settled_sessions(11);
+        let controller = AdmissionController::from_mode_state(&settled).unwrap();
+        let before = controller.snapshot();
+        let committed = controller
+            .begin_transition()
+            .unwrap()
+            .commit_and_project_mode_state(|projection_admission| {
+                projection_admission
+                    .effect_guard("known commit private projection")
+                    .map_err(ModeCommitFailure::Uncertain)?;
+                Ok(((), settled.clone()))
+            })
+            .unwrap();
+        assert!(!controller.snapshot().accepting);
+        drop(committed);
+        let closed = controller.snapshot();
+        assert_ne!(closed.admission_epoch, before.admission_epoch);
+        assert_eq!(closed.transition_generation, before.transition_generation);
+        assert!(!closed.accepting);
+        assert_eq!(closed.in_flight, 0);
+        assert_eq!(
+            controller.admit().unwrap_err().diagnostic.code,
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    #[test]
     fn activation_projection_unwind_after_possible_commit_stays_closed() {
         let settled = settled_sessions(10);
         let controller = AdmissionController::from_mode_state(&settled).unwrap();
@@ -1417,7 +1511,7 @@ mod tests {
             let _ = controller
                 .begin_transition()
                 .unwrap()
-                .commit_project_and_publish_mode_state::<()>(|_| {
+                .commit_and_project_mode_state::<()>(|_| {
                     panic!("injected post-commit activation projection unwind")
                 });
         }));

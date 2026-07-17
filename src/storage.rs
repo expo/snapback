@@ -4,10 +4,10 @@ use crate::manifest::{
     AuthInput, AuthMode, CLIENT_MUTATION_ACK_MAX_IDS, CTX_ANSWER_LEDGER_MAX_IDS,
     CTX_ANSWER_LEDGER_VERSION, CtxAnswerLedger, FieldManifest, FieldType, FilterOp, HandlerInput,
     MembershipManifest, MembershipOp, MembershipProvenance, MembershipScope, MembershipTarget,
-    MutationOutput, MutationPlan, MutationStep, OrderDirection, QUERY_INTERNAL_OVERFETCH_MAX,
-    QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput, QueryPlan, ReadDependency,
-    ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr, auth_fingerprint,
-    effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
+    MutationOutput, MutationPlan, MutationStep, OrderDirection, PORTABLE_STORAGE_VERSION_MAX,
+    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_FILTER_BINDINGS, QUERY_MAX_IN_ITEMS, QueryOutput,
+    QueryPlan, ReadDependency, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
+    auth_fingerprint, effective_query_limit, replay_opaque_id_is_valid, validate_ctx_answer_ledger,
     validate_portable_timestamp_millis, validate_query_plan_shape,
 };
 use rusqlite::types::{Value as SqlValue, ValueRef};
@@ -208,6 +208,7 @@ pub struct ClientMutationRetentionInfo {
 pub struct StorageInfo {
     #[serde(rename = "sqlitePath", alias = "sqlite_path")]
     pub sqlite_path: Option<PathBuf>,
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub tables: Vec<String>,
     #[serde(rename = "clientMutationRetention")]
@@ -300,21 +301,87 @@ pub(crate) enum AuthorizationCommitImpact<'a> {
     },
 }
 
-/// Process-local sink barrier paired with the durable authorization hook.
-/// Implementations install their level-triggered state before SQLite commit,
-/// hold no mutex across commit, and receive an explicit ambiguous outcome
-/// instead of guessing that a failed COMMIT rolled back.
-pub(crate) trait AuthorizationCommitInterlock: Send + Sync {
-    fn prepare(
-        &self,
-        witness: &AuthorizationCommitWitness,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>>;
+/// Conservative process-local room set reserved before entering managed
+/// Local/SQLite work. Table hints preserve disjoint protected collections;
+/// destructive or metadata-incomplete operations use the explicit all-room
+/// form.
+#[derive(Clone, Debug)]
+pub(crate) enum AuthorizationCommitPreflight {
+    NoAuthorizationEvent,
+    AllProtectedRooms,
+    AppWrites {
+        schema: SchemaManifest,
+        changes: Vec<ChangedRow>,
+    },
 }
+
+pub(crate) fn app_writes_are_authorization_event(
+    schema: &SchemaManifest,
+    changes: &[ChangedRow],
+) -> bool {
+    authorization::app_writes_are_authorization_event(schema, changes)
+}
+
+/// Marker that this database participates in a process-local authorization
+/// sink interlock. The marker intentionally exposes no transaction-time
+/// preparation method: callers must install an [`AuthorizationCommitReservation`]
+/// before Local and SQLite, and the commit hook may only bind that carrier.
+pub(crate) trait AuthorizationCommitInterlock: Send + Sync {}
 
 pub(crate) trait PreparedAuthorizationCommit: Send {
     fn committed(self: Box<Self>, min_commit_version: u64) -> SnapbackResult<()>;
     fn ambiguous(self: Box<Self>);
+}
+
+/// An unbound room dependency reserved and quiesced before managed Local work.
+/// Binding consumes only transaction-derived immutable data and takes no
+/// process mutex; cancellation/finalization is owned after Local release.
+pub(crate) trait AuthorizationCommitReservation: Send {
+    fn bind(
+        self: Box<Self>,
+        witness: &AuthorizationCommitWitness,
+        impact: AuthorizationCommitImpact<'_>,
+    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>>;
+
+    fn cancel(self: Box<Self>);
+}
+
+#[derive(Default)]
+pub(crate) struct AuthorizationReservationCancellation {
+    cancelled: std::sync::atomic::AtomicBool,
+}
+
+impl AuthorizationReservationCancellation {
+    pub(crate) fn cancel(&self) {
+        self.cancelled
+            .store(true, std::sync::atomic::Ordering::Release);
+    }
+
+    pub(crate) fn is_cancelled(&self) -> bool {
+        self.cancelled.load(std::sync::atomic::Ordering::Acquire)
+    }
+}
+
+thread_local! {
+    static MANAGED_AUTHORIZATION_RESERVATION: std::cell::RefCell<Option<Box<dyn AuthorizationCommitReservation>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+pub(crate) fn install_managed_authorization_reservation(
+    reservation: Box<dyn AuthorizationCommitReservation>,
+) {
+    MANAGED_AUTHORIZATION_RESERVATION.with(|slot| {
+        let previous = slot.borrow_mut().replace(reservation);
+        assert!(
+            previous.is_none(),
+            "managed authorization reservation already installed"
+        );
+    });
+}
+
+pub(crate) fn take_managed_authorization_reservation()
+-> Option<Box<dyn AuthorizationCommitReservation>> {
+    MANAGED_AUTHORIZATION_RESERVATION.with(|slot| slot.borrow_mut().take())
 }
 
 /// Commit with the exact authorization pair observed before this transaction's
@@ -350,7 +417,7 @@ fn commit_with_authorization_interlock(
 ///
 /// @ref LLP 0053#ephemeral-room-authority-invalidation — targeted dependency
 ///   preparation must not suspend unrelated protected rooms.
-fn prepare_authorization_commit_interlock(
+pub(super) fn prepare_authorization_commit_interlock(
     witness: &AuthorizationCommitWitness,
     impact: AuthorizationCommitImpact<'_>,
     interlock: Option<&Arc<dyn AuthorizationCommitInterlock>>,
@@ -358,9 +425,21 @@ fn prepare_authorization_commit_interlock(
     if !witness.event {
         return Ok(None);
     }
-    interlock
-        .map(|interlock| interlock.prepare(witness, impact))
-        .transpose()
+    if interlock.is_none() {
+        return Ok(None);
+    }
+    // Any interlocked transaction must arrive with a dependency that was
+    // installed and quiesced before SQLite opened. There is intentionally no
+    // direct-library fallback here: calling a process interlock now would
+    // overlap its registry/condvar with the live transaction.
+    let reservation = take_managed_authorization_reservation().ok_or_else(|| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "authorization write reached SQLite without an off-Local, off-SQLite room reservation",
+        )
+    })?;
+    reservation.bind(witness, impact).map(Some)
 }
 
 /// Commit after any targeted room dependency has already quiesced. Callers
@@ -495,6 +574,7 @@ struct BufferedCommitOptions<'a> {
     identity: Option<&'a ClientMutationIdentity>,
 }
 
+#[derive(Clone)]
 pub(crate) struct BufferedCommitPayload {
     pub writes: Vec<BufferedWrite>,
     pub membership_plans: Vec<AuthorizedMembershipPlan>,
@@ -778,6 +858,12 @@ impl LocalDatabase {
         };
         db.configure(true)?;
         db.create_infra()?;
+        // `_version` is a plain-JSON client cursor, not an arbitrary SQLite
+        // integer. Refuse a negative or non-portable predecessor before this
+        // database can publish a read lane or serve any request.
+        // @ref LLP 0007#data-model — system versions share the exact portable
+        // integer domain on every target.
+        db.current_version()?;
         db.schema = stored_schema.unwrap_or_default();
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         // The pool is created after configure/create_infra so readers open an
@@ -1204,8 +1290,9 @@ impl LocalDatabase {
         retain_versions: u64,
         retain_ms: u64,
     ) -> SnapbackResult<u64> {
-        let version_floor = self.current_version()?.saturating_sub(retain_versions);
-        let time_floor = now_ms.saturating_sub(retain_ms);
+        let version_floor =
+            version_to_sql_integer(self.current_version()?.saturating_sub(retain_versions))?;
+        let time_floor = timestamp_to_sql_millis(now_ms.saturating_sub(retain_ms))?;
         // Predicate for a prunable row: outside both windows, and not its
         // table's high-water change (which read-set validation still needs).
         let prunable = "version < ?1 AND changed_at_ms < ?2 \
@@ -1216,16 +1303,20 @@ impl LocalDatabase {
         // a contiguous journal.
         let highest_pruned: Option<i64> = self.conn.query_row(
             &format!("SELECT MAX(version) FROM _snapback_changes WHERE {prunable}"),
-            params![version_floor as i64, time_floor as i64],
+            params![version_floor, time_floor],
             |row| row.get(0),
         )?;
         if let Some(highest_pruned) = highest_pruned {
-            let floor = self.load_retention_floor()?.max(highest_pruned as u64 + 1);
+            let highest_pruned =
+                decode_storage_version(highest_pruned, "highest prunable change-journal version")?;
+            let floor = self
+                .load_retention_floor()?
+                .max(next_storage_version(highest_pruned)?);
             self.save_retention_floor(floor)?;
         }
         let deleted = self.conn.execute(
             &format!("DELETE FROM _snapback_changes WHERE {prunable}"),
-            params![version_floor as i64, time_floor as i64],
+            params![version_floor, time_floor],
         )?;
         Ok(deleted as u64)
     }
@@ -1250,7 +1341,16 @@ impl LocalDatabase {
                 |row| row.get(0),
             )
             .optional()?;
-        Ok(value.and_then(|value| value.parse().ok()).unwrap_or(0))
+        value.map_or(Ok(0), |value| {
+            let value = value.parse::<i64>().map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                    "storage",
+                    "change-journal retention floor is not a portable integer",
+                )
+            })?;
+            decode_storage_version(value, "change-journal retention floor")
+        })
     }
 
     fn save_retention_floor(&self, floor: u64) -> SnapbackResult<()> {
@@ -1349,8 +1449,8 @@ impl LocalDatabase {
         };
         let projection =
             SessionProjection::rebuild_with_fresh_startup_id(source, now_millis(), Instant::now())?;
-        let coordinator = AuthCoordinator::new(projection)?;
-        let carrier = coordinator.premark_stream_reset()?;
+        let coordinator = Arc::new(AuthCoordinator::new(projection)?);
+        let carrier = coordinator.premark_stream_reset_if_drained()?;
         let predecessor = carrier.predecessor().clone();
         let successor = carrier.successor().clone();
         let attempt =
@@ -1414,13 +1514,11 @@ impl LocalDatabase {
             membership_declarations: Vec::new(),
         };
         let min_commit_version = seeded.as_ref().map_or(0, |output| output.version);
-        let prepared = match authorization_interlock
-            .as_ref()
-            .map(|interlock| {
-                interlock.prepare(&authorization, AuthorizationCommitImpact::AllProtectedRooms)
-            })
-            .transpose()
-        {
+        let prepared = match prepare_authorization_commit_interlock(
+            &authorization,
+            AuthorizationCommitImpact::AllProtectedRooms,
+            authorization_interlock.as_ref(),
+        ) {
             Ok(prepared) => prepared,
             Err(error) => return auth::AuthTransactionAttempt::RolledBack(error),
         };
@@ -1523,9 +1621,22 @@ impl LocalDatabase {
             .map(|commit| commit.output)
     }
 
+    pub(crate) fn preview_seed_changes(
+        &mut self,
+        seed: SeedData,
+    ) -> SnapbackResult<Vec<ChangedRow>> {
+        let next_version = next_storage_version(self.current_version()?)?;
+        let schema = self.schema.clone();
+        let tx = self.conn.transaction()?;
+        let changes = seed_into_transaction(&tx, &schema, seed, next_version)?;
+        validate_membership_activation(&tx, &schema)?;
+        tx.rollback()?;
+        Ok(changes)
+    }
+
     pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
         let current_version = self.current_version()?;
-        let next_version = current_version + 1;
+        let next_version = next_storage_version(current_version)?;
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
@@ -1800,7 +1911,7 @@ impl LocalDatabase {
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
-        let next_version = current_version + 1;
+        let next_version = next_storage_version(current_version)?;
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
 
@@ -2499,7 +2610,7 @@ impl LocalDatabase {
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
         let current_version = self.current_version()?;
-        let next_version = current_version + 1;
+        let next_version = next_storage_version(current_version)?;
         let authorization_interlock = self.authorization_interlock.clone();
         let tx = self.conn.transaction()?;
 
@@ -3190,7 +3301,7 @@ pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
         [],
         |row| row.get(0),
     )?;
-    Ok(version as u64)
+    decode_storage_version(version, "global storage version")
 }
 
 /// A read-only storage view for query execution on either lane.
@@ -5871,7 +5982,9 @@ fn get_row_version(
     let version: Option<i64> = statement
         .query_row(params![id], |row| row.get(0))
         .optional()?;
-    Ok(version.map(|version| version as u64))
+    version
+        .map(|version| decode_storage_version(version, "row storage version"))
+        .transpose()
 }
 
 fn table_change_version_from_connection(conn: &Connection, table: &str) -> SnapbackResult<u64> {
@@ -5880,14 +5993,14 @@ fn table_change_version_from_connection(conn: &Connection, table: &str) -> Snapb
         params![table],
         |row| row.get(0),
     )?;
-    Ok(version.unwrap_or(0) as u64)
+    decode_storage_version(version.unwrap_or(0), "table change version")
 }
 
 fn table_change_version_from_tx(tx: &Transaction<'_>, table: &str) -> SnapbackResult<u64> {
     let mut statement =
         tx.prepare_cached("SELECT MAX(version) FROM _snapback_changes WHERE table_name = ?1")?;
     let version: Option<i64> = statement.query_row(params![table], |row| row.get(0))?;
-    Ok(version.unwrap_or(0) as u64)
+    decode_storage_version(version.unwrap_or(0), "transactional table change version")
 }
 
 /// The changes to `table` committed after `version`, reconstructed as
@@ -5904,7 +6017,8 @@ fn changes_to_table_since(
         "SELECT row_id, op, row_json FROM _snapback_changes \
          WHERE table_name = ?1 AND version > ?2 ORDER BY version, id",
     )?;
-    let rows = statement.query_map(params![table, version as i64], |row| {
+    let version = version_to_sql_integer(version)?;
+    let rows = statement.query_map(params![table, version], |row| {
         let id: String = row.get(0)?;
         let op: String = row.get(1)?;
         let row_json: Option<String> = row.get(2)?;
@@ -5945,7 +6059,16 @@ fn retention_floor_from_tx(tx: &Transaction<'_>) -> SnapbackResult<u64> {
             |row| row.get(0),
         )
         .optional()?;
-    Ok(value.and_then(|value| value.parse().ok()).unwrap_or(0))
+    value.map_or(Ok(0), |value| {
+        let value = value.parse::<i64>().map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "storage",
+                "change-journal retention floor is not a portable integer",
+            )
+        })?;
+        decode_storage_version(value, "change-journal retention floor")
+    })
 }
 
 fn captured_writes_from_changes(changes: &[ChangedRow]) -> Vec<CapturedWriteDependency> {
@@ -6165,13 +6288,47 @@ fn seed_into_transaction(
 }
 
 fn version_to_sql_integer(value: u64) -> SnapbackResult<i64> {
-    i64::try_from(value).map_err(|_| {
-        SnapbackError::error(
-            "SNAPBACK_VERSION_OUT_OF_RANGE",
-            "storage",
-            format!("version {value} cannot be represented by the storage engine"),
-        )
-    })
+    i64::try_from(value)
+        .ok()
+        .filter(|_| value <= PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_VERSION_OUT_OF_RANGE",
+                "storage",
+                format!("version {value} is outside the portable integer domain"),
+            )
+        })
+}
+
+fn decode_storage_version(value: i64, context: &str) -> SnapbackResult<u64> {
+    u64::try_from(value)
+        .ok()
+        .filter(|version| *version <= PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "storage",
+                format!("{context} is outside the portable integer domain"),
+            )
+        })
+}
+
+/// Reserve the next globally ordered storage version before mutation work.
+/// The version is serialized as a plain JSON number and compared by JavaScript
+/// clients. Exhausting that portable order is terminal even though SQLite and
+/// Rust can represent larger integers: a lossy successor would invalidate
+/// live/auth commit cuts before the signed storage boundary was reached.
+fn next_storage_version(current: u64) -> SnapbackResult<u64> {
+    current
+        .checked_add(1)
+        .filter(|next| *next <= PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_STORAGE_VERSION_EXHAUSTED",
+                "storage",
+                "storage version cannot advance within the durable ordering domain",
+            )
+        })
 }
 
 // ============================================================================
@@ -6446,7 +6603,7 @@ struct MembershipTargetRow {
 ///
 /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default — the
 ///   holder-set / resource-existence reads are captured, not snapshot-only.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct MembershipPlan {
     writes: Vec<BufferedWrite>,
     read_dependencies: Vec<CapturedReadDependency>,
@@ -6464,7 +6621,7 @@ pub struct MembershipPlan {
 /// @ref LLP 0056#protocol-obligations-deferred-to-implementation — the host-owned writer-authority carrier
 ///   remains distinct from raw buffered writes through replay, dry-run, and
 ///   nested mutation commit.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct AuthorizedMembershipPlan {
     writer: MembershipWriter,
     plan: MembershipPlan,
@@ -6479,14 +6636,14 @@ impl AuthorizedMembershipPlan {
 /// A declaration-bound membership operation buffered by the host bridge. Both
 /// the table binding and writer are host-derived; only operation arguments come
 /// from application code.
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub(crate) struct BufferedMembershipCommand {
     writer: MembershipWriter,
     table: String,
     op: BufferedMembershipOp,
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 enum BufferedMembershipOp {
     Bootstrap {
         resource_id: String,
@@ -6637,7 +6794,7 @@ fn read_membership_row(
         quote_ident(&table.name)?
     );
     let has_resource = membership.resource.is_some();
-    let row = conn
+    let row: Option<(String, String, Option<String>, i64)> = conn
         .query_row(&sql, params![id], |row| {
             let principal: String = row.get(0)?;
             let role: String = row.get(1)?;
@@ -6646,16 +6803,19 @@ fn read_membership_row(
             } else {
                 (None, row.get(2)?)
             };
-            Ok(MembershipTargetRow {
-                id: id.to_owned(),
-                principal,
-                resource,
-                role,
-                version: version as u64,
-            })
+            Ok((principal, role, resource, version))
         })
         .optional()?;
-    Ok(row)
+    row.map(|(principal, role, resource, version)| {
+        Ok(MembershipTargetRow {
+            id: id.to_owned(),
+            principal,
+            resource,
+            role,
+            version: decode_storage_version(version, "membership row storage version")?,
+        })
+    })
+    .transpose()
 }
 
 /// The caller's own role over a resource, together with the exact captured
@@ -6756,7 +6916,9 @@ fn read_resource_version(
             |row| row.get(0),
         )
         .optional()?;
-    Ok(version.map(|version| version as u64))
+    version
+        .map(|version| decode_storage_version(version, "membership resource storage version"))
+        .transpose()
 }
 
 /// Find a transition that authorizes `(op, caller class, target, from, to)`.
@@ -6964,24 +7126,70 @@ impl LocalDatabase {
              WHERE declaration_id = ?1
              ORDER BY commit_version, id",
         )?;
-        statement
+        type RawTransition = (
+            String,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            Option<String>,
+            String,
+            String,
+            Option<String>,
+            i64,
+            String,
+        );
+        let rows = statement
             .query_map(params![declaration], |row| {
-                Ok(MembershipTransitionRecord {
-                    declaration: row.get(0)?,
-                    op: row.get(1)?,
-                    principal: row.get(2)?,
-                    resource: row.get(3)?,
-                    from_role: row.get(4)?,
-                    to_role: row.get(5)?,
-                    actor: row.get(6)?,
-                    effective: row.get(7)?,
-                    grant: row.get(8)?,
-                    commit_version: row.get::<_, i64>(9)? as u64,
-                    writer_class: row.get(10)?,
-                })
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                    row.get(7)?,
+                    row.get(8)?,
+                    row.get(9)?,
+                    row.get(10)?,
+                ))
             })?
-            .collect::<Result<Vec<_>, _>>()
-            .map_err(SnapbackError::from)
+            .collect::<Result<Vec<RawTransition>, _>>()?;
+        rows.into_iter()
+            .map(
+                |(
+                    declaration,
+                    op,
+                    principal,
+                    resource,
+                    from_role,
+                    to_role,
+                    actor,
+                    effective,
+                    grant,
+                    commit_version,
+                    writer_class,
+                )| {
+                    Ok(MembershipTransitionRecord {
+                        declaration,
+                        op,
+                        principal,
+                        resource,
+                        from_role,
+                        to_role,
+                        actor,
+                        effective,
+                        grant,
+                        commit_version: decode_storage_version(
+                            commit_version,
+                            "membership transition commit version",
+                        )?,
+                        writer_class,
+                    })
+                },
+            )
+            .collect()
     }
 
     /// Plan an `insert` transition (open-join, invite, ...). Reads the resource
@@ -7534,7 +7742,7 @@ impl LocalDatabase {
                 let principal: String = row.get(2)?;
                 let role: String = row.get(3)?;
                 let resource: Option<String> = if has_resource { row.get(4)? } else { None };
-                Ok((id, version as u64, principal, role, resource))
+                Ok((id, version, principal, role, resource))
             })?
             .collect::<Result<Vec<_>, _>>()?;
 
@@ -7550,6 +7758,7 @@ impl LocalDatabase {
         // be swept into a strand.
         let mut removed: BTreeSet<String> = BTreeSet::new();
         for (id, version, principal, role, resource) in expired {
+            let version = decode_storage_version(version, "expired membership row version")?;
             // The sweep may delete this exact row only if its expiry/role/axes
             // are unchanged at commit. Renewal, promotion, or any other patch
             // bumps the row version and invalidates the stale plan.
@@ -8279,7 +8488,7 @@ fn insert_document(
     ];
     let mut values = vec![
         SqlValue::Text(id.to_owned()),
-        SqlValue::Integer(version as i64),
+        SqlValue::Integer(version_to_sql_integer(version)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
@@ -8363,7 +8572,7 @@ fn patch_document(
 ) -> SnapbackResult<bool> {
     let mut assignments = vec!["_version = ?".to_owned(), "_updatedAt = ?".to_owned()];
     let mut values = vec![
-        SqlValue::Integer(version as i64),
+        SqlValue::Integer(version_to_sql_integer(version)?),
         SqlValue::Integer(timestamp_to_sql_millis(now_ms)?),
     ];
 
@@ -8443,7 +8652,7 @@ fn record_change(
          VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
     )?;
     statement.execute(params![
-        version as i64,
+        version_to_sql_integer(version)?,
         table,
         id,
         match op {
@@ -8460,7 +8669,7 @@ fn record_change(
 fn set_version(tx: &Transaction<'_>, version: u64) -> SnapbackResult<()> {
     tx.execute(
         "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
-        params![version as i64],
+        params![version_to_sql_integer(version)?],
     )?;
     Ok(())
 }
@@ -9465,6 +9674,244 @@ mod guarded_commit_tests {
                 ])],
             )]),
         }
+    }
+
+    fn force_exhausted_storage_version(db: &LocalDatabase) {
+        db.conn
+            .execute(
+                "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+                params![PORTABLE_STORAGE_VERSION_MAX as i64],
+            )
+            .expect("force exhausted storage version");
+        assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
+    }
+
+    fn assert_exhaustion_preserved(
+        db: &LocalDatabase,
+        authorization: &AuthorizationVersion,
+        change_rows: i64,
+    ) {
+        assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
+        assert_eq!(&db.authorization_version().unwrap(), authorization);
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 0);
+        let actual_change_rows: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+        assert_eq!(actual_change_rows, change_rows);
+    }
+
+    #[test]
+    fn seed_refuses_exhausted_storage_version_without_data_or_auth_change() {
+        let mut db = database();
+        force_exhausted_storage_version(&db);
+        let authorization = db.authorization_version().unwrap();
+        let change_rows: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+
+        let error = db
+            .seed_with_authorization(seed_data("exhausted", "must-not-land"))
+            .expect_err("seed cannot wrap the global storage version");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_exhaustion_preserved(&db, &authorization, change_rows);
+    }
+
+    #[test]
+    fn host_plan_refuses_exhausted_storage_version_without_data_or_auth_change() {
+        let mut db = database();
+        force_exhausted_storage_version(&db);
+        let authorization = db.authorization_version().unwrap();
+        let change_rows = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+
+        let error = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect_err("HostPlan cannot wrap the global storage version");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_exhaustion_preserved(&db, &authorization, change_rows);
+    }
+
+    #[test]
+    fn buffered_commit_refuses_exhausted_storage_version_without_data_or_auth_change() {
+        let mut db = database();
+        force_exhausted_storage_version(&db);
+        let authorization = db.authorization_version().unwrap();
+        let change_rows = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                buffered_writes(),
+                Vec::new(),
+                json!(2),
+            )
+            .expect_err("buffered/Ibex commit cannot wrap the global storage version");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_exhaustion_preserved(&db, &authorization, change_rows);
+    }
+
+    #[test]
+    fn final_portable_storage_version_commits_once_then_refuses_successor() {
+        let mut db = database();
+        db.conn
+            .execute(
+                "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+                params![(PORTABLE_STORAGE_VERSION_MAX - 1) as i64],
+            )
+            .unwrap();
+
+        let committed = db
+            .seed_with_authorization(seed_data("last", "portable-final"))
+            .expect("max-1 may commit the final exact JavaScript version");
+        assert_eq!(committed.output.version, PORTABLE_STORAGE_VERSION_MAX);
+        assert_eq!(db.current_version().unwrap(), PORTABLE_STORAGE_VERSION_MAX);
+        let authorization = db.authorization_version().unwrap();
+        let change_rows: i64 = db
+            .conn
+            .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| {
+                row.get(0)
+            })
+            .unwrap();
+
+        let error = db
+            .seed_with_authorization(seed_data("past", "must-not-land"))
+            .expect_err("the portable final version has no successor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(db.authorization_version().unwrap(), authorization);
+        assert_eq!(
+            db.conn
+                .query_row("SELECT COUNT(*) FROM _snapback_changes", [], |row| row
+                    .get::<_, i64>(0))
+                .unwrap(),
+            change_rows
+        );
+    }
+
+    #[test]
+    fn negative_and_nonportable_durable_versions_fail_reads_and_reopen() {
+        for (name, value) in [
+            ("negative", -1_i64),
+            (
+                "past-portable-max",
+                (PORTABLE_STORAGE_VERSION_MAX + 1) as i64,
+            ),
+        ] {
+            let (_dir, path, db) = file_database();
+            db.conn
+                .execute(
+                    "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+                    params![value],
+                )
+                .unwrap();
+            assert_eq!(
+                db.current_version().unwrap_err().diagnostic.code,
+                "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name} live read"
+            );
+            drop(db);
+            let reopen_error = match LocalDatabase::open(&path) {
+                Ok(_) => panic!("{name} durable version unexpectedly reopened"),
+                Err(error) => error,
+            };
+            assert_eq!(
+                reopen_error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name} reopen"
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_change_journal_versions_fail_closed_without_pruning() {
+        let mut db = database();
+        db.seed(seed_data("older", "older"))
+            .expect("seed older journal row");
+        db.seed(seed_data("newest", "newest"))
+            .expect("seed newest journal row");
+        db.conn
+            .execute(
+                "UPDATE _snapback_changes SET version = -1 WHERE row_id = 'older'",
+                [],
+            )
+            .expect("corrupt prunable journal row");
+        let before = db.change_journal_len().expect("journal length");
+        let error = db
+            .prune_change_journal(now_millis() + 10_000, 0, 0)
+            .expect_err("a corrupt prunable high-water must not advance the floor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        assert_eq!(db.change_journal_len().unwrap(), before);
+        assert_eq!(db.journal_floor_version().unwrap(), 0);
+
+        let mut db = database();
+        db.seed(seed_data("only", "only"))
+            .expect("seed table high-water");
+        db.conn
+            .execute(
+                "UPDATE _snapback_changes SET version = ?1 WHERE row_id = 'only'",
+                params![(PORTABLE_STORAGE_VERSION_MAX + 1) as i64],
+            )
+            .expect("corrupt table high-water");
+        let error = db
+            .table_change_version("items")
+            .expect_err("a non-portable table high-water must not become a read cursor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+    }
+
+    #[test]
+    fn corrupt_change_journal_retention_floor_fails_live_and_transactional_reads() {
+        for value in [
+            "-1".to_owned(),
+            (PORTABLE_STORAGE_VERSION_MAX + 1).to_string(),
+            "not-an-integer".to_owned(),
+        ] {
+            let mut db = database();
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_meta(key, value) VALUES(?1, ?2) \
+                     ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    params![META_RETENTION_FLOOR, value],
+                )
+                .expect("corrupt retention floor");
+            let error = db
+                .journal_floor_version()
+                .expect_err("live journal-floor reads must reject corruption");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+
+            let tx = db.conn.transaction().expect("read transaction");
+            let error = retention_floor_from_tx(&tx)
+                .expect_err("mutation validation must reject the same corrupt floor");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+            tx.rollback().expect("rollback read transaction");
+        }
+    }
+
+    #[test]
+    fn prune_rejects_a_nonportable_time_floor_without_touching_the_journal() {
+        let mut db = database();
+        db.seed(seed_data("only", "only"))
+            .expect("seed journal row");
+        let before = db.change_journal_len().unwrap();
+        let error = db
+            .prune_change_journal(u64::MAX, 0, 0)
+            .expect_err("a wrapped SQL timestamp would make pruning unsound");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
+        assert_eq!(db.change_journal_len().unwrap(), before);
+        assert_eq!(db.journal_floor_version().unwrap(), 0);
     }
 
     #[test]
@@ -10839,6 +11286,109 @@ mod membership_write_tests {
         db.activate_current_auth_catalog().expect("auth catalog");
         db.apply_schema(schema).expect("apply schema");
         db
+    }
+
+    #[test]
+    fn corrupt_membership_row_versions_fail_closed_during_transition_planning() {
+        for (name, version) in [
+            ("negative", -1_i64),
+            (
+                "past-portable-max",
+                (PORTABLE_STORAGE_VERSION_MAX + 1) as i64,
+            ),
+        ] {
+            let mut db = ready_db();
+            let (_, host_id) = create_event(&mut db, "alice");
+            db.conn
+                .execute(
+                    "UPDATE event_members SET _version = ?1 WHERE _id = ?2",
+                    params![version, host_id],
+                )
+                .expect("corrupt membership row version");
+            let error = db
+                .plan_membership_remove(&user("alice"), "event_members", &host_id)
+                .expect_err("a corrupt membership cursor must not enter a plan");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_resource_versions_fail_closed_during_membership_insert_planning() {
+        for (name, version) in [
+            ("negative", -1_i64),
+            (
+                "past-portable-max",
+                (PORTABLE_STORAGE_VERSION_MAX + 1) as i64,
+            ),
+        ] {
+            let mut db = ready_db();
+            let (event_id, _) = create_event(&mut db, "alice");
+            db.conn
+                .execute(
+                    "UPDATE events SET _version = ?1 WHERE _id = ?2",
+                    params![version, event_id],
+                )
+                .expect("corrupt resource row version");
+            let values = Map::from_iter([
+                ("userId".to_owned(), json!("bob")),
+                ("eventId".to_owned(), json!(event_id)),
+                ("role".to_owned(), json!("invited")),
+            ]);
+            let error = db
+                .plan_membership_insert(&user("alice"), "event_members", values)
+                .expect_err("a corrupt resource cursor must not enter a plan");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn corrupt_membership_transition_versions_fail_closed_during_log_reads() {
+        let mut db = ready_db();
+        create_event(&mut db, "alice");
+        db.conn
+            .execute(
+                "UPDATE _snapback_membership_transitions SET commit_version = ?1 \
+                 WHERE declaration_id = 'event_members'",
+                params![(PORTABLE_STORAGE_VERSION_MAX + 1) as i64],
+            )
+            .expect("corrupt transition commit version");
+        let error = db
+            .membership_transition_log("event_members")
+            .expect_err("a non-portable commit cursor must not enter an audit record");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+    }
+
+    #[test]
+    fn corrupt_expired_membership_versions_fail_closed_during_sweep_planning() {
+        for (name, version) in [
+            ("negative", -1_i64),
+            (
+                "past-portable-max",
+                (PORTABLE_STORAGE_VERSION_MAX + 1) as i64,
+            ),
+        ] {
+            let mut db = ready_db();
+            let (_, host_id) = create_event(&mut db, "alice");
+            db.conn
+                .execute(
+                    "UPDATE event_members SET expiresAt = 10, _version = ?1 WHERE _id = ?2",
+                    params![version, host_id],
+                )
+                .expect("corrupt expired membership row version");
+            let error = db
+                .plan_membership_sweep_expired(&MembershipWriter::System, "event_members", 100)
+                .expect_err("a corrupt sweep cursor must not enter a system plan");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+        }
     }
 
     #[test]

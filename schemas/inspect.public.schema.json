@@ -1363,6 +1363,11 @@
           "minimum": 0,
           "type": "integer"
         },
+        "generationExhaustions": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "limitRejections": {
           "format": "uint64",
           "minimum": 0,
@@ -1464,7 +1469,8 @@
         "coalescedUpdates",
         "resyncRequired",
         "outboxOverflows",
-        "limitRejections"
+        "limitRejections",
+        "generationExhaustions"
       ],
       "type": "object"
     },
@@ -1873,6 +1879,7 @@
         },
         "version": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }

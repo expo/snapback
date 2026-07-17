@@ -5,7 +5,11 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (landed the public atomic `bootstrap()` authoring path:
+**Revised:** 2026-07-17 (strengthened shipped-demo acceptance: separate Alice,
+Bob, and Eve live namespaces now drain real durable frames, validate exact
+scope/subscription identity, ACK Bob's hidden-to-visible membership
+invalidation, prove Alice/Bob announcement fanout, and keep Eve empty).
+2026-07-16 (landed the public atomic `bootstrap()` authoring path:
 the generated mutation surface now returns a branded fresh resource id while
 the host commits the resource and protected initial holder together; an
 explicit bootstrap-only function classification preserves the structural
@@ -1646,6 +1650,13 @@ semi-join amendment** and are not v1 acceptance.
   LLP 0055's `authorityCreating` requires `"full"`).
 - [live] `hasRole`-gated query: two clients with different roles receive different
   results; the unauthenticated client is rejected fail-closed.
+- [live] The shipped RBAC demo keeps three independently named live scopes
+  through a membership grant and later data write. Bob's initially empty scope
+  receives and exactly ACKs the witnessed hidden-to-visible authorization
+  snapshot; the later announcement reaches Alice and Bob under their own
+  namespaces; Eve's scope remains empty, and every drained frame is checked
+  against its subscription id and client-store/query-instance namespace before
+  any rows are applied.
 - [live] **Matcher path proven independently of the coarse event**, both
   directions: (a) visible-to-hidden — a delete/downgrade wakes the subscription
   through the delivery-obligation path with its causing data version witnessed;

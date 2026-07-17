@@ -2206,7 +2206,7 @@ async fn admin_health(
     headers: HeaderMap,
 ) -> Result<Json<HealthResponse>, ApiError> {
     authorize(&ctx, &headers, false)?;
-    let inspect = crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
+    let inspect = crate::server::inspect_snapback(&snapback).await?;
     Ok(Json(HealthResponse {
         ok: true,
         target: inspect.target,
@@ -2275,8 +2275,7 @@ async fn admin_inspect(
             BTreeSet::from([SecretReadScope::AdminInspect]),
         )?;
     }
-    let mut inspect =
-        crate::server::with_snapback(&snapback, |snapback| snapback.inspect()).await?;
+    let mut inspect = crate::server::inspect_snapback(&snapback).await?;
     crate::server::project_auth_runtime_facts(&mut inspect, &runtime);
     let response = AdminInspect::assemble(inspect, &ctx);
     if policy_mode == PolicyAuthMode::Sessions {
@@ -2322,20 +2321,28 @@ async fn admin_receipts(
     // L7 shape: the rings and gauges are pure in-memory reads, but the guard
     // discipline is one pattern for every handler that takes the global lock.
     let connection_filter = params.get("connection_id").cloned();
-    let body = crate::server::with_snapback(&state, move |snapback| {
-        let mut body = snapback.receipts_snapshot(connection_filter.as_deref());
-        // Delivered-rate observability (LLP 0034 §3.2 / Exact 0284 §2.5.1):
-        // the coalescing diagnostics ride the receipts surface as
-        // receipt-visible facts so conformance can measure delivered rate
-        // against the budget.
-        if let Some(object) = body.as_object_mut() {
-            object.insert(
-                "ephemeralDelivery".to_owned(),
-                serde_json::to_value(snapback.ephemeral_diagnostics()).unwrap_or_default(),
-            );
-        }
-        body
-    })
+    let body = crate::server::with_snapback_then(
+        &state,
+        move |snapback| {
+            (
+                snapback.receipts_snapshot(connection_filter.as_deref()),
+                snapback.ephemeral_api(),
+            )
+        },
+        |(mut body, ephemeral)| {
+            // Delivered-rate observability (LLP 0034 §3.2 / Exact 0284 §2.5.1):
+            // the coalescing diagnostics ride the receipts surface as
+            // receipt-visible facts so conformance can measure delivered rate
+            // against the budget.
+            if let Some(object) = body.as_object_mut() {
+                object.insert(
+                    "ephemeralDelivery".to_owned(),
+                    serde_json::to_value(ephemeral.diagnostics()).unwrap_or_default(),
+                );
+            }
+            body
+        },
+    )
     .await;
     if policy_mode == PolicyAuthMode::Sessions {
         reserve_secret_read_json(

@@ -69,6 +69,7 @@
       "properties": {
         "minCommitVersion": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -143,6 +144,7 @@
         },
         "version": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         }
@@ -390,6 +392,7 @@
     "permission_epochs": {
       "additionalProperties": {
         "format": "uint64",
+        "maximum": 9007199254740991,
         "minimum": 0,
         "type": "integer"
       },

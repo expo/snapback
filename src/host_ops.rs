@@ -565,7 +565,7 @@ pub(crate) fn auth_operator_result(
     }
 }
 
-fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
+pub(crate) fn host_op_handler_input(request: &HostOpsRequest) -> HandlerInput {
     HandlerInput {
         args: request
             .args
@@ -719,6 +719,44 @@ pub(crate) fn coordinated_functions_load_result(
             profile,
             false,
             authority_admin("host-ops admin write gate"),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
+pub(crate) fn coordinated_function_run_mutation_result(
+    snapback: &LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+    outcome: Result<crate::manifest::MutationOutput, SnapbackError>,
+) -> HostOpsResult {
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    let authority = authority_dev_user(request.user_id.as_deref());
+    match outcome {
+        Ok(output) => host_ops_result(
+            snapback,
+            request_id,
+            request.operation.clone(),
+            server_url,
+            profile,
+            true,
+            authority,
+            json!({
+                "mutationCommit": serde_json::to_value(output)
+                    .unwrap_or_else(|_| Value::Object(Default::default()))
+            }),
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            request.operation.clone(),
+            server_url,
+            profile,
+            false,
+            authority,
             Value::Object(Default::default()),
             vec![error.diagnostic],
         ),
@@ -989,6 +1027,63 @@ pub(crate) fn execute_host_op_with_profile_and_authority(
     }
 }
 
+/// Managed-server `app.inspect` capture. The caller composes the ephemeral
+/// block only after releasing Local, then replaces the placeholder serialized
+/// by this envelope. Direct in-process host ops keep using [`LocalSnapback::inspect`].
+pub(crate) fn execute_host_op_inspect_core(
+    snapback: &mut LocalSnapback,
+    request: &HostOpsRequest,
+    server_url: Option<String>,
+    profile: crate::admin::ServerProfile,
+) -> HostOpsResult {
+    debug_assert_eq!(request.operation, "app.inspect");
+    let request_id = request.request_id.clone().unwrap_or_else(new_request_id);
+    if let Some(diagnostic) = crate::admin::operation_profile_diagnostic(
+        profile,
+        &request.operation,
+        crate::admin::operation_profile_requirement(&request.operation, false),
+    ) {
+        return host_ops_result(
+            snapback,
+            request_id,
+            request.operation.clone(),
+            server_url,
+            profile,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![diagnostic],
+        );
+    }
+    match snapback.inspect_core() {
+        Ok(state) => host_ops_result(
+            snapback,
+            request_id,
+            request.operation.clone(),
+            server_url,
+            profile,
+            true,
+            authority_none(),
+            json!({
+                "runtimeState": serde_json::to_value(state)
+                    .unwrap_or_else(|_| Value::Object(Default::default()))
+            }),
+            Vec::new(),
+        ),
+        Err(error) => host_ops_result(
+            snapback,
+            request_id,
+            request.operation.clone(),
+            server_url,
+            profile,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![error.diagnostic],
+        ),
+    }
+}
+
 fn run_function(
     snapback: &mut LocalSnapback,
     request: &HostOpsRequest,
@@ -1188,6 +1283,7 @@ pub struct DryRunReport {
     pub result: Value,
     /// The database version the dry-run evaluated against.
     #[serde(rename = "snapshotVersion")]
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub snapshot_version: u64,
     /// Report-scoped diagnostics: the would-be commit failure when
     /// `wouldCommit` is false, plus advisory notes.

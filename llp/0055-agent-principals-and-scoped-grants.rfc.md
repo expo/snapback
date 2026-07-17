@@ -5,7 +5,17 @@
 **Systems:** Auth, API, Security, Agent tooling, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (filesystem directory-capability closure: the Node
+**Revised:** 2026-07-17 (bounded filesystem-helper identity: request, session,
+and hook correlation allocators consume the last safe integer once and then
+permanently close their capability lineage with a typed refusal). 2026-07-17 (structured custody ownership: returning or throwing
+from an ownership callback closes its owner to new work, joins every operation
+already started through that owner, and only then releases the universal gate
+or physical lock). 2026-07-17 (consuming witness retirement: a retirement dispatch
+terminalizes its partition owner, cleanly closes SQLite before carrier unlink,
+and proves recovery removes rollback-journal residue). 2026-07-17 (bounded exact Agent terminal ledger: custody format 2
+uses fixed hash buckets, globally closes on bucket overflow, migrates the v1
+witness journal through a crash-safe compatibility cut, bounds partition scans,
+and exposes redacted count/byte diagnostics). 2026-07-17 (filesystem directory-capability closure: the Node
 adapter retains one validated POSIX CWD inode in a dedicated helper, resolves
 every SQLite lock and custody operation relative to it, bounds retained helpers
 and exact-namespace crash-orphan cleanup, and fails closed after helper loss).
@@ -1966,39 +1976,77 @@ increments the durable epoch and deletes predecessor state before successor
 publication. The reference Node custody adapter persists a versioned
 tuple/epoch/revision/phase primary record with exact transactional
 compare-and-set and cross-process locking; bearer bytes, token ids, and carrier
-ids remain memory-only. Beside the primary row it persists one permanent,
-tuple-specific terminal witness for every durable tuple that receives an exact
-`durableDelete` verdict. Main-row reads and writes, witness reads and writes,
-and final publication comparisons serialize through one reserved custody gate.
-The terminal process records the witness before even reading or validating the
-primary row, and therefore before primary cleanup. A corrupt primary may still
-reject settlement, but later repair or removal cannot reopen the witnessed
-tuple. Every active
-install, adoption, confirmation, and publication comparison refuses a matching
-witness; a distinct proposed tuple cannot delete the active primary row, and a
-fresh null-CAS loser re-enters the gate before deciding whether the winner is
-its predecessor.
+ids remain memory-only. Beside the format-2 primary row, custody keeps an exact
+terminal ledger: 64 deterministic SHA-256 buckets with at most 64 tuple entries
+per bucket by default. Each entry retains only the closed
+`(actorUserId, credentialId, credentialGeneration, grantId)` tuple and its
+derived key. It never contains a bearer, token id, or carrier generation. The
+fixed geometry permits at most 64 bucket partitions and 4,096 exact entries;
+hash concentration can exhaust one bucket earlier. Rather than evict evidence
+or admit a false negative, the first overflowing insert advances the root to
+`closed`, after which every tuple is terminally refused. Root closure and
+entries are monotonic.
 
-The witness retains the closed
-`(actorUserId, credentialId, credentialGeneration, grantId)` tuple and derived
-key because those non-bearer fields are its anti-resurrection identity. It
-never contains a bearer, token id, or carrier generation. Before a distinct
-active tuple may replace a pre-ledger `settled/deleted` primary tombstone, the
-new reader backfills that old tuple into the side ledger under the same gate.
-Witnesses do not expire when the primary advances: removing one would make an
-old validated descriptor reusable. Explicit custody-store replacement is the
-current administrative reclamation boundary.
+Main-row reads and writes, ledger reads and writes, migration, and final
+publication comparisons serialize through one reserved custody gate. The
+terminal process establishes exclusion before even reading or validating the
+primary row, so corrupt primary bytes may reject settlement but later repair
+cannot reopen the tuple. Every active install, adoption, confirmation, and
+publication comparison consults the exact bucket; a distinct proposed tuple
+cannot delete the active primary row, and a fresh null-CAS loser re-enters the
+gate before deciding whether the winner is its predecessor. Before a distinct
+active tuple replaces a pre-ledger `settled/deleted` primary tombstone, the
+reader absorbs that old tuple as terminal evidence under the same gate.
 
-Storage advertises `partitionOwnership: "partitioned-v1"`; its gate owner must
-provide `withPartition` for independently owned primary and witness
-partitions. An adapter backed only by one non-reentrant global mutex is refused
-before synchronization, ownership callbacks are non-reentrant, caller custody
-ids cannot collide with the reserved internal namespaces, and derived ids use
-a separate larger internal bound. This is an on-disk coordination-protocol
-change. Every process sharing a custody directory must be drained and upgraded
-together: a pre-ledger binary neither takes the universal gate nor consults
-terminal witnesses and therefore cannot participate in a mixed-version
-rollout.
+Migration treats the old tuple-specific v1 witness files as a compatibility
+journal. A new root begins `preparing`; under the universal gate the migrator
+captures one bounded directory snapshot and idempotently unions every
+identifiable, structurally owned v1 witness into its bucket, then advances the
+root to `active` (or `closed` on overflow). While the
+root's `legacyCut` is false, a new terminal verdict always settles its v1
+witness *before* writing the v2 bucket. Before a closed root is committed beside
+a still-v1 primary, the exact current primary tuple is also journaled for an old
+reader. Only an active/closed ledger may accompany the format-2 primary cut.
+After that cut, the migrator retires each identified witness's JSON record and
+SQLite lock carrier, fsyncs those removals, and only then advances `legacyCut`
+false-to-true. The cut is therefore a cleanup seal: a crash before it repeats
+the bounded migration snapshot, while steady v2 gates never scan the shared
+directory. A straggling v1 terminal process can still write its journal witness
+before reading and rejecting the format-2 primary, so every candidate check
+derives that tuple's exact v1 partition, strictly reads it, absorbs it, and
+retires both files before it can compare publication authority. Crashes at every boundary replay
+monotonically: before the primary cut old readers retain exact v1 evidence;
+after it their strict v1 primary decoder refuses format 2, while new readers
+finish the root cut and cleanup without ignoring a straggler witness.
+
+Storage advertises `partitionOwnership: "partitioned-v2"`. Its gate owner must
+provide independently owned `withPartition`, paged `scanPartitions`,
+exact-revision `remove`, and both-file `retire` operations. An adapter backed only by one
+non-reentrant global mutex, or one advertising the v1 contract, is refused
+before synchronization. Ownership callbacks are non-reentrant; caller custody
+ids cannot collide with reserved internal namespaces; derived ids use a
+separate larger bound. Filesystem v1 names are opaque hashes: invalid JSON
+cannot be reversed to prove which custody produced it. Migration therefore
+leaves an unidentifiable record untouched. This cannot authorize its tuple:
+every post-cut allow/replace path still derives the candidate's exact hashed
+filename and validates those bytes strictly, so a malformed related witness
+fails closed while malformed unrelated bytes remain isolated. Identifiable
+records classified as this custody are validated strictly during migration.
+Filesystem scans examine at most 4,096 directory entries and otherwise fail closed with
+`SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT`; a legacy corpus above that
+supported migration budget requires operator custody-store rotation and never
+publishes a format-2 primary from a preparing root.
+
+This remains an on-disk coordination-protocol change. Drain and upgrade every
+process sharing a custody directory together; mixed execution is not a
+supported availability mode. The compatibility journal and primary-format cut
+make an interrupted rollout fail closed rather than forget terminal evidence:
+a v1 process sees the exact journal until the cut and rejects the format-2 row
+afterward. `inspectCustody()` reads only the root and its at most 64
+deterministic buckets; it exposes ledger format/state, unique witness count,
+exact stored v2 bytes, capacity, the 75% warning
+thresholds for total and per-bucket pressure, the largest bucket count, and a
+warning bit. It never exposes tuple identities. Closed state always warns.
 
 The filesystem adapter accepts only a normalized absolute custody path. It
 rejects untrusted lexical symlinks, untrusted or replaceable resolved ancestor
@@ -2017,11 +2065,58 @@ any later cut cannot split lock and record custody.
 Lock, record, and temporary files must be effective-user-owned, single-link
 regular `0600` files without access-expanding ACLs. Record reads use
 nonblocking bounded I/O capped at 64 KiB and revalidate the opened and named
-inode after the read. Under each exact partition lock, maintenance scans at
-most 4,096 entries and accepts only that record's
-`<record>.<pid>.<128-bit-hex>.tmp` namespace; at most 128 validated files and
-8 MiB are removed, with typed count/byte diagnostics on exhaustion or partial
-failure. The rule applies equally to primary and terminal-witness partitions.
+inode after the read. Each partition has one deterministic `<record>.tmp`
+sidecar, so acquisition checks exactly one name and can retain at most one
+64-KiB crash orphan; it never walks the shared directory. SQLite may also use
+one deterministic `<lock>-journal` sidecar while its rollback-mode transaction
+is live or recovering. A clean release removes it; helper death may leave it as
+fixed recovery input for the next SQLite acquisition, never as a new logical
+partition. The rule applies equally to primary, ledger-root, bucket, and
+transient legacy-witness partitions. A conforming format-2 custody is
+physically bounded by one gate, one primary, one root, at most 64 bucket
+partitions, and their fixed record, lock, rollback-journal, and temporary
+names. Preexisting opaque v1 or corrupt files are bounded by the 4,096-entry
+supported migration corpus globally, but an unidentifiable hash cannot
+honestly be attributed to one logical custody; it remains strict candidate
+evidence until operator custody-store rotation.
+
+Witness retirement is valid only while the universal gate is held. Every
+conforming v1 and v2 `AgentAuthorityFence` takes that same gate before a witness
+partition, so no old writer can own the lock when v2 unlinks its carrier. A
+retirement dispatch consumes that partition owner: read, replace, remove,
+scan, nested ownership, and repeated retirement all fail with
+`SNAPBACK_AUTH_CUSTODY_LOCK_LOST`; only release is allowed, and only a later
+ownership interval may use the partition again. The helper first terminalizes
+its session and cleanly rolls back and closes SQLite while the stable lock
+pathname still exists. It then unlinks and fsyncs the lock, followed by the
+validated JSON record and another directory fsync. A helper crash before the
+clean close can leave the deterministic rollback journal, which the next
+SQLite acquisition recovers and removes. Every crash checkpoint after the
+close is journal-free. After any crash, either the discoverable JSON remains
+or the bucket entry is already durable. Calling partition-adapter primitives
+directly without the gate is outside this protocol and receives no anti-ABA
+guarantee.
+
+An ownership callback is also a structured asynchronous boundary. Every
+`read`, `replace`, `remove`, `retire`, scan, and nested-partition operation is
+registered before it can yield. Callback return or throw first closes the owner
+to new starts, then joins the exact registered promises, and only after their
+settlement releases the in-memory gate or filesystem capability. Rejections
+are observed immediately so a missed await cannot become an unhandled process
+event; an explicitly awaited/caught CAS refusal remains the callback's concern,
+and a callback or physical-release failure keeps its existing precedence. A
+hung missed-await child therefore keeps the universal gate closed rather than
+creating a second-owner interval underneath live predecessor work.
+
+The parent capability's request and session correlations and the helper's hook
+correlations are positive safe integers with no wrap or saturation reuse. The
+last safe value may complete its predecessor operation; the next allocation
+terminalizes that retained capability lineage, closes helper sessions (thereby
+releasing SQLite ownership), rejects all pending correlations without map
+replacement, and returns
+`SNAPBACK_AUTH_CUSTODY_CORRELATION_EXHAUSTED` thereafter. A process restart is
+the only way to obtain a fresh correlation space and revalidate the directory
+capability; exhaustion never silently respawns a helper against a pathname.
 At most 32 distinct directory capabilities may be retained per process.
 Capabilities are never idle-evicted, because re-resolving a pathname would
 reopen the ABA; a helper that dies permanently closes that process's view until

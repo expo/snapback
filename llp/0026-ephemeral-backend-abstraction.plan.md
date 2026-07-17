@@ -5,7 +5,7 @@
 **Systems:** Realtime, Ephemeral state, Runtime, Deployment, Client integration, Testing, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-29
-**Revised:** 2026-07-12 (ENG-24574: the historical room-byte budget now covers every conservatively estimated retained room allocation, request metadata has explicit byte/cardinality limits, and WebSocket frames are capped at 64 KiB); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: lifecycle replacement/reset now excludes old-generation operations, snapshots expose a room high-water version, coalesced drains are sorted, and whole-definition/exact-scope validation is atomic); 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
+**Revised:** 2026-07-17 (portable generation exhaustion now retires an exact room incarnation through the protected-authority/routing/outbox order and emits only a terminal epoch boundary); 2026-07-12 (ENG-24574: the historical room-byte budget now covers every conservatively estimated retained room allocation, request metadata has explicit byte/cardinality limits, and WebSocket frames are capped at 64 KiB); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: lifecycle replacement/reset now excludes old-generation operations, snapshots expose a room high-water version, coalesced drains are sorted, and whole-definition/exact-scope validation is atomic); 2026-07-12 (ENG-24355: the connection→rooms reverse index now tracks current ownership/subscription, rolls back failed creation, and compacts on unsubscribe/delete/expiry/retirement, bounding disconnect by current footprint; earlier: 2026-07-07 ENG-23346: the destructive-replacement boundary
 clears only the ephemeral outbox lanes — queued durable live-query payloads
 answer subscriptions that survive the boundary and are preserved; the
 runtime reset still clears whole outboxes because it retires the durable
@@ -219,11 +219,14 @@ correctness, and sharded locks match the codebase's existing style
   outboxes `Mutex<BTreeMap<ConnectionId, Arc<Mutex<OutboundQueue>>>>`; a
   rate-bucket map mutex; an expiry-index mutex; event counters as atomics.
   Gauges stay computed on demand at inspect time (LLP 0032 L4).
-- **Lock order.** rooms-map → one room → { outbox map, one outbox, expiry
-  index }, inner locks taken one at a time as leaves. Never two room locks;
-  never a room lock while holding an outbox or index lock. The empty-room
-  pruner is the one path that holds the rooms map and a room together (map
-  first); no room holder ever waits on the rooms map, so there is no cycle.
+- **Lock order.** Ordinary state uses rooms-map → one room → { outbox map,
+  one outbox, expiry index }, inner locks taken one at a time as leaves.
+  Protected reauthorization and terminal generation retirement prepend the
+  room-authority registry: registry → rooms-map → one room → one outbox. Never
+  two room locks; never a room lock while holding an outbox or index lock. A
+  room holder discovering exhaustion marks that room retired and releases it
+  before the terminal helper acquires the registry/routing order; no room
+  holder waits on the rooms map, so there is no cycle.
 - **Room-operation atomicity.** A room operation holds the room lock across
   both the state change and the fan-out enqueues. Per-room outbox arrival
   order therefore equals `entryVersion` order — the property that makes
@@ -251,6 +254,17 @@ correctness, and sharded locks match the codebase's existing style
   prune, reset, or definition replacement yields a strictly newer epoch and
   stragglers fail safe to resync instead of stale-comparing across
   incarnations (the finding above).
+- **Generation exhaustion.** Client-visible scope, entry, and protected-room
+  authority generations stop at `Number.MAX_SAFE_INTEGER`. Scope allocation
+  refuses before routing-map insertion. Entry allocation preflights the whole
+  operation (including expiry/disconnect/reauthorization batches); exhaustion
+  retires the exact room, purges its exact epoch/fence lane, and enqueues only
+  an authority-independent `EpochChanged` clearing boundary while the routing
+  lock excludes replacement creation. A retired protected control refuses new
+  acts and stale permits must revalidate registry state under room creation;
+  the control remains until predecessor permits drain. Queue-capacity failure
+  collapses through the bounded all-authority poison marker rather than
+  preserving stale data.
 - **Resync boundaries.** Runtime reset and destructive definition
   replacement retire every room and deliver a `ResyncRequired` boundary to
   each registered subscriber (previously: silent discard) — `Restarted` for

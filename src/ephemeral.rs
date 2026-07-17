@@ -1,7 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::sync::Mutex as StdMutex;
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, MutexGuard, PoisonError, RwLock};
+use std::sync::{
+    Arc, Condvar, MutexGuard, OnceLock, PoisonError, RwLock, RwLockReadGuard, RwLockWriteGuard,
+};
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -10,8 +12,10 @@ use tokio::sync::Notify;
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::live_wire::{LiveAuthErrorCode, LiveAuthErrorReason, LiveAuthorityDisposition};
 use crate::storage::{
-    AuthorizationCommitImpact, AuthorizationCommitInterlock, AuthorizationCommitWitness,
-    AuthorizationVersion, ChangeOp, PreparedAuthorizationCommit,
+    AuthorizationCommitImpact, AuthorizationCommitInterlock, AuthorizationCommitPreflight,
+    AuthorizationCommitReservation, AuthorizationCommitWitness,
+    AuthorizationReservationCancellation, AuthorizationVersion, ChangeOp,
+    PreparedAuthorizationCommit,
 };
 
 /// Recover from lock poisoning the way the rest of the codebase does: room and
@@ -47,6 +51,7 @@ fn lock<T>(mutex: &StdMutex<T>) -> MutexGuard<'_, T> {
 struct DeliveryNotifierState {
     next_generation: Option<u64>,
     waiters: HashMap<String, DeliveryRegistration>,
+    teardowns: HashMap<String, u64>,
 }
 
 #[derive(Clone, Debug)]
@@ -74,6 +79,7 @@ impl Default for DeliveryNotifierState {
         Self {
             next_generation: Some(1),
             waiters: HashMap::new(),
+            teardowns: HashMap::new(),
         }
     }
 }
@@ -83,7 +89,54 @@ pub struct DeliveryNotifier {
     state: StdMutex<DeliveryNotifierState>,
 }
 
+/// Exact socket-generation claim held while connection cleanup runs without
+/// retaining the notifier mutex. New registration for the readable id is
+/// refused until this claim is finished, so teardown can cross the ephemeral
+/// and LocalSnapback phases without deleting a reconnect's fresh state.
+///
+/// @ref LLP 0059#locking-and-linearization — notifier ownership is converted
+/// into a lock-free logical claim before any other teardown subsystem runs.
+#[must_use = "a claimed socket generation must be explicitly finished after cleanup"]
+pub(crate) struct DeliveryTeardownClaim {
+    notifier: Arc<DeliveryNotifier>,
+    connection_id: String,
+    generation: u64,
+    finished: bool,
+}
+
+impl DeliveryTeardownClaim {
+    pub(crate) fn finish(mut self) {
+        self.release();
+    }
+
+    fn release(&mut self) {
+        if self.finished {
+            return;
+        }
+        let mut state = self.notifier.lock_state();
+        if state.teardowns.get(&self.connection_id) == Some(&self.generation) {
+            state.teardowns.remove(&self.connection_id);
+        }
+        self.finished = true;
+    }
+}
+
+impl Drop for DeliveryTeardownClaim {
+    fn drop(&mut self) {
+        // Fail closed. Split cleanup is moved into an owned server task before
+        // the caller can be cancelled; if that task panics, reopening this id
+        // would be less safe than retaining the claim until process restart.
+    }
+}
+
 impl DeliveryNotifier {
+    fn lock_state(&self) -> MutexGuard<'_, DeliveryNotifierState> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "DeliveryNotifier state lock",
+        );
+        lock(&self.state)
+    }
+
     /// Register interest in a connection's deliveries. Returns this
     /// registration's generation and the waker; a later `register` for the
     /// same connection replaces the waker and supersedes the generation.
@@ -107,7 +160,14 @@ impl DeliveryNotifier {
         connection_id: &str,
         grant_id: Option<Arc<str>>,
     ) -> SnapbackResult<(u64, Arc<Notify>)> {
-        let mut state = lock(&self.state);
+        let mut state = self.lock_state();
+        if state.teardowns.contains_key(connection_id) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
+                "realtime",
+                "the predecessor socket is still completing exact connection teardown",
+            ));
+        }
         let generation = state.next_generation.ok_or_else(|| {
             SnapbackError::error(
                 "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
@@ -129,12 +189,46 @@ impl DeliveryNotifier {
         Ok((generation, notify))
     }
 
+    /// Atomically replace one current socket registration with a teardown
+    /// claim. The claim carries no mutex guard and blocks same-id registration
+    /// until cleanup explicitly finishes. A stale socket generation gets
+    /// `None` and must not clean any connection state.
+    pub(crate) fn begin_teardown(
+        self: &Arc<Self>,
+        connection_id: &str,
+        generation: u64,
+    ) -> Option<DeliveryTeardownClaim> {
+        let notify = {
+            let mut state = self.lock_state();
+            if state.teardowns.contains_key(connection_id) {
+                return None;
+            }
+            let current = state.waiters.get(connection_id)?;
+            if current.generation != generation {
+                return None;
+            }
+            let registration = state
+                .waiters
+                .remove(connection_id)
+                .expect("the generation-matched registration remains installed");
+            state.teardowns.insert(connection_id.to_owned(), generation);
+            registration.notify
+        };
+        notify.notify_one();
+        Some(DeliveryTeardownClaim {
+            notifier: Arc::clone(self),
+            connection_id: connection_id.to_owned(),
+            generation,
+            finished: false,
+        })
+    }
+
     /// Unregister only if `generation` still owns the connection's waker.
     /// Returns whether the caller was the current owner — a stale task (its
     /// registration already replaced by a reconnect) gets `false` and must
     /// not perform connection teardown.
     pub fn unregister(&self, connection_id: &str, generation: u64) -> bool {
-        let mut state = lock(&self.state);
+        let mut state = self.lock_state();
         match state.waiters.get(connection_id) {
             Some(current) if current.generation == generation => {
                 state.waiters.remove(connection_id);
@@ -150,7 +244,7 @@ impl DeliveryNotifier {
     /// the messages in it now belong to the new socket (ENG-23425).
     pub fn is_current(&self, connection_id: &str, generation: u64) -> bool {
         matches!(
-            lock(&self.state).waiters.get(connection_id),
+            self.lock_state().waiters.get(connection_id),
             Some(current) if current.generation == generation
         )
     }
@@ -160,7 +254,7 @@ impl DeliveryNotifier {
     /// bytes stop at the same notifier cut that installs the auth error.
     pub(crate) fn is_deliverable(&self, connection_id: &str, generation: u64) -> bool {
         matches!(
-            lock(&self.state).waiters.get(connection_id),
+            self.lock_state().waiters.get(connection_id),
             Some(current) if current.generation == generation && current.terminal.is_none()
         )
     }
@@ -176,7 +270,7 @@ impl DeliveryNotifier {
         event: DeliveryTerminalEvent,
     ) -> bool {
         let notify = {
-            let mut state = lock(&self.state);
+            let mut state = self.lock_state();
             let Some(registration) = state.waiters.get_mut(connection_id) else {
                 return false;
             };
@@ -198,7 +292,7 @@ impl DeliveryNotifier {
     /// grant with another opaque id is unaffected.
     pub(crate) fn retire_bound(&self, connection_id: &str, grant_id: &str) -> bool {
         let notify = {
-            let mut state = lock(&self.state);
+            let mut state = self.lock_state();
             let matches = state
                 .waiters
                 .get(connection_id)
@@ -221,7 +315,7 @@ impl DeliveryNotifier {
         connection_id: &str,
         generation: u64,
     ) -> Option<DeliveryTerminalEvent> {
-        let state = lock(&self.state);
+        let state = self.lock_state();
         let registration = state.waiters.get(connection_id)?;
         (registration.generation == generation)
             .then_some(registration.terminal)
@@ -239,7 +333,7 @@ impl DeliveryNotifier {
         generation: u64,
         act: impl FnOnce() -> T,
     ) -> Option<T> {
-        let state_guard = lock(&self.state);
+        let state_guard = self.lock_state();
         let current = matches!(
             state_guard.waiters.get(connection_id),
             Some(current) if current.generation == generation && current.terminal.is_none()
@@ -250,7 +344,7 @@ impl DeliveryNotifier {
     }
 
     fn act_with_registration<T>(&self, connection_id: &str, act: impl FnOnce(bool) -> T) -> T {
-        let state_guard = lock(&self.state);
+        let state_guard = self.lock_state();
         let output = act(state_guard.waiters.contains_key(connection_id));
         drop(state_guard);
         output
@@ -265,20 +359,36 @@ impl DeliveryNotifier {
     /// with the act: a reconnect always registers *before* it subscribes,
     /// and its subscribe needs the lock the checking step holds.
     pub fn is_registered(&self, connection_id: &str) -> bool {
-        lock(&self.state).waiters.contains_key(connection_id)
+        self.lock_state().waiters.contains_key(connection_id)
     }
 
-    fn wake(&self, connection_id: &str) {
-        if let Some(registration) = lock(&self.state).waiters.get(connection_id) {
+    fn wake(self: &Arc<Self>, connection_id: &str) {
+        let notifier = Arc::clone(self);
+        let connection_id = connection_id.to_owned();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            notifier.wake_now(&connection_id);
+        });
+    }
+
+    fn wake_now(&self, connection_id: &str) {
+        if let Some(registration) = self.lock_state().waiters.get(connection_id) {
             registration.notify.notify_one();
         }
     }
 
-    fn wake_many(&self, connection_ids: &[ConnectionId]) {
+    fn wake_many(self: &Arc<Self>, connection_ids: &[ConnectionId]) {
         if connection_ids.is_empty() {
             return;
         }
-        let state = lock(&self.state);
+        let notifier = Arc::clone(self);
+        let connection_ids = connection_ids.to_vec();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            notifier.wake_many_now(&connection_ids);
+        });
+    }
+
+    fn wake_many_now(&self, connection_ids: &[ConnectionId]) {
+        let state = self.lock_state();
         for connection_id in connection_ids {
             if let Some(registration) = state.waiters.get(connection_id) {
                 registration.notify.notify_one();
@@ -796,11 +906,13 @@ pub struct SubscribeRequest {
     pub auth: AuthContext,
 }
 
-#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct PublishOutcome {
     pub room: RoomId,
     pub key: EntryKey,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub scope_epoch: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub entry_version: u64,
     pub expires_at_ms: Millis,
 }
@@ -824,6 +936,10 @@ pub enum EphemeralErrorCode {
     ///
     /// @ref LLP 0013#room-store-model — memory pressure must be explicit.
     RoomLimitExceeded,
+    /// A client-visible room, entry, or delivery identity reached the final
+    /// exact plain-JSON integer. Reuse would create an ABA, so the operation
+    /// is refused without mutating predecessor state.
+    GenerationExhausted,
     /// A permission-changing transaction installed the room's precommit
     /// authority barrier. No protected sink may act until exact finalization
     /// and fresh reauthorization complete.
@@ -850,6 +966,7 @@ impl EphemeralErrorCode {
                 "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
             }
             Self::RoomLimitExceeded => "SNAPBACK_EPHEMERAL_ROOM_LIMIT_EXCEEDED",
+            Self::GenerationExhausted => "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
             Self::AuthorityPending => "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
             Self::PermissionDenied => "SNAPBACK_AUTH_PERMISSION_DENIED",
         }
@@ -877,7 +994,9 @@ pub struct EphemeralEntry {
     pub value: Vec<u8>,
     pub received_at_ms: Millis,
     pub expires_at_ms: Millis,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub scope_epoch: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub entry_version: u64,
 }
 
@@ -919,36 +1038,46 @@ pub enum ResyncReason {
 pub enum EphemeralMessage {
     Snapshot {
         room: RoomId,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         scope_epoch: u64,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: u64,
         /// Authoritative room cursor at the instant the snapshot and
         /// subscriber registration became one operation. This remains valid
         /// even when `entries` is empty or the newest event was a delete.
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         high_water_version: u64,
         entries: Vec<EphemeralEntry>,
     },
     Upsert {
         room: RoomId,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: u64,
         entry: EphemeralEntry,
     },
     Remove {
         room: RoomId,
         key: EntryKey,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         scope_epoch: u64,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: u64,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         entry_version: u64,
         reason: RemoveReason,
     },
     ResyncRequired {
         room: RoomId,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         scope_epoch: u64,
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: u64,
         reason: ResyncReason,
     },
     Error {
         room: Option<RoomId>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         room_authority_generation: Option<u64>,
         error: EphemeralError,
     },
@@ -1013,6 +1142,17 @@ impl EphemeralMessage {
             } => Some((room, *generation)),
             Self::Error { .. } => None,
         }
+    }
+
+    fn is_authority_independent_epoch_boundary(&self) -> bool {
+        matches!(
+            self,
+            Self::ResyncRequired {
+                room_authority_generation: 0,
+                reason: ResyncReason::EpochChanged,
+                ..
+            }
+        )
     }
 
     fn resync_room_epoch(&self) -> Option<(RoomId, u64)> {
@@ -1563,6 +1703,13 @@ pub struct EphemeralDiagnostics {
     /// @ref LLP 0026#limits-and-diagnostics — limits are capability facts.
     #[serde(default)]
     pub limit_rejections: u64,
+    /// Room/scope/entry identities that reached the final portable integer.
+    /// Void maintenance paths cannot return an error, so they retain this
+    /// typed diagnostic while terminally retiring the affected room.
+    #[serde(default)]
+    pub generation_exhaustions: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_generation_exhaustion: Option<EphemeralError>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1571,6 +1718,7 @@ pub struct EphemeralRoomDiagnostics {
     pub collection: String,
     pub routing_key: String,
     pub scope: Scope,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub scope_epoch: u64,
     pub entries: usize,
     pub subscribers: usize,
@@ -1663,9 +1811,25 @@ impl RoomState {
         }
     }
 
+    /// @ref LLP 0013#stored-entry-shape — the final JavaScript-safe entry version is usable; its successor retires the incarnation.
+    fn ensure_version_capacity(&self, count: usize) -> Result<(), EphemeralError> {
+        let count = u64::try_from(count).map_err(|_| generation_exhausted_error())?;
+        if count == 0 {
+            return Ok(());
+        }
+        self.next_entry_version
+            .checked_add(count - 1)
+            .filter(|last| *last <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+            .map(|_| ())
+            .ok_or_else(generation_exhausted_error)
+    }
+
     fn allocate_version(&mut self) -> u64 {
         let version = self.next_entry_version;
-        self.next_entry_version += 1;
+        self.next_entry_version = self
+            .next_entry_version
+            .checked_add(1)
+            .expect("entry-version capacity is preflighted before room mutation");
         version
     }
 
@@ -2235,6 +2399,37 @@ impl OutboundQueue {
         self.ephemeral.clear();
         self.resync_bytes = 0;
         self.ephemeral_bytes = 0;
+        self.clear_active_lease_binding_if_idle();
+    }
+
+    /// Remove queued data from one exact retired room epoch before its
+    /// terminal resync boundary is enqueued. Matching both the room epoch and
+    /// producer fence preserves concurrent replacement-room and successor-
+    /// grant traffic that shares the readable connection id.
+    fn purge_room_epoch(
+        &mut self,
+        room_id: &RoomId,
+        scope_epoch: u64,
+        effect_fence: Option<&ConnectionEffectFence>,
+    ) {
+        self.resync.retain(|queued| {
+            let exact_fence = queued.effect_fence.as_ref() == effect_fence;
+            let exact_epoch = queued
+                .message
+                .resync_room_epoch()
+                .is_some_and(|(room, epoch)| &room == room_id && epoch == scope_epoch);
+            !(exact_fence && exact_epoch)
+        });
+        self.ephemeral.retain(|_, queued| {
+            let exact_fence = queued.effect_fence.as_ref() == effect_fence;
+            let exact_epoch = queued
+                .message
+                .resync_room_epoch()
+                .is_some_and(|(room, epoch)| &room == room_id && epoch == scope_epoch);
+            !(exact_fence && exact_epoch)
+        });
+        self.recompute_retained_bytes();
+        self.compact_lane_storage();
         self.clear_active_lease_binding_if_idle();
     }
 
@@ -3008,6 +3203,7 @@ struct EventCounters {
     resync_required: AtomicU64,
     outbox_overflows: AtomicU64,
     limit_rejections: AtomicU64,
+    generation_exhaustions: AtomicU64,
 }
 
 impl EventCounters {
@@ -3024,6 +3220,7 @@ impl EventCounters {
             &self.resync_required,
             &self.outbox_overflows,
             &self.limit_rejections,
+            &self.generation_exhaustions,
         ] {
             counter.store(0, Ordering::Relaxed);
         }
@@ -3040,7 +3237,9 @@ type SharedOutbox = Arc<StdMutex<OutboundQueue>>;
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct RoomAuthorityResync {
     pub authorization: AuthorizationVersion,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub min_commit_version: u64,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub room_authority_generation: u64,
 }
 
@@ -3075,12 +3274,38 @@ pub(crate) enum RoomSubscriberResolution {
 #[derive(Clone, Debug)]
 pub struct RoomDependencyTicket {
     ticket_id: u64,
-    expected_authorization: AuthorizationVersion,
+    expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
+}
+
+impl RoomDependencyTicket {
+    /// Bind the already-quiesced process-local ticket to the exact durable
+    /// successor. `OnceLock::set` is deliberately the only operation here:
+    /// SQLite callers can perform it while managed Local is held without
+    /// acquiring any ephemeral mutex.
+    fn bind(&self, authorization: AuthorizationVersion) -> SnapbackResult<()> {
+        self.expected_authorization.set(authorization).map_err(|_| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "room dependency ticket was already bound to an authorization successor",
+            )
+        })
+    }
+
+    fn expected_authorization(&self) -> SnapbackResult<&AuthorizationVersion> {
+        self.expected_authorization.get().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "room dependency ticket was not bound to an authorization successor",
+            )
+        })
+    }
 }
 
 #[derive(Clone, Debug)]
 struct RoomDependencyPending {
-    expected_authorization: AuthorizationVersion,
+    expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
     selector: RoomDependencySelector,
     affected_rooms: BTreeSet<RoomId>,
 }
@@ -3112,6 +3337,22 @@ impl RoomDependencySelector {
         self.all_protected_rooms
             || self.collections.contains(&room.collection)
             || self.rooms.contains(room)
+    }
+
+    fn covers(&self, other: &Self) -> bool {
+        if self.all_protected_rooms {
+            return true;
+        }
+        if other.all_protected_rooms {
+            return false;
+        }
+        other
+            .collections
+            .iter()
+            .all(|collection| self.collections.contains(collection))
+            && other.rooms.iter().all(|room| {
+                self.collections.contains(&room.collection) || self.rooms.contains(room)
+            })
     }
 }
 
@@ -3241,6 +3482,9 @@ impl Drop for RoomAuthorityPermit {
 
 impl RoomAuthorityRegistry {
     fn install_durable_authorization(&self, authorization: AuthorizationVersion) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room-authority issuer installation",
+        );
         let mut state = lock(&self.state);
         state.durable_authorization = Some(authorization);
         self.quiescent.notify_all();
@@ -3280,8 +3524,7 @@ impl RoomAuthorityRegistry {
             return Err(authority_pending_error());
         }
         let room = state.rooms.entry(room_id.clone()).or_default();
-        room.retired = false;
-        if !room.pending_tickets.is_empty() || room.resync.is_some() {
+        if room.retired || !room.pending_tickets.is_empty() || room.resync.is_some() {
             return Err(authority_pending_error());
         }
         room.active_permits = room.active_permits.checked_add(1).ok_or_else(|| {
@@ -3297,6 +3540,9 @@ impl RoomAuthorityRegistry {
         self: &Arc<Self>,
         message: &EphemeralMessage,
     ) -> Result<Option<RoomAuthorityPermit>, EphemeralError> {
+        if message.is_authority_independent_epoch_boundary() {
+            return Ok(None);
+        }
         let Some((room_id, generation)) = message.room_authority() else {
             return Ok(None);
         };
@@ -3341,6 +3587,30 @@ impl RoomAuthorityRegistry {
         expected_authorization: AuthorizationVersion,
         selector: RoomDependencySelector,
     ) -> SnapbackResult<RoomDependencyTicket> {
+        let expectation = Arc::new(OnceLock::new());
+        expectation
+            .set(expected_authorization)
+            .expect("fresh room dependency expectation binds exactly once");
+        self.prepare_with_expectation(expectation, selector, None)
+    }
+
+    fn prepare_unbound(
+        &self,
+        selector: RoomDependencySelector,
+        cancellation: &AuthorizationReservationCancellation,
+    ) -> SnapbackResult<RoomDependencyTicket> {
+        self.prepare_with_expectation(Arc::new(OnceLock::new()), selector, Some(cancellation))
+    }
+
+    fn prepare_with_expectation(
+        &self,
+        expected_authorization: Arc<OnceLock<AuthorizationVersion>>,
+        selector: RoomDependencySelector,
+        cancellation: Option<&AuthorizationReservationCancellation>,
+    ) -> SnapbackResult<RoomDependencyTicket> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room-authority dependency preparation",
+        );
         let mut state = lock(&self.state);
         let ticket_id = state.next_ticket;
         state.next_ticket = ticket_id.checked_add(1).ok_or_else(|| {
@@ -3356,6 +3626,17 @@ impl RoomAuthorityRegistry {
             .filter(|room| selector.matches(room))
             .cloned()
             .collect::<BTreeSet<_>>();
+        if affected_rooms.iter().any(|room_id| {
+            state.rooms.get(room_id).is_some_and(|room| {
+                room.generation >= crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+            })
+        }) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
+                "ephemeral",
+                "room authority generation exhausted",
+            ));
+        }
         for room_id in &affected_rooms {
             state
                 .rooms
@@ -3372,18 +3653,39 @@ impl RoomAuthorityRegistry {
                 affected_rooms: affected_rooms.clone(),
             },
         );
-        while state.active_durable_publications != 0
-            || affected_rooms.iter().any(|room_id| {
-                state
-                    .rooms
-                    .get(room_id)
-                    .is_some_and(|room| room.active_permits != 0)
-            })
-        {
+        loop {
+            if cancellation.is_some_and(AuthorizationReservationCancellation::is_cancelled) {
+                let pending = state
+                    .dependencies
+                    .remove(&ticket_id)
+                    .expect("cancelled room dependency remains installed");
+                for room_id in pending.affected_rooms {
+                    if let Some(room) = state.rooms.get_mut(&room_id) {
+                        room.pending_tickets.remove(&ticket_id);
+                    }
+                }
+                self.quiescent.notify_all();
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_RESERVATION_CANCELLED",
+                    "auth",
+                    "authorization room reservation was cancelled before quiescence",
+                ));
+            }
+            let waiting = state.active_durable_publications != 0
+                || affected_rooms.iter().any(|room_id| {
+                    state
+                        .rooms
+                        .get(room_id)
+                        .is_some_and(|room| room.active_permits != 0)
+                });
+            if !waiting {
+                break;
+            }
             state = self
                 .quiescent
-                .wait(state)
-                .unwrap_or_else(PoisonError::into_inner);
+                .wait_timeout(state, std::time::Duration::from_millis(10))
+                .unwrap_or_else(PoisonError::into_inner)
+                .0;
         }
         Ok(RoomDependencyTicket {
             ticket_id,
@@ -3397,7 +3699,7 @@ impl RoomAuthorityRegistry {
         authorization: AuthorizationVersion,
         min_commit_version: u64,
     ) -> SnapbackResult<Vec<(RoomId, RoomAuthorityResync)>> {
-        if authorization != ticket.expected_authorization {
+        if &authorization != ticket.expected_authorization()? {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
                 "auth",
@@ -3412,7 +3714,7 @@ impl RoomAuthorityRegistry {
                 "room dependency ticket is absent or already finalized",
             )
         })?;
-        if pending.expected_authorization != authorization {
+        if pending.expected_authorization.get() != Some(&authorization) {
             return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
                 "auth",
@@ -3420,10 +3722,9 @@ impl RoomAuthorityRegistry {
             ));
         }
         if pending.affected_rooms.iter().any(|room_id| {
-            state
-                .rooms
-                .get(room_id)
-                .is_some_and(|room| room.generation == u64::MAX)
+            state.rooms.get(room_id).is_some_and(|room| {
+                room.generation >= crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+            })
         }) {
             return Err(SnapbackError::error(
                 "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
@@ -3449,7 +3750,11 @@ impl RoomAuthorityRegistry {
                 }
                 continue;
             }
-            room.generation += 1;
+            room.generation = room
+                .generation
+                .checked_add(1)
+                .filter(|generation| *generation <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+                .expect("room authority generation is preflighted before authorization commit");
             let resync = RoomAuthorityResync {
                 authorization: authorization.clone(),
                 min_commit_version,
@@ -3535,6 +3840,9 @@ impl RoomAuthorityRegistry {
                 }
             },
             |message| {
+                if message.is_authority_independent_epoch_boundary() {
+                    return FrameAuthorityDisposition::Send;
+                }
                 let Some((room_id, generation)) = message.room_authority() else {
                     return FrameAuthorityDisposition::Send;
                 };
@@ -3607,6 +3915,19 @@ impl RoomAuthorityRegistry {
                         }
                     }),
                     RealtimeEnvelope::Ephemeral(message) => {
+                        if message.is_authority_independent_epoch_boundary() {
+                            return AdmittedRealtimeEnvelope {
+                                envelope,
+                                publication_authority: None,
+                                lease: OutboxDrainLease::new(
+                                    outbox.clone(),
+                                    lease_id,
+                                    wake.clone(),
+                                    recovery_marker_priority,
+                                ),
+                                recovery_marker: recovery_marker_priority.is_some(),
+                            };
+                        }
                         message.room_authority().and_then(|(room_id, generation)| {
                             let room = state.rooms.get_mut(room_id)?;
                             debug_assert_eq!(room.generation, generation);
@@ -3658,6 +3979,13 @@ fn authority_pending_error() -> EphemeralError {
     )
 }
 
+fn generation_exhausted_error() -> EphemeralError {
+    EphemeralError::new(
+        EphemeralErrorCode::GenerationExhausted,
+        "ephemeral generation cannot advance within the portable integer domain",
+    )
+}
+
 #[cfg(test)]
 struct DefinitionSwapTestHook {
     reached: std::sync::mpsc::SyncSender<()>,
@@ -3675,15 +4003,17 @@ struct FrameBeforeFirstEnqueueTestHook {
 /// whose values are per-room locks, per-connection outbox locks, a
 /// rate-bucket map, a room-granular expiry index, and atomic event counters.
 ///
-/// Lock order (outer to inner): `rooms` map → one room → `delivery` notifier →
-/// `outboxes` map → one outbox. `expiry_index` and `connection_rooms` remain
-/// room-leaf locks taken one at a time. A generation-bound drain takes only
-/// `delivery` → `outboxes` → one outbox. No enqueue retains an outbox lock
-/// while waking `delivery`, so reconnect registration and draining cannot
-/// form an inversion. Never two room locks; never acquire a room or the
-/// `rooms` map while holding an outbox or index lock; nothing that holds a room
-/// lock ever waits on the `rooms` map (the retire/wipe/prune paths take the map
-/// first, and prune only `try_lock`s the room). `rate_buckets` is a pure leaf.
+/// Lock order (outer to inner): protected terminal/reauthorization work starts
+/// with `room_authority`, then `rooms` map → one room → `delivery` notifier →
+/// `outboxes` map → one outbox. Ordinary room work starts at `rooms`/room.
+/// `expiry_index` and `connection_rooms` remain room-leaf locks taken one at a
+/// time. A generation-bound drain takes only `delivery` → `outboxes` → one
+/// outbox. No enqueue retains an outbox lock while waking `delivery`, so
+/// reconnect registration and draining cannot form an inversion. Never two
+/// room locks; never acquire a room or the `rooms` map while holding an outbox
+/// or index lock; a room holder that discovers exhaustion marks it retired and
+/// releases it before acquiring the registry/routing order. `rate_buckets` is
+/// a pure leaf.
 ///
 /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — the sharded design and its lock order.
 struct EphemeralShared {
@@ -3699,6 +4029,7 @@ struct EphemeralShared {
     #[cfg(test)]
     frame_before_first_enqueue_hook: StdMutex<Option<FrameBeforeFirstEnqueueTestHook>>,
     collections: RwLock<BTreeMap<String, EphemeralCollection>>,
+    collection_generation: AtomicU64,
     rooms: StdMutex<BTreeMap<RoomId, SharedRoom>>,
     outboxes: StdMutex<BTreeMap<ConnectionId, SharedOutbox>>,
     /// Rate buckets keyed connection-first, so disconnect drops one
@@ -3753,6 +4084,91 @@ pub struct LocalEphemeralBackend {
     shared: Arc<EphemeralShared>,
 }
 
+fn room_dependency_selector_for_collections(
+    collections: &[EphemeralCollection],
+    impact: AuthorizationCommitImpact<'_>,
+) -> RoomDependencySelector {
+    let AuthorizationCommitImpact::AppWrites { schema, changes } = impact else {
+        return RoomDependencySelector::all();
+    };
+    let mut selector = RoomDependencySelector::default();
+    for change in changes {
+        for collection in collections {
+            let Some(projection) = collection.permission_backing.as_ref() else {
+                continue;
+            };
+            if projection.table != change.table {
+                continue;
+            }
+            let Some(table) = schema.table(&change.table) else {
+                // Authorization event classification already treats an
+                // unknown table as affected. The room selector must not
+                // narrow that conservative decision with less metadata.
+                selector.collections.insert(collection.name.clone());
+                continue;
+            };
+            if matches!(change.op, ChangeOp::Update) {
+                if change.changed_fields.is_empty()
+                    || change
+                        .changed_fields
+                        .iter()
+                        .any(|field| table.field(field).is_none())
+                {
+                    selector.collections.insert(collection.name.clone());
+                    continue;
+                }
+                // @ref LLP 0056#invalidation-the-llp-0053-mapping -- role,
+                //   expiry, and other membership-policy changes invalidate
+                //   the room; only declared incidental fields may be ignored.
+                if change
+                    .changed_fields
+                    .iter()
+                    .all(|field| !table.field_affects_authorization(field))
+                {
+                    continue;
+                }
+                // The post-image cannot identify the predecessor room when a
+                // scope field moves. Widen only to this collection.
+                if change.changed_fields.iter().any(|field| {
+                    projection
+                        .scope_fields
+                        .values()
+                        .any(|scope_field| scope_field == field)
+                }) {
+                    selector.collections.insert(collection.name.clone());
+                    continue;
+                }
+            }
+            let Some(Value::Object(row)) = change.row.as_ref() else {
+                selector.collections.insert(collection.name.clone());
+                continue;
+            };
+            let scope = projection
+                .scope_fields
+                .iter()
+                .map(|(scope_field, table_field)| {
+                    row.get(table_field)
+                        .and_then(Value::as_str)
+                        .map(|value| (scope_field.clone(), value.to_owned()))
+                })
+                .collect::<Option<Vec<_>>>();
+            let Some(scope) = scope else {
+                selector.collections.insert(collection.name.clone());
+                continue;
+            };
+            match room_id_for(collection, &Scope::from_pairs(scope)) {
+                Ok(room) => {
+                    selector.rooms.insert(room);
+                }
+                Err(_) => {
+                    selector.collections.insert(collection.name.clone());
+                }
+            }
+        }
+    }
+    selector
+}
+
 struct PreparedRoomAuthorizationCommit {
     backend: LocalEphemeralBackend,
     ticket: RoomDependencyTicket,
@@ -3761,10 +4177,110 @@ struct PreparedRoomAuthorizationCommit {
     rollback_on_drop: bool,
 }
 
+struct RoomAuthorizationCommitReservation {
+    backend: LocalEphemeralBackend,
+    ticket: RoomDependencyTicket,
+    reserved_selector: RoomDependencySelector,
+    collections: Vec<EphemeralCollection>,
+    issuer_expectation: Option<AuthorizationVersion>,
+    collection_generation: u64,
+    rollback_on_drop: bool,
+}
+
+struct NoAuthorizationEventReservation;
+
+impl AuthorizationCommitReservation for NoAuthorizationEventReservation {
+    fn bind(
+        self: Box<Self>,
+        _witness: &AuthorizationCommitWitness,
+        _impact: AuthorizationCommitImpact<'_>,
+    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
+        Err(SnapbackError::error(
+            "SNAPBACK_AUTH_RESERVATION_STALE",
+            "auth",
+            "a mutation previewed as authorization-neutral produced an authorization event",
+        ))
+    }
+
+    fn cancel(self: Box<Self>) {}
+}
+
+impl Drop for RoomAuthorizationCommitReservation {
+    fn drop(&mut self) {
+        if self.rollback_on_drop {
+            let backend = self.backend.clone();
+            let ticket = self.ticket.clone();
+            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
+                backend.rollback_room_authorization_event(&ticket);
+            });
+        }
+    }
+}
+
+impl AuthorizationCommitReservation for RoomAuthorizationCommitReservation {
+    fn bind(
+        mut self: Box<Self>,
+        witness: &AuthorizationCommitWitness,
+        impact: AuthorizationCommitImpact<'_>,
+    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
+        debug_assert!(witness.event);
+        if self
+            .backend
+            .shared
+            .collection_generation
+            .load(Ordering::Acquire)
+            != self.collection_generation
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_RESERVATION_STALE",
+                "auth",
+                "protected-room definitions changed after authorization reservation",
+            ));
+        }
+        let actual_selector = room_dependency_selector_for_collections(&self.collections, impact);
+        if !self.reserved_selector.covers(&actual_selector) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "authorization write exceeded its off-Local protected-room reservation",
+            ));
+        }
+        if !witness.incarnation_rotated
+            && self.issuer_expectation.as_ref().is_some_and(|expected| {
+                expected.incarnation != witness.version.incarnation
+                    || expected.epoch.checked_add(1) != Some(witness.version.epoch)
+            })
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE",
+                "auth",
+                "authorization successor is stale for the reserved invalidation issuer",
+            ));
+        }
+        self.ticket.bind(witness.version.clone())?;
+        self.rollback_on_drop = false;
+        Ok(Box::new(PreparedRoomAuthorizationCommit {
+            backend: self.backend.clone(),
+            ticket: self.ticket.clone(),
+            authorization: witness.version.clone(),
+            incarnation_rotated: witness.incarnation_rotated,
+            rollback_on_drop: true,
+        }))
+    }
+
+    fn cancel(self: Box<Self>) {
+        drop(self);
+    }
+}
+
 impl Drop for PreparedRoomAuthorizationCommit {
     fn drop(&mut self) {
         if self.rollback_on_drop {
-            self.backend.rollback_room_authorization_event(&self.ticket);
+            let backend = self.backend.clone();
+            let ticket = self.ticket.clone();
+            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
+                backend.rollback_room_authorization_event(&ticket);
+            });
         }
     }
 }
@@ -3780,16 +4296,29 @@ impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
         // and installs a successor issuer; asking the predecessor issuer to
         // publish across incarnations would turn a known committed reset into
         // a false commit-uncertain result.
-        if !self.incarnation_rotated {
-            self.backend
-                .publish_committed_authorization(self.authorization.clone())?;
+        if crate::exec_guard::local_write_scope_active() {
+            let backend = self.backend.clone();
+            let ticket = self.ticket.clone();
+            let authorization = self.authorization.clone();
+            let incarnation_rotated = self.incarnation_rotated;
+            crate::exec_guard::run_or_defer_after_local_finalizer(move || {
+                backend
+                    .finish_room_authorization_commit(
+                        &ticket,
+                        authorization,
+                        incarnation_rotated,
+                        min_commit_version,
+                    )
+                    .expect("prevalidated room authorization commit finalizes after Local");
+            });
+            return Ok(());
         }
-        self.backend.finalize_room_authorization_event(
+        self.backend.finish_room_authorization_commit(
             &self.ticket,
             self.authorization.clone(),
+            self.incarnation_rotated,
             min_commit_version,
-        )?;
-        Ok(())
+        )
     }
 
     fn ambiguous(mut self: Box<Self>) {
@@ -3797,23 +4326,7 @@ impl PreparedAuthorizationCommit for PreparedRoomAuthorizationCommit {
     }
 }
 
-impl AuthorizationCommitInterlock for LocalEphemeralBackend {
-    fn prepare(
-        &self,
-        witness: &AuthorizationCommitWitness,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<Box<dyn PreparedAuthorizationCommit>> {
-        debug_assert!(witness.event);
-        let ticket = self.prepare_room_authorization_impact(witness.version.clone(), impact)?;
-        Ok(Box::new(PreparedRoomAuthorizationCommit {
-            backend: self.clone(),
-            ticket,
-            authorization: witness.version.clone(),
-            incarnation_rotated: witness.incarnation_rotated,
-            rollback_on_drop: true,
-        }))
-    }
-}
+impl AuthorizationCommitInterlock for LocalEphemeralBackend {}
 
 impl Default for LocalEphemeralBackend {
     fn default() -> Self {
@@ -3822,6 +4335,22 @@ impl Default for LocalEphemeralBackend {
 }
 
 impl LocalEphemeralBackend {
+    fn lifecycle_read(&self, operation: &str) -> RwLockReadGuard<'_, ()> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(operation);
+        self.shared
+            .lifecycle
+            .read()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
+    fn lifecycle_write(&self, operation: &str) -> RwLockWriteGuard<'_, ()> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(operation);
+        self.shared
+            .lifecycle
+            .write()
+            .unwrap_or_else(PoisonError::into_inner)
+    }
+
     pub fn collection_requires_room_permission(&self, name: &str) -> bool {
         self.collection_if_loaded(name)
             .as_ref()
@@ -3846,6 +4375,7 @@ impl LocalEphemeralBackend {
                 #[cfg(test)]
                 frame_before_first_enqueue_hook: StdMutex::new(None),
                 collections: RwLock::new(BTreeMap::new()),
+                collection_generation: AtomicU64::new(1),
                 rooms: StdMutex::new(BTreeMap::new()),
                 outboxes: StdMutex::new(BTreeMap::new()),
                 rate_buckets: StdMutex::new(BTreeMap::new()),
@@ -3865,6 +4395,9 @@ impl LocalEphemeralBackend {
         &self,
         issuer: crate::auth::invalidation::LiveInvalidationIssuer,
     ) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "ephemeral authorization issuer installation",
+        );
         if let Ok(authorization) = issuer.authorization_expectation() {
             self.shared
                 .room_authority
@@ -3874,6 +4407,9 @@ impl LocalEphemeralBackend {
     }
 
     pub(crate) fn clear_authorization_issuer(&self) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "ephemeral authorization issuer clearing",
+        );
         *lock(&self.shared.authorization_issuer) = None;
     }
 
@@ -3903,6 +4439,9 @@ impl LocalEphemeralBackend {
         &self,
         authorization: AuthorizationVersion,
     ) -> SnapbackResult<()> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "ephemeral authorization expectation publication",
+        );
         let issuer = lock(&self.shared.authorization_issuer).clone();
         match issuer {
             Some(issuer) => issuer.install_authorization_expectation(authorization),
@@ -3964,9 +4503,9 @@ impl LocalEphemeralBackend {
     }
 
     /// Install one conservative all-protected-room dependency ticket. This is
-    /// retained as the explicit broad-event/test seam; ordinary app writes go
-    /// through [`Self::prepare_room_authorization_impact`] so unrelated rooms
-    /// remain live when their permission-backing scope is provably disjoint.
+    /// retained as the explicit broad-event/test seam; production app writes
+    /// use [`Self::reserve_authorization_commit`] so unrelated rooms remain
+    /// live when their permission-backing scope is provably disjoint.
     #[cfg(test)]
     pub(crate) fn prepare_room_authorization_event(
         &self,
@@ -3977,120 +4516,110 @@ impl LocalEphemeralBackend {
             .prepare(expected_authorization, RoomDependencySelector::all())
     }
 
-    fn prepare_room_authorization_impact(
-        &self,
-        expected_authorization: AuthorizationVersion,
-        impact: AuthorizationCommitImpact<'_>,
-    ) -> SnapbackResult<RoomDependencyTicket> {
-        let selector = self.room_dependency_selector(impact);
-        self.shared
-            .room_authority
-            .prepare(expected_authorization, selector)
-    }
-
+    #[cfg(test)]
     fn room_dependency_selector(
         &self,
         impact: AuthorizationCommitImpact<'_>,
     ) -> RoomDependencySelector {
-        let AuthorizationCommitImpact::AppWrites { schema, changes } = impact else {
-            return RoomDependencySelector::all();
-        };
+        let (collections, _) = self.protected_room_collections_snapshot();
+        room_dependency_selector_for_collections(&collections, impact)
+    }
+
+    fn advance_collection_generation(&self) -> Result<(), EphemeralError> {
+        self.shared
+            .collection_generation
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |generation| {
+                generation.checked_add(1)
+            })
+            .map(|_| ())
+            .map_err(|_| {
+                EphemeralError::new(
+                    EphemeralErrorCode::RoomLimitExceeded,
+                    "ephemeral collection definition generation exhausted",
+                )
+            })
+    }
+
+    fn protected_room_collections_snapshot(&self) -> (Vec<EphemeralCollection>, u64) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "protected-room collection projection snapshot",
+        );
         let collections = self
             .shared
             .collections
             .read()
-            .unwrap_or_else(PoisonError::into_inner)
+            .unwrap_or_else(PoisonError::into_inner);
+        let generation = self.shared.collection_generation.load(Ordering::Acquire);
+        let collections = collections
             .values()
             .filter(|collection| collection_requires_room_permission(collection))
-            .filter_map(|collection| {
-                collection
-                    .permission_backing
-                    .as_ref()
-                    .map(|projection| (collection.clone(), projection.clone()))
-            })
-            .collect::<Vec<_>>();
-        let mut selector = RoomDependencySelector::default();
-        for change in changes {
-            for (collection, projection) in &collections {
-                if projection.table != change.table {
-                    continue;
-                }
-                let Some(table) = schema.table(&change.table) else {
-                    // Authorization event classification already treats an
-                    // unknown table as affected. The room selector must not
-                    // narrow that conservative decision with less metadata.
-                    selector.collections.insert(collection.name.clone());
-                    continue;
-                };
-                if matches!(change.op, ChangeOp::Update) {
-                    if change.changed_fields.is_empty() {
-                        selector.collections.insert(collection.name.clone());
-                        continue;
-                    }
-                    if change
-                        .changed_fields
-                        .iter()
-                        .any(|field| table.field(field).is_none())
-                    {
-                        // Unknown names are incomplete change metadata, not a
-                        // proof that this projection is disjoint.
-                        selector.collections.insert(collection.name.clone());
-                        continue;
-                    }
-                    // @ref LLP 0056#invalidation-the-llp-0053-mapping -- role, expiry, and
-                    //   other membership-policy changes invalidate the room
-                    //   even when the projection keys themselves are stable;
-                    //   only declared incidental fields may be ignored.
-                    if change
-                        .changed_fields
-                        .iter()
-                        .all(|field| !table.field_affects_authorization(field))
-                    {
-                        continue;
-                    }
-                    // The post-image cannot identify the predecessor room
-                    // when a scope field itself moves, so widen to this one
-                    // collection rather than guessing away the old room.
-                    if change.changed_fields.iter().any(|field| {
-                        projection
-                            .scope_fields
-                            .values()
-                            .any(|scope_field| scope_field == field)
-                    }) {
-                        selector.collections.insert(collection.name.clone());
-                        continue;
-                    }
-                }
-                let Some(Value::Object(row)) = change.row.as_ref() else {
-                    selector.collections.insert(collection.name.clone());
-                    continue;
-                };
-                let scope = projection
-                    .scope_fields
-                    .iter()
-                    .map(|(scope_field, table_field)| {
-                        row.get(table_field)
-                            .and_then(Value::as_str)
-                            .map(|value| (scope_field.clone(), value.to_owned()))
-                    })
-                    .collect::<Option<Vec<_>>>();
-                let Some(scope) = scope else {
-                    selector.collections.insert(collection.name.clone());
-                    continue;
-                };
-                match room_id_for(collection, &Scope::from_pairs(scope)) {
-                    Ok(room) => {
-                        selector.rooms.insert(room);
-                    }
-                    Err(_) => {
-                        // Loaded definitions were validated, but fail closed
-                        // if a future definition shape defeats reconstruction.
-                        selector.collections.insert(collection.name.clone());
-                    }
-                }
-            }
+            .cloned()
+            .collect();
+        (collections, generation)
+    }
+
+    pub(crate) fn reserve_authorization_commit(
+        &self,
+        preflight: AuthorizationCommitPreflight,
+        cancellation: Arc<AuthorizationReservationCancellation>,
+    ) -> SnapbackResult<Box<dyn AuthorizationCommitReservation>> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "off-Local room-authority commit reservation",
+        );
+        if matches!(
+            preflight,
+            AuthorizationCommitPreflight::NoAuthorizationEvent
+        ) {
+            return Ok(Box::new(NoAuthorizationEventReservation));
         }
-        selector
+        let (collections, collection_generation) = self.protected_room_collections_snapshot();
+        let reserved_selector = match preflight {
+            AuthorizationCommitPreflight::NoAuthorizationEvent => unreachable!("returned above"),
+            AuthorizationCommitPreflight::AllProtectedRooms => RoomDependencySelector::all(),
+            AuthorizationCommitPreflight::AppWrites { schema, changes } => {
+                room_dependency_selector_for_collections(
+                    &collections,
+                    AuthorizationCommitImpact::AppWrites {
+                        schema: &schema,
+                        changes: &changes,
+                    },
+                )
+            }
+        };
+        let issuer_expectation = lock(&self.shared.authorization_issuer)
+            .as_ref()
+            .map(|issuer| issuer.authorization_expectation())
+            .transpose()?;
+        let ticket = self
+            .shared
+            .room_authority
+            .prepare_unbound(reserved_selector.clone(), &cancellation)?;
+        Ok(Box::new(RoomAuthorizationCommitReservation {
+            backend: self.clone(),
+            ticket,
+            reserved_selector,
+            collections,
+            issuer_expectation,
+            collection_generation,
+            rollback_on_drop: true,
+        }))
+    }
+
+    fn finish_room_authorization_commit(
+        &self,
+        ticket: &RoomDependencyTicket,
+        authorization: AuthorizationVersion,
+        incarnation_rotated: bool,
+        min_commit_version: u64,
+    ) -> SnapbackResult<()> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room-authority commit finalization",
+        );
+        if !incarnation_rotated {
+            self.publish_committed_authorization(authorization.clone())?;
+        }
+        self.finalize_room_authorization_event(ticket, authorization, min_commit_version)?;
+        Ok(())
     }
 
     pub(crate) fn finalize_room_authorization_event(
@@ -4099,6 +4628,9 @@ impl LocalEphemeralBackend {
         authorization: AuthorizationVersion,
         min_commit_version: u64,
     ) -> SnapbackResult<Vec<(RoomId, RoomAuthorityResync)>> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room-authority dependency finalization",
+        );
         let resyncs =
             self.shared
                 .room_authority
@@ -4108,6 +4640,9 @@ impl LocalEphemeralBackend {
     }
 
     pub(crate) fn rollback_room_authorization_event(&self, ticket: &RoomDependencyTicket) -> bool {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "room-authority dependency rollback",
+        );
         self.shared.room_authority.rollback(ticket)
     }
 
@@ -4160,6 +4695,11 @@ impl LocalEphemeralBackend {
         room_authority_generation: u64,
         resolutions: Vec<RoomSubscriberResolution>,
     ) -> SnapbackResult<bool> {
+        // Reauthorization may remove entries and, at generation exhaustion,
+        // retire the whole room and publish an epoch boundary. Serialize that
+        // producer with definition/reset wipes so neither can clear the
+        // other's terminal marker after missing the already-removed room.
+        let _lifecycle = self.lifecycle_read("ephemeral room reauthorization completion");
         let mut authority = lock(&self.shared.room_authority.state);
         let Some(control) = authority.rooms.get(room_id) else {
             return Ok(false);
@@ -4206,6 +4746,44 @@ impl LocalEphemeralBackend {
             // pending so maintenance resolves the replacement's exact fence;
             // never apply the predecessor's result to it.
             return Ok(false);
+        }
+
+        let denied = resolutions
+            .iter()
+            .filter_map(|resolution| match resolution {
+                RoomSubscriberResolution::Denied { connection_id, .. } => {
+                    Some(connection_id.clone())
+                }
+                RoomSubscriberResolution::Authorized { .. } => None,
+            })
+            .collect::<BTreeSet<_>>();
+        let retiring_owners = room
+            .owner_connections
+            .iter()
+            .filter_map(|(owner, connections)| {
+                (!connections.is_empty()
+                    && connections
+                        .iter()
+                        .all(|connection_id| denied.contains(connection_id)))
+                .then_some(owner.clone())
+            })
+            .collect::<BTreeSet<_>>();
+        let required_versions = room
+            .entries
+            .values()
+            .filter(|record| retiring_owners.contains(&record.owner))
+            .count();
+        if let Err(error) = room.ensure_version_capacity(required_versions) {
+            room.retired = true;
+            drop(room);
+            drop(rooms);
+            drop(authority);
+            self.retire_generation_exhausted_room(room_id);
+            return Err(SnapbackError::error(
+                error.code.diagnostic_code(),
+                "ephemeral",
+                error.message,
+            ));
         }
 
         let mut denied_outboxes = Vec::new();
@@ -4295,7 +4873,9 @@ impl LocalEphemeralBackend {
                     &key,
                     RemoveReason::AuthRevoked,
                     room_authority_generation,
-                ) {
+                )
+                .expect("reauthorization removal capacity is preflighted before room mutation")
+                {
                     removals.push(removal);
                 }
             }
@@ -4428,11 +5008,7 @@ impl LocalEphemeralBackend {
         collection: EphemeralCollection,
     ) -> Result<(), EphemeralError> {
         validate_collection_definitions(std::slice::from_ref(&collection))?;
-        let _generation = self
-            .shared
-            .lifecycle
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_write("ephemeral collection registration");
         let replaced = {
             let mut collections = self
                 .shared
@@ -4442,10 +5018,12 @@ impl LocalEphemeralBackend {
             match collections.get(&collection.name) {
                 Some(current) if current == &collection => return Ok(()),
                 Some(_) => {
+                    self.advance_collection_generation()?;
                     collections.insert(collection.name.clone(), collection);
                     true
                 }
                 None => {
+                    self.advance_collection_generation()?;
                     collections.insert(collection.name.clone(), collection);
                     false
                 }
@@ -4477,11 +5055,7 @@ impl LocalEphemeralBackend {
             .map(|collection| (collection.name.clone(), collection))
             .collect::<BTreeMap<_, _>>();
 
-        let _generation = self
-            .shared
-            .lifecycle
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_write("ephemeral collection replacement");
         {
             let mut current = self
                 .shared
@@ -4494,6 +5068,7 @@ impl LocalEphemeralBackend {
             if *current == next {
                 return Ok(());
             }
+            self.advance_collection_generation()?;
             *current = next;
         }
 
@@ -4528,11 +5103,7 @@ impl LocalEphemeralBackend {
         collections: Vec<EphemeralCollection>,
     ) -> Result<CollectionEnsureOutcome, EphemeralError> {
         validate_collection_definitions(&collections)?;
-        let _generation = self
-            .shared
-            .lifecycle
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_read("ephemeral collection ensure");
         let expected = collections
             .into_iter()
             .map(|collection| (collection.name.clone(), collection))
@@ -4598,11 +5169,7 @@ impl LocalEphemeralBackend {
     /// queues and rate buckets are cleared, counters restart (the reset's own
     /// resync signals are counted, since they follow the counter reset).
     pub fn reset_runtime_state(&self) {
-        let _generation = self
-            .shared
-            .lifecycle
-            .write()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_write("ephemeral runtime reset");
         self.shared.counters.reset();
         // The runtime reset retires the durable world too (the caller wipes
         // the database and drops every live subscription), so queued durable
@@ -4630,11 +5197,7 @@ impl LocalEphemeralBackend {
         now_ms: Millis,
         admitted: Option<&RoomAuthorityPermit>,
     ) -> Result<PublishOutcome, EphemeralError> {
-        let _generation = self
-            .shared
-            .lifecycle
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_read("ephemeral publish");
         self.validate_request_metadata(RequestMetadata {
             collection: &request.collection,
             scope: &request.scope,
@@ -4680,14 +5243,35 @@ impl LocalEphemeralBackend {
         //
         // @ref LLP 0013#routing-and-rooms -- a room authority owns versions and latest-state fan-out.
         // @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — room-operation atomicity.
-        let outcome = match self.with_room_create(&room_id, |room| {
+        let protected_generation =
+            collection_requires_room_permission(&collection).then_some(room_authority_generation);
+        let outcome = match self.with_room_create(&room_id, protected_generation, |room| {
+            if let Some(previous) = room.entries.get(&key)
+                && previous.expires_at_ms > now_ms
+                && previous.owner != owner
+            {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::Unauthorized,
+                    "ephemeral entry is owned by another authenticated identity",
+                ));
+            }
+            let required_versions = room
+                .entries
+                .values()
+                .filter(|record| record.expires_at_ms <= now_ms)
+                .count()
+                .saturating_add(1);
+            if let Err(error) = room.ensure_version_capacity(required_versions) {
+                room.retired = true;
+                return Err(error);
+            }
             self.sweep_room_locked(
                 room,
                 &room_id,
                 Some(&collection),
                 now_ms,
                 room_authority_generation,
-            );
+            )?;
 
             if let Some(previous) = room.entries.get(&key)
                 && previous.owner != owner
@@ -4826,6 +5410,11 @@ impl LocalEphemeralBackend {
                 .rejected_publishes
                 .fetch_add(1, Ordering::Relaxed);
         }
+        if let Err(error) = &outcome
+            && error.code == EphemeralErrorCode::GenerationExhausted
+        {
+            self.retire_generation_exhausted_room(&room_id);
+        }
         if outcome.is_err() {
             self.unindex_connection_room_if_unused(&connection_id, &room_id);
             self.prune_room_if_empty(&room_id);
@@ -4847,11 +5436,7 @@ impl LocalEphemeralBackend {
         now_ms: Millis,
         admitted: Option<&RoomAuthorityPermit>,
     ) -> Result<Option<EphemeralMessage>, EphemeralError> {
-        let _generation = self
-            .shared
-            .lifecycle
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_read("ephemeral delete");
         self.validate_request_metadata(RequestMetadata {
             collection: &request.collection,
             scope: &request.scope,
@@ -4869,14 +5454,39 @@ impl LocalEphemeralBackend {
         let key = entry_key_for_delete(&collection, &request)?;
         let owner = entry_owner_for_delete(&collection, &request)?;
 
-        let (removed, affected_connections) = match self.with_existing_room(&room_id, |room| {
+        let result = match self.with_existing_room(&room_id, |room| {
+            if let Some(record) = room.entries.get(&key)
+                && record.expires_at_ms > now_ms
+                && record.owner != owner
+            {
+                return Err(EphemeralError::new(
+                    EphemeralErrorCode::Unauthorized,
+                    "ephemeral entry is owned by another authenticated identity",
+                ));
+            }
+            let expired = room
+                .entries
+                .values()
+                .filter(|record| record.expires_at_ms <= now_ms)
+                .count();
+            let delete_after_sweep = usize::from(
+                room.entries
+                    .get(&key)
+                    .is_some_and(|record| record.expires_at_ms > now_ms),
+            );
+            if let Err(error) =
+                room.ensure_version_capacity(expired.saturating_add(delete_after_sweep))
+            {
+                room.retired = true;
+                return Err(error);
+            }
             self.sweep_room_locked(
                 room,
                 &room_id,
                 Some(&collection),
                 now_ms,
                 room_authority_generation,
-            );
+            )?;
             let Some(record) = room.entries.get(&key) else {
                 return Ok((None, BTreeSet::new()));
             };
@@ -4897,14 +5507,23 @@ impl LocalEphemeralBackend {
                 &key,
                 RemoveReason::Deleted,
                 room_authority_generation,
-            );
+            )?;
             if let Some(message) = &removed {
                 self.fan_out_locked(room, &room_id, &collection, message.clone());
             }
             Ok((removed, affected))
         }) {
-            Some(result) => result?,
-            None => (None, BTreeSet::new()),
+            Some(result) => result,
+            None => Ok((None, BTreeSet::new())),
+        };
+        let (removed, affected_connections) = match result {
+            Ok(result) => result,
+            Err(error) => {
+                if error.code == EphemeralErrorCode::GenerationExhausted {
+                    self.retire_generation_exhausted_room(&room_id);
+                }
+                return Err(error);
+            }
         };
         for connection_id in affected_connections {
             self.unindex_connection_room_if_unused(&connection_id, &room_id);
@@ -4929,11 +5548,7 @@ impl LocalEphemeralBackend {
         request: SubscribeRequest,
         admitted: Option<&RoomAuthorityPermit>,
     ) -> Result<bool, EphemeralError> {
-        let _generation = self
-            .shared
-            .lifecycle
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_read("ephemeral unsubscribe");
         self.validate_request_metadata(RequestMetadata {
             collection: &request.collection,
             scope: &request.scope,
@@ -5007,11 +5622,7 @@ impl LocalEphemeralBackend {
         admitted: Option<&RoomAuthorityPermit>,
         effect_fence: Option<ConnectionEffectFence>,
     ) -> Result<EphemeralMessage, EphemeralError> {
-        let _generation = self
-            .shared
-            .lifecycle
-            .read()
-            .unwrap_or_else(PoisonError::into_inner);
+        let _generation = self.lifecycle_read("ephemeral subscribe");
         self.validate_request_metadata(RequestMetadata {
             collection: &request.collection,
             scope: &request.scope,
@@ -5033,14 +5644,16 @@ impl LocalEphemeralBackend {
         self.index_connection_room(&request.connection_id, &room_id);
 
         // @ref LLP 0013#room-store-model -- snapshot and subscriber registration must be one room operation.
-        let outcome = match self.with_room_create(&room_id, |room| {
+        let protected_generation =
+            collection_requires_room_permission(&collection).then_some(room_authority_generation);
+        let outcome = match self.with_room_create(&room_id, protected_generation, |room| {
             self.sweep_room_locked(
                 room,
                 &room_id,
                 Some(&collection),
                 now_ms,
                 room_authority_generation,
-            );
+            )?;
             let new_subscriber = !room.subscribers.contains_key(&request.connection_id);
             if new_subscriber
                 && room.subscribers.len() >= self.shared.limits.max_subscribers_per_room
@@ -5124,6 +5737,12 @@ impl LocalEphemeralBackend {
             Err(error) => Err(error),
         };
         if outcome.is_err() {
+            if outcome
+                .as_ref()
+                .is_err_and(|error| error.code == EphemeralErrorCode::GenerationExhausted)
+            {
+                self.retire_generation_exhausted_room(&room_id);
+            }
             self.unindex_connection_room_if_unused(&request.connection_id, &room_id);
             self.prune_room_if_empty(&room_id);
         }
@@ -5141,7 +5760,15 @@ impl LocalEphemeralBackend {
     ///
     /// @ref LLP 0026#as-built-sharded-local-room-authority-written-2026-07-02-before-the-l9-implementation — disconnect cost scales with the connection, not the store.
     pub fn disconnect(&self, connection_id: &str, now_ms: Millis) {
-        self.disconnect_inner(connection_id, now_ms, false);
+        self.disconnect_inner(connection_id, now_ms, false, true);
+    }
+
+    /// Whole-readable-id teardown after the connection registry has entered
+    /// mint-only containment. Unlike an administrative disconnect, this path
+    /// must not synthesize a recovery marker or wake the terminal socket: an
+    /// exact typed auth event, when present, remains the sole wake owner.
+    pub(crate) fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: Millis) {
+        self.disconnect_inner(connection_id, now_ms, false, false);
     }
 
     /// Generation-guarded disconnect for the WS teardown path (ENG-23426).
@@ -5156,10 +5783,20 @@ impl LocalEphemeralBackend {
     /// left behind is removed by the connection's eventual final disconnect
     /// or entry TTL, and the reaper still uses the unconditional path).
     pub fn disconnect_guarded(&self, connection_id: &str, now_ms: Millis) -> bool {
-        self.disconnect_inner(connection_id, now_ms, true)
+        self.disconnect_inner(connection_id, now_ms, true, false)
     }
 
-    fn disconnect_inner(&self, connection_id: &str, now_ms: Millis, guarded: bool) -> bool {
+    fn disconnect_inner(
+        &self,
+        connection_id: &str,
+        now_ms: Millis,
+        guarded: bool,
+        signal_disconnected: bool,
+    ) -> bool {
+        // Disconnect can allocate remove versions and terminally retire an
+        // exhausted room. Keep its room/outbox effects in one definition
+        // generation so a concurrent wipe cannot erase the only boundary.
+        let _lifecycle = self.lifecycle_read("ephemeral connection disconnect");
         // Cheap early-out for the guarded path: the reconnect already owns
         // the id, so consuming the reverse index below would only orphan the
         // new socket's rooms from their eventual cleanup.
@@ -5220,13 +5857,37 @@ impl LocalEphemeralBackend {
             if room.retired {
                 continue;
             }
+            let mut required_keys = room
+                .entries
+                .iter()
+                .filter_map(|(key, record)| (record.expires_at_ms <= now_ms).then_some(key.clone()))
+                .collect::<BTreeSet<_>>();
+            let retiring_owners = room
+                .owner_connections
+                .iter()
+                .filter_map(|(owner, connections)| {
+                    (connections.len() == 1 && connections.contains(connection_id)).then_some(owner)
+                })
+                .collect::<BTreeSet<_>>();
+            required_keys.extend(room.entries.iter().filter_map(|(key, record)| {
+                retiring_owners
+                    .contains(&record.owner)
+                    .then_some(key.clone())
+            }));
+            if room.ensure_version_capacity(required_keys.len()).is_err() {
+                room.retired = true;
+                drop(room);
+                self.retire_generation_exhausted_room(room_id);
+                continue;
+            }
             self.sweep_room_locked(
                 &mut room,
                 room_id,
                 collection.as_ref(),
                 now_ms,
                 room_authority_generation,
-            );
+            )
+            .expect("disconnect removal capacity is preflighted before room mutation");
             let had_connection_room_edge = room.uses_connection(connection_id);
             if let Some(removed) = room.subscribers.remove(connection_id) {
                 room.retained_bytes = room.retained_bytes.saturating_sub(removed.retained_bytes);
@@ -5266,7 +5927,9 @@ impl LocalEphemeralBackend {
                         &key,
                         RemoveReason::Disconnected,
                         room_authority_generation,
-                    ) {
+                    )
+                    .expect("disconnect removal capacity is preflighted before room mutation")
+                    {
                         self.shared
                             .counters
                             .disconnected_entries
@@ -5338,7 +6001,7 @@ impl LocalEphemeralBackend {
         //
         // @ref LLP 0008#realtime-delivery — a dropped subscription gets a
         // resync signal, never a silent freeze.
-        if !guarded
+        if signal_disconnected
             && !subscribed_rooms.is_empty()
             && self.shared.delivery.is_registered(connection_id)
         {
@@ -5393,6 +6056,11 @@ impl LocalEphemeralBackend {
     ///
     /// @ref LLP 0013#room-store-model -- cleanupExpired uses an expiry index, not a scan of every room.
     pub fn cleanup_expired(&self, now_ms: Millis) {
+        // Expiry cleanup is an ordinary room mutation even though it is
+        // maintenance-driven. In particular its exhaustion path publishes a
+        // terminal epoch boundary that a concurrent definition/reset wipe
+        // must not clear after observing the room already absent.
+        let _lifecycle = self.lifecycle_read("ephemeral expiry cleanup");
         let due: Vec<RoomId> = {
             let mut index = lock(&self.shared.expiry_index);
             let mut due = Vec::new();
@@ -5439,8 +6107,8 @@ impl LocalEphemeralBackend {
                 .as_ref()
                 .map(RoomAuthorityPermit::generation)
                 .unwrap_or(0);
-            let prunable = self
-                .with_existing_room(&room_id, |room| {
+            let sweep: Option<Result<bool, EphemeralError>> =
+                self.with_existing_room(&room_id, |room| {
                     // This room's index entry was consumed above. A racing
                     // publish may already have re-indexed the room at a
                     // future deadline; only clear the mirror when it still
@@ -5460,13 +6128,20 @@ impl LocalEphemeralBackend {
                         collection.as_ref(),
                         now_ms,
                         room_authority_generation,
-                    );
+                    )?;
                     if let Some(earliest) = next_expiry_deadline(room) {
                         self.index_room_deadline(room, &room_id, earliest);
                     }
-                    room.entries.is_empty() && room.subscribers.is_empty()
-                })
-                .unwrap_or(false);
+                    Ok(room.entries.is_empty() && room.subscribers.is_empty())
+                });
+            let prunable = match sweep {
+                Some(Ok(prunable)) => prunable,
+                Some(Err(error)) if error.code == EphemeralErrorCode::GenerationExhausted => {
+                    self.retire_generation_exhausted_room(&room_id);
+                    false
+                }
+                Some(Err(_)) | None => false,
+            };
             if prunable {
                 self.prune_room_if_empty(&room_id);
             }
@@ -5602,6 +6277,31 @@ impl LocalEphemeralBackend {
         connection_id: &str,
         effect_fence: &ConnectionEffectFence,
     ) {
+        self.purge_connection_effects_inner(connection_id, effect_fence, true);
+    }
+
+    /// Exact terminal purge which releases predecessor leases and effects but
+    /// deliberately does not wake the readable id. Typed terminal lifecycle
+    /// installs the event while retiring the exact registry grant, then uses
+    /// this silent cleanup so lease release cannot manufacture a later wake;
+    /// low-level callers may also compose it before terminal installation.
+    ///
+    /// @ref LLP 0059#typed-terminal-auth-error — terminal data becomes visible
+    /// under the notifier mutex before the single terminal wake.
+    pub(crate) fn purge_connection_effects_silently(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+    ) {
+        self.purge_connection_effects_inner(connection_id, effect_fence, false);
+    }
+
+    fn purge_connection_effects_inner(
+        &self,
+        connection_id: &str,
+        effect_fence: &ConnectionEffectFence,
+        wake_after_purge: bool,
+    ) {
         let touched = lock(&self.shared.connection_rooms)
             .get(connection_id)
             .cloned()
@@ -5647,7 +6347,7 @@ impl LocalEphemeralBackend {
             .get(connection_id)
             .cloned()
             .is_some_and(|outbox| lock(&outbox).purge_effect_fence(effect_fence));
-        if wake_preserved_work {
+        if wake_preserved_work && wake_after_purge {
             // Invalidating the predecessor's globally active lease can expose
             // authority-independent or successor work after the replacement
             // socket already performed an empty initial drain. Wake whichever
@@ -5880,6 +6580,13 @@ impl LocalEphemeralBackend {
     }
 
     #[cfg(test)]
+    pub(crate) fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
+        lock(&self.shared.connection_rooms).contains_key(connection_id)
+            || lock(&self.shared.outboxes).contains_key(connection_id)
+            || lock(&self.shared.rate_buckets).contains_key(connection_id)
+    }
+
+    #[cfg(test)]
     fn drain_outbox_for_send_bound_with_limit(
         &self,
         connection_id: &str,
@@ -6054,6 +6761,9 @@ impl LocalEphemeralBackend {
     }
 
     pub fn diagnostics(&self) -> EphemeralDiagnostics {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "ephemeral diagnostics",
+        );
         // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L4: the
         // gauge recompute happens here, on demand, not after every operation.
         let counters = &self.shared.counters;
@@ -6069,6 +6779,10 @@ impl LocalEphemeralBackend {
             resync_required: counters.resync_required.load(Ordering::Relaxed),
             outbox_overflows: counters.outbox_overflows.load(Ordering::Relaxed),
             limit_rejections: counters.limit_rejections.load(Ordering::Relaxed),
+            generation_exhaustions: counters.generation_exhaustions.load(Ordering::Relaxed),
+            last_generation_exhaustion: (counters.generation_exhaustions.load(Ordering::Relaxed)
+                > 0)
+            .then(generation_exhausted_error),
             ..EphemeralDiagnostics::default()
         };
 
@@ -6138,6 +6852,117 @@ impl LocalEphemeralBackend {
             .cloned()
     }
 
+    /// @ref LLP 0013#stored-entry-shape — room incarnations never cross or reuse the portable scope-epoch domain.
+    fn allocate_scope_epoch(&self) -> Result<u64, EphemeralError> {
+        self.shared
+            .next_scope_epoch
+            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |epoch| {
+                (epoch <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+                    .then(|| epoch.checked_add(1))
+                    .flatten()
+            })
+            .map_err(|_| generation_exhausted_error())
+    }
+
+    fn record_generation_exhaustion(&self) {
+        self.shared
+            .counters
+            .generation_exhaustions
+            .fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Complete the fail-closed half of entry-version exhaustion. The caller
+    /// first marks the exact `RoomState` retired while discovering that its
+    /// next mutation cannot be represented. This method then takes the
+    /// canonical authority-registry → routing-map → room → outbox order,
+    /// removes that exact retired incarnation, purges its queued data, and
+    /// installs only an epoch-change resync boundary. Keeping the routing map
+    /// locked through enqueue prevents an unprotected replacement room from
+    /// overtaking its predecessor's terminal marker.
+    ///
+    /// @ref LLP 0013#stored-entry-shape — entry exhaustion is whole-incarnation sequencing loss, never partial cleanup.
+    fn retire_generation_exhausted_room(&self, room_id: &RoomId) {
+        self.record_generation_exhaustion();
+
+        let mut authority = lock(&self.shared.room_authority.state);
+        let mut rooms = lock(&self.shared.rooms);
+        let room_arc = rooms.get(room_id).cloned();
+        if room_arc.as_ref().is_some_and(|room| !lock(room).retired) {
+            // A same-id replacement already won after another retirement.
+            // Never let a delayed duplicate retire the fresh incarnation.
+            return;
+        }
+
+        let _retired_room_authority_generation = authority
+            .rooms
+            .get_mut(room_id)
+            .map(|control| {
+                control.retired = true;
+                control.resync = None;
+                control.generation
+            })
+            .unwrap_or(0);
+
+        let mut retired = false;
+        let mut scope_epoch = 0;
+        let mut subscribers = Vec::new();
+        if let Some(room_arc) = room_arc {
+            let mut room = lock(&room_arc);
+            if room.retired {
+                retired = true;
+                rooms.remove(room_id);
+                if let Some(deadline) = room.indexed_deadline.take() {
+                    lock(&self.shared.expiry_index).remove(&(deadline, room_id.clone()));
+                    room.retained_bytes = room
+                        .retained_bytes
+                        .saturating_sub(retained_expiry_index_entry_bytes(room_id));
+                }
+                scope_epoch = room.scope_epoch;
+                subscribers = room
+                    .subscribers
+                    .iter()
+                    .map(|(connection_id, subscriber)| {
+                        (
+                            connection_id.clone(),
+                            subscriber.outbox.clone(),
+                            subscriber.effect_fence.clone(),
+                        )
+                    })
+                    .collect();
+            }
+        }
+
+        let mut wakees = Vec::with_capacity(subscribers.len());
+        for (connection_id, outbox, effect_fence) in subscribers {
+            let mut outbox = lock(&outbox);
+            outbox.purge_room_epoch(room_id, scope_epoch, effect_fence.as_ref());
+            self.record_queue_push(outbox.push_resync(
+                Arc::new(EphemeralMessage::ResyncRequired {
+                    room: room_id.clone(),
+                    scope_epoch,
+                    room_authority_generation: 0,
+                    reason: ResyncReason::EpochChanged,
+                }),
+                effect_fence,
+            ));
+            wakees.push(connection_id);
+        }
+
+        let remove_authority = authority.rooms.get(room_id).is_some_and(|control| {
+            control.retired && control.pending_tickets.is_empty() && control.active_permits == 0
+        });
+        if remove_authority {
+            authority.rooms.remove(room_id);
+        }
+        drop(rooms);
+        drop(authority);
+
+        if retired {
+            self.reconcile_connection_room_index(room_id);
+        }
+        self.shared.delivery.wake_many(&wakees);
+    }
+
     /// Run `f` under the (created-if-needed) room's lock. Retries when the
     /// looked-up room was retired between the map lookup and the room lock —
     /// the pruner or a wipe won the race, and the retry re-consults the map,
@@ -6146,11 +6971,29 @@ impl LocalEphemeralBackend {
     fn with_room_create<T>(
         &self,
         room_id: &RoomId,
+        protected_generation: Option<u64>,
         f: impl FnOnce(&mut RoomState) -> T,
     ) -> Result<T, EphemeralError> {
         let mut f = Some(f);
         loop {
             let room_arc = {
+                // Protected creation linearizes registry-before-routing, the
+                // same order as terminal retirement. A permit admitted before
+                // exhaustion may finish against the predecessor room, but it
+                // cannot recreate the room after the control is retired.
+                // @ref LLP 0013#stored-entry-shape — stale protected permits cannot recreate a terminally retired room.
+                let _authority = if let Some(generation) = protected_generation {
+                    let authority = lock(&self.shared.room_authority.state);
+                    let current = authority.rooms.get(room_id);
+                    if current
+                        .is_none_or(|control| control.retired || control.generation != generation)
+                    {
+                        return Err(authority_pending_error());
+                    }
+                    Some(authority)
+                } else {
+                    None
+                };
                 let mut rooms = lock(&self.shared.rooms);
                 if let Some(existing) = rooms.get(room_id) {
                     existing.clone()
@@ -6168,7 +7011,6 @@ impl LocalEphemeralBackend {
                             ),
                         ));
                     }
-                    let epoch = self.shared.next_scope_epoch.fetch_add(1, Ordering::Relaxed);
                     let retained_bytes = retained_room_identity_bytes(room_id);
                     if retained_bytes > self.shared.limits.max_room_value_bytes {
                         self.shared
@@ -6183,6 +7025,7 @@ impl LocalEphemeralBackend {
                             ),
                         ));
                     }
+                    let epoch = self.allocate_scope_epoch()?;
                     let created = Arc::new(StdMutex::new(RoomState::new(epoch, retained_bytes)));
                     rooms.insert(room_id.clone(), created.clone());
                     created
@@ -6190,6 +7033,9 @@ impl LocalEphemeralBackend {
             };
             let mut room = lock(&room_arc);
             if room.retired {
+                if protected_generation.is_some() {
+                    return Err(authority_pending_error());
+                }
                 continue;
             }
             let f = f
@@ -6496,10 +7342,10 @@ impl LocalEphemeralBackend {
         collection: Option<&EphemeralCollection>,
         now_ms: Millis,
         room_authority_generation: u64,
-    ) {
+    ) -> Result<(), EphemeralError> {
         match next_expiry_deadline(room) {
             Some(deadline) if deadline <= now_ms => {}
-            _ => return,
+            _ => return Ok(()),
         }
 
         let expired_keys = room
@@ -6507,6 +7353,10 @@ impl LocalEphemeralBackend {
             .iter()
             .filter_map(|(key, record)| (record.expires_at_ms <= now_ms).then_some(key.clone()))
             .collect::<Vec<_>>();
+        if let Err(error) = room.ensure_version_capacity(expired_keys.len()) {
+            room.retired = true;
+            return Err(error);
+        }
         for key in expired_keys {
             let affected_connections = room
                 .entries
@@ -6520,7 +7370,9 @@ impl LocalEphemeralBackend {
                 &key,
                 RemoveReason::Expired,
                 room_authority_generation,
-            ) {
+            )
+            .expect("expiry batch capacity is preflighted before room mutation")
+            {
                 self.shared
                     .counters
                     .expired_entries
@@ -6533,6 +7385,7 @@ impl LocalEphemeralBackend {
                 }
             }
         }
+        Ok(())
     }
 
     /// Enqueue `message` to every currently authorized subscriber. Called
@@ -6776,8 +7629,15 @@ fn remove_entry_locked(
     key: &EntryKey,
     reason: RemoveReason,
     room_authority_generation: u64,
-) -> Option<EphemeralMessage> {
-    let record = room.entries.remove(key)?;
+) -> Result<Option<EphemeralMessage>, EphemeralError> {
+    if !room.entries.contains_key(key) {
+        return Ok(None);
+    }
+    room.ensure_version_capacity(1)?;
+    let record = room
+        .entries
+        .remove(key)
+        .expect("entry existence was checked under the room lock");
     room.value_bytes = room.value_bytes.saturating_sub(record.value.len());
     room.retained_bytes = room.retained_bytes.saturating_sub(record.retained_bytes);
     forget_expiry_locked(room, record.expires_at_ms);
@@ -6812,14 +7672,14 @@ fn remove_entry_locked(
         }
     }
     let entry_version = room.allocate_version();
-    Some(EphemeralMessage::Remove {
+    Ok(Some(EphemeralMessage::Remove {
         room: room_id.clone(),
         key: key.clone(),
         scope_epoch: room.scope_epoch,
         room_authority_generation,
         entry_version,
         reason,
-    })
+    }))
 }
 
 fn remember_expiry_locked(room: &mut RoomState, expires_at_ms: Millis) {
@@ -7560,6 +8420,34 @@ mod tests {
         assert!(notifier.unregister("conn", new_generation));
     }
 
+    #[test]
+    fn teardown_claim_blocks_reconnect_and_rejects_stale_generation() {
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (generation, _waker) = notifier
+            .register_bound("conn", "grant-a")
+            .expect("register predecessor");
+
+        let claim = notifier
+            .begin_teardown("conn", generation)
+            .expect("the current generation owns teardown");
+        let blocked = notifier
+            .register_bound("conn", "grant-a")
+            .expect_err("same-id reconnect waits for split cleanup");
+        assert_eq!(
+            blocked.diagnostic.code,
+            "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
+        );
+        assert!(notifier.begin_teardown("conn", generation).is_none());
+
+        claim.finish();
+        let (successor, _waker) = notifier
+            .register_bound("conn", "grant-a")
+            .expect("registration reopens after cleanup");
+        assert!(successor > generation);
+        assert!(notifier.begin_teardown("conn", generation).is_none());
+    }
+
     /// ENG-23425 — the delivery loop's mid-life ownership check: a superseded
     /// registration reads as not-current (so its task stops draining the
     /// shared outbox instead of stealing the new socket's messages), the
@@ -8188,7 +9076,10 @@ mod tests {
     }
 
     fn publish_request(connection_id: &str, value: &[u8]) -> PublishRequest {
-        let scope = scope();
+        publish_request_for(connection_id, value, scope())
+    }
+
+    fn publish_request_for(connection_id: &str, value: &[u8], scope: Scope) -> PublishRequest {
         PublishRequest {
             collection: "boardCursors".to_owned(),
             auth: auth_for(&scope),
@@ -8203,7 +9094,10 @@ mod tests {
     }
 
     fn subscribe_request(connection_id: &str) -> SubscribeRequest {
-        let scope = scope();
+        subscribe_request_for(connection_id, scope())
+    }
+
+    fn subscribe_request_for(connection_id: &str, scope: Scope) -> SubscribeRequest {
         SubscribeRequest {
             collection: "boardCursors".to_owned(),
             auth: auth_for(&scope),
@@ -8212,11 +9106,441 @@ mod tests {
         }
     }
 
+    fn delete_request(connection_id: &str) -> DeleteRequest {
+        let scope = scope();
+        DeleteRequest {
+            collection: "boardCursors".to_owned(),
+            auth: auth_for(&scope),
+            scope,
+            connection_id: connection_id.to_owned(),
+            session_id: None,
+            user_id: None,
+            custom_key: None,
+        }
+    }
+
+    fn set_next_entry_version(backend: &LocalEphemeralBackend, next: u64) {
+        let room_arc = lock(&backend.shared.rooms)
+            .get(&room())
+            .cloned()
+            .expect("test room exists");
+        lock(&room_arc).next_entry_version = next;
+    }
+
+    fn assert_only_epoch_changed_boundary(backend: &LocalEphemeralBackend, connection_id: &str) {
+        let frames = drain_through_test_sink(backend, connection_id);
+        assert_eq!(frames.len(), 1, "stale room data must be purged");
+        assert!(matches!(
+            &frames[0],
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+                room_authority_generation: 0,
+                reason: ResyncReason::EpochChanged,
+                ..
+            })
+        ));
+    }
+
     fn authorization(epoch: u64) -> AuthorizationVersion {
         AuthorizationVersion {
             incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd17".to_owned(),
             epoch,
         }
+    }
+
+    #[test]
+    fn entry_version_allocates_portable_max_then_retires_on_the_next_publish() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let initial = backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let initial_scope_epoch = initial.scope_epoch().unwrap();
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX);
+
+        let final_entry = backend
+            .publish(publish_request("owner", b"portable-max"), 2)
+            .expect("the final portable entry version is representable");
+        assert_eq!(
+            final_entry.entry_version,
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+        let error = backend
+            .publish(publish_request("owner", b"must-retire"), 3)
+            .expect_err("the successor cannot be represented");
+        assert_eq!(error.code, EphemeralErrorCode::GenerationExhausted);
+        assert_eq!(backend.diagnostics().room_count, 0);
+
+        let replacement = backend
+            .subscribe(subscribe_request("replacement"), 4)
+            .expect("a fresh room incarnation opens after the old permit drains");
+        assert!(replacement.scope_epoch().unwrap() > initial_scope_epoch);
+        assert_only_epoch_changed_boundary(&backend, "observer");
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.generation_exhaustions, 1);
+        assert_eq!(
+            diagnostics.last_generation_exhaustion.unwrap().code,
+            EphemeralErrorCode::GenerationExhausted
+        );
+    }
+
+    #[test]
+    fn exhausted_scope_epoch_refuses_room_insertion_without_reuse() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.shared.next_scope_epoch.store(
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX,
+            Ordering::Release,
+        );
+
+        let final_scope = Scope::from_pairs([("boardId", "board-max")]);
+        let snapshot = backend
+            .subscribe(subscribe_request_for("last", final_scope.clone()), 1)
+            .expect("the final portable scope epoch is representable");
+        assert_eq!(
+            snapshot.scope_epoch(),
+            Some(crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+        );
+        assert!(
+            backend
+                .unsubscribe(subscribe_request_for("last", final_scope))
+                .unwrap()
+        );
+        assert_eq!(backend.diagnostics().room_count, 0);
+
+        for board in ["board-next", "board-again"] {
+            let next_scope = Scope::from_pairs([("boardId", board)]);
+            let error = backend
+                .subscribe(subscribe_request_for(board, next_scope), 2)
+                .expect_err("scope epoch exhaustion is sticky");
+            assert_eq!(error.code, EphemeralErrorCode::GenerationExhausted);
+            assert_eq!(backend.diagnostics().room_count, 0);
+        }
+    }
+
+    #[test]
+    fn retired_protected_control_blocks_stale_active_permit_recreation() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+        let admitted = backend
+            .begin_server_authorized_room_act("boardCursors", &scope())
+            .unwrap()
+            .expect("protected prelookup permit");
+
+        let error = backend
+            .publish_with_room_authority(publish_request("owner", b"exhausted"), 2, Some(&admitted))
+            .expect_err("the admitted act retires its exhausted room");
+        assert_eq!(error.code, EphemeralErrorCode::GenerationExhausted);
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert_eq!(
+            backend
+                .publish_with_room_authority(
+                    publish_request("owner", b"stale-permit"),
+                    3,
+                    Some(&admitted),
+                )
+                .expect_err("a stale permit cannot recreate the retired room")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+        assert_eq!(
+            backend
+                .publish(publish_request("owner", b"fresh-blocked"), 3)
+                .expect_err("new protected acts wait for the active predecessor permit")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+
+        drop(admitted);
+        backend
+            .publish(publish_request("owner", b"fresh"), 4)
+            .expect("dropping the predecessor permit opens a fresh control");
+        assert_eq!(backend.diagnostics().room_count, 1);
+        assert_only_epoch_changed_boundary(&backend, "observer");
+    }
+
+    #[test]
+    fn room_authority_generation_reaches_portable_max_then_refuses_precommit() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        lock(&backend.shared.room_authority.state)
+            .rooms
+            .get_mut(&room())
+            .unwrap()
+            .generation = crate::manifest::PORTABLE_STORAGE_VERSION_MAX - 1;
+
+        let first = authorization(1);
+        let ticket = backend
+            .prepare_room_authorization_event(first.clone())
+            .expect("max-1 authority generation can prepare");
+        let resync = backend
+            .finalize_room_authorization_event(&ticket, first, 1)
+            .expect("the final portable authority generation commits");
+        assert_eq!(
+            resync[0].1.room_authority_generation,
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+
+        let error = backend
+            .prepare_room_authorization_event(authorization(2))
+            .expect_err("the next authorization boundary refuses before commit");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
+        );
+        let authority = lock(&backend.shared.room_authority.state);
+        assert!(authority.dependencies.is_empty());
+        assert_eq!(
+            authority.rooms.get(&room()).unwrap().generation,
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+    }
+
+    #[test]
+    fn delete_exhaustion_retires_room_and_purges_old_lane() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        backend
+            .publish(publish_request("owner", b"old"), 2)
+            .unwrap();
+        backend.drain_outbox("observer");
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        let error = backend
+            .delete(delete_request("owner"), 3)
+            .expect_err("delete cannot reuse an entry version");
+        assert_eq!(error.code, EphemeralErrorCode::GenerationExhausted);
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert_only_epoch_changed_boundary(&backend, "observer");
+    }
+
+    #[test]
+    fn unauthorized_key_owner_cannot_trigger_exhaustion_retirement() {
+        let backend = LocalEphemeralBackend::new();
+        let mut custom = collection();
+        custom.key_mode = KeyMode::Custom;
+        backend.register_collection(custom).unwrap();
+        let request = |connection_id: &str, value: &[u8]| PublishRequest {
+            custom_key: Some("shared-address".to_owned()),
+            ..publish_request(connection_id, value)
+        };
+        backend.publish(request("owner", b"secret"), 1).unwrap();
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        let error = backend
+            .publish(request("attacker", b"replace"), 2)
+            .expect_err("ownership rejection precedes generation retirement");
+        assert_eq!(error.code, EphemeralErrorCode::Unauthorized);
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.room_count, 1);
+        assert_eq!(diagnostics.entry_count, 1);
+        assert_eq!(diagnostics.generation_exhaustions, 0);
+    }
+
+    #[test]
+    fn expiry_exhaustion_records_typed_diagnostic_and_terminally_retires_room() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let published = backend
+            .publish(publish_request("owner", b"expires"), 2)
+            .unwrap();
+        backend.drain_outbox("observer");
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        backend.cleanup_expired(published.expires_at_ms);
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.room_count, 0);
+        assert_eq!(diagnostics.generation_exhaustions, 1);
+        assert_eq!(
+            diagnostics.last_generation_exhaustion.unwrap().code,
+            EphemeralErrorCode::GenerationExhausted
+        );
+        assert_only_epoch_changed_boundary(&backend, "observer");
+    }
+
+    #[test]
+    fn disconnect_exhaustion_terminally_retires_room_for_other_subscribers() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        backend
+            .publish(publish_request("owner", b"owned"), 2)
+            .unwrap();
+        backend.drain_outbox("observer");
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        backend.disconnect("owner", 3);
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert_only_epoch_changed_boundary(&backend, "observer");
+    }
+
+    #[test]
+    fn terminal_boundary_enqueue_overflow_collapses_to_clear_retained_marker() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        backend
+            .publish(publish_request("owner", b"stale-data"), 2)
+            .unwrap();
+        let outbox = backend.ensure_outbox("observer");
+        {
+            let mut queue = lock(&outbox);
+            for _ in 0..MAX_OUTBOX_BACKLOG {
+                let result = queue.push_resync(
+                    Arc::new(EphemeralMessage::Error {
+                        room: None,
+                        room_authority_generation: None,
+                        error: EphemeralError::new(
+                            EphemeralErrorCode::Unauthorized,
+                            "bounded filler",
+                        ),
+                    }),
+                    None,
+                );
+                assert!(!result.overflowed);
+            }
+        }
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        assert_eq!(
+            backend
+                .publish(publish_request("owner", b"cannot-advance"), 3)
+                .unwrap_err()
+                .code,
+            EphemeralErrorCode::GenerationExhausted
+        );
+        {
+            let queue = lock(&outbox);
+            assert!(queue.is_overflowed(None));
+            assert!(queue.ephemeral.is_empty(), "the old room lane was purged");
+        }
+        let drained = backend.drain_outbox("observer");
+        assert_eq!(drained.len(), 1);
+        let RealtimeEnvelope::Durable(marker) = &drained[0] else {
+            panic!("overflow must materialize the durable clear-retained marker");
+        };
+        let marker: serde_json::Value = serde_json::from_slice(&marker.payload).unwrap();
+        assert_eq!(marker["kind"], "resync_required");
+        assert_eq!(marker["reason"], "outbox_overflow");
+        assert_eq!(marker["clear_retained"], true);
+    }
+
+    #[test]
+    fn expiry_exhaustion_cannot_lose_its_boundary_to_definition_replacement() {
+        let backend = LocalEphemeralBackend::new();
+        let collection = EphemeralCollection::local_cursor("boardCursors", "boardId");
+        backend.register_collection(collection.clone()).unwrap();
+        let subscribe = SubscribeRequest {
+            collection: "boardCursors".to_owned(),
+            scope: scope(),
+            connection_id: "observer".to_owned(),
+            auth: AuthContext::default(),
+        };
+        let first = backend.subscribe(subscribe, 1_000).unwrap();
+        let first_epoch = first.scope_epoch().unwrap();
+        backend
+            .publish(
+                PublishRequest {
+                    collection: "boardCursors".to_owned(),
+                    scope: scope(),
+                    connection_id: "owner".to_owned(),
+                    session_id: None,
+                    user_id: None,
+                    custom_key: None,
+                    value: b"expires".to_vec(),
+                    ttl_ms: Some(1),
+                    auth: AuthContext::default(),
+                },
+                1_000,
+            )
+            .unwrap();
+        backend.drain_outbox("observer");
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+
+        let (reached_tx, reached_rx) = std::sync::mpsc::sync_channel(0);
+        let (release_tx, release_rx) = std::sync::mpsc::sync_channel(0);
+        *lock(&backend.shared.definition_swap_hook) = Some(DefinitionSwapTestHook {
+            reached: reached_tx,
+            release: release_rx,
+        });
+        let replacement_backend = backend.clone();
+        let replacement = std::thread::spawn(move || {
+            let mut changed = collection;
+            changed.default_ttl_ms = 9_000;
+            replacement_backend.register_collection(changed).unwrap();
+        });
+        reached_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("replacement pauses after swapping definitions");
+
+        let (cleanup_started_tx, cleanup_started_rx) = std::sync::mpsc::sync_channel(0);
+        let (cleanup_done_tx, cleanup_done_rx) = std::sync::mpsc::sync_channel(0);
+        let cleanup_backend = backend.clone();
+        let cleanup = std::thread::spawn(move || {
+            cleanup_started_tx.send(()).unwrap();
+            cleanup_backend.cleanup_expired(2_000);
+            cleanup_done_tx.send(()).unwrap();
+        });
+        cleanup_started_rx.recv().unwrap();
+        assert!(
+            cleanup_done_rx
+                .recv_timeout(std::time::Duration::from_millis(30))
+                .is_err(),
+            "expiry terminalization must wait behind the destructive generation barrier"
+        );
+
+        release_tx.send(()).unwrap();
+        replacement.join().unwrap();
+        cleanup_done_rx
+            .recv_timeout(std::time::Duration::from_secs(1))
+            .expect("expiry cleanup resumes after replacement");
+        cleanup.join().unwrap();
+
+        let frames = backend.drain_outbox("observer");
+        assert_eq!(frames.len(), 1, "one clearing boundary must survive");
+        assert!(matches!(
+            &frames[0],
+            RealtimeEnvelope::Ephemeral(EphemeralMessage::ResyncRequired {
+                scope_epoch,
+                reason: ResyncReason::EpochChanged,
+                ..
+            }) if *scope_epoch == first_epoch
+        ));
+        assert_eq!(
+            backend.diagnostics().generation_exhaustions,
+            0,
+            "replacement won before the blocked expiry mutation"
+        );
+    }
+
+    fn authorization_issuer(
+        authorization: &AuthorizationVersion,
+        boot_sequence: u64,
+    ) -> crate::auth::invalidation::LiveInvalidationIssuer {
+        let issuer_id = crate::auth::invalidation::IssuerId::fresh(
+            authorization.incarnation.clone(),
+            boot_sequence,
+        )
+        .unwrap();
+        let authenticator =
+            crate::auth::invalidation::IssuerAuthenticator::new("ephemeral-test", [0x45; 32])
+                .unwrap();
+        let authenticated = authenticator
+            .authenticate(issuer_id, "test-target", "test-app")
+            .unwrap();
+        let issuer = crate::auth::invalidation::LiveInvalidationIssuer::with_authenticator(
+            authenticated,
+            authenticator,
+            "test-target",
+            "test-app",
+        )
+        .unwrap();
+        issuer
+            .install_authorization_expectation(authorization.clone())
+            .unwrap();
+        issuer
     }
 
     #[test]
@@ -8245,6 +9569,600 @@ mod tests {
         backend
             .subscribe(subscribe_request("late"), 4)
             .expect("the exact final rollback reopens the old generation");
+    }
+
+    #[test]
+    fn authorization_neutral_preflight_never_touches_the_room_registry() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let next_ticket = lock(&backend.shared.room_authority.state).next_ticket;
+
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::NoAuthorizationEvent,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .expect("authorization-neutral preview reserves no room state");
+        {
+            let state = lock(&backend.shared.room_authority.state);
+            assert_eq!(state.next_ticket, next_ticket);
+            assert!(state.dependencies.is_empty());
+            assert!(
+                state
+                    .rooms
+                    .values()
+                    .all(|room| room.pending_tickets.is_empty())
+            );
+        }
+        backend
+            .publish(publish_request("owner", b"still-live"), 2)
+            .expect("neutral preflight leaves the protected room live");
+        reservation.cancel();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ephemeral collection registration entered while LocalSnapback write scope"
+    )]
+    fn lifecycle_definition_lock_rejects_local_writer_overlap() {
+        let backend = LocalEphemeralBackend::new();
+        let _scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let _ = backend.register_collection(collection());
+    }
+
+    #[test]
+    #[should_panic(expected = "ephemeral diagnostics entered while LocalSnapback write scope")]
+    fn diagnostics_reject_local_writer_overlap() {
+        let backend = LocalEphemeralBackend::new();
+        let _scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let _ = backend.diagnostics();
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "ephemeral authorization issuer clearing entered while LocalSnapback write scope"
+    )]
+    fn issuer_projection_lock_rejects_local_writer_overlap() {
+        let backend = LocalEphemeralBackend::new();
+        let _scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        backend.clear_authorization_issuer();
+    }
+
+    #[tokio::test]
+    async fn durable_enqueue_defers_notifier_wake_until_local_scope_ends() {
+        use std::time::Duration;
+
+        let backend = LocalEphemeralBackend::new();
+        let notifier = backend.delivery_notifier();
+        let (_generation, wake) = notifier.register("deferred-wake").unwrap();
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        backend.enqueue_durable("deferred-wake".to_owned(), b"queued".to_vec());
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+
+        assert!(
+            tokio::time::timeout(Duration::from_millis(10), wake.notified())
+                .await
+                .is_err(),
+            "outbox enqueue alone may not lock or wake the notifier beneath Local"
+        );
+        crate::exec_guard::run_after_local_batch(batch);
+        tokio::time::timeout(Duration::from_secs(1), wake.notified())
+            .await
+            .expect("the owned after-Local callback delivers the deferred wake");
+    }
+
+    #[test]
+    fn cancelled_quiescence_removes_only_its_exact_unbound_ticket() {
+        use std::time::{Duration, Instant};
+
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let held = backend
+            .begin_server_authorized_room_act("boardCursors", &scope())
+            .unwrap()
+            .expect("protected room act holds the quiescence permit");
+        let cancellation = Arc::new(AuthorizationReservationCancellation::default());
+        let worker_backend = backend.clone();
+        let worker_cancellation = cancellation.clone();
+        let worker = std::thread::spawn(move || {
+            worker_backend.reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                worker_cancellation,
+            )
+        });
+
+        let deadline = Instant::now() + Duration::from_secs(1);
+        loop {
+            if !lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+            {
+                break;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "reservation installed its ticket"
+            );
+            std::thread::yield_now();
+        }
+        assert_eq!(
+            backend
+                .publish(publish_request("owner", b"blocked"), 2)
+                .expect_err("pending reservation closes the affected room")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+
+        cancellation.cancel();
+        let error = match worker.join().expect("reservation worker joins") {
+            Ok(reservation) => {
+                reservation.cancel();
+                panic!("cancelled reservation unexpectedly quiesced")
+            }
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_CANCELLED");
+        {
+            let state = lock(&backend.shared.room_authority.state);
+            assert!(state.dependencies.is_empty());
+            assert!(
+                state
+                    .rooms
+                    .values()
+                    .all(|room| room.pending_tickets.is_empty())
+            );
+        }
+        let concurrent = backend
+            .begin_server_authorized_room_act("boardCursors", &scope())
+            .unwrap()
+            .expect("exact cancellation reopens admission without consuming the held act");
+        drop(concurrent);
+        drop(held);
+    }
+
+    #[test]
+    fn definition_generation_drift_rejects_bind_and_rolls_back_after_local() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+
+        backend
+            .replace_collections(vec![
+                EphemeralCollection::local_cursor("boardCursors", "boardId")
+                    .require_room_permission("board2"),
+            ])
+            .expect("replace definitions between reservation and bind");
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let error = match reservation.bind(
+            &AuthorizationCommitWitness {
+                version: authorization(1),
+                event: true,
+                incarnation_rotated: false,
+                membership_declarations: Vec::new(),
+            },
+            AuthorizationCommitImpact::AllProtectedRooms,
+        ) {
+            Ok(prepared) => {
+                drop(prepared);
+                panic!("definition-stale reservation unexpectedly bound")
+            }
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_RESERVATION_STALE");
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        assert_eq!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .len(),
+            1,
+            "rollback remains deferred until Local ownership ends"
+        );
+        crate::exec_guard::run_after_local_batch(batch);
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty(),
+            "the exact stale reservation is removed after Local"
+        );
+    }
+
+    #[test]
+    fn bound_definite_rollback_is_deferred_but_ambiguous_commit_stays_pending() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let witness = AuthorizationCommitWitness {
+            version: authorization(1),
+            event: true,
+            incarnation_rotated: false,
+            membership_declarations: Vec::new(),
+        };
+
+        let rollback = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = rollback
+            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .unwrap();
+        drop(prepared);
+        let rollback_probe = backend.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            assert_eq!(
+                rollback_probe
+                    .publish(
+                        publish_request("owner", b"still-blocked-before-rollback"),
+                        2
+                    )
+                    .expect_err("ordinary cleanup runs before rollback settlement")
+                    .code,
+                EphemeralErrorCode::AuthorityPending
+            );
+        });
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        assert_eq!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .len(),
+            1
+        );
+        crate::exec_guard::run_after_local_batch(batch);
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+        );
+
+        let ambiguous = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+        let prepared = ambiguous
+            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .unwrap();
+        prepared.ambiguous();
+        assert_eq!(
+            backend
+                .publish(publish_request("owner", b"blocked-ambiguous"), 3)
+                .expect_err("ambiguous ownership remains fail-closed")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+    }
+
+    #[test]
+    fn reservation_binds_only_the_exact_issuer_successor_and_publishes_after_local() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let predecessor = authorization(4);
+        let issuer = authorization_issuer(&predecessor, 1);
+        backend.install_authorization_issuer(issuer);
+
+        let stale = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let error = match stale.bind(
+            &AuthorizationCommitWitness {
+                version: authorization(6),
+                event: true,
+                incarnation_rotated: false,
+                membership_declarations: Vec::new(),
+            },
+            AuthorizationCommitImpact::AllProtectedRooms,
+        ) {
+            Ok(prepared) => {
+                drop(prepared);
+                panic!("skipped issuer epoch unexpectedly bound")
+            }
+            Err(error) => error,
+        };
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
+        );
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        crate::exec_guard::run_after_local_batch(batch);
+        assert_eq!(
+            backend.authorization_expectation_for_test(),
+            Some(predecessor.clone())
+        );
+
+        let successor = authorization(5);
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = reservation
+            .bind(
+                &AuthorizationCommitWitness {
+                    version: successor.clone(),
+                    event: true,
+                    incarnation_rotated: false,
+                    membership_declarations: Vec::new(),
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+        prepared.committed(9).unwrap();
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        assert_eq!(
+            backend.authorization_expectation_for_test(),
+            Some(predecessor),
+            "issuer publication cannot happen beneath Local"
+        );
+        assert_eq!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .len(),
+            1
+        );
+        crate::exec_guard::run_after_local_batch(batch);
+        assert_eq!(
+            backend.authorization_expectation_for_test(),
+            Some(successor)
+        );
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn collection_projection_precedes_commit_settlement_that_was_queued_first() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = reservation
+            .bind(
+                &AuthorizationCommitWitness {
+                    version: authorization(1),
+                    event: true,
+                    incarnation_rotated: false,
+                    membership_declarations: Vec::new(),
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+        // The SQLite hook settles first in source order. The separate final
+        // phase must nevertheless keep this ticket behind Local's later
+        // schema-definition projection.
+        prepared.committed(9).unwrap();
+        let projection_backend = backend.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            assert_eq!(
+                projection_backend
+                    .publish(publish_request("owner", b"blocked-before-definition"), 2)
+                    .expect_err("the room ticket remains closed through definition projection")
+                    .code,
+                EphemeralErrorCode::AuthorityPending
+            );
+            let mut replacement = collection();
+            replacement.default_ttl_ms += 1;
+            projection_backend
+                .replace_collections(vec![replacement])
+                .expect("prevalidated successor definitions publish before settlement");
+            assert_eq!(
+                projection_backend
+                    .subscribe(subscribe_request("during-projection"), 3)
+                    .expect_err("replacement cannot reopen the protected room early")
+                    .code,
+                EphemeralErrorCode::AuthorityPending
+            );
+        });
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        crate::exec_guard::run_after_local_batch(batch);
+
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+        );
+        assert_eq!(
+            backend
+                .subscribe(subscribe_request("after-settlement"), 4)
+                .expect_err("settlement leaves the successor reauthorization obligation closed")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+    }
+
+    #[test]
+    fn reset_projection_precedes_rotated_commit_settlement_for_direct_scopes() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = reservation
+            .bind(
+                &AuthorizationCommitWitness {
+                    version: AuthorizationVersion {
+                        incarnation: "0197f862-f196-7bb2-b3f0-2a67185dfd18".to_owned(),
+                        epoch: 0,
+                    },
+                    event: true,
+                    incarnation_rotated: true,
+                    membership_declarations: Vec::new(),
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+        prepared.committed(10).unwrap();
+        let reset_backend = backend.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            assert_eq!(
+                reset_backend
+                    .publish(publish_request("owner", b"blocked-before-reset"), 2)
+                    .expect_err("direct reset keeps its room dependency through projection")
+                    .code,
+                EphemeralErrorCode::AuthorityPending
+            );
+            reset_backend.reset_runtime_state();
+        });
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        crate::exec_guard::run_after_local_batch(batch);
+
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+        );
+        assert_eq!(
+            backend
+                .subscribe(subscribe_request("successor"), 3)
+                .expect_err("the reset successor still requires exact room reauthorization")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+    }
+
+    #[test]
+    fn issuer_projection_precedes_room_settlement_and_advances_the_projected_issuer() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let predecessor = authorization(4);
+        backend.install_authorization_issuer(authorization_issuer(&predecessor, 1));
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+
+        let successor = authorization(5);
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = reservation
+            .bind(
+                &AuthorizationCommitWitness {
+                    version: successor.clone(),
+                    event: true,
+                    incarnation_rotated: false,
+                    membership_declarations: Vec::new(),
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+        prepared.committed(11).unwrap();
+        let issuer_backend = backend.clone();
+        let replacement = authorization_issuer(&predecessor, 2);
+        crate::exec_guard::run_or_defer_after_local(move || {
+            assert_eq!(
+                issuer_backend
+                    .publish(publish_request("owner", b"blocked-before-issuer"), 2)
+                    .expect_err("issuer projection does not reopen the room ticket")
+                    .code,
+                EphemeralErrorCode::AuthorityPending
+            );
+            issuer_backend.install_authorization_issuer(replacement);
+        });
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        crate::exec_guard::run_after_local_batch(batch);
+
+        assert_eq!(
+            backend.authorization_expectation_for_test(),
+            Some(successor)
+        );
+        assert!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn projection_panic_drops_settlement_and_keeps_protected_rooms_closed() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("observer"), 1).unwrap();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+
+        let mut scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let prepared = reservation
+            .bind(
+                &AuthorizationCommitWitness {
+                    version: authorization(1),
+                    event: true,
+                    incarnation_rotated: false,
+                    membership_declarations: Vec::new(),
+                },
+                AuthorizationCommitImpact::AllProtectedRooms,
+            )
+            .unwrap();
+        prepared.committed(12).unwrap();
+        crate::exec_guard::run_or_defer_after_local(|| {
+            panic!("forced successor projection failure");
+        });
+        let batch = scope.take_after_local_batch();
+        drop(scope);
+        let panic = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            crate::exec_guard::run_after_local_batch(batch);
+        }));
+        assert!(panic.is_err());
+
+        assert_eq!(
+            backend
+                .publish(publish_request("owner", b"fail-closed"), 2)
+                .expect_err("a skipped settlement permanently closes the affected room")
+                .code,
+            EphemeralErrorCode::AuthorityPending
+        );
+        assert_eq!(
+            lock(&backend.shared.room_authority.state)
+                .dependencies
+                .len(),
+            1
+        );
     }
 
     #[test]
@@ -8297,17 +10215,23 @@ mod tests {
         let (prepared_tx, prepared_rx) = mpsc::channel();
         let commit_backend = backend.clone();
         let prepare = std::thread::spawn(move || {
-            let prepared = AuthorizationCommitInterlock::prepare(
-                &commit_backend,
-                &AuthorizationCommitWitness {
-                    version: authorization(1),
-                    event: true,
-                    incarnation_rotated: false,
-                    membership_declarations: Vec::new(),
-                },
-                AuthorizationCommitImpact::AllProtectedRooms,
-            )
-            .unwrap();
+            let reservation = commit_backend
+                .reserve_authorization_commit(
+                    AuthorizationCommitPreflight::AllProtectedRooms,
+                    Arc::new(AuthorizationReservationCancellation::default()),
+                )
+                .unwrap();
+            let prepared = reservation
+                .bind(
+                    &AuthorizationCommitWitness {
+                        version: authorization(1),
+                        event: true,
+                        incarnation_rotated: false,
+                        membership_declarations: Vec::new(),
+                    },
+                    AuthorizationCommitImpact::AllProtectedRooms,
+                )
+                .unwrap();
             prepared_tx.send(prepared).unwrap();
         });
         let deadline = Instant::now() + Duration::from_secs(1);
@@ -8483,12 +10407,15 @@ mod tests {
             incarnation_rotated: false,
             membership_declarations: Vec::new(),
         };
-        let prepared = AuthorizationCommitInterlock::prepare(
-            &backend,
-            &witness,
-            AuthorizationCommitImpact::AllProtectedRooms,
-        )
-        .unwrap();
+        let reservation = backend
+            .reserve_authorization_commit(
+                AuthorizationCommitPreflight::AllProtectedRooms,
+                Arc::new(AuthorizationReservationCancellation::default()),
+            )
+            .unwrap();
+        let prepared = reservation
+            .bind(&witness, AuthorizationCommitImpact::AllProtectedRooms)
+            .unwrap();
         prepared.ambiguous();
 
         let error = backend
@@ -8568,6 +10495,54 @@ mod tests {
                 ..
             })
         )));
+    }
+
+    #[test]
+    fn reauthorization_removal_exhaustion_emits_only_terminal_epoch_boundary() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        backend.subscribe(subscribe_request("owner"), 1).unwrap();
+        backend.subscribe(subscribe_request("survivor"), 1).unwrap();
+        backend
+            .publish(publish_request("owner", b"must-not-leak"), 2)
+            .unwrap();
+        backend.drain_outbox("owner");
+        backend.drain_outbox("survivor");
+
+        let expected = authorization(1);
+        let ticket = backend
+            .prepare_room_authorization_event(expected.clone())
+            .unwrap();
+        let (_, obligation) = backend
+            .finalize_room_authorization_event(&ticket, expected, 11)
+            .unwrap()
+            .pop()
+            .unwrap();
+        set_next_entry_version(&backend, crate::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+        let error = backend
+            .complete_room_reauthorization(
+                &room(),
+                obligation.room_authority_generation,
+                vec![
+                    RoomSubscriberResolution::Denied {
+                        connection_id: "owner".to_owned(),
+                        expected_effect_fence: None,
+                    },
+                    RoomSubscriberResolution::Authorized {
+                        connection_id: "survivor".to_owned(),
+                        expected_effect_fence: None,
+                        auth: auth_for(&scope()),
+                    },
+                ],
+            )
+            .expect_err("revocation removal cannot reuse an entry version");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED"
+        );
+        assert_eq!(backend.diagnostics().room_count, 0);
+        assert_only_epoch_changed_boundary(&backend, "owner");
+        assert_only_epoch_changed_boundary(&backend, "survivor");
     }
 
     fn recompute_room_retained_bytes(room_id: &RoomId, room: &RoomState) -> usize {
@@ -9361,6 +11336,49 @@ mod tests {
             !lock(&backend.shared.rate_buckets).contains_key("a"),
             "disconnect must drop the connection's rate buckets"
         );
+    }
+
+    /// Mint-only terminal retirement owns the readable id as a whole. Cleanup
+    /// removes rate/room/owned-entry/outbox residue but must leave the exact
+    /// typed notifier event installed for the socket writer.
+    #[test]
+    fn terminal_retired_disconnect_clears_whole_id_without_erasing_typed_event() {
+        let backend = LocalEphemeralBackend::new();
+        backend.register_collection(collection()).unwrap();
+        let notifier = backend.delivery_notifier();
+        let (generation, _waker) = notifier
+            .register_bound("terminal-retired", "grant-terminal")
+            .unwrap();
+        backend
+            .publish(publish_request("terminal-retired", b"cursor"), 1_000)
+            .unwrap();
+        backend
+            .subscribe(subscribe_request("terminal-retired"), 1_001)
+            .unwrap();
+        backend.enqueue_durable("terminal-retired", b"queued".to_vec());
+        assert!(lock(&backend.shared.rate_buckets).contains_key("terminal-retired"));
+        assert!(lock(&backend.shared.outboxes).contains_key("terminal-retired"));
+
+        let event = DeliveryTerminalEvent {
+            code: LiveAuthErrorCode::SessionExpired,
+            reason: LiveAuthErrorReason::Revoked,
+            authority_disposition: LiveAuthorityDisposition::DurableDelete,
+            close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
+        };
+        assert!(notifier.terminalize_bound("terminal-retired", "grant-terminal", event,));
+        backend.disconnect_terminal_retired("terminal-retired", 1_100);
+
+        assert_eq!(
+            notifier.terminal_if_current("terminal-retired", generation),
+            Some(event),
+            "whole-ID cleanup preserves the exact typed terminal event"
+        );
+        assert!(!lock(&backend.shared.rate_buckets).contains_key("terminal-retired"));
+        assert!(!lock(&backend.shared.outboxes).contains_key("terminal-retired"));
+        assert!(!lock(&backend.shared.connection_rooms).contains_key("terminal-retired"));
+        let diagnostics = backend.diagnostics();
+        assert_eq!(diagnostics.entry_count, 0, "owned entry is removed");
+        assert_eq!(diagnostics.subscriber_count, 0, "subscriber is removed");
     }
 
     /// ENG-23348 — disconnect visits only the rooms in the connection's
@@ -11979,6 +13997,58 @@ mod tests {
         };
         assert_eq!(message.payload.as_slice(), b"preserved");
         assert!(retry.commit_handoff());
+    }
+
+    /// @ref LLP 0059#typed-terminal-auth-error — releasing an active exact
+    /// lease may expose preserved work, but auth terminalization must not wake
+    /// the socket until the typed terminal event is visible.
+    #[tokio::test]
+    async fn terminal_exact_purge_releases_active_lease_without_preterminal_wake() {
+        let backend = LocalEphemeralBackend::new();
+        let predecessor = ConnectionEffectFence::session("inc", "grant-old", "session", 1);
+        backend.enqueue_durable("terminal", b"preserved".to_vec());
+        let selected = backend
+            .drain_outbox_for_send_bound("terminal", &predecessor)
+            .pop()
+            .expect("predecessor selects the shared frame");
+        let (_, _, predecessor_lease) = selected.into_leased_parts();
+
+        let notifier = backend.delivery_notifier();
+        let (generation, waker) = notifier
+            .register_bound("terminal", "grant-old")
+            .expect("register exact terminal socket");
+        backend.purge_connection_effects_silently("terminal", &predecessor);
+        assert!(
+            tokio::time::timeout(std::time::Duration::from_millis(25), waker.notified())
+                .await
+                .is_err(),
+            "lease release cannot spend the socket's only wake before terminal data exists"
+        );
+        assert!(
+            notifier
+                .terminal_if_current("terminal", generation)
+                .is_none(),
+            "the barrier remains preterminal until the lifecycle installs its event"
+        );
+        assert!(
+            !OutboxDrainLease::acknowledge_all(std::slice::from_ref(&predecessor_lease)),
+            "the silently purged predecessor lease cannot acknowledge preserved work"
+        );
+
+        let event = DeliveryTerminalEvent {
+            code: LiveAuthErrorCode::SessionExpired,
+            reason: LiveAuthErrorReason::Revoked,
+            authority_disposition: LiveAuthorityDisposition::DurableDelete,
+            close_by: std::time::Instant::now() + std::time::Duration::from_secs(5),
+        };
+        assert!(notifier.terminalize_bound("terminal", "grant-old", event));
+        tokio::time::timeout(std::time::Duration::from_secs(1), waker.notified())
+            .await
+            .expect("typed terminal installation owns the first wake");
+        assert_eq!(
+            notifier.terminal_if_current("terminal", generation),
+            Some(event)
+        );
     }
 
     #[test]

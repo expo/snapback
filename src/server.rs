@@ -35,9 +35,11 @@ use crate::auth::provider::{
 use crate::auth::service_fence::{
     ServiceAuthorityActResolution, ServiceAuthorityDisposition,
     ServiceAuthorityExternalEffectPermit, ServiceAuthorityPublication, ServiceAuthorityWitness,
+    ServiceAuthorityWorkPermit, with_service_authority_terminal_gate,
 };
 use crate::auth::session_projection::{
-    FencedPublication, RevocationReason, TerminalAuthorityDisposition,
+    AUTH_LOCK_RANK_CONNECTION_REGISTRY, FencedAuthorityWorkPermit, FencedPublication,
+    RankedMutexGuard, RevocationReason, TerminalAuthorityDisposition, ranked_mutex_lock_unpoisoned,
 };
 use crate::auth::wire::{
     CredentialResponse, EmptyAuthRequest, ExchangeRequest, FamilyAlarmResponse, MailboxQuery,
@@ -63,9 +65,10 @@ use crate::local::{
     live_stream_text,
 };
 use crate::manifest::{
-    AuthInput, AuthMode, CtxAnswerLedger, FunctionKind, FunctionManifest, FunctionRuntime,
-    HandlerInput, MutationAcknowledgementRequest, MutationAcknowledgementResponse, MutationOutput,
-    MutationRequest, QueryOutput, ReadDependency, SchemaManifest, SeedData,
+    ActionReturnValue, ActionStep, AuthInput, AuthMode, CtxAnswerLedger, FunctionKind,
+    FunctionManifest, FunctionRuntime, HandlerInput, MutationAcknowledgementRequest,
+    MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
+    SchemaManifest, SeedData,
 };
 use crate::runtime::{CapabilityState, IbexActionHost};
 use crate::storage::auth::AuthTransactionAttempt;
@@ -85,6 +88,7 @@ use http_body::Body as HttpBody;
 use serde::ser::SerializeStruct as _;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
+use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 use std::future::Future;
 use std::sync::Arc;
@@ -286,13 +290,450 @@ where
     F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
     T: Send + 'static,
 {
-    let mut guard = state.clone().lock_owned().await;
+    with_snapback_then(state, work, |output| output).await
+}
+
+async fn lock_managed_snapback(
+    state: &SharedSnapback,
+) -> tokio::sync::OwnedMutexGuard<LocalSnapback> {
+    loop {
+        let guard = state.clone().lock_owned().await;
+        let handoff = guard.managed_local_handoff();
+        if !handoff.is_closed() {
+            return guard;
+        }
+        drop(guard);
+        handoff.wait_until_open().await;
+    }
+}
+
+/// Run a second blocking phase after the managed Local guard and its scope
+/// have been released. The first phase's deferred projections are flushed
+/// before `after`, so both phases remain owned by the same uncancellable
+/// `spawn_blocking` job.
+///
+/// @ref LLP 0059#locking-and-linearization — ephemeral diagnostics and
+/// process-local projections never overlap the global Local writer.
+pub(crate) async fn with_snapback_then<T, U, F, A>(state: &SharedSnapback, work: F, after: A) -> U
+where
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    A: FnOnce(T) -> U + Send + 'static,
+    T: Send + 'static,
+    U: Send + 'static,
+{
+    let mut guard = lock_managed_snapback(state).await;
     tokio::task::spawn_blocking(move || {
         let _sanction = crate::exec_guard::BlockingSanction::acquire();
-        work(&mut guard)
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(&mut guard)));
+        let batch = local_scope.take_after_local_batch();
+        let handoff = batch.has_effects().then(|| {
+            let handoff = guard.managed_local_handoff();
+            handoff.close();
+            handoff
+        });
+        drop(guard);
+        drop(local_scope);
+        crate::exec_guard::run_after_local_batch(batch);
+        if let Some(handoff) = handoff {
+            handoff.reopen();
+        }
+        match output {
+            Ok(output) => after(output),
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
     })
     .await
     .expect("snapback blocking task panicked")
+}
+
+/// Reserve protected-room quiescence before entering managed Local/SQLite,
+/// then carry only a lock-free binder through the durable transaction. A
+/// generation mismatch cancels the reservation off-Local and returns a typed
+/// stale result without rerunning potentially once-executed Ibex code. Once
+/// the final Local guard is acquired, the blocking job owns exact cancellation,
+/// rollback, commit finalization, and panic cleanup after Local release.
+///
+/// @ref LLP 0059#locking-and-linearization — room authority never nests
+/// beneath managed Local or SQLite, including rollback and commit publication.
+pub(crate) async fn with_snapback_authorization_write<T, P, F>(
+    state: &SharedSnapback,
+    preflight: P,
+    work: F,
+) -> SnapbackResult<T>
+where
+    P: Fn(&LocalSnapback) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight>
+        + Send
+        + Sync
+        + 'static,
+    F: FnOnce(&mut LocalSnapback) -> T + Send + 'static,
+    T: Send + 'static,
+{
+    with_snapback_staged_authorization_write(
+        state,
+        move |snapback| preflight(snapback).map(|preflight| (preflight, ())),
+        move |snapback, ()| work(snapback),
+    )
+    .await
+}
+
+// Once-executed Ibex buffers must never be regenerated by a stale retry.
+// Stored HostPlans may eventually opt into a larger bound through a separate
+// carrier, but the shared wrapper currently returns one typed stale outcome.
+const AUTHORIZATION_RESERVATION_MAX_ATTEMPTS: usize = 1;
+
+enum AuthorizationWriteAttempt<T, F> {
+    Retry(F),
+    Complete(T),
+}
+
+struct CancelAuthorizationReservationOnDrop {
+    cancellation: Arc<crate::storage::AuthorizationReservationCancellation>,
+    armed: bool,
+}
+
+impl CancelAuthorizationReservationOnDrop {
+    fn new(cancellation: Arc<crate::storage::AuthorizationReservationCancellation>) -> Self {
+        Self {
+            cancellation,
+            armed: true,
+        }
+    }
+
+    fn disarm(&mut self) {
+        self.armed = false;
+    }
+}
+
+impl Drop for CancelAuthorizationReservationOnDrop {
+    fn drop(&mut self) {
+        if self.armed {
+            self.cancellation.cancel();
+        }
+    }
+}
+
+/// Staging may evaluate a stored mutation plan or already-buffered handler
+/// effects to obtain exact changed rows. It never owns the eventual commit.
+/// The durable data and authorization witnesses are rechecked after room
+/// quiescence; stale work is cancelled off-Local and returned as a typed
+/// conflict. The one-attempt bound deliberately prevents rerunning a handler
+/// whose buffered effects may already have been computed.
+pub(crate) async fn with_snapback_staged_authorization_write<S, T, P, F>(
+    state: &SharedSnapback,
+    stage: P,
+    work: F,
+) -> SnapbackResult<T>
+where
+    P: Fn(&mut LocalSnapback) -> SnapbackResult<(crate::storage::AuthorizationCommitPreflight, S)>
+        + Send
+        + Sync
+        + 'static,
+    F: FnOnce(&mut LocalSnapback, S) -> T + Send + 'static,
+    S: Send + 'static,
+    T: Send + 'static,
+{
+    let stage = Arc::new(stage);
+    let mut work = Some(work);
+    for _attempt in 0..AUTHORIZATION_RESERVATION_MAX_ATTEMPTS {
+        let mut guard = lock_managed_snapback(state).await;
+        let stage_for_job = stage.clone();
+        let cancellation =
+            Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+        let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
+        let staged_result = tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                let (preflight, staged) = stage_for_job(&mut guard)?;
+                let snapshot = guard.authorization_reservation_snapshot()?;
+                Ok::<_, SnapbackError>((
+                    preflight,
+                    staged,
+                    guard.app_generation(),
+                    snapshot,
+                    guard.ephemeral_api(),
+                ))
+            }));
+            let batch = local_scope.take_after_local_batch();
+            let handoff = batch.has_effects().then(|| {
+                let handoff = guard.managed_local_handoff();
+                handoff.close();
+                handoff
+            });
+            drop(guard);
+            drop(local_scope);
+            crate::exec_guard::run_after_local_batch(batch);
+            if let Some(handoff) = handoff {
+                handoff.reopen();
+            }
+            let (preflight, staged, generation, snapshot, ephemeral) = match result {
+                Ok(result) => result?,
+                Err(payload) => std::panic::resume_unwind(payload),
+            };
+            let reservation = ephemeral.reserve_authorization_commit(preflight, cancellation)?;
+            Ok::<_, SnapbackError>((staged, generation, snapshot, reservation))
+        })
+        .await
+        .expect("authorization staging task panicked");
+        cancel_on_drop.disarm();
+        let staged = staged_result?;
+
+        let (staged, generation, snapshot, reservation) = staged;
+        let mut guard = lock_managed_snapback(state).await;
+        let attempt_work = work
+            .take()
+            .expect("authorization write work is consumed only by its final attempt");
+        let attempted = tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            let current_snapshot = match guard.authorization_reservation_snapshot() {
+                Ok(snapshot) => snapshot,
+                Err(error) => {
+                    drop(guard);
+                    reservation.cancel();
+                    return Err(error);
+                }
+            };
+            if guard.app_generation() != generation || current_snapshot != snapshot {
+                drop(guard);
+                reservation.cancel();
+                return Ok(AuthorizationWriteAttempt::Retry(attempt_work));
+            }
+            let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+            crate::storage::install_managed_authorization_reservation(reservation);
+            let output = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                attempt_work(&mut guard, staged)
+            }));
+            let unused = crate::storage::take_managed_authorization_reservation();
+            let batch = local_scope.take_after_local_batch();
+            let handoff = (batch.has_effects() || unused.is_some()).then(|| {
+                let handoff = guard.managed_local_handoff();
+                handoff.close();
+                handoff
+            });
+            drop(guard);
+            drop(local_scope);
+            if let Some(unused) = unused {
+                unused.cancel();
+            }
+            crate::exec_guard::run_after_local_batch(batch);
+            if let Some(handoff) = handoff {
+                handoff.reopen();
+            }
+            match output {
+                Ok(output) => Ok(AuthorizationWriteAttempt::Complete(output)),
+                Err(payload) => std::panic::resume_unwind(payload),
+            }
+        })
+        .await
+        .expect("snapback authorization-write blocking task panicked")?;
+        match attempted {
+            AuthorizationWriteAttempt::Complete(output) => return Ok(output),
+            AuthorizationWriteAttempt::Retry(_returned_work) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_RESERVATION_STALE",
+                    "auth",
+                    "authorization reservation became stale before the durable transaction",
+                ));
+            }
+        }
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_AUTH_RESERVATION_STALE",
+        "auth",
+        "authorization reservation could not obtain a stable durable snapshot",
+    ))
+}
+
+/// The dev reset cut needs both its authorization-stream marker and the
+/// mode-admission effect mutex to stay held while after-Local projections
+/// flush. Existing admitted work may finish its Local phase, but cannot
+/// publish through this cut until the reset's ephemeral successor is installed.
+///
+/// @ref LLP 0059#reset-restore-and-stream-publication — even provider-less dev
+/// reset premakes its stream successor before the destructive transaction and
+/// finalizes it only after reset-owned process projections have published.
+pub(crate) async fn with_snapback_stream_reset_admission_effect<T, F>(
+    state: &SharedSnapback,
+    admission: AdmissionLease,
+    effect: &'static str,
+    work: F,
+) -> SnapbackResult<T>
+where
+    F: FnOnce(
+            &mut LocalSnapback,
+            &crate::auth::session_projection::AuthorizationStreamIncarnation,
+            &crate::auth::session_projection::AuthorizationStreamIncarnation,
+        ) -> AuthTransactionAttempt<T>
+        + Send
+        + 'static,
+    T: Send + 'static,
+{
+    let mut guard = lock_managed_snapback(state).await;
+    let (generation, snapshot, ephemeral, incarnation) = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let snapshot = guard.authorization_reservation_snapshot()?;
+        let incarnation = guard
+            .auth_database_mut()
+            .authorization_stream_incarnation()?;
+        Ok::<_, SnapbackError>((
+            guard.app_generation(),
+            snapshot,
+            guard.ephemeral_api(),
+            incarnation,
+        ))
+    })
+    .await
+    .expect("reset authorization staging task panicked")?;
+    let source = crate::auth::session_projection::ProjectionSource {
+        authorization_stream_value:
+            crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
+                .encode_bytes()?,
+        restore_declaration_id: None,
+        users: Vec::new(),
+        identities: Vec::new(),
+        sessions: Vec::new(),
+        superseded_tokens: Vec::new(),
+    };
+    let projection =
+        crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
+            source,
+            now_millis(),
+            Instant::now(),
+        )?;
+    let coordinator = Arc::new(AuthCoordinator::new(projection)?);
+    let carrier = coordinator.premark_stream_reset_if_drained()?;
+    let predecessor = carrier.predecessor().clone();
+    let successor = carrier.successor().clone();
+    let cancellation = Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+    let mut cancel_on_drop = CancelAuthorizationReservationOnDrop::new(cancellation.clone());
+    let reservation_result = tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        ephemeral.reserve_authorization_commit(
+            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+            cancellation,
+        )
+    })
+    .await
+    .expect("reset authorization reservation task panicked");
+    cancel_on_drop.disarm();
+    let reservation = match reservation_result {
+        Ok(reservation) => reservation,
+        Err(error) => {
+            return coordinator
+                .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
+        }
+    };
+    let mut guard = lock_managed_snapback(state).await;
+    tokio::task::spawn_blocking(move || {
+        let _sanction = crate::exec_guard::BlockingSanction::acquire();
+        let current_snapshot = match guard.authorization_reservation_snapshot() {
+            Ok(snapshot) => snapshot,
+            Err(error) => {
+                drop(guard);
+                reservation.cancel();
+                return coordinator
+                    .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
+            }
+        };
+        if guard.app_generation() != generation || current_snapshot != snapshot {
+            drop(guard);
+            reservation.cancel();
+            return coordinator.finish_stream_reset(
+                carrier,
+                AuthTransactionAttempt::<T>::RolledBack(SnapbackError::error(
+                    "SNAPBACK_AUTH_RESERVATION_STALE",
+                    "auth",
+                    "reset authorization reservation became stale before its transaction",
+                )),
+            );
+        }
+        let publication = match admission.effect_guard(effect) {
+            Ok(publication) => publication,
+            Err(error) => {
+                drop(guard);
+                reservation.cancel();
+                return coordinator
+                    .finish_stream_reset(carrier, AuthTransactionAttempt::<T>::RolledBack(error));
+            }
+        };
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        crate::storage::install_managed_authorization_reservation(reservation);
+        let attempt = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+            work(&mut guard, &predecessor, &successor)
+        }));
+        let unused = crate::storage::take_managed_authorization_reservation();
+        let batch = local_scope.take_after_local_batch();
+        let handoff = (batch.has_effects() || unused.is_some()).then(|| {
+            let handoff = guard.managed_local_handoff();
+            handoff.close();
+            handoff
+        });
+        drop(guard);
+        drop(local_scope);
+        if let Some(unused) = unused {
+            unused.cancel();
+        }
+        crate::exec_guard::run_after_local_batch(batch);
+        if let Some(handoff) = handoff {
+            handoff.reopen();
+        }
+        drop(publication);
+        match attempt {
+            Ok(attempt) => coordinator.finish_stream_reset(carrier, attempt),
+            Err(payload) => std::panic::resume_unwind(payload),
+        }
+    })
+    .await
+    .expect("snapback admission-effect blocking task panicked")
+}
+
+/// Compose one inspect artifact in two blocking phases: SQLite/Local facts,
+/// then ephemeral shard diagnostics after the Local guard is gone.
+pub(crate) async fn inspect_snapback(state: &SharedSnapback) -> SnapbackResult<InspectState> {
+    with_snapback_then(
+        state,
+        |snapback| {
+            snapback
+                .inspect_core()
+                .map(|inspect| (inspect, snapback.ephemeral_api()))
+        },
+        |captured| {
+            captured.map(|(mut inspect, ephemeral)| {
+                inspect.ephemeral = ephemeral.diagnostics();
+                inspect
+            })
+        },
+    )
+    .await
+}
+
+/// Once an authority marker has drained, its durable attempt and exact finish
+/// must no longer be owned by the request future. Spawning this wrapper is
+/// synchronous, so there is no cancellation point between receiving a
+/// premarked carrier and transferring it to independently owned work.
+///
+/// @ref LLP 0059#locking-and-linearization — cancellation after premark either
+/// completes the durable protocol or runs its exact known-rollback finish.
+pub(crate) fn spawn_owned_auth_transaction<F>(transaction: F) -> JoinHandle<F::Output>
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    tokio::spawn(transaction)
+}
+
+async fn await_owned_auth_transaction<T>(task: JoinHandle<T>) -> SnapbackResult<T>
+where
+    T: Send + 'static,
+{
+    task.await.map_err(|_| {
+        SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "owned authentication transaction task failed",
+        )
+    })
 }
 
 /// Run read-lane work (no global mutex) on a blocking-pool thread: the lane
@@ -356,12 +797,65 @@ struct DetachedActionHost {
     state: SharedSnapback,
     abandoned: Arc<AtomicBool>,
     commit_gate: Arc<StdMutex<()>>,
+    /// The one room-reservation wait currently owned by this action worker.
+    /// The watchdog cancels it after linearizing abandonment, so an affected
+    /// room permit cannot strand the worker past the public timeout.
+    active_reservation:
+        Arc<StdMutex<Option<Arc<crate::storage::AuthorizationReservationCancellation>>>>,
     deadline: Instant,
     app_generation: u64,
     app_generation_fence: Arc<AtomicU64>,
     authority: PreparedAuthority,
     external_effect_open: bool,
     external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
+}
+
+struct ScopedLocalSnapbackGuard {
+    guard: Option<tokio::sync::OwnedMutexGuard<LocalSnapback>>,
+    scope: Option<crate::exec_guard::LocalSnapbackWriteScope>,
+}
+
+impl std::ops::Deref for ScopedLocalSnapbackGuard {
+    type Target = LocalSnapback;
+
+    fn deref(&self) -> &Self::Target {
+        self.guard
+            .as_deref()
+            .expect("scoped LocalSnapback guard remains live until drop")
+    }
+}
+
+impl std::ops::DerefMut for ScopedLocalSnapbackGuard {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        self.guard
+            .as_deref_mut()
+            .expect("scoped LocalSnapback guard remains live until drop")
+    }
+}
+
+impl Drop for ScopedLocalSnapbackGuard {
+    fn drop(&mut self) {
+        let batch = self
+            .scope
+            .as_mut()
+            .expect("scoped LocalSnapback scope remains live until drop")
+            .take_after_local_batch();
+        let handoff = batch.has_effects().then(|| {
+            let handoff = self
+                .guard
+                .as_ref()
+                .expect("scoped LocalSnapback guard remains live until drop")
+                .managed_local_handoff();
+            handoff.close();
+            handoff
+        });
+        drop(self.guard.take());
+        drop(self.scope.take());
+        crate::exec_guard::run_after_local_batch(batch);
+        if let Some(handoff) = handoff {
+            handoff.reopen();
+        }
+    }
 }
 
 impl DetachedActionHost {
@@ -383,10 +877,22 @@ impl DetachedActionHost {
         Ok(())
     }
 
-    fn lock_live(&self, op: &str) -> SnapbackResult<tokio::sync::OwnedMutexGuard<LocalSnapback>> {
+    fn lock_live(&self, op: &str) -> SnapbackResult<ScopedLocalSnapbackGuard> {
         loop {
             self.validate_live(op)?;
             if let Ok(guard) = self.state.clone().try_lock_owned() {
+                if guard.managed_local_handoff().is_closed() {
+                    drop(guard);
+                    let remaining = self.deadline.saturating_duration_since(Instant::now());
+                    if remaining.is_zero() {
+                        return Err(action_deadline_elapsed(op));
+                    }
+                    std::thread::park_timeout(
+                        remaining.min(Duration::from_millis(ACTION_LOCK_POLL_MS)),
+                    );
+                    continue;
+                }
+                let scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
                 // Abandonment, deadline, or generation can advance between the
                 // optimistic check and lock acquisition. Recheck before using
                 // any instance authority.
@@ -399,7 +905,10 @@ impl DetachedActionHost {
                         current_generation,
                     ));
                 }
-                return Ok(guard);
+                return Ok(ScopedLocalSnapbackGuard {
+                    guard: Some(guard),
+                    scope: Some(scope),
+                });
             }
 
             let remaining = self.deadline.saturating_duration_since(Instant::now());
@@ -431,6 +940,61 @@ impl DetachedActionHost {
                 return Err(action_deadline_elapsed(op));
             }
             std::thread::park_timeout(remaining.min(Duration::from_millis(ACTION_LOCK_POLL_MS)));
+        }
+    }
+
+    fn reserve_authorization_commit(
+        &self,
+        ephemeral: EphemeralApi,
+        preflight: crate::storage::AuthorizationCommitPreflight,
+    ) -> SnapbackResult<Box<dyn crate::storage::AuthorizationCommitReservation>> {
+        // @ref LLP 0059#authorization-write-handoff — detached actions publish
+        //   one cancellable room wait to the watchdog and never retain Local.
+        self.validate_live("runMutation")?;
+        let cancellation =
+            Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+        {
+            let mut active = self
+                .active_reservation
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            debug_assert!(active.is_none());
+            *active = Some(cancellation.clone());
+        }
+        // Close the install-to-wait race with the watchdog: if abandonment
+        // won just before publication, make the reservation observe it.
+        if let Err(error) = self.validate_live("runMutation") {
+            cancellation.cancel();
+            self.clear_active_reservation(&cancellation);
+            return Err(error);
+        }
+        let reserved = ephemeral.reserve_authorization_commit(preflight, cancellation.clone());
+        self.clear_active_reservation(&cancellation);
+        match reserved {
+            Ok(reservation) => {
+                self.validate_live("runMutation")?;
+                Ok(reservation)
+            }
+            Err(error) => match self.validate_live("runMutation") {
+                Ok(()) => Err(error),
+                Err(lifecycle) => Err(lifecycle),
+            },
+        }
+    }
+
+    fn clear_active_reservation(
+        &self,
+        cancellation: &Arc<crate::storage::AuthorizationReservationCancellation>,
+    ) {
+        let mut active = self
+            .active_reservation
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if active
+            .as_ref()
+            .is_some_and(|current| Arc::ptr_eq(current, cancellation))
+        {
+            active.take();
         }
     }
 }
@@ -484,33 +1048,59 @@ impl IbexActionHost for DetachedActionHost {
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
         match snapback.stage_nested_mutation(name, &input, authority)? {
-            StagedNestedMutation::InLock(prepared) => snapback.invoke_host_plan_mutation_guarded(
-                name,
-                input,
-                prepared,
-                || self.validate_live("runMutation"),
-                || self.lock_commit_live("runMutation"),
-            ),
-            StagedNestedMutation::Detached(staged) => {
-                let input = staged.binding.invocation.canonicalize_input(input);
+            StagedNestedMutation::InLock(staged) => {
+                let snapshot = snapback.authorization_reservation_snapshot()?;
+                let ephemeral = snapback.ephemeral_api();
                 drop(snapback);
-                let module = match &staged.binding.function.runtime {
+                let reservation = self.reserve_authorization_commit(ephemeral, staged.preflight)?;
+
+                let mut snapback = self.lock_live("runMutation")?;
+                if snapback.authorization_reservation_snapshot()? != snapshot {
+                    drop(snapback);
+                    reservation.cancel();
+                    return Err(action_authorization_reservation_stale(name));
+                }
+                crate::storage::install_managed_authorization_reservation(reservation);
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    snapback.invoke_host_plan_mutation_guarded(
+                        name,
+                        staged.input,
+                        staged.invocation,
+                        || self.validate_live("runMutation"),
+                        || self.lock_commit_live("runMutation"),
+                    )
+                }));
+                let unused = crate::storage::take_managed_authorization_reservation();
+                drop(snapback);
+                if let Some(unused) = unused {
+                    unused.cancel();
+                }
+                match outcome {
+                    Ok(result) => result,
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
+            }
+            StagedNestedMutation::Detached(staged) => {
+                let crate::local::DetachedIbexMutation { binding, read } = *staged;
+                let input = binding.invocation.canonicalize_input(input);
+                drop(snapback);
+                let module = match &binding.function.runtime {
                     FunctionRuntime::IbexModule(module) => module,
                     _ => unreachable!("detached nested mutation must be an Ibex module"),
                 };
-                let executed = match staged.read {
+                let executed = match read {
                     DetachedMutationRead::Lane(read) => read.execute_detached_ibex_mutation(
                         module,
                         input.clone(),
-                        &staged.binding.invocation,
-                        &staged.binding.schema,
+                        &binding.invocation,
+                        &binding.schema,
                         self.deadline,
                     )?,
                     DetachedMutationRead::Snapshot(db) => {
                         crate::runtime::execute_ibex_mutation_prepared(
                             module,
                             input.clone(),
-                            &staged.binding.invocation,
+                            &binding.invocation,
                             crate::storage::DbRead::Live(db.as_ref()),
                             None,
                             Some(self.deadline),
@@ -518,23 +1108,62 @@ impl IbexActionHost for DetachedActionHost {
                     }
                 };
 
+                // The handler ran exactly once off Local. Reenter only to
+                // preview its immutable buffered effects, then release Local
+                // before the potentially blocking room reservation.
+                let mut snapback = self.lock_live("runMutation")?;
+                let preflight = snapback.preview_detached_nested_authorization_mutation(
+                    name, &input, &binding, &executed,
+                )?;
+                let snapshot = snapback.authorization_reservation_snapshot()?;
+                let ephemeral = snapback.ephemeral_api();
+                drop(snapback);
+                let reservation = self.reserve_authorization_commit(ephemeral, preflight)?;
+
                 // Acquire the instance before the independent commit gate. A
                 // wedged writer cannot strand this action worker: lock_live
                 // polls abandonment/deadline without holding either lock. If
                 // this call gets the gate first, the watchdog waits only for
                 // the bounded validation/SQLite commit (ENG-24340).
                 let mut snapback = self.lock_live("runMutation")?;
-                snapback.commit_detached_ibex_mutation_guarded(
-                    name,
-                    input,
-                    staged.binding,
-                    executed,
-                    || self.validate_live("runMutation"),
-                    || self.lock_commit_live("runMutation"),
-                )
+                if snapback.authorization_reservation_snapshot()? != snapshot {
+                    drop(snapback);
+                    reservation.cancel();
+                    return Err(action_authorization_reservation_stale(name));
+                }
+                crate::storage::install_managed_authorization_reservation(reservation);
+                let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                    snapback.commit_detached_ibex_mutation_guarded(
+                        name,
+                        input,
+                        binding,
+                        executed,
+                        || self.validate_live("runMutation"),
+                        || self.lock_commit_live("runMutation"),
+                    )
+                }));
+                let unused = crate::storage::take_managed_authorization_reservation();
+                drop(snapback);
+                if let Some(unused) = unused {
+                    unused.cancel();
+                }
+                match outcome {
+                    Ok(result) => result,
+                    Err(payload) => std::panic::resume_unwind(payload),
+                }
             }
         }
     }
+}
+
+fn action_authorization_reservation_stale(name: &str) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_AUTH_RESERVATION_STALE",
+        "auth",
+        format!(
+            "authorization state changed while action-hosted mutation {name} reserved protected rooms"
+        ),
+    )
 }
 
 fn action_abandoned(op: &str) -> SnapbackError {
@@ -627,13 +1256,36 @@ async fn run_detached_ibex_action_with_admission_and_counters(
     worker_limit: usize,
     counters: DetachedActionWorkerCounters,
 ) -> SnapbackResult<Value> {
+    run_detached_ibex_action_with_admission_counters_and_timeout(
+        state,
+        action,
+        input,
+        metadata,
+        admission,
+        worker_limit,
+        counters,
+        action_watchdog_timeout_ms(),
+    )
+    .await
+}
+
+#[allow(clippy::too_many_arguments)]
+async fn run_detached_ibex_action_with_admission_counters_and_timeout(
+    state: &SharedSnapback,
+    action: Box<crate::local::DetachedIbexAction>,
+    input: HandlerInput,
+    metadata: CronRunMetadata,
+    admission: Arc<Semaphore>,
+    worker_limit: usize,
+    counters: DetachedActionWorkerCounters,
+    timeout_ms: u64,
+) -> SnapbackResult<Value> {
     // @ref LLP 0028#execution-the-action-class — detached native work has a
     // hard process-wide admission ceiling. A timed-out native call may retain
     // its permit until it actually exits, but it can never cause unbounded
     // thread growth.
     let worker_permit =
         reserve_detached_action_worker_with_counters(admission, worker_limit, counters)?;
-    let timeout_ms = action_watchdog_timeout_ms();
     let started = Instant::now();
     let deadline = started
         .checked_add(Duration::from_millis(timeout_ms))
@@ -654,6 +1306,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
         .unwrap_or(deadline);
     let abandoned = Arc::new(AtomicBool::new(false));
     let commit_gate = Arc::new(StdMutex::new(()));
+    let active_reservation = Arc::new(StdMutex::new(None));
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -662,6 +1315,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
             let state = state.clone();
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
+            let active_reservation = active_reservation.clone();
             move || {
                 let crate::local::DetachedIbexAction {
                     module,
@@ -676,6 +1330,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                     state,
                     abandoned,
                     commit_gate,
+                    active_reservation,
                     deadline: execution_deadline,
                     app_generation,
                     app_generation_fence,
@@ -759,6 +1414,7 @@ async fn run_detached_ibex_action_with_admission_and_counters(
             // hung, so waiting for that lock here would defeat the watchdog.
             let gate = commit_gate.clone();
             let abandoned_for_timeout = abandoned.clone();
+            let active_reservation_for_timeout = active_reservation.clone();
             tokio::task::spawn_blocking(move || {
                 // Detached workers return this gate only from their final
                 // precommit callback, so the sole possible owner spans an
@@ -769,6 +1425,13 @@ async fn run_detached_ibex_action_with_admission_and_counters(
                     .lock()
                     .unwrap_or_else(std::sync::PoisonError::into_inner);
                 abandoned_for_timeout.store(true, Ordering::SeqCst);
+                if let Some(cancellation) = active_reservation_for_timeout
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner)
+                    .take()
+                {
+                    cancellation.cancel();
+                }
             })
             .await
             .map_err(|error| {
@@ -808,6 +1471,102 @@ async fn run_detached_ibex_action_with_admission_and_counters(
     }
 }
 
+/// Execute a bounded HostPlan action without retaining `LocalSnapback` across
+/// room-authority quiescence. Each `RunMutation` gets its own exact preview,
+/// reservation, and commit; earlier successful steps remain committed if a
+/// later step fails, matching the ordinary non-transactional action model.
+/// The owned task preserves the historical in-lock behavior that request
+/// cancellation cannot abandon the remaining bounded steps halfway through.
+///
+/// @ref LLP 0059#authorization-write-handoff — action granularity is one
+///   exact reservation per `RunMutation`, never one widened outer reservation.
+async fn run_managed_host_plan_action(
+    state: &SharedSnapback,
+    name: String,
+    input: HandlerInput,
+    metadata: CronRunMetadata,
+    prepared: crate::auth::invocation::PreparedInvocation,
+) -> SnapbackResult<Value> {
+    let state = state.clone();
+    tokio::spawn(async move {
+        let stage_name = name.clone();
+        let action = with_snapback(&state, move |snapback| {
+            snapback.stage_managed_host_plan_action(&stage_name, input, metadata, prepared)
+        })
+        .await?;
+
+        let mut bindings = BTreeMap::new();
+        let mut last_result = Value::Null;
+        let mut changed_count = 0usize;
+        let steps = action.plan.steps.clone();
+        let execution = async {
+            for step in steps {
+                action.validate_generation()?;
+                let stage_action = action.clone();
+                let stage_step = step.clone();
+                let stage_bindings = bindings.clone();
+                let committed = with_snapback_staged_authorization_write(
+                    &state,
+                    move |snapback| {
+                        snapback.stage_managed_host_plan_action_step(
+                            &stage_action,
+                            &stage_step,
+                            &stage_bindings,
+                        )
+                    },
+                    move |snapback, staged| {
+                        snapback.commit_staged_recorded_authorization_mutation(staged)
+                    },
+                )
+                .await;
+                let (mutation, _receipt) = match committed {
+                    Ok(committed) => committed?,
+                    Err(error) => {
+                        // A reload/reset may race the stage-to-commit window.
+                        // Preserve the action-level generation diagnostic over
+                        // the reservation protocol's generic stale carrier.
+                        action.validate_generation()?;
+                        return Err(error);
+                    }
+                };
+                let output = mutation?;
+                changed_count += output.changed_count;
+                last_result = output.result;
+                let ActionStep::RunMutation { bind_result_as, .. } = step;
+                if let Some(binding) = bind_result_as {
+                    bindings.insert(binding, last_result.clone());
+                }
+            }
+
+            match &action.plan.return_value {
+                Some(ActionReturnValue::Literal(value)) => Ok(value.clone()),
+                Some(ActionReturnValue::Binding(name)) => {
+                    bindings.get(name).cloned().ok_or_else(|| {
+                        SnapbackError::error(
+                            "SNAPBACK_BINDING_MISSING",
+                            "runtime",
+                            format!("action binding {name} was not available"),
+                        )
+                    })
+                }
+                Some(ActionReturnValue::ChangedCount) => Ok(json!(changed_count)),
+                Some(ActionReturnValue::LastMutationResult) | None => Ok(last_result),
+            }
+        }
+        .await;
+        action.finish(execution)
+    })
+    .await
+    .map_err(|error| {
+        SnapbackError::error(
+            "SNAPBACK_ACTION_THREAD_FAILED",
+            "runtime",
+            "managed host-plan action task terminated without reporting a result",
+        )
+        .with_details(json!({ "error": error.to_string() }))
+    })?
+}
+
 /// Execute a staged app/admin action and shape the run-result envelope.
 /// `metadata_prefix` names the triggering surface (`action` for the app-data
 /// route, `admin` for the function runner).
@@ -821,12 +1580,8 @@ pub(crate) async fn run_staged_app_action(
     let started = Instant::now();
     let metadata = crate::local::manual_action_metadata(metadata_prefix, name);
     let result = match stage.mode {
-        StagedAction::InLock(prepared) => {
-            let name = name.to_owned();
-            with_snapback(state, move |snapback| {
-                snapback.invoke_action_prepared(&name, input, metadata, prepared)
-            })
-            .await
+        StagedAction::HostPlan(prepared) => {
+            run_managed_host_plan_action(state, name.to_owned(), input, metadata, prepared).await
         }
         StagedAction::Detached(action) => {
             run_detached_ibex_action(state, action, input, metadata).await
@@ -953,11 +1708,8 @@ pub(crate) async fn execute_cron_claim_detached(
         Ok(StagedAction::Detached(action)) => {
             run_detached_ibex_action(state, action, input, metadata).await
         }
-        Ok(StagedAction::InLock(prepared)) => {
-            with_snapback(state, move |snapback| {
-                snapback.invoke_action_prepared(&action, input, metadata, prepared)
-            })
-            .await
+        Ok(StagedAction::HostPlan(prepared)) => {
+            run_managed_host_plan_action(state, action, input, metadata, prepared).await
         }
         Err(error) => Err(error),
     }
@@ -1033,6 +1785,10 @@ struct ConnectionGrantRecord {
     token: String,
     last_use_ms: u64,
     used: bool,
+    /// Exact socket generation currently performing split teardown. While
+    /// present, connection acts and replacement socket registration refuse;
+    /// ordinary close still preserves the reusable grant itself.
+    socket_teardown: Option<u64>,
     managed_authority: bool,
     authority: BoundGrantAuthority,
     authorization_invalidation:
@@ -1338,6 +2094,7 @@ impl BoundGrantAuthority {
                 session_id: None,
                 generation: None,
                 service_token_id: None,
+                whole_id_cleanup_safe: false,
             },
             Self::Session {
                 authorization_stream_incarnation,
@@ -1351,6 +2108,7 @@ impl BoundGrantAuthority {
                 session_id: Some(session_id.clone()),
                 generation: Some(*generation),
                 service_token_id: None,
+                whole_id_cleanup_safe: false,
             },
             Self::ServicePrincipal {
                 authorization_stream_incarnation,
@@ -1363,6 +2121,7 @@ impl BoundGrantAuthority {
                 session_id: None,
                 generation: None,
                 service_token_id: Some(token_id.clone()),
+                whole_id_cleanup_safe: false,
             },
         }
     }
@@ -1398,6 +2157,7 @@ struct ConnectionOpenAttempt<'a> {
     now_ms: u64,
     monotonic_now: Instant,
     auth_invalidation_protocol: Option<u32>,
+    admission: Option<&'a AdmissionLease>,
 }
 
 impl<'a> ConnectionOpenAttempt<'a> {
@@ -1418,7 +2178,13 @@ impl<'a> ConnectionOpenAttempt<'a> {
             now_ms,
             monotonic_now,
             auth_invalidation_protocol,
+            admission: None,
         }
+    }
+
+    fn with_admission(mut self, admission: &'a AdmissionLease) -> Self {
+        self.admission = Some(admission);
+        self
     }
 }
 
@@ -1458,6 +2224,33 @@ impl PreparedConnectionAct {
         self.bound.effect_fence(&self.grant_id)
     }
 
+    /// Reserve the exact stream/session (and, when applicable, finite-service)
+    /// authority before the final registry act. Permit release is atomic-only,
+    /// so this owner may cross the Local finalize without carrying any auth
+    /// mutex; terminal premark refuses until the owner is dropped.
+    fn reserve_authority_work(
+        &self,
+        epoch_now_ms: u64,
+        monotonic_now: Instant,
+    ) -> Result<ConnectionAuthorityWorkPermit, ApiError> {
+        let publication = self
+            .bound
+            .publication()
+            .try_reserve_work(epoch_now_ms, monotonic_now)
+            .map_err(ApiError::from)?
+            .ok_or_else(|| ApiError::from(self.bound.stale_error_at(epoch_now_ms)))?;
+        let service = self
+            .bound
+            .service_publication()
+            .map(|service| service.begin_authority_work(epoch_now_ms, monotonic_now))
+            .transpose()
+            .map_err(ApiError::from)?;
+        Ok(ConnectionAuthorityWorkPermit {
+            _publication: publication,
+            _service: service,
+        })
+    }
+
     fn authenticated_use_key(&self) -> Option<(String, u64)> {
         match &self.bound {
             BoundGrantAuthority::Anonymous { .. }
@@ -1471,6 +2264,24 @@ impl PreparedConnectionAct {
     }
 }
 
+#[must_use = "authority work must remain reserved through Local finalization"]
+struct ConnectionAuthorityWorkPermit {
+    _publication: FencedAuthorityWorkPermit,
+    _service: Option<ServiceAuthorityWorkPermit>,
+}
+
+impl ConnectionAuthorityWorkPermit {
+    /// Complete the Local leg of the exact operation that already reserved
+    /// this authority. A pending service terminal may drain this predecessor,
+    /// but it cannot make the predecessor reject its own final publication.
+    fn with_retained_service_authority<T>(&self, operation: impl FnOnce() -> T) -> T {
+        match &self._service {
+            Some(service) => service.with_retained_authority(operation),
+            None => operation(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct BoundConnectionTerminalCapture {
     pub(crate) connection_id: String,
@@ -1479,9 +2290,17 @@ pub(crate) struct BoundConnectionTerminalCapture {
     pub(crate) session_id: Option<String>,
     pub(crate) generation: Option<u64>,
     pub(crate) service_token_id: Option<String>,
+    /// Proof carried from the registry mutation that readable-ID adoption is
+    /// permanently disabled before asynchronous whole-connection cleanup.
+    whole_id_cleanup_safe: bool,
 }
 
 impl BoundConnectionTerminalCapture {
+    fn after_mint_only_containment(mut self) -> Self {
+        self.whole_id_cleanup_safe = true;
+        self
+    }
+
     fn effect_fence(&self) -> crate::ephemeral::ConnectionEffectFence {
         match (&self.session_id, self.generation, &self.service_token_id) {
             (Some(session_id), Some(generation), None) => {
@@ -1535,25 +2354,96 @@ pub(crate) fn committed_mode_terminal_reason(
         })
 }
 
+/// Registry retirement invokes this while it still owns the exact grant.
+/// Registry -> notifier is the established connection-act order. The event is
+/// visible before the checked grant is removed, so a wake that observed no
+/// event must either finish an earlier act or block on the registry and reach
+/// the installed event after retirement.
+///
+/// @ref LLP 0059#typed-terminal-auth-error — every terminal socket observes
+/// its typed event before any post-retirement wake can make it exit.
+fn install_bound_terminal_before_retirement(
+    delivery: &crate::ephemeral::DeliveryNotifier,
+    capture: &BoundConnectionTerminalCapture,
+    event: crate::ephemeral::DeliveryTerminalEvent,
+) {
+    let _ = delivery.terminalize_bound(&capture.connection_id, &capture.grant_id, event);
+}
+
 fn purge_connection_capture(
     ephemeral: &EphemeralApi,
-    snapback: &SharedSnapback,
     capture: &BoundConnectionTerminalCapture,
+    wake_after_purge: bool,
 ) {
     let effect_fence = capture.effect_fence();
-    ephemeral.purge_connection_effects(&capture.connection_id, &effect_fence);
-    if let Ok(mut snapback) = snapback.try_lock() {
-        snapback.purge_connection_topology(&capture.connection_id, &effect_fence);
-    } else if let Ok(runtime) = tokio::runtime::Handle::try_current() {
-        let snapback = snapback.clone();
-        let connection_id = capture.connection_id.clone();
-        runtime.spawn(async move {
-            snapback
-                .lock()
-                .await
-                .purge_connection_topology(&connection_id, &effect_fence);
-        });
+    if wake_after_purge {
+        ephemeral.purge_connection_effects(&capture.connection_id, &effect_fence);
+    } else {
+        ephemeral.purge_connection_effects_silently(&capture.connection_id, &effect_fence);
     }
+}
+
+/// Whole-readable-id cleanup is safe only after the registry mutation carried
+/// mint-only containment in the capture. It deliberately leaves the notifier
+/// registration untouched: auth terminalization retains its typed event there,
+/// while pressure/admin retirement removes the exact registration beforehand.
+async fn cleanup_mint_only_retired_connection(
+    ephemeral: EphemeralApi,
+    snapback: SharedSnapback,
+    capture: BoundConnectionTerminalCapture,
+) {
+    debug_assert!(capture.whole_id_cleanup_safe);
+    let connection_id = capture.connection_id;
+    ephemeral.disconnect_terminal_retired(&connection_id, now_millis());
+    let topology_id = connection_id.clone();
+    with_snapback(&snapback, move |snapback| {
+        snapback.disconnect_topology_for_transport(&topology_id, now_millis())
+    })
+    .await;
+    // A pre-retirement stage may have finalized while Local was queued. The
+    // second whole-ID sweep closes activity/rate/room/outbox residue from that
+    // winner without touching the exact typed notifier event.
+    ephemeral.disconnect_terminal_retired(&connection_id, now_millis());
+}
+
+fn spawn_mint_only_retired_connection_cleanup(
+    ephemeral: EphemeralApi,
+    snapback: SharedSnapback,
+    capture: BoundConnectionTerminalCapture,
+) -> Option<JoinHandle<()>> {
+    if !capture.whole_id_cleanup_safe {
+        return None;
+    }
+    let runtime = tokio::runtime::Handle::try_current().ok()?;
+    Some(runtime.spawn(cleanup_mint_only_retired_connection(
+        ephemeral, snapback, capture,
+    )))
+}
+
+/// Complete a registry-retired administrative or idle teardown without ever
+/// overlapping the registry, notifier/ephemeral shards, and LocalSnapback.
+/// Registry retirement sets mint-only pressure before this future is created,
+/// so the readable id cannot be adopted by a successor during whole-id
+/// cleanup. The exact-fence sweep after Local closes the last finalize race.
+async fn cleanup_retired_connection(runtime: AppState, capture: BoundConnectionTerminalCapture) {
+    let connection_id = capture.connection_id.clone();
+    debug_assert!(capture.whole_id_cleanup_safe);
+    let delivery = runtime.ephemeral.delivery_notifier();
+    let _ = delivery.retire_bound(&connection_id, &capture.grant_id);
+    cleanup_mint_only_retired_connection(runtime.ephemeral, runtime.snapback, capture).await;
+}
+
+/// Transfer every capture to independent ownership before the caller reaches
+/// its first await. A maintenance worker may be cancelled while joining one
+/// task, but no later already-retired grant can lose its cleanup owner.
+fn spawn_retired_connection_cleanup_batch(
+    runtime: &AppState,
+    captures: Vec<BoundConnectionTerminalCapture>,
+) -> Vec<JoinHandle<()>> {
+    captures
+        .into_iter()
+        .map(|capture| tokio::spawn(cleanup_retired_connection(runtime.clone(), capture)))
+        .collect()
 }
 
 impl AuthTerminalLifecycle {
@@ -1567,8 +2457,13 @@ impl AuthTerminalLifecycle {
         let retirement_ephemeral = ephemeral.clone();
         let retirement_snapback = snapback.clone();
         connections.install_retirement_sink(move |capture| {
-            purge_connection_capture(&retirement_ephemeral, &retirement_snapback, &capture);
+            purge_connection_capture(&retirement_ephemeral, &capture, true);
             let _ = retirement_delivery.retire_bound(&capture.connection_id, &capture.grant_id);
+            let _ = spawn_mint_only_retired_connection_cleanup(
+                retirement_ephemeral.clone(),
+                retirement_snapback.clone(),
+                capture,
+            );
         });
         Self {
             connections,
@@ -1626,18 +2521,22 @@ impl AuthTerminalLifecycle {
         authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
-        let captures = self.connections.invalidate_session_generation(
-            authorization_stream_incarnation,
-            session_id,
-            generation,
-        );
-        self.terminalize_captures(
-            captures,
-            crate::live_wire::LiveAuthErrorCode::SessionExpired,
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code: crate::live_wire::LiveAuthErrorCode::SessionExpired,
             reason,
             authority_disposition,
             close_by,
-        );
+        };
+        let captures = self
+            .connections
+            .invalidate_session_generation_with_terminal(
+                authorization_stream_incarnation,
+                session_id,
+                generation,
+                &self.delivery,
+                event,
+            );
+        self.cleanup_terminalized_captures(captures);
     }
 
     pub(crate) fn terminate_service_tokens(&self, token_ids: &[String], close_by: Instant) {
@@ -1697,14 +2596,18 @@ impl AuthTerminalLifecycle {
         authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
-        let captures = self.connections.invalidate_service_tokens(token_ids);
-        self.terminalize_captures(
-            captures,
-            crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid,
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code: crate::live_wire::LiveAuthErrorCode::ScopedTokenInvalid,
             reason,
             authority_disposition,
             close_by,
+        };
+        let captures = self.connections.invalidate_service_tokens_with_terminal(
+            token_ids,
+            &self.delivery,
+            event,
         );
+        self.cleanup_terminalized_captures(captures);
     }
 
     pub(crate) fn committed_stream_reset(
@@ -1712,14 +2615,16 @@ impl AuthTerminalLifecycle {
         reason: crate::live_wire::LiveAuthErrorReason,
         close_by: Instant,
     ) {
-        let captures = self.connections.clear_after_committed_reset();
-        self.terminalize_captures(
-            captures,
-            crate::live_wire::LiveAuthErrorCode::StreamReset,
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code: crate::live_wire::LiveAuthErrorCode::StreamReset,
             reason,
-            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
             close_by,
-        );
+        };
+        let captures = self
+            .connections
+            .clear_after_committed_reset_with_terminal(&self.delivery, event);
+        self.cleanup_terminalized_captures(captures);
     }
 
     pub(crate) fn committed_mode_transition(
@@ -1727,35 +2632,66 @@ impl AuthTerminalLifecycle {
         reason: crate::live_wire::LiveAuthErrorReason,
         close_by: Instant,
     ) {
-        let captures = self.connections.clear_after_committed_reset();
-        self.terminalize_captures(
-            captures,
-            crate::live_wire::LiveAuthErrorCode::ModePending,
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code: crate::live_wire::LiveAuthErrorCode::ModePending,
             reason,
-            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
             close_by,
-        );
+        };
+        let captures = self
+            .connections
+            .clear_after_committed_reset_with_terminal(&self.delivery, event);
+        self.cleanup_terminalized_captures(captures);
     }
 
-    fn terminalize_captures(
+    /// Complete every terminal phase, including the Local topology purge,
+    /// before a committed mode-transition carrier is allowed to reopen its
+    /// successor admission epoch. No registry/ephemeral guard crosses the
+    /// awaited Local phase.
+    async fn committed_mode_transition_before_reopen(
         &self,
-        captures: Vec<BoundConnectionTerminalCapture>,
-        code: crate::live_wire::LiveAuthErrorCode,
         reason: crate::live_wire::LiveAuthErrorReason,
-        authority_disposition: crate::live_wire::LiveAuthorityDisposition,
         close_by: Instant,
     ) {
         let event = crate::ephemeral::DeliveryTerminalEvent {
-            code,
+            code: crate::live_wire::LiveAuthErrorCode::ModePending,
             reason,
-            authority_disposition,
+            authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
             close_by,
         };
+        let captures = self
+            .connections
+            .clear_after_committed_reset_with_terminal(&self.delivery, event);
+        for capture in &captures {
+            purge_connection_capture(&self.ephemeral, capture, false);
+            debug_assert!(capture.whole_id_cleanup_safe);
+            self.ephemeral
+                .disconnect_terminal_retired(&capture.connection_id, now_millis());
+        }
+        let connection_ids = captures
+            .iter()
+            .map(|capture| capture.connection_id.clone())
+            .collect::<Vec<_>>();
+        with_snapback(&self.snapback, move |local| {
+            for connection_id in connection_ids {
+                local.disconnect_topology_for_transport(&connection_id, now_millis());
+            }
+        })
+        .await;
         for capture in captures {
-            purge_connection_capture(&self.ephemeral, &self.snapback, &capture);
-            let _ =
-                self.delivery
-                    .terminalize_bound(&capture.connection_id, &capture.grant_id, event);
+            self.ephemeral
+                .disconnect_terminal_retired(&capture.connection_id, now_millis());
+        }
+    }
+
+    fn cleanup_terminalized_captures(&self, captures: Vec<BoundConnectionTerminalCapture>) {
+        for capture in captures {
+            purge_connection_capture(&self.ephemeral, &capture, false);
+            let _ = spawn_mint_only_retired_connection_cleanup(
+                self.ephemeral.clone(),
+                self.snapback.clone(),
+                capture,
+            );
         }
     }
 }
@@ -1813,7 +2749,8 @@ impl ConnectionRegistryState {
             return Ok(Some(
                 record
                     .authority
-                    .terminal_capture(connection_id, record.grant_id),
+                    .terminal_capture(connection_id, record.grant_id)
+                    .after_mint_only_containment(),
             ));
         }
         Err(SnapbackError::error(
@@ -2185,9 +3122,81 @@ impl ConnectionRegistry {
         }
     }
 
+    /// Remove the currently installed grant for an administrator-directed
+    /// connection teardown. Cleanup is returned to the async handler rather
+    /// than sent through the best-effort retirement sink: the handler must
+    /// await local topology removal before acknowledging 204.
+    fn retire_connection_for_cleanup(
+        &self,
+        connection_id: &str,
+    ) -> Option<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        let record = state.remove_grant(connection_id)?;
+        state.pressure_mint_only = true;
+        Some(
+            record
+                .authority
+                .terminal_capture(connection_id.to_owned(), record.grant_id)
+                .after_mint_only_containment(),
+        )
+    }
+
+    /// Atomically retire grants whose exact registry last-use stamp is still
+    /// at or before the maintenance cutoff. Any act that wins the registry
+    /// first refreshes the stamp and survives this sweep.
+    fn retire_idle_for_cleanup(&self, cutoff_ms: u64) -> Vec<BoundConnectionTerminalCapture> {
+        let mut state = self.lock();
+        let ids = state
+            .unused
+            .iter()
+            .take_while(|(last_use, _)| *last_use <= cutoff_ms)
+            .chain(
+                state
+                    .used
+                    .iter()
+                    .take_while(|(last_use, _)| *last_use <= cutoff_ms),
+            )
+            .map(|(_, connection_id)| connection_id.clone())
+            .collect::<BTreeSet<_>>();
+        let captures = ids
+            .into_iter()
+            .filter_map(|connection_id| {
+                let record = state.remove_grant(&connection_id)?;
+                Some(
+                    record
+                        .authority
+                        .terminal_capture(connection_id, record.grant_id)
+                        .after_mint_only_containment(),
+                )
+            })
+            .collect::<Vec<_>>();
+        if !captures.is_empty() {
+            state.pressure_mint_only = true;
+        }
+        captures
+    }
+
     /// Invalidate every process-local connection capability after the shared
     /// authorization stream rotates at a committed app reset.
+    #[cfg(test)]
     pub(crate) fn clear_after_committed_reset(&self) -> Vec<BoundConnectionTerminalCapture> {
+        self.clear_after_committed_reset_inner(|_| {})
+    }
+
+    fn clear_after_committed_reset_with_terminal(
+        &self,
+        delivery: &crate::ephemeral::DeliveryNotifier,
+        event: crate::ephemeral::DeliveryTerminalEvent,
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        self.clear_after_committed_reset_inner(|capture| {
+            install_bound_terminal_before_retirement(delivery, capture, event);
+        })
+    }
+
+    fn clear_after_committed_reset_inner(
+        &self,
+        mut before_remove: impl FnMut(&BoundConnectionTerminalCapture),
+    ) -> Vec<BoundConnectionTerminalCapture> {
         let mut state = self.lock();
         let captures = state
             .grants
@@ -2196,11 +3205,16 @@ impl ConnectionRegistry {
                 record
                     .authority
                     .terminal_capture(connection_id.clone(), record.grant_id.clone())
+                    .after_mint_only_containment()
             })
             .collect::<Vec<_>>();
+        for capture in &captures {
+            before_remove(capture);
+        }
         let retired_any = !captures.is_empty();
+        let retain_mint_only_containment = state.pressure_mint_only || retired_any;
         *state = ConnectionRegistryState::default();
-        state.pressure_mint_only = retired_any;
+        state.pressure_mint_only = retain_mint_only_containment;
         *self
             .invalidation_issuer
             .lock()
@@ -2241,11 +3255,45 @@ impl ConnectionRegistry {
     /// Remove every grant bound to one exact predecessor session generation.
     /// The reverse index keeps this proportional to the affected authority,
     /// not to the 16,384-entry registry.
+    #[cfg(test)]
     pub(crate) fn invalidate_session_generation(
         &self,
         authorization_stream_incarnation: &str,
         session_id: &str,
         generation: u64,
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        self.invalidate_session_generation_inner(
+            authorization_stream_incarnation,
+            session_id,
+            generation,
+            |_| {},
+        )
+    }
+
+    fn invalidate_session_generation_with_terminal(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        generation: u64,
+        delivery: &crate::ephemeral::DeliveryNotifier,
+        event: crate::ephemeral::DeliveryTerminalEvent,
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        self.invalidate_session_generation_inner(
+            authorization_stream_incarnation,
+            session_id,
+            generation,
+            |capture| {
+                install_bound_terminal_before_retirement(delivery, capture, event);
+            },
+        )
+    }
+
+    fn invalidate_session_generation_inner(
+        &self,
+        authorization_stream_incarnation: &str,
+        session_id: &str,
+        generation: u64,
+        mut before_remove: impl FnMut(&BoundConnectionTerminalCapture),
     ) -> Vec<BoundConnectionTerminalCapture> {
         let key = BoundSessionKey {
             authorization_stream_incarnation: authorization_stream_incarnation.to_owned(),
@@ -2261,12 +3309,18 @@ impl ConnectionRegistry {
                 Some(
                     record
                         .authority
-                        .terminal_capture(connection_id.clone(), record.grant_id.clone()),
+                        .terminal_capture(connection_id.clone(), record.grant_id.clone())
+                        .after_mint_only_containment(),
                 )
             })
             .collect::<Vec<_>>();
+        for capture in &captures {
+            before_remove(capture);
+        }
         for connection_id in &ids {
-            state.remove_grant(connection_id);
+            state
+                .remove_grant(connection_id)
+                .expect("terminalized session grant remains installed under registry ownership");
         }
         if !ids.is_empty() {
             state.pressure_mint_only = true;
@@ -2282,9 +3336,21 @@ impl ConnectionRegistry {
     /// @ref LLP 0055#ending-authority-revocation-expiry-deactivation — token revocation and cap eviction end
     ///   the carrier axis only; rotation supplies every token from the ended
     ///   credential generation as exact witnesses.
-    pub(crate) fn invalidate_service_tokens(
+    fn invalidate_service_tokens_with_terminal(
         &self,
         token_ids: &[String],
+        delivery: &crate::ephemeral::DeliveryNotifier,
+        event: crate::ephemeral::DeliveryTerminalEvent,
+    ) -> Vec<BoundConnectionTerminalCapture> {
+        self.invalidate_service_tokens_inner(token_ids, |capture| {
+            install_bound_terminal_before_retirement(delivery, capture, event);
+        })
+    }
+
+    fn invalidate_service_tokens_inner(
+        &self,
+        token_ids: &[String],
+        mut before_remove: impl FnMut(&BoundConnectionTerminalCapture),
     ) -> Vec<BoundConnectionTerminalCapture> {
         let mut state = self.lock();
         let ids = token_ids
@@ -2305,12 +3371,18 @@ impl ConnectionRegistry {
                 Some(
                     record
                         .authority
-                        .terminal_capture(connection_id.clone(), record.grant_id.clone()),
+                        .terminal_capture(connection_id.clone(), record.grant_id.clone())
+                        .after_mint_only_containment(),
                 )
             })
             .collect::<Vec<_>>();
+        for capture in &captures {
+            before_remove(capture);
+        }
         for connection_id in &ids {
-            state.remove_grant(connection_id);
+            state
+                .remove_grant(connection_id)
+                .expect("terminalized service grant remains installed under registry ownership");
         }
         if !ids.is_empty() {
             state.pressure_mint_only = true;
@@ -2546,6 +3618,7 @@ impl ConnectionRegistry {
             now_ms,
             monotonic_now,
             auth_invalidation_protocol,
+            admission,
         } = attempt;
         let PreparedConnectionOpenAuthority {
             resolved: _,
@@ -2557,12 +3630,26 @@ impl ConnectionRegistry {
         let mut retirement = None;
         let result = publication_bound.try_publish(now_ms, monotonic_now, || {
             let mut grants = self.lock();
+            let _mode_publication = admission
+                .map(|admission| admission.effect_guard("connection grant publication"))
+                .transpose()?;
             if let (Some(id), Some(previous)) = (suggested.as_ref(), previous_token)
                 && grants
                     .grants
                     .get(id)
                     .is_some_and(|existing| constant_time_str_eq(&existing.token, previous))
             {
+                if grants
+                    .grants
+                    .get(id)
+                    .is_some_and(|existing| existing.socket_teardown.is_some())
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
+                        "realtime",
+                        "the current socket is still completing exact connection teardown",
+                    ));
+                }
                 let same_authority = grants
                     .grants
                     .get(id)
@@ -2572,7 +3659,8 @@ impl ConnectionRegistry {
                         retirement = Some(
                             record
                                 .authority
-                                .terminal_capture(id.clone(), record.grant_id),
+                                .terminal_capture(id.clone(), record.grant_id)
+                                .after_mint_only_containment(),
                         );
                     }
                     grants.pressure_mint_only = true;
@@ -2655,6 +3743,7 @@ impl ConnectionRegistry {
                     managed_authority,
                     last_use_ms: now_ms,
                     used: false,
+                    socket_teardown: None,
                     authorization_invalidation: authorization_invalidation.clone(),
                 },
             );
@@ -2844,50 +3933,40 @@ impl ConnectionRegistry {
         if expected_effect_fence.is_some_and(|expected| expected != &effect_fence) {
             return Ok(ResolvedRoomConnectionAuthority::Replaced);
         }
-        if !managed_authority {
-            return Ok(ResolvedRoomConnectionAuthority::Current {
-                auth: None,
-                effect_fence,
-            });
-        }
-        let resolved = match &bound {
-            BoundGrantAuthority::Anonymous { .. } => ResolvedAppAuthority::Anonymous,
-            BoundGrantAuthority::ServicePrincipal { .. } => {
-                unreachable!("service-principal room authority refused above")
-            }
-            BoundGrantAuthority::Session {
-                authorization_stream_incarnation,
-                session_id,
-                user_id,
-                provider,
-                generation,
-                ..
-            } => {
-                let Some(coordinator) = coordinator else {
-                    return Ok(ResolvedRoomConnectionAuthority::Current {
-                        auth: None,
-                        effect_fence,
-                    });
-                };
-                let resolution = coordinator.resolve_bound_connection_session(
+        let resolved = if !managed_authority {
+            None
+        } else {
+            match &bound {
+                BoundGrantAuthority::Anonymous { .. } => Some(ResolvedAppAuthority::Anonymous),
+                BoundGrantAuthority::ServicePrincipal { .. } => {
+                    unreachable!("service-principal room authority refused above")
+                }
+                BoundGrantAuthority::Session {
                     authorization_stream_incarnation,
                     session_id,
                     user_id,
                     provider,
-                    *generation,
-                    epoch_now_ms,
-                    monotonic_now,
-                )?;
-                match resolution {
-                    BoundSessionResolution::Current(resolved) => resolved,
-                    BoundSessionResolution::Terminal { .. }
-                    | BoundSessionResolution::Unavailable => {
-                        return Ok(ResolvedRoomConnectionAuthority::Current {
-                            auth: None,
-                            effect_fence,
-                        });
+                    generation,
+                    ..
+                } => match coordinator {
+                    Some(coordinator) => {
+                        let resolution = coordinator.resolve_bound_connection_session(
+                            authorization_stream_incarnation,
+                            session_id,
+                            user_id,
+                            provider,
+                            *generation,
+                            epoch_now_ms,
+                            monotonic_now,
+                        )?;
+                        match resolution {
+                            BoundSessionResolution::Current(resolved) => Some(resolved),
+                            BoundSessionResolution::Terminal { .. }
+                            | BoundSessionResolution::Unavailable => None,
+                        }
                     }
-                }
+                    None => None,
+                },
             }
         };
         let current = bound
@@ -2895,6 +3974,7 @@ impl ConnectionRegistry {
             .try_publish(epoch_now_ms, monotonic_now, || {
                 Ok(self.lock().grants.get(connection_id).is_some_and(|record| {
                     record.grant_id == grant_id
+                        && record.socket_teardown.is_none()
                         && record.authority.effect_fence(&record.grant_id) == effect_fence
                 }))
             })?;
@@ -2902,7 +3982,7 @@ impl ConnectionRegistry {
             return Ok(ResolvedRoomConnectionAuthority::Replaced);
         }
         Ok(ResolvedRoomConnectionAuthority::Current {
-            auth: Some(ephemeral_auth_from_authority(&resolved)),
+            auth: resolved.as_ref().map(ephemeral_auth_from_authority),
             effect_fence,
         })
     }
@@ -2939,6 +4019,9 @@ impl ConnectionRegistry {
                     connection_id,
                 ));
             };
+            if record.socket_teardown.is_some() {
+                return Err(connection_teardown_pending(connection_id));
+            }
             if !record.managed_authority && !allow_unmanaged_dev {
                 return Err(connection_auth_error(
                     "SNAPBACK_CONNECTION_TOKEN_INVALID",
@@ -3096,10 +4179,8 @@ impl ConnectionRegistry {
             .is_ok()
     }
 
-    fn lock(&self) -> std::sync::MutexGuard<'_, ConnectionRegistryState> {
-        self.grants
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    fn lock(&self) -> RankedMutexGuard<'_, ConnectionRegistryState> {
+        ranked_mutex_lock_unpoisoned(&self.grants, AUTH_LOCK_RANK_CONNECTION_REGISTRY)
     }
 }
 
@@ -3107,6 +4188,39 @@ impl PreparedConnectionAct {
     pub(crate) fn terminal_capture(&self) -> BoundConnectionTerminalCapture {
         self.bound
             .terminal_capture(self.connection_id.clone(), self.grant_id.clone())
+    }
+
+    /// Convert the current socket registration into a split-teardown claim
+    /// while the exact grant is temporarily suspended. Registry then notifier
+    /// is the same order used by connection acts; no lock escapes this call.
+    /// A stale socket generation returns `None` and owns no cleanup.
+    fn begin_socket_teardown(
+        &self,
+        registry: &ConnectionRegistry,
+        notifier: &Arc<crate::ephemeral::DeliveryNotifier>,
+        generation: u64,
+    ) -> Option<BoundSocketTeardown> {
+        let mut state = registry.lock();
+        let grant_is_current = state.grants.get(&self.connection_id).is_some_and(|record| {
+            record.grant_id == self.grant_id && record.socket_teardown.is_none()
+        });
+        let delivery = notifier.begin_teardown(&self.connection_id, generation)?;
+        if grant_is_current {
+            state
+                .grants
+                .get_mut(&self.connection_id)
+                .expect("the registry guard preserves the checked grant")
+                .socket_teardown = Some(generation);
+        }
+        Some(BoundSocketTeardown {
+            registry: registry.clone(),
+            connection_id: self.connection_id.clone(),
+            grant_id: self.grant_id.clone(),
+            generation,
+            suspended_current_grant: grant_is_current,
+            delivery: Some(delivery),
+            finished: false,
+        })
     }
 
     fn try_act<T>(
@@ -3125,10 +4239,9 @@ impl PreparedConnectionAct {
             .bound
             .try_publish(epoch_now_ms, monotonic_now, || {
                 let mut state = registry.lock();
-                let current = state
-                    .grants
-                    .get(&self.connection_id)
-                    .is_some_and(|record| record.grant_id == self.grant_id);
+                let current = state.grants.get(&self.connection_id).is_some_and(|record| {
+                    record.grant_id == self.grant_id && record.socket_teardown.is_none()
+                });
                 if !current {
                     return Err(SnapbackError::error(
                         "SNAPBACK_CONNECTION_TOKEN_INVALID",
@@ -3148,6 +4261,57 @@ impl PreparedConnectionAct {
     }
 }
 
+/// Lock-free ownership of one ordinary socket-close cleanup. The reusable
+/// connection grant remains installed but refuses acts until `finish`; the
+/// notifier claim independently prevents a same-id socket registration.
+#[must_use = "socket teardown ownership must move into cleanup and finish explicitly"]
+struct BoundSocketTeardown {
+    registry: ConnectionRegistry,
+    connection_id: String,
+    grant_id: String,
+    generation: u64,
+    suspended_current_grant: bool,
+    delivery: Option<crate::ephemeral::DeliveryTeardownClaim>,
+    finished: bool,
+}
+
+impl BoundSocketTeardown {
+    fn suspended_current_grant(&self) -> bool {
+        self.suspended_current_grant
+    }
+
+    fn finish(mut self) {
+        self.release();
+    }
+
+    fn release(&mut self) {
+        if self.finished {
+            return;
+        }
+        let mut state = self.registry.lock();
+        if let Some(record) = state.grants.get_mut(&self.connection_id)
+            && record.grant_id == self.grant_id
+            && record.socket_teardown == Some(self.generation)
+        {
+            record.socket_teardown = None;
+        }
+        if let Some(delivery) = self.delivery.take() {
+            // Registry -> notifier is the canonical connection publication
+            // order; neither lock overlaps LocalSnapback or ephemeral rooms.
+            delivery.finish();
+        }
+        self.finished = true;
+    }
+}
+
+impl Drop for BoundSocketTeardown {
+    fn drop(&mut self) {
+        // Fail closed on a cleanup-task panic. Ordinary cancellation cannot
+        // reach this owner because teardown moves it into an independently
+        // spawned task before awaiting completion.
+    }
+}
+
 fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiError {
     ApiError(
         SnapbackError::new(
@@ -3158,6 +4322,25 @@ fn connection_auth_error(code: &str, message: &str, connection_id: &str) -> ApiE
         None,
         None,
     )
+}
+
+fn connection_teardown_pending(connection_id: &str) -> ApiError {
+    ApiError::from(
+        SnapbackError::error(
+            "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
+            "realtime",
+            "the current socket is still completing exact connection teardown",
+        )
+        .with_details(json!({ "connection_id": connection_id })),
+    )
+}
+
+fn live_finalize_task_failed() -> ApiError {
+    ApiError::from(SnapbackError::error(
+        "SNAPBACK_LIVE_FINALIZE_FAILED",
+        "realtime",
+        "the owned live-effect finalization task did not complete",
+    ))
 }
 
 /// Constant-time token comparison (length is public: tokens are fixed-form).
@@ -3324,11 +4507,9 @@ async fn open_connection(
     let allow_suggested = runtime.server.profile.allows_provisioning();
     let use_key = prepared.authenticated_use_key();
     let opened = {
-        let _effect = admission.effect_guard("connection grant publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-        runtime
-            .connections
-            .open_prepared(ConnectionOpenAttempt::new(
+        runtime.connections.open_prepared(
+            ConnectionOpenAttempt::new(
                 suggested,
                 previous_token.as_deref(),
                 allow_suggested,
@@ -3336,7 +4517,9 @@ async fn open_connection(
                 epoch_now_ms,
                 monotonic_now,
                 auth_invalidation_protocol,
-            ))?
+            )
+            .with_admission(&admission),
+        )?
     };
     let deadline = match record_connection_authenticated_use(&runtime, use_key, &admission).await {
         Ok(deadline) => deadline,
@@ -3423,6 +4606,7 @@ pub struct ErrorResponse {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MutationResponse {
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub changed_count: usize,
     pub result: Value,
@@ -3510,6 +4694,7 @@ impl AuthorizedLeaseQueryRequest {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizedLeaseQueryResponse {
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub rows: Vec<Value>,
     pub authorized_lease: AuthorizedLease,
@@ -6036,69 +7221,67 @@ fn finish_registered_response(
     authority: Option<&PreparedAuthority>,
 ) -> Response {
     let mut response = if let Some(admission) = admission {
-        match admission.effect_guard("HTTP response publication") {
-            Ok(mode_publication) => {
-                let controlled = apply_registered_response_controls(effective, response);
-                let committed_outcome = controlled
-                    .extensions()
-                    .get::<CommittedAuthOutcome>()
-                    .cloned();
-                let published = match committed_outcome {
-                    Some(outcome) => {
-                        let response_class = match controlled.status() {
-                            StatusCode::NO_CONTENT => {
-                                Some(CommittedAuthResponseClass::LogoutNoContent)
-                            }
-                            StatusCode::ACCEPTED => {
-                                Some(CommittedAuthResponseClass::FamilyAlarmAccepted)
-                            }
-                            _ => None,
-                        };
-                        match response_class {
-                            Some(response_class) => outcome.try_publish(
-                                response_class,
-                                now_millis(),
-                                Instant::now(),
-                                || Ok(controlled),
-                            ),
-                            None => Err(SnapbackError::error(
-                                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
-                                "auth",
-                                "committed auth outcome was attached to an unsupported response",
-                            )),
-                        }
-                    }
-                    None => match authority {
-                        Some(authority) => {
-                            authority
-                                .try_publish_fenced(now_millis(), Instant::now(), || Ok(controlled))
-                        }
-                        None => Ok(Some(controlled)),
-                    },
-                };
-                let response = match published {
-                    Ok(Some(response)) => response,
-                    Ok(None) => {
-                        let error = match authority {
-                            Some(authority) => stale_prepared_authority(authority, now_millis()),
-                            None => SnapbackError::error(
-                                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
-                                "auth",
-                                "the authorization stream changed before response publication",
-                            ),
-                        };
-                        apply_registered_response_controls(
-                            effective,
-                            ApiError::from(error).into_response(),
-                        )
-                    }
-                    Err(error) => apply_registered_response_controls(
-                        effective,
-                        ApiError::from(error).into_response(),
+        let controlled = apply_registered_response_controls(effective, response);
+        let committed_outcome = controlled
+            .extensions()
+            .get::<CommittedAuthOutcome>()
+            .cloned();
+        let committed_response_class =
+            committed_outcome
+                .as_ref()
+                .and_then(|_| match controlled.status() {
+                    StatusCode::NO_CONTENT => Some(CommittedAuthResponseClass::LogoutNoContent),
+                    StatusCode::ACCEPTED => Some(CommittedAuthResponseClass::FamilyAlarmAccepted),
+                    _ => None,
+                });
+        // Keep the server's canonical publication order aligned with exact
+        // connection acts: stream/session leaf first, then the independent
+        // mode-admission cut. Taking mode admission first deadlocks against a
+        // concurrent connection handler that already owns the shared stream
+        // fence and reaches its query/publication admission guard.
+        //
+        // @ref LLP 0059#locking-and-linearization — finite leaf validation
+        // precedes the one bounded publication handoff.
+        let publish_under_mode = || {
+            let _mode_publication = admission.effect_guard("HTTP response publication")?;
+            Ok(controlled)
+        };
+        let published = match committed_outcome {
+            Some(outcome) => match committed_response_class {
+                Some(response_class) => outcome.try_publish(
+                    response_class,
+                    now_millis(),
+                    Instant::now(),
+                    publish_under_mode,
+                ),
+                None => match admission.effect_guard("HTTP response publication") {
+                    Ok(_mode_publication) => Err(SnapbackError::error(
+                        "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                        "auth",
+                        "committed auth outcome was attached to an unsupported response",
+                    )),
+                    Err(error) => Err(error),
+                },
+            },
+            None => match authority {
+                Some(authority) => {
+                    authority.try_publish_fenced(now_millis(), Instant::now(), publish_under_mode)
+                }
+                None => publish_under_mode().map(Some),
+            },
+        };
+        match published {
+            Ok(Some(response)) => response,
+            Ok(None) => {
+                let error = match authority {
+                    Some(authority) => stale_prepared_authority(authority, now_millis()),
+                    None => SnapbackError::error(
+                        "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                        "auth",
+                        "the authorization stream changed before response publication",
                     ),
                 };
-                drop(mode_publication);
-                response
+                apply_registered_response_controls(effective, ApiError::from(error).into_response())
             }
             Err(error) => {
                 apply_registered_response_controls(effective, ApiError::from(error).into_response())
@@ -6167,9 +7350,13 @@ struct RetainedConnectionHandoff {
 }
 
 impl RetainedRealtimeAuthority {
-    fn acknowledge_outbox_leases(&self) -> bool {
+    fn acknowledge_outbox_leases(&self, admission: &AdmissionLease) -> bool {
         match self.connection_handoff.as_ref() {
-            None => crate::ephemeral::OutboxDrainLease::acknowledge_all(&self.outbox_leases),
+            None => admission
+                .effect_guard("HTTP response body frame publication")
+                .is_ok_and(|_publication| {
+                    crate::ephemeral::OutboxDrainLease::acknowledge_all(&self.outbox_leases)
+                }),
             Some(handoff) => {
                 // @ref LLP 0059#act-time-validation — the exact leaf/grant
                 // check and leased HTTP ownership acceptance share one final
@@ -6186,6 +7373,9 @@ impl RetainedRealtimeAuthority {
                 handoff
                     .connection_act
                     .try_act(&handoff.connections, epoch_now_ms, monotonic_now, || {
+                        let _publication = admission
+                            .effect_guard("HTTP response body frame publication")
+                            .map_err(ApiError::from)?;
                         Ok(handoff.ephemeral.acknowledge_outbox_handoff_bound(
                             &handoff.connection_act.connection_id,
                             &handoff.connection_act.effect_fence(),
@@ -6236,18 +7426,6 @@ impl HttpBody for RetainedAdmissionBody {
         if this.realtime_handoff_failed {
             return std::task::Poll::Ready(None);
         }
-        let Ok(publication) = this
-            ._admission
-            .effect_guard("HTTP response body frame publication")
-        else {
-            // EOF is terminal even if the consumer retains the Body object.
-            // Release every leased frame/publication permit at the failed
-            // mode-root cut instead of parking the globally active batch
-            // until object destruction.
-            this.realtime_handoff_failed = true;
-            this._publication_authority = None;
-            return std::task::Poll::Ready(None);
-        };
         // Authority was validated exactly once when the complete response was
         // transferred into this body. Network flushing happens later without
         // rechecking the leaf; only the mode-admission root remains live per
@@ -6259,14 +7437,17 @@ impl HttpBody for RetainedAdmissionBody {
         if !this.realtime_handoff_committed {
             match &frame {
                 std::task::Poll::Ready(Some(Ok(_))) => {
-                    let committed = this
-                        ._publication_authority
-                        .as_ref()
-                        .is_none_or(RetainedRealtimeAuthority::acknowledge_outbox_leases);
+                    let committed = this._publication_authority.as_ref().map_or_else(
+                        || {
+                            this._admission
+                                .effect_guard("HTTP response body frame publication")
+                                .is_ok()
+                        },
+                        |authority| authority.acknowledge_outbox_leases(&this._admission),
+                    );
                     if !committed {
                         this.realtime_handoff_failed = true;
                         this._publication_authority = None;
-                        drop(publication);
                         return std::task::Poll::Ready(None);
                     }
                     this.realtime_handoff_committed = true;
@@ -6277,8 +7458,19 @@ impl HttpBody for RetainedAdmissionBody {
                 }
                 std::task::Poll::Pending => {}
             }
+        } else if this
+            ._admission
+            .effect_guard("HTTP response body frame publication")
+            .is_err()
+        {
+            // EOF is terminal even if the consumer retains the Body object.
+            // Release every leased frame/publication permit at the failed
+            // mode-root cut instead of parking the globally active batch
+            // until object destruction.
+            this.realtime_handoff_failed = true;
+            this._publication_authority = None;
+            return std::task::Poll::Ready(None);
         }
-        drop(publication);
         frame
     }
 
@@ -6333,6 +7525,8 @@ const TEST_FINITE_AUTHORITY_PAUSE_HEADER: &str = "x-snapback-test-finite-authori
 enum TestFiniteAuthorityPausePoint {
     BeforeHandler,
     BeforeResponsePublication,
+    AfterSessionTerminalOwnedSpawn,
+    AfterServiceTerminalOwnedSpawn,
 }
 
 #[cfg(test)]
@@ -7266,11 +8460,8 @@ async fn enforce_registered_route_policy(
             ResolvedAppAuthority::ServicePrincipal { .. }
         )
     {
-        let deadline_authority = authority.clone();
-        if let Err(error) = with_snapback(&runtime.snapback, move |snapback| {
-            snapback.persist_service_deadline_if_due(&deadline_authority)
-        })
-        .await
+        if let Err(error) =
+            persist_expired_service_authority_owned(&runtime, authority.clone()).await
         {
             response = ApiError::from(error).into_response();
         }
@@ -7328,6 +8519,19 @@ struct AgentCredentialRequest {
 enum AgentTokenRequest {
     Grant(AgentGrantTokenRequest),
     Pairing(AgentPairingTokenRequest),
+}
+
+enum PlannedAgentTokenRequest {
+    Grant {
+        credential: AgentCredential,
+        grant_id: String,
+        ttl_ms: Option<u64>,
+    },
+    Pairing {
+        credential: AgentCredential,
+        pairing_request_id: String,
+        ttl_ms: Option<u64>,
+    },
 }
 
 #[derive(Deserialize)]
@@ -7765,18 +8969,42 @@ async fn auth_grant_revoke(
         return Err(auth_request_invalid());
     }
     let now_ms = provider.now_ms();
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
-    let revocation = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("grant revocation transaction")?;
-        snapback
-            .auth_database_mut()
-            .revoke_grant_for_user(&user_id, &grant_id, now_ms)
-    })
-    .await?;
-    runtime.auth_terminal_lifecycle.terminate_service_tokens(
-        &revocation.token_ids,
-        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-    );
+    let (user_id, grant_id, terminal_token_ids) =
+        with_snapback(&runtime.snapback, move |snapback| {
+            let token_ids = snapback
+                .auth_database_mut()
+                .plan_grant_revocation_service_terminal(&user_id, &grant_id, now_ms)?;
+            Ok::<_, SnapbackError>((user_id, grant_id, token_ids))
+        })
+        .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let revocation = with_snapback(&snapback, move |snapback| {
+            with_service_authority_terminal_gate(service_terminal_gate, || {
+                let _effect = effect_authority.effect_guard("grant revocation transaction")?;
+                snapback
+                    .auth_database_mut()
+                    .revoke_grant_for_user(&user_id, &grant_id, now_ms)
+            })
+        })
+        .await?;
+        lifecycle.terminate_service_tokens(
+            &revocation.token_ids,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(revocation)
+    });
+    let _revocation = await_owned_auth_transaction(transaction).await??;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -7794,18 +9022,42 @@ async fn auth_grants_revoke_by_actor(
         return Err(auth_request_invalid());
     }
     let now_ms = provider.now_ms();
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
     let effect_authority = authority.clone();
-    let revocation = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
-        snapback
-            .auth_database_mut()
-            .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
-    })
-    .await?;
-    runtime.auth_terminal_lifecycle.terminate_service_tokens(
-        &revocation.token_ids,
-        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-    );
+    let (user_id, actor_id, terminal_token_ids) =
+        with_snapback(&runtime.snapback, move |snapback| {
+            let token_ids = snapback
+                .auth_database_mut()
+                .plan_bulk_grant_revocation_service_terminal(&user_id, &actor_id, now_ms)?;
+            Ok::<_, SnapbackError>((user_id, actor_id, token_ids))
+        })
+        .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let revocation = with_snapback(&snapback, move |snapback| {
+            with_service_authority_terminal_gate(service_terminal_gate, || {
+                let _effect = effect_authority.effect_guard("bulk grant revocation transaction")?;
+                snapback
+                    .auth_database_mut()
+                    .revoke_grants_by_actor_for_user(&user_id, &actor_id, now_ms)
+            })
+        })
+        .await?;
+        lifecycle.terminate_service_tokens(
+            &revocation.token_ids,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(revocation)
+    });
+    let _revocation = await_owned_auth_transaction(transaction).await??;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -7825,18 +9077,41 @@ async fn auth_agent_rotate(
     let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
     let credential = parse_agent_credential(&request.credential)?;
     let now_ms = provider.now_ms();
-    let issued = with_snapback(&runtime.snapback, move |snapback| {
-        snapback.auth_database_mut().rotate_agent_credential(
-            &credential,
-            now_ms,
-            provider.agent_random_source(),
-        )
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback
+            .auth_database_mut()
+            .plan_agent_credential_rotation_service_terminal(&credential, now_ms)?;
+        Ok::<_, SnapbackError>((credential, token_ids))
     })
     .await?;
-    runtime.auth_terminal_lifecycle.terminate_service_tokens(
-        &issued.invalidated_token_ids,
-        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-    );
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let issued = with_snapback(&snapback, move |snapback| {
+            with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback.auth_database_mut().rotate_agent_credential(
+                    &credential,
+                    now_ms,
+                    provider.agent_random_source(),
+                )
+            })
+        })
+        .await?;
+        lifecycle.terminate_service_tokens(
+            &issued.invalidated_token_ids,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(issued)
+    });
+    let issued = await_owned_auth_transaction(transaction).await??;
     Ok(Json(AgentCredentialSecretResponse {
         credential_id: issued.credential_id,
         user_id: issued.user_id,
@@ -7855,41 +9130,87 @@ async fn auth_agent_token(
     let provider = require_agent_routes_available(&runtime)?;
     reject_agent_route_authorization_header(&headers)?;
     let request: AgentTokenRequest = parse_auth_json(&headers, body)?;
+    let request = match request {
+        AgentTokenRequest::Grant(request) => PlannedAgentTokenRequest::Grant {
+            credential: parse_agent_credential(&request.credential)?,
+            grant_id: request.grant_id,
+            ttl_ms: request.ttl_ms,
+        },
+        AgentTokenRequest::Pairing(request) => PlannedAgentTokenRequest::Pairing {
+            credential: parse_agent_credential(&request.credential)?,
+            pairing_request_id: request.pairing_request_id,
+            ttl_ms: request.ttl_ms,
+        },
+    };
     let now_ms = provider.now_ms();
-    let issued = match request {
-        AgentTokenRequest::Grant(request) => {
-            let credential = parse_agent_credential(&request.credential)?;
-            with_snapback(&runtime.snapback, move |snapback| {
-                snapback.auth_database_mut().mint_scoped_token(
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (request, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = match &request {
+            PlannedAgentTokenRequest::Grant {
+                credential,
+                grant_id,
+                ..
+            } => snapback
+                .auth_database_mut()
+                .plan_scoped_token_service_terminal(credential, grant_id, now_ms)?,
+            PlannedAgentTokenRequest::Pairing {
+                credential,
+                pairing_request_id,
+                ..
+            } => snapback
+                .auth_database_mut()
+                .plan_pairing_scoped_token_service_terminal(
+                    credential,
+                    pairing_request_id,
+                    now_ms,
+                )?,
+        };
+        Ok::<_, SnapbackError>((request, token_ids))
+    })
+    .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(&terminal_token_ids, ServiceAuthorityDisposition::Carrier)
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let issued = with_snapback(&snapback, move |snapback| {
+            with_service_authority_terminal_gate(service_terminal_gate, || match request {
+                PlannedAgentTokenRequest::Grant {
+                    credential,
+                    grant_id,
+                    ttl_ms,
+                } => snapback.auth_database_mut().mint_scoped_token(
                     &credential,
-                    &request.grant_id,
-                    request.ttl_ms,
+                    &grant_id,
+                    ttl_ms,
                     now_ms,
                     provider.agent_random_source(),
-                )
-            })
-            .await?
-        }
-        AgentTokenRequest::Pairing(request) => {
-            let credential = parse_agent_credential(&request.credential)?;
-            with_snapback(&runtime.snapback, move |snapback| {
-                snapback
+                ),
+                PlannedAgentTokenRequest::Pairing {
+                    credential,
+                    pairing_request_id,
+                    ttl_ms,
+                } => snapback
                     .auth_database_mut()
                     .mint_scoped_token_for_pairing_request(
                         &credential,
-                        &request.pairing_request_id,
-                        request.ttl_ms,
+                        &pairing_request_id,
+                        ttl_ms,
                         now_ms,
                         provider.agent_random_source(),
-                    )
+                    ),
             })
-            .await?
-        }
-    };
-    runtime.auth_terminal_lifecycle.evict_service_tokens(
-        &issued.evicted_token_ids,
-        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-    );
+        })
+        .await?;
+        lifecycle.evict_service_tokens(
+            &issued.evicted_token_ids,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(issued)
+    });
+    let issued = await_owned_auth_transaction(transaction).await??;
     Ok(Json(AgentTokenSecretResponse {
         token_id: issued.token_id,
         grant_id: issued.grant_id,
@@ -7909,21 +9230,56 @@ async fn auth_agent_revoke_self(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
+    #[cfg(test)]
+    let test_finite_authority_pause_id = headers
+        .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let _provider = require_agent_routes_available(&runtime)?;
     reject_agent_route_authorization_header(&headers)?;
     let request: AgentCredentialRequest = parse_auth_json(&headers, body)?;
     let credential = parse_agent_credential(&request.credential)?;
     let now_ms = _provider.now_ms();
-    let revoked = with_snapback(&runtime.snapback, move |snapback| {
-        snapback
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (credential, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback
             .auth_database_mut()
-            .revoke_agent_credential_family(&credential, now_ms)
+            .plan_agent_credential_family_service_terminal(&credential, now_ms)?;
+        Ok::<_, SnapbackError>((credential, token_ids))
     })
     .await?;
-    runtime.auth_terminal_lifecycle.terminate_service_tokens(
-        &revoked.token_ids,
-        Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
-    );
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(
+            &terminal_token_ids,
+            ServiceAuthorityDisposition::DurableDelete,
+        )
+        .await
+        .map_err(ApiError::from)?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        let revoked = with_snapback(&snapback, move |snapback| {
+            with_service_authority_terminal_gate(service_terminal_gate, || {
+                snapback
+                    .auth_database_mut()
+                    .revoke_agent_credential_family(&credential, now_ms)
+            })
+        })
+        .await?;
+        lifecycle.terminate_service_tokens(
+            &revoked.token_ids,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(revoked)
+    });
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        test_finite_authority_pause_id.as_deref(),
+        TestFiniteAuthorityPausePoint::AfterServiceTerminalOwnedSpawn,
+        None,
+    )
+    .await;
+    let _revoked = await_owned_auth_transaction(transaction).await??;
     Ok(StatusCode::NO_CONTENT.into_response())
 }
 
@@ -8139,6 +9495,59 @@ fn auth_runtime_now(runtime: &AppState) -> (u64, Instant) {
     )
 }
 
+/// Persist a due finite-authority deadline under the same independently owned
+/// terminal protocol as explicit revocation. Once the coarse gate has drained,
+/// cancellation may abandon only the response waiter; the gate, exact durable
+/// commit, and lifecycle propagation remain owned by the spawned task.
+///
+/// @ref LLP 0059#finite-service-authority-fence — durable deadline
+/// terminalization has the same drain-before-write and cancellation boundary
+/// as every other finite-service authority ending.
+async fn persist_expired_service_authority_owned(
+    runtime: &AppState,
+    authority: PreparedAuthority,
+) -> SnapbackResult<()> {
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
+    let Some(deadline) =
+        authority.expired_service_deadline_terminal(epoch_now_ms, monotonic_now)?
+    else {
+        return Ok(());
+    };
+    let snapback = runtime.snapback.clone();
+    let lifecycle = runtime.auth_terminal_lifecycle.clone();
+    let (deadline, terminal_token_ids) = with_snapback(&runtime.snapback, move |snapback| {
+        let token_ids = snapback
+            .auth_database_mut()
+            .plan_expired_service_authority_terminal(&deadline)?;
+        Ok::<_, SnapbackError>((deadline, token_ids))
+    })
+    .await?;
+    let service_terminal_gate = runtime
+        .service_authority_fences
+        .acquire_terminal_gate(&terminal_token_ids, deadline.disposition)
+        .await?;
+    let transaction = spawn_owned_auth_transaction(async move {
+        with_snapback(&snapback, {
+            let deadline = deadline.clone();
+            move |snapback| {
+                with_service_authority_terminal_gate(service_terminal_gate, || {
+                    snapback
+                        .auth_database_mut()
+                        .terminalize_expired_service_authority(&deadline)
+                })
+            }
+        })
+        .await?;
+        lifecycle.expire_service_tokens_for_disposition(
+            std::slice::from_ref(&deadline.token_id),
+            deadline.disposition,
+            Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
+        );
+        Ok::<_, SnapbackError>(())
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
 /// Record one LLP 0057 qualifying use after the connection act itself has
 /// passed its exact grant/session fence. Bearer classification never reaches
 /// this path: the immutable session id and generation came from the projection
@@ -8234,7 +9643,7 @@ fn propagate_committed_revocation(
 async fn coordinated_mint_session(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
-    mut admission: AddressAdmission,
+    admission: AddressAdmission,
     route_admission: &AdmissionLease,
 ) -> Result<CredentialIssue, SnapbackError> {
     let coordinator = runtime.auth_coordinator.clone().ok_or_else(|| {
@@ -8244,41 +9653,68 @@ async fn coordinated_mint_session(
             "authentication projection is unavailable",
         )
     })?;
+    let address = admission.address().clone();
+    let mut planning_admission = Some(admission);
     for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let admission = match planning_admission.take() {
+            Some(admission) => admission,
+            None => provider
+                .admit()
+                .await
+                .for_address(address.clone())
+                .await
+                .map_err(ProviderError::into_snapback_error)?,
+        };
         let now_ms = provider.now_ms();
-        let (returned_admission, plan) = with_snapback(&runtime.snapback, move |snapback| {
-            let plan = admission.plan_mint_session(snapback.auth_database_mut(), now_ms);
-            (admission, plan)
+        let plan = with_snapback(&runtime.snapback, move |snapback| {
+            admission.plan_mint_session(snapback.auth_database_mut(), now_ms)
         })
         .await;
-        admission = returned_admission;
         let plan = plan.map_err(ProviderError::into_snapback_error)?;
-        let carrier = coordinator.premark_issuance(plan)?;
+        let carrier = coordinator.premark_issuance(plan).await?;
         let commit_plan = carrier.plan().commit_plan();
         let effect_admission = route_admission.clone();
-        let (returned_admission, attempt) = with_snapback(&runtime.snapback, move |snapback| {
-            let attempt = match effect_admission.effect_guard("auth mint-session transaction") {
-                Ok(_effect) => {
-                    admission.commit_planned_issuance(snapback.auth_database_mut(), &commit_plan)
+        let owned_state = runtime.clone();
+        let owned_provider = provider.clone();
+        let owned_coordinator = coordinator.clone();
+        let snapback = runtime.snapback.clone();
+        let commit_address = address.clone();
+        let transaction = spawn_owned_auth_transaction(async move {
+            let attempt = match owned_provider
+                .admit()
+                .await
+                .for_address(commit_address)
+                .await
+            {
+                Ok(admission) => {
+                    with_snapback(&snapback, move |snapback| {
+                        match effect_admission.effect_guard("auth mint-session transaction") {
+                            Ok(_effect) => admission.commit_planned_issuance(
+                                snapback.auth_database_mut(),
+                                &commit_plan,
+                            ),
+                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        }
+                    })
+                    .await
                 }
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
+                Err(error) => AuthTransactionAttempt::RolledBack(error.into_snapback_error()),
             };
-            (admission, attempt)
-        })
-        .await;
-        admission = returned_admission;
-        let finish = coordinator.finish_issuance(
-            carrier,
-            attempt,
-            provider.now_ms(),
-            provider.monotonic_now(),
-        );
-        match finish_auth_with_terminal_propagation(
-            runtime,
-            provider,
-            finish,
-            crate::live_wire::LiveAuthorityDisposition::Carrier,
-        )? {
+            let finish = owned_coordinator.finish_issuance(
+                carrier,
+                attempt,
+                owned_provider.now_ms(),
+                owned_provider.monotonic_now(),
+            );
+            finish_auth_with_terminal_propagation(
+                &owned_state,
+                &owned_provider,
+                finish,
+                crate::live_wire::LiveAuthorityDisposition::Carrier,
+            )
+        });
+        let outcome = await_owned_auth_transaction(transaction).await?;
+        match outcome? {
             IssuanceFinish::Committed(issue) => return Ok(issue),
             IssuanceFinish::CodeInvalid | IssuanceFinish::CodeLocked => {
                 return Err(auth_provider_unavailable_error());
@@ -8293,7 +9729,7 @@ async fn coordinated_mint_session(
 async fn coordinated_exchange_session(
     runtime: &AppState,
     provider: &Arc<AuthProvider>,
-    mut exchange: ExchangeAdmission,
+    exchange: ExchangeAdmission,
     code: String,
     route_admission: &AdmissionLease,
 ) -> Result<CredentialIssue, ProviderError> {
@@ -8304,35 +9740,45 @@ async fn coordinated_exchange_session(
             "authentication projection is unavailable",
         ))
     })?;
+    let coordination = exchange.reacquisition_key();
+    let mut planning_exchange = Some(exchange);
     for _ in 0..crate::auth::provider::AUTH_MAX_COLLISION_ATTEMPTS {
+        let exchange = match planning_exchange.take() {
+            Some(exchange) => exchange,
+            None => {
+                provider
+                    .admit()
+                    .await
+                    .for_exchange(coordination.clone())
+                    .await?
+            }
+        };
         let plan_code = code.clone();
         let now_ms = provider.now_ms();
-        let (returned_exchange, planned) = with_snapback(&runtime.snapback, move |snapback| {
-            let planned = exchange.plan_exchange(snapback.auth_database_mut(), &plan_code, now_ms);
-            (exchange, planned)
+        let planned = with_snapback(&runtime.snapback, move |snapback| {
+            exchange.plan_exchange(snapback.auth_database_mut(), &plan_code, now_ms)
         })
         .await;
-        exchange = returned_exchange;
         match planned? {
             PlannedExchange::Reject => {
                 let commit_code = code.clone();
                 let effect_admission = route_admission.clone();
-                let (returned_exchange, outcome) =
-                    with_snapback(&runtime.snapback, move |snapback| {
-                        let outcome = match effect_admission
-                            .effect_guard("auth exchange rejection transaction")
-                        {
-                            Ok(_effect) => exchange.commit_planned_rejection(
-                                snapback.auth_database_mut(),
-                                &commit_code,
-                                now_ms,
-                            ),
-                            Err(error) => Err(ProviderError::from(error)),
-                        };
-                        (exchange, outcome)
-                    })
-                    .await;
-                exchange = returned_exchange;
+                let exchange = provider
+                    .admit()
+                    .await
+                    .for_exchange(coordination.clone())
+                    .await?;
+                let outcome = with_snapback(&runtime.snapback, move |snapback| {
+                    match effect_admission.effect_guard("auth exchange rejection transaction") {
+                        Ok(_effect) => exchange.commit_planned_rejection(
+                            snapback.auth_database_mut(),
+                            &commit_code,
+                            now_ms,
+                        ),
+                        Err(error) => Err(ProviderError::from(error)),
+                    }
+                })
+                .await;
                 let _ = outcome?;
                 continue;
             }
@@ -8340,41 +9786,65 @@ async fn coordinated_exchange_session(
                 let commit_code = code.clone();
                 let carrier = coordinator
                     .premark_issuance(plan)
+                    .await
                     .map_err(ProviderError::from)?;
                 let commit_plan = carrier.plan().commit_plan();
                 let effect_admission = route_admission.clone();
-                let (returned_exchange, attempt) =
-                    with_snapback(&runtime.snapback, move |snapback| {
-                        let attempt = match effect_admission
-                            .effect_guard("auth exchange issuance transaction")
-                        {
-                            Ok(_effect) => exchange.commit_planned_issuance(
-                                snapback.auth_database_mut(),
-                                &commit_plan,
-                                &commit_code,
-                            ),
-                            Err(error) => AuthTransactionAttempt::RolledBack(error),
-                        };
-                        (exchange, attempt)
-                    })
-                    .await;
-                exchange = returned_exchange;
-                let finish = coordinator.finish_issuance(
-                    carrier,
-                    attempt,
-                    provider.now_ms(),
-                    provider.monotonic_now(),
-                );
-                match finish_auth_with_terminal_propagation(
-                    runtime,
-                    provider,
-                    finish,
-                    crate::live_wire::LiveAuthorityDisposition::Carrier,
-                )
-                .map_err(ProviderError::from)?
-                {
+                let owned_state = runtime.clone();
+                let owned_provider = provider.clone();
+                let owned_coordinator = coordinator.clone();
+                let snapback = runtime.snapback.clone();
+                let commit_coordination = coordination.clone();
+                let transaction = spawn_owned_auth_transaction(async move {
+                    let attempt = match owned_provider
+                        .admit()
+                        .await
+                        .for_exchange(commit_coordination)
+                        .await
+                    {
+                        Ok(exchange) => {
+                            with_snapback(&snapback, move |snapback| {
+                                match effect_admission
+                                    .effect_guard("auth exchange issuance transaction")
+                                {
+                                    Ok(_effect) => exchange.commit_planned_issuance(
+                                        snapback.auth_database_mut(),
+                                        &commit_plan,
+                                        &commit_code,
+                                    ),
+                                    Err(error) => AuthTransactionAttempt::RolledBack(error),
+                                }
+                            })
+                            .await
+                        }
+                        Err(error) => {
+                            AuthTransactionAttempt::RolledBack(error.into_snapback_error())
+                        }
+                    };
+                    let finish = owned_coordinator.finish_issuance(
+                        carrier,
+                        attempt,
+                        owned_provider.now_ms(),
+                        owned_provider.monotonic_now(),
+                    );
+                    finish_auth_with_terminal_propagation(
+                        &owned_state,
+                        &owned_provider,
+                        finish,
+                        crate::live_wire::LiveAuthorityDisposition::Carrier,
+                    )
+                });
+                let outcome = await_owned_auth_transaction(transaction)
+                    .await
+                    .map_err(ProviderError::from)?;
+                match outcome.map_err(ProviderError::from)? {
                     IssuanceFinish::Committed(issue) => {
-                        exchange.finish_exchange_cleanup();
+                        provider
+                            .admit()
+                            .await
+                            .for_exchange(coordination.clone())
+                            .await?
+                            .finish_exchange_cleanup();
                         return Ok(issue);
                     }
                     IssuanceFinish::CodeInvalid => {
@@ -8641,10 +10111,8 @@ async fn auth_refresh(
         let admission = provider.admit().await;
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
-        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
-            let planned =
-                admission.plan_refresh(snapback.auth_database_mut(), &plan_bearer, now_ms);
-            (admission, planned)
+        let planned = with_snapback(&runtime.snapback, move |snapback| {
+            admission.plan_refresh(snapback.auth_database_mut(), &plan_bearer, now_ms)
         })
         .await;
         match planned.map_err(map_provider_error)? {
@@ -8658,20 +10126,30 @@ async fn auth_refresh(
                 return Err(map_provider_error(provider_refresh_superseded()));
             }
             PlannedRefresh::Rotate(plan) => {
-                let carrier = coordinator.premark_rotation(plan).map_err(ApiError::from)?;
+                let carrier = coordinator
+                    .premark_rotation(plan)
+                    .await
+                    .map_err(ApiError::from)?;
                 let commit_plan = carrier.plan().commit_plan();
                 let effect_authority = authority.clone();
-                let attempt = with_snapback(&runtime.snapback, move |snapback| {
-                    match effect_authority.effect_guard("auth refresh rotation transaction") {
+                let owned_provider = provider.clone();
+                let owned_coordinator = coordinator.clone();
+                let snapback = runtime.snapback.clone();
+                let transaction = spawn_owned_auth_transaction(async move {
+                    let admission = owned_provider.admit().await;
+                    let attempt = with_snapback(&snapback, move |snapback| match effect_authority
+                        .effect_guard("auth refresh rotation transaction")
+                    {
                         Ok(_effect) => admission
                             .commit_planned_rotation(snapback.auth_database_mut(), &commit_plan),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
-                    }
-                })
-                .await;
-                match coordinator
-                    .finish_rotation(carrier, attempt)
-                    .map_err(ApiError::from)?
+                    })
+                    .await;
+                    owned_coordinator.finish_rotation(carrier, attempt)
+                });
+                match await_owned_auth_transaction(transaction)
+                    .await
+                    .map_err(ApiError::from)??
                 {
                     RotationFinish::Committed(issue) => {
                         let (response, committed_revocation) = issue.into_parts();
@@ -8685,28 +10163,38 @@ async fn auth_refresh(
             PlannedRefresh::ReuseRevoke(plan) => {
                 let carrier = coordinator
                     .premark_revocation(plan)
+                    .await
                     .map_err(ApiError::from)?;
                 let commit_plan = carrier.plan().clone();
                 let effect_authority = authority.clone();
-                let attempt = with_snapback(&runtime.snapback, move |snapback| {
-                    match effect_authority.effect_guard("auth refresh reuse transaction") {
+                let owned_state = runtime.clone();
+                let owned_provider = provider.clone();
+                let owned_coordinator = coordinator.clone();
+                let snapback = runtime.snapback.clone();
+                let transaction = spawn_owned_auth_transaction(async move {
+                    let admission = owned_provider.admit().await;
+                    let attempt = with_snapback(&snapback, move |snapback| match effect_authority
+                        .effect_guard("auth refresh reuse transaction")
+                    {
                         Ok(_effect) => admission.commit_planned_revocation(
                             snapback.auth_database_mut(),
                             &commit_plan,
                             now_ms,
                         ),
                         Err(error) => AuthTransactionAttempt::RolledBack(error),
-                    }
-                })
-                .await;
-                let finish = coordinator.finish_revocation(carrier, attempt);
-                match finish_auth_with_terminal_propagation(
-                    &runtime,
-                    &provider,
-                    finish,
-                    crate::live_wire::LiveAuthorityDisposition::DurableDelete,
-                )
-                .map_err(ApiError::from)?
+                    })
+                    .await;
+                    let finish = owned_coordinator.finish_revocation(carrier, attempt);
+                    finish_auth_with_terminal_propagation(
+                        &owned_state,
+                        &owned_provider,
+                        finish,
+                        crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                    )
+                });
+                match await_owned_auth_transaction(transaction)
+                    .await
+                    .map_err(ApiError::from)??
                 {
                     RevocationFinish::Committed { .. } => {
                         return Err(map_provider_error(provider_session_revoked()));
@@ -8734,6 +10222,11 @@ async fn auth_logout(
     headers: HeaderMap,
     body: Result<Bytes, BytesRejection>,
 ) -> Result<Response, ApiError> {
+    #[cfg(test)]
+    let test_finite_authority_pause_id = headers
+        .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     require_provider_session_authority(&authority, InvocationSource::AuthLogout)?;
     let provider = installed_auth_provider(&runtime)?;
     let coordinator = installed_auth_coordinator(&runtime)?;
@@ -8743,9 +10236,8 @@ async fn auth_logout(
         let admission = provider.admit().await;
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
-        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
-            let planned = admission.plan_logout(snapback.auth_database_mut(), &plan_bearer, now_ms);
-            (admission, planned)
+        let planned = with_snapback(&runtime.snapback, move |snapback| {
+            admission.plan_logout(snapback.auth_database_mut(), &plan_bearer, now_ms)
         })
         .await;
         let plan = match planned.map_err(map_provider_error)? {
@@ -8762,28 +10254,45 @@ async fn auth_logout(
         };
         let carrier = coordinator
             .premark_revocation(plan)
+            .await
             .map_err(ApiError::from)?;
         let commit_plan = carrier.plan().clone();
         let effect_authority = authority.clone();
-        let attempt = with_snapback(&runtime.snapback, move |snapback| {
-            match effect_authority.effect_guard("auth logout transaction") {
-                Ok(_effect) => admission.commit_planned_revocation(
-                    snapback.auth_database_mut(),
-                    &commit_plan,
-                    now_ms,
-                ),
-                Err(error) => AuthTransactionAttempt::RolledBack(error),
-            }
-        })
-        .await;
-        let finish = coordinator.finish_revocation(carrier, attempt);
-        match finish_auth_with_terminal_propagation(
-            &runtime,
-            &provider,
-            finish,
-            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        let owned_state = runtime.clone();
+        let owned_provider = provider.clone();
+        let owned_coordinator = coordinator.clone();
+        let snapback = runtime.snapback.clone();
+        let transaction = spawn_owned_auth_transaction(async move {
+            let admission = owned_provider.admit().await;
+            let attempt = with_snapback(&snapback, move |snapback| {
+                match effect_authority.effect_guard("auth logout transaction") {
+                    Ok(_effect) => admission.commit_planned_revocation(
+                        snapback.auth_database_mut(),
+                        &commit_plan,
+                        now_ms,
+                    ),
+                    Err(error) => AuthTransactionAttempt::RolledBack(error),
+                }
+            })
+            .await;
+            let finish = owned_coordinator.finish_revocation(carrier, attempt);
+            finish_auth_with_terminal_propagation(
+                &owned_state,
+                &owned_provider,
+                finish,
+                crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            )
+        });
+        #[cfg(test)]
+        pause_test_finite_authority_request(
+            test_finite_authority_pause_id.as_deref(),
+            TestFiniteAuthorityPausePoint::AfterSessionTerminalOwnedSpawn,
+            None,
         )
-        .map_err(ApiError::from)?
+        .await;
+        match await_owned_auth_transaction(transaction)
+            .await
+            .map_err(ApiError::from)??
         {
             RevocationFinish::Committed { outcome, .. } => {
                 let mut response = StatusCode::NO_CONTENT.into_response();
@@ -8850,10 +10359,8 @@ async fn auth_family_alarm(
         let admission = provider.admit().await;
         let plan_bearer = bearer.as_str().to_owned();
         let now_ms = provider.now_ms();
-        let (admission, planned) = with_snapback(&runtime.snapback, move |snapback| {
-            let planned =
-                admission.plan_family_alarm(snapback.auth_database_mut(), &plan_bearer, now_ms);
-            (admission, planned)
+        let planned = with_snapback(&runtime.snapback, move |snapback| {
+            admission.plan_family_alarm(snapback.auth_database_mut(), &plan_bearer, now_ms)
         })
         .await;
         let plan = planned.map_err(map_provider_error)?;
@@ -8863,6 +10370,7 @@ async fn auth_family_alarm(
         match revocation {
             None => {
                 let effect_admission = route_admission.clone();
+                let admission = provider.admit().await;
                 match with_snapback(&runtime.snapback, move |snapback| {
                     match effect_admission.effect_guard("auth family-alarm transaction") {
                         Ok(_effect) => admission.commit_planned_family_alarm(
@@ -8901,45 +10409,56 @@ async fn auth_family_alarm(
             Some(revocation) => {
                 let carrier = coordinator
                     .premark_revocation(revocation)
+                    .await
                     .map_err(ApiError::from)?;
                 let effect_admission = route_admission.clone();
-                let family_attempt = with_snapback(&runtime.snapback, move |snapback| {
-                    match effect_admission.effect_guard("auth family-alarm revoke transaction") {
-                        Ok(_effect) => admission.commit_planned_family_alarm(
-                            snapback.auth_database_mut(),
-                            &commit_plan,
+                let owned_state = runtime.clone();
+                let owned_provider = provider.clone();
+                let owned_coordinator = coordinator.clone();
+                let snapback = runtime.snapback.clone();
+                let transaction = spawn_owned_auth_transaction(async move {
+                    let admission = owned_provider.admit().await;
+                    let family_attempt = with_snapback(&snapback, move |snapback| {
+                        match effect_admission.effect_guard("auth family-alarm revoke transaction")
+                        {
+                            Ok(_effect) => admission.commit_planned_family_alarm(
+                                snapback.auth_database_mut(),
+                                &commit_plan,
+                            ),
+                            Err(error) => AuthTransactionAttempt::RolledBack(error),
+                        }
+                    })
+                    .await;
+                    let attempt = match family_attempt {
+                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
+                            revocation,
+                        )) => AuthTransactionAttempt::Committed(
+                            PlannedRevocationCommit::Committed(revocation),
                         ),
-                        Err(error) => AuthTransactionAttempt::RolledBack(error),
-                    }
-                })
-                .await;
-                let attempt = match family_attempt {
-                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Revoked(
-                        revocation,
-                    )) => AuthTransactionAttempt::Committed(PlannedRevocationCommit::Committed(
-                        revocation,
-                    )),
-                    AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
-                    | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
-                        AuthTransactionAttempt::Committed(
-                            PlannedRevocationCommit::PredecessorChanged,
-                        )
-                    }
-                    AuthTransactionAttempt::RolledBack(error) => {
-                        AuthTransactionAttempt::RolledBack(error)
-                    }
-                    AuthTransactionAttempt::CommitUncertain(error) => {
-                        AuthTransactionAttempt::CommitUncertain(error)
-                    }
-                };
-                let finish = coordinator.finish_revocation(carrier, attempt);
-                match finish_auth_with_terminal_propagation(
-                    &runtime,
-                    &provider,
-                    finish,
-                    crate::live_wire::LiveAuthorityDisposition::DurableDelete,
-                )
-                .map_err(ApiError::from)?
+                        AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Retry)
+                        | AuthTransactionAttempt::Committed(PlannedFamilyAlarmCommit::Noop) => {
+                            AuthTransactionAttempt::Committed(
+                                PlannedRevocationCommit::PredecessorChanged,
+                            )
+                        }
+                        AuthTransactionAttempt::RolledBack(error) => {
+                            AuthTransactionAttempt::RolledBack(error)
+                        }
+                        AuthTransactionAttempt::CommitUncertain(error) => {
+                            AuthTransactionAttempt::CommitUncertain(error)
+                        }
+                    };
+                    let finish = owned_coordinator.finish_revocation(carrier, attempt);
+                    finish_auth_with_terminal_propagation(
+                        &owned_state,
+                        &owned_provider,
+                        finish,
+                        crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+                    )
+                });
+                match await_owned_auth_transaction(transaction)
+                    .await
+                    .map_err(ApiError::from)??
                 {
                     RevocationFinish::Committed { outcome, .. } => {
                         committed_outcome = Some(outcome);
@@ -9804,7 +11323,7 @@ async fn instance_home(
     // offload like every other rusqlite-touching handler (L7). The review of
     // this arc caught the original inline lock here: it panicked the exec
     // guard on every debug-build GET / while current-thread tests stayed green.
-    let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
+    let inspect = inspect_snapback(&state).await?;
     let status = instance_status(&inspect, &ctx);
     let accept = headers
         .get(header::ACCEPT)
@@ -10589,11 +12108,24 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
                 // prune by TTL, LLP 0013 §TTL and leases).
                 ephemeral.cleanup_expired(now);
             }
+            let connections = runtime.connections.clone();
+            let retired_idle = if run_maintenance {
+                connections.retire_idle_for_cleanup(now.saturating_sub(CONNECTION_IDLE_TTL_MS))
+            } else {
+                Vec::new()
+            };
+            let reaped_connections = retired_idle.len();
+            let cleanup_tasks = spawn_retired_connection_cleanup_batch(&runtime, retired_idle);
+            for cleanup in cleanup_tasks {
+                // Every task was spawned before this first await. Registry
+                // retirement already made all old bearers unusable, and
+                // maintenance-worker cancellation cannot orphan later captures.
+                let _ = cleanup.await;
+            }
             // Resolve connection grants before entering the database owner.
             // A room obligation remains pending if any readable id was
             // replaced between snapshot and resolution; the next tick starts
             // again from the replacement's exact effect fence.
-            let connections = runtime.connections.clone();
             let coordinator = runtime.auth_coordinator.clone();
             let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
             let mut resolved_rooms = Vec::new();
@@ -10633,8 +12165,8 @@ pub fn spawn_maintenance_worker(runtime: AppState) -> JoinHandle<()> {
             // the async worker (L7). No registry/coordinator lock is acquired
             // while LocalSnapback is held.
             let planned = with_snapback(&state, move |snapback| {
-                if run_maintenance {
-                    snapback.reap_stale_connections(now, CONNECTION_IDLE_TTL_MS);
+                if reaped_connections > 0 {
+                    snapback.record_reaped_connections(reaped_connections);
                 }
                 let mut planned = Vec::new();
                 for (room, fresh_authorities) in resolved_rooms {
@@ -10789,7 +12321,7 @@ async fn health(
         let health = with_read_lane(&read, |lane| lane.health()).await?;
         (health.version, health.capabilities)
     } else {
-        let inspect = with_snapback(&state, |snapback| snapback.inspect()).await?;
+        let inspect = inspect_snapback(&state).await?;
         (inspect.storage.version, inspect.runtime)
     };
     Ok(Json(HealthResponse {
@@ -10811,7 +12343,7 @@ async fn health(
 async fn inspect(
     State(runtime): State<AppState>,
 ) -> Result<Json<crate::local::PublicInspect>, ApiError> {
-    let mut inspect = with_snapback(&runtime.snapback, |snapback| snapback.inspect()).await?;
+    let mut inspect = inspect_snapback(&runtime.snapback).await?;
     project_auth_runtime_facts(&mut inspect, &runtime);
     Ok(Json(inspect.into()))
 }
@@ -10853,8 +12385,12 @@ async fn apply_schema(
 ) -> Result<Json<DiagnosticsResponse>, ApiError> {
     crate::admin::authorize_operation(&ctx, &headers, "schema.load", None)?;
     crate::admin::require_operation_profile(&ctx, "schema.load", false)?;
-    let diagnostics =
-        with_snapback(&state, move |snapback| snapback.apply_schema(manifest)).await?;
+    let diagnostics = with_snapback_authorization_write(
+        &state,
+        |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+        move |snapback| snapback.apply_schema(manifest),
+    )
+    .await??;
     Ok(Json(DiagnosticsResponse { diagnostics }))
 }
 
@@ -11069,11 +12605,8 @@ async fn config_verify(
                 StagedAction::Detached(action) => {
                     run_detached_ibex_action(&state, action, input, metadata).await
                 }
-                StagedAction::InLock(prepared) => {
-                    with_snapback(&state, move |snapback| {
-                        snapback.invoke_action_prepared(&probe, input, metadata, prepared)
-                    })
-                    .await
+                StagedAction::HostPlan(prepared) => {
+                    run_managed_host_plan_action(&state, probe, input, metadata, prepared).await
                 }
             };
             with_snapback(&state, move |snapback| {
@@ -11298,6 +12831,48 @@ async fn host_ops_handler(
         return Ok(Json(result));
     }
 
+    if request.operation == "schema.load" {
+        crate::admin::authorize_host_operation(
+            &ctx,
+            &headers,
+            &request.operation,
+            None,
+            request.user_id.is_some(),
+            policy_mode,
+            &secret_reads,
+            impersonation.as_ref().map(|Extension(verified)| verified),
+        )?;
+        if crate::admin::require_operation_profile(
+            &ctx,
+            &request.operation,
+            request.user_id.is_some(),
+        )
+        .is_err()
+        {
+            // Host ops keep profile refusals inside their legacy 200 result
+            // envelope. Avoid reserving the authorization write lane for a
+            // request that the envelope builder will reject without effects.
+            let result = with_snapback(&state, move |snapback| {
+                crate::host_ops::execute_host_op_with_profile_and_authority(
+                    snapback, request, server_url, profile, None,
+                )
+            })
+            .await;
+            return Ok(Json(result));
+        }
+        let result = with_snapback_authorization_write(
+            &state,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| {
+                crate::host_ops::execute_host_op_with_profile_and_authority(
+                    snapback, request, server_url, profile, None,
+                )
+            },
+        )
+        .await?;
+        return Ok(Json(result));
+    }
+
     if request.operation == "functions.load" {
         // The route middleware has already selected and authenticated this
         // exact operation. In sessions it also released its own admission
@@ -11378,6 +12953,83 @@ async fn host_ops_handler(
         return Ok(Json(result));
     }
 
+    if request.operation == "function.run" {
+        let function_kind = match request.function.as_deref() {
+            Some(function) => {
+                let function = function.to_owned();
+                with_snapback(&state, move |snapback| snapback.function_kind(&function)).await
+            }
+            None => None,
+        };
+        if function_kind == Some(FunctionKind::Mutation) {
+            crate::admin::authorize_host_operation(
+                &ctx,
+                &headers,
+                &request.operation,
+                function_kind.as_ref(),
+                request.user_id.is_some(),
+                policy_mode,
+                &secret_reads,
+                impersonation.as_ref().map(|Extension(verified)| verified),
+            )?;
+            crate::admin::require_operation_profile(
+                &ctx,
+                &request.operation,
+                request.user_id.is_some(),
+            )?;
+            if policy_mode == PolicyAuthMode::Sessions {
+                request.user_id = None;
+            }
+            let function = request
+                .function
+                .clone()
+                .expect("mutation function kind came from a named function");
+            let input = crate::host_ops::host_op_handler_input(&request);
+            let authority = prepared_authority.clone().ok_or_else(|| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "function.run mutation is missing prepared invocation authority",
+                )
+            })?;
+            let stage_function = function.clone();
+            let stage_input = input.clone();
+            let stage_authority = authority.clone();
+            let outcome = match with_snapback_staged_authorization_write(
+                &state,
+                move |snapback| {
+                    snapback.stage_recorded_authorization_mutation(
+                        &stage_function,
+                        stage_input.clone(),
+                        None,
+                        None,
+                        &[],
+                        "local",
+                        stage_authority.clone(),
+                    )
+                },
+                move |snapback, staged| {
+                    snapback.commit_staged_recorded_authorization_mutation(staged)
+                },
+            )
+            .await
+            {
+                Ok(Ok((outcome, _receipt))) => outcome,
+                Ok(Err(error)) | Err(error) => Err(error),
+            };
+            let mut result = with_snapback(&state, move |snapback| {
+                crate::host_ops::coordinated_function_run_mutation_result(
+                    snapback, &request, server_url, profile, outcome,
+                )
+            })
+            .await;
+            if policy_mode == PolicyAuthMode::Sessions {
+                result.mark_admin_bypass("session-mode anonymous administrative invocation");
+            }
+            return Ok(Json(result));
+        }
+    }
+
     let reset_preauthorized = requested_operation == "app.reset";
     if reset_preauthorized {
         // `app.reset` has no function-dependent policy. Run its complete
@@ -11426,84 +13078,117 @@ async fn host_ops_handler(
     }
     let secret_reads_for_gate = secret_reads.clone();
     let gate_headers = headers.clone();
-    let result = with_snapback(&state, move |snapback| -> Result<_, ApiError> {
-        let function_kind = request
-            .function
-            .as_deref()
-            .and_then(|name| snapback.function_kind(name));
-        if !reset_preauthorized {
-            crate::admin::authorize_host_operation(
-                &ctx,
-                &gate_headers,
-                &request.operation,
-                function_kind.as_ref(),
-                request.user_id.is_some(),
-                policy_mode,
-                &secret_reads_for_gate,
-                impersonation.as_ref().map(|Extension(verified)| verified),
-            )?;
-        }
-        if policy_mode == PolicyAuthMode::Sessions {
-            let mut scopes = std::collections::BTreeSet::new();
-            match request.operation.as_str() {
-                "app.inspect" => {
-                    scopes.insert(crate::admin_secret_read::SecretReadScope::AdminInspect);
+    let result = with_snapback_then(
+        &state,
+        move |snapback| -> Result<_, ApiError> {
+            let function_kind = request
+                .function
+                .as_deref()
+                .and_then(|name| snapback.function_kind(name));
+            if !reset_preauthorized {
+                crate::admin::authorize_host_operation(
+                    &ctx,
+                    &gate_headers,
+                    &request.operation,
+                    function_kind.as_ref(),
+                    request.user_id.is_some(),
+                    policy_mode,
+                    &secret_reads_for_gate,
+                    impersonation.as_ref().map(|Extension(verified)| verified),
+                )?;
+            }
+            if policy_mode == PolicyAuthMode::Sessions {
+                let mut scopes = std::collections::BTreeSet::new();
+                match request.operation.as_str() {
+                    "app.inspect" => {
+                        scopes.insert(crate::admin_secret_read::SecretReadScope::AdminInspect);
+                    }
+                    "function.run"
+                        if matches!(
+                            function_kind,
+                            Some(FunctionKind::Query | FunctionKind::LiveQuery)
+                        ) =>
+                    {
+                        if let Some(function) = request.function.as_ref() {
+                            scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionRun(
+                                function.clone(),
+                            ));
+                            scopes.extend(
+                                snapback
+                                    .function_declared_read_tables(function)
+                                    .into_iter()
+                                    .map(crate::admin_secret_read::SecretReadScope::Table),
+                            );
+                        }
+                    }
+                    "function.explain" => {
+                        if let Some(function) = request.function.as_ref() {
+                            scopes.insert(
+                                crate::admin_secret_read::SecretReadScope::FunctionExplain(
+                                    function.clone(),
+                                ),
+                            );
+                            scopes.extend(
+                                snapback
+                                    .function_declared_read_tables(function)
+                                    .into_iter()
+                                    .map(crate::admin_secret_read::SecretReadScope::Table),
+                            );
+                        }
+                    }
+                    _ => {}
                 }
-                "function.run"
-                    if matches!(
-                        function_kind,
-                        Some(FunctionKind::Query | FunctionKind::LiveQuery)
-                    ) =>
+                if !scopes.is_empty() {
+                    crate::admin::preflight_secret_read(
+                        &secret_reads_for_gate,
+                        &gate_headers,
+                        scopes,
+                    )?;
+                }
+                request.user_id = None;
+            }
+            let staged_inspect = request.operation == "app.inspect";
+            let ephemeral = staged_inspect.then(|| snapback.ephemeral_api());
+            let mut result = if staged_inspect {
+                crate::host_ops::execute_host_op_inspect_core(
+                    snapback, &request, server_url, profile,
+                )
+            } else {
+                crate::host_ops::execute_host_op_with_profile_and_authority(
+                    snapback,
+                    request,
+                    server_url,
+                    profile,
+                    prepared_authority,
+                )
+            };
+            if policy_mode == PolicyAuthMode::Sessions
+                && matches!(
+                    result.operation.as_str(),
+                    "function.run" | "function.explain"
+                )
+            {
+                result.mark_admin_bypass("session-mode anonymous administrative invocation");
+            }
+            Ok((result, ephemeral))
+        },
+        |captured| {
+            captured.map(|(mut result, ephemeral)| {
+                if let Some(ephemeral) = ephemeral
+                    && let Some(runtime_state) = result
+                        .data
+                        .get_mut("runtimeState")
+                        .and_then(serde_json::Value::as_object_mut)
                 {
-                    if let Some(function) = request.function.as_ref() {
-                        scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionRun(
-                            function.clone(),
-                        ));
-                        scopes.extend(
-                            snapback
-                                .function_declared_read_tables(function)
-                                .into_iter()
-                                .map(crate::admin_secret_read::SecretReadScope::Table),
-                        );
-                    }
+                    runtime_state.insert(
+                        "ephemeral".to_owned(),
+                        serde_json::to_value(ephemeral.diagnostics()).unwrap_or_default(),
+                    );
                 }
-                "function.explain" => {
-                    if let Some(function) = request.function.as_ref() {
-                        scopes.insert(crate::admin_secret_read::SecretReadScope::FunctionExplain(
-                            function.clone(),
-                        ));
-                        scopes.extend(
-                            snapback
-                                .function_declared_read_tables(function)
-                                .into_iter()
-                                .map(crate::admin_secret_read::SecretReadScope::Table),
-                        );
-                    }
-                }
-                _ => {}
-            }
-            if !scopes.is_empty() {
-                crate::admin::preflight_secret_read(&secret_reads_for_gate, &gate_headers, scopes)?;
-            }
-            request.user_id = None;
-        }
-        let mut result = crate::host_ops::execute_host_op_with_profile_and_authority(
-            snapback,
-            request,
-            server_url,
-            profile,
-            prepared_authority,
-        );
-        if policy_mode == PolicyAuthMode::Sessions
-            && matches!(
-                result.operation.as_str(),
-                "function.run" | "function.explain"
-            )
-        {
-            result.mark_admin_bypass("session-mode anonymous administrative invocation");
-        }
-        Ok(result)
-    })
+                result
+            })
+        },
+    )
     .await?;
     if policy_mode == PolicyAuthMode::Sessions {
         if (result.secret_read_query || requested_operation == "function.explain")
@@ -11573,16 +13258,42 @@ async fn coordinated_app_reset(
     route_admission: &AdmissionLease,
     seed: Option<SeedData>,
 ) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
+    let owned_runtime = runtime.clone();
+    let owned_admission = route_admission.clone();
+    let transaction = spawn_owned_auth_transaction(async move {
+        coordinated_app_reset_inner(&owned_runtime, &owned_admission, seed).await
+    });
+    await_owned_auth_transaction(transaction).await?
+}
+
+async fn coordinated_app_reset_inner(
+    runtime: &AppState,
+    route_admission: &AdmissionLease,
+    seed: Option<SeedData>,
+) -> SnapbackResult<Option<crate::manifest::MutationOutput>> {
     let active_auth_mode = runtime.auth_mode_state().active;
     if active_auth_mode == AuthMode::Dev
         && runtime.auth_provider.is_none()
         && runtime.auth_coordinator.is_none()
     {
-        let effect_admission = route_admission.clone();
-        return with_snapback(&runtime.snapback, move |snapback| {
-            let _effect = effect_admission.effect_guard("app reset transaction")?;
-            snapback.reset_with_seed(seed)
-        })
+        return with_snapback_stream_reset_admission_effect(
+            &runtime.snapback,
+            route_admission.clone(),
+            "app reset transaction and successor runtime projection",
+            move |snapback, predecessor, successor| match snapback
+                .attempt_reset_with_seed_and_authorization_stream(seed, predecessor, successor)
+            {
+                AuthTransactionAttempt::Committed(committed) => {
+                    AuthTransactionAttempt::Committed(snapback.publish_coordinated_reset(committed))
+                }
+                AuthTransactionAttempt::RolledBack(error) => {
+                    AuthTransactionAttempt::RolledBack(error)
+                }
+                AuthTransactionAttempt::CommitUncertain(error) => {
+                    AuthTransactionAttempt::CommitUncertain(error)
+                }
+            },
+        )
         .await;
     }
 
@@ -11597,29 +13308,41 @@ async fn coordinated_app_reset(
             "authentication projection is unavailable",
         )
     })?;
-    // @ref LLP 0057#concurrency-locks-and-linearization — reset takes
-    // exclusive auth maintenance before the app/database writer.
-    let maintenance = provider.exclusive_maintenance().await;
-    let carrier = coordinator.premark_stream_reset()?;
+    let carrier = coordinator.premark_stream_reset().await?;
     let predecessor = carrier.predecessor().clone();
     let successor = carrier.successor().clone();
     let durable_successor = successor.clone();
+    // Projection Begin is complete and every coordinator guard is gone before
+    // the provider gate is acquired. The gate covers only the durable reset
+    // and mailbox cut; process projection happens after it is released.
+    // @ref LLP 0057#concurrency-locks-and-linearization — provider guards and
+    //   projection/connection locks occupy disjoint phases.
+    let maintenance = provider.exclusive_maintenance().await;
     let effect_admission = route_admission.clone();
-    let attempt = with_snapback(&runtime.snapback, move |snapback| {
-        let _effect = match effect_admission.effect_guard("app reset transaction") {
-            Ok(effect) => effect,
-            Err(error) => return AuthTransactionAttempt::RolledBack(error),
-        };
-        snapback.attempt_reset_with_seed_and_authorization_stream(
-            seed,
-            &predecessor,
-            &durable_successor,
-        )
-    })
-    .await;
+    let attempt = match with_snapback_authorization_write(
+        &runtime.snapback,
+        |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+        move |snapback| {
+            let _effect = match effect_admission.effect_guard("app reset transaction") {
+                Ok(effect) => effect,
+                Err(error) => return AuthTransactionAttempt::RolledBack(error),
+            };
+            snapback.attempt_reset_with_seed_and_authorization_stream(
+                seed,
+                &predecessor,
+                &durable_successor,
+            )
+        },
+    )
+    .await
+    {
+        Ok(attempt) => attempt,
+        Err(error) => AuthTransactionAttempt::RolledBack(error),
+    };
     let committed = match attempt {
         AuthTransactionAttempt::Committed(committed) => committed,
         AuthTransactionAttempt::RolledBack(error) => {
+            drop(maintenance);
             return coordinator.finish_stream_reset(
                 carrier,
                 AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::RolledBack(
@@ -11628,6 +13351,7 @@ async fn coordinated_app_reset(
             );
         }
         AuthTransactionAttempt::CommitUncertain(error) => {
+            drop(maintenance);
             return coordinator.finish_stream_reset(
                 carrier,
                 AuthTransactionAttempt::<Option<crate::manifest::MutationOutput>>::CommitUncertain(
@@ -11636,6 +13360,8 @@ async fn coordinated_app_reset(
             );
         }
     };
+    maintenance.clear_mailbox_after_committed_reset();
+    drop(maintenance);
 
     // The durable successor is known committed, but the coordinator's stream
     // ticket remains installed. Terminalize every predecessor carrier and
@@ -11654,7 +13380,6 @@ async fn coordinated_app_reset(
     })
     .await;
     runtime.secret_reads.clear_after_committed_reset();
-    maintenance.clear_mailbox_after_committed_reset();
 
     // Active sessions owns an authenticated invalidation issuer. Active dev
     // deliberately does not, even when a ReadyV1 catalog is present (for
@@ -11881,6 +13606,7 @@ fn parse_optional_json<T: serde::de::DeserializeOwned>(
 ///
 /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6.
 async fn invoke_query(
+    State(runtime): State<AppState>,
     State(state): State<SharedSnapback>,
     State(read): State<crate::local::ReadLane>,
     Extension(authority): Extension<PreparedAuthority>,
@@ -11901,9 +13627,13 @@ async fn invoke_query(
         authority.resolved(),
         ResolvedAppAuthority::ServicePrincipal { .. }
     ) {
+        persist_expired_service_authority_owned(&runtime, authority.clone())
+            .await
+            .map_err(ApiError::from)
+            .map_err(|error| error.with_attribution(attribution.clone()))?;
         let authority_to_validate = authority.clone();
         with_snapback(&state, move |snapback| {
-            snapback.persist_and_validate_prepared_service_authority(&authority_to_validate)
+            snapback.validate_prepared_service_authority(&authority_to_validate)
         })
         .await
         .map_err(ApiError::from)
@@ -12044,18 +13774,30 @@ async fn invoke_mutation(
     // Receipt emission rides the L7 blocking offload: the recording call
     // (Hermes eval + rusqlite) runs via with_snapback, and the envelope is
     // assembled from its (result, receipt) pair back on the async side.
-    let (result, receipt) = with_snapback(&state, move |snapback| {
-        snapback.invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
-            &name,
-            request.input,
-            request.client_mutation_id,
-            request.authority_descriptor,
-            &request.acknowledged_client_mutation_ids,
-            "http",
-            authority,
-        )
-    })
+    let stage_name = name.clone();
+    let stage_input = request.input.clone();
+    let stage_client_mutation_id = request.client_mutation_id.clone();
+    let stage_authority_descriptor = request.authority_descriptor.clone();
+    let stage_acknowledgements = request.acknowledged_client_mutation_ids.clone();
+    let stage_authority = authority.clone();
+    let (result, receipt) = with_snapback_staged_authorization_write(
+        &state,
+        move |snapback| {
+            snapback.stage_recorded_authorization_mutation(
+                &stage_name,
+                stage_input.clone(),
+                stage_client_mutation_id.clone(),
+                stage_authority_descriptor.clone(),
+                &stage_acknowledgements,
+                "http",
+                stage_authority.clone(),
+            )
+        },
+        move |snapback, staged| snapback.commit_staged_recorded_authorization_mutation(staged),
+    )
     .await
+    .map_err(ApiError::from)
+    .map_err(|error| error.with_attribution(attribution.clone()))?
     .map_err(ApiError::from)
     .map_err(|error| error.with_attribution(attribution.clone()))?;
     match result {
@@ -12121,38 +13863,58 @@ async fn commit_prepared_auth_provision(
         let controller = runtime.auth_admission_controller();
         let terminal_lifecycle = runtime.auth_terminal_lifecycle.clone();
         let runtime_projection = runtime.clone();
-        let transition = tokio::task::spawn_blocking(move || controller.begin_transition())
-            .await
-            .expect("auth-mode transition task panicked")?;
-        let (committed, _state, _published) = with_snapback(&runtime.snapback, move |snapback| {
-            transition.commit_project_and_publish_mode_state(|projection_admission| {
-                let committed = snapback.commit_auth_provision_classified(
-                    prepared,
-                    &profile,
-                    Some(projection_admission),
-                )?;
-                if let Some(reason) =
-                    committed_mode_terminal_reason(predecessor.as_ref(), &committed.state)
-                {
-                    let close_by = Instant::now()
-                        .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
-                        .unwrap_or_else(Instant::now);
-                    terminal_lifecycle.committed_mode_transition(reason, close_by);
-                }
-                runtime_projection
-                    .publish_auth_mode_state_while_transition_closed(committed.state.clone())
-                    .map_err(ModeCommitFailure::Uncertain)?;
-                let state = committed.state.clone();
-                Ok((committed, state))
-            })
-        })
-        .await?;
+        let snapback = runtime.snapback.clone();
+        let transition_task = spawn_owned_auth_transaction(async move {
+            let transition = tokio::task::spawn_blocking(move || controller.begin_transition())
+                .await
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT",
+                        "auth",
+                        "auth-mode transition task terminated before closing admission",
+                    )
+                })??;
+            let committed_transition = with_snapback_authorization_write(
+                &snapback,
+                |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+                move |snapback| {
+                    transition.commit_and_project_mode_state(|projection_admission| {
+                        let committed = snapback.commit_auth_provision_classified(
+                            prepared,
+                            &profile,
+                            Some(projection_admission),
+                        )?;
+                        let state = committed.state.clone();
+                        Ok((committed, state))
+                    })
+                },
+            )
+            .await??;
+            if let Some(reason) =
+                committed_mode_terminal_reason(predecessor.as_ref(), committed_transition.mode())
+            {
+                let close_by = Instant::now()
+                    .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+                    .unwrap_or_else(Instant::now);
+                terminal_lifecycle
+                    .committed_mode_transition_before_reopen(reason, close_by)
+                    .await;
+            }
+            runtime_projection.publish_auth_mode_state_while_transition_closed(
+                committed_transition.mode().clone(),
+            )?;
+            let (committed, _state, _published) = committed_transition.publish_successor()?;
+            Ok::<_, SnapbackError>(committed)
+        });
+        let committed = await_owned_auth_transaction(transition_task).await??;
         (committed, true)
     } else {
-        let committed = match with_snapback(&runtime.snapback, move |snapback| {
-            snapback.commit_auth_provision_classified(prepared, &profile, None)
-        })
-        .await
+        let committed = match with_snapback_authorization_write(
+            &runtime.snapback,
+            |_| Ok(crate::storage::AuthorizationCommitPreflight::AllProtectedRooms),
+            move |snapback| snapback.commit_auth_provision_classified(prepared, &profile, None),
+        )
+        .await?
         {
             Ok(committed) => committed,
             Err(ModeCommitFailure::RolledBack(error)) => return Err(ApiError::from(error)),
@@ -12264,17 +14026,62 @@ async fn acknowledge_authorization_invalidation(
                 "connection did not negotiate authInvalidationProtocol: 1",
             )
         })?;
-    let ack_admission = admission.clone();
-    let connections = runtime.connections.clone();
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    let output = with_snapback(&runtime.snapback, move |snapback| {
-        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
-            snapback
-                .acknowledge_authorization_invalidation(input, connection, &ack_admission)
-                .map_err(ApiError::from)
-        })
+    let effect_fence = connection_act.effect_fence();
+    let connection_id = input.connection_id.clone();
+    let staged_admission = admission.clone();
+    let staged = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_authorization_invalidation_ack_for_transport(
+            input,
+            connection,
+            staged_admission,
+            effect_fence,
+        )
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_work = match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+        Ok(authority_work) => authority_work,
+        Err(error) => {
+            let abandoned = staged.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.abandon_prepared_live_effect(&abandoned)
+            })
+            .await;
+            return Err(error);
+        }
+    };
+    let committed_stage = staged.clone();
+    let committed_fence = connection_act.effect_fence();
+    if let Err(error) =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("authorization invalidation acknowledgement")?;
+            committed_stage
+                .try_commit(&connection_id, &committed_fence)
+                .map_err(ApiError::from)
+        })
+    {
+        drop(authority_work);
+        let abandoned = staged.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.abandon_prepared_live_effect(&abandoned)
+        })
+        .await;
+        return Err(error);
+    }
+    let finalize_state = runtime.snapback.clone();
+    let finalize = tokio::spawn(async move {
+        let output = with_snapback(&finalize_state, move |snapback| {
+            authority_work.with_retained_service_authority(|| {
+                snapback.finalize_authorization_invalidation_ack_for_transport(&staged)
+            })
+        })
+        .await;
+        output
+    });
+    let output = finalize
+        .await
+        .map_err(|_| live_finalize_task_failed())?
+        .map_err(ApiError::from)?;
     Ok(Json(output))
 }
 
@@ -12282,7 +14089,7 @@ async fn manual_retry_authorization_invalidation(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
-    Extension(_admission): Extension<AdmissionLease>,
+    Extension(admission): Extension<AdmissionLease>,
     input: Result<Json<AuthorizationInvalidationManualRetryInput>, JsonRejection>,
 ) -> Result<Json<crate::local::AuthorizationInvalidationManualRetryOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
@@ -12296,16 +14103,61 @@ async fn manual_retry_authorization_invalidation(
                 "connection did not negotiate authInvalidationProtocol: 1",
             )
         })?;
-    let connections = runtime.connections.clone();
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    let output = with_snapback(&runtime.snapback, move |snapback| {
-        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
-            snapback
-                .manual_retry_authorization_invalidation(input, connection, authority)
-                .map_err(ApiError::from)
-        })
+    let effect_fence = connection_act.effect_fence();
+    let connection_id = input.connection_id.clone();
+    let staged = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_authorization_invalidation_manual_retry_for_transport(
+            input,
+            connection,
+            authority,
+            effect_fence,
+        )
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_work = match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+        Ok(authority_work) => authority_work,
+        Err(error) => {
+            let abandoned = staged.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.abandon_prepared_live_effect(&abandoned)
+            })
+            .await;
+            return Err(error);
+        }
+    };
+    let committed_stage = staged.clone();
+    let committed_fence = connection_act.effect_fence();
+    if let Err(error) =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("authorization invalidation manual retry")?;
+            committed_stage
+                .try_commit(&connection_id, &committed_fence)
+                .map_err(ApiError::from)
+        })
+    {
+        drop(authority_work);
+        let abandoned = staged.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.abandon_prepared_live_effect(&abandoned)
+        })
+        .await;
+        return Err(error);
+    }
+    let finalize_state = runtime.snapback.clone();
+    let finalize = tokio::spawn(async move {
+        let output = with_snapback(&finalize_state, move |snapback| {
+            authority_work.with_retained_service_authority(|| {
+                snapback.finalize_authorization_invalidation_manual_retry_for_transport(&staged)
+            })
+        })
+        .await;
+        output
+    });
+    let output = finalize
+        .await
+        .map_err(|_| live_finalize_task_failed())?
+        .map_err(ApiError::from)?;
     Ok(Json(output))
 }
 
@@ -12313,6 +14165,7 @@ async fn subscribe_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     input: Result<Json<LiveSubscribeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
@@ -12323,16 +14176,55 @@ async fn subscribe_live(
         #[cfg(test)]
         session_mode: false,
     };
-    let connections = runtime.connections.clone();
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    let publication = with_snapback(&runtime.snapback, move |snapback| {
-        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
-            snapback
-                .subscribe_live_for_transport(&name, input, authority, invalidation)
-                .map_err(ApiError::from)
-        })
+    let connection_id = input.connection_id.clone();
+    let staged = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_subscribe_live_for_transport(name, input, authority, invalidation)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_work = match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+        Ok(authority_work) => authority_work,
+        Err(error) => {
+            let abandoned = staged.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.abandon_prepared_live_effect(&abandoned)
+            })
+            .await;
+            return Err(error);
+        }
+    };
+    let committed_stage = staged.clone();
+    let committed_fence = connection_act.effect_fence();
+    if let Err(error) =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("live subscribe publication")?;
+            committed_stage
+                .try_commit(&connection_id, &committed_fence)
+                .map_err(ApiError::from)
+        })
+    {
+        drop(authority_work);
+        let abandoned = staged.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.abandon_prepared_live_effect(&abandoned)
+        })
+        .await;
+        return Err(error);
+    }
+    let finalize_state = runtime.snapback.clone();
+    let finalize = tokio::spawn(async move {
+        let publication = with_snapback(&finalize_state, move |snapback| {
+            authority_work.with_retained_service_authority(|| {
+                snapback.finalize_subscribe_live_for_transport(&staged)
+            })
+        })
+        .await;
+        publication
+    });
+    let publication = finalize
+        .await
+        .map_err(|_| live_finalize_task_failed())?
+        .map_err(ApiError::from)?;
     let publication_authority = if let Some(authorization) = publication.authorization {
         runtime
             .ephemeral
@@ -12354,6 +14246,7 @@ async fn resume_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     input: Result<Json<LiveResumeInput>, JsonRejection>,
 ) -> Result<Response, ApiError> {
@@ -12364,16 +14257,55 @@ async fn resume_live(
         #[cfg(test)]
         session_mode: false,
     };
-    let connections = runtime.connections.clone();
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    let publication = with_snapback(&runtime.snapback, move |snapback| {
-        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
-            snapback
-                .resume_live_for_transport(&name, input, authority, invalidation)
-                .map_err(ApiError::from)
-        })
+    let connection_id = input.connection_id.clone();
+    let staged = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_resume_live_for_transport(name, input, authority, invalidation)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_work = match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+        Ok(authority_work) => authority_work,
+        Err(error) => {
+            let abandoned = staged.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.abandon_prepared_live_effect(&abandoned)
+            })
+            .await;
+            return Err(error);
+        }
+    };
+    let committed_stage = staged.clone();
+    let committed_fence = connection_act.effect_fence();
+    if let Err(error) =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("live resume publication")?;
+            committed_stage
+                .try_commit(&connection_id, &committed_fence)
+                .map_err(ApiError::from)
+        })
+    {
+        drop(authority_work);
+        let abandoned = staged.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.abandon_prepared_live_effect(&abandoned)
+        })
+        .await;
+        return Err(error);
+    }
+    let finalize_state = runtime.snapback.clone();
+    let finalize = tokio::spawn(async move {
+        let publication = with_snapback(&finalize_state, move |snapback| {
+            authority_work.with_retained_service_authority(|| {
+                snapback.finalize_resume_live_for_transport(&staged)
+            })
+        })
+        .await;
+        publication
+    });
+    let publication = finalize
+        .await
+        .map_err(|_| live_finalize_task_failed())?
+        .map_err(ApiError::from)?;
     let publication_authority = if let Some(authorization) = publication.authorization {
         runtime
             .ephemeral
@@ -12395,23 +14327,63 @@ async fn unsubscribe_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
+    Extension(admission): Extension<AdmissionLease>,
     Path(name): Path<String>,
     input: Result<Json<LiveUnsubscribeInput>, JsonRejection>,
 ) -> Result<Json<crate::local::LiveUnsubscribeOutput>, ApiError> {
     let Json(input) = input.map_err(ApiError::from_json_rejection)?;
     let effect_fence = connection_act.effect_fence();
-    let connections = runtime.connections.clone();
-    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    // L7 offload: disposal reads the storage version (rusqlite) for its
-    // receipt, so it runs on the blocking lane like every other write path.
-    let output = with_snapback(&runtime.snapback, move |snapback| {
-        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
-            snapback
-                .unsubscribe_live_prepared(&name, input, authority, Some(&effect_fence))
-                .map_err(ApiError::from)
-        })
+    let connection_id = input.connection_id.clone();
+    let staged = with_snapback(&runtime.snapback, move |snapback| {
+        snapback.prepare_unsubscribe_live_for_transport(name, input, authority, effect_fence)
     })
     .await?;
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let authority_work = match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+        Ok(authority_work) => authority_work,
+        Err(error) => {
+            let abandoned = staged.clone();
+            with_snapback(&runtime.snapback, move |snapback| {
+                snapback.abandon_prepared_live_effect(&abandoned)
+            })
+            .await;
+            return Err(error);
+        }
+    };
+    let committed_stage = staged.clone();
+    let committed_fence = connection_act.effect_fence();
+    if let Err(error) =
+        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("live unsubscribe publication")?;
+            committed_stage
+                .try_commit(&connection_id, &committed_fence)
+                .map_err(ApiError::from)
+        })
+    {
+        drop(authority_work);
+        let abandoned = staged.clone();
+        with_snapback(&runtime.snapback, move |snapback| {
+            snapback.abandon_prepared_live_effect(&abandoned)
+        })
+        .await;
+        return Err(error);
+    }
+    // Disposal reads the storage version for its receipt, so finalization
+    // remains on the blocking write lane after the bounded exact act.
+    let finalize_state = runtime.snapback.clone();
+    let finalize = tokio::spawn(async move {
+        let output = with_snapback(&finalize_state, move |snapback| {
+            authority_work.with_retained_service_authority(|| {
+                snapback.finalize_unsubscribe_live_for_transport(&staged)
+            })
+        })
+        .await;
+        output
+    });
+    let output = finalize
+        .await
+        .map_err(|_| live_finalize_task_failed())?
+        .map_err(ApiError::from)?;
     Ok(Json(output))
 }
 
@@ -12655,11 +14627,11 @@ async fn send_live_with_admission(
         completed,
     };
     let handed_off = {
-        let Ok(_publication) = admission.effect_guard("WebSocket writer handoff") else {
-            return LiveHandoffOutcome::Failed;
-        };
         connection_act
             .try_act(connections, now_millis(), Instant::now(), move || {
+                let _publication = admission
+                    .effect_guard("WebSocket writer handoff")
+                    .map_err(ApiError::from)?;
                 Ok(match (outbox_lease, projection_outbox) {
                     (Some(outbox_lease), _) => {
                         let outcome = notify.act_if_current(connection_id, generation, || {
@@ -12767,10 +14739,17 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     // a wake is ever missed; register before draining so no push is lost.
     let notify = ephemeral.delivery_notifier();
     let terminal_capture = connection_act.terminal_capture();
-    let Ok((generation, waker)) = notify.register_bound(&connection_id, terminal_capture.grant_id)
+    let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
+    let Ok((generation, waker)) =
+        connection_act.try_act(&connections, epoch_now_ms, monotonic_now, || {
+            notify
+                .register_bound(&connection_id, terminal_capture.grant_id)
+                .map_err(ApiError::from)
+        })
     else {
         // Generation reuse could transfer drain/teardown ownership to a stale
-        // socket. Exhaustion is process-terminal for new live streams.
+        // socket. Exhaustion or a split-teardown claim keeps this socket from
+        // observing predecessor state; the client reconnect policy retries.
         return;
     };
     let (writer, writes) = mpsc::channel(1);
@@ -12821,7 +14800,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         drop(writer);
         drop(terminal_writer);
         let _ = writer_task.await;
-        teardown_live_stream(&state, &notify, &connection_id, generation).await;
+        teardown_live_stream(
+            &runtime,
+            &notify,
+            &connection_act,
+            &connection_id,
+            generation,
+        )
+        .await;
         return;
     };
     if let Some(event) = notify.terminal_if_current(&connection_id, generation) {
@@ -12829,18 +14815,24 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         drop(writer);
         drop(terminal_writer);
         let _ = writer_task.await;
-        teardown_live_stream(&state, &notify, &connection_id, generation).await;
+        teardown_live_stream(
+            &runtime,
+            &notify,
+            &connection_act,
+            &connection_id,
+            generation,
+        )
+        .await;
         return;
     }
-    let initial_current = initial_admission
-        .effect_guard("initial WebSocket drain")
-        .is_ok_and(|_effect| {
-            connection_act
-                .try_act(&connections, now_millis(), Instant::now(), || {
-                    Ok(notify.is_current(&connection_id, generation))
-                })
-                .unwrap_or(false)
-        });
+    let initial_current = connection_act
+        .try_act(&connections, now_millis(), Instant::now(), || {
+            let _effect = initial_admission
+                .effect_guard("initial WebSocket drain")
+                .map_err(ApiError::from)?;
+            Ok(notify.is_current(&connection_id, generation))
+        })
+        .unwrap_or(false);
     if !initial_current
         || drain_and_send(LiveDrain {
             state: &state,
@@ -12864,7 +14856,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         drop(writer);
         drop(terminal_writer);
         let _ = writer_task.await;
-        teardown_live_stream(&state, &notify, &connection_id, generation).await;
+        teardown_live_stream(
+            &runtime,
+            &notify,
+            &connection_act,
+            &connection_id,
+            generation,
+        )
+        .await;
         return;
     }
     drop(initial_admission);
@@ -12899,16 +14898,16 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         ).await else {
                             break 'stream;
                         };
+                        if connection_act
+                            .try_act(&connections, now_millis(), Instant::now(), || {
+                                let _effect = admission
+                                    .effect_guard("WebSocket inbound preflight")
+                                    .map_err(ApiError::from)?;
+                                Ok(())
+                            })
+                            .is_err()
                         {
-                            let Ok(_effect) = admission.effect_guard("WebSocket inbound preflight") else {
-                                break 'stream;
-                            };
-                            if connection_act
-                                .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
-                                .is_err()
-                            {
-                                break 'stream;
-                            }
+                            break 'stream;
                         }
                         let room_authorization = match authorize_live_socket_room(
                             &runtime,
@@ -12941,25 +14940,27 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                             }
                         };
                         let response = {
-                            let Ok(_effect) = admission.effect_guard("WebSocket inbound act") else {
-                                break 'stream;
-                            };
                             let Ok(response) = connection_act.try_act(
                                 &connections,
                                 now_millis(),
                                 Instant::now(),
-                                || Ok(handle_live_socket_text_authorized(
-                                    &ephemeral,
-                                    &connection_id,
-                                    &text,
-                                    policy_mode,
-                                    authorization_invalidation_ready,
-                                    &connection_act.resolved,
-                                    LiveSocketEffectContext {
-                                        protected_room: room_authorization.as_ref(),
-                                        effect_fence: Some(&connection_act.effect_fence()),
-                                    },
-                                )),
+                                || {
+                                    let _effect = admission
+                                        .effect_guard("WebSocket inbound act")
+                                        .map_err(ApiError::from)?;
+                                    Ok(handle_live_socket_text_authorized(
+                                        &ephemeral,
+                                        &connection_id,
+                                        &text,
+                                        policy_mode,
+                                        authorization_invalidation_ready,
+                                        &connection_act.resolved,
+                                        LiveSocketEffectContext {
+                                            protected_room: room_authorization.as_ref(),
+                                            effect_fence: Some(&connection_act.effect_fence()),
+                                        },
+                                    ))
+                                },
                             ) else {
                                 break 'stream;
                             };
@@ -12997,19 +14998,17 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         ).await else {
                             break 'stream;
                         };
+                        if connection_act
+                            .try_act(&connections, now_millis(), Instant::now(), || {
+                                let _effect = admission
+                                    .effect_guard("WebSocket liveness act")
+                                    .map_err(ApiError::from)?;
+                                ephemeral.touch_connection(&connection_id);
+                                Ok(())
+                            })
+                            .is_err()
                         {
-                            let Ok(_effect) = admission.effect_guard("WebSocket liveness act") else {
-                                break 'stream;
-                            };
-                            if connection_act
-                                .try_act(&connections, now_millis(), Instant::now(), || {
-                                    ephemeral.touch_connection(&connection_id);
-                                    Ok(())
-                                })
-                                .is_err()
-                            {
-                                break 'stream;
-                            }
+                            break 'stream;
                         }
                         let deadline = match record_connection_authenticated_use(
                             &runtime,
@@ -13043,11 +15042,13 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                         ).await else {
                             break 'stream;
                         };
-                        let Ok(_effect) = admission.effect_guard("WebSocket binary act") else {
-                            break 'stream;
-                        };
                         if connection_act
-                            .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                            .try_act(&connections, now_millis(), Instant::now(), || {
+                                let _effect = admission
+                                    .effect_guard("WebSocket binary act")
+                                    .map_err(ApiError::from)?;
+                                Ok(())
+                            })
                             .is_err()
                         {
                             break 'stream;
@@ -13076,16 +15077,17 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                 ).await else {
                     break 'stream;
                 };
-                let Ok(_effect) = admission.effect_guard("WebSocket drain wake") else {
-                    break 'stream;
-                };
                 if connection_act
-                    .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
+                    .try_act(&connections, now_millis(), Instant::now(), || {
+                        let _effect = admission
+                            .effect_guard("WebSocket drain wake")
+                            .map_err(ApiError::from)?;
+                        Ok(())
+                    })
                     .is_err()
                 {
                     break 'stream;
                 }
-                drop(_effect);
                 Some(admission)
             },
             _ = safety_net.tick() => {
@@ -13103,13 +15105,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
                 ).await else {
                     break 'stream;
                 };
-                let current = admission
-                    .effect_guard("WebSocket safety-net liveness")
-                    .is_ok_and(|_effect| {
-                        connection_act
-                            .try_act(&connections, now_millis(), Instant::now(), || Ok(()))
-                            .is_ok()
-                    });
+                let current = connection_act
+                    .try_act(&connections, now_millis(), Instant::now(), || {
+                        let _effect = admission
+                            .effect_guard("WebSocket safety-net liveness")
+                            .map_err(ApiError::from)?;
+                        Ok(())
+                    })
+                    .is_ok();
                 if !current || send_live_with_admission(
                     handoff_cut,
                     Message::Ping(Vec::new().into()),
@@ -13132,15 +15135,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
             // never reach the live client. Exit instead; the
             // generation-guarded teardown below then skips `disconnect`,
             // leaving the new socket's registration and subscriptions intact.
-            let current = admission
-                .effect_guard("WebSocket drain ownership")
-                .is_ok_and(|_effect| {
-                    connection_act
-                        .try_act(&connections, now_millis(), Instant::now(), || {
-                            Ok(notify.is_current(&connection_id, generation))
-                        })
-                        .unwrap_or(false)
-                });
+            let current = connection_act
+                .try_act(&connections, now_millis(), Instant::now(), || {
+                    let _effect = admission
+                        .effect_guard("WebSocket drain ownership")
+                        .map_err(ApiError::from)?;
+                    Ok(notify.is_current(&connection_id, generation))
+                })
+                .unwrap_or(false);
             if !current {
                 break 'stream;
             }
@@ -13172,7 +15174,14 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
     drop(writer);
     drop(terminal_writer);
     let _ = writer_task.await;
-    teardown_live_stream(&state, &notify, &connection_id, generation).await;
+    teardown_live_stream(
+        &runtime,
+        &notify,
+        &connection_act,
+        &connection_id,
+        generation,
+    )
+    .await;
 }
 
 async fn observe_service_connection_terminal(
@@ -13194,17 +15203,60 @@ async fn observe_service_connection_terminal(
         Err(_) => return,
     };
     if let Some(deadline) = deadline.as_ref() {
+        let snapback = runtime.snapback.clone();
+        let lifecycle = runtime.auth_terminal_lifecycle.clone();
+        let service_publication = service_publication.clone();
+        let token_id = token_id.clone();
+        let runtime_clock = runtime.clone();
         let deadline = deadline.clone();
-        if with_snapback(&runtime.snapback, move |snapback| {
-            snapback
-                .auth_database_mut()
-                .terminalize_expired_service_authority(&deadline)
-        })
-        .await
-        .is_err()
-        {
+        let Ok((deadline, terminal_token_ids)) =
+            with_snapback(&runtime.snapback, move |snapback| {
+                let token_ids = snapback
+                    .auth_database_mut()
+                    .plan_expired_service_authority_terminal(&deadline)?;
+                Ok::<_, SnapbackError>((deadline, token_ids))
+            })
+            .await
+        else {
             return;
-        }
+        };
+        let Ok(service_terminal_gate) = runtime
+            .service_authority_fences
+            .acquire_terminal_gate(&terminal_token_ids, deadline.disposition)
+            .await
+        else {
+            return;
+        };
+        let transaction = spawn_owned_auth_transaction(async move {
+            if with_snapback(&snapback, move |snapback| {
+                with_service_authority_terminal_gate(service_terminal_gate, || {
+                    snapback
+                        .auth_database_mut()
+                        .terminalize_expired_service_authority(&deadline)
+                })
+            })
+            .await
+            .is_err()
+            {
+                return;
+            }
+            let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime_clock);
+            let Ok(ServiceAuthorityActResolution::Terminal(disposition)) =
+                service_publication.resolve_act(epoch_now_ms, monotonic_now)
+            else {
+                return;
+            };
+            let close_by = monotonic_now
+                .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+                .unwrap_or(monotonic_now);
+            lifecycle.expire_service_tokens_for_disposition(
+                std::slice::from_ref(&token_id),
+                disposition,
+                close_by,
+            );
+        });
+        let _ = await_owned_auth_transaction(transaction).await;
+        return;
     }
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(runtime);
     let Ok(ServiceAuthorityActResolution::Terminal(disposition)) =
@@ -13215,60 +15267,72 @@ async fn observe_service_connection_terminal(
     let close_by = monotonic_now
         .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
         .unwrap_or(monotonic_now);
-    if deadline.is_some() {
-        runtime
+    match disposition {
+        ServiceAuthorityDisposition::Carrier => runtime
             .auth_terminal_lifecycle
-            .expire_service_tokens_for_disposition(
-                std::slice::from_ref(token_id),
-                disposition,
-                close_by,
-            );
-    } else {
-        match disposition {
-            ServiceAuthorityDisposition::Carrier => runtime
-                .auth_terminal_lifecycle
-                .evict_service_tokens(std::slice::from_ref(token_id), close_by),
-            ServiceAuthorityDisposition::DurableDelete => runtime
-                .auth_terminal_lifecycle
-                .terminate_service_tokens(std::slice::from_ref(token_id), close_by),
-        }
+            .evict_service_tokens(std::slice::from_ref(token_id), close_by),
+        ServiceAuthorityDisposition::DurableDelete => runtime
+            .auth_terminal_lifecycle
+            .terminate_service_tokens(std::slice::from_ref(token_id), close_by),
     }
 }
 
-/// Generation-guarded stream teardown (LLP 0034 review fix 1): a task tears a
-/// connection down ONLY while its registration still owns the connection. A
-/// reconnect reuses the connection id — the new socket's `register` supersedes
-/// this task's generation — and a half-open old socket can die arbitrarily
-/// late; without the guard its teardown would remove the NEW socket's waker
-/// and destroy the NEW subscriptions while the new socket keeps answering
-/// pings (permanent silent staleness reported as 'live').
-///
-/// The ownership check is atomic with the destructive act (ENG-23426): the
-/// global mutex is acquired FIRST and `unregister` runs under it. Unregister-
-/// before-lock was check-then-act — a reconnect that registered and
-/// re-subscribed during the (unbounded, behind any slow write) mutex await
-/// got its fresh state wiped by the stalled task. A reconnect's durable
-/// `subscribe_live` serializes behind this same mutex and its socket
-/// registers before it re-subscribes, so a fresh durable subscription always
-/// implies a registration this unregister then fails on. WS-lane ephemeral
-/// subscribes bypass the mutex entirely; `disconnect_guarded` covers them by
-/// re-verifying ownership under each room/outbox lock as it wipes.
+/// Generation-guarded stream teardown. The registry and notifier atomically
+/// transfer the exact socket generation into a temporary suspension before
+/// any asynchronous cleanup starts. The suspension refuses both connection
+/// acts and replacement socket registration while Local and ephemeral state
+/// are cleaned in separate lock domains; ordinary close preserves the grant.
+/// A terminally retired grant receives exact-fence cleanup only, so a later
+/// grant that happens to reuse the readable id cannot be erased.
 async fn teardown_live_stream(
-    state: &SharedSnapback,
-    notify: &crate::ephemeral::DeliveryNotifier,
+    runtime: &AppState,
+    notify: &Arc<crate::ephemeral::DeliveryNotifier>,
+    connection_act: &PreparedConnectionAct,
     connection_id: &str,
     generation: u64,
 ) {
-    // Fast path: a task that already knows it is superseded (ENG-23425 exits,
-    // pre-drain supersession) never contends on the global mutex.
     if !notify.is_current(connection_id, generation) {
         return;
     }
-    let mut snapback = state.lock().await;
-    if !notify.unregister(connection_id, generation) {
+    let Some(teardown) =
+        connection_act.begin_socket_teardown(&runtime.connections, notify, generation)
+    else {
         return;
-    }
-    snapback.disconnect_guarded(connection_id, now_millis());
+    };
+
+    let cleanup_runtime = runtime.clone();
+    let capture = connection_act.terminal_capture();
+    let cleanup = tokio::spawn(async move {
+        let connection_id = capture.connection_id.clone();
+        let effect_fence = capture.effect_fence();
+        if teardown.suspended_current_grant() {
+            cleanup_runtime
+                .ephemeral
+                .disconnect(&connection_id, now_millis());
+            let topology_id = connection_id.clone();
+            with_snapback(&cleanup_runtime.snapback, move |snapback| {
+                snapback.disconnect_topology_for_transport(&topology_id, now_millis())
+            })
+            .await;
+        } else {
+            cleanup_runtime
+                .ephemeral
+                .purge_connection_effects(&connection_id, &effect_fence);
+            let topology_id = connection_id.clone();
+            let topology_fence = effect_fence.clone();
+            with_snapback(&cleanup_runtime.snapback, move |snapback| {
+                snapback.purge_connection_topology(&topology_id, &topology_fence)
+            })
+            .await;
+        }
+        cleanup_runtime
+            .ephemeral
+            .purge_connection_effects(&connection_id, &effect_fence);
+        teardown.finish();
+    });
+    // Dropping this await does not cancel the owned cleanup. A panic leaves
+    // the exact grant/notifier claim fail-closed for operator recovery.
+    let _ = cleanup.await;
 }
 
 /// Drain a connection's outbox and send each message. The drain reaches the
@@ -13327,10 +15391,10 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
     // them, so taking one and then waiting on `with_snapback` would invert the
     // commit order.
     let recovery_marker_pending = {
-        let Ok(_effect) = admission.effect_guard("WebSocket recovery priority check") else {
-            return std::ops::ControlFlow::Break(());
-        };
         let Ok(pending) = connection_act.try_act(connections, now_millis(), Instant::now(), || {
+            let _effect = admission
+                .effect_guard("WebSocket recovery priority check")
+                .map_err(ApiError::from)?;
             Ok(ephemeral
                 .has_eligible_recovery_marker_bound_if_active(
                     connection_id,
@@ -13366,11 +15430,11 @@ async fn drain_and_send(drain: LiveDrain<'_>) -> std::ops::ControlFlow<()> {
     // @ref LLP 0059#durable-and-ephemeral-outboxes — direct projections and
     // the selected queue clone share one eager transport handoff budget.
     let messages = {
-        let Ok(_effect) = admission.effect_guard("WebSocket outbox drain") else {
-            return std::ops::ControlFlow::Break(());
-        };
         let Ok(Some(messages)) =
             connection_act.try_act(connections, now_millis(), Instant::now(), || {
+                let _effect = admission
+                    .effect_guard("WebSocket outbox drain")
+                    .map_err(ApiError::from)?;
                 Ok(
                     ephemeral.drain_live_stream_for_send_bound_if_current_with_handoff_limit(
                         connection_id,
@@ -14289,15 +16353,15 @@ async fn drain_outbox(
     Path(_connection_id): Path<String>,
 ) -> Result<Response, ApiError> {
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
-    {
+    connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
         let _effect = admission.effect_guard("HTTP outbox connection verification")?;
-        connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || Ok(()))?;
-    }
+        Ok(())
+    })?;
     let recovery_marker_pending = {
-        let _effect = admission.effect_guard("HTTP outbox recovery priority check")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         connection_act
             .try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+                let _effect = admission.effect_guard("HTTP outbox recovery priority check")?;
                 Ok(runtime
                     .ephemeral
                     .has_eligible_recovery_marker_bound_if_active(
@@ -14336,9 +16400,9 @@ async fn drain_outbox(
     let outbox_handoff_limit =
         crate::ephemeral::MAX_OUTBOX_HANDOFF_BYTES.saturating_sub(projection_handoff_bytes);
     let admitted = {
-        let _effect = admission.effect_guard("HTTP outbox drain publication")?;
         let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("HTTP outbox drain publication")?;
             Ok(runtime
                 .ephemeral
                 .drain_outbox_for_send_bound_if_active_with_handoff_limit(
@@ -14630,10 +16694,10 @@ async fn publish_ephemeral(
     } else {
         None
     };
-    let _effect = admission.effect_guard("ephemeral publish")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let output =
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("ephemeral publish")?;
             runtime
                 .ephemeral
                 .publish_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
@@ -14676,10 +16740,10 @@ async fn subscribe_ephemeral(
     } else {
         None
     };
-    let _effect = admission.effect_guard("ephemeral subscribe")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let output =
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("ephemeral subscribe")?;
             runtime
                 .ephemeral
                 .subscribe_with_room_authority_and_effect_fence(
@@ -14725,10 +16789,10 @@ async fn delete_ephemeral(
     } else {
         None
     };
-    let _effect = admission.effect_guard("ephemeral delete")?;
     let (epoch_now_ms, monotonic_now) = auth_runtime_now(&runtime);
     let output =
         connection_act.try_act(&runtime.connections, epoch_now_ms, monotonic_now, || {
+            let _effect = admission.effect_guard("ephemeral delete")?;
             runtime
                 .ephemeral
                 .delete_with_room_authority(request, epoch_now_ms, room_authority.as_ref())
@@ -14746,14 +16810,24 @@ async fn delete_ephemeral(
 ///
 /// @ref LLP 0031#resolved-decisions — D2: `/connections/{id}/disconnect` is system/control.
 async fn disconnect(
-    State(state): State<SharedSnapback>,
-    State(ctx): State<Arc<ServerContext>>,
+    State(runtime): State<AppState>,
     headers: HeaderMap,
     Path(connection_id): Path<String>,
 ) -> Result<StatusCode, ApiError> {
-    crate::admin::authorize(&ctx, &headers, true)?;
-    let mut snapback = state.lock().await;
-    snapback.disconnect(&connection_id, now_millis());
+    crate::admin::authorize(&runtime.server, &headers, true)?;
+    if let Some(capture) = runtime
+        .connections
+        .retire_connection_for_cleanup(&connection_id)
+    {
+        let cleanup = tokio::spawn(cleanup_retired_connection(runtime, capture));
+        cleanup.await.map_err(|_| {
+            ApiError::from(SnapbackError::error(
+                "SNAPBACK_CONNECTION_CLEANUP_FAILED",
+                "realtime",
+                "the retired connection cleanup task did not complete",
+            ))
+        })?;
+    }
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -14855,7 +16929,9 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
+        | "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
         | "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION"
+        | "SNAPBACK_LIVE_STAGE_CONFLICT"
         | "SNAPBACK_AUTH_TABLE_COLLISION"
         | "SNAPBACK_AUTH_CATALOG_OBJECT_COLLISION"
         | "SNAPBACK_AUTH_INVALIDATION_EXPECTATION_STALE"
@@ -14969,9 +17045,14 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
+        | "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
+        | "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED"
+        | "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL"
+        | "SNAPBACK_LIVE_STAGE_CAPACITY"
+        | "SNAPBACK_LIVE_STAGE_UNAVAILABLE"
         | "SNAPBACK_READ_LANE_UNAVAILABLE"
         | "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING"
         | "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE"
@@ -15002,6 +17083,8 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_POLICY_UNAVAILABLE"
         | "SNAPBACK_AUTH_PROJECTION_CORRUPT"
         | "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE"
+        | "SNAPBACK_AUTH_RESERVATION_CANCELLED"
+        | "SNAPBACK_AUTH_RESERVATION_STALE"
         | "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE"
         | "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE"
         | "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN"
@@ -15015,8 +17098,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT"
         | "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED"
         | "SNAPBACK_APP_GENERATION_EXHAUSTED"
+        | "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED"
         | "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED"
         | "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT"
+        | "SNAPBACK_STORAGE_VERSION_CORRUPT"
+        | "SNAPBACK_STORAGE_VERSION_EXHAUSTED"
         | "SNAPBACK_CAPABILITY_UNSUPPORTED"
         | "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED" => StatusCode::SERVICE_UNAVAILABLE,
         // Exhaustive allow-list of request, declaration, authorization, and
@@ -15290,7 +17376,7 @@ mod tests {
         parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
         reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
         run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-        status_for_diagnostic_code, with_snapback,
+        status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -15317,7 +17403,7 @@ mod tests {
     use crate::auth::service_fence::{
         ServiceAuthorityActResolution, ServiceAuthorityCommitInterlock,
         ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
-        ServiceAuthorityFenceRegistry,
+        ServiceAuthorityFenceRegistry, with_service_authority_terminal_gate,
     };
     use crate::auth::session_projection::RevocationReason;
     use crate::cron::CronRunOutcome;
@@ -15832,22 +17918,89 @@ mod tests {
                 return_value: Some(ReturnValue::ChangedCount),
             })),
         );
-        kick.auth_requirement = Some(AuthRequirement::Authenticated);
         kick.write_set_summary.primary_table = Some("roomMembers".to_owned());
         kick.write_set_summary.tables = vec!["roomMembers".to_owned()];
+        let mut kick_two = FunctionDefinition::new(
+            "kickTwoRoomMembers",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![
+                    ActionStep::RunMutation {
+                        name: "kickRoomMember".to_owned(),
+                        args: BTreeMap::from([(
+                            "id".to_owned(),
+                            ValueExpr::Arg("firstId".to_owned()),
+                        )]),
+                        bind_result_as: Some("firstKick".to_owned()),
+                    },
+                    ActionStep::RunMutation {
+                        name: "kickRoomMember".to_owned(),
+                        args: BTreeMap::from([(
+                            "id".to_owned(),
+                            ValueExpr::Arg("secondId".to_owned()),
+                        )]),
+                        bind_result_as: None,
+                    },
+                ],
+                return_value: Some(ActionReturnValue::Binding("firstKick".to_owned())),
+            })),
+        );
+        kick_two.auth_requirement = Some(AuthRequirement::Authenticated);
+        kick_two.write_set_summary.primary_table = Some("roomMembers".to_owned());
+        kick_two.write_set_summary.tables = vec!["roomMembers".to_owned()];
+        const DETACHED_SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async heldRoomAction(ctx, args) {
+    return await ctx.runMutation(args.target, { id: args.id });
+  },
+  async ibexKickRoomMember(ctx, args) {
+    await ctx.db.delete('roomMembers', args.id);
+    return 1;
+  }
+};
+"#;
+        let mut held_action = FunctionDefinition::new(
+            "heldRoomAction",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: DETACHED_SOURCE.to_owned(),
+                export: "heldRoomAction".to_owned(),
+            }),
+        );
+        held_action.required_capabilities =
+            vec!["cron".to_owned(), "cron_action_run_mutation".to_owned()];
+        let mut ibex_kick = FunctionDefinition::new(
+            "ibexKickRoomMember",
+            FunctionKind::Mutation,
+            FunctionRuntime::IbexModule(crate::manifest::IbexModule {
+                source: DETACHED_SOURCE.to_owned(),
+                export: "ibexKickRoomMember".to_owned(),
+            }),
+        );
+        ibex_kick.required_capabilities = vec![
+            "ibex_ctx_db_host_bridge".to_owned(),
+            "mutation_read_set_validation".to_owned(),
+        ];
+        ibex_kick.write_set_summary.primary_table = Some("roomMembers".to_owned());
+        ibex_kick.write_set_summary.tables = vec!["roomMembers".to_owned()];
+        ibex_kick.write_set_summary.mode = Some("handlerDeclared".to_owned());
         let diagnostics = snapback.publish_preflighted_functions(
             FunctionManifest {
                 schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
                 app_id: "auth-http-fixture".to_owned(),
                 bundle_hash: Some(format!("{FUNCTION_V1_PREFIX}{}", "2".repeat(64))),
                 inputs_hash: Some(format!("{INPUTS_V1_PREFIX}{}", "3".repeat(64))),
-                functions: vec![kick],
+                functions: vec![kick, kick_two, held_action, ibex_kick],
                 ..FunctionManifest::default()
             },
             42,
         );
         assert!(
-            diagnostics.is_empty(),
+            diagnostics.iter().all(|diagnostic| !matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )),
             "protected-room function manifest loads: {diagnostics:?}"
         );
 
@@ -15941,9 +18094,19 @@ mod tests {
                 ],
             )]),
         };
-        with_snapback(&state.snapback, move |snapback| snapback.seed(seed))
-            .await
-            .expect("seed both room memberships");
+        with_snapback_staged_authorization_write(
+            &state.snapback,
+            move |snapback| {
+                Ok((
+                    snapback.authorization_commit_preflight_for_seed(&seed)?,
+                    seed.clone(),
+                ))
+            },
+            move |snapback, seed| snapback.seed(seed),
+        )
+        .await
+        .expect("reserve exact seed authorization impact")
+        .expect("seed both room memberships");
 
         let router = app(state.clone());
         let opened = router
@@ -15979,9 +18142,14 @@ mod tests {
         let kick = tokio::spawn(async move {
             kick_router
                 .oneshot(session_auth_http_request(
-                    "/mutation/kickRoomMember",
-                    serde_json::to_vec(&json!({ "args": { "id": AFFECTED_MEMBER } }))
-                        .expect("serialize kick"),
+                    "/action/kickTwoRoomMembers",
+                    serde_json::to_vec(&json!({
+                        "args": {
+                            "firstId": AFFECTED_MEMBER,
+                            "secondId": "member-unrelated"
+                        }
+                    }))
+                    .expect("serialize two-step kick action"),
                     &kick_bearer,
                 ))
                 .await
@@ -16005,8 +18173,8 @@ mod tests {
             tokio::task::yield_now().await;
         }
         assert!(
-            state.snapback.try_lock().is_err(),
-            "the affected mutation intentionally holds the writer lane while its commit waits"
+            state.snapback.try_lock().is_ok(),
+            "room quiescence must finish before the affected mutation acquires the writer lane"
         );
 
         let connection_request = |method: &str, uri: String, body: Option<Value>| {
@@ -16051,7 +18219,7 @@ mod tests {
             subscribe_body.get("Snapshot").is_some(),
             "unrelated registration publishes its initial protected snapshot: {subscribe_body}"
         );
-        assert!(state.snapback.try_lock().is_err());
+        assert!(state.snapback.try_lock().is_ok());
 
         let publish = tokio::time::timeout(
             Duration::from_secs(1),
@@ -16072,7 +18240,7 @@ mod tests {
         .expect("unrelated publish response");
         assert_eq!(publish.status(), StatusCode::OK);
         let _ = response_json(publish).await;
-        assert!(state.snapback.try_lock().is_err());
+        assert!(state.snapback.try_lock().is_ok());
 
         let drain = tokio::time::timeout(
             Duration::from_secs(1),
@@ -16091,7 +18259,7 @@ mod tests {
             drained.as_array().is_some_and(|frames| !frames.is_empty()),
             "the unrelated publish is destructively drained while the affected commit waits"
         );
-        assert!(state.snapback.try_lock().is_err());
+        assert!(state.snapback.try_lock().is_ok());
 
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
@@ -16159,7 +18327,7 @@ mod tests {
         assert_eq!(subscribe_ack["kind"], "ephemeral_ack");
         assert_eq!(subscribe_ack["requestId"], "l9-ws-subscribe");
         assert_eq!(subscribe_ack["operation"], "subscribe");
-        assert!(state.snapback.try_lock().is_err());
+        assert!(state.snapback.try_lock().is_ok());
 
         socket
             .send(tokio_tungstenite::tungstenite::Message::Text(
@@ -16201,7 +18369,7 @@ mod tests {
         })
         .await
         .expect("unrelated protected WebSocket publish/drain must not queue on the writer");
-        assert!(state.snapback.try_lock().is_err());
+        assert!(state.snapback.try_lock().is_ok());
         let _ = socket.close(None).await;
         server.abort();
 
@@ -16211,6 +18379,264 @@ mod tests {
             .expect("kick completes after affected sink quiesces")
             .expect("kick task joins");
         assert_eq!(kick.status(), StatusCode::OK);
+        let kick = response_json(kick).await;
+        assert_eq!(
+            kick["result"],
+            json!(1),
+            "the first step's binding survives the off-Local reservation boundary"
+        );
+        let remaining = with_snapback(&state.snapback, |snapback| {
+            snapback
+                .auth_database_mut()
+                .scan_table("roomMembers", 10, 0)
+                .map(|scan| scan.total)
+        })
+        .await
+        .expect("scan memberships after two-step action");
+        assert_eq!(
+            remaining, 1,
+            "both independently reserved RunMutation steps must commit"
+        );
+    }
+
+    /// Detached Ibex actions have two nested mutation shapes: a stored
+    /// HostPlan target and an Ibex target that executes outside Local. Both
+    /// must preview first, release Local while the affected room drains, and
+    /// bind the exact reservation only in the final SQLite window.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn detached_action_nested_mutations_reserve_rooms_off_local() {
+        const HOST_ROOM: &str = "room-detached-host-plan";
+        const IBEX_ROOM: &str = "room-detached-ibex";
+        const HOST_MEMBER: &str = "member-detached-host-plan";
+        const IBEX_MEMBER: &str = "member-detached-ibex";
+
+        let (state, _directory) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            protected_room_server_fixture()
+        })
+        .await
+        .expect("construct detached protected-room fixture");
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "roomMembers".to_owned(),
+                vec![
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(HOST_MEMBER)),
+                        ("roomId".to_owned(), json!(HOST_ROOM)),
+                        ("userId".to_owned(), json!("detached-user")),
+                    ]),
+                    Map::from_iter([
+                        ("_id".to_owned(), json!(IBEX_MEMBER)),
+                        ("roomId".to_owned(), json!(IBEX_ROOM)),
+                        ("userId".to_owned(), json!("detached-user")),
+                    ]),
+                ],
+            )]),
+        };
+        with_snapback_staged_authorization_write(
+            &state.snapback,
+            move |snapback| {
+                Ok((
+                    snapback.authorization_commit_preflight_for_seed(&seed)?,
+                    seed.clone(),
+                ))
+            },
+            move |snapback, seed| snapback.seed(seed),
+        )
+        .await
+        .expect("reserve detached fixture seed")
+        .expect("seed detached fixture memberships");
+
+        for (target, room, member) in [
+            ("kickRoomMember", HOST_ROOM, HOST_MEMBER),
+            ("ibexKickRoomMember", IBEX_ROOM, IBEX_MEMBER),
+        ] {
+            let action = with_snapback(&state.snapback, |snapback| {
+                snapback.stage_action_invocation("heldRoomAction")
+            })
+            .await
+            .expect("stage held detached action");
+            let StagedAction::Detached(action) = action else {
+                panic!("Ibex action must use the detached worker shape");
+            };
+            let mut host = held_action_host(state.snapback.clone(), &action);
+            let scope = Scope::from_pairs([("roomId", room)]);
+            let permit = state
+                .ephemeral
+                .begin_server_authorized_room_act("protectedPresence", &scope)
+                .expect("admit affected room act")
+                .expect("protected room returns a permit");
+            let target = target.to_owned();
+            let member = member.to_owned();
+            let nested = tokio::task::spawn_blocking(move || {
+                let _sanction = crate::exec_guard::BlockingSanction::acquire();
+                host.run_mutation(
+                    &target,
+                    HandlerInput {
+                        args: json!({ "id": member }),
+                        ..HandlerInput::default()
+                    },
+                )
+            });
+
+            let deadline = Instant::now() + Duration::from_secs(2);
+            loop {
+                match state
+                    .ephemeral
+                    .begin_server_authorized_room_act("protectedPresence", &scope)
+                {
+                    Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                    Ok(permit) => drop(permit),
+                    Err(error) => panic!("unexpected room admission while reserving: {error:?}"),
+                }
+                assert!(
+                    Instant::now() < deadline,
+                    "detached nested mutation did not install its room ticket"
+                );
+                tokio::task::yield_now().await;
+            }
+            assert!(
+                state.snapback.try_lock().is_ok(),
+                "detached room wait must not retain Local"
+            );
+            drop(permit);
+            let output = tokio::time::timeout(Duration::from_secs(2), nested)
+                .await
+                .expect("nested mutation completes after room permit release")
+                .expect("nested worker joins")
+                .expect("nested mutation commits");
+            assert_eq!(output.changed_count, 1);
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn detached_action_watchdog_cancels_held_room_reservation_without_publication() {
+        const ROOM: &str = "room-watchdog-reservation";
+        const MEMBER: &str = "member-watchdog-reservation";
+        let (state, _directory) = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            protected_room_server_fixture()
+        })
+        .await
+        .expect("construct watchdog protected-room fixture");
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "roomMembers".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!(MEMBER)),
+                    ("roomId".to_owned(), json!(ROOM)),
+                    ("userId".to_owned(), json!("watchdog-user")),
+                ])],
+            )]),
+        };
+        with_snapback_staged_authorization_write(
+            &state.snapback,
+            move |snapback| {
+                Ok((
+                    snapback.authorization_commit_preflight_for_seed(&seed)?,
+                    seed.clone(),
+                ))
+            },
+            move |snapback, seed| snapback.seed(seed),
+        )
+        .await
+        .expect("reserve watchdog fixture seed")
+        .expect("seed watchdog fixture membership");
+        let before = with_snapback(&state.snapback, |snapback| {
+            Ok::<_, SnapbackError>((
+                snapback.authorization_reservation_snapshot()?,
+                snapback.receipts_snapshot(None),
+            ))
+        })
+        .await
+        .expect("capture pre-watchdog durable/receipt state");
+
+        let action = with_snapback(&state.snapback, |snapback| {
+            snapback.stage_action_invocation("heldRoomAction")
+        })
+        .await
+        .expect("stage watchdog action");
+        let StagedAction::Detached(action) = action else {
+            panic!("watchdog fixture action must detach");
+        };
+        let scope = Scope::from_pairs([("roomId", ROOM)]);
+        let held_permit = state
+            .ephemeral
+            .begin_server_authorized_room_act("protectedPresence", &scope)
+            .expect("admit held watchdog room act")
+            .expect("protected watchdog room returns a permit");
+        let counters = isolated_worker_counters();
+        let baseline_workers = counters.active.load(Ordering::SeqCst);
+        let action_state = state.snapback.clone();
+        let action_run = tokio::spawn(async move {
+            super::run_detached_ibex_action_with_admission_counters_and_timeout(
+                &action_state,
+                action,
+                HandlerInput {
+                    args: json!({
+                        "target": "kickRoomMember",
+                        "id": MEMBER,
+                    }),
+                    ..HandlerInput::default()
+                },
+                crate::local::manual_action_metadata("test", "heldRoomAction"),
+                Arc::new(Semaphore::new(1)),
+                1,
+                counters,
+                300,
+            )
+            .await
+        });
+
+        let pending_deadline = Instant::now() + Duration::from_secs(2);
+        loop {
+            match state
+                .ephemeral
+                .begin_server_authorized_room_act("protectedPresence", &scope)
+            {
+                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                Ok(permit) => drop(permit),
+                Err(error) => panic!("unexpected watchdog room admission: {error:?}"),
+            }
+            assert!(
+                Instant::now() < pending_deadline,
+                "watchdog action did not install its exact room dependency"
+            );
+            tokio::task::yield_now().await;
+        }
+        assert!(state.snapback.try_lock().is_ok());
+        let error = tokio::time::timeout(Duration::from_secs(2), action_run)
+            .await
+            .expect("watchdog cancels the room wait within its bound")
+            .expect("watchdog action task joins")
+            .expect_err("held-room action must time out");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+        assert_eq!(
+            counters.active.load(Ordering::SeqCst),
+            baseline_workers,
+            "watchdog response waits for the detached worker to return"
+        );
+
+        let fresh_permit = state
+            .ephemeral
+            .begin_server_authorized_room_act("protectedPresence", &scope)
+            .expect("cancelled exact ticket no longer leaves authority pending")
+            .expect("room accepts a fresh act after watchdog cancellation");
+        drop(fresh_permit);
+        drop(held_permit);
+        let after = with_snapback(&state.snapback, |snapback| {
+            Ok::<_, SnapbackError>((
+                snapback.authorization_reservation_snapshot()?,
+                snapback.receipts_snapshot(None),
+            ))
+        })
+        .await
+        .expect("capture post-watchdog durable/receipt state");
+        assert_eq!(after.0, before.0, "timed-out reservation must not commit");
+        assert_eq!(
+            after.1, before.1,
+            "timed-out reservation emits neither a receipt nor live publication"
+        );
     }
 
     fn auth_http_fixture_with_provider(
@@ -16466,7 +18892,11 @@ mod tests {
     }
 
     async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
-        let start_ms = 1_750_000_000_000;
+        // Retained live reruns deliberately consult the host wall clock rather
+        // than the injected provider clock. Keep the deterministic provider a
+        // minute behind that wall clock: far enough to avoid millisecond
+        // sampling skew, but well inside the token's 24-hour lifetime.
+        let start_ms = super::now_millis().saturating_sub(60_000);
         let clock = Arc::new(ManualServerAuthClock::new(start_ms));
         let fixture_clock = clock.clone();
         let state = tokio::task::spawn_blocking(move || {
@@ -16526,7 +18956,7 @@ mod tests {
                             setup_grant_id,
                             setup_agent_user_id,
                             setup_effective_user_id,
-                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#,
+                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:liveItems","kind":"liveQuery","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#,
                             start_ms as i64,
                             (start_ms + 48 * 60 * 60 * 1_000) as i64,
                         ],
@@ -16619,13 +19049,11 @@ mod tests {
     }
 
     async fn finite_authority_matrix_pending_durable(state: &AppState) -> usize {
-        with_snapback(&state.snapback, |snapback| {
-            snapback
-                .inspect()
-                .map(|inspect| inspect.ephemeral.pending_durable_messages)
-        })
-        .await
-        .expect("inspect matrix outbox effects")
+        super::inspect_snapback(&state.snapback)
+            .await
+            .expect("inspect matrix outbox effects")
+            .ephemeral
+            .pending_durable_messages
     }
 
     async fn commit_finite_authority_matrix_ending(
@@ -17008,6 +19436,332 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// A terminal service handler must install its process-wide intent before
+    /// it enters LocalSnapback. Otherwise it can take Local while an already-
+    /// admitted staged finalizer retains the exact service permit and is
+    /// queued behind it, producing a permanent reverse-edge deadlock.
+    ///
+    /// @ref LLP 0059#finite-service-authority-fence — process premark and
+    /// async permit drain precede the exact-token durable transaction.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn service_terminal_gate_does_not_hold_local_while_staged_work_drains() {
+        let fixture = finite_authority_matrix_fixture().await;
+        let opened = fixture
+            .router
+            .clone()
+            .oneshot(connection_open_request(
+                Some(&fixture.token),
+                json!({
+                    "connectionId": "service-terminal-local-contention",
+                    "authInvalidationProtocol": 1,
+                }),
+            ))
+            .await
+            .expect("open service connection");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"]
+            .as_str()
+            .expect("connection id")
+            .to_owned();
+        let connection_token = opened["connectionToken"]
+            .as_str()
+            .expect("connection token")
+            .to_owned();
+        let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+        let connection_act = fixture
+            .state
+            .connections
+            .prepare_act(
+                &connection_id,
+                Some(&connection_token),
+                fixture.state.auth_coordinator.as_deref(),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact service connection act");
+        assert!(connection_act.authorization_invalidation.is_some());
+        let service_publication = connection_act
+            .bound
+            .service_publication()
+            .expect("service connection retains its exact publication")
+            .clone();
+
+        let admission = test_route_admission(&fixture.state).0;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            fixture.state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            connection_act.resolved.clone(),
+        )
+        .expect("prepare staged service authority")
+        .with_fenced_publication(connection_act.bound.publication().clone())
+        .with_service_publication(service_publication.clone());
+        let effect_fence = connection_act.effect_fence();
+        let staged = with_snapback(&fixture.state.snapback, {
+            let connection_id = connection_id.clone();
+            let invalidation = connection_act.authorization_invalidation.clone();
+            let effect_fence = effect_fence.clone();
+            move |snapback| {
+                snapback.prepare_subscribe_live_for_transport(
+                    "liveItems".to_owned(),
+                    LiveSubscribeInput {
+                        connection_id,
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(QueryNamespace {
+                            client_store_id: "service_terminal_contention_store".to_owned(),
+                            query_key: "liveItems:{}".to_owned(),
+                            query_instance_id: 9_002,
+                        }),
+                        supersedes: None,
+                    },
+                    authority,
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: invalidation,
+                        effect_fence: Some(effect_fence),
+                    },
+                )
+            }
+        })
+        .await
+        .expect("reserve staged service subscription");
+        let authority_work = connection_act
+            .reserve_authority_work(epoch_now_ms, monotonic_now)
+            .expect("retain service authority through Local finalization");
+        let committed_stage = staged.clone();
+        connection_act
+            .try_act(
+                &fixture.state.connections,
+                epoch_now_ms,
+                monotonic_now,
+                || {
+                    let _effect = admission.effect_guard("service contention stage CAS")?;
+                    committed_stage
+                        .try_commit(&connection_id, &effect_fence)
+                        .map_err(super::ApiError::from)
+                },
+            )
+            .expect("commit exact service stage");
+
+        // The retained live rerun advances the durable service clock from the
+        // host wall clock. Put the injected provider just ahead of that sample
+        // so the later revoke transaction cannot look like clock rollback.
+        fixture
+            .clock
+            .set(super::now_millis().saturating_add(10_000));
+
+        // The terminal request first performs its bounded Local plan, releases
+        // Local, and closes the exact token while it waits for
+        // `authority_work`. Only then does the test take Local to control the
+        // finalizer/terminal writer queue order.
+        let mut revoke = auth_http_request(
+            "POST",
+            "/auth/agents/revoke-self",
+            serde_json::to_vec(&json!({ "credential": fixture.credential })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut revoke);
+        let terminal_router = fixture.router.clone();
+        let terminal = tokio::spawn(async move {
+            terminal_router
+                .oneshot(revoke)
+                .await
+                .expect("terminal route response")
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+                    Ok(extra) => drop(extra),
+                    Err(_) => break,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal handler closes later work before entering Local");
+        assert!(
+            !terminal.is_finished(),
+            "terminal waits for the admitted staged predecessor"
+        );
+        let local_blocker = fixture.state.snapback.clone().lock_owned().await;
+
+        let (finalizer_started_tx, finalizer_started_rx) = tokio::sync::oneshot::channel();
+        let finalize_state = fixture.state.snapback.clone();
+        let finalizer = tokio::spawn(async move {
+            finalizer_started_tx
+                .send(())
+                .expect("report finalizer queue attempt");
+            let result = with_snapback(&finalize_state, move |snapback| {
+                authority_work.with_retained_service_authority(|| {
+                    snapback.finalize_subscribe_live_for_transport(&staged)
+                })
+            })
+            .await;
+            result
+        });
+        finalizer_started_rx
+            .await
+            .expect("finalizer reaches the Local queue");
+        tokio::task::yield_now().await;
+        drop(local_blocker);
+
+        let publication = tokio::time::timeout(Duration::from_secs(5), finalizer)
+            .await
+            .expect("staged finalizer is not excluded by terminal work")
+            .expect("finalizer task")
+            .expect("staged service work publishes");
+        assert!(!publication.output.subscription_id.is_empty());
+        let terminal = tokio::time::timeout(Duration::from_secs(5), terminal)
+            .await
+            .expect("durable terminal proceeds after staged permit release")
+            .expect("terminal task");
+        assert_eq!(terminal.status(), StatusCode::NO_CONTENT);
+        assert_eq!(
+            service_publication
+                .resolve_act(epoch_now_ms, monotonic_now)
+                .expect("resolve committed service terminal"),
+            ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete)
+        );
+    }
+
+    /// Once the drained service-domain gate is returned, request cancellation
+    /// must abandon only the response waiter. The gate and exact durable
+    /// transaction stay independently owned while queued for Local, so no new
+    /// service act can enter across the eventual commit.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn cancelled_service_terminal_waiter_stays_closed_until_owned_local_commit() {
+        let fixture = finite_authority_matrix_fixture().await;
+        let opened = fixture
+            .router
+            .clone()
+            .oneshot(connection_open_request(
+                Some(&fixture.token),
+                json!({
+                    "connectionId": "cancelled-service-terminal-waiter",
+                    "authInvalidationProtocol": 1,
+                }),
+            ))
+            .await
+            .expect("open service connection");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let opened = response_json(opened).await;
+        let connection_id = opened["connectionId"]
+            .as_str()
+            .expect("connection id")
+            .to_owned();
+        let connection_token = opened["connectionToken"]
+            .as_str()
+            .expect("connection token")
+            .to_owned();
+        let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+        let connection_act = fixture
+            .state
+            .connections
+            .prepare_act(
+                &connection_id,
+                Some(&connection_token),
+                fixture.state.auth_coordinator.as_deref(),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact service connection act");
+        let service_publication = connection_act
+            .bound
+            .service_publication()
+            .expect("service connection retains its exact publication")
+            .clone();
+
+        fixture
+            .clock
+            .set(super::now_millis().saturating_add(10_000));
+        let predecessor = connection_act
+            .reserve_authority_work(epoch_now_ms, monotonic_now)
+            .expect("retain one predecessor while the request plans its exact token set");
+        let pause = install_test_finite_authority_pause(
+            TestFiniteAuthorityPausePoint::AfterServiceTerminalOwnedSpawn,
+        );
+        let mut revoke = auth_http_request(
+            "POST",
+            "/auth/agents/revoke-self",
+            serde_json::to_vec(&json!({ "credential": fixture.credential.clone() })).unwrap(),
+            true,
+            None,
+            None,
+        );
+        offer_auth_client_protocol(&mut revoke);
+        revoke.headers_mut().insert(
+            HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+            HeaderValue::from_str(pause.id()).expect("owned terminal pause header"),
+        );
+        let terminal_router = fixture.router.clone();
+        let terminal_waiter = tokio::spawn(async move {
+            terminal_router
+                .oneshot(revoke)
+                .await
+                .expect("terminal route response")
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+                    Ok(probe) => drop(probe),
+                    Err(_) => return,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal request plans under Local, then closes exact service work");
+        let local_blocker = fixture.state.snapback.clone().lock_owned().await;
+        drop(predecessor);
+        tokio::time::timeout(Duration::from_secs(2), pause.wait_until_reached())
+            .await
+            .expect("request transfers the drained gate into its owned transaction");
+        assert!(!terminal_waiter.is_finished());
+        terminal_waiter.abort();
+        assert!(terminal_waiter.await.unwrap_err().is_cancelled());
+        assert!(
+            connection_act
+                .reserve_authority_work(epoch_now_ms, monotonic_now)
+                .is_err(),
+            "dropping the request waiter must not drop the owned terminal gate"
+        );
+
+        drop(local_blocker);
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+                if service_publication
+                    .resolve_act(epoch_now_ms, monotonic_now)
+                    .is_ok_and(|resolution| {
+                        resolution
+                            == ServiceAuthorityActResolution::Terminal(
+                                ServiceAuthorityDisposition::DurableDelete,
+                            )
+                    })
+                    && !fixture
+                        .state
+                        .connections
+                        .lock()
+                        .grants
+                        .contains_key(&connection_id)
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("owned terminal transaction commits and propagates after Local reopens");
     }
 
     fn settled_sessions_state() -> AuthModeStateRecord {
@@ -17999,6 +20753,197 @@ mod tests {
             controller.admit().unwrap_err().diagnostic.code,
             "SNAPBACK_AUTH_MODE_PENDING"
         );
+    }
+
+    fn dev_downgrade_pair() -> (SchemaManifest, FunctionManifest) {
+        let inputs_hash = format!("sha256:{}", "c".repeat(64));
+        let schema = SchemaManifest {
+            schema_version: "snapback.v0".to_owned(),
+            app_id: "auth-activation-fixture".to_owned(),
+            schema_hash: Some(format!("sha256:{}", "a".repeat(64))),
+            inputs_hash: Some(inputs_hash.clone()),
+            tables: vec![TableManifest {
+                name: "items".to_owned(),
+                fields: vec![FieldManifest {
+                    name: "value".to_owned(),
+                    field_type: FieldType::String,
+                    optional: false,
+                }],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let mut functions = activation_functions('a', false);
+        functions.schema_version = "snapback.v0".to_owned();
+        functions.bundle_hash = Some(format!("sha256:{}", "b".repeat(64)));
+        functions.inputs_hash = Some(inputs_hash);
+        (schema, functions)
+    }
+
+    /// Mode-transition terminal propagation must run after the committing
+    /// Local scope is released, while the committed transition carrier still
+    /// keeps admission closed. A real live grant exercises the registry,
+    /// ephemeral notifier, and Local topology purge phases that previously
+    /// formed the forbidden Local -> registry edge.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn committed_mode_transition_terminalizes_live_grant_before_successor_publication() {
+        let state = sessions_activation_server_fixture_async().await;
+        let credential = mint_test_credential(&state, "mode-transition-live@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (connection_id, registration_generation, waker) =
+            open_registered_session_connection(&state, bearer, "mode-transition-live-grant");
+        let controller = state.auth_admission_controller();
+
+        let (schema, functions) = dev_downgrade_pair();
+        let prepared = with_snapback(&state.snapback, move |snapback| {
+            snapback.prepare_auth_provision(EnsureAppMode::Dev, Some(schema), Some(functions), None)
+        })
+        .await
+        .expect("preflight sessions-to-dev transition");
+
+        let committed = super::commit_prepared_auth_provision(
+            &state,
+            prepared,
+            ServerProfile::Test.as_str().to_owned(),
+        )
+        .await
+        .expect("commit mode transition and terminalize live grants off Local");
+        assert_eq!(committed.state.active, AuthMode::Sessions);
+        assert_eq!(committed.state.desired, AuthMode::Dev);
+        assert_eq!(committed.state.mode_state, AuthModeStatus::PendingRestart);
+        assert_eq!(*state.auth_mode_state(), committed.state);
+        assert!(
+            !controller.snapshot().accepting,
+            "pending successor remains closed after terminal propagation"
+        );
+
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("mode transition wakes the exact live grant");
+        let event = state
+            .ephemeral
+            .delivery_notifier()
+            .terminal_if_current(&connection_id, registration_generation)
+            .expect("mode transition installs a terminal event before returning");
+        assert_eq!(event.code, crate::live_wire::LiveAuthErrorCode::ModePending);
+        assert_eq!(
+            event.reason,
+            crate::live_wire::LiveAuthErrorReason::Downgrade
+        );
+        assert_eq!(
+            event.authority_disposition,
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete
+        );
+        assert!(
+            !state.connections.lock().grants.contains_key(&connection_id),
+            "terminal lifecycle removes the predecessor grant"
+        );
+        assert!(
+            state.snapback.try_lock().is_ok(),
+            "mode publication returns with no Local guard retained"
+        );
+        let refused = app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri("/query/listItems")
+                    .header(header::CONTENT_TYPE, "application/json")
+                    .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::from(r#"{"args":{}}"#))
+                    .expect("predecessor bearer query"),
+            )
+            .await
+            .expect("pending-mode bearer refusal response");
+        assert_eq!(refused.status(), StatusCode::SERVICE_UNAVAILABLE);
+        assert_eq!(
+            response_json(refused).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_MODE_PENDING"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn cancelled_mode_transition_waiter_cannot_drop_postcommit_carrier() {
+        let state = sessions_activation_server_fixture_async().await;
+        let credential =
+            mint_test_credential(&state, "cancelled-mode-transition@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (connection_id, registration_generation, _waker) =
+            open_registered_session_connection(&state, bearer, "cancelled-mode-transition-grant");
+        let (schema, functions) = dev_downgrade_pair();
+        let prepared = with_snapback(&state.snapback, move |snapback| {
+            snapback.prepare_auth_provision(EnsureAppMode::Dev, Some(schema), Some(functions), None)
+        })
+        .await
+        .expect("preflight cancellable sessions-to-dev transition");
+
+        // Hold only the connection registry on a dedicated OS thread. The
+        // owned transition can commit/project under Local, but its required
+        // off-Local terminal lifecycle cannot finish until this test releases
+        // the registry.
+        let held_connections = state.connections.clone();
+        let held_connection_id = connection_id.clone();
+        let (locked_tx, locked_rx) = tokio::sync::oneshot::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let holder = std::thread::spawn(move || {
+            let registry = held_connections.lock();
+            assert!(registry.grants.contains_key(&held_connection_id));
+            locked_tx.send(()).expect("report held connection registry");
+            release_rx.recv().expect("release held connection registry");
+            drop(registry);
+        });
+        locked_rx.await.expect("connection registry holder starts");
+
+        let controller = state.auth_admission_controller();
+        let transition_state = state.clone();
+        let waiter = tokio::spawn(async move {
+            super::commit_prepared_auth_provision(
+                &transition_state,
+                prepared,
+                ServerProfile::Test.as_str().to_owned(),
+            )
+            .await
+        });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while controller.snapshot().accepting {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("owned transition closes predecessor admission");
+        waiter.abort();
+        assert!(waiter.await.unwrap_err().is_cancelled());
+        assert!(
+            !controller.snapshot().accepting,
+            "cancelling only the waiter cannot reopen the predecessor"
+        );
+
+        release_tx
+            .send(())
+            .expect("release connection lifecycle projection");
+        holder.join().expect("connection registry holder exits");
+        tokio::time::timeout(Duration::from_secs(5), async {
+            loop {
+                if state.auth_mode_state().desired == AuthMode::Dev
+                    && !state.connections.lock().grants.contains_key(&connection_id)
+                    && state
+                        .ephemeral
+                        .delivery_notifier()
+                        .terminal_if_current(&connection_id, registration_generation)
+                        .is_some()
+                {
+                    return;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("owned postcommit carrier completes after its waiter is cancelled");
+        assert!(!controller.snapshot().accepting);
     }
 
     fn legacy_v0_activation_bypass_manifest() -> FunctionManifest {
@@ -19966,10 +22911,13 @@ mod tests {
                 .is_err(),
             "revoked service carrier cannot act"
         );
-        assert!(
-            !state.read.connection_has_auth_scoped_live(connection_id),
-            "terminal propagation purges the service subscription topology"
-        );
+        tokio::time::timeout(Duration::from_secs(1), async {
+            while state.read.connection_has_auth_scoped_live(connection_id) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("owned terminal cleanup purges the service subscription topology");
 
         let mut hosted = state;
         Arc::make_mut(&mut hosted.server).auth_deployment =
@@ -22287,7 +25235,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn unpolled_http_batch_is_suppressed_and_requeued_after_pressure_eviction() {
+    async fn unpolled_http_batch_is_suppressed_and_whole_id_cleaned_after_pressure_eviction() {
         let state = AppState::detached(LocalSnapback::memory().expect("pressure HTTP fixture"));
         let opened = state
             .connections
@@ -22344,11 +25292,23 @@ mod tests {
             body.is_empty(),
             "pressure-retired HTTP ownership publishes no bytes"
         );
-        let retry = state.ephemeral.drain_outbox(&opened.connection_id);
-        assert!(matches!(
-            retry.as_slice(),
-            [RealtimeEnvelope::Durable(message)] if message.payload == b"pressure-preserved"
-        ));
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while state.ephemeral.active_connection_count_for_test() != 0
+                || state
+                    .ephemeral
+                    .has_connection_residue_for_test(&opened.connection_id)
+            {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("pressure-retired whole-ID cleanup removes activity");
+        assert!(
+            !state
+                .ephemeral
+                .has_connection_residue_for_test(&opened.connection_id),
+            "mint-only pressure retirement removes the retired id's complete outbox"
+        );
     }
 
     #[tokio::test]
@@ -22617,6 +25577,112 @@ mod tests {
         retirement.join().expect("retirement thread joins");
     }
 
+    /// A logout waiting for one already-admitted session predecessor must not
+    /// retain its provider planning admission across projection Begin. Once
+    /// that predecessor drains, cancellation may abandon only the HTTP waiter:
+    /// the independently owned durable transaction still settles the exact
+    /// carrier and propagates terminal lifecycle state.
+    ///
+    /// @ref LLP 0059#plan-begin-commit-finalize — provider coordination is
+    /// released at the Begin handoff and a drained carrier is owned through
+    /// durable Commit and Finalize independently of the initiating request.
+    #[tokio::test]
+    async fn logout_begin_releases_provider_and_cancelled_waiter_cannot_cancel_finish() {
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let state = activate_test_sessions(state);
+        let credential = mint_test_credential(&state, "logout-owned-finish@example.com").await;
+        let bearer = credential["token"]
+            .as_str()
+            .expect("logout bearer")
+            .to_owned();
+        let (opened, connection_act) =
+            prepare_session_connection_act(&state, &bearer, "logout-owned-finish");
+        let (registration_generation, waker) = state
+            .ephemeral
+            .delivery_notifier()
+            .register_bound(&opened.grant.connection_id, opened.grant_id)
+            .expect("register exact session-bound socket");
+        let provider = state.auth_provider.clone().expect("logout provider");
+        let coordinator = state.auth_coordinator.clone().expect("logout coordinator");
+        let epoch_now_ms = provider.now_ms();
+        let monotonic_now = provider.monotonic_now();
+        let predecessor = connection_act
+            .reserve_authority_work(epoch_now_ms, monotonic_now)
+            .expect("retain one session predecessor while logout begins");
+
+        let pause = install_test_finite_authority_pause(
+            TestFiniteAuthorityPausePoint::AfterSessionTerminalOwnedSpawn,
+        );
+        let mut request = session_auth_http_request("/auth/logout", br#"{}"#.to_vec(), &bearer);
+        request.headers_mut().insert(
+            HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+            HeaderValue::from_str(pause.id()).expect("owned logout pause header"),
+        );
+        let router = app(state.clone());
+        let logout_waiter = tokio::spawn(async move {
+            router
+                .oneshot(request)
+                .await
+                .expect("logout route response")
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+                    Ok(probe) => drop(probe),
+                    Err(_) => return,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("logout installs its exact pending projection marker");
+        assert!(
+            !logout_waiter.is_finished(),
+            "logout still waits for its admitted session predecessor"
+        );
+
+        let maintenance =
+            tokio::time::timeout(Duration::from_secs(1), provider.exclusive_maintenance())
+                .await
+                .expect("projection Begin does not retain provider planning admission");
+        drop(maintenance);
+
+        let local_blocker = state.snapback.clone().lock_owned().await;
+        drop(predecessor);
+        tokio::time::timeout(Duration::from_secs(2), pause.wait_until_reached())
+            .await
+            .expect("logout transfers the drained carrier into owned work");
+        assert!(!logout_waiter.is_finished());
+        logout_waiter.abort();
+        assert!(logout_waiter.await.unwrap_err().is_cancelled());
+        assert!(
+            connection_act
+                .reserve_authority_work(epoch_now_ms, monotonic_now)
+                .is_err(),
+            "dropping the HTTP waiter must not reopen the owned session carrier"
+        );
+
+        drop(local_blocker);
+        assert_revocation_terminalized(
+            &state,
+            &opened.grant.connection_id,
+            registration_generation,
+            waker.as_ref(),
+            crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+        )
+        .await;
+        let error = match coordinator.resolve_family_bearer(
+            &bearer,
+            provider.now_ms(),
+            provider.monotonic_now(),
+        ) {
+            Ok(_) => panic!("owned logout transaction left the bearer current"),
+            Err(error) => error,
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_AUTH_SESSION_EXPIRED");
+    }
+
     /// @ref LLP 0059#plan-begin-commit-finalize — a known logout commit must
     /// propagate terminal authority loss even when projection Finalize fails;
     /// the original projection diagnostic remains the request outcome.
@@ -22792,10 +25858,9 @@ mod tests {
             close_by: Instant::now() + crate::auth::session_projection::TERMINAL_CLOSE_GRACE,
         };
 
-        state
-            .auth_terminal_lifecycle
-            .expire_sessions(vec![expired.clone()]);
-        state.auth_terminal_lifecycle.expire_sessions(vec![expired]);
+        let terminal_sink = state.auth_terminal_lifecycle.expiry_sink();
+        terminal_sink.consume_for_test(vec![expired.clone()]);
+        terminal_sink.consume_for_test(vec![expired]);
         tokio::time::timeout(Duration::from_secs(1), waker.notified())
             .await
             .expect("expiry wakes the exact socket once");
@@ -24068,7 +27133,9 @@ mod tests {
         "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
         "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
         "SNAPBACK_CONFIG_VERIFY_STALE",
+        "SNAPBACK_CONNECTION_TEARDOWN_PENDING",
         "SNAPBACK_EPHEMERAL_INCOMPATIBLE_COLLECTION_DEFINITION",
+        "SNAPBACK_LIVE_STAGE_CONFLICT",
         "SNAPBACK_MUTATION_CONFLICT",
         "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED",
         "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION",
@@ -24132,6 +27199,8 @@ mod tests {
         "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
         "SNAPBACK_AUTH_PROJECTION_CORRUPT",
         "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        "SNAPBACK_AUTH_RESERVATION_CANCELLED",
+        "SNAPBACK_AUTH_RESERVATION_STALE",
         "SNAPBACK_AUTH_PROVIDER_UNAVAILABLE",
         "SNAPBACK_AUTH_STEP_UP_DELIVERY_UNAVAILABLE",
         "SNAPBACK_AUTH_AGENT_COMMIT_UNCERTAIN",
@@ -24145,6 +27214,9 @@ mod tests {
         "SNAPBACK_AUTH_STREAM_INCARNATION_CORRUPT",
         "SNAPBACK_AUTHORIZATION_EPOCH_EXHAUSTED",
         "SNAPBACK_AUTHORIZATION_VERSION_CORRUPT",
+        "SNAPBACK_STORAGE_VERSION_CORRUPT",
+        "SNAPBACK_STORAGE_VERSION_EXHAUSTED",
+        "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED",
         "SNAPBACK_CAPABILITY_UNSUPPORTED",
         "SNAPBACK_CAPABILITY_EXACT_ADMIN_DIST_MISSING",
         "SNAPBACK_CAPABILITY_EXACT_NATIVE_ARTIFACTS_UNAVAILABLE",
@@ -24152,10 +27224,15 @@ mod tests {
         "SNAPBACK_CAPABILITY_MINIFLARE_MISSING",
         "SNAPBACK_CAPABILITY_WORKERD_MISSING",
         "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED",
+        "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED",
         "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+        "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED",
+        "SNAPBACK_HANDLER_INVOCATION_EPOCH_EXHAUSTED",
         "SNAPBACK_CLIENT_MUTATION_RETENTION_FULL",
         "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
         "SNAPBACK_EPHEMERAL_GENERATION_EXHAUSTED",
+        "SNAPBACK_LIVE_STAGE_CAPACITY",
+        "SNAPBACK_LIVE_STAGE_UNAVAILABLE",
         "SNAPBACK_OVERLOADED",
         "SNAPBACK_READ_LANE_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_HOST_UNSUPPORTED",
@@ -24198,6 +27275,7 @@ mod tests {
         "SNAPBACK_CONFIG_STORE_VERSION_UNSUPPORTED",
         "SNAPBACK_CONFIG_VERIFY",
         "SNAPBACK_CONFIG_WRITE",
+        "SNAPBACK_CONNECTION_CLEANUP_FAILED",
         "SNAPBACK_CRON_RUN_RECORD_MISSING",
         "SNAPBACK_CRON_RUN_SKIPPED_OVERLAP",
         "SNAPBACK_CRON_STALE_IN_FLIGHT_CLEARED",
@@ -24223,6 +27301,10 @@ mod tests {
         "SNAPBACK_INVOCATION_SOURCE_INVALID",
         "SNAPBACK_JSON_PARSE_FAILED",
         "SNAPBACK_JSON_SERIALIZE_FAILED",
+        "SNAPBACK_LIVE_FINALIZE_FAILED",
+        "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH",
+        "SNAPBACK_LIVE_STAGE_CORRUPT",
+        "SNAPBACK_LIVE_STAGE_FENCE_REQUIRED",
         "SNAPBACK_LIVE_DELTA_SERIALIZE_FAILED",
         "SNAPBACK_LIVE_UPDATE_SERIALIZE_FAILED",
         "SNAPBACK_MAINTENANCE_JOURNAL_PRUNE_FAILED",
@@ -24235,6 +27317,8 @@ mod tests {
         "SNAPBACK_RUNTIME_CREATE_FAILED",
         "SNAPBACK_SCHEMA_PHYSICAL_COLUMN_INVALID",
         "SNAPBACK_SQLITE_ERROR",
+        "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
+        "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",
         "SNAPBACK_V8_REJECTION_DETECTION_UNAVAILABLE",
         "SNAPBACK_V8_RUNNER_INVOKE_FAILED",
         "SNAPBACK_V8_RUNNER_START_FAILED",
@@ -24800,9 +27884,7 @@ globalThis.__snapbackHandlers = {
             0,
             "NoOverlap must skip while its prior automatic run is active"
         );
-        let inspect = super::with_snapback(&no_overlap, |snapback| snapback.inspect())
-            .await
-            .unwrap();
+        let inspect = super::inspect_snapback(&no_overlap).await.unwrap();
         assert!(inspect.cron.recent_runs.iter().any(|run| {
             run.outcome == CronRunOutcome::Skipped
                 && run.diagnostic.as_ref().is_some_and(|diagnostic| {
@@ -24844,7 +27926,7 @@ globalThis.__snapbackHandlers = {
             .expect("stage detached action")
         {
             StagedAction::Detached(action) => action,
-            StagedAction::InLock(_) => panic!("Ibex action must detach"),
+            StagedAction::HostPlan(_) => panic!("Ibex action must detach"),
         }
     }
 
@@ -24856,6 +27938,7 @@ globalThis.__snapbackHandlers = {
             state,
             abandoned: Arc::new(AtomicBool::new(false)),
             commit_gate: Arc::new(StdMutex::new(())),
+            active_reservation: Arc::new(StdMutex::new(None)),
             deadline: Instant::now() + Duration::from_secs(5),
             app_generation: action.app_generation,
             app_generation_fence: action.app_generation_fence.clone(),
@@ -24865,10 +27948,8 @@ globalThis.__snapbackHandlers = {
         }
     }
 
-    #[test]
-    fn detached_action_host_closes_begin_to_native_initiated_revocation_race() {
-        use std::sync::mpsc;
-
+    #[tokio::test]
+    async fn detached_action_host_closes_begin_to_native_initiated_revocation_race() {
         let mut snapback = LocalSnapback::memory().expect("external effect host fixture");
         snapback.load_functions(generation_test_manifest());
         let state = Arc::new(Mutex::new(snapback));
@@ -24893,41 +27974,45 @@ globalThis.__snapbackHandlers = {
         host.validate_host_call("action.externalEffectBegin")
             .expect("reserve exact native-enqueue cut");
         let terminal_registry = registry.clone();
-        let (terminal_tx, terminal_rx) = mpsc::channel();
-        let terminal = std::thread::spawn(move || {
-            terminal_registry
-                .prepare_terminal(
+        let terminal = tokio::spawn(async move {
+            let gate = terminal_registry
+                .acquire_terminal_gate(
                     &["token-action".to_owned()],
                     ServiceAuthorityDisposition::DurableDelete,
                 )
-                .expect("prepare terminal while native initiation is open")
-                .committed()
-                .expect("commit terminal after initiation");
-            terminal_tx.send(()).expect("report terminal completion");
+                .await
+                .expect("close and drain service domain");
+            with_service_authority_terminal_gate(gate, || {
+                terminal_registry.prepare_terminal(
+                    &["token-action".to_owned()],
+                    ServiceAuthorityDisposition::DurableDelete,
+                )
+            })
+            .expect("adopt exact terminal gate after native initiation closes")
+            .committed()
+            .expect("commit terminal after initiation");
         });
-        let pending_deadline = Instant::now() + Duration::from_secs(1);
-        while !matches!(
-            publication
-                .resolve_act(epoch_now_ms + 1, monotonic)
-                .unwrap(),
-            ServiceAuthorityActResolution::Unavailable
-        ) {
-            assert!(
-                Instant::now() < pending_deadline,
-                "terminal transaction did not reach the precommit marker"
-            );
-            std::thread::yield_now();
-        }
+        tokio::time::timeout(Duration::from_secs(1), async {
+            loop {
+                match publication.begin_external_effect(epoch_now_ms + 1, monotonic) {
+                    Ok(extra) => extra.initiated(),
+                    Err(_) => break,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("terminal transaction reaches the process precommit marker");
         assert!(
-            terminal_rx.recv_timeout(Duration::from_millis(30)).is_err(),
+            !terminal.is_finished(),
             "terminal commit must wait until native initiation is acknowledged"
         );
         host.validate_host_call("action.externalEffectInitiated")
             .expect("native initiation acknowledgement releases the cut");
-        terminal_rx
-            .recv_timeout(Duration::from_secs(1))
-            .expect("terminal commits after native initiation");
-        terminal.join().expect("terminal thread joins");
+        tokio::time::timeout(Duration::from_secs(1), terminal)
+            .await
+            .expect("terminal commits after native initiation")
+            .expect("terminal task joins");
         let stale = host
             .validate_host_call("action.externalEffectBegin")
             .expect_err("a later native effect cannot start after revocation");
@@ -25815,8 +28900,8 @@ globalThis.__snapbackHandlers = {
 
     /// @ref LLP 0059#fenced-effects-and-live-closure — a stream premark wins
     /// the final grant act even when verification cloned the predecessor first.
-    #[test]
-    fn prepared_connection_act_loses_to_concurrent_stream_premark() {
+    #[tokio::test]
+    async fn prepared_connection_act_loses_to_concurrent_stream_premark() {
         let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
         let coordinator = state.auth_coordinator.clone().expect("coordinator");
         let prepared = state
@@ -25851,7 +28936,10 @@ globalThis.__snapbackHandlers = {
                 Instant::now(),
             )
             .expect("clone act before premark");
-        let reset = coordinator.premark_stream_reset().expect("premark reset");
+        let reset = coordinator
+            .premark_stream_reset()
+            .await
+            .expect("premark reset");
         let ran = AtomicBool::new(false);
         let error = act
             .try_act(
@@ -25874,6 +28962,1032 @@ globalThis.__snapbackHandlers = {
                 .diagnostic
                 .code,
             "TEST_ROLLBACK"
+        );
+    }
+
+    /// @ref LLP 0031#connection-capability-grants — ordinary socket close
+    /// preserves the reusable grant, but the exact generation owns a
+    /// fail-closed suspension until physical cleanup finishes.
+    #[test]
+    fn ordinary_socket_teardown_suspends_exact_grant_until_finish() {
+        let state = AppState::detached(LocalSnapback::memory().expect("teardown fixture"));
+        let opened = state
+            .connections
+            .open(Some("ordinary-teardown".to_owned()), None, true)
+            .expect("open reusable connection grant");
+        let prepared = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare exact socket act");
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, _waker) = notifier
+            .register_bound(&opened.connection_id, prepared.grant_id.clone())
+            .expect("register exact socket generation");
+
+        let teardown = prepared
+            .begin_socket_teardown(&state.connections, &notifier, generation)
+            .expect("current generation owns teardown");
+        assert!(teardown.suspended_current_grant());
+        {
+            let registry = state.connections.lock();
+            let retained = registry
+                .grants
+                .get(&opened.connection_id)
+                .expect("ordinary close preserves its grant");
+            assert_eq!(retained.grant_id, prepared.grant_id);
+            assert_eq!(retained.socket_teardown, Some(generation));
+        }
+
+        let prepare_error = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect_err("new acts wait for exact socket cleanup");
+        assert_eq!(
+            prepare_error.0.diagnostic.code,
+            "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
+        );
+        let ran = AtomicBool::new(false);
+        let act_error = prepared
+            .try_act(
+                &state.connections,
+                super::now_millis(),
+                Instant::now(),
+                || {
+                    ran.store(true, Ordering::SeqCst);
+                    Ok(())
+                },
+            )
+            .expect_err("a previously prepared act also observes suspension");
+        assert_eq!(
+            act_error.0.diagnostic.code,
+            "SNAPBACK_CONNECTION_TOKEN_INVALID"
+        );
+        assert!(!ran.load(Ordering::SeqCst));
+        let registration_error = notifier
+            .register_bound(&opened.connection_id, prepared.grant_id.clone())
+            .expect_err("same-id socket registration waits for cleanup");
+        assert_eq!(
+            registration_error.diagnostic.code,
+            "SNAPBACK_CONNECTION_TEARDOWN_PENDING"
+        );
+
+        teardown.finish();
+        state
+            .connections
+            .verify(&opened.connection_id, Some(&opened.connection_token))
+            .expect("ordinary cleanup releases the preserved grant");
+        let (successor_generation, _waker) = notifier
+            .register_bound(&opened.connection_id, prepared.grant_id.clone())
+            .expect("socket registration reopens after cleanup");
+        assert!(successor_generation > generation);
+    }
+
+    /// @ref LLP 0059#act-time-validation — every room-authority resolution
+    /// branch reaches the final exact-grant cut; an unmanaged grant, a managed
+    /// session without its coordinator, or a terminal session cannot return
+    /// `Current` after socket suspension wins.
+    #[tokio::test]
+    async fn room_authority_resolution_fails_closed_after_teardown_or_terminal_wins() {
+        let state = AppState::detached(LocalSnapback::memory().expect("room race fixture"));
+
+        let unmanaged = state
+            .connections
+            .open(Some("room-unmanaged".to_owned()), None, true)
+            .expect("open unmanaged grant");
+        let unmanaged_act = state
+            .connections
+            .prepare_act(
+                &unmanaged.connection_id,
+                Some(&unmanaged.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare unmanaged act");
+        assert!(matches!(
+            state
+                .connections
+                .resolve_room_connection_authority(
+                    &unmanaged.connection_id,
+                    Some(&unmanaged_act.effect_fence()),
+                    None,
+                    super::now_millis(),
+                    Instant::now(),
+                )
+                .expect("resolve unmanaged baseline"),
+            super::ResolvedRoomConnectionAuthority::Current { auth: None, .. }
+        ));
+        let notifier = state.ephemeral.delivery_notifier();
+        let (unmanaged_generation, _waker) = notifier
+            .register_bound(&unmanaged.connection_id, unmanaged_act.grant_id.clone())
+            .expect("register unmanaged socket");
+        let unmanaged_teardown = unmanaged_act
+            .begin_socket_teardown(&state.connections, &notifier, unmanaged_generation)
+            .expect("suspend unmanaged grant");
+        assert!(matches!(
+            state
+                .connections
+                .resolve_room_connection_authority(
+                    &unmanaged.connection_id,
+                    Some(&unmanaged_act.effect_fence()),
+                    None,
+                    super::now_millis(),
+                    Instant::now(),
+                )
+                .expect("resolve suspended unmanaged grant"),
+            super::ResolvedRoomConnectionAuthority::Replaced
+        ));
+        unmanaged_teardown.finish();
+
+        let start_ms = 4_000_000;
+        let (terminal_state, clock) = manual_clock_sessions_fixture(start_ms);
+        let credential = mint_test_credential(&terminal_state, "room-terminal@example.com").await;
+        let bearer = credential["token"].as_str().expect("session bearer");
+        let (terminal_opened, terminal_act) =
+            prepare_session_connection_act(&terminal_state, bearer, "room-terminal");
+        assert!(matches!(
+            terminal_state
+                .connections
+                .resolve_room_connection_authority(
+                    &terminal_opened.grant.connection_id,
+                    Some(&terminal_act.effect_fence()),
+                    None,
+                    start_ms,
+                    clock.monotonic_at(start_ms),
+                )
+                .expect("resolve coordinator-absent baseline"),
+            super::ResolvedRoomConnectionAuthority::Current { auth: None, .. }
+        ));
+        let terminal_notifier = terminal_state.ephemeral.delivery_notifier();
+        let (coordinator_absent_generation, _waker) = terminal_notifier
+            .register_bound(
+                &terminal_opened.grant.connection_id,
+                terminal_act.grant_id.clone(),
+            )
+            .expect("register coordinator-absent socket");
+        let coordinator_absent_teardown = terminal_act
+            .begin_socket_teardown(
+                &terminal_state.connections,
+                &terminal_notifier,
+                coordinator_absent_generation,
+            )
+            .expect("suspend coordinator-absent grant");
+        assert!(matches!(
+            terminal_state
+                .connections
+                .resolve_room_connection_authority(
+                    &terminal_opened.grant.connection_id,
+                    Some(&terminal_act.effect_fence()),
+                    None,
+                    start_ms,
+                    clock.monotonic_at(start_ms),
+                )
+                .expect("resolve suspended coordinator-absent grant"),
+            super::ResolvedRoomConnectionAuthority::Replaced
+        ));
+        coordinator_absent_teardown.finish();
+
+        let deadline_ms = match &terminal_act.bound {
+            BoundGrantAuthority::Session { deadline_ms, .. } => *deadline_ms,
+            BoundGrantAuthority::Anonymous { .. }
+            | BoundGrantAuthority::ServicePrincipal { .. } => {
+                panic!("expected terminal session-bound act")
+            }
+        };
+        assert!(matches!(
+            terminal_state
+                .connections
+                .resolve_room_connection_authority(
+                    &terminal_opened.grant.connection_id,
+                    Some(&terminal_act.effect_fence()),
+                    terminal_state.auth_coordinator.as_deref(),
+                    start_ms,
+                    clock.monotonic_at(start_ms),
+                )
+                .expect("resolve current session baseline"),
+            super::ResolvedRoomConnectionAuthority::Current { auth: Some(_), .. }
+        ));
+        let (terminal_generation, _waker) = terminal_notifier
+            .register_bound(
+                &terminal_opened.grant.connection_id,
+                terminal_act.grant_id.clone(),
+            )
+            .expect("register terminal-race socket");
+        let terminal_teardown = terminal_act
+            .begin_socket_teardown(
+                &terminal_state.connections,
+                &terminal_notifier,
+                terminal_generation,
+            )
+            .expect("suspend terminal-race grant");
+        let terminal_now_ms = deadline_ms.saturating_add(1);
+        clock.set(terminal_now_ms);
+        assert!(matches!(
+            terminal_state
+                .connections
+                .resolve_room_connection_authority(
+                    &terminal_opened.grant.connection_id,
+                    Some(&terminal_act.effect_fence()),
+                    terminal_state.auth_coordinator.as_deref(),
+                    terminal_now_ms,
+                    clock.monotonic_at(terminal_now_ms),
+                )
+                .expect("resolve terminal suspended grant"),
+            super::ResolvedRoomConnectionAuthority::Replaced
+        ));
+        terminal_teardown.finish();
+    }
+
+    /// A delayed predecessor socket may still own the notifier generation
+    /// after terminal registry replacement. Its teardown must use the old
+    /// effect fence and leave a forced same-readable-id successor untouched.
+    #[tokio::test]
+    async fn stale_exact_socket_teardown_does_not_erase_same_id_replacement() {
+        let state = AppState::detached(LocalSnapback::memory().expect("reuse teardown fixture"));
+        let opened = state
+            .connections
+            .open(Some("teardown-reuse".to_owned()), None, true)
+            .expect("open predecessor grant");
+        let predecessor = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare predecessor socket act");
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, _waker) = notifier
+            .register_bound(&opened.connection_id, predecessor.grant_id.clone())
+            .expect("register predecessor socket");
+
+        state.connections.clear_after_committed_reset();
+        {
+            let mut registry = state.connections.lock();
+            assert!(registry.pressure_mint_only);
+            registry.pressure_mint_only = false;
+        }
+        let replacement = state
+            .connections
+            .open(Some(opened.connection_id.clone()), None, true)
+            .expect("force same-readable-id successor");
+        assert_eq!(replacement.connection_id, opened.connection_id);
+        let successor = state
+            .connections
+            .prepare_act(
+                &replacement.connection_id,
+                Some(&replacement.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare successor act");
+        state.ephemeral.touch_connection(&replacement.connection_id);
+        state.ephemeral.enqueue_durable_bound_for_test(
+            &replacement.connection_id,
+            b"successor-survives-stale-teardown".to_vec(),
+            successor.effect_fence(),
+        );
+
+        super::teardown_live_stream(
+            &state,
+            &notifier,
+            &predecessor,
+            &opened.connection_id,
+            generation,
+        )
+        .await;
+
+        state
+            .connections
+            .verify(
+                &replacement.connection_id,
+                Some(&replacement.connection_token),
+            )
+            .expect("predecessor teardown leaves successor grant current");
+        let queued = state
+            .ephemeral
+            .drain_outbox_for_send_bound_if_active(
+                &replacement.connection_id,
+                &successor.effect_fence(),
+            )
+            .expect("successor activity survives exact predecessor cleanup");
+        assert!(matches!(
+            queued.as_slice(),
+            [admitted]
+                if matches!(
+                    admitted.envelope(),
+                    RealtimeEnvelope::Durable(message)
+                        if message.payload == b"successor-survives-stale-teardown"
+                )
+        ));
+        drop(queued);
+        notifier
+            .register_bound(&replacement.connection_id, successor.grant_id.clone())
+            .expect("successor socket registers after predecessor cleanup");
+    }
+
+    /// Administrative and idle teardown retire the exact capability before
+    /// asynchronous physical cleanup. Mint-only containment prevents a new
+    /// bearer from adopting the retired readable id during that interval.
+    #[test]
+    fn admin_and_idle_retirement_immediately_invalidate_old_bearers() {
+        let admin_registry = ConnectionRegistry::default();
+        let admin = admin_registry
+            .open(Some("admin-retired".to_owned()), None, true)
+            .expect("open admin retirement target");
+        let admin_capture = admin_registry
+            .retire_connection_for_cleanup(&admin.connection_id)
+            .expect("retire exact admin target");
+        assert_eq!(admin_capture.connection_id, admin.connection_id);
+        let admin_error = admin_registry
+            .prepare_act(
+                &admin.connection_id,
+                Some(&admin.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect_err("admin-retired bearer is unusable before cleanup");
+        assert_eq!(
+            admin_error.0.diagnostic.code,
+            "SNAPBACK_CONNECTION_TOKEN_INVALID"
+        );
+        admin_registry.clear_after_committed_reset();
+        let after_admin = admin_registry
+            .open(Some(admin.connection_id.clone()), None, true)
+            .expect("mint after admin retirement and an empty reset");
+        assert_ne!(after_admin.connection_id, admin.connection_id);
+        assert!(after_admin.connection_id.starts_with("conn_"));
+
+        let idle_registry = ConnectionRegistry::default();
+        let (incarnation, publication) =
+            FencedPublication::anonymous_for_unmanaged_dev_connection();
+        let open_at = |connection_id: &str, now_ms: u64| {
+            idle_registry
+                .open_prepared(ConnectionOpenAttempt::new(
+                    Some(connection_id.to_owned()),
+                    None,
+                    true,
+                    synthetic_connection_authority(BoundGrantAuthority::Anonymous {
+                        authorization_stream_incarnation: incarnation.clone(),
+                        publication: publication.clone(),
+                    }),
+                    now_ms,
+                    Instant::now(),
+                    None,
+                ))
+                .expect("open deterministic idle grant")
+        };
+        let idle = open_at("idle-retired", 10);
+        let active = open_at("idle-active", 11);
+        let captures = idle_registry.retire_idle_for_cleanup(10);
+        assert_eq!(captures.len(), 1);
+        assert_eq!(captures[0].connection_id, idle.grant.connection_id);
+        let idle_error = idle_registry
+            .prepare_act(
+                &idle.grant.connection_id,
+                Some(&idle.grant.connection_token),
+                None,
+                false,
+                12,
+                Instant::now(),
+            )
+            .expect_err("idle-retired bearer is unusable before cleanup");
+        assert_eq!(
+            idle_error.0.diagnostic.code,
+            "SNAPBACK_CONNECTION_TOKEN_INVALID"
+        );
+        idle_registry
+            .prepare_act(
+                &active.grant.connection_id,
+                Some(&active.grant.connection_token),
+                None,
+                false,
+                12,
+                Instant::now(),
+            )
+            .expect("newer grant survives exact idle cutoff");
+        let after_idle = idle_registry
+            .open(Some(idle.grant.connection_id.clone()), None, true)
+            .expect("mint after idle retirement");
+        assert_ne!(after_idle.connection_id, idle.grant.connection_id);
+        assert!(after_idle.connection_id.starts_with("conn_"));
+        idle_registry.lock().assert_grant_indexes_consistent();
+    }
+
+    #[tokio::test]
+    async fn admin_disconnect_route_retires_bearer_and_awaits_whole_id_cleanup() {
+        let state = AppState::detached(LocalSnapback::memory().expect("admin disconnect state"));
+        let opened = state
+            .connections
+            .open(Some("admin-disconnect-route".to_owned()), None, true)
+            .expect("open admin disconnect target");
+        state.ephemeral.touch_connection(&opened.connection_id);
+        state
+            .ephemeral
+            .enqueue_durable_for_test(&opened.connection_id, b"admin-disconnect-residue".to_vec());
+
+        let response = super::app(state.clone())
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!(
+                        "/_snapback/api/connections/{}/disconnect",
+                        opened.connection_id
+                    ))
+                    .body(Body::empty())
+                    .expect("admin disconnect request"),
+            )
+            .await
+            .expect("admin disconnect response");
+        assert_eq!(response.status(), StatusCode::NO_CONTENT);
+        assert!(
+            state
+                .connections
+                .prepare_act(
+                    &opened.connection_id,
+                    Some(&opened.connection_token),
+                    None,
+                    true,
+                    super::now_millis(),
+                    Instant::now(),
+                )
+                .is_err(),
+            "the route retires the old bearer before acknowledging success"
+        );
+        assert!(
+            !state
+                .ephemeral
+                .has_connection_residue_for_test(&opened.connection_id),
+            "204 means whole-ID ephemeral cleanup completed"
+        );
+    }
+
+    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2 bulk
+    /// retirement transfers every capture into owned cleanup before awaiting
+    /// the first task; cancelling maintenance cannot orphan later grants.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn maintenance_bulk_retirement_spawns_all_cleanup_before_first_await() {
+        let state = AppState::detached(LocalSnapback::memory().expect("maintenance cleanup state"));
+        let ids = ["maintenance-first", "maintenance-second"];
+        for connection_id in ids {
+            state
+                .connections
+                .open(Some(connection_id.to_owned()), None, true)
+                .expect("open idle cleanup target");
+            state.ephemeral.touch_connection(connection_id);
+            state
+                .ephemeral
+                .enqueue_durable_for_test(connection_id, b"residue".to_vec());
+        }
+
+        let local_guard = state.snapback.clone().lock_owned().await;
+        let captures = state.connections.retire_idle_for_cleanup(u64::MAX);
+        assert_eq!(captures.len(), ids.len());
+        let cleanup_tasks = super::spawn_retired_connection_cleanup_batch(&state, captures);
+        assert_eq!(cleanup_tasks.len(), ids.len());
+        let child_status = cleanup_tasks
+            .iter()
+            .map(tokio::task::JoinHandle::abort_handle)
+            .collect::<Vec<_>>();
+        let maintenance_waiter = tokio::spawn(async move {
+            for cleanup in cleanup_tasks {
+                let _ = cleanup.await;
+            }
+        });
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if ids.iter().all(|connection_id| {
+                    !state
+                        .ephemeral
+                        .has_connection_residue_for_test(connection_id)
+                }) {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("both cleanup children reach the blocked Local phase");
+        assert!(!maintenance_waiter.is_finished());
+        assert!(
+            child_status.iter().all(|child| !child.is_finished()),
+            "both independently owned children remain blocked on Local"
+        );
+
+        maintenance_waiter.abort();
+        assert!(maintenance_waiter.await.unwrap_err().is_cancelled());
+        drop(local_guard);
+        tokio::time::timeout(Duration::from_secs(2), async {
+            while child_status.iter().any(|child| !child.is_finished()) {
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("all cleanup children outlive the cancelled maintenance waiter");
+    }
+
+    /// @ref LLP 0059#locking-and-linearization — once the exact stage CAS
+    /// commits, the request owns only a join handle. The independently owned
+    /// finalizer keeps both the stage and authority-work permit through Local
+    /// publication even when its request-side waiter is cancelled.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn committed_live_stage_finalize_outlives_request_cancellation_and_retains_work() {
+        let state = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            auth_projection_http_fixture("owned-finalize-fixture", 0, 0)
+        })
+        .await
+        .expect("build SQLite-backed fixture off the async worker");
+        let coordinator = state.auth_coordinator.clone().expect("coordinator");
+        let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&state);
+        let prepared_open = state
+            .connections
+            .prepare_open_authority(
+                coordinator.as_ref(),
+                super::PresentedSessionBearer::Absent,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare managed anonymous connection");
+        let opened = state
+            .connections
+            .open_prepared(ConnectionOpenAttempt::new(
+                Some("owned-finalize".to_owned()),
+                None,
+                true,
+                prepared_open,
+                epoch_now_ms,
+                monotonic_now,
+                Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
+            ))
+            .expect("open managed staged connection");
+        let connection_act = state
+            .connections
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                Some(coordinator.as_ref()),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact staged connection act");
+        assert!(connection_act.authorization_invalidation.is_some());
+
+        let admission = test_route_admission(&state).0;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            connection_act.resolved.clone(),
+        )
+        .expect("prepare staged live authority")
+        .with_fenced_publication(connection_act.bound.publication().clone());
+        let connection_id = opened.grant.connection_id.clone();
+        let effect_fence = connection_act.effect_fence();
+        let staged = with_snapback(&state.snapback, {
+            let connection_id = connection_id.clone();
+            let invalidation = connection_act.authorization_invalidation.clone();
+            let effect_fence = effect_fence.clone();
+            move |snapback| {
+                snapback.prepare_subscribe_live_for_transport(
+                    "listItems".to_owned(),
+                    LiveSubscribeInput {
+                        connection_id,
+                        input: HandlerInput::default(),
+                        authorization_namespace: Some(QueryNamespace {
+                            client_store_id: "owned_finalize_store".to_owned(),
+                            query_key: "listItems:{}".to_owned(),
+                            query_instance_id: 9_001,
+                        }),
+                        supersedes: None,
+                    },
+                    authority,
+                    LiveInvalidationAdmission {
+                        session_mode: true,
+                        connection: invalidation,
+                        effect_fence: Some(effect_fence),
+                    },
+                )
+            }
+        })
+        .await
+        .expect("reserve Local stage without running the query");
+        let authority_work = connection_act
+            .reserve_authority_work(epoch_now_ms, monotonic_now)
+            .expect("reserve retained authority work");
+        let committed_stage = staged.clone();
+        connection_act
+            .try_act(&state.connections, epoch_now_ms, monotonic_now, || {
+                let _effect = admission.effect_guard("owned-finalize test stage CAS")?;
+                committed_stage
+                    .try_commit(&connection_id, &effect_fence)
+                    .map_err(super::ApiError::from)
+            })
+            .expect("exact connection act commits the stage");
+
+        let (child_started_tx, child_started_rx) = tokio::sync::oneshot::channel();
+        let (allow_finalize_tx, allow_finalize_rx) = tokio::sync::oneshot::channel();
+        let (local_finished_tx, local_finished_rx) = tokio::sync::oneshot::channel();
+        let (allow_permit_drop_tx, allow_permit_drop_rx) = tokio::sync::oneshot::channel();
+        let (child_done_tx, child_done_rx) = tokio::sync::oneshot::channel();
+        let finalize_state = state.snapback.clone();
+        let request_waiter = tokio::spawn(async move {
+            let owned_finalizer = tokio::spawn(async move {
+                child_started_tx
+                    .send(())
+                    .expect("request observes owned child spawn");
+                allow_finalize_rx
+                    .await
+                    .expect("test releases owned Local finalize");
+                let publication = with_snapback(&finalize_state, move |snapback| {
+                    snapback.finalize_subscribe_live_for_transport(&staged)
+                })
+                .await;
+                local_finished_tx
+                    .send(())
+                    .expect("test observes Local finalize completion");
+                allow_permit_drop_rx
+                    .await
+                    .expect("test releases retained authority work");
+                drop(authority_work);
+                let _ = child_done_tx.send(publication);
+            });
+            owned_finalizer.await
+        });
+        tokio::time::timeout(Duration::from_secs(2), child_started_rx)
+            .await
+            .expect("owned finalizer starts")
+            .expect("owned finalizer start signal");
+        request_waiter.abort();
+        assert!(
+            request_waiter
+                .await
+                .expect_err("request-side waiter is cancelled")
+                .is_cancelled()
+        );
+
+        let reset_coordinator = coordinator.clone();
+        let reset_waiter =
+            tokio::spawn(async move { reset_coordinator.premark_stream_reset().await });
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                match connection_act.reserve_authority_work(epoch_now_ms, monotonic_now) {
+                    Ok(extra) => drop(extra),
+                    Err(_) => break,
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("stream premark closes new authority-work reservations");
+        assert!(
+            !reset_waiter.is_finished(),
+            "stream premark drains rather than rejecting existing work"
+        );
+        allow_finalize_tx
+            .send(())
+            .expect("release owned Local finalize");
+        tokio::time::timeout(Duration::from_secs(2), local_finished_rx)
+            .await
+            .expect("owned Local finalize completes after request cancellation")
+            .expect("Local finalize completion signal");
+        assert!(
+            !reset_waiter.is_finished(),
+            "permit remains active through Local finalize completion"
+        );
+
+        allow_permit_drop_tx
+            .send(())
+            .expect("release retained authority permit");
+        let publication = tokio::time::timeout(Duration::from_secs(2), child_done_rx)
+            .await
+            .expect("owned child finishes")
+            .expect("owned child result")
+            .expect("Local stage publishes successfully");
+        assert!(!publication.output.subscription_id.is_empty());
+
+        let reset = tokio::time::timeout(Duration::from_secs(2), reset_waiter)
+            .await
+            .expect("terminal premark drains after owned finalizer drops its permit")
+            .expect("terminal premark task joins")
+            .expect("terminal premark succeeds after drain");
+        let rollback = SnapbackError::error("TEST_ROLLBACK", "test", "known rollback");
+        assert_eq!(
+            coordinator
+                .finish_stream_reset::<()>(reset, AuthTransactionAttempt::RolledBack(rollback))
+                .expect_err("test rollback propagates")
+                .diagnostic
+                .code,
+            "TEST_ROLLBACK"
+        );
+    }
+
+    /// @ref LLP 0059#locking-and-linearization — route orchestration must
+    /// abandon a Local reservation when exact-grant validation refuses the
+    /// final bounded act; no query, subscription, or obligation may publish.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn refused_connection_act_abandons_staged_subscribe_without_publication() {
+        let state = tokio::task::spawn_blocking(|| {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            auth_projection_http_fixture("refused-stage-fixture", 0, 0)
+        })
+        .await
+        .expect("build SQLite-backed fixture off the async worker");
+        let coordinator = state.auth_coordinator.clone().expect("coordinator");
+        let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&state);
+        let prepared_open = state
+            .connections
+            .prepare_open_authority(
+                coordinator.as_ref(),
+                super::PresentedSessionBearer::Absent,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare managed anonymous connection");
+        let opened = state
+            .connections
+            .open_prepared(ConnectionOpenAttempt::new(
+                Some("refused-stage".to_owned()),
+                None,
+                true,
+                prepared_open,
+                epoch_now_ms,
+                monotonic_now,
+                Some(crate::auth::invalidation::AUTH_INVALIDATION_PROTOCOL_VERSION),
+            ))
+            .expect("open managed staged connection");
+        let connection_act = state
+            .connections
+            .prepare_act(
+                &opened.grant.connection_id,
+                Some(&opened.grant.connection_token),
+                Some(coordinator.as_ref()),
+                false,
+                epoch_now_ms,
+                monotonic_now,
+            )
+            .expect("prepare exact staged connection act");
+        let admission = test_route_admission(&state).0;
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::LiveInitialQuery,
+            AuthMode::Sessions,
+            state.server.profile,
+            admission.clone(),
+            &WireAuthorityFields::default(),
+            connection_act.resolved.clone(),
+        )
+        .expect("prepare staged live authority")
+        .with_fenced_publication(connection_act.bound.publication().clone());
+
+        // Stage preparation still succeeds, but the exact act must observe
+        // that retirement removed this grant before invoking its closure.
+        let capture = state
+            .connections
+            .retire_connection_for_cleanup(&opened.grant.connection_id)
+            .expect("retire the prepared grant before the route act");
+        let error = super::subscribe_live(
+            State(state.clone()),
+            Extension(authority),
+            Extension(connection_act),
+            Extension(admission),
+            axum::extract::Path("listItems".to_owned()),
+            Ok(Json(LiveSubscribeInput {
+                connection_id: opened.grant.connection_id.clone(),
+                input: HandlerInput::default(),
+                authorization_namespace: Some(QueryNamespace {
+                    client_store_id: "refused_stage_store".to_owned(),
+                    query_key: "listItems:{}".to_owned(),
+                    query_instance_id: 9_002,
+                }),
+                supersedes: None,
+            })),
+        )
+        .await
+        .expect_err("the retired exact grant refuses the route act");
+        assert_eq!(error.0.diagnostic.code, "SNAPBACK_CONNECTION_TOKEN_INVALID");
+
+        let counts = with_snapback(&state.snapback, |snapback| {
+            Ok::<_, SnapbackError>(snapback.staged_live_effect_counts_for_test())
+        })
+        .await
+        .expect("inspect staged Local state");
+        assert_eq!(counts, (0, 0), "refusal abandons without publication");
+
+        super::cleanup_retired_connection(state, capture).await;
+    }
+
+    /// The global LocalSnapback owner must never contain a reverse auth edge
+    /// or invoke the compatibility teardown orchestration. Parse production
+    /// source rather than relying on a brittle whitespace substring check.
+    #[test]
+    fn production_with_snapback_closures_exclude_auth_acts_and_compat_teardown() {
+        #[derive(Default)]
+        struct ForbiddenCallVisitor {
+            calls: Vec<String>,
+        }
+
+        impl<'ast> Visit<'ast> for ForbiddenCallVisitor {
+            fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+                let method = call.method.to_string();
+                if method == "try_act"
+                    || matches!(
+                        method.as_str(),
+                        "disconnect" | "disconnect_guarded" | "reap_stale_connections"
+                    )
+                {
+                    self.calls.push(method);
+                }
+                syn::visit::visit_expr_method_call(self, call);
+            }
+
+            fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+                if let syn::Expr::Path(function) = call.func.as_ref()
+                    && let Some(method) = function.path.segments.last()
+                {
+                    let method = method.ident.to_string();
+                    if method == "try_act"
+                        || matches!(
+                            method.as_str(),
+                            "disconnect" | "disconnect_guarded" | "reap_stale_connections"
+                        )
+                    {
+                        self.calls.push(method);
+                    }
+                }
+                syn::visit::visit_expr_call(self, call);
+            }
+        }
+
+        #[derive(Default)]
+        struct WithSnapbackClosureVisitor {
+            closure_count: usize,
+            violations: Vec<String>,
+        }
+
+        impl<'ast> Visit<'ast> for WithSnapbackClosureVisitor {
+            fn visit_item_mod(&mut self, module: &'ast syn::ItemMod) {
+                if module.ident == "tests" {
+                    return;
+                }
+                syn::visit::visit_item_mod(self, module);
+            }
+
+            fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+                let is_with_snapback = matches!(
+                    call.func.as_ref(),
+                    syn::Expr::Path(function)
+                        if function
+                            .path
+                            .segments
+                            .last()
+                            .is_some_and(|segment| segment.ident == "with_snapback")
+                );
+                if is_with_snapback {
+                    for argument in &call.args {
+                        if let syn::Expr::Closure(closure) = argument {
+                            self.closure_count += 1;
+                            let mut forbidden = ForbiddenCallVisitor::default();
+                            forbidden.visit_expr(closure.body.as_ref());
+                            self.violations.extend(forbidden.calls);
+                        }
+                    }
+                }
+                syn::visit::visit_expr_call(self, call);
+            }
+        }
+
+        let source_path = Path::new(env!("CARGO_MANIFEST_DIR")).join("src/server.rs");
+        let source = fs::read_to_string(&source_path).expect("read production server source");
+        let syntax = syn::parse_file(&source).expect("parse production server source");
+        let mut visitor = WithSnapbackClosureVisitor::default();
+        visitor.visit_file(&syntax);
+        assert!(
+            visitor.closure_count >= 50,
+            "source guard must inspect the production with_snapback closure population"
+        );
+        assert!(
+            visitor.violations.is_empty(),
+            "with_snapback closures contain forbidden auth/compatibility calls: {:?}",
+            visitor.violations
+        );
+    }
+
+    #[test]
+    fn managed_host_plan_action_route_inventory_uses_reserved_step_executor() {
+        #[derive(Default)]
+        struct CallInventory {
+            current: Option<String>,
+            calls: BTreeMap<String, BTreeSet<String>>,
+        }
+
+        impl<'ast> Visit<'ast> for CallInventory {
+            fn visit_item_mod(&mut self, module: &'ast syn::ItemMod) {
+                if module.ident == "tests" {
+                    return;
+                }
+                syn::visit::visit_item_mod(self, module);
+            }
+
+            fn visit_item_fn(&mut self, function: &'ast syn::ItemFn) {
+                let previous = self.current.replace(function.sig.ident.to_string());
+                syn::visit::visit_item_fn(self, function);
+                self.current = previous;
+            }
+
+            fn visit_expr_call(&mut self, call: &'ast syn::ExprCall) {
+                if let Some(current) = self.current.as_ref()
+                    && let syn::Expr::Path(path) = call.func.as_ref()
+                    && let Some(callee) = path.path.segments.last()
+                {
+                    self.calls
+                        .entry(current.clone())
+                        .or_default()
+                        .insert(callee.ident.to_string());
+                }
+                syn::visit::visit_expr_call(self, call);
+            }
+
+            fn visit_expr_method_call(&mut self, call: &'ast syn::ExprMethodCall) {
+                if let Some(current) = self.current.as_ref() {
+                    self.calls
+                        .entry(current.clone())
+                        .or_default()
+                        .insert(call.method.to_string());
+                }
+                syn::visit::visit_expr_method_call(self, call);
+            }
+        }
+
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let server_source =
+            fs::read_to_string(root.join("src/server.rs")).expect("read production server source");
+        let admin_source =
+            fs::read_to_string(root.join("src/admin.rs")).expect("read production admin source");
+        let mut inventory = CallInventory::default();
+        inventory
+            .visit_file(&syn::parse_file(&server_source).expect("parse production server source"));
+        inventory
+            .visit_file(&syn::parse_file(&admin_source).expect("parse production admin source"));
+
+        for function in [
+            "run_staged_app_action",
+            "execute_cron_claim_detached",
+            "config_verify",
+        ] {
+            assert!(
+                inventory
+                    .calls
+                    .get(function)
+                    .is_some_and(|calls| calls.contains("run_managed_host_plan_action")),
+                "{function} must route HostPlan actions through the per-step authorization reservation executor"
+            );
+        }
+        assert!(
+            inventory
+                .calls
+                .get("invoke_action")
+                .is_some_and(|calls| calls.contains("run_staged_app_action")),
+            "the HTTP action route must reach the shared managed action executor"
+        );
+        assert!(
+            inventory
+                .calls
+                .get("admin_run_function")
+                .is_some_and(|calls| calls.contains("run_staged_app_action")),
+            "the admin function runner must reach the shared managed action executor"
+        );
+        assert!(
+            inventory
+                .calls
+                .values()
+                .all(|calls| !calls.contains("invoke_action_prepared")),
+            "managed server/admin source must not invoke a nested-writing action while holding Local"
         );
     }
 
@@ -26235,6 +30349,194 @@ globalThis.__snapbackHandlers = {
             registry.invalidation_expectation_for_test().is_none(),
             "terminal reset clears the predecessor connection issuer",
         );
+    }
+
+    /// A deferred pre-cut fanout can wake the socket after terminal retirement
+    /// has acquired the registry but before it installs the typed event. The
+    /// wake may observe no event, but its exact act then queues behind that
+    /// registry owner; removal cannot become visible until the event is.
+    ///
+    /// @ref LLP 0059#typed-terminal-auth-error — registry-linearized terminal
+    /// installation closes every notifier source, not only purge-generated
+    /// wakes.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+    async fn preterminal_wake_blocked_on_registry_observes_typed_event_after_retirement() {
+        let state = AppState::detached(LocalSnapback::memory().expect("terminal wake state"));
+        let opened = state
+            .connections
+            .open(Some("terminal-wake-registry".to_owned()), None, true)
+            .expect("open predecessor grant");
+        let prepared = state
+            .connections
+            .prepare_act(
+                &opened.connection_id,
+                Some(&opened.connection_token),
+                None,
+                true,
+                super::now_millis(),
+                Instant::now(),
+            )
+            .expect("prepare predecessor act");
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, waker) = notifier
+            .register_bound(&opened.connection_id, prepared.grant_id.clone())
+            .expect("register predecessor socket");
+        let event = crate::ephemeral::DeliveryTerminalEvent {
+            code: crate::live_wire::LiveAuthErrorCode::StreamReset,
+            reason: crate::live_wire::LiveAuthErrorReason::Reset,
+            authority_disposition: crate::live_wire::LiveAuthorityDisposition::DurableDelete,
+            close_by: Instant::now() + Duration::from_secs(5),
+        };
+        let (preterminal_observed, observation) = std::sync::mpsc::channel();
+
+        let waiter_notifier = notifier.clone();
+        let waiter_connection_id = opened.connection_id.clone();
+        let waiter_registry = state.connections.clone();
+        let waiter = tokio::spawn(async move {
+            tokio::time::timeout(Duration::from_secs(1), waker.notified())
+                .await
+                .expect("injected preterminal fanout wakes the socket");
+            assert!(
+                waiter_notifier
+                    .terminal_if_current(&waiter_connection_id, generation)
+                    .is_none(),
+                "the deterministic wake lands before terminal installation"
+            );
+            preterminal_observed
+                .send(())
+                .expect("release registry terminal installation");
+            let act = tokio::task::spawn_blocking(move || {
+                prepared.try_act(
+                    &waiter_registry,
+                    super::now_millis(),
+                    Instant::now(),
+                    || Ok(()),
+                )
+            })
+            .await
+            .expect("blocked exact act task completes");
+            assert!(act.is_err(), "retirement wins the exact grant");
+            waiter_notifier
+                .terminal_if_current(&waiter_connection_id, generation)
+                .expect("the socket exit observes the registry-installed event")
+        });
+
+        let terminal_registry = state.connections.clone();
+        let terminal_ephemeral = state.ephemeral.clone();
+        let terminal_notifier = notifier.clone();
+        let terminal_connection_id = opened.connection_id.clone();
+        let captures = tokio::task::spawn_blocking(move || {
+            terminal_registry.clear_after_committed_reset_inner(|capture| {
+                assert_eq!(capture.connection_id, terminal_connection_id);
+                // This models an after-Local callback whose authority cut was
+                // honestly preterminal but whose notifier wake was deferred.
+                terminal_ephemeral.enqueue_durable_for_test(
+                    &terminal_connection_id,
+                    b"preterminal-deferred-wake".to_vec(),
+                );
+                observation
+                    .recv_timeout(Duration::from_secs(1))
+                    .expect("socket consumes the preterminal wake first");
+                super::install_bound_terminal_before_retirement(&terminal_notifier, capture, event);
+            })
+        })
+        .await
+        .expect("registry-linearized terminal retirement completes");
+        for capture in captures {
+            super::purge_connection_capture(&state.ephemeral, &capture, false);
+            super::cleanup_mint_only_retired_connection(
+                state.ephemeral.clone(),
+                state.snapback.clone(),
+                capture,
+            )
+            .await;
+        }
+
+        assert_eq!(
+            waiter.await.expect("socket witness task"),
+            event,
+            "the pre-event wake converges on the exact typed terminal event"
+        );
+    }
+
+    /// Whole-ID auth cleanup is justified by the same registry mutation that
+    /// permanently enables mint-only containment. A caller requesting the old
+    /// readable id receives a distinct successor, whose activity/outbox state
+    /// survives the predecessor's asynchronous post-Local sweep.
+    #[tokio::test]
+    async fn terminal_retired_whole_id_cleanup_preserves_typed_event_and_minted_successor() {
+        let state = AppState::detached(LocalSnapback::memory().expect("terminal cleanup state"));
+        let predecessor = state
+            .connections
+            .open(Some("terminal-whole-id".to_owned()), None, true)
+            .expect("open predecessor grant");
+        let predecessor_grant_id = state
+            .connections
+            .lock()
+            .grants
+            .get(&predecessor.connection_id)
+            .expect("predecessor record")
+            .grant_id
+            .clone();
+        state.ephemeral.touch_connection(&predecessor.connection_id);
+        state
+            .ephemeral
+            .enqueue_durable_for_test(&predecessor.connection_id, b"predecessor".to_vec());
+        let notifier = state.ephemeral.delivery_notifier();
+        let (generation, waker) = notifier
+            .register_bound(&predecessor.connection_id, predecessor_grant_id)
+            .expect("register predecessor socket");
+        let close_by = Instant::now() + Duration::from_secs(5);
+
+        state
+            .auth_terminal_lifecycle
+            .committed_stream_reset(crate::live_wire::LiveAuthErrorReason::Reset, close_by);
+        tokio::time::timeout(Duration::from_secs(1), waker.notified())
+            .await
+            .expect("typed terminal event wakes predecessor");
+        let event = notifier
+            .terminal_if_current(&predecessor.connection_id, generation)
+            .expect("typed terminal event remains installed");
+        assert_eq!(event.code, crate::live_wire::LiveAuthErrorCode::StreamReset);
+        assert_eq!(event.close_by, close_by);
+
+        let successor = state
+            .connections
+            .open(Some(predecessor.connection_id.clone()), None, true)
+            .expect("mint successor under containment");
+        assert_ne!(
+            successor.connection_id, predecessor.connection_id,
+            "mint-only containment forbids same-readable-id adoption during whole cleanup"
+        );
+        state.ephemeral.touch_connection(&successor.connection_id);
+        state
+            .ephemeral
+            .enqueue_durable_for_test(&successor.connection_id, b"successor".to_vec());
+
+        tokio::time::timeout(Duration::from_secs(2), async {
+            loop {
+                if state.ephemeral.active_connection_count_for_test() == 1
+                    && !state
+                        .ephemeral
+                        .has_connection_residue_for_test(&predecessor.connection_id)
+                {
+                    break;
+                }
+                tokio::task::yield_now().await;
+            }
+        })
+        .await
+        .expect("predecessor whole-ID cleanup finishes");
+        assert_eq!(
+            notifier.terminal_if_current(&predecessor.connection_id, generation),
+            Some(event),
+            "whole-ID cleanup cannot erase the typed terminal notifier event"
+        );
+        let successor_messages = state.ephemeral.drain_outbox(&successor.connection_id);
+        assert!(matches!(
+            successor_messages.as_slice(),
+            [RealtimeEnvelope::Durable(message)] if message.payload == b"successor"
+        ));
     }
 
     #[tokio::test]

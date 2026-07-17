@@ -30,7 +30,8 @@ use super::provider::{
     ProviderResult,
 };
 use super::session_projection::{
-    AuthorizationStreamRecord, ExpiredSession, ProjectionSource, SessionProjection,
+    AuthorizationStreamRecord, DueExpiryFinalization, ExpiredSession, ProjectionSource,
+    SessionProjection,
 };
 use crate::diagnostic::{Diagnostic, SnapbackError, SnapbackResult};
 use crate::local::LocalSnapback;
@@ -144,6 +145,11 @@ impl AuthExpiryTerminalSink {
 
     fn consume(&self, expired: Vec<ExpiredSession>) {
         (self.consume)(expired);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn consume_for_test(&self, expired: Vec<ExpiredSession>) {
+        self.consume(expired);
     }
 
     #[cfg(test)]
@@ -438,9 +444,29 @@ pub(crate) async fn run_periodic_gc_pass(
     coordinator: Arc<AuthCoordinator>,
     terminal_sink: &AuthExpiryTerminalSink,
 ) -> ProviderResult<AuthGcPass> {
+    run_periodic_gc_pass_after_sample(state, provider, coordinator, terminal_sink, || {}).await
+}
+
+async fn run_periodic_gc_pass_after_sample<F>(
+    state: &SharedSnapback,
+    provider: Arc<AuthProvider>,
+    coordinator: Arc<AuthCoordinator>,
+    terminal_sink: &AuthExpiryTerminalSink,
+    after_sample: F,
+) -> ProviderResult<AuthGcPass>
+where
+    F: FnOnce(),
+{
+    terminalize_due_sessions_after_sample(
+        state,
+        &provider,
+        &coordinator,
+        terminal_sink,
+        after_sample,
+    )
+    .await?;
     let maintenance = provider.exclusive_maintenance().await;
     let now_ms = provider.now_ms();
-    terminalize_due_sessions(state, &provider, &coordinator, terminal_sink).await?;
     crate::server::with_snapback(state, move |snapback| {
         maintenance.run_gc_pass(snapback.auth_database_mut(), now_ms)
     })
@@ -491,11 +517,34 @@ where
     .await
     .map_err(ProviderError::from)?;
     provider.seed_session_clock_floor(durable_frontier);
-    let expired = coordinator
+    let finalized = coordinator
         .expire_sampled_due(batch)
+        .await
         .map_err(ProviderError::from)?;
+    consume_due_expiry_finalization(terminal_sink, finalized)
+}
+
+/// Deliver every known terminal result before surfacing a contradictory batch
+/// entry. The coordinator has already marked the projection globally closed;
+/// the sink is infallible, so successful siblings cannot be lost to the error.
+///
+/// @ref LLP 0059#operation-specific-publication — Propagate precedes a
+/// fail-closed batch error for every successfully finalized expiry.
+fn consume_due_expiry_finalization(
+    terminal_sink: &AuthExpiryTerminalSink,
+    finalized: DueExpiryFinalization,
+) -> ProviderResult<()> {
+    let (expired, failed_closed) = finalized.into_parts();
     terminal_sink.consume(expired);
-    Ok(())
+    if failed_closed {
+        Err(ProviderError::from(SnapbackError::error(
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+            "auth",
+            "sampled session expiry finalization failed closed",
+        )))
+    } else {
+        Ok(())
+    }
 }
 
 /// Recognized catalogs only: honor the startup pass's next delay, then run
@@ -620,6 +669,34 @@ mod tests {
     use std::sync::{Arc, Mutex as StdMutex};
     use std::time::Instant;
     use tokio::sync::Mutex;
+
+    #[test]
+    fn failed_expiry_batch_delivers_successful_siblings_before_error() {
+        let expired = ExpiredSession {
+            authorization_stream_incarnation: "test-incarnation".to_owned(),
+            session_id: "terminalized-sibling".to_owned(),
+            generation: 1,
+            close_by: Instant::now() + Duration::from_secs(5),
+        };
+        let observed = Arc::new(StdMutex::new(Vec::new()));
+        let observed_for_sink = Arc::clone(&observed);
+        let error = consume_due_expiry_finalization(
+            &AuthExpiryTerminalSink::new(move |expired| {
+                observed_for_sink.lock().unwrap().extend(expired);
+            }),
+            DueExpiryFinalization::failed_for_test(vec![expired.clone()]),
+        )
+        .expect_err("the contradictory batch remains fail closed");
+        assert_eq!(
+            error.diagnostic().code,
+            "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+        );
+        assert_eq!(
+            observed.lock().unwrap().as_slice(),
+            &[expired],
+            "known terminal siblings reach the sink before the batch error",
+        );
+    }
 
     fn activate_file_catalog(
         database_path: &Path,
@@ -1071,13 +1148,49 @@ mod tests {
         let admission = tokio::time::timeout(Duration::from_millis(50), provider.admit()).await;
         assert!(
             admission.is_err(),
-            "GC must hold exclusive maintenance while it waits for the outer lock"
+            "ordinary GC must hold exclusive maintenance while it waits for the outer lock"
         );
         drop(outer);
         gc.await.unwrap().unwrap();
         tokio::time::timeout(Duration::from_secs(1), provider.admit())
             .await
             .expect("shared admission resumes after GC");
+    }
+
+    #[tokio::test]
+    async fn periodic_gc_releases_projection_begin_before_acquiring_maintenance() {
+        let mut snapback = activated_memory_snapback();
+        let _bearer = insert_lifetime_session(&mut snapback, 200, 300);
+        let clock = Arc::new(RuntimeDualClock::new(100));
+        let (runtime, provider) = ready_runtime_with_clock(clock.clone());
+        let coordinator = runtime.build_coordinator(&mut snapback).unwrap();
+        let state = Arc::new(Mutex::new(snapback));
+        clock.set(201, 101);
+
+        let outer = state.clone().lock_owned().await;
+        let (sampled_tx, sampled_rx) = oneshot::channel();
+        let gc_state = Arc::clone(&state);
+        let gc_provider = Arc::clone(&provider);
+        let gc = tokio::spawn(async move {
+            run_periodic_gc_pass_after_sample(
+                &gc_state,
+                gc_provider,
+                coordinator,
+                &AuthExpiryTerminalSink::noop(),
+                move || sampled_tx.send(()).expect("signal sampled expiry begin"),
+            )
+            .await
+        });
+        sampled_rx
+            .await
+            .expect("periodic GC samples projection before the durable frontier wait");
+
+        let admission = tokio::time::timeout(Duration::from_millis(50), provider.admit())
+            .await
+            .expect("projection expiry reaches its Local wait without provider maintenance");
+        drop(admission);
+        drop(outer);
+        gc.await.unwrap().unwrap();
     }
 
     #[tokio::test]

@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-16 (Cloudflare cron status now separates its public bounded outcome/code projection from authenticated operator detail; the diagnostic code is persisted independently and public classification is never parsed from error text); 2026-07-15 (ENG-25006: vendored Ibex now keeps pending fetch work visible until its runtime callback is published; the ENG-24530 settlement-floor precedence remains a defense-in-depth caller contract); 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-17 (local definition generations and run sequences are terminal, JavaScript-safe identities; exhaustion refuses before ownership/nominal mutation, durable counter corruption fails startup, and failure telemetry saturates). 2026-07-16 (Cloudflare cron status now separates its public bounded outcome/code projection from authenticated operator detail; the diagnostic code is persisted independently and public classification is never parsed from error text); 2026-07-15 (ENG-25006: vendored Ibex now keeps pending fetch work visible until its runtime callback is published; the ENG-24530 settlement-floor precedence remains a defense-in-depth caller contract); 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -347,6 +347,19 @@ contains an incompatible partial record fails startup with
 `SNAPBACK_CRON_STATE_INVALID` and remains untouched for operator recovery. The
 versionless complete v1 shape is the explicit older migration accepted by the
 local target (ENG-24356); durable state never falls through to an empty default.
+
+The local runtime's definition generation and run sequence are identity-bearing
+counters in `0..=Number.MAX_SAFE_INTEGER`. The maximum is usable once; a
+successor is terminally unavailable and returns
+`SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED` or
+`SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED` before definition replacement, nominal
+consumption, ownership installation, or skipped-run recording. A scheduled
+batch is staged atomically so exhaustion in any job publishes none of its
+claims. Persisted values outside this domain fail startup with
+`SNAPBACK_CRON_STATE_INVALID`, and the admin-visible consecutive-failure count
+saturates at the same maximum rather than panicking or leaving the portable
+plain-JSON profile. This preserves both the A → B → A definition fence and exact
+run ownership without ABA reuse.
 
 **Validation-rejected jobs hold no runtime state (ENG-23417).** The fail-closed
 rule for invalid definitions covers redeploys, not just first deploys: when a
@@ -908,6 +921,9 @@ green:
   is in flight;
 - a failed run records outcome, duration, diagnostic details, and repeated-failure
   state visible through inspect/admin without leaking secrets;
+- maximum-value proofs allocate the last definition/run identity exactly once,
+  refuse reconcile plus scheduled/manual/skipped successors without state
+  mutation, reject non-portable persisted counters, and saturate failure counts;
 - restart recovery runs at most one catch-up invocation for a poller by default,
   rather than replaying every missed interval;
 - capability reports and tests mark action egress/secrets as missing until

@@ -265,6 +265,7 @@
     "snapshotVersion": {
       "description": "The database version the dry-run evaluated against.",
       "format": "uint64",
+      "maximum": 9007199254740991,
       "minimum": 0,
       "type": "integer"
     },

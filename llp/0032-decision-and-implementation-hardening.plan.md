@@ -690,7 +690,14 @@ change the concurrency architecture and should land as one reviewed arc.
   on incoming Ping/Pong frames, and the safety-net tick now sends a WS Ping —
   a vanished peer errors the socket within the TCP retransmission timeout,
   and a live idle peer's Pong keeps it under the TTL. Test
-  `eng_23424_empty_ws_drain_is_not_liveness`.
+  `eng_23424_empty_ws_drain_is_not_liveness`. **Revised 2026-07-16:** server
+  maintenance now selects idle connections from the exact connection-registry
+  last-use index, atomically retires each grant and enables mint-only
+  containment, then runs owned notifier/ephemeral cleanup before entering
+  Local for topology removal and counter publication. No ephemeral shard lock
+  overlaps the Local writer, and the old bearer is invalid throughout cleanup.
+  `LocalSnapback::reap_stale_connections` remains only as a direct-library
+  compatibility orchestrator outside the managed Local write scope.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound
   (pruned only by `reset`) and its per-query
   `MAX(version) WHERE table_name = ?` check is a full scan — the only index

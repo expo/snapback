@@ -1,7 +1,8 @@
 use crate::diagnostic::{Diagnostic, DiagnosticSeverity, SnapbackError, SnapbackResult};
 use crate::manifest::{
     AuthRequirement, CronActivationKind, CronJitterPolicy, CronJobDefinition, CronOverlapPolicy,
-    CronRetryMode, CronSchedule, FunctionKind, FunctionManifest, SNAPBACK_SCHEMA_VERSION,
+    CronRetryMode, CronSchedule, FunctionKind, FunctionManifest, PORTABLE_STORAGE_VERSION_MAX,
+    SNAPBACK_SCHEMA_VERSION,
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -53,6 +54,7 @@ pub struct CronJobInspect {
     #[serde(rename = "lastError")]
     pub last_error: Option<Diagnostic>,
     #[serde(rename = "consecutiveFailures")]
+    #[schemars(range(max = PORTABLE_STORAGE_VERSION_MAX))]
     pub consecutive_failures: u64,
     #[serde(rename = "recentRuns")]
     pub recent_runs: Vec<CronRunRecord>,
@@ -213,9 +215,13 @@ impl CronJobRuntimeState {
         !self.in_flight_run_ids.is_empty() || self.in_flight_run_id.is_some()
     }
 
-    fn active_run_count(&mut self) -> usize {
-        self.normalize_in_flight();
+    fn active_run_count(&self) -> usize {
         self.in_flight_run_ids.len()
+            + usize::from(
+                self.in_flight_run_id
+                    .as_ref()
+                    .is_some_and(|run_id| !self.in_flight_run_ids.contains(run_id)),
+            )
     }
 
     fn claim_run(&mut self, run_id: String) {
@@ -239,6 +245,47 @@ impl CronJobRuntimeState {
         self.in_flight_run_id = None;
         run_ids
     }
+}
+
+fn validate_portable_cron_counter(field: &str, value: u64) -> SnapbackResult<()> {
+    if value <= PORTABLE_STORAGE_VERSION_MAX {
+        return Ok(());
+    }
+    Err(SnapbackError::error(
+        "SNAPBACK_CRON_STATE_INVALID",
+        "cron",
+        "stored cron runtime state contains a counter outside the portable integer domain",
+    )
+    .with_details(json!({
+        "field": field,
+        "value": value,
+        "maximum": PORTABLE_STORAGE_VERSION_MAX,
+    })))
+}
+
+fn checked_cron_identity_successor(
+    current: u64,
+    code: &'static str,
+    identity: &'static str,
+    job_name: &str,
+    trigger: &'static str,
+) -> SnapbackResult<u64> {
+    current
+        .checked_add(1)
+        .filter(|next| *next <= PORTABLE_STORAGE_VERSION_MAX)
+        .ok_or_else(|| {
+            SnapbackError::error(
+                code,
+                "cron",
+                format!("{identity} is exhausted and cannot be reused"),
+            )
+            .with_details(json!({
+                "jobName": job_name,
+                "trigger": trigger,
+                "current": current,
+                "maximum": PORTABLE_STORAGE_VERSION_MAX,
+            }))
+        })
 }
 
 impl LocalCronRuntime {
@@ -265,6 +312,7 @@ impl LocalCronRuntime {
                 "supportedVersion": CRON_RUNTIME_FORMAT_VERSION,
             })));
         }
+        runtime.validate_portable_counters()?;
         runtime.next_definition_generation = runtime.next_definition_generation.max(
             runtime
                 .states
@@ -301,6 +349,7 @@ impl LocalCronRuntime {
     }
 
     pub fn persisted_value(&self) -> SnapbackResult<Value> {
+        self.validate_portable_counters()?;
         serde_json::to_value(self).map_err(|error| {
             SnapbackError::error(
                 "SNAPBACK_CRON_STATE_SERIALIZE_FAILED",
@@ -311,15 +360,38 @@ impl LocalCronRuntime {
         })
     }
 
-    fn allocate_definition_generation(&mut self) -> u64 {
-        self.next_definition_generation = self.next_definition_generation.wrapping_add(1);
-        if self.next_definition_generation == 0 {
-            // Zero is reserved for additive migration of the pre-generation
-            // persisted shape. Reaching this branch requires 2^64 live
-            // definition installs in one runtime lineage.
-            self.next_definition_generation = 1;
+    fn validate_portable_counters(&self) -> SnapbackResult<()> {
+        validate_portable_cron_counter("next_run_seq", self.next_run_seq)?;
+        validate_portable_cron_counter(
+            "next_definition_generation",
+            self.next_definition_generation,
+        )?;
+        for (job_name, state) in &self.states {
+            validate_portable_cron_counter(
+                &format!("states.{job_name}.definition_generation"),
+                state.definition_generation,
+            )?;
+            validate_portable_cron_counter(
+                &format!("states.{job_name}.consecutive_failures"),
+                state.consecutive_failures,
+            )?;
         }
-        self.next_definition_generation
+        Ok(())
+    }
+
+    /// @ref LLP 0028#scheduler-state-and-run-ledger — definition identities
+    /// are monotonic ABA fences and may never wrap or leave the portable JSON
+    /// integer domain.
+    fn reserve_definition_generation(&mut self, job_name: &str) -> SnapbackResult<u64> {
+        let generation = checked_cron_identity_successor(
+            self.next_definition_generation,
+            "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED",
+            "cron definition generation",
+            job_name,
+            "definition",
+        )?;
+        self.next_definition_generation = generation;
+        Ok(generation)
     }
 
     /// Whether any enabled cron job is currently armed (its demand condition is
@@ -341,7 +413,7 @@ impl LocalCronRuntime {
     }
 
     pub fn reconcile(&mut self, manifest: &FunctionManifest) -> Vec<Diagnostic> {
-        let diagnostics = validate_cron_manifest(manifest);
+        let mut diagnostics = validate_cron_manifest(manifest);
         let rejected_names = error_job_names(&diagnostics);
         let job_names = manifest
             .cron_jobs
@@ -375,11 +447,25 @@ impl LocalCronRuntime {
                 ))
             );
             let jitter_offset_ms = jitter_offset(job, &schedule_hash, &jitter_seed);
-            let replacement_generation = self
+            let replacement_generation = if self
                 .states
                 .get(&job.name)
                 .is_none_or(|state| state.schedule_hash != schedule_hash)
-                .then(|| self.allocate_definition_generation());
+            {
+                match self.reserve_definition_generation(&job.name) {
+                    Ok(generation) => Some(generation),
+                    Err(error) => {
+                        // The current definition, if any, remains untouched.
+                        // Its schedule hash no longer matches the manifest, so
+                        // the claim path keeps it inert while inspect exposes
+                        // the terminal diagnostic.
+                        diagnostics.push(error.diagnostic);
+                        continue;
+                    }
+                }
+            } else {
+                None
+            };
             match self.states.get_mut(&job.name) {
                 Some(state) => {
                     state.normalize_in_flight();
@@ -531,6 +617,37 @@ impl LocalCronRuntime {
         active_live_functions: &BTreeSet<String>,
         now_ms: u64,
     ) -> Vec<CronRunClaim> {
+        // A due pass can touch several jobs and both claims and skipped-run
+        // records consume the shared run sequence. Stage the complete pass so
+        // identity exhaustion cannot leave an earlier nominal consumed or an
+        // ownership token installed without returning its claim.
+        let mut staged = self.clone();
+        match staged.claim_due_runs_checked(manifest, active_live_functions, now_ms) {
+            Ok(claims) => {
+                *self = staged;
+                claims
+            }
+            Err(error) => {
+                let diagnostic = error.diagnostic;
+                let duplicate = self.diagnostics.iter().any(|existing| {
+                    existing.code == diagnostic.code
+                        && existing.details.get("jobName") == diagnostic.details.get("jobName")
+                        && existing.details.get("trigger") == diagnostic.details.get("trigger")
+                });
+                if !duplicate {
+                    self.record_diagnostics(vec![diagnostic]);
+                }
+                Vec::new()
+            }
+        }
+    }
+
+    fn claim_due_runs_checked(
+        &mut self,
+        manifest: &FunctionManifest,
+        active_live_functions: &BTreeSet<String>,
+        now_ms: u64,
+    ) -> SnapbackResult<Vec<CronRunClaim>> {
         let mut claims = Vec::new();
         for job in &manifest.cron_jobs {
             let Some(state) = self.states.get_mut(&job.name) else {
@@ -563,28 +680,49 @@ impl LocalCronRuntime {
             let capacity_blocked = matches!(job.overlap_policy, CronOverlapPolicy::Allow)
                 && state.active_run_count() >= CRON_MAX_ACTIVE_RUNS_PER_JOB;
             if overlap_blocked || capacity_blocked {
+                let run_sequence = checked_cron_identity_successor(
+                    self.next_run_seq,
+                    "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED",
+                    "cron run sequence",
+                    &job.name,
+                    "skipped",
+                )?;
+                self.next_run_seq = run_sequence;
                 if let Some(next_nominal) = next_nominal_after(job, scheduled_at_ms, now_ms) {
                     state.next_nominal_at_ms = Some(next_nominal);
                     state.next_due_at_ms =
                         Some(next_nominal.saturating_add(state.jitter_offset_ms));
                 }
-                let record =
-                    self.skipped_record(job, scheduled_at_ms, due_at_ms, now_ms, capacity_blocked);
+                let record = self.skipped_record(
+                    job,
+                    scheduled_at_ms,
+                    due_at_ms,
+                    now_ms,
+                    capacity_blocked,
+                    run_sequence,
+                );
                 self.record_run(record);
                 continue;
             }
+            let run_sequence = checked_cron_identity_successor(
+                self.next_run_seq,
+                "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED",
+                "cron run sequence",
+                &job.name,
+                "scheduled",
+            )?;
+            self.next_run_seq = run_sequence;
             // Consume the nominal before dispatch. A duplicate ticker now sees
             // the next slot, never this same `(job, scheduledAt)` identity.
             if let Some(next_nominal) = next_nominal_after(job, scheduled_at_ms, now_ms) {
                 state.next_nominal_at_ms = Some(next_nominal);
                 state.next_due_at_ms = Some(next_nominal.saturating_add(state.jitter_offset_ms));
             }
-            self.next_run_seq += 1;
             let run_id = format!(
                 "cron:{}:scheduled:{}:{}",
                 job.name,
                 scheduled_at_ms.unwrap_or(now_ms),
-                self.next_run_seq
+                run_sequence
             );
             state.claim_run(run_id.clone());
             let slot_key = format!(
@@ -608,7 +746,7 @@ impl LocalCronRuntime {
                 definition_generation: state.definition_generation,
             });
         }
-        claims
+        Ok(claims)
     }
 
     pub fn claim_manual_run(
@@ -659,10 +797,57 @@ impl LocalCronRuntime {
                 "validationErrors": validation_errors,
             })));
         }
-        if !self.states.contains_key(&job.name) {
+        let needs_definition_generation = !self.states.contains_key(&job.name);
+        if let Some(state) = self.states.get(&job.name) {
+            if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CRON_JOB_IN_FLIGHT",
+                    "cron",
+                    format!("cron job {name} already has a run in flight"),
+                ));
+            }
+            if matches!(job.overlap_policy, CronOverlapPolicy::Allow)
+                && state.active_run_count() >= CRON_MAX_ACTIVE_RUNS_PER_JOB
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
+                    "cron",
+                    format!(
+                        "cron job {name} already owns the maximum {CRON_MAX_ACTIVE_RUNS_PER_JOB} active runs"
+                    ),
+                )
+                .with_details(json!({
+                    "jobName": name,
+                    "maxActiveRuns": CRON_MAX_ACTIVE_RUNS_PER_JOB,
+                })));
+            }
+        }
+
+        // Preflight every identity this claim needs before creating scheduler
+        // state or ownership. The assignments below are then infallible.
+        let run_sequence = checked_cron_identity_successor(
+            self.next_run_seq,
+            "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED",
+            "cron run sequence",
+            &job.name,
+            "manual",
+        )?;
+        let definition_generation = needs_definition_generation
+            .then(|| {
+                checked_cron_identity_successor(
+                    self.next_definition_generation,
+                    "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED",
+                    "cron definition generation",
+                    &job.name,
+                    "definition",
+                )
+            })
+            .transpose()?;
+
+        if let Some(definition_generation) = definition_generation {
             let hash = schedule_hash(&job);
             let seed = format!("fnv1a:{:016x}", stable_hash(&hash));
-            let definition_generation = self.allocate_definition_generation();
+            self.next_definition_generation = definition_generation;
             self.states.insert(
                 job.name.clone(),
                 CronJobRuntimeState {
@@ -681,34 +866,12 @@ impl LocalCronRuntime {
                 },
             );
         }
+        self.next_run_seq = run_sequence;
         let state = self
             .states
             .get_mut(&job.name)
             .expect("manual claim state exists");
-        if matches!(job.overlap_policy, CronOverlapPolicy::NoOverlap) && state.has_in_flight() {
-            return Err(SnapbackError::error(
-                "SNAPBACK_CRON_JOB_IN_FLIGHT",
-                "cron",
-                format!("cron job {name} already has a run in flight"),
-            ));
-        }
-        if matches!(job.overlap_policy, CronOverlapPolicy::Allow)
-            && state.active_run_count() >= CRON_MAX_ACTIVE_RUNS_PER_JOB
-        {
-            return Err(SnapbackError::error(
-                "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED",
-                "cron",
-                format!(
-                    "cron job {name} already owns the maximum {CRON_MAX_ACTIVE_RUNS_PER_JOB} active runs"
-                ),
-            )
-            .with_details(json!({
-                "jobName": name,
-                "maxActiveRuns": CRON_MAX_ACTIVE_RUNS_PER_JOB,
-            })));
-        }
-        self.next_run_seq += 1;
-        let run_id = format!("cron:{}:manual:{}:{}", job.name, now_ms, self.next_run_seq);
+        let run_id = format!("cron:{}:manual:{}:{}", job.name, now_ms, run_sequence);
         state.claim_run(run_id.clone());
         let slot_key = format!("cron:{}:manual:{}", job.name, now_ms);
         Ok(CronRunClaim {
@@ -768,7 +931,10 @@ impl LocalCronRuntime {
                 state.last_outcome = Some(outcome.clone());
                 state.last_error = diagnostic.clone();
                 if outcome == CronRunOutcome::Failed {
-                    state.consecutive_failures += 1;
+                    state.consecutive_failures = state
+                        .consecutive_failures
+                        .saturating_add(1)
+                        .min(PORTABLE_STORAGE_VERSION_MAX);
                 } else {
                     state.consecutive_failures = 0;
                 }
@@ -785,8 +951,8 @@ impl LocalCronRuntime {
         due_at_ms: u64,
         now_ms: u64,
         capacity_blocked: bool,
+        run_sequence: u64,
     ) -> CronRunRecord {
-        self.next_run_seq += 1;
         let slot_key = format!(
             "cron:{}:scheduled:{}",
             job.name,
@@ -797,7 +963,7 @@ impl LocalCronRuntime {
                 "cron:{}:skipped:{}:{}",
                 job.name,
                 scheduled_at_ms.unwrap_or(now_ms),
-                self.next_run_seq
+                run_sequence
             ),
             job_name: job.name.clone(),
             scheduled_at_ms,
@@ -2213,6 +2379,201 @@ mod tests {
     }
 
     #[test]
+    fn definition_generation_allocates_portable_max_then_refuses_reconcile_without_replacement() {
+        let original = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime {
+            next_definition_generation: PORTABLE_STORAGE_VERSION_MAX - 1,
+            ..LocalCronRuntime::default()
+        };
+        assert!(runtime.reconcile(&original).is_empty());
+        assert_eq!(
+            runtime.states["poll"].definition_generation,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+
+        // Same-definition reconciliation needs no new identity and remains
+        // usable at the terminal generation.
+        assert!(runtime.reconcile(&original).is_empty());
+
+        let replacement = manifest_with_jobs(vec![interval_job("poll", 30_000)]);
+        let predecessor = runtime.states["poll"].clone();
+        let diagnostics = runtime.reconcile(&replacement);
+        assert!(diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED"
+        }));
+        assert_eq!(
+            runtime.next_definition_generation,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+        assert_eq!(runtime.states["poll"], predecessor);
+        assert!(
+            runtime
+                .claim_due_runs(&replacement, &BTreeSet::new(), 60_000)
+                .is_empty(),
+            "the retained predecessor hash must not execute under the replacement manifest"
+        );
+    }
+
+    #[test]
+    fn scheduled_run_sequence_allocates_portable_max_then_refuses_before_nominal_or_ownership() {
+        let mut job = interval_job("poll", 60_000);
+        job.overlap_policy = CronOverlapPolicy::Allow;
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        runtime.next_run_seq = PORTABLE_STORAGE_VERSION_MAX - 1;
+
+        let final_claim = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("the final portable run sequence is allocatable");
+        assert!(
+            final_claim
+                .metadata
+                .run_id
+                .ends_with(&format!(":{PORTABLE_STORAGE_VERSION_MAX}"))
+        );
+        let predecessor = runtime.states["poll"].clone();
+        let recent_runs = runtime.recent_runs.clone();
+
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 120_000)
+                .is_empty()
+        );
+        assert_eq!(runtime.next_run_seq, PORTABLE_STORAGE_VERSION_MAX);
+        assert_eq!(runtime.states["poll"], predecessor);
+        assert_eq!(runtime.recent_runs, recent_runs);
+        assert!(runtime.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED"
+                && diagnostic.details["trigger"] == "scheduled"
+        }));
+    }
+
+    #[test]
+    fn skipped_run_sequence_exhaustion_does_not_consume_the_nominal_slot() {
+        let mut job = interval_job("poll", 60_000);
+        job.jitter_policy.enabled = false;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let _in_flight = runtime
+            .claim_due_runs(&manifest, &BTreeSet::new(), 60_000)
+            .pop()
+            .expect("the first scheduled run owns the overlap slot");
+        runtime.next_run_seq = PORTABLE_STORAGE_VERSION_MAX - 1;
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 120_000)
+                .is_empty(),
+            "an overlap skip returns no executable claim"
+        );
+        assert_eq!(runtime.next_run_seq, PORTABLE_STORAGE_VERSION_MAX);
+        assert!(
+            runtime.recent_runs.front().is_some_and(|record| record
+                .run_id
+                .ends_with(&format!(":{PORTABLE_STORAGE_VERSION_MAX}"))),
+            "the final portable sequence may identify one skipped record"
+        );
+        let predecessor = runtime.states["poll"].clone();
+        let recent_runs = runtime.recent_runs.clone();
+
+        assert!(
+            runtime
+                .claim_due_runs(&manifest, &BTreeSet::new(), 180_000)
+                .is_empty(),
+            "an overlap skip still requires a unique run-record identity"
+        );
+        assert_eq!(runtime.states["poll"], predecessor);
+        assert_eq!(runtime.recent_runs, recent_runs);
+        assert!(runtime.diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED"
+                && diagnostic.details["trigger"] == "skipped"
+        }));
+    }
+
+    #[test]
+    fn manual_run_sequence_allocates_portable_max_then_refuses_without_ownership() {
+        let mut job = interval_job("poll", 60_000);
+        job.overlap_policy = CronOverlapPolicy::Allow;
+        let manifest = manifest_with_jobs(vec![job]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        runtime.next_run_seq = PORTABLE_STORAGE_VERSION_MAX - 1;
+
+        let claim = runtime
+            .claim_manual_run(&manifest, "poll", 1_000)
+            .expect("the final portable manual run id is allocatable");
+        assert!(
+            claim
+                .metadata
+                .run_id
+                .ends_with(&format!(":{PORTABLE_STORAGE_VERSION_MAX}"))
+        );
+        runtime.finish_run(claim, 1_001, Ok(Value::Null));
+        let predecessor = runtime.states["poll"].clone();
+
+        let error = runtime
+            .claim_manual_run(&manifest, "poll", 2_000)
+            .expect_err("manual run ids cannot wrap or leave the portable domain");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED"
+        );
+        assert_eq!(runtime.states["poll"], predecessor);
+        assert_eq!(runtime.next_run_seq, PORTABLE_STORAGE_VERSION_MAX);
+    }
+
+    #[test]
+    fn manual_run_sequence_exhaustion_never_creates_missing_state() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime {
+            next_run_seq: PORTABLE_STORAGE_VERSION_MAX,
+            ..LocalCronRuntime::default()
+        };
+
+        let error = runtime
+            .claim_manual_run(&manifest, "poll", 1_000)
+            .expect_err("manual run ids cannot wrap or leave the portable domain");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED"
+        );
+        assert!(runtime.states.is_empty());
+        assert_eq!(runtime.next_definition_generation, 0);
+        assert_eq!(runtime.next_run_seq, PORTABLE_STORAGE_VERSION_MAX);
+    }
+
+    #[test]
+    fn consecutive_failure_telemetry_saturates_at_the_portable_maximum() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let claim = runtime
+            .claim_manual_run(&manifest, "poll", 1_000)
+            .expect("manual claim");
+        runtime.states.get_mut("poll").unwrap().consecutive_failures = PORTABLE_STORAGE_VERSION_MAX;
+
+        runtime.finish_run(
+            claim,
+            1_001,
+            Err(Diagnostic::error(
+                "SNAPBACK_TEST_CRON_FAILED",
+                "cron",
+                "expected failure",
+            )),
+        );
+        assert_eq!(
+            runtime.states["poll"].consecutive_failures,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+        runtime
+            .persisted_value()
+            .expect("saturated telemetry remains portable and persistable");
+    }
+
+    #[test]
     fn repeated_allow_schedule_reloads_cannot_bypass_active_run_cap() {
         let mut first_job = interval_job("poll", 60_000);
         first_job.overlap_policy = CronOverlapPolicy::Allow;
@@ -2455,6 +2816,88 @@ mod tests {
                 .expect_err("incompatible durable state must not become empty state");
             assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_STATE_INVALID");
         }
+    }
+
+    #[test]
+    fn persisted_cron_state_rejects_nonportable_identity_and_telemetry_counters() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        let persisted = runtime.persisted_value().expect("persist valid cron state");
+
+        for field in [
+            "next_run_seq",
+            "next_definition_generation",
+            "states.poll.definition_generation",
+            "states.poll.consecutive_failures",
+        ] {
+            let mut corrupt = persisted.clone();
+            let value = serde_json::Number::from(PORTABLE_STORAGE_VERSION_MAX + 1);
+            match field {
+                "next_run_seq" => corrupt["next_run_seq"] = Value::Number(value),
+                "next_definition_generation" => {
+                    corrupt["next_definition_generation"] = Value::Number(value)
+                }
+                "states.poll.definition_generation" => {
+                    corrupt["states"]["poll"]["definition_generation"] = Value::Number(value)
+                }
+                "states.poll.consecutive_failures" => {
+                    corrupt["states"]["poll"]["consecutive_failures"] = Value::Number(value)
+                }
+                _ => unreachable!(),
+            }
+            let error = LocalCronRuntime::from_persisted(Some(corrupt))
+                .expect_err("nonportable durable counters must fail closed");
+            assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_STATE_INVALID");
+            assert_eq!(
+                error.diagnostic.details["field"], field,
+                "the operator diagnostic identifies the corrupt counter"
+            );
+        }
+    }
+
+    #[test]
+    fn cron_persistence_accepts_the_final_portable_counter_values() {
+        let manifest = manifest_with_jobs(vec![interval_job("poll", 60_000)]);
+        let mut runtime = LocalCronRuntime::default();
+        runtime.reconcile(&manifest);
+        runtime.next_run_seq = PORTABLE_STORAGE_VERSION_MAX;
+        runtime.next_definition_generation = PORTABLE_STORAGE_VERSION_MAX;
+        let state = runtime.states.get_mut("poll").unwrap();
+        state.definition_generation = PORTABLE_STORAGE_VERSION_MAX;
+        state.consecutive_failures = PORTABLE_STORAGE_VERSION_MAX;
+
+        let persisted = runtime
+            .persisted_value()
+            .expect("portable maximum persists");
+        let reloaded = LocalCronRuntime::from_persisted(Some(persisted))
+            .expect("portable maximum reloads exactly");
+        assert_eq!(reloaded.next_run_seq, PORTABLE_STORAGE_VERSION_MAX);
+        assert_eq!(
+            reloaded.next_definition_generation,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+        assert_eq!(
+            reloaded.states["poll"].definition_generation,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+        assert_eq!(
+            reloaded.states["poll"].consecutive_failures,
+            PORTABLE_STORAGE_VERSION_MAX
+        );
+    }
+
+    #[test]
+    fn cron_persistence_refuses_an_internal_nonportable_counter() {
+        let runtime = LocalCronRuntime {
+            next_run_seq: PORTABLE_STORAGE_VERSION_MAX + 1,
+            ..LocalCronRuntime::default()
+        };
+        let error = runtime
+            .persisted_value()
+            .expect_err("nonportable in-memory counters must not reach disk");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_CRON_STATE_INVALID");
+        assert_eq!(error.diagnostic.details["field"], "next_run_seq");
     }
 
     #[test]

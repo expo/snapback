@@ -232,6 +232,56 @@ function staleContractAuthorityError() {
   return error;
 }
 
+const CONTRACT_LIFECYCLE_GENERATION_MAX = Number.MAX_SAFE_INTEGER;
+const CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED =
+  'SNAPBACK_CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED';
+
+function contractLifecycleGenerationError(axis) {
+  const diagnostic = contractDiagnostic(
+    CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED,
+    'Contract lifecycle generation space is exhausted; the affected surface is terminally closed.',
+    { axis, maximum: CONTRACT_LIFECYCLE_GENERATION_MAX },
+  );
+  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  return error;
+}
+
+// @ref LLP 0059#participant-contract — every process-local lifecycle identity
+// in this adapter advances through the same checked allocator. Reusing
+// MAX_SAFE_INTEGER would make two distinct
+// async generations compare equal, so callers must catch this error and
+// synchronously terminalize their publication surface.
+function nextContractLifecycleGeneration(current, axis) {
+  if (
+    !Number.isSafeInteger(current)
+    || current < 0
+    || current >= CONTRACT_LIFECYCLE_GENERATION_MAX
+  ) {
+    throw contractLifecycleGenerationError(axis);
+  }
+  return current + 1;
+}
+
+function normalizeTestLifecycleGenerationSeeds(seeds) {
+  if (seeds == null) return Object.freeze({});
+  const allowed = new Set(['resume', 'socketLoss', 'ephemeralWiring']);
+  if (
+    typeof seeds !== 'object'
+    || Array.isArray(seeds)
+    || Object.keys(seeds).some((key) => !allowed.has(key))
+    || Object.values(seeds).some((value) => (
+      !Number.isSafeInteger(value)
+      || value < 0
+      || value > CONTRACT_LIFECYCLE_GENERATION_MAX
+    ))
+  ) {
+    throw new TypeError('testLifecycleGenerationSeeds must contain non-negative safe integer resume, socketLoss, or ephemeralWiring seeds');
+  }
+  return Object.freeze({ ...seeds });
+}
+
 function effectiveContractUserId(coordinator, authSession, explicitUserId) {
   if (authSession?.authority?.kind === 'servicePrincipal') {
     const effectiveUserId = authSession.authority.userId;
@@ -534,6 +584,9 @@ export async function createSnapbackContractSurface({
   // expectation honest.
   ephemeralPermissions = null,
   ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
+  // Deterministic near-limit coverage only. Production callers omit this;
+  // lifecycle identities otherwise start at zero.
+  testLifecycleGenerationSeeds = null,
   // Multi-query mode (LLP 0034 §6 ownership row 3 — the All Aboard proof):
   // name the manifest's live queries to bind each over the shared stream with
   // its own boundary key and per-query connection axis. An entry is a name or
@@ -542,6 +595,9 @@ export async function createSnapbackContractSurface({
   // optimisticReducers) do not apply.
   liveQueries = null,
 }) {
+  const lifecycleGenerationSeeds = normalizeTestLifecycleGenerationSeeds(
+    testLifecycleGenerationSeeds,
+  );
   const coordinator = resolveAuthCoordinator(client, authCoordinator);
   const clientFences = new Set([
     client?.authorityFence,
@@ -723,6 +779,7 @@ export async function createSnapbackContractSurface({
         releaseStoreRegistration: releaseDurableStoreRegistration,
         ephemeralPermissions,
         ephemeralIdleLingerMs,
+        lifecycleGenerationSeeds,
         diagnostics,
         pending,
         mountedHandles,
@@ -1036,7 +1093,17 @@ export async function createSnapbackContractSurface({
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
       },
-    }));
+      socketLossGenerationSeed: lifecycleGenerationSeeds.socketLoss ?? 0,
+      onLifecycleTerminal: (error) => {
+        if (!diagnostics.some((entry) => (
+          entry.code === error.code
+          && entry.details?.axis === error.diagnostic.details.axis
+        ))) diagnostics.push(error.diagnostic);
+      },
+    }), {
+      generationSeed: lifecycleGenerationSeeds.ephemeralWiring ?? 0,
+      onLifecycleTerminal: (error) => terminalizeSurfaceLifecycle(error),
+    });
 
     // In-flight optimistic mutations (LLP 0034 review fix 3): with live push, a
     // concurrent live_replace can arrive DURING a local mutation's in-flight
@@ -1596,6 +1663,7 @@ export async function createSnapbackContractSurface({
     // isCurrent() here is only the synchronous fast hint; publication and
     // lifecycle gates reload durable custody through confirmDurableAuthority.
     const assertActive = () => {
+      if (lifecycleTerminalError) throw lifecycleTerminalError;
       if (disposed) {
         throw new Error('Snapback Contract surface was used after dispose().');
       }
@@ -2190,10 +2258,66 @@ export async function createSnapbackContractSurface({
     };
     installEphemeralLinks(ephemeralWiring);
 
-    let resumeGeneration = 0;
+    let resumeGeneration = lifecycleGenerationSeeds.resume ?? 0;
     let resumeTimer = null;
+    let resumeTimerResolve = null;
     let resumeTask = Promise.resolve();
+    let lifecycleTerminalError = null;
+    let disposeTask = null;
+    const recordLifecycleDiagnostic = (error) => {
+      if (!diagnostics.some((entry) => (
+        entry.code === error.code
+        && entry.details?.axis === error.diagnostic.details.axis
+      ))) diagnostics.push(error.diagnostic);
+    };
+    const cancelResumeTimer = () => {
+      const settle = resumeTimerResolve;
+      if (resumeTimer !== null) clearTimeout(resumeTimer);
+      resumeTimer = null;
+      resumeTimerResolve = null;
+      settle?.();
+    };
+    const terminalizeSurfaceLifecycle = (error) => {
+      if (lifecycleTerminalError) return;
+      lifecycleTerminalError = error;
+      barrierPaused = true;
+      barrierPreparing = false;
+      cancelResumeTimer();
+      detachReceiptListener?.();
+      detachReceiptListener = null;
+      liveHandle?.dispose?.();
+      liveHandle = null;
+      barrierBlanking = true;
+      try {
+        if (boundary) boundary.write(boundaryKey, () => []);
+        ephemeralWiring?.blank?.();
+      } finally {
+        barrierBlanking = false;
+      }
+      ephemeralWiring?.dispose?.();
+      lastServerRows = [];
+      lastServerVersion = 0;
+      for (const record of liveCellObservers) record.lastCell = null;
+      recordLifecycleDiagnostic(error);
+    };
+    const advanceResumeGeneration = () => {
+      try {
+        resumeGeneration = nextContractLifecycleGeneration(
+          resumeGeneration,
+          'single-surface-resume',
+        );
+        return true;
+      } catch (error) {
+        terminalizeSurfaceLifecycle(error);
+        return false;
+      }
+    };
     const refreshAfterAuthorityTransition = async (context, generation) => {
+      if (
+        generation !== resumeGeneration
+        || disposed
+        || lifecycleTerminalError
+      ) return;
       const capture = context.capture;
       authorityCapture = capture;
       coordinatedSessionsMode = context.authority?.authMode === 'sessions';
@@ -2310,7 +2434,7 @@ export async function createSnapbackContractSurface({
         rows = snapshot.rows;
         version = snapshot.version ?? maxServerRowVersion(rows);
       }
-      if (generation !== resumeGeneration || disposed) return;
+      if (generation !== resumeGeneration || disposed || lifecycleTerminalError) return;
 
       // Item 5 does not resume auth-scoped live/ephemeral state in sessions
       // mode. Dev/authority-independent surfaces rebuild only after the fresh
@@ -2334,11 +2458,18 @@ export async function createSnapbackContractSurface({
           onAuthorityRefused: () => {
             void confirmDurableAuthority().catch(() => {});
           },
+          socketLossGenerationSeed: lifecycleGenerationSeeds.socketLoss ?? 0,
+          onLifecycleTerminal: recordLifecycleDiagnostic,
         });
         ephemeralWiring.prepare(successorEphemeral);
         await ephemeralWiring.prewarm();
       }
-      if (generation !== resumeGeneration || !coordinator.isCurrent(capture)) return;
+      if (
+        generation !== resumeGeneration
+        || disposed
+        || lifecycleTerminalError
+        || !coordinator.isCurrent(capture)
+      ) return;
       // The handle may have advanced while successor ephemerals were prepared.
       // Read its latest snapshot once at the atomic exposure turn.
       if (wantLivePush && liveHandle) {
@@ -2348,15 +2479,19 @@ export async function createSnapbackContractSurface({
       const resolvedVersion = version ?? maxServerRowVersion(rows);
       barrierPreparing = true;
       const exposed = await compareContractCommit(client, coordinator, capture, () => {
+        if (disposed || lifecycleTerminalError || generation !== resumeGeneration) {
+          barrierPreparing = false;
+          return;
+        }
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
-        if (!disposed && boundary && !queryAuthorizationHidden) {
+        if (!disposed && !lifecycleTerminalError && boundary && !queryAuthorizationHidden) {
           boundary.write(boundaryKey, () => rows);
         }
         barrierPreparing = false;
-        if (ephemeralMayResume) ephemeralWiring.expose();
+        if (!lifecycleTerminalError && ephemeralMayResume) ephemeralWiring.expose();
         attachReceiptListener();
-        barrierPaused = false;
+        if (!lifecycleTerminalError) barrierPaused = false;
         for (const record of liveCellObservers) {
           // Exposure and observer delivery are one synchronous authority turn.
           record.confirmed = true;
@@ -2365,22 +2500,39 @@ export async function createSnapbackContractSurface({
           }
         }
       });
-      if (!exposed.committed) return;
+      if (
+        !exposed.committed
+        || disposed
+        || lifecycleTerminalError
+        || generation !== resumeGeneration
+      ) return;
       retainRows(rows, resolvedVersion, capture);
     };
 
     const scheduleAuthorityRefresh = (context) => {
+      if (disposed || lifecycleTerminalError) return;
       const generation = resumeGeneration;
       resumeTask = new Promise((resolve) => {
-        resumeTimer = setTimeout(resolve, 0);
+        const settle = () => {
+          if (resumeTimerResolve === settle) {
+            resumeTimer = null;
+            resumeTimerResolve = null;
+          }
+          resolve();
+        };
+        resumeTimerResolve = settle;
+        resumeTimer = setTimeout(settle, 0);
       }).then(() => {
-        resumeTimer = null;
         return refreshAfterAuthorityTransition(context, generation);
       }).catch((error) => {
         // Stay blank/paused. A later transition or explicit surface retry can
         // establish a fresh successor; stale work never becomes a diagnostic
         // owned by that successor.
-        if (generation === resumeGeneration && coordinator.isCurrent(context.capture)) {
+        if (
+          !lifecycleTerminalError
+          && generation === resumeGeneration
+          && coordinator.isCurrent(context.capture)
+        ) {
           publishDiagnostic(
             'SNAPBACK_CONTRACT_AUTH_RESUME_FAILED',
             error instanceof Error ? error.message : String(error),
@@ -2520,11 +2672,8 @@ export async function createSnapbackContractSurface({
         name: `snapback-contract-surface:${surfaceRootId}`,
         quiesce() {
           barrierPaused = true;
-          resumeGeneration += 1;
-          if (resumeTimer !== null) {
-            clearTimeout(resumeTimer);
-            resumeTimer = null;
-          }
+          if (!advanceResumeGeneration()) return;
+          cancelResumeTimer();
           detachReceiptListener?.();
           detachReceiptListener = null;
           liveHandle?.dispose?.();
@@ -2551,7 +2700,13 @@ export async function createSnapbackContractSurface({
           authorizationRenewalTail = Promise.resolve();
           authorizedQueryNamespace = null;
           authorizedQueryFence = null;
+          const terminalDiagnostics = diagnostics.filter((entry) => (
+            entry.code === CONTRACT_LIFECYCLE_GENERATION_EXHAUSTED
+          ));
           diagnostics.splice(stableDiagnosticCount);
+          for (const diagnostic of terminalDiagnostics) {
+            if (!diagnostics.includes(diagnostic)) diagnostics.push(diagnostic);
+          }
           for (const record of liveCellObservers) record.lastCell = null;
         },
         // The physical store participant owns the single expected-epoch CAS.
@@ -2559,6 +2714,7 @@ export async function createSnapbackContractSurface({
         async commitDurable() {},
         async resume(context) {
           authorityCapture = context.capture;
+          if (lifecycleTerminalError || disposed) return;
           // Browser custody performs the mandatory cross-context reload while
           // its exposure barrier is still closed. Agent custody has no peer
           // browser owner; its local fence keeps compareAndCommit closed until
@@ -2639,10 +2795,10 @@ export async function createSnapbackContractSurface({
         ]);
       },
       dispose: () => {
+        if (disposeTask) return disposeTask;
         disposed = true;
         barrierPaused = true;
-        resumeGeneration += 1;
-        if (resumeTimer !== null) clearTimeout(resumeTimer);
+        cancelResumeTimer();
         detachReceiptListener?.();
         detachReceiptListener = null;
         ephemeralWiring?.dispose?.();
@@ -2659,7 +2815,8 @@ export async function createSnapbackContractSurface({
         unregisterSurfaceParticipant = null;
         const releaseStore = releaseDurableStoreRegistration?.();
         releaseDurableStoreRegistration = null;
-        return Promise.all([unregister, releaseStore].filter(Boolean));
+        disposeTask = Promise.all([unregister, releaseStore].filter(Boolean));
+        return disposeTask;
       },
     };
   } catch (error) {
@@ -2752,6 +2909,8 @@ function buildEphemeralWiring({
   authorityCapture = null,
   commitAuthorityPublication = null,
   onAuthorityRefused = null,
+  socketLossGenerationSeed = 0,
+  onLifecycleTerminal = null,
 }) {
   const descriptors = Object.entries(manifest?.queries ?? {}).filter(
     ([, descriptor]) => descriptor?.ephemeral === true,
@@ -2810,6 +2969,13 @@ function buildEphemeralWiring({
   };
 
   const toMapCell = (record, descriptor) => {
+    if (record.lifecycleTerminalError) {
+      return {
+        status: 'ready',
+        entries: [],
+        connection: 'disconnected',
+      };
+    }
     // Exact 0284 §2.5: an entry past provider TTL is deleted from `entries`
     // and never exposed again; freeze-at-last-known is reserved for
     // stale/disconnected, where entries may age past TTL locally and the
@@ -2911,13 +3077,26 @@ function buildEphemeralWiring({
       // Socket-loss epoch (ENG-23387): bumped on every wasOpen loss so a
       // subscribe dispatched before the loss can recognize its resolve as
       // stale (the registration it created died with the old socket).
-      socketLossEpoch: 0,
+      socketLossEpoch: socketLossGenerationSeed,
+      lifecycleTerminalError: null,
       notify: null,
     };
     record.notify = () => publishAuthorityEffect(captureForRecord(record), () => {
       for (const listener of [...record.listeners]) listener();
       scheduleExpiryReemit(record);
     });
+    const bestEffortTerminalUnsubscribe = () => {
+      try {
+        void Promise.resolve(client.unsubscribeEphemeral?.(name, {
+          connectionId,
+          scope: { ...args },
+          userId,
+          permissions,
+        })).catch(() => {});
+      } catch {
+        // Disconnect/reap is the terminal fallback.
+      }
+    };
 
     // Failed resync re-subscribes retry on bounded backoff while the map
     // presents its honest degraded state — no active subscription while
@@ -2933,7 +3112,12 @@ function buildEphemeralWiring({
     // the best-effort unsubscribe settles, and a fresh registration here
     // would race that unsubscribe and leak (nothing owns it afterwards).
     const attemptResync = () => {
-      if (disposed || record.tornDown || record.resyncInFlight) return;
+      if (
+        disposed
+        || record.tornDown
+        || record.lifecycleTerminalError
+        || record.resyncInFlight
+      ) return;
       if (record.resyncTimer) {
         clearTimeout(record.resyncTimer);
         record.resyncTimer = null;
@@ -2945,7 +3129,11 @@ function buildEphemeralWiring({
         .then((fresh) => {
           record.resyncInFlight = false;
           if (disposed || record.tornDown) {
-            fresh.dispose(); // fix 4: never leak past surface/record teardown
+            try {
+              fresh.dispose(); // fix 4: never leak past surface/record teardown
+            } finally {
+              if (record.lifecycleTerminalError) bestEffortTerminalUnsubscribe();
+            }
             return;
           }
           const superseded = record.overlay;
@@ -3003,6 +3191,7 @@ function buildEphemeralWiring({
     };
 
     const handleChange = (result) => {
+      if (record.tornDown || record.lifecycleTerminalError) return;
       if (result === 'needs_resync') {
         // The server retired the room's epoch (collection replace/reset) or
         // the queue overflowed: re-enter through a fresh
@@ -3021,7 +3210,37 @@ function buildEphemeralWiring({
     // Connection axis: the shared live socket's state is the map's transport
     // truth (same connection the durable lanes ride).
     record.connection = manager.isOpen() ? 'live' : 'connecting';
+    const terminalizeSocketLossGeneration = (error) => {
+      if (record.lifecycleTerminalError) return;
+      record.lifecycleTerminalError = error;
+      record.tornDown = true;
+      record.subscribed = false;
+      record.connection = 'disconnected';
+      // Dispatch cleanup before dropping the manager listener: if it is the
+      // last socket demand, disconnect reap is the fallback; if siblings keep
+      // the socket alive, the explicit unsubscribe removes this room. A late
+      // in-flight subscribe repeats this cleanup when it resolves.
+      bestEffortTerminalUnsubscribe();
+      try { record.offState?.(); } catch { /* fail-closed local teardown */ }
+      record.offState = null;
+      for (const timer of ['expiryTimer', 'resyncTimer', 'lingerTimer']) {
+        if (record[timer]) {
+          clearTimeout(record[timer]);
+          record[timer] = null;
+        }
+      }
+      try { record.overlay.dispose(); } catch { /* fail-closed local teardown */ }
+      if (record.disposalEntry) disposals.delete(record.disposalEntry);
+      // Exhaustion is a local fail-closed event, so the empty terminal cell
+      // does not wait behind an authority comparison. No predecessor data is
+      // carried by this blank publication.
+      for (const listener of [...record.listeners]) {
+        try { listener(); } catch { /* isolate */ }
+      }
+      onLifecycleTerminal?.(error);
+    };
     record.offState = manager.onState((state, detail = {}) => {
+      if (disposed || record.tornDown || record.lifecycleTerminalError) return;
       // Reconnect policy (ENG-22541): mirror the kit's durable-lane
       // needsResubscribe-on-open rule (demos/_kit/client.mjs attachStream).
       // An OPEN socket's close makes the server drop this connection's
@@ -3032,7 +3251,15 @@ function buildEphemeralWiring({
       // nothing. Any successful fresh subscribe (attemptResync) clears the
       // need, so a resync that landed during the outage is not repeated.
       if (state === 'lost' && detail.wasOpen) {
-        record.socketLossEpoch += 1;
+        try {
+          record.socketLossEpoch = nextContractLifecycleGeneration(
+            record.socketLossEpoch,
+            'ephemeral-socket-loss',
+          );
+        } catch (error) {
+          terminalizeSocketLossGeneration(error);
+          return;
+        }
         record.subscribed = false;
       }
       if (state === 'open' && !record.subscribed) {
@@ -3068,6 +3295,11 @@ function buildEphemeralWiring({
       }
       record.overlay.dispose();
     };
+    if (record.lifecycleTerminalError) {
+      record.offState?.();
+      record.offState = null;
+      return record;
+    }
     disposals.add(record.disposalEntry);
     scheduleExpiryReemit(record);
     if (!record.subscribed) {
@@ -3307,11 +3539,15 @@ function buildEphemeralWiring({
 // The router quiesces callbacks, emits a synchronous empty cell at `blank`,
 // prepares successor subscriptions while still hidden, then exposes their
 // latest cells only after the caller's authority-fenced snapshot commit.
-function createSwappableEphemeralWiring(initialWiring) {
+function createSwappableEphemeralWiring(initialWiring, {
+  generationSeed = 0,
+  onLifecycleTerminal = null,
+} = {}) {
   let current = initialWiring;
-  let generation = 0;
+  let generation = generationSeed;
   let blanked = false;
   let disposed = false;
+  let lifecycleTerminalError = null;
   const records = new Set();
   const sourceStarts = new Map();
   const descriptorNames = initialWiring.descriptors.map(([name]) => name);
@@ -3336,6 +3572,36 @@ function createSwappableEphemeralWiring(initialWiring) {
         try { record.emit(cell); } catch { /* isolate */ }
       }
     });
+  };
+
+  const close = (error = null) => {
+    if (disposed) return;
+    disposed = true;
+    lifecycleTerminalError = error;
+    blanked = true;
+    for (const record of records) {
+      detach(record);
+      record.lastCell = blankCell();
+      try { record.emit(record.lastCell); } catch { /* isolate */ }
+      record.active = false;
+    }
+    records.clear();
+    current?.dispose?.();
+    current = null;
+    if (error) onLifecycleTerminal?.(error);
+  };
+
+  const advance = () => {
+    try {
+      generation = nextContractLifecycleGeneration(
+        generation,
+        'ephemeral-wiring',
+      );
+      return true;
+    } catch (error) {
+      close(error);
+      return false;
+    }
   };
 
   const sources = Object.fromEntries(descriptorNames.map((name) => [name, (args, emit) => {
@@ -3380,12 +3646,13 @@ function createSwappableEphemeralWiring(initialWiring) {
       return links;
     },
     quiesce() {
-      generation += 1;
+      if (disposed || !advance()) return;
       for (const record of records) detach(record);
       current?.dispose?.();
       current = null;
     },
     blank() {
+      if (disposed) return;
       blanked = true;
       for (const record of records) {
         record.lastCell = blankCell();
@@ -3393,34 +3660,37 @@ function createSwappableEphemeralWiring(initialWiring) {
       }
     },
     prepare(nextWiring) {
+      if (disposed) {
+        nextWiring?.dispose?.();
+        return;
+      }
+      if (!advance()) {
+        nextWiring?.dispose?.();
+        return;
+      }
       current?.dispose?.();
       current = nextWiring;
-      generation += 1;
       blanked = true;
       for (const record of records) attach(record);
     },
     expose() {
+      if (disposed) return;
       blanked = false;
       for (const record of records) {
         try { record.emit(record.lastCell ?? blankCell()); } catch { /* isolate */ }
       }
     },
     dispose() {
-      if (disposed) return;
-      disposed = true;
-      generation += 1;
-      blanked = true;
-      for (const record of records) {
-        detach(record);
-        record.lastCell = blankCell();
-        try { record.emit(record.lastCell); } catch { /* isolate */ }
-        record.active = false;
-      }
-      records.clear();
-      current?.dispose?.();
-      current = null;
+      close();
     },
+    get lifecycleTerminalError() { return lifecycleTerminalError; },
   };
+}
+
+// Narrow white-box seam for deterministic predecessor-callback testing. App
+// code uses createSnapbackContractSurface; this exposes no production state.
+export function __createSwappableEphemeralWiringForTests(initialWiring, options) {
+  return createSwappableEphemeralWiring(initialWiring, options);
 }
 
 // Key-order-insensitive canonical form for args comparison (the multi-live
@@ -3481,6 +3751,7 @@ async function createMultiLiveContractSurface({
   releaseStoreRegistration = null,
   ephemeralPermissions = null,
   ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
+  lifecycleGenerationSeeds = Object.freeze({}),
   diagnostics,
   pending,
   mountedHandles,
@@ -3538,6 +3809,8 @@ async function createMultiLiveContractSurface({
     let barrierBlanking = false;
     let barrierPreparing = false;
     let boundary = null;
+    let lifecycleTerminalError = null;
+    let disposeTask = null;
     if (
       coordinator?.authority?.kind === 'servicePrincipal'
       && typeof client.authSession === 'function'
@@ -3549,6 +3822,12 @@ async function createMultiLiveContractSurface({
     const liveCellObservers = new Map(); // query name -> Set<record>
     const wantLivePush = livePush && typeof client.liveQuery === 'function';
     const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
+    const recordLifecycleDiagnostic = (error) => {
+      if (!diagnostics.some((entry) => (
+        entry.code === error.code
+        && entry.details?.axis === error.diagnostic.details.axis
+      ))) diagnostics.push(error.diagnostic);
+    };
     ephemeralWiring = createSwappableEphemeralWiring(buildEphemeralWiring({
       client,
       manifest,
@@ -3563,10 +3842,16 @@ async function createMultiLiveContractSurface({
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
       },
-    }));
+      socketLossGenerationSeed: lifecycleGenerationSeeds.socketLoss ?? 0,
+      onLifecycleTerminal: recordLifecycleDiagnostic,
+    }), {
+      generationSeed: lifecycleGenerationSeeds.ephemeralWiring ?? 0,
+      onLifecycleTerminal: (error) => terminalizeSurfaceLifecycle(error),
+    });
     // isCurrent() below is only the synchronous fast hint; publication gates
     // reload durable custody through confirmDurableAuthority.
     const assertActive = () => {
+      if (lifecycleTerminalError) throw lifecycleTerminalError;
       if (disposed) {
         throw new Error('Snapback Contract surface was used after dispose().');
       }
@@ -3980,15 +4265,72 @@ async function createMultiLiveContractSurface({
       };
     }
 
-    let resumeGeneration = 0;
+    let resumeGeneration = lifecycleGenerationSeeds.resume ?? 0;
     let resumeTimer = null;
+    let resumeTimerResolve = null;
     let resumeTask = Promise.resolve();
+    const cancelResumeTimer = () => {
+      const settle = resumeTimerResolve;
+      if (resumeTimer !== null) clearTimeout(resumeTimer);
+      resumeTimer = null;
+      resumeTimerResolve = null;
+      settle?.();
+    };
+    const terminalizeSurfaceLifecycle = (error) => {
+      if (lifecycleTerminalError) return;
+      lifecycleTerminalError = error;
+      barrierPaused = true;
+      barrierPreparing = false;
+      cancelResumeTimer();
+      detachReceiptListener?.();
+      for (const [, handle] of liveHandles) handle.dispose?.();
+      liveHandles.clear();
+      barrierBlanking = true;
+      try {
+        if (boundary) {
+          for (const name of liveQueryNames) boundary.write(name, () => []);
+        }
+        ephemeralWiring?.blank?.();
+      } finally {
+        barrierBlanking = false;
+      }
+      ephemeralWiring?.dispose?.();
+      for (const records of liveCellObservers.values()) {
+        for (const record of records) record.lastCell = null;
+      }
+      recordLifecycleDiagnostic(error);
+    };
+    const advanceResumeGeneration = () => {
+      try {
+        resumeGeneration = nextContractLifecycleGeneration(
+          resumeGeneration,
+          'multi-surface-resume',
+        );
+        return true;
+      } catch (error) {
+        terminalizeSurfaceLifecycle(error);
+        return false;
+      }
+    };
     const scheduleAuthorityRefresh = (context) => {
+      if (disposed || lifecycleTerminalError) return;
       const generation = resumeGeneration;
       resumeTask = new Promise((resolve) => {
-        resumeTimer = setTimeout(resolve, 0);
+        const settle = () => {
+          if (resumeTimerResolve === settle) {
+            resumeTimer = null;
+            resumeTimerResolve = null;
+          }
+          resolve();
+        };
+        resumeTimerResolve = settle;
+        resumeTimer = setTimeout(settle, 0);
       }).then(async () => {
-        resumeTimer = null;
+        if (
+          generation !== resumeGeneration
+          || disposed
+          || lifecycleTerminalError
+        ) return;
         currentCapture = context.capture;
         const authSession = context.authority?.kind === 'servicePrincipal'
           && typeof client.authSession === 'function'
@@ -4001,7 +4343,7 @@ async function createMultiLiveContractSurface({
           if (wantLivePush) {
             for (const entry of liveQueryEntries) {
               const result = await openMultiLiveHandle(entry, context.capture);
-              if (generation !== resumeGeneration || disposed) {
+              if (generation !== resumeGeneration || disposed || lifecycleTerminalError) {
                 result.handle.dispose?.();
                 return;
               }
@@ -4055,6 +4397,8 @@ async function createMultiLiveContractSurface({
             onAuthorityRefused: () => {
               void confirmDurableAuthority().catch(() => {});
             },
+            socketLossGenerationSeed: lifecycleGenerationSeeds.socketLoss ?? 0,
+            onLifecycleTerminal: recordLifecycleDiagnostic,
           });
           ephemeralWiring.prepare(successorEphemeral);
           await ephemeralWiring.prewarm();
@@ -4063,6 +4407,7 @@ async function createMultiLiveContractSurface({
         if (
           generation !== resumeGeneration
           || disposed
+          || lifecycleTerminalError
           || !coordinator.isCurrent(context.capture)
         ) {
           for (const result of opened) result.handle.dispose?.();
@@ -4072,6 +4417,14 @@ async function createMultiLiveContractSurface({
         try {
           barrierPreparing = true;
           const exposed = await compareContractCommit(client, coordinator, context.capture, () => {
+            if (
+              disposed
+              || lifecycleTerminalError
+              || generation !== resumeGeneration
+            ) {
+              barrierPreparing = false;
+              return;
+            }
             for (const [name, rows] of stagedRows) {
               if (!authorizationHidden.has(name)) boundary.write(name, () => rows);
             }
@@ -4108,11 +4461,8 @@ async function createMultiLiveContractSurface({
         name: `snapback-contract-multi-surface:${rootId}`,
         quiesce() {
           barrierPaused = true;
-          resumeGeneration += 1;
-          if (resumeTimer !== null) {
-            clearTimeout(resumeTimer);
-            resumeTimer = null;
-          }
+          if (!advanceResumeGeneration()) return;
+          cancelResumeTimer();
           detachReceiptListener?.();
           for (const [, handle] of liveHandles) handle.dispose?.();
           liveHandles.clear();
@@ -4137,6 +4487,7 @@ async function createMultiLiveContractSurface({
         async commitDurable() {},
         async resume(context) {
           currentCapture = context.capture;
+          if (lifecycleTerminalError || disposed) return;
           // @ref LLP 0059#cross-context-ownership — browser multi-live
           // surfaces share the same exact durable resume fence as the
           // single-query surface. Agent custody is one local carrier fence.
@@ -4190,10 +4541,10 @@ async function createMultiLiveContractSurface({
         await Promise.all([...pending, resumeTask]);
       },
       dispose: () => {
+        if (disposeTask) return disposeTask;
         disposed = true;
         barrierPaused = true;
-        resumeGeneration += 1;
-        if (resumeTimer !== null) clearTimeout(resumeTimer);
+        cancelResumeTimer();
         detachReceiptListener?.();
         ephemeralWiring.dispose();
         for (const [, handle] of liveHandles) {
@@ -4210,7 +4561,8 @@ async function createMultiLiveContractSurface({
         unregisterSurfaceParticipant = null;
         const releaseStore = releaseStoreRegistration?.();
         releaseStoreRegistration = null;
-        return Promise.all([unregister, releaseStore].filter(Boolean));
+        disposeTask = Promise.all([unregister, releaseStore].filter(Boolean));
+        return disposeTask;
       },
     };
   } catch (error) {

@@ -28,6 +28,7 @@ import {
   parse,
   sep,
 } from 'node:path';
+import { canonicalAgentAuthorityKey } from '../../packages/snapback-contract/auth-coordinator.mjs';
 
 const DIRECTORY_MODE = 0o700;
 const SAFE_COUNTER_MAX = Number.MAX_SAFE_INTEGER;
@@ -36,9 +37,22 @@ const PROCESS_OWNERSHIP = new Map();
 const PROCESS_OWNERSHIP_CONTEXT = new AsyncLocalStorage();
 const DIRECTORY_CAPABILITIES = new Map();
 const MAX_RETAINED_DIRECTORY_CAPABILITIES = 32;
+const DEFAULT_TERMINAL_BUCKET_COUNT = 64;
+const DEFAULT_TERMINAL_BUCKET_CAPACITY = 64;
+const MAX_TERMINAL_BUCKET_COUNT = 64;
+const MAX_TERMINAL_BUCKET_CAPACITY = 64;
 const CAPABILITY_HELPER = fileURLToPath(new URL('./agent-authority-filesystem-helper.mjs', import.meta.url));
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const TOP_LEVEL_FIELDS = Object.freeze([
+const AUTHORITY_KEY = /^sha256:[a-f0-9]{64}$/u;
+const TERMINAL_LEDGER_PREFIX = 'snapback.agent-terminal-ledger.v2:';
+const TERMINAL_BUCKET_PREFIX = 'snapback.agent-terminal-bucket.v2:';
+const RESERVED_LOGICAL_CUSTODY_PREFIXES = Object.freeze([
+  'snapback.agent-custody-gate.v1:',
+  'snapback.agent-terminal-witness.v1:',
+  TERMINAL_LEDGER_PREFIX,
+  TERMINAL_BUCKET_PREFIX,
+]);
+const PRIMARY_V1_FIELDS = Object.freeze([
   'formatVersion',
   'custodyId',
   'authorityEpoch',
@@ -48,6 +62,36 @@ const TOP_LEVEL_FIELDS = Object.freeze([
   'authorityKey',
   'authority',
   'transition',
+]);
+const PRIMARY_V2_FIELDS = Object.freeze([
+  ...PRIMARY_V1_FIELDS,
+  'terminalLedgerVersion',
+]);
+const TERMINAL_LEDGER_FIELDS = Object.freeze([
+  'formatVersion',
+  'recordType',
+  'custodyId',
+  'sourceCustodyId',
+  'revision',
+  'phase',
+  'legacyCut',
+  'bucketCount',
+  'bucketCapacity',
+]);
+const TERMINAL_BUCKET_FIELDS = Object.freeze([
+  'formatVersion',
+  'recordType',
+  'custodyId',
+  'sourceCustodyId',
+  'revision',
+  'bucketIndex',
+  'bucketCount',
+  'bucketCapacity',
+  'entries',
+]);
+const TERMINAL_BUCKET_ENTRY_FIELDS = Object.freeze([
+  'authorityKey',
+  'authority',
 ]);
 const AUTHORITY_FIELDS = Object.freeze([
   'kind',
@@ -88,6 +132,8 @@ export const AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS = Object.freeze({
   capabilityLimit: 'SNAPBACK_AUTH_CUSTODY_DIRECTORY_CAPABILITY_LIMIT',
   orphanLimit: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_LIMIT',
   orphanCleanupFailed: 'SNAPBACK_AUTH_CUSTODY_ORPHAN_CLEANUP_FAILED',
+  partitionScanLimit: 'SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT',
+  correlationExhausted: 'SNAPBACK_AUTH_CUSTODY_CORRELATION_EXHAUSTED',
 });
 
 const diagnostic = (code, message, details = undefined, cause = undefined) => {
@@ -171,6 +217,20 @@ const assertAuthority = (value, where) => {
   assertUuid(value.grantId, `${where}.grantId`);
 };
 
+const assertNoSecretMaterial = (value, where) => {
+  const pending = [value];
+  while (pending.length > 0) {
+    const current = pending.pop();
+    if (current === null || typeof current !== 'object') continue;
+    for (const [field, child] of Object.entries(current)) {
+      if (/bearer|secret|tokenid|carrier/i.test(field)) {
+        throw corrupt(`${where} refuses bearer or carrier material`, { field });
+      }
+      pending.push(child);
+    }
+  }
+};
+
 const sameAuthority = (left, right) => (
   left?.kind === right?.kind
   && left?.authMode === right?.authMode
@@ -180,7 +240,31 @@ const sameAuthority = (left, right) => (
   && left?.grantId === right?.grantId
 );
 
-const assertTransition = (value, where) => {
+const transitionIdFor = ({
+  custodyId,
+  expectedRevision,
+  expectedEpoch,
+  expectedAuthorityKey,
+  previousStatus,
+  nextEpoch,
+  nextAuthorityKey,
+  nextStatus,
+  reason,
+  disposition,
+}) => `agent-transition-v1:${JSON.stringify({
+  custodyId,
+  expectedRevision,
+  expectedEpoch,
+  expectedAuthorityKey,
+  previousStatus,
+  nextEpoch,
+  nextAuthorityKey,
+  nextStatus,
+  reason,
+  disposition,
+})}`;
+
+const assertTransition = (value, custodyId, where) => {
   exactKeys(value, TRANSITION_FIELDS, where);
   if (value.formatVersion !== 1) throw corrupt(`${where}.formatVersion must be 1`);
   if (typeof value.transitionId !== 'string' || !value.transitionId.startsWith('agent-transition-v1:')) {
@@ -200,6 +284,9 @@ const assertTransition = (value, where) => {
       throw corrupt(`${where}.previousStatus is invalid`);
     }
     assertAuthority(value.previousAuthority, `${where}.previousAuthority`);
+    if (canonicalAgentAuthorityKey(value.previousAuthority) !== value.expectedAuthorityKey) {
+      throw corrupt(`${where}.expectedAuthorityKey does not bind its predecessor`);
+    }
   }
   assertSafeCounter(value.nextEpoch, `${where}.nextEpoch`);
   if (typeof value.nextAuthorityKey !== 'string') throw corrupt(`${where}.nextAuthorityKey is invalid`);
@@ -207,17 +294,51 @@ const assertTransition = (value, where) => {
     throw corrupt(`${where}.nextStatus is invalid`);
   }
   assertAuthority(value.nextAuthority, `${where}.nextAuthority`);
+  if (canonicalAgentAuthorityKey(value.nextAuthority) !== value.nextAuthorityKey) {
+    throw corrupt(`${where}.nextAuthorityKey does not bind its successor`);
+  }
   if (typeof value.reason !== 'string' || value.reason.length === 0) {
     throw corrupt(`${where}.reason is invalid`);
   }
   if (value.disposition !== 'retain' && value.disposition !== 'delete') {
     throw corrupt(`${where}.disposition is invalid`);
   }
+  if (
+    (value.expectedRevision === null && value.nextEpoch !== 0)
+    || (
+      value.expectedRevision !== null
+      && (
+        value.nextEpoch !== value.expectedEpoch + 1
+        || !(
+          (
+            value.previousStatus === 'active'
+            && value.nextStatus === 'deleted'
+            && value.expectedAuthorityKey === value.nextAuthorityKey
+          )
+          || (
+            value.nextStatus === 'active'
+            && value.expectedAuthorityKey !== value.nextAuthorityKey
+          )
+        )
+      )
+    )
+  ) {
+    throw corrupt(`${where} is not a consecutive exact deletion or distinct replacement`);
+  }
+  if (value.transitionId !== transitionIdFor({ custodyId, ...value })) {
+    throw corrupt(`${where}.transitionId does not bind its exact target`);
+  }
 };
 
 const assertCustodyRecord = (value, expectedCustodyId) => {
-  exactKeys(value, TOP_LEVEL_FIELDS, 'filesystem agent custody record');
-  if (value.formatVersion !== 1) throw corrupt('filesystem agent custody formatVersion must be 1');
+  const fields = value?.formatVersion === 2 ? PRIMARY_V2_FIELDS : PRIMARY_V1_FIELDS;
+  exactKeys(value, fields, 'filesystem agent custody record');
+  if (value.formatVersion !== 1 && value.formatVersion !== 2) {
+    throw corrupt('filesystem agent custody formatVersion must be 1 or 2');
+  }
+  if (value.formatVersion === 2 && value.terminalLedgerVersion !== 1) {
+    throw corrupt('filesystem agent custody terminalLedgerVersion must be 1');
+  }
   if (value.custodyId !== expectedCustodyId) {
     throw corrupt('filesystem agent custody record belongs to another partition');
   }
@@ -233,36 +354,210 @@ const assertCustodyRecord = (value, expectedCustodyId) => {
   if (value.status !== 'active' && value.status !== 'deleted') {
     throw corrupt('filesystem agent custody status is invalid');
   }
-  if (typeof value.authorityKey !== 'string' || !value.authorityKey.startsWith('sha256:')) {
+  if (!AUTHORITY_KEY.test(value.authorityKey ?? '')) {
     throw corrupt('filesystem agent custody authorityKey is invalid');
   }
   assertAuthority(value.authority, 'filesystem agent custody authority');
+  if (canonicalAgentAuthorityKey(value.authority) !== value.authorityKey) {
+    throw corrupt('filesystem agent custody authorityKey does not bind its durable tuple');
+  }
   if (value.phase === 'clearing') {
-    assertTransition(value.transition, 'filesystem agent custody transition');
+    assertTransition(value.transition, expectedCustodyId, 'filesystem agent custody transition');
+    if (
+      value.transition.nextEpoch !== value.authorityEpoch
+      || value.transition.nextStatus !== value.status
+      || value.transition.nextAuthorityKey !== value.authorityKey
+      || !sameAuthority(value.transition.nextAuthority, value.authority)
+      || value.revision !== (
+        value.transition.expectedRevision === null
+          ? 1
+          : value.transition.expectedRevision + 1
+      )
+    ) {
+      throw corrupt('clearing filesystem agent custody does not match its transition successor');
+    }
   } else if (value.transition !== null) {
     throw corrupt('non-clearing filesystem agent custody cannot retain a transition');
   }
   if (value.phase === 'exhausted' && value.status !== 'deleted') {
     throw corrupt('exhausted filesystem agent custody must be terminally deleted');
   }
-  // The closed envelope above intentionally has no tokenId or bearer field.
-  // Keep an independent recursive guard so a future schema extension cannot
-  // accidentally turn this Node adapter into secret persistence.
-  const pending = [value];
-  while (pending.length > 0) {
-    const current = pending.pop();
-    if (current === null || typeof current !== 'object') continue;
-    for (const [field, child] of Object.entries(current)) {
-      if (/bearer|secret|tokenid/i.test(field)) {
-        throw corrupt('filesystem agent custody refuses bearer or carrier material', { field });
-      }
-      pending.push(child);
-    }
+  assertNoSecretMaterial(value, 'filesystem agent custody');
+  return value;
+};
+
+const normalizeTerminalParameters = (value, where = 'terminalLedgerParameters') => {
+  if (
+    value === null
+    || typeof value !== 'object'
+    || Array.isArray(value)
+    || Object.keys(value).length !== 2
+    || !Object.hasOwn(value, 'bucketCount')
+    || !Object.hasOwn(value, 'bucketCapacity')
+  ) {
+    throw new TypeError(`${where} must contain exactly bucketCount and bucketCapacity`);
+  }
+  if (
+    !Number.isSafeInteger(value.bucketCount)
+    || value.bucketCount < 1
+    || value.bucketCount > MAX_TERMINAL_BUCKET_COUNT
+  ) {
+    throw new TypeError(`${where}.bucketCount must be an integer from 1 through ${MAX_TERMINAL_BUCKET_COUNT}`);
+  }
+  if (
+    !Number.isSafeInteger(value.bucketCapacity)
+    || value.bucketCapacity < 1
+    || value.bucketCapacity > MAX_TERMINAL_BUCKET_CAPACITY
+  ) {
+    throw new TypeError(`${where}.bucketCapacity must be an integer from 1 through ${MAX_TERMINAL_BUCKET_CAPACITY}`);
+  }
+  return Object.freeze({
+    bucketCount: value.bucketCount,
+    bucketCapacity: value.bucketCapacity,
+  });
+};
+
+const assertLogicalCustodyId = (value, where) => {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > 512
+    || /[\u0000-\u001f\u007f-\u009f]/u.test(value)
+    || RESERVED_LOGICAL_CUSTODY_PREFIXES.some((prefix) => value.startsWith(prefix))
+  ) {
+    throw corrupt(`${where} is not a valid logical custody id`);
   }
   return value;
 };
 
-const assertReplacement = (current, next) => {
+const assertTerminalParameters = (value, where) => {
+  if (
+    !Number.isSafeInteger(value.bucketCount)
+    || value.bucketCount < 1
+    || value.bucketCount > MAX_TERMINAL_BUCKET_COUNT
+    || !Number.isSafeInteger(value.bucketCapacity)
+    || value.bucketCapacity < 1
+    || value.bucketCapacity > MAX_TERMINAL_BUCKET_CAPACITY
+  ) {
+    throw corrupt(`${where} has invalid bucket parameters`);
+  }
+};
+
+const terminalBucketIdentity = (custodyId) => {
+  if (!custodyId.startsWith(TERMINAL_BUCKET_PREFIX)) return null;
+  const remainder = custodyId.slice(TERMINAL_BUCKET_PREFIX.length);
+  const separator = remainder.indexOf(':');
+  if (separator <= 0) return null;
+  const indexText = remainder.slice(0, separator);
+  if (!/^(?:0|[1-9][0-9]*)$/u.test(indexText)) return null;
+  const sourceCustodyId = remainder.slice(separator + 1);
+  if (sourceCustodyId.length === 0) return null;
+  const bucketIndex = Number(indexText);
+  if (!Number.isSafeInteger(bucketIndex)) return null;
+  return Object.freeze({ bucketIndex, sourceCustodyId });
+};
+
+const assertTerminalLedgerRecord = (value, expectedCustodyId) => {
+  exactKeys(value, TERMINAL_LEDGER_FIELDS, 'filesystem agent terminal ledger root');
+  if (value.formatVersion !== 1 || value.recordType !== 'agentTerminalLedger') {
+    throw corrupt('filesystem agent terminal ledger root has an invalid format or record type');
+  }
+  const sourceCustodyId = expectedCustodyId.startsWith(TERMINAL_LEDGER_PREFIX)
+    ? expectedCustodyId.slice(TERMINAL_LEDGER_PREFIX.length)
+    : '';
+  assertLogicalCustodyId(sourceCustodyId, 'filesystem agent terminal ledger sourceCustodyId');
+  if (
+    sourceCustodyId.length === 0
+    || value.custodyId !== expectedCustodyId
+    || value.sourceCustodyId !== sourceCustodyId
+  ) {
+    throw corrupt('filesystem agent terminal ledger root has an invalid partition identity');
+  }
+  assertSafeCounter(value.revision, 'filesystem agent terminal ledger root revision', { positive: true });
+  if (value.phase !== 'preparing' && value.phase !== 'active' && value.phase !== 'closed') {
+    throw corrupt('filesystem agent terminal ledger root phase is invalid');
+  }
+  if (typeof value.legacyCut !== 'boolean' || (value.phase === 'preparing' && value.legacyCut)) {
+    throw corrupt('filesystem agent terminal ledger root legacyCut is invalid');
+  }
+  assertTerminalParameters(value, 'filesystem agent terminal ledger root');
+  assertNoSecretMaterial(value, 'filesystem agent terminal ledger root');
+  return value;
+};
+
+const assertTerminalBucketRecord = (value, expectedCustodyId) => {
+  exactKeys(value, TERMINAL_BUCKET_FIELDS, 'filesystem agent terminal ledger bucket');
+  if (value.formatVersion !== 1 || value.recordType !== 'agentTerminalBucket') {
+    throw corrupt('filesystem agent terminal ledger bucket has an invalid format or record type');
+  }
+  const identity = terminalBucketIdentity(expectedCustodyId);
+  if (identity !== null) {
+    assertLogicalCustodyId(
+      identity.sourceCustodyId,
+      'filesystem agent terminal ledger bucket sourceCustodyId',
+    );
+  }
+  if (
+    identity === null
+    || value.custodyId !== expectedCustodyId
+    || value.sourceCustodyId !== identity.sourceCustodyId
+    || value.bucketIndex !== identity.bucketIndex
+  ) {
+    throw corrupt('filesystem agent terminal ledger bucket has an invalid partition identity');
+  }
+  assertSafeCounter(value.revision, 'filesystem agent terminal ledger bucket revision', { positive: true });
+  assertTerminalParameters(value, 'filesystem agent terminal ledger bucket');
+  if (value.bucketIndex < 0 || value.bucketIndex >= value.bucketCount) {
+    throw corrupt('filesystem agent terminal ledger bucket index is outside its declared range');
+  }
+  if (!Array.isArray(value.entries) || value.entries.length > value.bucketCapacity) {
+    throw corrupt('filesystem agent terminal ledger bucket entries exceed capacity');
+  }
+  let previousKey = null;
+  for (const [index, entry] of value.entries.entries()) {
+    exactKeys(entry, TERMINAL_BUCKET_ENTRY_FIELDS, `filesystem agent terminal ledger bucket entry ${index}`);
+    if (!AUTHORITY_KEY.test(entry.authorityKey ?? '')) {
+      throw corrupt('filesystem agent terminal ledger bucket entry has an invalid authorityKey');
+    }
+    assertAuthority(entry.authority, `filesystem agent terminal ledger bucket entry ${index} authority`);
+    if (canonicalAgentAuthorityKey(entry.authority) !== entry.authorityKey) {
+      throw corrupt('filesystem agent terminal ledger bucket entry key does not bind its durable tuple');
+    }
+    if (previousKey !== null && entry.authorityKey <= previousKey) {
+      throw corrupt('filesystem agent terminal ledger bucket entries must be strictly key-sorted and unique');
+    }
+    const bucketIndex = Number.parseInt(entry.authorityKey.slice('sha256:'.length, 'sha256:'.length + 8), 16)
+      % value.bucketCount;
+    if (bucketIndex !== value.bucketIndex) {
+      throw corrupt('filesystem agent terminal ledger bucket entry belongs to another bucket');
+    }
+    previousKey = entry.authorityKey;
+  }
+  assertNoSecretMaterial(value, 'filesystem agent terminal ledger bucket');
+  return value;
+};
+
+const assertPartitionRecord = (value, expectedCustodyId) => {
+  if (expectedCustodyId.startsWith(TERMINAL_LEDGER_PREFIX)) {
+    return assertTerminalLedgerRecord(value, expectedCustodyId);
+  }
+  if (expectedCustodyId.startsWith(TERMINAL_BUCKET_PREFIX)) {
+    return assertTerminalBucketRecord(value, expectedCustodyId);
+  }
+  return assertCustodyRecord(value, expectedCustodyId);
+};
+
+const samePrimarySemantics = (left, right) => (
+  left.custodyId === right.custodyId
+  && left.authorityEpoch === right.authorityEpoch
+  && left.phase === right.phase
+  && left.status === right.status
+  && left.authorityKey === right.authorityKey
+  && sameAuthority(left.authority, right.authority)
+  && JSON.stringify(left.transition) === JSON.stringify(right.transition)
+);
+
+const assertCustodyReplacement = (current, next) => {
   if (current === null) {
     const validDirectInitialization = next.phase === 'settled'
       && next.status === 'active';
@@ -276,6 +571,30 @@ const assertReplacement = (current, next) => {
       throw corrupt('fresh filesystem agent custody must initialize or begin a transition at epoch 0 and revision 1');
     }
     return;
+  }
+  if (current.formatVersion === 2 && next.formatVersion !== 2) {
+    throw corrupt('filesystem agent custody format cannot regress from v2');
+  }
+  if (
+    current.formatVersion === 1
+    && next.formatVersion === 2
+    && current.phase === 'settled'
+    && next.revision === current.revision + 1
+    && samePrimarySemantics(current, next)
+  ) {
+    return;
+  }
+  if (
+    current.formatVersion === 1
+    && next.formatVersion === 2
+    && samePrimarySemantics(current, next)
+  ) {
+    if (
+      current.phase !== 'settled'
+      || next.revision !== current.revision + 1
+    ) {
+      throw corrupt('filesystem agent custody format-only v1-to-v2 migration requires one settled predecessor');
+    }
   }
   if (current.revision === SAFE_COUNTER_MAX || next.revision !== current.revision + 1) {
     throw corrupt('filesystem agent custody replacement must advance revision exactly once');
@@ -330,6 +649,76 @@ const assertReplacement = (current, next) => {
   ) {
     throw corrupt('clearing filesystem agent custody may only settle its exact successor');
   }
+};
+
+const sameTerminalParameters = (left, right) => (
+  left.sourceCustodyId === right.sourceCustodyId
+  && left.bucketCount === right.bucketCount
+  && left.bucketCapacity === right.bucketCapacity
+);
+
+const assertTerminalLedgerReplacement = (current, next) => {
+  if (current === null) {
+    if (next.revision !== 1 || next.phase !== 'preparing' || next.legacyCut) {
+      throw corrupt('fresh filesystem agent terminal ledger root must begin preparing before the legacy cut at revision 1');
+    }
+    return;
+  }
+  if (
+    current.revision === SAFE_COUNTER_MAX
+    || next.revision !== current.revision + 1
+    || !sameTerminalParameters(current, next)
+  ) {
+    throw corrupt('filesystem agent terminal ledger root replacement must preserve parameters and advance once');
+  }
+  const validPreparingTransition = current.phase === 'preparing'
+    && !current.legacyCut
+    && !next.legacyCut
+    && (next.phase === 'active' || next.phase === 'closed');
+  const validLegacyCut = !current.legacyCut
+    && next.legacyCut
+    && current.phase === next.phase
+    && (current.phase === 'active' || current.phase === 'closed');
+  const validActiveClose = current.phase === 'active'
+    && next.phase === 'closed'
+    && current.legacyCut === next.legacyCut;
+  if (!validPreparingTransition && !validLegacyCut && !validActiveClose) {
+    throw corrupt('filesystem agent terminal ledger root phase transition is invalid');
+  }
+};
+
+const assertTerminalBucketReplacement = (current, next) => {
+  if (current === null) {
+    if (next.revision !== 1) {
+      throw corrupt('fresh filesystem agent terminal ledger bucket must begin at revision 1');
+    }
+    return;
+  }
+  if (
+    current.revision === SAFE_COUNTER_MAX
+    || next.revision !== current.revision + 1
+    || current.bucketIndex !== next.bucketIndex
+    || !sameTerminalParameters(current, next)
+  ) {
+    throw corrupt('filesystem agent terminal ledger bucket replacement must preserve identity and advance once');
+  }
+  const nextByKey = new Map(next.entries.map((entry) => [entry.authorityKey, entry]));
+  for (const entry of current.entries) {
+    const retained = nextByKey.get(entry.authorityKey);
+    if (retained === undefined || !sameAuthority(retained.authority, entry.authority)) {
+      throw corrupt('filesystem agent terminal ledger bucket replacement cannot forget or alter an entry');
+    }
+  }
+};
+
+const assertPartitionReplacement = (current, next, custodyId) => {
+  if (custodyId.startsWith(TERMINAL_LEDGER_PREFIX)) {
+    return assertTerminalLedgerReplacement(current, next);
+  }
+  if (custodyId.startsWith(TERMINAL_BUCKET_PREFIX)) {
+    return assertTerminalBucketReplacement(current, next);
+  }
+  return assertCustodyReplacement(current, next);
 };
 
 const storageKey = (custodyId) => createHash('sha256')
@@ -589,13 +978,16 @@ class RetainedDirectoryCapability {
   #child;
   #closed = false;
   #hooks = new Map();
-  #nextRequestId = 1;
-  #nextSessionId = 1;
+  #nextRequestId;
+  #nextSessionId;
   #pending = new Map();
   #stderr = '';
+  #terminalError = null;
 
-  constructor(directory) {
+  constructor(directory, counterSeeds = null) {
     this.directory = directory;
+    this.#nextRequestId = counterSeeds?.requestId ?? 1;
+    this.#nextSessionId = counterSeeds?.sessionId ?? 1;
     this.#child = fork(CAPABILITY_HELPER, [], {
       execArgv: [],
       stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
@@ -627,7 +1019,7 @@ class RetainedDirectoryCapability {
     this.#unref();
   }
 
-  async initialize(identity) {
+  async initialize(identity, helperHookId = null) {
     return this.#request('initialize', {
       directory: this.directory,
       expectedIdentity: {
@@ -635,12 +1027,19 @@ class RetainedDirectoryCapability {
         ino: identity.ino,
         uid: identity.uid,
       },
+      testNextHookId: helperHookId,
     });
   }
 
   nextSessionId() {
-    const id = `${process.pid}:${this.#nextSessionId}`;
-    this.#nextSessionId += 1;
+    if (this.#nextSessionId === null) {
+      const error = this.#correlationExhausted('session');
+      this.#retireForCorrelationExhaustion(error);
+      throw error;
+    }
+    const sequence = this.#nextSessionId;
+    this.#nextSessionId = sequence === Number.MAX_SAFE_INTEGER ? null : sequence + 1;
+    const id = `${process.pid}:${sequence}`;
     return id;
   }
 
@@ -667,6 +1066,26 @@ class RetainedDirectoryCapability {
     });
   }
 
+  remove(sessionId, recordName, expectedRevision) {
+    return this.#request('remove', {
+      sessionId,
+      recordName,
+      expectedRevision,
+    });
+  }
+
+  retire(sessionId, recordName, expectedRevision) {
+    return this.#request('retire', {
+      sessionId,
+      recordName,
+      expectedRevision,
+    });
+  }
+
+  scan(sessionId, cursor, limit) {
+    return this.#request('scan', { sessionId, cursor, limit });
+  }
+
   async release(sessionId) {
     try {
       await this.#request('release', { sessionId });
@@ -691,13 +1110,22 @@ class RetainedDirectoryCapability {
 
   #request(command, fields) {
     if (this.#closed || !this.#child.connected) {
-      return Promise.reject(diagnostic(
+      const refused = Promise.reject(this.#terminalError ?? diagnostic(
         AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
         'filesystem agent custody directory capability is unavailable',
       ));
+      void refused.then(() => {}, () => {});
+      return refused;
+    }
+    if (this.#nextRequestId === null) {
+      const error = this.#correlationExhausted('request');
+      this.#retireForCorrelationExhaustion(error);
+      const refused = Promise.reject(error);
+      void refused.then(() => {}, () => {});
+      return refused;
     }
     const requestId = this.#nextRequestId;
-    this.#nextRequestId += 1;
+    this.#nextRequestId = requestId === Number.MAX_SAFE_INTEGER ? null : requestId + 1;
     this.#ref();
     return new Promise((resolve, reject) => {
       this.#pending.set(requestId, { resolve, reject });
@@ -724,7 +1152,13 @@ class RetainedDirectoryCapability {
       if (pending === undefined) return;
       this.#pending.delete(message.requestId);
       if (message.ok) pending.resolve(message.value);
-      else pending.reject(remoteError(message.error));
+      else {
+        const error = remoteError(message.error);
+        if (error.code === AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.correlationExhausted) {
+          this.#retireForCorrelationExhaustion(error);
+        }
+        pending.reject(error);
+      }
       this.#unrefIfIdle();
       return;
     }
@@ -755,6 +1189,24 @@ class RetainedDirectoryCapability {
     this.#hooks.clear();
   }
 
+  #correlationExhausted(axis) {
+    return this.#terminalError ?? diagnostic(
+      AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.correlationExhausted,
+      'filesystem agent custody capability correlation space is exhausted',
+      { axis, maximum: Number.MAX_SAFE_INTEGER },
+    );
+  }
+
+  #retireForCorrelationExhaustion(error) {
+    if (this.#terminalError !== null) return;
+    this.#terminalError = error;
+    this.#closed = true;
+    for (const pending of this.#pending.values()) pending.reject(error);
+    this.#pending.clear();
+    this.#hooks.clear();
+    this.#child.kill('SIGTERM');
+  }
+
   #ref() {
     this.#child.ref();
     this.#child.channel?.ref?.();
@@ -770,7 +1222,7 @@ class RetainedDirectoryCapability {
   }
 }
 
-const retainedDirectoryCapability = async (directory) => {
+const retainedDirectoryCapability = async (directory, counterSeeds = null) => {
   let capability = DIRECTORY_CAPABILITIES.get(directory);
   if (capability !== undefined) return capability;
   // Retained capabilities deliberately survive for the process lifetime: an
@@ -787,9 +1239,9 @@ const retainedDirectoryCapability = async (directory) => {
   }
   capability = (async () => {
     const identity = await assertPrivateDirectory(directory);
-    const retained = new RetainedDirectoryCapability(directory);
+    const retained = new RetainedDirectoryCapability(directory, counterSeeds);
     try {
-      await retained.initialize(identity);
+      await retained.initialize(identity, counterSeeds?.hookId ?? null);
       return retained;
     } catch (error) {
       retained.retireAfterInitializationFailure();
@@ -843,6 +1295,12 @@ export function createFilesystemAgentAuthorityCustodyStorage({
   directory,
   lockTimeoutMs = 5_000,
   testHooks = null,
+  testCounterSeeds = null,
+  terminalLedgerParameters = Object.freeze({
+    bucketCount: DEFAULT_TERMINAL_BUCKET_COUNT,
+    bucketCapacity: DEFAULT_TERMINAL_BUCKET_CAPACITY,
+  }),
+  terminalLedgerCheckpoint = null,
 } = {}) {
   if (process.platform === 'win32') {
     throw diagnostic(
@@ -861,7 +1319,29 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     throw new TypeError('filesystem agent custody directory must be a normalized path without a trailing separator');
   }
   normalizeDuration(lockTimeoutMs, 'lockTimeoutMs');
-  const testHookNames = [
+  if (
+    testCounterSeeds !== null
+    && (
+      typeof testCounterSeeds !== 'object'
+      || Array.isArray(testCounterSeeds)
+      || Object.keys(testCounterSeeds).some(
+        (name) => !['requestId', 'sessionId', 'hookId'].includes(name),
+      )
+      || Object.values(testCounterSeeds).some(
+        (value) => !Number.isSafeInteger(value) || value < 1,
+      )
+    )
+  ) {
+    throw new TypeError('filesystem agent custody testCounterSeeds are invalid');
+  }
+  const normalizedTestCounterSeeds = testCounterSeeds === null
+    ? null
+    : Object.freeze({ ...testCounterSeeds });
+  const normalizedTerminalLedgerParameters = normalizeTerminalParameters(terminalLedgerParameters);
+  if (terminalLedgerCheckpoint !== null && typeof terminalLedgerCheckpoint !== 'function') {
+    throw new TypeError('filesystem agent custody terminalLedgerCheckpoint must be a function or null');
+  }
+  const capabilityTestHookNames = [
     'beforeLock',
     'beforeOrphanCleanup',
     'beforeOrphanUnlink',
@@ -869,6 +1349,27 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     'afterTemporaryCreate',
     'beforeRecordRename',
     'afterRecordRename',
+    'beforeRecordRemove',
+    'afterRecordUnlink',
+    'afterRecordRemove',
+    'beforeLockRetire',
+    'beforeLockClose',
+    'afterLockClose',
+    'afterLockUnlink',
+    'afterLockRetireSync',
+  ];
+  const terminalLedgerCheckpointNames = [
+    'afterLedgerPreparing',
+    'afterLegacyWitnessWrite',
+    'afterLedgerBuckets',
+    'afterLedgerActive',
+    'afterLedgerClosed',
+    'afterPrimaryV2',
+    'afterLegacyWitnessRemove',
+  ];
+  const testHookNames = [
+    ...capabilityTestHookNames,
+    ...terminalLedgerCheckpointNames,
   ];
   if (
     testHooks !== null
@@ -907,10 +1408,10 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     }
     const { custodyId, recordName, lockName } = pathsFor(rawCustodyId);
     return withProcessOwnership(`${directory}\u0000${lockName}`, async () => {
-      const capability = await retainedDirectoryCapability(directory);
+      const capability = await retainedDirectoryCapability(directory, normalizedTestCounterSeeds);
       const sessionId = capability.nextSessionId();
       const boundHooks = testHooks === null ? null : Object.fromEntries(
-        testHookNames
+        capabilityTestHookNames
           .filter((name) => typeof testHooks[name] === 'function')
           .map((name) => [name, (context) => testHooks[name](Object.freeze({
             custodyId,
@@ -925,36 +1426,47 @@ export function createFilesystemAgentAuthorityCustodyStorage({
         boundHooks,
       ));
       let active = true;
+      let acceptingOwnerOperations = true;
+      let retired = false;
       let ownerOperationActive = false;
-      const runOwnerOperation = async (operationName, operationBody) => {
-        if (!active) {
-          throw diagnostic(
+      const ownerOperations = new Set();
+      const runOwnerOperation = (operationName, operationBody) => {
+        if (!active || !acceptingOwnerOperations || retired) {
+          const refused = Promise.reject(diagnostic(
             AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-            'filesystem agent custody ownership was released',
-          );
+            retired
+              ? 'filesystem agent custody ownership was retired'
+              : 'filesystem agent custody ownership was released',
+          ));
+          void refused.then(() => {}, () => {});
+          return refused;
         }
         if (ownerOperationActive) {
-          throw diagnostic(
+          const refused = Promise.reject(diagnostic(
             AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.operationOverlap,
             'filesystem agent custody owner operations must not overlap',
             { operation: operationName },
-          );
+          ));
+          void refused.then(() => {}, () => {});
+          return refused;
         }
         ownerOperationActive = true;
-        try {
-          return await operationBody();
-        } finally {
-          ownerOperationActive = false;
-        }
+        const task = (async () => {
+          try {
+            return await operationBody();
+          } finally {
+            ownerOperationActive = false;
+          }
+        })();
+        ownerOperations.add(task);
+        // Attach a rejection observer immediately while retaining the exact
+        // task for the ownership scope's mandatory join.
+        void task.then(() => {}, () => {});
+        return task;
       };
       const owner = Object.freeze({
-        async withPartition(rawPartitionId, partitionOperation) {
-          if (!active) {
-            throw diagnostic(
-              AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-              'filesystem agent custody ownership was released',
-            );
-          }
+        withPartition(rawPartitionId, partitionOperation) {
+          return runOwnerOperation('withPartition', async () => {
           const partitionId = normalizeCustodyId(rawPartitionId);
           if (partitionId === custodyId) {
             throw diagnostic(
@@ -964,8 +1476,9 @@ export function createFilesystemAgentAuthorityCustodyStorage({
             );
           }
           return withOwnership(partitionId, partitionOperation);
+          });
         },
-        async read() {
+        read() {
           return runOwnerOperation('read', async () => {
             const bytes = await capability.read(sessionId, recordName);
             if (bytes === null) return null;
@@ -975,10 +1488,10 @@ export function createFilesystemAgentAuthorityCustodyStorage({
             } catch (error) {
               throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
             }
-            return clone(assertCustodyRecord(parsed, custodyId));
+            return clone(assertPartitionRecord(parsed, custodyId));
           });
         },
-        async replace(expectedRevision, nextValue) {
+        replace(expectedRevision, nextValue) {
           return runOwnerOperation('replace', async () => {
             if (expectedRevision !== null) {
               assertSafeCounter(expectedRevision, 'filesystem agent custody expectedRevision', {
@@ -989,7 +1502,7 @@ export function createFilesystemAgentAuthorityCustodyStorage({
             let current = null;
             if (currentBytes !== null) {
               try {
-                current = clone(assertCustodyRecord(JSON.parse(currentBytes), custodyId));
+                current = clone(assertPartitionRecord(JSON.parse(currentBytes), custodyId));
               } catch (error) {
                 if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
                 throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
@@ -1003,8 +1516,8 @@ export function createFilesystemAgentAuthorityCustodyStorage({
                 { expectedRevision, actualRevision },
               );
             }
-            const next = clone(assertCustodyRecord(clone(nextValue), custodyId));
-            assertReplacement(current, next);
+            const next = clone(assertPartitionRecord(clone(nextValue), custodyId));
+            assertPartitionReplacement(current, next, custodyId);
             const encoded = `${JSON.stringify(next)}\n`;
             if (Buffer.byteLength(encoded, 'utf8') > MAX_RECORD_BYTES) {
               throw diagnostic(
@@ -1017,28 +1530,183 @@ export function createFilesystemAgentAuthorityCustodyStorage({
             return clone(next);
           });
         },
+        remove(expectedRevision) {
+          return runOwnerOperation('remove', async () => {
+            assertSafeCounter(expectedRevision, 'filesystem agent custody expectedRevision', {
+              positive: true,
+            });
+            const currentBytes = await capability.read(sessionId, recordName);
+            let current = null;
+            if (currentBytes !== null) {
+              try {
+                current = clone(assertPartitionRecord(JSON.parse(currentBytes), custodyId));
+              } catch (error) {
+                if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+                throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
+              }
+            }
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw diagnostic(
+                AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.casStale,
+                'durable filesystem agent custody changed before compare-and-remove',
+                { expectedRevision, actualRevision },
+              );
+            }
+            await capability.remove(sessionId, recordName, expectedRevision);
+            return true;
+          });
+        },
+        retire(expectedRevision) {
+          return runOwnerOperation('retire', async () => {
+            if (expectedRevision !== null) {
+              assertSafeCounter(expectedRevision, 'filesystem agent custody expectedRevision', {
+                positive: true,
+              });
+            }
+            const currentBytes = await capability.read(sessionId, recordName);
+            if (currentBytes !== null) {
+              let current;
+              try {
+                current = clone(assertPartitionRecord(JSON.parse(currentBytes), custodyId));
+              } catch (error) {
+                if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
+                throw corrupt('filesystem agent custody record is not valid JSON', undefined, error);
+              }
+              if (current.revision !== expectedRevision) {
+                throw diagnostic(
+                  AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.casStale,
+                  'durable filesystem agent custody changed before compare-and-retire',
+                  { expectedRevision, actualRevision: current.revision },
+                );
+              }
+            } else if (expectedRevision !== null) {
+              // Let the helper repeat the exact null-versus-positive CAS
+              // against its relative snapshot. Once dispatched, this owner is
+              // consumed even when that exact-CAS refusal prevents retirement.
+              try {
+                return await capability.retire(sessionId, recordName, expectedRevision);
+              } finally {
+                retired = true;
+              }
+            }
+            try {
+              return await capability.retire(sessionId, recordName, expectedRevision);
+            } finally {
+              retired = true;
+            }
+          });
+        },
+        scanPartitions(options = undefined) {
+          return runOwnerOperation('scanPartitions', async () => {
+            if (
+              options === null
+              || typeof options !== 'object'
+              || Array.isArray(options)
+              || Object.keys(options).length !== 2
+              || !Object.hasOwn(options, 'cursor')
+              || !Object.hasOwn(options, 'limit')
+            ) {
+              throw new TypeError('filesystem agent custody scan requires exactly cursor and limit');
+            }
+            const { cursor, limit } = options;
+            if (cursor !== null && typeof cursor !== 'string') {
+              throw new TypeError('filesystem agent custody scan cursor must be null or a string');
+            }
+            if (!Number.isSafeInteger(limit) || limit < 1 || limit > 128) {
+              throw new TypeError('filesystem agent custody scan limit must be an integer from 1 through 128');
+            }
+            const page = await capability.scan(sessionId, cursor, limit);
+            const records = page.records.flatMap(({ recordName: scannedName, bytes, byteLength }) => {
+              let parsed;
+              try {
+                parsed = JSON.parse(bytes);
+              } catch {
+                return [];
+              }
+              let partitionId;
+              try {
+                partitionId = normalizeCustodyId(parsed?.custodyId);
+              } catch {
+                return [];
+              }
+              const expectedName = pathsFor(partitionId).recordName;
+              if (scannedName !== expectedName) {
+                return [];
+              }
+              // The adapter authenticates the partition identity and secret
+              // envelope here, but leaves schema validation to the gate
+              // consumer after it structurally classifies ownership. That
+              // prevents an unrelated custody's malformed record shape from
+              // wedging this custody's migration or diagnostics.
+              try {
+                assertNoSecretMaterial(parsed, 'filesystem agent custody scanned record');
+              } catch {
+                return [];
+              }
+              const value = clone(parsed);
+              if (!Number.isSafeInteger(byteLength) || byteLength < 1 || byteLength > MAX_RECORD_BYTES) {
+                return [];
+              }
+              return [Object.freeze({ partitionId, value, byteLength })];
+            });
+            if (page.nextCursor !== null && typeof page.nextCursor !== 'string') {
+              throw corrupt('filesystem agent custody scan returned an invalid cursor');
+            }
+            return Object.freeze({
+              records: Object.freeze(records),
+              nextCursor: page.nextCursor,
+            });
+          });
+        },
       });
+      let operationResult;
+      let operationFailed = false;
       let operationError = null;
+      let releaseFailed = false;
+      let releaseFailure = null;
       try {
-        const result = await operation(owner);
-        return result;
+        operationResult = await operation(owner);
       } catch (error) {
+        operationFailed = true;
         operationError = error;
-        throw error;
       } finally {
+        // Close the public start boundary before joining. Existing work keeps
+        // its capability alive; captured owners and continuations cannot add
+        // late work while teardown is draining the task set.
+        // @ref LLP 0055#grant-backed-live-and-queued-replay — physical release
+        //   follows settlement of every operation started by this owner.
+        acceptingOwnerOperations = false;
+        await Promise.allSettled([...ownerOperations]);
         active = false;
         try {
           await capability.release(sessionId);
         } catch (releaseError) {
-          if (operationError === null) throw releaseError;
+          releaseFailed = true;
+          releaseFailure = releaseError;
         }
       }
+      if (operationFailed) throw operationError;
+      if (releaseFailed) throw releaseFailure;
+      return operationResult;
     });
   };
 
   return Object.freeze({
-    partitionOwnership: 'partitioned-v1',
+    partitionOwnership: 'partitioned-v2',
+    terminalLedgerParameters: normalizedTerminalLedgerParameters,
     withOwnership,
+    async terminalLedgerCheckpoint(name, context = Object.freeze({})) {
+      if (!terminalLedgerCheckpointNames.includes(name)) {
+        throw new TypeError('filesystem agent custody terminal-ledger checkpoint is invalid');
+      }
+      const frozenContext = Object.freeze(clone(context));
+      if (terminalLedgerCheckpoint !== null) {
+        await terminalLedgerCheckpoint(name, frozenContext);
+      }
+      const hook = testHooks?.[name];
+      if (typeof hook === 'function') await hook(frozenContext);
+    },
     maintenanceSnapshot() {
       return clone(lastMaintenance);
     },

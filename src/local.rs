@@ -8,7 +8,7 @@ use crate::auth::invalidation::{
     AuthorizationInvalidationConnection, AuthorizationInvalidationProjection, CompositeWitness,
     DataWitness, InvalidationDisposition, LiveInvalidationIssuer, ObligationExpectation,
     ObligationRegistry, QueryNamespace, ResolutionKind, RetryEpisode, RetryEpisodeKey,
-    RetryReservation, RetryReservationKind, ScopeId, ScopeRetirement,
+    RetryReservation, RetryReservationKind, ScopeId, ScopeRetirement, ScopeRetirementCandidate,
 };
 use crate::auth::invocation::{
     InvocationGate, InvocationSource, PreparedAuthority, PreparedInvocation, ResolvedAppAuthority,
@@ -71,8 +71,8 @@ use std::marker::PhantomData;
 use std::ops::Deref;
 use std::path::Path;
 use std::sync::Mutex as StdMutex;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, PoisonError, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
+use std::sync::{Arc, PoisonError, RwLock, Weak};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -90,6 +90,14 @@ static NEXT_APP_GENERATION: AtomicU64 = AtomicU64::new(1);
 /// bounded globally and per granted connection.
 pub const MAX_LIVE_SUBSCRIPTIONS: usize = 2_048;
 pub const MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION: usize = 64;
+const MAX_PENDING_LOCAL_LIVE_EFFECTS: usize = MAX_LIVE_SUBSCRIPTIONS;
+
+const LOCAL_LIVE_STAGE_PENDING: u8 = 0;
+const LOCAL_LIVE_STAGE_COMMITTED: u8 = 1;
+const LOCAL_LIVE_STAGE_ABANDONED: u8 = 2;
+const LOCAL_LIVE_STAGE_TERMINAL: u8 = 3;
+const LOCAL_LIVE_STAGE_FINALIZING: u8 = 4;
+const LOCAL_LIVE_STAGE_FINALIZED: u8 = 5;
 
 #[cfg(test)]
 thread_local! {
@@ -104,6 +112,10 @@ thread_local! {
         std::cell::RefCell::new(None);
     static BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK: std::cell::RefCell<Option<Box<dyn FnOnce()>>> =
         std::cell::RefCell::new(None);
+    static FAIL_NEXT_LIVE_SCOPE_REGISTRATION: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
+    static FAIL_NEXT_SCOPE_RETIREMENT_AUTH: std::cell::Cell<bool> =
+        const { std::cell::Cell::new(false) };
 }
 
 fn reserve_unique_generation(counter: &AtomicU64) -> SnapbackResult<u64> {
@@ -324,6 +336,7 @@ pub struct PublicInspect {
 /// Public storage facts: the change version and table list, never the on-disk path.
 #[derive(Clone, Debug, Serialize, schemars::JsonSchema)]
 pub struct PublicStorageInfo {
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: u64,
     pub tables: Vec<String>,
 }
@@ -411,6 +424,7 @@ pub struct PublicEphemeralDiagnostics {
     pub resync_required: u64,
     pub outbox_overflows: u64,
     pub limit_rejections: u64,
+    pub generation_exhaustions: u64,
 }
 
 impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
@@ -439,6 +453,8 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             resync_required,
             outbox_overflows,
             limit_rejections,
+            generation_exhaustions,
+            last_generation_exhaustion: _,
         } = diagnostics;
         Self {
             room_count,
@@ -461,6 +477,7 @@ impl From<EphemeralDiagnostics> for PublicEphemeralDiagnostics {
             resync_required,
             outbox_overflows,
             limit_rejections,
+            generation_exhaustions,
         }
     }
 }
@@ -620,6 +637,7 @@ pub struct LiveSubscribeOutput {
     pub subscription_id: String,
     pub snapshot: QueryOutput,
     #[serde(default)]
+    #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
     /// Server half of the 'established' receipt (LLP 0034 §3.2, ENG-22478).
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -644,6 +662,7 @@ pub struct LiveSubscribeOutput {
     pub scope_retirements: Vec<ScopeRetirement>,
 }
 
+#[derive(Clone, Debug)]
 pub(crate) struct LiveTransportPublication<T> {
     pub(crate) output: T,
     pub(crate) authorization: Option<crate::storage::AuthorizationVersion>,
@@ -660,6 +679,7 @@ pub struct LiveResumeInput {
         rename = "recorded_permission_epochs",
         alias = "recordedPermissionEpochs"
     )]
+    #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub recorded_permission_epochs: BTreeMap<String, u64>,
 }
 
@@ -672,6 +692,7 @@ pub struct LiveResumeOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<QueryOutput>,
     #[serde(default)]
+    #[schemars(schema_with = "portable_permission_epoch_map_schema")]
     pub permission_epochs: BTreeMap<String, u64>,
     #[serde(
         default,
@@ -691,6 +712,20 @@ pub struct LiveResumeOutput {
         skip_serializing_if = "Vec::is_empty"
     )]
     pub scope_retirements: Vec<ScopeRetirement>,
+}
+
+fn portable_permission_epoch_map_schema(
+    _generator: &mut schemars::SchemaGenerator,
+) -> schemars::Schema {
+    schemars::json_schema!({
+        "type": "object",
+        "additionalProperties": {
+            "type": "integer",
+            "format": "uint64",
+            "minimum": 0,
+            "maximum": crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        }
+    })
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1214,22 +1249,47 @@ fn bool_is_false(value: &bool) -> bool {
 
 /// How a staged action must execute.
 ///
-/// Staging runs under the global instance mutex; execution of the
-/// `Detached` arm deliberately does not — the server runs Ibex actions on a
-/// watchdogged thread. Nested mutations execute against an isolated read view
-/// and reacquire the mutex only for commit; raw action `ctx.db` calls are
-/// rejected before host dispatch (ENG-23324 / ENG-24339 / ENG-24340).
+/// Staging runs under the global instance mutex. Managed server callers run a
+/// `HostPlan` one exact reserved mutation at a time and run `Detached` Ibex
+/// actions on a watchdogged thread; direct-library callers keep their
+/// synchronous borrow and use the compatibility reservation path. Nested Ibex
+/// mutations execute against an isolated read view and reacquire the mutex
+/// only for preview/commit; raw action `ctx.db` calls are rejected before host
+/// dispatch (ENG-23324 / ENG-24339 / ENG-24340).
 // This crate-private carrier is destructured by the local, admin, and server
 // execution seams. Boxing only one prepared arm would add heap allocation to
 // every host-plan action and obscure the explicit staging contract.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum StagedAction {
-    /// Host-plan actions run bounded mutation steps with no egress; they
-    /// execute under the lock exactly as before.
-    InLock(PreparedInvocation),
+    /// Host-plan actions run bounded mutation steps with no egress. Managed
+    /// callers release Local for each room reservation; direct callers remain
+    /// synchronous through [`LocalSnapback::invoke_action_prepared`].
+    HostPlan(PreparedInvocation),
     /// Ibex-module actions may perform egress; everything the runtime needs
     /// is cloned out so the run can proceed without borrowing the instance.
     Detached(Box<DetachedIbexAction>),
+}
+
+pub(crate) enum StagedRecordedMutation {
+    Done(Box<(SnapbackResult<MutationOutput>, Receipt)>),
+    Ready(Box<StagedRecordedMutationCommit>),
+}
+
+pub(crate) struct StagedRecordedMutationCommit {
+    name: String,
+    transport: String,
+    correlation: Option<Value>,
+    receipt_mutation_id: String,
+    input: HandlerInput,
+    prepared: PreparedInvocation,
+    identity: Option<ClientMutationIdentity>,
+    epoch_scopes: BTreeSet<String>,
+    execution: StagedMutationExecution,
+}
+
+enum StagedMutationExecution {
+    HostPlan(crate::manifest::MutationPlan),
+    Buffered(BufferedCommitPayload),
 }
 
 /// A durable cron claim paired with its process-local finite admission root.
@@ -1273,8 +1333,14 @@ pub(crate) struct DetachedIbexAction {
 // cross-module carrier allocation-free.
 #[allow(clippy::large_enum_variant)]
 pub(crate) enum StagedNestedMutation {
-    InLock(PreparedInvocation),
+    InLock(StagedHostPlanNestedMutation),
     Detached(Box<DetachedIbexMutation>),
+}
+
+pub(crate) struct StagedHostPlanNestedMutation {
+    pub preflight: crate::storage::AuthorizationCommitPreflight,
+    pub input: HandlerInput,
+    pub invocation: PreparedInvocation,
 }
 
 pub(crate) struct DetachedIbexMutation {
@@ -1309,6 +1375,21 @@ pub(crate) struct AppActionStage {
     pub reads: Vec<String>,
     pub writes: Vec<String>,
     pub mode: StagedAction,
+}
+
+/// A bounded HostPlan action detached from the managed `LocalSnapback` guard.
+/// The server evaluates and commits one `RunMutation` step at a time through
+/// the authorization-reservation protocol; the captured generation prevents
+/// a reload/reset from splicing a later function generation into the plan.
+#[derive(Clone)]
+pub(crate) struct ManagedHostPlanAction {
+    pub(crate) plan: ActionPlan,
+    pub(crate) input: HandlerInput,
+    pub(crate) metadata: CronRunMetadata,
+    pub(crate) invocation: PreparedInvocation,
+    pub(crate) app_generation: u64,
+    pub(crate) app_generation_fence: Arc<AtomicU64>,
+    redactor: crate::config::SecretRedactor,
 }
 
 /// Staging outcome for a config-verify probe run (ENG-23493): entry checks
@@ -1464,6 +1545,11 @@ impl ConnectionActivity {
         self.lock().len()
     }
 
+    #[cfg(test)]
+    fn contains(&self, connection_id: &str) -> bool {
+        self.lock().contains_key(connection_id)
+    }
+
     fn stale_ids(&self, cutoff_ms: u64) -> Vec<String> {
         self.lock()
             .iter()
@@ -1493,7 +1579,94 @@ pub struct EphemeralApi {
     activity: ConnectionActivity,
 }
 
+#[derive(Clone, Debug, Default)]
+pub(crate) struct DisconnectedConnectionTopology {
+    dropped_subscriptions: usize,
+    dropped_effect_fences: BTreeSet<crate::ephemeral::ConnectionEffectFence>,
+}
+
 impl EphemeralApi {
+    pub(crate) fn reserve_authorization_commit(
+        &self,
+        preflight: crate::storage::AuthorizationCommitPreflight,
+        cancellation: Arc<crate::storage::AuthorizationReservationCancellation>,
+    ) -> SnapbackResult<Box<dyn crate::storage::AuthorizationCommitReservation>> {
+        self.store
+            .reserve_authorization_commit(preflight, cancellation)
+    }
+
+    /// Remove liveness first, then wipe every room, outbox, notifier-side
+    /// wake, and rate-bucket effect owned by the connection. This handle is
+    /// deliberately usable without `LocalSnapback`, so transport teardown
+    /// never holds Local while acquiring ephemeral shard locks.
+    pub fn disconnect(&self, connection_id: &str, now_ms: u64) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::disconnect",
+        );
+        self.activity.remove(connection_id);
+        self.store.disconnect(connection_id, now_ms);
+    }
+
+    /// Whole-ID cleanup for a registry-retired grant whose removal already
+    /// enabled mint-only containment. This preserves any exact typed terminal
+    /// notifier event and emits no disconnected-resync wake.
+    pub(crate) fn disconnect_terminal_retired(&self, connection_id: &str, now_ms: u64) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::disconnect_terminal_retired",
+        );
+        self.activity.remove(connection_id);
+        self.store
+            .disconnect_terminal_retired(connection_id, now_ms);
+    }
+
+    fn disconnect_guarded(&self, connection_id: &str, now_ms: u64) -> bool {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::disconnect_guarded",
+        );
+        self.activity.remove(connection_id);
+        self.store.disconnect_guarded(connection_id, now_ms)
+    }
+
+    pub(crate) fn stale_connection_ids(&self, now_ms: u64, ttl_ms: u64) -> Vec<String> {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::stale_connection_ids",
+        );
+        self.activity.stale_ids(now_ms.saturating_sub(ttl_ms))
+    }
+
+    pub(crate) fn enqueue_disconnected_subscription_resync(
+        &self,
+        connection_id: &str,
+        topology: &DisconnectedConnectionTopology,
+    ) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::enqueue_disconnected_subscription_resync",
+        );
+        if topology.dropped_subscriptions == 0
+            || !self.store.delivery_notifier().is_registered(connection_id)
+        {
+            return;
+        }
+        let payload = serde_json::to_vec(&json!({
+            "kind": "resync_required",
+            "reason": "disconnected",
+            "clearRetained": true,
+        }))
+        .unwrap_or_default();
+        if topology.dropped_effect_fences.is_empty() {
+            self.store
+                .enqueue_durable(connection_id.to_owned(), payload);
+        } else {
+            for effect_fence in &topology.dropped_effect_fences {
+                self.store.enqueue_durable_bound(
+                    connection_id.to_owned(),
+                    payload.clone(),
+                    effect_fence.clone(),
+                );
+            }
+        }
+    }
+
     pub fn collection_requires_room_permission(&self, name: &str) -> bool {
         self.store.collection_requires_room_permission(name)
     }
@@ -1866,13 +2039,46 @@ impl EphemeralApi {
         self.store.cleanup_expired(now_ms);
     }
 
+    /// Gather shard diagnostics without the global Local writer. Server
+    /// inspect/receipts composition invokes this in the post-Local blocking
+    /// phase; direct embedded callers may invoke it synchronously.
+    pub(crate) fn diagnostics(&self) -> EphemeralDiagnostics {
+        self.store.diagnostics()
+    }
+
     pub(crate) fn purge_connection_effects(
         &self,
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
     ) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::purge_connection_effects",
+        );
         self.store
             .purge_connection_effects(connection_id, effect_fence);
+    }
+
+    pub(crate) fn purge_connection_effects_silently(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) {
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "EphemeralApi::purge_connection_effects_silently",
+        );
+        self.store
+            .purge_connection_effects_silently(connection_id, effect_fence);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn active_connection_count_for_test(&self) -> usize {
+        self.activity.len()
+    }
+
+    #[cfg(test)]
+    pub(crate) fn has_connection_residue_for_test(&self, connection_id: &str) -> bool {
+        self.activity.contains(connection_id)
+            || self.store.has_connection_residue_for_test(connection_id)
     }
 
     pub(crate) fn pending_room_reauthorizations(
@@ -2067,8 +2273,19 @@ pub struct LocalSnapback {
     config: ConfigStore,
     runtime: RuntimeManager,
     ephemeral: LocalEphemeralBackend,
+    // Physical mutex ownership is released before committed ephemeral
+    // projections run. This clone-shared barrier keeps the logical managed
+    // writer closed until those projections finish.
+    // @ref LLP 0059#locking-and-linearization — after-Local projection never
+    // overlaps a successor managed Local operation.
+    managed_local_handoff: Arc<crate::exec_guard::ManagedLocalHandoff>,
     cron: LocalCronRuntime,
     subscriptions: BTreeMap<String, LiveSubscription>,
+    // Prepared connection-bound effects live outside the published
+    // subscription/obligation indexes. The map retains only weak lifecycle
+    // controls; dropping every transport handle therefore makes an abandoned
+    // stage collectible even if a caller is cancelled before explicit cleanup.
+    pending_local_live_effects: BTreeMap<String, PendingLocalLiveEffectRegistration>,
     permission_epochs: BTreeMap<String, u64>,
     live_delivery: LiveDeliveryStats,
     recent_diagnostics: VecDeque<Diagnostic>,
@@ -2170,10 +2387,18 @@ impl LocalInvalidationState {
         }
     }
 
-    fn retire_scope_authenticated(
-        &mut self,
+    fn prepare_scope_retirement_authenticated(
+        &self,
         scope: &ScopeId,
-    ) -> SnapbackResult<Option<ScopeRetirement>> {
+    ) -> SnapbackResult<(Option<ScopeRetirementCandidate>, Option<ScopeRetirement>)> {
+        #[cfg(test)]
+        if FAIL_NEXT_SCOPE_RETIREMENT_AUTH.with(|fail| fail.replace(false)) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED",
+                "test",
+                "injected authenticated scope-retirement failure",
+            ));
+        }
         let candidate = self.obligations.preview_scope_retirement(scope);
         let retirement = candidate
             .as_ref()
@@ -2184,12 +2409,19 @@ impl LocalInvalidationState {
                 )
             })
             .transpose()?;
+        Ok((candidate, retirement))
+    }
+
+    fn commit_scope_retirement(
+        &mut self,
+        scope: &ScopeId,
+        expected: &Option<ScopeRetirementCandidate>,
+    ) {
         let actual = self.obligations.retire_scope(scope);
         assert_eq!(
-            actual, candidate,
+            &actual, expected,
             "authenticated scope retirement frontier changed during commit"
         );
-        Ok(retirement)
     }
 }
 
@@ -2243,6 +2475,225 @@ pub(crate) struct LiveInvalidationAdmission {
     pub(crate) effect_fence: Option<crate::ephemeral::ConnectionEffectFence>,
     #[cfg(test)]
     pub(crate) session_mode: bool,
+}
+
+/// Cloneable ownership token for a connection-bound local effect that has
+/// reserved its target but has not crossed the exact connection-act cut yet.
+/// The transport calls [`Self::try_commit`] while it owns stream/session,
+/// registry, and mode admission; that method is one lock-free
+/// compare/exchange and never enters SQLite, Hermes, or LocalSnapback.
+///
+/// Local finalization consumes the prepared plan only after that cut. A
+/// terminal connection purge changes the same state to `TERMINAL`, so a purge
+/// that wins before finalization cannot be followed by a stale subscription or
+/// obligation insertion.
+///
+/// The expensive local operation intentionally runs only after that cut. This
+/// avoids holding auth fences across LocalSnapback while ensuring its query
+/// snapshot cannot miss a mutation that committed while the effect was merely
+/// pending. Terminal teardown either marks the committed stage before its
+/// local claim or waits for the local operation and then purges its effects.
+///
+/// @ref LLP 0059#locking-and-linearization — connection acts perform one
+/// bounded in-memory ownership transfer and never wait on LocalSnapback.
+pub(crate) struct StagedLocalLiveEffect<T> {
+    stage_id: String,
+    control: Arc<LocalLiveStageControl>,
+    plan: Arc<T>,
+}
+
+impl<T> Clone for StagedLocalLiveEffect<T> {
+    fn clone(&self) -> Self {
+        Self {
+            stage_id: self.stage_id.clone(),
+            control: self.control.clone(),
+            plan: self.plan.clone(),
+        }
+    }
+}
+
+impl<T> std::fmt::Debug for StagedLocalLiveEffect<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_struct("StagedLocalLiveEffect")
+            .field("stage_id", &self.stage_id)
+            .field("state", &self.control.state.load(Ordering::Acquire))
+            .finish_non_exhaustive()
+    }
+}
+
+impl<T> StagedLocalLiveEffect<T> {
+    pub(crate) fn try_commit(
+        &self,
+        connection_id: &str,
+        effect_fence: &crate::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<()> {
+        if self.control.connection_id != connection_id || &self.control.effect_fence != effect_fence
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH",
+                "realtime",
+                "the staged live effect belongs to a different exact connection grant",
+            ));
+        }
+        match self.control.state.compare_exchange(
+            LOCAL_LIVE_STAGE_PENDING,
+            LOCAL_LIVE_STAGE_COMMITTED,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_)
+            | Err(
+                LOCAL_LIVE_STAGE_COMMITTED
+                | LOCAL_LIVE_STAGE_FINALIZING
+                | LOCAL_LIVE_STAGE_FINALIZED,
+            ) => Ok(()),
+            Err(LOCAL_LIVE_STAGE_ABANDONED | LOCAL_LIVE_STAGE_TERMINAL) => {
+                Err(local_live_stage_unavailable())
+            }
+            Err(_) => Err(local_live_stage_corrupt()),
+        }
+    }
+
+    /// Abandon a stage whose exact connection act refused. Staging has not
+    /// executed any query, database write, obligation mutation, or fanout.
+    pub(crate) fn abandon(&self) -> bool {
+        match self.control.state.compare_exchange(
+            LOCAL_LIVE_STAGE_PENDING,
+            LOCAL_LIVE_STAGE_ABANDONED,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) | Err(LOCAL_LIVE_STAGE_ABANDONED | LOCAL_LIVE_STAGE_TERMINAL) => true,
+            Err(
+                LOCAL_LIVE_STAGE_COMMITTED
+                | LOCAL_LIVE_STAGE_FINALIZING
+                | LOCAL_LIVE_STAGE_FINALIZED,
+            ) => false,
+            Err(_) => false,
+        }
+    }
+
+    fn plan(&self) -> &T {
+        &self.plan
+    }
+}
+
+#[derive(Debug)]
+struct LocalLiveStageControl {
+    state: AtomicU8,
+    connection_id: String,
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+}
+
+struct LocalLiveFinalizationClaim {
+    control: Arc<LocalLiveStageControl>,
+    completed: bool,
+}
+
+impl LocalLiveFinalizationClaim {
+    fn complete(mut self) -> SnapbackResult<()> {
+        self.control
+            .state
+            .compare_exchange(
+                LOCAL_LIVE_STAGE_FINALIZING,
+                LOCAL_LIVE_STAGE_FINALIZED,
+                Ordering::Release,
+                Ordering::Acquire,
+            )
+            .map_err(|_| local_live_stage_corrupt())?;
+        self.completed = true;
+        Ok(())
+    }
+}
+
+impl Drop for LocalLiveFinalizationClaim {
+    fn drop(&mut self) {
+        if !self.completed {
+            let _ = self.control.state.compare_exchange(
+                LOCAL_LIVE_STAGE_FINALIZING,
+                LOCAL_LIVE_STAGE_COMMITTED,
+                Ordering::Release,
+                Ordering::Acquire,
+            );
+        }
+    }
+}
+
+#[derive(Debug)]
+struct PendingLocalLiveEffectRegistration {
+    connection_id: String,
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+    reserved_subscription_slots: usize,
+    reservation_keys: BTreeSet<String>,
+    control: Weak<LocalLiveStageControl>,
+}
+
+#[derive(Clone)]
+pub(crate) struct PreparedLiveSubscribePlan {
+    name: String,
+    input: LiveSubscribeInput,
+    authority: PreparedAuthority,
+    invalidation: LiveInvalidationAdmission,
+}
+
+pub(crate) type PreparedLiveSubscribe = StagedLocalLiveEffect<PreparedLiveSubscribePlan>;
+
+#[derive(Clone)]
+pub(crate) struct PreparedLiveResumePlan {
+    name: String,
+    input: LiveResumeInput,
+    authority: PreparedAuthority,
+    invalidation: LiveInvalidationAdmission,
+}
+
+pub(crate) type PreparedLiveResume = StagedLocalLiveEffect<PreparedLiveResumePlan>;
+
+#[derive(Clone)]
+pub(crate) struct PreparedLiveUnsubscribePlan {
+    name: String,
+    input: LiveUnsubscribeInput,
+    authority: PreparedAuthority,
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+}
+
+pub(crate) type PreparedLiveUnsubscribe = StagedLocalLiveEffect<PreparedLiveUnsubscribePlan>;
+
+#[derive(Clone)]
+pub(crate) struct PreparedAuthorizationInvalidationAckPlan {
+    input: AuthorizationInvalidationAckInput,
+    connection: AuthorizationInvalidationConnection,
+    admission: AdmissionLease,
+}
+
+pub(crate) type PreparedAuthorizationInvalidationAck =
+    StagedLocalLiveEffect<PreparedAuthorizationInvalidationAckPlan>;
+
+#[derive(Clone)]
+pub(crate) struct PreparedAuthorizationInvalidationManualRetryPlan {
+    input: AuthorizationInvalidationManualRetryInput,
+    connection: AuthorizationInvalidationConnection,
+    authority: PreparedAuthority,
+    effect_fence: crate::ephemeral::ConnectionEffectFence,
+}
+
+pub(crate) type PreparedAuthorizationInvalidationManualRetry =
+    StagedLocalLiveEffect<PreparedAuthorizationInvalidationManualRetryPlan>;
+
+fn local_live_stage_unavailable() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_LIVE_STAGE_UNAVAILABLE",
+        "realtime",
+        "the staged live effect lost its exact connection before publication",
+    )
+}
+
+fn local_live_stage_corrupt() -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_LIVE_STAGE_CORRUPT",
+        "realtime",
+        "the staged live effect entered an invalid lifecycle state",
+    )
 }
 
 pub(crate) struct QueryInvocation {
@@ -2311,6 +2762,45 @@ impl IbexActionHost for LocalIbexActionHost<'_> {
             .authority
             .inherit_for(InvocationSource::NestedMutation)?;
         unsafe { (&mut *self.snapback).invoke_mutation_with_authority(name, input, authority) }
+    }
+}
+
+fn managed_action_generation_conflict(staged: u64, current: u64) -> SnapbackError {
+    SnapbackError::error(
+        "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "runtime",
+        "app code, schema, or state reset changed while the action was running",
+    )
+    .with_details(json!({
+        "stagedAppGeneration": staged,
+        "currentAppGeneration": current,
+    }))
+}
+
+impl ManagedHostPlanAction {
+    pub(crate) fn validate_generation(&self) -> SnapbackResult<()> {
+        let current = self.app_generation_fence.load(Ordering::SeqCst);
+        if current != self.app_generation {
+            return Err(managed_action_generation_conflict(
+                self.app_generation,
+                current,
+            ));
+        }
+        Ok(())
+    }
+
+    pub(crate) fn finish(&self, result: SnapbackResult<Value>) -> SnapbackResult<Value> {
+        let result = result
+            .and_then(|value| self.validate_generation().map(|()| value))
+            .map_err(|error| self.redactor.redact_error(error));
+        #[cfg(test)]
+        BEFORE_ACTION_RESULT_HANDOFF_HOOK.with(|slot| {
+            if let Some(hook) = slot.borrow_mut().take() {
+                hook();
+            }
+        });
+        let _publication = self.invocation.effect_guard("action result handoff")?;
+        result
     }
 }
 
@@ -2665,7 +3155,10 @@ impl LocalSnapback {
             version_stream,
             next_cause_sequence: 1,
         });
-        self.ephemeral.install_authorization_issuer(issuer);
+        let ephemeral = self.ephemeral.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            ephemeral.install_authorization_issuer(issuer);
+        });
         self.db
             .install_authorization_interlock(Arc::new(self.ephemeral.clone()));
         Ok(())
@@ -2677,7 +3170,58 @@ impl LocalSnapback {
     /// embedding path holding a usable issuer for either incarnation.
     pub(crate) fn clear_auth_invalidation_after_failed_reset(&mut self) {
         self.auth_invalidation = None;
-        self.ephemeral.clear_authorization_issuer();
+        let ephemeral = self.ephemeral.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            ephemeral.clear_authorization_issuer();
+        });
+    }
+
+    /// Compatibility orchestration for synchronous embedders that own a
+    /// `LocalSnapback` directly instead of entering through the managed server
+    /// write lane. The room dependency is installed and quiesced before the
+    /// logical Local scope begins; SQLite may only bind that already-prepared
+    /// carrier. Committed issuer/notifier/room effects are then drained after
+    /// the scope ends, even when the transaction body unwinds.
+    ///
+    /// Managed callers already own a `LocalSnapbackWriteScope` and must have
+    /// installed their exact carrier before taking Local. In that case this
+    /// helper deliberately does no fallback work: in-lock action/nested seams
+    /// must be routed through their own staged protocol, never hidden behind a
+    /// second reservation.
+    ///
+    /// @ref LLP 0059#locking-and-linearization — direct and managed writes use
+    /// the same off-Local reservation and after-Local publication boundary.
+    fn try_with_direct_authorization_write<R>(
+        &mut self,
+        preflight: crate::storage::AuthorizationCommitPreflight,
+        work: impl FnOnce(&mut Self) -> R,
+    ) -> SnapbackResult<R> {
+        if crate::exec_guard::local_write_scope_active() {
+            return Ok(work(self));
+        }
+
+        let cancellation =
+            Arc::new(crate::storage::AuthorizationReservationCancellation::default());
+        let reservation = self
+            .ephemeral
+            .reserve_authorization_commit(preflight, cancellation)?;
+        crate::storage::install_managed_authorization_reservation(reservation);
+
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| work(self)));
+        let unused = crate::storage::take_managed_authorization_reservation();
+        let after_local = local_scope.take_after_local_batch();
+        drop(local_scope);
+
+        if let Some(unused) = unused {
+            unused.cancel();
+        }
+        crate::exec_guard::run_after_local_batch(after_local);
+
+        match outcome {
+            Ok(output) => Ok(output),
+            Err(panic) => std::panic::resume_unwind(panic),
+        }
     }
 
     pub fn apply_schema(&mut self, manifest: SchemaManifest) -> SnapbackResult<Vec<Diagnostic>> {
@@ -2690,16 +3234,24 @@ impl LocalSnapback {
             manifest.effective_auth_mode() == AuthMode::Sessions,
         )
         .map_err(ephemeral_manifest_error)?;
-        let ephemeral_collections = manifest.ephemeral_collections.clone();
-        let generation = next_app_generation()?;
-        let diagnostics = self.db.apply_schema(manifest)?;
-        self.ephemeral
-            .replace_collections(ephemeral_collections)
-            .map_err(ephemeral_manifest_error)?;
-        self.install_app_generation(generation);
-        self.refresh_read_manifests();
-        self.record_diagnostics(diagnostics.clone());
-        Ok(diagnostics)
+        self.try_with_direct_authorization_write(
+            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+            move |snapback| {
+                let ephemeral_collections = manifest.ephemeral_collections.clone();
+                let generation = next_app_generation()?;
+                let diagnostics = snapback.db.apply_schema(manifest)?;
+                let ephemeral = snapback.ephemeral.clone();
+                crate::exec_guard::run_or_defer_after_local(move || {
+                    ephemeral
+                        .replace_collections(ephemeral_collections)
+                        .expect("prevalidated ephemeral definitions publish infallibly");
+                });
+                snapback.install_app_generation(generation);
+                snapback.refresh_read_manifests();
+                snapback.record_diagnostics(diagnostics.clone());
+                Ok(diagnostics)
+            },
+        )?
     }
 
     pub fn load_functions(&mut self, manifest: FunctionManifest) -> Vec<Diagnostic> {
@@ -2812,11 +3364,16 @@ impl LocalSnapback {
         Ok(self.load_functions(manifest))
     }
 
-    /// Publish a function generation that passed
+    /// Publish a function generation and its committed schema's collection
+    /// projection after both passed
     /// [`Self::preflight_auth_artifacts`] against the schema now committed by
-    /// the staged-mode transaction. The swap itself contains no fallible
-    /// artifact or schema-reference work; secondary cron/config persistence
-    /// failures remain ordinary diagnostics after the generation is live.
+    /// a startup, staged-mode, or same-mode network transaction. Artifact
+    /// validation is complete before this call; managed server work defers the
+    /// ephemeral lifecycle projection until Local is released while retaining
+    /// the logical writer/admission barrier through completion. Secondary
+    /// cron/config persistence failures remain ordinary diagnostics after the
+    /// generation is live.
+    // @ref LLP 0058#same-mode-provisioning — network same-mode activation keeps admission closed through collection and function publication.
     // @ref LLP 0058#consume-ordering-dev-to-sessions — the prepared generation publishes only after the durable consume cut.
     pub(crate) fn publish_preflighted_functions(
         &mut self,
@@ -2832,13 +3389,13 @@ impl LocalSnapback {
             )
         }));
 
-        // Startup constructs an empty process-local ephemeral backend, so the
-        // already-validated committed schema cannot conflict with a live room.
-        // Network staging uses the admission barrier instead of this pre-bind
-        // publication seam.
-        self.ephemeral
-            .replace_collections(self.db.schema().ephemeral_collections.clone())
-            .expect("pre-bind validated ephemeral definitions publish infallibly");
+        let ephemeral = self.ephemeral.clone();
+        let ephemeral_collections = self.db.schema().ephemeral_collections.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            ephemeral
+                .replace_collections(ephemeral_collections)
+                .expect("preflighted ephemeral definitions publish infallibly");
+        });
 
         self.functions = manifest;
         self.functions_loaded = true;
@@ -2895,17 +3452,65 @@ impl LocalSnapback {
         &mut self,
         seed: Option<SeedData>,
     ) -> SnapbackResult<Option<MutationOutput>> {
-        let app_generation = next_app_generation()?;
-        let secret_read_generation = self.secret_read_reset_generation.load(Ordering::Acquire);
-        let next_secret_read_generation =
-            next_secret_read_reset_generation(secret_read_generation)?;
-        let seeded = self.db.reset_and_seed(seed)?;
-        self.finish_committed_reset(
-            app_generation,
-            secret_read_generation,
-            next_secret_read_generation,
+        if crate::exec_guard::local_write_scope_active() {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_PROJECTION_UNAVAILABLE",
+                "auth",
+                "direct reset cannot prepare its authorization stream while a managed Local writer is active",
+            ));
+        }
+
+        // A direct embedder has no server-owned projection coordinator. Build
+        // its minimal stream-only coordinator and premark it before entering
+        // the direct Local/SQLite scope; finalization likewise happens only
+        // after that scope and every committed after-Local effect have ended.
+        let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+        let source = crate::auth::session_projection::ProjectionSource {
+            authorization_stream_value:
+                crate::auth::session_projection::AuthorizationStreamRecord::new(incarnation)
+                    .encode_bytes()?,
+            restore_declaration_id: None,
+            users: Vec::new(),
+            identities: Vec::new(),
+            sessions: Vec::new(),
+            superseded_tokens: Vec::new(),
+        };
+        let projection =
+            crate::auth::session_projection::SessionProjection::rebuild_with_fresh_startup_id(
+                source,
+                now_millis(),
+                Instant::now(),
+            )?;
+        let coordinator = Arc::new(crate::auth::coordinator::AuthCoordinator::new(projection)?);
+        let carrier = coordinator.premark_stream_reset_if_drained()?;
+        let predecessor = carrier.predecessor().clone();
+        let successor = carrier.successor().clone();
+
+        let attempt = self.try_with_direct_authorization_write(
+            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+            move |snapback| match snapback.attempt_reset_with_seed_and_authorization_stream(
+                seed,
+                &predecessor,
+                &successor,
+            ) {
+                crate::storage::auth::AuthTransactionAttempt::Committed(committed) => {
+                    crate::storage::auth::AuthTransactionAttempt::Committed(
+                        snapback.publish_coordinated_reset(committed),
+                    )
+                }
+                crate::storage::auth::AuthTransactionAttempt::RolledBack(error) => {
+                    crate::storage::auth::AuthTransactionAttempt::RolledBack(error)
+                }
+                crate::storage::auth::AuthTransactionAttempt::CommitUncertain(error) => {
+                    crate::storage::auth::AuthTransactionAttempt::CommitUncertain(error)
+                }
+            },
         );
-        Ok(seeded)
+        let attempt = match attempt {
+            Ok(attempt) => attempt,
+            Err(error) => crate::storage::auth::AuthTransactionAttempt::RolledBack(error),
+        };
+        coordinator.finish_stream_reset(carrier, attempt)
     }
 
     /// Perform the destructive database half of a coordinator-premarked reset.
@@ -2980,6 +3585,7 @@ impl LocalSnapback {
         debug_assert_eq!(exchanged, Ok(secret_read_generation));
         self.install_app_generation(app_generation);
         self.warm_vms.clear();
+        self.terminalize_all_local_live_effects();
         // ENG-23333: capture the live subscriptions being dropped so their
         // clients can be told. Clearing the map alone leaves every connected
         // client's WebSocket open on subscription ids that no longer exist
@@ -2996,7 +3602,6 @@ impl LocalSnapback {
         self.auth_invalidation = None;
         self.permission_epochs.clear();
         self.refresh_read_epochs();
-        self.ephemeral.reset_runtime_state();
         self.cron.reset_runtime_state(&self.functions);
         self.live_delivery = LiveDeliveryStats::default();
         // Signal the dropped subscriptions AFTER `reset_runtime_state`: the
@@ -3010,6 +3615,7 @@ impl LocalSnapback {
         // (reason "reset") on its still-open connection so it re-snapshots
         // instead of silently freezing, and the global receipts ring gets the
         // same `disposed` markers `disconnect` pushes.
+        let mut reset_signals = Vec::with_capacity(dropped_subscriptions.len());
         if !dropped_subscriptions.is_empty() {
             self.live_delivery.total_fanout_attempts += dropped_subscriptions.len() as u64;
             self.live_delivery.last_fanout_subscriptions = dropped_subscriptions.len();
@@ -3041,11 +3647,36 @@ impl LocalSnapback {
                 }) else {
                     continue;
                 };
-                self.enqueue_subscription_durable(subscription, payload);
+                reset_signals.push((
+                    subscription.connection_id.clone(),
+                    subscription.effect_fence.clone(),
+                    payload,
+                ));
                 self.live_delivery.total_deliveries += 1;
                 self.live_delivery.last_deliveries += 1;
             }
         }
+        // Runtime reset and its durable dropped-subscription sentinels are one
+        // ordered after-Local effect: enqueueing before the reset would lose
+        // the sentinels, while running either half beneath Local would take
+        // lifecycle/room/notifier locks. Direct-library reset executes this
+        // closure synchronously.
+        // @ref LLP 0059#reset-restore-and-stream-publication — the stream
+        // ticket remains closed until the successor runtime projection ends.
+        let ephemeral = self.ephemeral.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            ephemeral.reset_runtime_state();
+            for (connection_id, effect_fence, payload) in reset_signals {
+                match effect_fence {
+                    Some(effect_fence) => {
+                        ephemeral.enqueue_durable_bound(connection_id, payload, effect_fence);
+                    }
+                    None => {
+                        ephemeral.enqueue_durable(connection_id, payload);
+                    }
+                }
+            }
+        });
         // Clearing subscriptions can disarm a demand-gated cron job (L5).
         self.refresh_cron_active();
         // The durable reset has already committed. A secondary cron-state
@@ -3184,6 +3815,34 @@ impl LocalSnapback {
     }
 
     pub(crate) fn commit_auth_provision_classified(
+        &mut self,
+        prepared: PreparedAuthProvision,
+        profile: &str,
+        activation_admission: Option<&AdmissionLease>,
+    ) -> Result<AuthProvisionCommit, ModeCommitFailure> {
+        if crate::exec_guard::local_write_scope_active() {
+            return self.commit_auth_provision_classified_in_scope(
+                prepared,
+                profile,
+                activation_admission,
+            );
+        }
+        match self.try_with_direct_authorization_write(
+            crate::storage::AuthorizationCommitPreflight::AllProtectedRooms,
+            move |snapback| {
+                snapback.commit_auth_provision_classified_in_scope(
+                    prepared,
+                    profile,
+                    activation_admission,
+                )
+            },
+        ) {
+            Ok(committed) => committed,
+            Err(error) => Err(ModeCommitFailure::RolledBack(error)),
+        }
+    }
+
+    fn commit_auth_provision_classified_in_scope(
         &mut self,
         prepared: PreparedAuthProvision,
         profile: &str,
@@ -3495,9 +4154,12 @@ impl LocalSnapback {
     }
 
     pub fn seed(&mut self, seed: SeedData) -> SnapbackResult<MutationOutput> {
-        let output = self.db.seed(seed)?;
-        self.notify_live_subscriptions(&[]);
-        Ok(output)
+        let preflight = self.authorization_commit_preflight_for_seed(&seed)?;
+        self.try_with_direct_authorization_write(preflight, move |snapback| {
+            let output = snapback.db.seed(seed)?;
+            snapback.notify_live_subscriptions(&[]);
+            Ok(output)
+        })?
     }
 
     // Cheap identity/artifact facts for host-ops envelopes (LLP 0032 P6):
@@ -3600,6 +4262,15 @@ impl LocalSnapback {
     }
 
     pub fn inspect(&mut self) -> SnapbackResult<InspectState> {
+        let mut inspect = self.inspect_core()?;
+        inspect.ephemeral = self.ephemeral.diagnostics();
+        Ok(inspect)
+    }
+
+    /// Capture Local/SQLite-owned inspect state only. Managed server callers
+    /// release Local before composing [`EphemeralDiagnostics`] on their
+    /// blocking owner; direct-library [`Self::inspect`] remains synchronous.
+    pub(crate) fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
         let mut capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
@@ -3637,7 +4308,7 @@ impl LocalSnapback {
             active_connections: self.connections_last_seen.len(),
             reaped_connections: self.reaped_connections,
             live_delivery: self.live_delivery.clone(),
-            ephemeral: self.ephemeral.diagnostics(),
+            ephemeral: EphemeralDiagnostics::default(),
             cron,
             maintenance: self.maintenance.clone(),
             recent_diagnostics: self.recent_diagnostics.iter().cloned().collect(),
@@ -4071,6 +4742,98 @@ impl LocalSnapback {
         transport: &str,
         authority: PreparedAuthority,
     ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        // Managed transport/action hosts must stage outside Local themselves;
+        // this compatibility path is only allowed to create a reservation
+        // while the direct embedder owns the instance without a Local scope.
+        if crate::exec_guard::local_write_scope_active() {
+            return self.invoke_mutation_recording_with_authority_descriptor_in_scope(
+                name,
+                input,
+                client_mutation_id,
+                authority_descriptor,
+                transport,
+                authority,
+            );
+        }
+
+        let admission = authority.admission_lease().clone();
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+        let staged = self.stage_recorded_authorization_mutation(
+            name,
+            input,
+            client_mutation_id,
+            authority_descriptor,
+            &[],
+            transport,
+            authority,
+        );
+        let (preflight, staged) = match staged {
+            Ok(staged) => staged,
+            Err(error) => {
+                return match admission.effect_guard("mutation receipt publication") {
+                    Ok(_publication) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        Err(error),
+                        true,
+                    ),
+                    Err(error) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        Err(error),
+                        false,
+                    ),
+                };
+            }
+        };
+        let committed = self.try_with_direct_authorization_write(preflight, move |snapback| {
+            snapback.commit_staged_recorded_authorization_mutation(staged)
+        });
+        match committed {
+            Ok(Ok(recorded)) => recorded,
+            Ok(Err(error)) | Err(error) => {
+                match admission.effect_guard("mutation receipt publication") {
+                    Ok(_publication) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        Err(error),
+                        true,
+                    ),
+                    Err(error) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        receipt_mutation_id,
+                        Err(error),
+                        false,
+                    ),
+                }
+            }
+        }
+    }
+
+    /// The already-staged/managed compatibility body. Callers reaching this
+    /// under a Local scope are responsible for having installed a carrier;
+    /// this method never performs an in-lock reservation fallback.
+    #[allow(clippy::too_many_arguments)]
+    fn invoke_mutation_recording_with_authority_descriptor_in_scope(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
         let admission = authority.admission_lease().clone();
         let correlation = capped_correlation(input.correlation.clone());
         let receipt_mutation_id = client_mutation_id
@@ -4149,6 +4912,274 @@ impl LocalSnapback {
             transport,
             authority,
         ))
+    }
+
+    /// Execute a mutation handler at most once, then preview only its stored
+    /// plan or already-buffered effects to obtain the exact protected-room
+    /// selector. The returned carrier owns no open SQLite transaction and can
+    /// cross the off-Local room-quiescence phase safely.
+    ///
+    /// @ref LLP 0059#locking-and-linearization — exact room dependency
+    ///   planning precedes both managed Local commit work and SQLite.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn stage_recorded_authorization_mutation(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        client_mutation_id: Option<String>,
+        authority_descriptor: Option<AuthorityDescriptor>,
+        acknowledged_client_mutation_ids: &[String],
+        transport: &str,
+        authority: PreparedAuthority,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
+        let function = self.function(name)?.clone();
+        let prepared = InvocationGate::prepare_function(authority.clone(), &function)?;
+        // The live credential/grant is authorizing; the queued descriptor is
+        // only a non-authorizing replay axis. Preserve the ordinary mutation
+        // gate order so credential-generation drift cannot be disguised as a
+        // descriptor mismatch.
+        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
+        refuse_unprovenanced_host_plan_authority_creation(&prepared, &function, self.db.schema())?;
+        if client_mutation_id.is_some() {
+            let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+            let expected = descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+            if prepared.authority().active_mode() == AuthMode::Sessions
+                || authority_descriptor.is_some()
+            {
+                require_current_descriptor(authority_descriptor.as_ref(), &expected)?;
+            }
+        }
+        if !acknowledged_client_mutation_ids.is_empty() {
+            self.acknowledge_client_mutations_with_authority(
+                prepared.authority(),
+                acknowledged_client_mutation_ids,
+            )?;
+        }
+
+        let admission = prepared.admission_lease().clone();
+        let correlation = capped_correlation(input.correlation.clone());
+        let receipt_mutation_id = client_mutation_id
+            .clone()
+            .unwrap_or_else(|| format!("mut_{}", Uuid::now_v7().simple()));
+        let error_correlation = correlation.clone();
+        let error_receipt_mutation_id = receipt_mutation_id.clone();
+        let staged = (|| -> SnapbackResult<_> {
+            let mut input = prepared.canonicalize_input(input);
+            let identity = if let Some(id) = client_mutation_id {
+                let incarnation = self.db.ensure_authorization_stream_incarnation()?;
+                let expected =
+                    descriptor_for_authority(prepared.authority(), incarnation.as_str())?;
+                Some(ClientMutationIdentity::for_authority(
+                    id,
+                    name.to_owned(),
+                    &input,
+                    expected.authority_instance_id,
+                ))
+            } else {
+                None
+            };
+            if let Some(identity) = identity.as_ref()
+                && let Some(output) = self.db.client_mutation_result(identity)?
+            {
+                let commit = MutationCommit {
+                    output,
+                    changes: Vec::new(),
+                    read_dependencies: Vec::new(),
+                    write_dependencies: Vec::new(),
+                    authorization: None,
+                };
+                let recorded = match admission.effect_guard("mutation receipt publication") {
+                    Ok(_publication) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation.clone(),
+                        receipt_mutation_id.clone(),
+                        Ok(commit),
+                        true,
+                    ),
+                    Err(error) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation.clone(),
+                        receipt_mutation_id.clone(),
+                        Err(error),
+                        false,
+                    ),
+                };
+                return Ok((
+                    self.authorization_commit_preflight_for_changes(Vec::new()),
+                    StagedRecordedMutation::Done(Box::new(recorded)),
+                ));
+            }
+            let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+            let (preflight, execution) = match &function.runtime {
+                FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+                    let preview = self.db.dry_run_mutation(plan, &input)?;
+                    input.ctx_ledger = Some(CtxAnswerLedger {
+                        version: ctx_ledger_version(),
+                        ids: preview.generated_ids,
+                        now: preview.now_ms,
+                        auth_fingerprint: None,
+                    });
+                    (
+                        self.authorization_commit_preflight_for_changes(preview.commit.changes),
+                        StagedMutationExecution::HostPlan(plan.clone()),
+                    )
+                }
+                FunctionRuntime::IbexModule(module) => {
+                    let executed = crate::runtime::execute_ibex_mutation_prepared(
+                        module,
+                        input.clone(),
+                        &prepared,
+                        DbRead::Live(&self.db),
+                        Some(&self.warm_vms),
+                        None,
+                    )?;
+                    let membership_plans = self
+                        .db
+                        .authorize_membership_commands(executed.membership_commands)?;
+                    let payload = BufferedCommitPayload {
+                        writes: executed.writes,
+                        membership_plans,
+                        read_dependencies: executed.reads,
+                        result: executed.result,
+                        ctx_ledger: executed.ctx_ledger,
+                    };
+                    let preview = self.db.dry_run_buffered_writes(
+                        &input,
+                        payload.writes.clone(),
+                        payload.membership_plans.clone(),
+                        payload.read_dependencies.clone(),
+                        payload.result.clone(),
+                        payload.ctx_ledger.clone(),
+                    )?;
+                    (
+                        self.authorization_commit_preflight_for_changes(preview.changes),
+                        StagedMutationExecution::Buffered(payload),
+                    )
+                }
+                _ => {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                        "runtime",
+                        format!("{name} is not a mutation"),
+                    ));
+                }
+            };
+            Ok((
+                preflight,
+                StagedRecordedMutation::Ready(Box::new(StagedRecordedMutationCommit {
+                    name: name.to_owned(),
+                    transport: transport.to_owned(),
+                    correlation,
+                    receipt_mutation_id,
+                    input,
+                    prepared,
+                    identity,
+                    epoch_scopes,
+                    execution,
+                })),
+            ))
+        })();
+
+        match staged {
+            Ok(staged) => Ok(staged),
+            Err(error) => {
+                let recorded = match admission.effect_guard("mutation receipt publication") {
+                    Ok(_publication) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        error_correlation,
+                        error_receipt_mutation_id,
+                        Err(error),
+                        true,
+                    ),
+                    Err(error) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        error_correlation,
+                        error_receipt_mutation_id,
+                        Err(error),
+                        false,
+                    ),
+                };
+                Ok((
+                    self.authorization_commit_preflight_for_changes(Vec::new()),
+                    StagedRecordedMutation::Done(Box::new(recorded)),
+                ))
+            }
+        }
+    }
+
+    pub(crate) fn commit_staged_recorded_authorization_mutation(
+        &mut self,
+        staged: StagedRecordedMutation,
+    ) -> SnapbackResult<(SnapbackResult<MutationOutput>, Receipt)> {
+        let staged = match staged {
+            StagedRecordedMutation::Done(recorded) => return Ok(*recorded),
+            StagedRecordedMutation::Ready(staged) => staged,
+        };
+        let StagedRecordedMutationCommit {
+            name,
+            transport,
+            correlation,
+            receipt_mutation_id,
+            input,
+            prepared,
+            identity,
+            epoch_scopes,
+            execution,
+        } = *staged;
+        let admission = prepared.admission_lease().clone();
+        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
+        let result = match execution {
+            StagedMutationExecution::HostPlan(plan) => match identity.as_ref() {
+                Some(identity) => {
+                    self.db
+                        .execute_mutation_idempotent_guarded(&plan, &input, identity, || {
+                            prepared.effect_guard("idempotent mutation transaction")
+                        })
+                }
+                None => self.db.execute_mutation_guarded(
+                    &plan,
+                    &input,
+                    || Ok(()),
+                    || prepared.effect_guard("mutation transaction"),
+                ),
+            },
+            StagedMutationExecution::Buffered(payload) => {
+                self.db.commit_buffered_writes_idempotent_guarded(
+                    &input,
+                    payload,
+                    identity.as_ref(),
+                    || Ok(()),
+                    || prepared.effect_guard("ibex mutation transaction"),
+                )
+            }
+        }
+        .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
+        let recorded = match admission.effect_guard("mutation receipt publication") {
+            Ok(_publication) => self.record_mutation_commit(
+                &name,
+                &transport,
+                correlation,
+                receipt_mutation_id,
+                result,
+                true,
+            ),
+            Err(error) => self.record_mutation_commit(
+                &name,
+                &transport,
+                correlation,
+                receipt_mutation_id,
+                Err(error),
+                false,
+            ),
+        };
+        Ok(recorded)
     }
 
     fn record_mutation_commit(
@@ -4314,6 +5345,7 @@ impl LocalSnapback {
         // a mutation whose declared epoch bumps cannot be resolved, and the
         // post-commit path below is infallible by construction.
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let commit = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => match identity.as_ref() {
                 Some(identity) => {
@@ -4374,6 +5406,7 @@ impl LocalSnapback {
         }
         refuse_unprovenanced_host_plan_authority_creation(prepared, &function, self.db.schema())?;
         let epoch_scopes = evaluate_permission_epoch_scopes(&function, &input)?;
+        self.ensure_permission_epoch_capacity(&epoch_scopes)?;
         let FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) = &function.runtime else {
             return Err(SnapbackError::error(
                 "SNAPBACK_FUNCTION_KIND_MISMATCH",
@@ -4476,6 +5509,7 @@ impl LocalSnapback {
         let membership_plans = self
             .db
             .authorize_membership_commands(executed.membership_commands)?;
+        self.ensure_permission_epoch_capacity(&binding.epoch_scopes)?;
         let commit = self.db.commit_buffered_writes_idempotent_guarded(
             &input,
             BufferedCommitPayload {
@@ -4727,6 +5761,279 @@ impl LocalSnapback {
         self.subscribe_live_prepared_with_invalidation(name, input, authority, invalidation)
     }
 
+    fn stage_local_live_effect<T>(
+        &mut self,
+        connection_id: String,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+        reserved_subscription_slots: usize,
+        reservation_keys: impl IntoIterator<Item = String>,
+        plan: T,
+    ) -> SnapbackResult<StagedLocalLiveEffect<T>> {
+        let stale_stage_ids = self
+            .pending_local_live_effects
+            .iter()
+            .filter_map(|(stage_id, registration)| {
+                let stale = registration.control.upgrade().is_none_or(|control| {
+                    matches!(
+                        control.state.load(Ordering::Acquire),
+                        LOCAL_LIVE_STAGE_ABANDONED
+                            | LOCAL_LIVE_STAGE_TERMINAL
+                            | LOCAL_LIVE_STAGE_FINALIZED
+                    )
+                });
+                stale.then(|| stage_id.clone())
+            })
+            .collect::<Vec<_>>();
+        for stage_id in stale_stage_ids {
+            self.pending_local_live_effects.remove(&stage_id);
+        }
+        if self.pending_local_live_effects.len() >= MAX_PENDING_LOCAL_LIVE_EFFECTS {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_STAGE_CAPACITY",
+                "realtime",
+                "the pending local live-effect registry is at capacity",
+            )
+            .with_details(json!({ "limit": MAX_PENDING_LOCAL_LIVE_EFFECTS })));
+        }
+        let reservation_keys = reservation_keys.into_iter().collect::<BTreeSet<_>>();
+        if self
+            .pending_local_live_effects
+            .values()
+            .any(|registration| !registration.reservation_keys.is_disjoint(&reservation_keys))
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_LIVE_STAGE_CONFLICT",
+                "realtime",
+                "another staged live effect owns the same subscription or obligation precondition",
+            ));
+        }
+        if reserved_subscription_slots > 0 {
+            let pending_global = self
+                .pending_local_live_effects
+                .values()
+                .map(|registration| registration.reserved_subscription_slots)
+                .sum::<usize>();
+            if self
+                .subscriptions
+                .len()
+                .saturating_add(pending_global)
+                .saturating_add(reserved_subscription_slots)
+                > MAX_LIVE_SUBSCRIPTIONS
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT",
+                    "realtime",
+                    format!(
+                        "the durable subscription registry is limited to {MAX_LIVE_SUBSCRIPTIONS} rows"
+                    ),
+                )
+                .with_details(json!({ "limit": MAX_LIVE_SUBSCRIPTIONS })));
+            }
+            let published_connection = self
+                .subscriptions
+                .values()
+                .filter(|subscription| subscription.connection_id == connection_id)
+                .count();
+            let pending_connection = self
+                .pending_local_live_effects
+                .values()
+                .filter(|registration| registration.connection_id == connection_id)
+                .map(|registration| registration.reserved_subscription_slots)
+                .sum::<usize>();
+            if published_connection
+                .saturating_add(pending_connection)
+                .saturating_add(reserved_subscription_slots)
+                > MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
+            {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT",
+                    "realtime",
+                    format!(
+                        "one connection is limited to {MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION} durable subscriptions"
+                    ),
+                )
+                .with_details(json!({ "limit": MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION })));
+            }
+        }
+        let stage_id = format!("live_stage_{}", Uuid::now_v7().simple());
+        let control = Arc::new(LocalLiveStageControl {
+            state: AtomicU8::new(LOCAL_LIVE_STAGE_PENDING),
+            connection_id: connection_id.clone(),
+            effect_fence: effect_fence.clone(),
+        });
+        let replaced = self.pending_local_live_effects.insert(
+            stage_id.clone(),
+            PendingLocalLiveEffectRegistration {
+                connection_id,
+                effect_fence,
+                reserved_subscription_slots,
+                reservation_keys,
+                control: Arc::downgrade(&control),
+            },
+        );
+        debug_assert!(replaced.is_none(), "UUIDv7 live stage id was reused");
+        Ok(StagedLocalLiveEffect {
+            stage_id,
+            control,
+            plan: Arc::new(plan),
+        })
+    }
+
+    fn claim_local_live_effect<T>(
+        &mut self,
+        stage: &StagedLocalLiveEffect<T>,
+    ) -> SnapbackResult<LocalLiveFinalizationClaim> {
+        let registered = self
+            .pending_local_live_effects
+            .get(&stage.stage_id)
+            .and_then(|registration| registration.control.upgrade())
+            .is_some_and(|control| Arc::ptr_eq(&control, &stage.control));
+        if !registered {
+            return Err(local_live_stage_unavailable());
+        }
+        match stage.control.state.compare_exchange(
+            LOCAL_LIVE_STAGE_COMMITTED,
+            LOCAL_LIVE_STAGE_FINALIZING,
+            Ordering::AcqRel,
+            Ordering::Acquire,
+        ) {
+            Ok(_) => Ok(LocalLiveFinalizationClaim {
+                control: stage.control.clone(),
+                completed: false,
+            }),
+            Err(LOCAL_LIVE_STAGE_ABANDONED | LOCAL_LIVE_STAGE_TERMINAL) => {
+                Err(local_live_stage_unavailable())
+            }
+            Err(_) => Err(local_live_stage_corrupt()),
+        }
+    }
+
+    fn complete_local_live_effect<T>(
+        &mut self,
+        stage: &StagedLocalLiveEffect<T>,
+        claim: LocalLiveFinalizationClaim,
+    ) -> SnapbackResult<()> {
+        let registered = self
+            .pending_local_live_effects
+            .get(&stage.stage_id)
+            .and_then(|registration| registration.control.upgrade())
+            .is_some_and(|control| Arc::ptr_eq(&control, &stage.control));
+        if !registered || !Arc::ptr_eq(&claim.control, &stage.control) {
+            return Err(local_live_stage_corrupt());
+        }
+        claim.complete()?;
+        self.pending_local_live_effects.remove(&stage.stage_id);
+        Ok(())
+    }
+
+    pub(crate) fn abandon_prepared_live_effect<T>(&mut self, stage: &StagedLocalLiveEffect<T>) {
+        stage.abandon();
+        if matches!(
+            stage.control.state.load(Ordering::Acquire),
+            LOCAL_LIVE_STAGE_ABANDONED | LOCAL_LIVE_STAGE_TERMINAL
+        ) {
+            self.pending_local_live_effects.remove(&stage.stage_id);
+        }
+    }
+
+    #[cfg(test)]
+    pub(crate) fn staged_live_effect_counts_for_test(&self) -> (usize, usize) {
+        (
+            self.pending_local_live_effects.len(),
+            self.subscriptions.len(),
+        )
+    }
+
+    fn finalize_prepared_live_effect<T: Clone, R>(
+        &mut self,
+        stage: &StagedLocalLiveEffect<T>,
+        operation: impl FnOnce(&mut Self, T) -> SnapbackResult<R>,
+    ) -> SnapbackResult<R> {
+        let claim = self.claim_local_live_effect(stage)?;
+        let plan = stage.plan().clone();
+        let result = operation(self, plan);
+        // An operation error is a consumed connection act, not a retryable
+        // committed stage. Marking it finalized also releases reservations.
+        self.complete_local_live_effect(stage, claim)?;
+        result
+    }
+
+    fn terminalize_local_live_effects(
+        &mut self,
+        connection_id: &str,
+        effect_fence: Option<&crate::ephemeral::ConnectionEffectFence>,
+    ) {
+        let terminal_stage_ids = self
+            .pending_local_live_effects
+            .iter()
+            .filter(|(_, registration)| {
+                registration.connection_id == connection_id
+                    && effect_fence.is_none_or(|expected| &registration.effect_fence == expected)
+            })
+            .map(|(stage_id, _)| stage_id.clone())
+            .collect::<Vec<_>>();
+        for stage_id in terminal_stage_ids {
+            if let Some(registration) = self.pending_local_live_effects.remove(&stage_id) {
+                if let Some(control) = registration.control.upgrade() {
+                    loop {
+                        let observed = control.state.load(Ordering::Acquire);
+                        if matches!(
+                            observed,
+                            LOCAL_LIVE_STAGE_ABANDONED
+                                | LOCAL_LIVE_STAGE_TERMINAL
+                                | LOCAL_LIVE_STAGE_FINALIZED
+                        ) {
+                            break;
+                        }
+                        if observed == LOCAL_LIVE_STAGE_FINALIZING {
+                            // Finalization and topology purge both require
+                            // `&mut LocalSnapback`, so this state cannot be
+                            // observed by another local owner.
+                            debug_assert!(
+                                false,
+                                "live stage finalization overlapped terminal purge"
+                            );
+                            break;
+                        }
+                        if control
+                            .state
+                            .compare_exchange(
+                                observed,
+                                LOCAL_LIVE_STAGE_TERMINAL,
+                                Ordering::AcqRel,
+                                Ordering::Acquire,
+                            )
+                            .is_ok()
+                        {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn terminalize_all_local_live_effects(&mut self) {
+        let registrations = std::mem::take(&mut self.pending_local_live_effects);
+        for registration in registrations.into_values() {
+            if let Some(control) = registration.control.upgrade() {
+                let _ =
+                    control
+                        .state
+                        .fetch_update(
+                            Ordering::AcqRel,
+                            Ordering::Acquire,
+                            |observed| match observed {
+                                LOCAL_LIVE_STAGE_PENDING | LOCAL_LIVE_STAGE_COMMITTED => {
+                                    Some(LOCAL_LIVE_STAGE_TERMINAL)
+                                }
+                                _ => None,
+                            },
+                        );
+            }
+        }
+    }
+
     pub(crate) fn subscribe_live_prepared_with_invalidation(
         &mut self,
         name: &str,
@@ -4887,55 +6194,75 @@ impl LocalSnapback {
         let mut authorization_scope = None;
         let mut authorization_invalidation = None;
         let mut scope_retirements = Vec::new();
-        let subscription_authorization = if let Some((connection, namespace)) =
-            authorization_admission
-        {
-            let state = self
-                .auth_invalidation
-                .as_mut()
-                .expect("auth-scoped admission checked installed state");
-            let scope_id = ScopeId::Subscription {
-                issuer_id: connection.issuer_id.clone(),
-                namespace: namespace.clone(),
-                scope_sequence: state.issuer.reserve_scope_sequence()?,
-                connection_generation: connection.connection_generation,
-                subscription_id: subscription_id.clone(),
-            };
-            let connection_scope = ScopeId::Connection {
-                issuer_id: connection.issuer_id,
-                connection_generation: connection.connection_generation,
-            };
-            let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
-            state
-                .obligations
-                .register_live_scope(scope_id.clone(), owner_continuity_id.clone())?;
-            if state
-                .obligations
-                .register_connection_child(&connection_scope, scope_id.clone())?
-                .is_some()
-            {
-                let witness = CompositeWitness {
-                    authorization: state.obligations.expectation().authorization.clone(),
-                    data: Some(DataWitness {
-                        version_stream: state.version_stream.clone(),
-                        min_commit_version: query.output.version,
-                    }),
+        let mut registered_scope_cleanup = None;
+        let subscription_authorization =
+            if let Some((connection, namespace)) = authorization_admission {
+                let state = self
+                    .auth_invalidation
+                    .as_mut()
+                    .expect("auth-scoped admission checked installed state");
+                let scope_id = ScopeId::Subscription {
+                    issuer_id: connection.issuer_id.clone(),
+                    namespace: namespace.clone(),
+                    scope_sequence: state.issuer.reserve_scope_sequence()?,
+                    connection_generation: connection.connection_generation,
+                    subscription_id: subscription_id.clone(),
                 };
-                state
-                    .obligations
-                    .issue_resolution(&scope_id, ResolutionKind::Snapshot, witness)?;
-                authorization_invalidation = state.obligations.projection(&scope_id);
-            }
-            authorization_scope = Some(scope_id.clone());
-            Some(LiveSubscriptionAuthorization {
-                scope_id,
-                namespace,
-                authority_subject,
-                owner_continuity_id,
-            })
-        } else {
-            None
-        };
+                let connection_scope = ScopeId::Connection {
+                    issuer_id: connection.issuer_id,
+                    connection_generation: connection.connection_generation,
+                };
+                let owner_continuity_id = format!("owner_{}", Uuid::now_v7().simple());
+                let registration = (|| {
+                    state
+                        .obligations
+                        .register_live_scope(scope_id.clone(), owner_continuity_id.clone())?;
+                    let inherited = state
+                        .obligations
+                        .register_connection_child(&connection_scope, scope_id.clone())?
+                        .is_some();
+                    #[cfg(test)]
+                    if FAIL_NEXT_LIVE_SCOPE_REGISTRATION.with(|fail| fail.replace(false)) {
+                        return Err(SnapbackError::error(
+                            "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED",
+                            "test",
+                            "injected failure after live scope child registration",
+                        ));
+                    }
+                    if inherited {
+                        let witness = CompositeWitness {
+                            authorization: state.obligations.expectation().authorization.clone(),
+                            data: Some(DataWitness {
+                                version_stream: state.version_stream.clone(),
+                                min_commit_version: query.output.version,
+                            }),
+                        };
+                        state.obligations.issue_resolution(
+                            &scope_id,
+                            ResolutionKind::Snapshot,
+                            witness,
+                        )?;
+                        authorization_invalidation = state.obligations.projection(&scope_id);
+                    }
+                    Ok::<(), SnapbackError>(())
+                })();
+                if let Err(error) = registration {
+                    state
+                        .obligations
+                        .rollback_unpublished_live_scope(&scope_id, &connection_scope);
+                    return Err(error);
+                }
+                registered_scope_cleanup = Some((scope_id.clone(), connection_scope));
+                authorization_scope = Some(scope_id.clone());
+                Some(LiveSubscriptionAuthorization {
+                    scope_id,
+                    namespace,
+                    authority_subject,
+                    owner_continuity_id,
+                })
+            } else {
+                None
+            };
 
         // Superseded-subscription GC, EXPLICIT protocol (LLP 0034 §10.1
         // residual; ENG-22478 review fix A): the kit names the subscription
@@ -4947,14 +6274,38 @@ impl LocalSnapback {
         if let Some(old_id) = superseded_subscription_id {
             let retired_scope = self
                 .subscriptions
-                .remove(&old_id)
-                .and_then(|subscription| subscription.authorization)
+                .get(&old_id)
+                .and_then(|subscription| subscription.authorization.as_ref())
+                .cloned()
                 .map(|authorization| authorization.scope_id);
-            if let (Some(state), Some(scope)) =
-                (self.auth_invalidation.as_mut(), retired_scope.as_ref())
-                && let Some(retirement) = state.retire_scope_authenticated(scope)?
+            let prepared_retirement =
+                match (self.auth_invalidation.as_ref(), retired_scope.as_ref()) {
+                    (Some(state), Some(scope)) => {
+                        match state.prepare_scope_retirement_authenticated(scope) {
+                            Ok((candidate, retirement)) => {
+                                Some((scope.clone(), candidate, retirement))
+                            }
+                            Err(error) => {
+                                if let (Some(state), Some((scope, connection_scope))) = (
+                                    self.auth_invalidation.as_mut(),
+                                    registered_scope_cleanup.as_ref(),
+                                ) {
+                                    state
+                                        .obligations
+                                        .rollback_unpublished_live_scope(scope, connection_scope);
+                                }
+                                return Err(error);
+                            }
+                        }
+                    }
+                    _ => None,
+                };
+            self.subscriptions.remove(&old_id);
+            if let (Some(state), Some((scope, candidate, retirement))) =
+                (self.auth_invalidation.as_mut(), prepared_retirement)
             {
-                scope_retirements.push(retirement);
+                state.commit_scope_retirement(&scope, &candidate);
+                scope_retirements.extend(retirement);
             }
             let receipt = Receipt::Subscription {
                 event: SubscriptionReceiptEvent::Disposed,
@@ -5032,6 +6383,75 @@ impl LocalSnapback {
             authorization_scope,
             authorization_invalidation,
             scope_retirements,
+        })
+    }
+
+    /// Reserve a connection-bound subscribe without running the initial query
+    /// or mutating live/obligation state. The query runs only after the exact
+    /// connection act commits, so pending subscriptions cannot miss mutation
+    /// fanout between preparation and publication.
+    pub(crate) fn prepare_subscribe_live_for_transport(
+        &mut self,
+        name: String,
+        input: LiveSubscribeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<PreparedLiveSubscribe> {
+        if authority.source() != InvocationSource::LiveInitialQuery {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live subscribe requires LiveInitialQuery authority",
+            ));
+        }
+        authority.validate_admission("live subscribe staging")?;
+        let effect_fence = invalidation.effect_fence.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_STAGE_FENCE_REQUIRED",
+                "realtime",
+                "transport live subscribe staging requires an exact connection effect fence",
+            )
+        })?;
+        let mut reservation_keys = Vec::new();
+        let reserved_subscription_slots = match input.supersedes.as_ref() {
+            Some(subscription_id) => match self.subscriptions.get(subscription_id) {
+                Some(subscription)
+                    if subscription.connection_id == input.connection_id
+                        && subscription.is_owned_by(&authority, Some(&effect_fence)) =>
+                {
+                    reservation_keys.push(format!("subscription:{subscription_id}"));
+                    0
+                }
+                Some(subscription) => return Err(live_owner_mismatch(&subscription.id)),
+                None => 1,
+            },
+            None => 1,
+        };
+        self.stage_local_live_effect(
+            input.connection_id.clone(),
+            effect_fence,
+            reserved_subscription_slots,
+            reservation_keys,
+            PreparedLiveSubscribePlan {
+                name,
+                input,
+                authority,
+                invalidation,
+            },
+        )
+    }
+
+    pub(crate) fn finalize_subscribe_live_for_transport(
+        &mut self,
+        staged: &PreparedLiveSubscribe,
+    ) -> SnapbackResult<LiveTransportPublication<LiveSubscribeOutput>> {
+        self.finalize_prepared_live_effect(staged, |snapback, plan| {
+            snapback.subscribe_live_for_transport(
+                &plan.name,
+                plan.input,
+                plan.authority,
+                plan.invalidation,
+            )
         })
     }
 
@@ -5116,16 +6536,27 @@ impl LocalSnapback {
         }
 
         let _publication = authority.effect_guard("live unsubscribe publication")?;
+        let prepared_retirement = match (
+            self.auth_invalidation.as_ref(),
+            subscription.authorization.as_ref(),
+        ) {
+            (Some(state), Some(authorization)) => {
+                let (candidate, retirement) =
+                    state.prepare_scope_retirement_authenticated(&authorization.scope_id)?;
+                Some((authorization.scope_id.clone(), candidate, retirement))
+            }
+            _ => None,
+        };
+        // No fallible step remains after the retained producer is removed.
         self.touch_connection(&input.connection_id, now_millis());
         self.subscriptions.remove(&subscription.id);
         self.refresh_auth_scoped_live_connections();
-        let scope_retirement = if let (Some(state), Some(authorization)) = (
-            self.auth_invalidation.as_mut(),
-            subscription.authorization.as_ref(),
-        ) {
-            state.retire_scope_authenticated(&authorization.scope_id)?
-        } else {
-            None
+        let scope_retirement = match (self.auth_invalidation.as_mut(), prepared_retirement) {
+            (Some(state), Some((scope, candidate, retirement))) => {
+                state.commit_scope_retirement(&scope, &candidate);
+                retirement
+            }
+            _ => None,
         };
         // Losing the last watcher of a demand-gated live query disarms cron.
         self.refresh_cron_active();
@@ -5151,6 +6582,49 @@ impl LocalSnapback {
             disposed: true,
             receipt: Some(receipt),
             scope_retirement,
+        })
+    }
+
+    pub(crate) fn prepare_unsubscribe_live_for_transport(
+        &mut self,
+        name: String,
+        input: LiveUnsubscribeInput,
+        authority: PreparedAuthority,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<PreparedLiveUnsubscribe> {
+        if authority.source() != InvocationSource::LiveUnsubscribe {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live unsubscribe requires LiveUnsubscribe authority",
+            ));
+        }
+        authority.validate_admission("live unsubscribe staging")?;
+        self.stage_local_live_effect(
+            input.connection_id.clone(),
+            effect_fence.clone(),
+            0,
+            [format!("subscription:{}", input.subscription_id)],
+            PreparedLiveUnsubscribePlan {
+                name,
+                input,
+                authority,
+                effect_fence,
+            },
+        )
+    }
+
+    pub(crate) fn finalize_unsubscribe_live_for_transport(
+        &mut self,
+        staged: &PreparedLiveUnsubscribe,
+    ) -> SnapbackResult<LiveUnsubscribeOutput> {
+        self.finalize_prepared_live_effect(staged, |snapback, plan| {
+            snapback.unsubscribe_live_prepared(
+                &plan.name,
+                plan.input,
+                plan.authority,
+                Some(&plan.effect_fence),
+            )
         })
     }
 
@@ -5192,6 +6666,46 @@ impl LocalSnapback {
                 crate::auth::invalidation::AcknowledgeOutcome::Stale => "stale",
             }
             .to_owned(),
+        })
+    }
+
+    pub(crate) fn prepare_authorization_invalidation_ack_for_transport(
+        &mut self,
+        input: AuthorizationInvalidationAckInput,
+        connection: AuthorizationInvalidationConnection,
+        admission: AdmissionLease,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<PreparedAuthorizationInvalidationAck> {
+        self.stage_local_live_effect(
+            input.connection_id.clone(),
+            effect_fence,
+            0,
+            [format!(
+                "authorization-ack:{}:{}:{}:{}:{}",
+                connection.issuer_id.authorization_incarnation,
+                connection.issuer_id.boot_sequence,
+                connection.issuer_id.boot_nonce,
+                connection.connection_generation,
+                input.ack_token
+            )],
+            PreparedAuthorizationInvalidationAckPlan {
+                input,
+                connection,
+                admission,
+            },
+        )
+    }
+
+    pub(crate) fn finalize_authorization_invalidation_ack_for_transport(
+        &mut self,
+        staged: &PreparedAuthorizationInvalidationAck,
+    ) -> SnapbackResult<AuthorizationInvalidationAckOutput> {
+        self.finalize_prepared_live_effect(staged, |snapback, plan| {
+            snapback.acknowledge_authorization_invalidation(
+                plan.input,
+                plan.connection,
+                &plan.admission,
+            )
         })
     }
 
@@ -5333,6 +6847,57 @@ impl LocalSnapback {
                 })
             }
         }
+    }
+
+    pub(crate) fn prepare_authorization_invalidation_manual_retry_for_transport(
+        &mut self,
+        input: AuthorizationInvalidationManualRetryInput,
+        connection: AuthorizationInvalidationConnection,
+        authority: PreparedAuthority,
+        effect_fence: crate::ephemeral::ConnectionEffectFence,
+    ) -> SnapbackResult<PreparedAuthorizationInvalidationManualRetry> {
+        if authority.source() != InvocationSource::StandaloneAcknowledgement {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "authorization invalidation manual retry requires standalone acknowledgement authority",
+            ));
+        }
+        authority.validate_admission("authorization invalidation manual retry staging")?;
+        self.stage_local_live_effect(
+            input.connection_id.clone(),
+            effect_fence.clone(),
+            0,
+            [format!("subscription:{}", input.subscription_id)],
+            PreparedAuthorizationInvalidationManualRetryPlan {
+                input,
+                connection,
+                authority,
+                effect_fence,
+            },
+        )
+    }
+
+    pub(crate) fn finalize_authorization_invalidation_manual_retry_for_transport(
+        &mut self,
+        staged: &PreparedAuthorizationInvalidationManualRetry,
+    ) -> SnapbackResult<AuthorizationInvalidationManualRetryOutput> {
+        self.finalize_prepared_live_effect(staged, |snapback, plan| {
+            let subscription = snapback
+                .subscriptions
+                .get(&plan.input.subscription_id)
+                .ok_or_else(auth_resnapshot_required)?;
+            if subscription.connection_id != plan.input.connection_id
+                || !subscription.is_owned_by(&plan.authority, Some(&plan.effect_fence))
+            {
+                return Err(live_owner_mismatch(&plan.input.subscription_id));
+            }
+            snapback.manual_retry_authorization_invalidation(
+                plan.input,
+                plan.connection,
+                plan.authority,
+            )
+        })
     }
 
     /// @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs — retained resume compares client-recorded permission epochs before trusting retained rows.
@@ -5853,6 +7418,56 @@ impl LocalSnapback {
         })
     }
 
+    pub(crate) fn prepare_resume_live_for_transport(
+        &mut self,
+        name: String,
+        input: LiveResumeInput,
+        authority: PreparedAuthority,
+        invalidation: LiveInvalidationAdmission,
+    ) -> SnapbackResult<PreparedLiveResume> {
+        if authority.source() != InvocationSource::LiveResume {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_SOURCE_INVALID",
+                "auth",
+                "live resume requires LiveResume authority",
+            ));
+        }
+        authority.validate_admission("live resume staging")?;
+        let effect_fence = invalidation.effect_fence.clone().ok_or_else(|| {
+            SnapbackError::error(
+                "SNAPBACK_LIVE_STAGE_FENCE_REQUIRED",
+                "realtime",
+                "transport live resume staging requires an exact connection effect fence",
+            )
+        })?;
+        self.stage_local_live_effect(
+            input.connection_id.clone(),
+            effect_fence,
+            0,
+            [format!("subscription:{}", input.subscription_id)],
+            PreparedLiveResumePlan {
+                name,
+                input,
+                authority,
+                invalidation,
+            },
+        )
+    }
+
+    pub(crate) fn finalize_resume_live_for_transport(
+        &mut self,
+        staged: &PreparedLiveResume,
+    ) -> SnapbackResult<LiveTransportPublication<LiveResumeOutput>> {
+        self.finalize_prepared_live_effect(staged, |snapback, plan| {
+            snapback.resume_live_for_transport(
+                &plan.name,
+                plan.input,
+                plan.authority,
+                plan.invalidation,
+            )
+        })
+    }
+
     pub(crate) fn resume_live_for_transport(
         &mut self,
         name: &str,
@@ -6054,6 +7669,34 @@ impl LocalSnapback {
             .unwrap_or_default()
     }
 
+    pub(crate) fn authorization_reservation_snapshot(
+        &self,
+    ) -> SnapbackResult<(u64, crate::storage::AuthorizationVersion)> {
+        Ok((self.db.current_version()?, self.db.authorization_version()?))
+    }
+
+    pub(crate) fn authorization_commit_preflight_for_changes(
+        &self,
+        changes: Vec<ChangedRow>,
+    ) -> crate::storage::AuthorizationCommitPreflight {
+        if crate::storage::app_writes_are_authorization_event(self.db.schema(), &changes) {
+            crate::storage::AuthorizationCommitPreflight::AppWrites {
+                schema: self.db.schema().clone(),
+                changes,
+            }
+        } else {
+            crate::storage::AuthorizationCommitPreflight::NoAuthorizationEvent
+        }
+    }
+
+    pub(crate) fn authorization_commit_preflight_for_seed(
+        &mut self,
+        seed: &SeedData,
+    ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
+        let changes = self.db.preview_seed_changes(seed.clone())?;
+        Ok(self.authorization_commit_preflight_for_changes(changes))
+    }
+
     /// Run an app-data action through the normal action invocation path without
     /// borrowing the admin function runner's metadata. Non-actions return a
     /// diagnostic envelope and are never executed.
@@ -6087,7 +7730,7 @@ impl LocalSnapback {
         };
         let metadata = manual_action_metadata("action", name);
         let result = match stage.mode {
-            StagedAction::InLock(prepared) => {
+            StagedAction::HostPlan(prepared) => {
                 self.invoke_action_prepared(name, input, metadata, prepared)
             }
             StagedAction::Detached(action) => {
@@ -6263,7 +7906,7 @@ impl LocalSnapback {
                     app_generation_fence: self.app_generation_fence.clone(),
                 }))
             }
-            _ => StagedAction::InLock(invocation),
+            _ => StagedAction::HostPlan(invocation),
         }
     }
 
@@ -6278,8 +7921,27 @@ impl LocalSnapback {
         self.persist_and_validate_prepared_service_authority(invocation.authority())?;
         let canonical_input = invocation.canonicalize_input(input.clone());
         match &function.runtime {
-            FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => {
-                Ok(StagedNestedMutation::InLock(invocation))
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(plan)) => {
+                refuse_unprovenanced_host_plan_authority_creation(
+                    &invocation,
+                    &function,
+                    self.db.schema(),
+                )?;
+                let _epoch_scopes = evaluate_permission_epoch_scopes(&function, &canonical_input)?;
+                let preview = self.db.dry_run_mutation(plan, &canonical_input)?;
+                let mut replay_input = canonical_input;
+                replay_input.ctx_ledger = Some(CtxAnswerLedger {
+                    version: ctx_ledger_version(),
+                    ids: preview.generated_ids,
+                    now: preview.now_ms,
+                    auth_fingerprint: None,
+                });
+                Ok(StagedNestedMutation::InLock(StagedHostPlanNestedMutation {
+                    preflight: self
+                        .authorization_commit_preflight_for_changes(preview.commit.changes),
+                    input: replay_input,
+                    invocation,
+                }))
             }
             FunctionRuntime::IbexModule(_) => {
                 // Preserve the ordinary mutation contract: resolve and
@@ -6311,6 +7973,51 @@ impl LocalSnapback {
                 format!("{name} is not a mutation"),
             )),
         }
+    }
+
+    /// Preview one already-executed detached Ibex mutation in the short Local
+    /// window after handler execution. This derives the exact room selector
+    /// without opening a transaction that survives the return.
+    ///
+    /// @ref LLP 0059#authorization-write-handoff — a one-shot Ibex handler is
+    ///   buffered once, previewed under Local, then quiesced with Local absent.
+    pub(crate) fn preview_detached_nested_authorization_mutation(
+        &mut self,
+        name: &str,
+        input: &HandlerInput,
+        binding: &DetachedMutationBinding,
+        executed: &ExecutedIbexMutation,
+    ) -> SnapbackResult<crate::storage::AuthorizationCommitPreflight> {
+        binding
+            .invocation
+            .validate_admission("detached nested mutation preview")?;
+        self.persist_and_validate_prepared_service_authority(binding.invocation.authority())?;
+        let function = self.function(name)?.clone();
+        if function != binding.function
+            || self.db.schema() != &binding.schema
+            || self.app_generation != binding.app_generation
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_MUTATION_CONFLICT",
+                "runtime",
+                format!(
+                    "app code or schema changed while action-hosted mutation {name} was running"
+                ),
+            ));
+        }
+        let canonical_input = binding.invocation.canonicalize_input(input.clone());
+        let membership_plans = self
+            .db
+            .authorize_membership_commands(executed.membership_commands.clone())?;
+        let preview = self.db.dry_run_buffered_writes(
+            &canonical_input,
+            executed.writes.clone(),
+            membership_plans,
+            executed.reads.clone(),
+            executed.result.clone(),
+            executed.ctx_ledger.clone(),
+        )?;
+        Ok(self.authorization_commit_preflight_for_changes(preview.changes))
     }
     /// Validate declared config entries fail-closed, validate per-function
     /// `uses` grants, and run the one-time deprecated env-blob import.
@@ -6707,7 +8414,7 @@ impl LocalSnapback {
             StagedConfigVerify::Ready(stage) => {
                 let admission = stage.admission.clone();
                 let result = match stage.mode {
-                    StagedAction::InLock(prepared) => self.invoke_action_prepared(
+                    StagedAction::HostPlan(prepared) => self.invoke_action_prepared(
                         &stage.probe,
                         stage.input,
                         stage.metadata,
@@ -6988,48 +8695,43 @@ impl LocalSnapback {
         self.ephemeral.delete(request, now_ms)
     }
 
+    /// Direct-library compatibility orchestrator. Production transport code
+    /// uses the explicit [`EphemeralApi::disconnect`] and
+    /// [`Self::disconnect_topology_for_transport`] phases because it owns a
+    /// `LocalSnapbackWriteScope`; invoking this compatibility seam from such a
+    /// scope fails loudly in debug/test builds.
     pub fn disconnect(&mut self, connection_id: &str, now_ms: u64) {
-        self.disconnect_inner(connection_id, now_ms, false);
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "LocalSnapback::disconnect compatibility orchestration",
+        );
+        let ephemeral = self.ephemeral_api();
+        ephemeral.disconnect(connection_id, now_ms);
+        let topology = self.disconnect_topology_for_transport(connection_id, now_ms);
+        ephemeral.enqueue_disconnected_subscription_resync(connection_id, &topology);
     }
 
-    /// Generation-guarded disconnect for the WS teardown path (ENG-23426):
-    /// the caller proved ownership with `DeliveryNotifier::unregister` while
-    /// already holding the global write mutex, so the durable wipe below is
-    /// atomic against fresh `subscribe_live` calls (they serialize behind
-    /// the same mutex, and a reconnect registers its socket before it
-    /// re-subscribes). The ephemeral wipe runs off that mutex, so it uses
-    /// `LocalEphemeralBackend::disconnect_guarded`, which aborts step-by-step
-    /// if a reconnect re-registers the id mid-wipe. The reaper and the admin
-    /// disconnect route keep the unconditional `disconnect`: they must tear
-    /// down even a connection with a live registration.
+    /// Direct-library compatibility form of generation-guarded teardown. The
+    /// production WebSocket path performs its guarded ephemeral phase before
+    /// taking LocalSnapback and calls only the topology method below.
     pub fn disconnect_guarded(&mut self, connection_id: &str, now_ms: u64) {
-        self.disconnect_inner(connection_id, now_ms, true);
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "LocalSnapback::disconnect_guarded compatibility orchestration",
+        );
+        let ephemeral = self.ephemeral_api();
+        ephemeral.disconnect_guarded(connection_id, now_ms);
+        self.disconnect_topology_for_transport(connection_id, now_ms);
     }
 
-    fn disconnect_inner(&mut self, connection_id: &str, now_ms: u64, guarded: bool) {
-        // Remove the liveness entry FIRST, before tearing down any ephemeral
-        // registration/outbox or durable subscription (MEDIUM finding 2). The
-        // ephemeral store is off the global mutex, so an async-worker
-        // `EphemeralApi::subscribe` can interleave with this write-lane
-        // teardown. Ordering both operations so a surviving registration
-        // implies a surviving activity entry: disconnect removes activity
-        // before it removes registrations, and `EphemeralApi` ops touch
-        // activity *after* the store op succeeds (touch-after-success). The
-        // only reachable residual — an activity entry with no registration —
-        // is self-healing: the L2 reaper reaps it with an idempotent
-        // disconnect. The banned state — a registration with no activity
-        // entry, an unreapable zombie subscriber whose room never prunes —
-        // cannot occur.
-        // (On the guarded path an aborted ephemeral wipe can leave the NEW
-        // registration briefly without an activity entry; that is the
-        // self-healing residual — the live socket's next pong/op/drain
-        // touches it back within the 30s safety-net cadence.)
-        self.connections_last_seen.remove(connection_id);
-        if guarded {
-            self.ephemeral.disconnect_guarded(connection_id, now_ms);
-        } else {
-            self.ephemeral.disconnect(connection_id, now_ms);
-        }
+    /// Retire only LocalSnapback-owned connection topology. Callers must run
+    /// the [`EphemeralApi`] disconnect phase outside Local before entering
+    /// this method; no activity, notifier, room, outbox, or rate-bucket lock
+    /// is acquired here.
+    pub(crate) fn disconnect_topology_for_transport(
+        &mut self,
+        connection_id: &str,
+        now_ms: u64,
+    ) -> DisconnectedConnectionTopology {
+        self.terminalize_local_live_effects(connection_id, None);
         // A connection's durable live subscriptions are dead once the connection
         // goes away — there is no way to deliver further deltas. Dropping them lets
         // a demand-activated cron job deactivate when its last watcher leaves.
@@ -7091,53 +8793,13 @@ impl LocalSnapback {
             }
         }
         self.receipts.drop_connection(connection_id);
-        // ENG-23427: an unconditional disconnect (the L2 reaper, or the admin
-        // route) that destroyed durable subscriptions while the connection
-        // still owns a delivery registration ran under an OPEN socket — the
-        // pump task is merely parked (e.g. blocked in `sender.send` on a peer
-        // that stopped reading past the idle TTL), so no socket event will
-        // ever tell the client its subscriptions are gone. Enqueue one
-        // connection-wide durable `resync_required` sentinel (no
-        // `subscription_id` — the client re-snapshots every handle on the
-        // connection, the L1 overflow-sentinel shape) into the fresh outbox;
-        // `enqueue_durable` stores a wake permit, so when the peer resumes
-        // reading the pump drains the sentinel instead of resuming a
-        // silently-stale connection. The guarded (WS teardown) path never
-        // signals: there a surviving registration can only be a reconnect's.
-        //
-        // @ref LLP 0008#realtime-delivery — a dropped subscription gets a
-        // resync signal, never a silent freeze.
-        // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2
-        // reap-under-open-socket fix (ENG-23427).
-        if !guarded
-            && dropped_subscriptions > 0
-            && self
-                .ephemeral
-                .delivery_notifier()
-                .is_registered(connection_id)
-        {
-            let payload = serde_json::to_vec(&json!({
-                "kind": "resync_required",
-                "reason": "disconnected",
-                "clearRetained": true,
-            }))
-            .unwrap_or_default();
-            if dropped_effect_fences.is_empty() {
-                self.ephemeral
-                    .enqueue_durable(connection_id.to_owned(), payload);
-            } else {
-                for effect_fence in dropped_effect_fences {
-                    self.ephemeral.enqueue_durable_bound(
-                        connection_id.to_owned(),
-                        payload.clone(),
-                        effect_fence,
-                    );
-                }
-            }
-        }
         // Losing the last watcher of a demand-gated live query disarms its cron
         // job (L5).
         self.refresh_cron_active();
+        DisconnectedConnectionTopology {
+            dropped_subscriptions,
+            dropped_effect_fences,
+        }
     }
 
     /// Ephemeral delivery diagnostics for the receipts surface (LLP 0034
@@ -7406,6 +9068,7 @@ impl LocalSnapback {
         connection_id: &str,
         effect_fence: &crate::ephemeral::ConnectionEffectFence,
     ) {
+        self.terminalize_local_live_effects(connection_id, Some(effect_fence));
         let retired_scopes = self
             .subscriptions
             .values()
@@ -7447,6 +9110,10 @@ impl LocalSnapback {
             store: self.ephemeral.clone(),
             activity: self.connections_last_seen.clone(),
         }
+    }
+
+    pub(crate) fn managed_local_handoff(&self) -> Arc<crate::exec_guard::ManagedLocalHandoff> {
+        self.managed_local_handoff.clone()
     }
 
     #[cfg(test)]
@@ -7672,21 +9339,32 @@ impl LocalSnapback {
         )
     }
 
-    /// Reap connections idle longer than `ttl_ms`: tear down each one's live
-    /// subscriptions and ephemeral state (as an explicit disconnect would) and
-    /// count it. The safety net for HTTP-polling clients that vanish without
-    /// disconnecting; WS clients are already reaped on socket close.
-    ///
-    /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L2.
+    /// Direct-library compatibility reaper. Server maintenance discovers and
+    /// disconnects stale ids through [`EphemeralApi`] before entering Local;
+    /// this combined form is forbidden from a managed Local writer scope.
     pub fn reap_stale_connections(&mut self, now_ms: u64, ttl_ms: u64) -> usize {
-        let cutoff = now_ms.saturating_sub(ttl_ms);
-        let stale = self.connections_last_seen.stale_ids(cutoff);
-        for id in &stale {
-            // disconnect removes the connection from connections_last_seen too.
-            self.disconnect(id, now_ms);
+        crate::exec_guard::debug_assert_local_snapback_write_scope_inactive(
+            "LocalSnapback::reap_stale_connections compatibility orchestration",
+        );
+        let ephemeral = self.ephemeral_api();
+        let stale = ephemeral.stale_connection_ids(now_ms, ttl_ms);
+        for connection_id in &stale {
+            ephemeral.disconnect(connection_id, now_ms);
         }
-        self.reaped_connections += stale.len() as u64;
+        for connection_id in &stale {
+            let topology = self.disconnect_topology_for_transport(connection_id, now_ms);
+            ephemeral.enqueue_disconnected_subscription_resync(connection_id, &topology);
+        }
+        self.record_reaped_connections(stale.len());
         stale.len()
+    }
+
+    /// Record topology retirements selected by the off-Local activity reaper.
+    /// Stale-id discovery and [`EphemeralApi::disconnect`] happen before the
+    /// server enters LocalSnapback; this method preserves `/inspect` counters
+    /// without reacquiring any activity or ephemeral shard lock.
+    pub(crate) fn record_reaped_connections(&mut self, count: usize) {
+        self.reaped_connections = self.reaped_connections.saturating_add(count as u64);
     }
 
     pub fn active_connection_count(&self) -> usize {
@@ -7744,7 +9422,15 @@ impl LocalSnapback {
             .collect()
     }
 
-    fn from_database(db: LocalDatabase) -> SnapbackResult<Self> {
+    fn from_database(mut db: LocalDatabase) -> SnapbackResult<Self> {
+        // LocalSnapback is the auth-capable embedding boundary. Complete the
+        // explicit stream migration here, before the instance can disappear
+        // behind a managed server mutex; managed authorization writes may then
+        // stage an exact predecessor snapshot without attempting SQLite setup
+        // while Local is held.
+        // @ref LLP 0059#durable-authorization-stream — both dev and sessions
+        // create the stream record before an app-data listener can bind.
+        db.ensure_authorization_stream_incarnation()?;
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
@@ -7769,8 +9455,10 @@ impl LocalSnapback {
             config: ConfigStore::in_memory(),
             runtime,
             ephemeral: LocalEphemeralBackend::new(),
+            managed_local_handoff: Arc::new(crate::exec_guard::ManagedLocalHandoff::default()),
             cron,
             subscriptions: BTreeMap::new(),
+            pending_local_live_effects: BTreeMap::new(),
             permission_epochs: BTreeMap::new(),
             live_delivery: LiveDeliveryStats::default(),
             recent_diagnostics,
@@ -7955,6 +9643,98 @@ impl LocalSnapback {
             self.record_diagnostics(vec![diagnostic.clone()]);
         }
         Ok(record)
+    }
+
+    /// Capture a stored HostPlan action for managed execution without keeping
+    /// the global instance mutex across its sequence of nested commits. Each
+    /// step is staged and reserved independently by
+    /// [`Self::stage_managed_host_plan_action_step`].
+    ///
+    /// @ref LLP 0059#authorization-write-handoff — capture generation-bound
+    ///   immutable action state before any per-step off-Local room wait.
+    pub(crate) fn stage_managed_host_plan_action(
+        &mut self,
+        name: &str,
+        input: HandlerInput,
+        metadata: CronRunMetadata,
+        prepared: PreparedInvocation,
+    ) -> SnapbackResult<ManagedHostPlanAction> {
+        prepared.validate_admission("action execution")?;
+        self.persist_and_validate_prepared_service_authority(prepared.authority())?;
+        let function = self.function(name)?.clone();
+        if prepared.function_id() != function.id
+            && prepared.function_id() != format!("fn:{}", function.name)
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_INVOCATION_FUNCTION_MISMATCH",
+                "auth",
+                "prepared invocation does not match the action target",
+            ));
+        }
+        let FunctionRuntime::HostPlan(HandlerPlan::Action(plan)) = &function.runtime else {
+            return Err(SnapbackError::error(
+                "SNAPBACK_FUNCTION_KIND_MISMATCH",
+                "runtime",
+                format!("{name} is not a host-plan action"),
+            ));
+        };
+        Ok(ManagedHostPlanAction {
+            plan: plan.clone(),
+            input: prepared.canonicalize_input(input),
+            metadata,
+            invocation: prepared,
+            app_generation: self.app_generation,
+            app_generation_fence: self.app_generation_fence.clone(),
+            redactor: self.config.secret_redactor_for(&function.uses),
+        })
+    }
+
+    /// Evaluate one HostPlan action step and execute/dry-run its target
+    /// mutation exactly once to derive the transaction's protected-room
+    /// selector. The returned mutation carrier owns no SQLite transaction.
+    ///
+    /// @ref LLP 0059#authorization-write-handoff — each action step previews
+    ///   exact changed rows and crosses the reservation boundary independently.
+    pub(crate) fn stage_managed_host_plan_action_step(
+        &mut self,
+        action: &ManagedHostPlanAction,
+        step: &ActionStep,
+        bindings: &BTreeMap<String, Value>,
+    ) -> SnapbackResult<(
+        crate::storage::AuthorizationCommitPreflight,
+        StagedRecordedMutation,
+    )> {
+        action.validate_generation()?;
+        if self.app_generation != action.app_generation {
+            return Err(managed_action_generation_conflict(
+                action.app_generation,
+                self.app_generation,
+            ));
+        }
+        action
+            .invocation
+            .validate_admission("action step staging")?;
+        let ActionStep::RunMutation { name, args, .. } = step;
+        let mutation_args =
+            eval_action_args(args, &action.input, bindings, &action.metadata, self)?;
+        let authority = action
+            .invocation
+            .inherit_authority_for(InvocationSource::NestedMutation)?;
+        self.stage_recorded_authorization_mutation(
+            name,
+            HandlerInput {
+                args: Value::Object(mutation_args),
+                auth: action.input.auth.clone(),
+                read_set: Vec::new(),
+                correlation: None,
+                ctx_ledger: None,
+            },
+            None,
+            None,
+            &[],
+            "local",
+            authority,
+        )
     }
 
     pub(crate) fn invoke_action_prepared(
@@ -8859,9 +10639,14 @@ impl LocalSnapback {
         admission: &AdmissionLease,
         fail_closed_on_preprojection_error: bool,
     ) -> SnapbackResult<BTreeSet<String>> {
-        // The authenticated expectation is process state, not a projection of
-        // the current subscriber set. Advance it even with zero live queries
-        // so a later subscription cannot start under a pre-event epoch.
+        // The authenticated issuer is shared process state. The durable room
+        // interlock owns advancing it in the ordered after-Local commit
+        // callback; taking its RwLock here would nest process authority under
+        // managed Local. This Local-owned obligation projection can advance
+        // now: admission and the room ticket stay closed until the issuer and
+        // room successor finish outside Local.
+        // @ref LLP 0059#locking-and-linearization — issuer publication is an
+        //   after-Local effect of the known durable commit.
         self.auth_invalidation
             .as_mut()
             .ok_or_else(|| {
@@ -8872,9 +10657,6 @@ impl LocalSnapback {
                 )
             })
             .and_then(|state| {
-                state
-                    .issuer
-                    .install_authorization_expectation(authorization.version.clone())?;
                 state
                     .obligations
                     .advance_authenticated_authorization(authorization.version.clone())
@@ -9640,6 +11422,28 @@ impl LocalSnapback {
         self.permission_epochs.get(scope).copied().unwrap_or(0)
     }
 
+    /// Prove that every compatibility permission epoch can advance before a
+    /// durable mutation starts. `finish_mutation_commit` runs after SQLite
+    /// COMMIT and therefore cannot truthfully return an exhaustion error.
+    /// Local serializes this preflight with the matching commit and the
+    /// postcommit increment, so the proof cannot go stale in between.
+    ///
+    /// @ref LLP 0020#remaining-phase-4-design-dependency-vocabulary-and-auth-epochs — permission epochs are portable, precommit authorization identities.
+    fn ensure_permission_epoch_capacity(&self, scopes: &BTreeSet<String>) -> SnapbackResult<()> {
+        if let Some(scope) = scopes.iter().find(|scope| {
+            self.permission_epoch(scope) >= crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        }) {
+            return Err(SnapbackError::error(
+                "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED",
+                "realtime",
+                format!(
+                    "permission epoch for scope {scope} cannot advance within the portable integer domain"
+                ),
+            ));
+        }
+        Ok(())
+    }
+
     /// Advance epochs for scopes already resolved pre-execution by
     /// [`evaluate_permission_epoch_scopes`]. Infallible on purpose: this runs
     /// after the mutation has durably committed, where an error return would
@@ -9648,7 +11452,10 @@ impl LocalSnapback {
         let mut changes = Vec::new();
         for scope in scopes {
             let epoch = self.permission_epochs.entry(scope.clone()).or_insert(0);
-            *epoch += 1;
+            *epoch = epoch
+                .checked_add(1)
+                .filter(|next| *next <= crate::manifest::PORTABLE_STORAGE_VERSION_MAX)
+                .expect("permission epoch capacity is preflighted under Local before commit");
             changes.push((scope.clone(), *epoch));
         }
         changes
@@ -10645,7 +12452,8 @@ mod tests {
         AuthorizationBlastRadiusStats, AuthorizationInvalidationAckInput,
         BEFORE_ACTION_RESULT_HANDOFF_HOOK, BEFORE_CONFIG_VERIFY_PUBLICATION_HOOK,
         BEFORE_MUTATION_POSTCOMMIT_HOOK, BEFORE_QUERY_RESULT_HANDOFF_HOOK, DetachedIbexMutation,
-        DetachedMutationRead, EnsureAppMode, LiveInvalidationAdmission, LiveResumeInput,
+        DetachedMutationRead, EnsureAppMode, FAIL_NEXT_LIVE_SCOPE_REGISTRATION,
+        FAIL_NEXT_SCOPE_RETIREMENT_AUTH, LiveInvalidationAdmission, LiveResumeInput,
         LiveSubscribeInput, LiveUnsubscribeInput, LocalSnapback, MAX_LIVE_SUBSCRIPTIONS,
         MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION, MaintenanceOperation, PublicInspect,
         RetryEpisodeKey, RetryReservationKind, SnapbackError, StagedNestedMutation,
@@ -10675,14 +12483,14 @@ mod tests {
         FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
         HandlerInput, HandlerPlan, IbexModule, IndexManifest, MembershipManifest,
         MembershipPredicate, MembershipResourceRef, MembershipScope, MutationPlan, MutationStep,
-        QueryPlan, ReturnValue, SchemaManifest, SeedData, TableManifest, ValueExpr,
-        ctx_ledger_version,
+        PermissionScopeExpr, QueryPlan, ReturnValue, SchemaManifest, SeedData, TableManifest,
+        ValueExpr, ctx_ledger_version,
     };
     use crate::runtime::ExecutedIbexMutation;
     use crate::storage::BufferedWrite;
     use crate::storage::auth_grants::{ExactGrantScope, ScopedFunctionKind};
     use serde_json::{Map, Value, json};
-    use std::collections::BTreeMap;
+    use std::collections::{BTreeMap, BTreeSet};
     use std::sync::Arc;
     use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
     use std::time::{Duration, Instant};
@@ -11508,7 +13316,7 @@ mod tests {
             .begin_transition()
             .expect("close and drain predecessor admission");
         let (committed, state, reopened) = transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11517,6 +13325,7 @@ mod tests {
                 let state = committed.state.clone();
                 Ok((committed, state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("commit and project successor activation");
 
         assert_eq!(committed.state, state);
@@ -11624,7 +13433,7 @@ mod tests {
             .begin_transition()
             .expect("close predecessor admission");
         transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11632,6 +13441,7 @@ mod tests {
                 )?;
                 Ok(((), committed.state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("commit scope tombstone and terminal live projection");
 
         let frames = drain_live_stream_through_test_sink(&mut snapback, "activation-service-live");
@@ -11683,7 +13493,7 @@ mod tests {
             .unwrap();
         let transition = snapback.admission.clone().begin_transition().unwrap();
         transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11691,6 +13501,7 @@ mod tests {
                 )?;
                 Ok(((), committed.state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("remove function through real sessions activation");
         assert_eq!(
             snapback
@@ -11712,7 +13523,7 @@ mod tests {
             .unwrap();
         let transition = snapback.admission.clone().begin_transition().unwrap();
         transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11720,6 +13531,7 @@ mod tests {
                 )?;
                 Ok(((), committed.state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("re-add function through real sessions activation");
         assert_eq!(
             snapback
@@ -11776,7 +13588,7 @@ mod tests {
         let controller = snapback.admission.clone();
         let transition = controller.begin_transition().expect("close predecessor");
         let error = transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11937,7 +13749,7 @@ mod tests {
         let controller = snapback.admission.clone();
         let transition = controller.begin_transition().expect("close predecessor");
         transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -11946,6 +13758,7 @@ mod tests {
                 let state = committed.state.clone();
                 Ok((committed, state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("activate protected successor");
 
         assert!(
@@ -12066,7 +13879,7 @@ mod tests {
         let controller = snapback.admission.clone();
         let transition = controller.begin_transition().expect("close predecessor");
         let (committed, _, reopened) = transition
-            .commit_project_and_publish_mode_state(|projection_admission| {
+            .commit_and_project_mode_state(|projection_admission| {
                 let committed = snapback.commit_auth_provision_classified(
                     prepared,
                     "test",
@@ -12075,6 +13888,7 @@ mod tests {
                 let state = committed.state.clone();
                 Ok((committed, state))
             })
+            .and_then(|committed| committed.publish_successor())
             .expect("seed and refresh under closed activation");
         assert_eq!(committed.outcome.seed, "seeded");
         assert!(reopened.accepting);
@@ -12623,6 +14437,20 @@ globalThis.__snapbackHandlers = {
         snapback
     }
 
+    fn permission_epoch_guarded_snapback() -> LocalSnapback {
+        let mut snapback = LocalSnapback::memory().expect("memory snapback");
+        snapback
+            .apply_schema(reload_schema("permission-epoch-guarded", false))
+            .expect("apply guarded schema");
+        let mut functions = guarded_functions();
+        for function in &mut functions.functions {
+            function.permission_epoch_bumps =
+                vec![PermissionScopeExpr::Literal("permission:test".to_owned())];
+        }
+        snapback.load_functions(functions);
+        snapback
+    }
+
     fn session_authority(authority_instance_id: &str) -> PreparedAuthority {
         InvocationGate::prepare_authority(
             InvocationSource::HttpMutation,
@@ -13162,6 +14990,19 @@ globalThis.__snapbackHandlers = {
             ResolvedAppAuthority::Anonymous,
         )
         .expect("prepare exact test session authority")
+    }
+
+    fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            source,
+            AuthMode::Dev,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::dev_from_auth(&AuthInput::default()),
+        )
+        .expect("prepare exact test dev authority")
     }
 
     fn test_session_admission() -> crate::auth::admission::AdmissionLease {
@@ -14602,7 +16443,7 @@ globalThis.__snapbackHandlers = {
             .subscribe_live("listItems", live_limit_input("bounded", json!({})))
             .expect("reuse unsubscribed slot");
 
-        snapback.disconnect("bounded", 1);
+        snapback.disconnect_topology_for_transport("bounded", 1);
         assert!(snapback.subscriptions.is_empty());
         snapback
             .subscribe_live("listItems", live_limit_input("bounded", json!({})))
@@ -14643,7 +16484,7 @@ globalThis.__snapbackHandlers = {
         assert_eq!(refused.diagnostic.details["limit"], MAX_LIVE_SUBSCRIPTIONS);
         assert_eq!(snapback.subscriptions.len(), MAX_LIVE_SUBSCRIPTIONS);
 
-        snapback.disconnect("global-0", 1);
+        snapback.disconnect_topology_for_transport("global-0", 1);
         assert_eq!(
             snapback.subscriptions.len(),
             MAX_LIVE_SUBSCRIPTIONS - MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION
@@ -14985,6 +16826,113 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn permission_epoch_commits_max_once_then_refuses_before_durable_host_write() {
+        let mut snapback = permission_epoch_guarded_snapback();
+        snapback.permission_epochs.insert(
+            "permission:test".to_owned(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX - 1,
+        );
+
+        snapback
+            .invoke_mutation("hostInsert", input())
+            .expect("the final portable epoch commits");
+        assert_eq!(
+            snapback.permission_epoch("permission:test"),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+        let committed_version = snapback.durable_version();
+        let committed_rows = snapback
+            .db
+            .scan_table("items", 10, 0)
+            .expect("scan committed row")
+            .total;
+
+        let error = snapback
+            .invoke_mutation("hostInsert", input())
+            .expect_err("an exhausted permission epoch refuses the transaction");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
+        assert_eq!(snapback.durable_version(), committed_version);
+        assert_eq!(
+            snapback
+                .db
+                .scan_table("items", 10, 0)
+                .expect("scan preserved rows")
+                .total,
+            committed_rows
+        );
+        assert_eq!(
+            snapback.permission_epoch("permission:test"),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+    }
+
+    #[test]
+    fn permission_epoch_exhaustion_refuses_guarded_and_detached_commit_seams() {
+        let mut host = permission_epoch_guarded_snapback();
+        host.permission_epochs.insert(
+            "permission:test".to_owned(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX,
+        );
+        let error = host
+            .invoke_host_plan_mutation_guarded(
+                "hostInsert",
+                input(),
+                prepared_mutation(&host, "hostInsert"),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("guarded HostPlan refuses before SQLite");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
+        assert_eq!(host.durable_version(), Some(0));
+        assert_eq!(host.db.scan_table("items", 10, 0).unwrap().total, 0);
+
+        let mut buffered = permission_epoch_guarded_snapback();
+        buffered.permission_epochs.insert(
+            "permission:test".to_owned(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX,
+        );
+        let DetachedIbexMutation {
+            binding,
+            read: _read,
+        } = *detached(&mut buffered, "ibexInsert");
+        let error = buffered
+            .commit_detached_ibex_mutation_guarded(
+                "ibexInsert",
+                input(),
+                binding,
+                executed_insert(),
+                || Ok(()),
+                || Ok(()),
+            )
+            .expect_err("detached buffered commit refuses before SQLite");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
+        assert_eq!(buffered.durable_version(), Some(0));
+        assert_eq!(buffered.db.scan_table("items", 10, 0).unwrap().total, 0);
+    }
+
+    #[test]
+    fn permission_epoch_capacity_preflights_every_mutation_commit_seam() {
+        let source = include_str!("local.rs");
+        for needle in [
+            "pub(crate) fn commit_staged_recorded_authorization_mutation",
+            "fn invoke_mutation_commit_with_id_and_authority",
+            "fn invoke_host_plan_mutation_commit_guarded",
+            "pub(crate) fn commit_detached_ibex_mutation_guarded",
+        ] {
+            let start = source.find(needle).expect("commit seam remains in source");
+            let body = &source[start..];
+            let end = body
+                .find("\n    fn ")
+                .or_else(|| body.find("\n    pub(crate) fn "))
+                .unwrap_or(body.len());
+            assert!(
+                body[..end].contains("ensure_permission_epoch_capacity"),
+                "{needle} must preflight permission epoch capacity before durable commit"
+            );
+        }
+    }
+
+    #[test]
     fn detached_mutation_binds_schema_and_app_generation_across_reload() {
         let dir = tempfile::tempdir().expect("tempdir");
         let mut snapback =
@@ -15055,6 +17003,450 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("schema/app generation changed before commit");
         assert_eq!(error.diagnostic.code, "SNAPBACK_MUTATION_CONFLICT");
+    }
+
+    #[test]
+    fn staged_subscribe_queries_after_the_exact_act_cut() {
+        let mut snapback = live_limit_snapback();
+        let fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "stage-query-incarnation",
+            "stage-query-grant",
+        );
+        let staged = snapback
+            .prepare_subscribe_live_for_transport(
+                "listItems".to_owned(),
+                live_limit_input("stage-query", json!({})),
+                test_dev_authority(InvocationSource::LiveInitialQuery),
+                LiveInvalidationAdmission {
+                    connection: None,
+                    effect_fence: Some(fence.clone()),
+                    session_mode: false,
+                },
+            )
+            .expect("reserve subscribe without querying");
+        assert!(snapback.subscriptions.is_empty());
+
+        snapback
+            .invoke_mutation(
+                "insertItem",
+                HandlerInput {
+                    args: json!({ "value": "after-prepare" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("mutation between preparation and exact act");
+        staged
+            .try_commit("stage-query", &fence)
+            .expect("exact act commits");
+        let publication = snapback
+            .finalize_subscribe_live_for_transport(&staged)
+            .expect("post-act query and publication");
+        assert_eq!(publication.output.snapshot.rows.len(), 1);
+        assert_eq!(
+            publication.output.snapshot.rows[0]["value"],
+            json!("after-prepare")
+        );
+    }
+
+    #[test]
+    fn staged_live_effect_binding_terminal_and_one_shot_lifecycle() {
+        let mut snapback = live_limit_snapback();
+        let fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "stage-life-incarnation",
+            "stage-life-grant",
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "stage-life-incarnation",
+            "stage-life-other-grant",
+        );
+        let prepare = |snapback: &mut LocalSnapback, connection_id: &str| {
+            snapback.prepare_subscribe_live_for_transport(
+                "listItems".to_owned(),
+                live_limit_input(connection_id, json!({})),
+                test_dev_authority(InvocationSource::LiveInitialQuery),
+                LiveInvalidationAdmission {
+                    connection: None,
+                    effect_fence: Some(fence.clone()),
+                    session_mode: false,
+                },
+            )
+        };
+
+        let wrong_binding = prepare(&mut snapback, "stage-binding").expect("stage binding");
+        assert_eq!(
+            wrong_binding
+                .try_commit("another-connection", &fence)
+                .expect_err("wrong connection must not commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH"
+        );
+        assert_eq!(
+            wrong_binding
+                .try_commit("stage-binding", &other_fence)
+                .expect_err("wrong fence must not commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_LIVE_STAGE_BINDING_MISMATCH"
+        );
+        snapback.abandon_prepared_live_effect(&wrong_binding);
+
+        let before_cut = prepare(&mut snapback, "terminal-before").expect("stage before terminal");
+        snapback.purge_connection_topology("terminal-before", &fence);
+        assert_eq!(
+            before_cut
+                .try_commit("terminal-before", &fence)
+                .expect_err("terminal-before-cut wins")
+                .diagnostic
+                .code,
+            "SNAPBACK_LIVE_STAGE_UNAVAILABLE"
+        );
+        assert!(
+            snapback
+                .finalize_subscribe_live_for_transport(&before_cut)
+                .is_err()
+        );
+
+        let after_cut = prepare(&mut snapback, "terminal-after").expect("stage after terminal");
+        after_cut
+            .try_commit("terminal-after", &fence)
+            .expect("CAS wins first");
+        snapback.purge_connection_topology("terminal-after", &fence);
+        assert_eq!(
+            snapback
+                .finalize_subscribe_live_for_transport(&after_cut)
+                .expect_err("terminal purge before Local claim wins")
+                .diagnostic
+                .code,
+            "SNAPBACK_LIVE_STAGE_UNAVAILABLE"
+        );
+
+        let one_shot = prepare(&mut snapback, "one-shot").expect("stage one-shot");
+        one_shot
+            .try_commit("one-shot", &fence)
+            .expect("commit one-shot");
+        snapback
+            .finalize_subscribe_live_for_transport(&one_shot)
+            .expect("first finalize publishes");
+        assert!(
+            snapback
+                .finalize_subscribe_live_for_transport(&one_shot)
+                .is_err(),
+            "a consumed stage cannot publish twice"
+        );
+        assert!(!one_shot.abandon(), "a finalized stage cannot be abandoned");
+        assert_eq!(
+            snapback
+                .subscriptions
+                .values()
+                .filter(|subscription| subscription.connection_id == "one-shot")
+                .count(),
+            1
+        );
+        snapback.ephemeral.enqueue_durable_bound(
+            "one-shot".to_owned(),
+            b"post-finalize".to_vec(),
+            fence.clone(),
+        );
+        let ephemeral = snapback.ephemeral_api();
+        snapback.purge_connection_topology("one-shot", &fence);
+        ephemeral.purge_connection_effects("one-shot", &fence);
+        assert!(
+            !snapback
+                .subscriptions
+                .values()
+                .any(|subscription| subscription.connection_id == "one-shot")
+        );
+        assert_eq!(
+            snapback.ephemeral.diagnostics().pending_durable_messages,
+            0,
+            "the post-Local exact-fence sweep removes finalization's backlog"
+        );
+    }
+
+    #[test]
+    fn staged_live_effects_reserve_capacity_and_subscription_targets() {
+        let mut snapback = live_limit_snapback();
+        let fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "stage-capacity-incarnation",
+            "stage-capacity-grant",
+        );
+        let mut stages = Vec::new();
+        for index in 0..MAX_LIVE_SUBSCRIPTIONS_PER_CONNECTION {
+            stages.push(
+                snapback
+                    .prepare_subscribe_live_for_transport(
+                        "listItems".to_owned(),
+                        live_limit_input("stage-capacity", json!({ "index": index })),
+                        test_dev_authority(InvocationSource::LiveInitialQuery),
+                        LiveInvalidationAdmission {
+                            connection: None,
+                            effect_fence: Some(fence.clone()),
+                            session_mode: false,
+                        },
+                    )
+                    .expect("pending subscription consumes one slot"),
+            );
+        }
+        assert_eq!(
+            snapback
+                .prepare_subscribe_live_for_transport(
+                    "listItems".to_owned(),
+                    live_limit_input("stage-capacity", json!({ "overflow": true })),
+                    test_dev_authority(InvocationSource::LiveInitialQuery),
+                    LiveInvalidationAdmission {
+                        connection: None,
+                        effect_fence: Some(fence.clone()),
+                        session_mode: false,
+                    },
+                )
+                .expect_err("pending stages count against per-connection capacity")
+                .diagnostic
+                .code,
+            "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
+        );
+        for stage in &stages {
+            snapback.abandon_prepared_live_effect(stage);
+        }
+
+        let resume = snapback
+            .prepare_resume_live_for_transport(
+                "listItems".to_owned(),
+                LiveResumeInput {
+                    subscription_id: "sub_reserved_target".to_owned(),
+                    connection_id: "stage-target".to_owned(),
+                    auth: AuthInput::default(),
+                    recorded_permission_epochs: BTreeMap::new(),
+                },
+                test_dev_authority(InvocationSource::LiveResume),
+                LiveInvalidationAdmission {
+                    connection: None,
+                    effect_fence: Some(fence.clone()),
+                    session_mode: false,
+                },
+            )
+            .expect("reserve resume target");
+        assert_eq!(
+            snapback
+                .prepare_unsubscribe_live_for_transport(
+                    "listItems".to_owned(),
+                    LiveUnsubscribeInput {
+                        subscription_id: "sub_reserved_target".to_owned(),
+                        connection_id: "stage-target".to_owned(),
+                        auth: AuthInput::default(),
+                    },
+                    test_dev_authority(InvocationSource::LiveUnsubscribe),
+                    fence,
+                )
+                .expect_err("one target cannot have two pending lifecycle acts")
+                .diagnostic
+                .code,
+            "SNAPBACK_LIVE_STAGE_CONFLICT"
+        );
+        snapback.abandon_prepared_live_effect(&resume);
+    }
+
+    #[test]
+    fn transport_disconnect_topology_never_touches_ephemeral_or_activity_state() {
+        let mut snapback = live_limit_snapback();
+        let fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "disconnect-split-incarnation",
+            "disconnect-split-grant",
+        );
+        snapback
+            .subscribe_live_with_invalidation(
+                "listItems",
+                live_limit_input("disconnect-split", json!({})),
+                LiveInvalidationAdmission {
+                    connection: None,
+                    effect_fence: Some(fence.clone()),
+                    session_mode: false,
+                },
+            )
+            .expect("fenced subscription");
+        snapback.ephemeral.enqueue_durable_bound(
+            "disconnect-split".to_owned(),
+            b"survives-local-phase".to_vec(),
+            fence.clone(),
+        );
+        assert_eq!(snapback.active_connection_count(), 1);
+        assert_eq!(snapback.ephemeral.diagnostics().pending_durable_messages, 1);
+
+        let topology = snapback.disconnect_topology_for_transport("disconnect-split", now_millis());
+        assert_eq!(topology.dropped_subscriptions, 1);
+        assert_eq!(topology.dropped_effect_fences, BTreeSet::from([fence]));
+        assert_eq!(snapback.active_connection_count(), 1);
+        assert_eq!(
+            snapback.ephemeral.diagnostics().pending_durable_messages,
+            1,
+            "the Local-only phase must not acquire or mutate the outbox"
+        );
+
+        snapback
+            .ephemeral_api()
+            .disconnect("disconnect-split", now_millis());
+        assert_eq!(snapback.active_connection_count(), 0);
+        assert_eq!(snapback.ephemeral.diagnostics().pending_durable_messages, 0);
+    }
+
+    #[test]
+    fn direct_disconnect_compatibility_sequences_both_teardown_phases() {
+        let mut snapback = live_limit_snapback();
+        let subscribed = snapback
+            .subscribe_live(
+                "listItems",
+                live_limit_input("direct-disconnect", json!({})),
+            )
+            .expect("direct subscription");
+        snapback
+            .ephemeral
+            .enqueue_durable("direct-disconnect".to_owned(), b"discard-me".to_vec());
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        assert_eq!(snapback.active_connection_count(), 1);
+
+        snapback.disconnect("direct-disconnect", now_millis());
+
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+        assert_eq!(snapback.active_connection_count(), 0);
+        assert_eq!(snapback.ephemeral.diagnostics().pending_durable_messages, 0);
+    }
+
+    #[test]
+    #[should_panic(
+        expected = "LocalSnapback::disconnect compatibility orchestration entered while LocalSnapback write scope"
+    )]
+    fn direct_disconnect_compatibility_rejects_managed_writer_overlap() {
+        let mut snapback = live_limit_snapback();
+        let _local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        snapback.disconnect("forbidden-overlap", now_millis());
+    }
+
+    #[test]
+    #[should_panic(expected = "EphemeralApi::disconnect entered while LocalSnapback write scope")]
+    fn ephemeral_disconnect_rejects_local_writer_overlap() {
+        let snapback = live_limit_snapback();
+        let ephemeral = snapback.ephemeral_api();
+        let _local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        ephemeral.disconnect("forbidden-overlap", now_millis());
+    }
+
+    #[test]
+    fn live_scope_failures_roll_back_or_preserve_the_exact_predecessor() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let fence = crate::ephemeral::ConnectionEffectFence::anonymous(
+            "scope-rollback-incarnation",
+            "scope-rollback-grant",
+        );
+        let subscribe = |instance, supersedes| LiveSubscribeInput {
+            connection_id: "scope-rollback".to_owned(),
+            input: HandlerInput::default(),
+            authorization_namespace: Some(test_authorization_namespace(instance)),
+            supersedes,
+        };
+        let invalidation = || LiveInvalidationAdmission {
+            connection: Some(connection.clone()),
+            effect_fence: Some(fence.clone()),
+            session_mode: true,
+        };
+
+        FAIL_NEXT_LIVE_SCOPE_REGISTRATION.with(|fail| fail.set(true));
+        assert_eq!(
+            snapback
+                .subscribe_live_with_invalidation("listItems", subscribe(300, None), invalidation())
+                .expect_err("partial scope registration is rolled back")
+                .diagnostic
+                .code,
+            "SNAPBACK_TEST_LIVE_SCOPE_REGISTRATION_FAILED"
+        );
+        assert!(snapback.subscriptions.is_empty());
+        assert!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation")
+                .obligations
+                .active_subscription_scopes_for_test()
+                .is_empty()
+        );
+
+        let predecessor = snapback
+            .subscribe_live_with_invalidation("listItems", subscribe(301, None), invalidation())
+            .expect("establish predecessor");
+        let predecessor_scope = predecessor
+            .authorization_scope
+            .clone()
+            .expect("auth-scoped predecessor");
+
+        FAIL_NEXT_SCOPE_RETIREMENT_AUTH.with(|fail| fail.set(true));
+        assert_eq!(
+            snapback
+                .subscribe_live_with_invalidation(
+                    "listItems",
+                    subscribe(302, Some(predecessor.subscription_id.clone())),
+                    invalidation(),
+                )
+                .expect_err("failed retirement authentication preserves predecessor")
+                .diagnostic
+                .code,
+            "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED"
+        );
+        assert_eq!(snapback.subscriptions.len(), 1);
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&predecessor.subscription_id)
+        );
+        assert_eq!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation")
+                .obligations
+                .active_subscription_scopes_for_test(),
+            vec![predecessor_scope.clone()]
+        );
+
+        FAIL_NEXT_SCOPE_RETIREMENT_AUTH.with(|fail| fail.set(true));
+        assert_eq!(
+            snapback
+                .unsubscribe_live_prepared(
+                    "listItems",
+                    LiveUnsubscribeInput {
+                        subscription_id: predecessor.subscription_id.clone(),
+                        connection_id: "scope-rollback".to_owned(),
+                        auth: AuthInput::default(),
+                    },
+                    test_session_authority(InvocationSource::LiveUnsubscribe),
+                    Some(&fence),
+                )
+                .expect_err("failed retirement authentication precedes removal")
+                .diagnostic
+                .code,
+            "SNAPBACK_TEST_SCOPE_RETIREMENT_AUTH_FAILED"
+        );
+        assert!(
+            snapback
+                .subscriptions
+                .contains_key(&predecessor.subscription_id)
+        );
+        assert_eq!(
+            snapback
+                .auth_invalidation
+                .as_ref()
+                .expect("installed invalidation")
+                .obligations
+                .active_subscription_scopes_for_test(),
+            vec![predecessor_scope]
+        );
     }
 
     /// A rerun already staged when revocation retired its subscription may

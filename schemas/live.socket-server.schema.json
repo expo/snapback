@@ -38,6 +38,7 @@
       "properties": {
         "entry_version": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -56,6 +57,7 @@
         },
         "scope_epoch": {
           "format": "uint64",
+          "maximum": 9007199254740991,
           "minimum": 0,
           "type": "integer"
         },
@@ -117,6 +119,11 @@
           "type": "string"
         },
         {
+          "const": "GenerationExhausted",
+          "description": "A client-visible room, entry, or delivery identity reached the final\nexact plain-JSON integer. Reuse would create an ABA, so the operation\nis refused without mutating predecessor state.",
+          "type": "string"
+        },
+        {
           "const": "AuthorityPending",
           "description": "A permission-changing transaction installed the room's precommit\nauthority barrier. No protected sink may act until exact finalization\nand fresh reauthorization complete.",
           "type": "string"
@@ -144,6 +151,7 @@
                 "high_water_version": {
                   "description": "Authoritative room cursor at the instant the snapshot and\nsubscriber registration became one operation. This remains valid\neven when `entries` is empty or the newest event was a delete.",
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
@@ -152,11 +160,13 @@
                 },
                 "room_authority_generation": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
                 "scope_epoch": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 }
@@ -189,6 +199,7 @@
                 },
                 "room_authority_generation": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 }
@@ -213,6 +224,7 @@
               "properties": {
                 "entry_version": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
@@ -227,11 +239,13 @@
                 },
                 "room_authority_generation": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
                 "scope_epoch": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 }
@@ -265,11 +279,13 @@
                 },
                 "room_authority_generation": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 },
                 "scope_epoch": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": "integer"
                 }
@@ -308,6 +324,7 @@
                 },
                 "room_authority_generation": {
                   "format": "uint64",
+                  "maximum": 9007199254740991,
                   "minimum": 0,
                   "type": [
                     "integer",

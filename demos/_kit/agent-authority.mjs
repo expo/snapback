@@ -150,6 +150,9 @@ const clone = (value) => (value === null || value === undefined
   ? value
   : JSON.parse(JSON.stringify(value)));
 
+const encodedJsonByteLength = (value) => new TextEncoder()
+  .encode(`${JSON.stringify(value)}\n`).byteLength;
+
 const exactKeys = (value, expected, where) => {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw custodyCorrupt(`${where} must be an object`);
@@ -164,9 +167,23 @@ const exactKeys = (value, expected, where) => {
 const INTERNAL_CUSTODY_PREFIXES = Object.freeze([
   'snapback.agent-custody-gate.v1:',
   'snapback.agent-terminal-witness.v1:',
+  'snapback.agent-terminal-ledger.v2:',
+  'snapback.agent-terminal-bucket.v2:',
 ]);
 
-export const AGENT_CUSTODY_PARTITION_OWNERSHIP = 'partitioned-v1';
+export const AGENT_CUSTODY_PARTITION_OWNERSHIP = 'partitioned-v2';
+
+const TERMINAL_LEDGER_ROOT_PREFIX = 'snapback.agent-terminal-ledger.v2:';
+const TERMINAL_LEDGER_BUCKET_PREFIX = 'snapback.agent-terminal-bucket.v2:';
+const LEGACY_TERMINAL_WITNESS_PREFIX = 'snapback.agent-terminal-witness.v1:';
+const TERMINAL_LEDGER_DEFAULT_BUCKET_COUNT = 64;
+const TERMINAL_LEDGER_DEFAULT_BUCKET_CAPACITY = 64;
+const TERMINAL_LEDGER_MAX_BUCKET_COUNT = 64;
+const TERMINAL_LEDGER_MAX_BUCKET_CAPACITY = 64;
+const TERMINAL_LEDGER_SCAN_PAGE = 128;
+const TERMINAL_LEDGER_MAX_SCANNED_PARTITIONS = 4_096;
+const TERMINAL_LEDGER_WARNING_NUMERATOR = 3;
+const TERMINAL_LEDGER_WARNING_DENOMINATOR = 4;
 
 const normalizeCustodyPartitionId = (value) => {
   if (
@@ -196,7 +213,78 @@ const custodyGateIdFor = (custodyId) => normalizeCustodyPartitionId(
 );
 
 const terminalWitnessIdFor = (custodyId, authorityKey) => normalizeCustodyPartitionId(
-  `snapback.agent-terminal-witness.v1:${authorityKey}:${custodyId}`,
+  `${LEGACY_TERMINAL_WITNESS_PREFIX}${authorityKey}:${custodyId}`,
+);
+
+const terminalLedgerRootIdFor = (custodyId) => normalizeCustodyPartitionId(
+  `${TERMINAL_LEDGER_ROOT_PREFIX}${custodyId}`,
+);
+
+const terminalLedgerBucketIdFor = (custodyId, bucketIndex) => normalizeCustodyPartitionId(
+  `${TERMINAL_LEDGER_BUCKET_PREFIX}${bucketIndex}:${custodyId}`,
+);
+
+const legacyTerminalWitnessKeyFromId = (partitionId, custodyId) => {
+  const suffix = `:${custodyId}`;
+  if (
+    typeof partitionId !== 'string'
+    || !partitionId.startsWith(LEGACY_TERMINAL_WITNESS_PREFIX)
+    || !partitionId.endsWith(suffix)
+  ) return null;
+  const authorityKey = partitionId.slice(
+    LEGACY_TERMINAL_WITNESS_PREFIX.length,
+    -suffix.length,
+  );
+  return /^sha256:[a-f0-9]{64}$/u.test(authorityKey)
+    && terminalWitnessIdFor(custodyId, authorityKey) === partitionId
+    ? authorityKey
+    : null;
+};
+
+const terminalLedgerBucketIndexFromId = (partitionId, custodyId) => {
+  const suffix = `:${custodyId}`;
+  if (
+    typeof partitionId !== 'string'
+    || !partitionId.startsWith(TERMINAL_LEDGER_BUCKET_PREFIX)
+    || !partitionId.endsWith(suffix)
+  ) return null;
+  const encodedIndex = partitionId.slice(TERMINAL_LEDGER_BUCKET_PREFIX.length, -suffix.length);
+  if (!/^(?:0|[1-9][0-9]*)$/u.test(encodedIndex)) return null;
+  const bucketIndex = Number(encodedIndex);
+  return Number.isSafeInteger(bucketIndex)
+    && terminalLedgerBucketIdFor(custodyId, bucketIndex) === partitionId
+    ? bucketIndex
+    : null;
+};
+
+const terminalLedgerBucketIndexFor = (authorityKey, bucketCount) => {
+  if (!/^sha256:[a-f0-9]{64}$/u.test(authorityKey ?? '')) {
+    throw custodyCorrupt('agent terminal-ledger authorityKey is invalid');
+  }
+  return Number.parseInt(authorityKey.slice('sha256:'.length, 'sha256:'.length + 8), 16)
+    % bucketCount;
+};
+
+const normalizeTerminalLedgerParameters = (value = null) => {
+  const bucketCount = value?.bucketCount ?? TERMINAL_LEDGER_DEFAULT_BUCKET_COUNT;
+  const bucketCapacity = value?.bucketCapacity ?? TERMINAL_LEDGER_DEFAULT_BUCKET_CAPACITY;
+  if (
+    !Number.isSafeInteger(bucketCount)
+    || bucketCount < 1
+    || bucketCount > TERMINAL_LEDGER_MAX_BUCKET_COUNT
+    || !Number.isSafeInteger(bucketCapacity)
+    || bucketCapacity < 1
+    || bucketCapacity > TERMINAL_LEDGER_MAX_BUCKET_CAPACITY
+  ) {
+    throw new TypeError('terminalLedgerParameters must use positive bucket bounds no larger than 64');
+  }
+  return Object.freeze({ bucketCount, bucketCapacity });
+};
+
+const terminalLedgerScanLimit = () => fenceError(
+  'SNAPBACK_AUTH_CUSTODY_PARTITION_SCAN_LIMIT',
+  'agent custody partition scan exceeded its bounded migration budget',
+  { maximumEntries: TERMINAL_LEDGER_MAX_SCANNED_PARTITIONS },
 );
 
 const normalizeDurableAuthority = (value) => {
@@ -356,6 +444,10 @@ const validateTransition = (value, custodyId) => {
 };
 
 const validateCustodyRecord = (value, expectedCustodyId) => {
+  const formatVersion = value?.formatVersion;
+  if (formatVersion !== 1 && formatVersion !== 2) {
+    throw custodyCorrupt('agent custody formatVersion must be 1 or 2');
+  }
   exactKeys(value, [
     'formatVersion',
     'custodyId',
@@ -366,9 +458,10 @@ const validateCustodyRecord = (value, expectedCustodyId) => {
     'authorityKey',
     'authority',
     'transition',
+    ...(formatVersion === 2 ? ['terminalLedgerVersion'] : []),
   ], 'agent custody record');
-  if (value.formatVersion !== 1) {
-    throw custodyCorrupt('agent custody formatVersion must be 1');
+  if (formatVersion === 2 && value.terminalLedgerVersion !== 1) {
+    throw custodyCorrupt('agent custody terminalLedgerVersion must be 1');
   }
   const custodyId = normalizeCustodyPartitionId(value.custodyId);
   if (custodyId !== expectedCustodyId) {
@@ -421,7 +514,7 @@ const validateCustodyRecord = (value, expectedCustodyId) => {
     }
   }
   return Object.freeze({
-    formatVersion: 1,
+    formatVersion,
     custodyId,
     authorityEpoch: value.authorityEpoch,
     revision: value.revision,
@@ -430,10 +523,12 @@ const validateCustodyRecord = (value, expectedCustodyId) => {
     authorityKey,
     authority,
     transition,
+    ...(formatVersion === 2 ? { terminalLedgerVersion: 1 } : {}),
   });
 };
 
 const custodyRecord = ({
+  formatVersion = 2,
   custodyId,
   authorityEpoch,
   revision,
@@ -443,7 +538,7 @@ const custodyRecord = ({
   transition = null,
 }) => (
   validateCustodyRecord({
-    formatVersion: 1,
+    formatVersion,
     custodyId,
     authorityEpoch,
     revision,
@@ -452,6 +547,7 @@ const custodyRecord = ({
     authorityKey: canonicalAgentAuthorityKey(authority),
     authority,
     transition,
+    ...(formatVersion === 2 ? { terminalLedgerVersion: 1 } : {}),
   }, custodyId)
 );
 
@@ -467,9 +563,11 @@ const sameCustodyRecord = (left, right) => (
       && left.authorityKey === right.authorityKey
       && sameDurableAuthority(left.authority, right.authority)
       && JSON.stringify(left.transition) === JSON.stringify(right.transition)
+      && left.terminalLedgerVersion === right.terminalLedgerVersion
 );
 
 const custodyTransitionRecords = ({
+  formatVersion = 2,
   custodyId,
   predecessor,
   nextEpoch,
@@ -524,6 +622,7 @@ const custodyTransitionRecords = ({
     disposition,
   });
   const clearing = custodyRecord({
+    formatVersion,
     custodyId,
     authorityEpoch: nextEpoch,
     revision: clearingRevision,
@@ -533,6 +632,7 @@ const custodyTransitionRecords = ({
     transition,
   });
   const settled = custodyRecord({
+    formatVersion,
     custodyId,
     authorityEpoch: nextEpoch,
     revision: settledRevision,
@@ -548,6 +648,7 @@ const settledRecordForClearing = (record) => {
     throw custodyCorrupt('agent custody recovery requires a clearing record');
   }
   return custodyRecord({
+    formatVersion: 2,
     custodyId: record.custodyId,
     authorityEpoch: record.authorityEpoch,
     revision: nextSafeCounter(
@@ -559,6 +660,335 @@ const settledRecordForClearing = (record) => {
     status: record.status,
     authority: record.authority,
   });
+};
+
+const validateTerminalLedgerRoot = (value, expectedCustodyId) => {
+  exactKeys(value, [
+    'formatVersion',
+    'recordType',
+    'custodyId',
+    'sourceCustodyId',
+    'revision',
+    'phase',
+    'legacyCut',
+    'bucketCount',
+    'bucketCapacity',
+  ], 'agent terminal-ledger root');
+  if (value.formatVersion !== 1 || value.recordType !== 'agentTerminalLedger') {
+    throw custodyCorrupt('agent terminal-ledger root has an invalid format');
+  }
+  const custodyId = normalizeCustodyPartitionId(value.custodyId);
+  const sourceCustodyId = normalizeCustodyId(value.sourceCustodyId);
+  if (
+    custodyId !== expectedCustodyId
+    || custodyId !== terminalLedgerRootIdFor(sourceCustodyId)
+  ) {
+    throw custodyCorrupt('agent terminal-ledger root belongs to another custody partition');
+  }
+  if (!Number.isSafeInteger(value.revision) || value.revision < 1) {
+    throw custodyCorrupt('agent terminal-ledger root revision must be positive');
+  }
+  if (value.phase !== 'preparing' && value.phase !== 'active' && value.phase !== 'closed') {
+    throw custodyCorrupt('agent terminal-ledger root phase is invalid');
+  }
+  const parameters = normalizeTerminalLedgerParameters(value);
+  if (typeof value.legacyCut !== 'boolean' || (value.phase === 'preparing' && value.legacyCut)) {
+    throw custodyCorrupt('agent terminal-ledger legacy cut is invalid');
+  }
+  return Object.freeze({
+    formatVersion: 1,
+    recordType: 'agentTerminalLedger',
+    custodyId,
+    sourceCustodyId,
+    revision: value.revision,
+    phase: value.phase,
+    legacyCut: value.legacyCut,
+    ...parameters,
+  });
+};
+
+const normalizeTerminalLedgerEntry = (value) => {
+  exactKeys(value, ['authorityKey', 'authority'], 'agent terminal-ledger entry');
+  const authority = normalizeDurableAuthority(value.authority);
+  const authorityKey = canonicalAgentAuthorityKey(authority);
+  if (value.authorityKey !== authorityKey) {
+    throw custodyCorrupt('agent terminal-ledger entry key does not bind its exact tuple');
+  }
+  return Object.freeze({ authorityKey, authority });
+};
+
+const validateTerminalLedgerBucket = (value, expectedCustodyId) => {
+  exactKeys(value, [
+    'formatVersion',
+    'recordType',
+    'custodyId',
+    'sourceCustodyId',
+    'revision',
+    'bucketIndex',
+    'bucketCount',
+    'bucketCapacity',
+    'entries',
+  ], 'agent terminal-ledger bucket');
+  if (value.formatVersion !== 1 || value.recordType !== 'agentTerminalBucket') {
+    throw custodyCorrupt('agent terminal-ledger bucket has an invalid format');
+  }
+  const custodyId = normalizeCustodyPartitionId(value.custodyId);
+  const sourceCustodyId = normalizeCustodyId(value.sourceCustodyId);
+  const parameters = normalizeTerminalLedgerParameters(value);
+  if (
+    !Number.isSafeInteger(value.bucketIndex)
+    || value.bucketIndex < 0
+    || value.bucketIndex >= parameters.bucketCount
+    || custodyId !== expectedCustodyId
+    || custodyId !== terminalLedgerBucketIdFor(sourceCustodyId, value.bucketIndex)
+  ) {
+    throw custodyCorrupt('agent terminal-ledger bucket identity is invalid');
+  }
+  if (!Number.isSafeInteger(value.revision) || value.revision < 1) {
+    throw custodyCorrupt('agent terminal-ledger bucket revision must be positive');
+  }
+  if (!Array.isArray(value.entries) || value.entries.length > parameters.bucketCapacity) {
+    throw custodyCorrupt('agent terminal-ledger bucket exceeds its fixed capacity');
+  }
+  const entries = value.entries.map(normalizeTerminalLedgerEntry);
+  for (let index = 0; index < entries.length; index += 1) {
+    const entry = entries[index];
+    if (
+      terminalLedgerBucketIndexFor(entry.authorityKey, parameters.bucketCount)
+        !== value.bucketIndex
+      || (index > 0 && entries[index - 1].authorityKey >= entry.authorityKey)
+    ) {
+      throw custodyCorrupt('agent terminal-ledger bucket entries are unsorted or misplaced');
+    }
+  }
+  return Object.freeze({
+    formatVersion: 1,
+    recordType: 'agentTerminalBucket',
+    custodyId,
+    sourceCustodyId,
+    revision: value.revision,
+    bucketIndex: value.bucketIndex,
+    ...parameters,
+    entries: Object.freeze(entries),
+  });
+};
+
+const validateStoredCustodyRecord = (value, expectedCustodyId) => {
+  if (expectedCustodyId.startsWith(TERMINAL_LEDGER_ROOT_PREFIX)) {
+    return validateTerminalLedgerRoot(value, expectedCustodyId);
+  }
+  if (expectedCustodyId.startsWith(TERMINAL_LEDGER_BUCKET_PREFIX)) {
+    return validateTerminalLedgerBucket(value, expectedCustodyId);
+  }
+  return validateCustodyRecord(value, expectedCustodyId);
+};
+
+const terminalLedgerRootRecord = ({
+  custodyId,
+  revision,
+  phase,
+  legacyCut = false,
+  bucketCount,
+  bucketCapacity,
+}) => validateTerminalLedgerRoot({
+  formatVersion: 1,
+  recordType: 'agentTerminalLedger',
+  custodyId: terminalLedgerRootIdFor(custodyId),
+  sourceCustodyId: custodyId,
+  revision,
+  phase,
+  legacyCut,
+  bucketCount,
+  bucketCapacity,
+}, terminalLedgerRootIdFor(custodyId));
+
+const terminalLedgerBucketRecord = ({
+  custodyId,
+  revision,
+  bucketIndex,
+  bucketCount,
+  bucketCapacity,
+  entries,
+}) => validateTerminalLedgerBucket({
+  formatVersion: 1,
+  recordType: 'agentTerminalBucket',
+  custodyId: terminalLedgerBucketIdFor(custodyId, bucketIndex),
+  sourceCustodyId: custodyId,
+  revision,
+  bucketIndex,
+  bucketCount,
+  bucketCapacity,
+  entries,
+}, terminalLedgerBucketIdFor(custodyId, bucketIndex));
+
+const sameTerminalLedgerEntry = (left, right) => (
+  left.authorityKey === right.authorityKey
+  && sameDurableAuthority(left.authority, right.authority)
+);
+
+const unionTerminalLedgerEntries = (left, right) => {
+  const byKey = new Map();
+  for (const entry of [...left, ...right]) {
+    const normalized = normalizeTerminalLedgerEntry(entry);
+    const previous = byKey.get(normalized.authorityKey);
+    if (previous && !sameTerminalLedgerEntry(previous, normalized)) {
+      throw custodyCorrupt('agent terminal-ledger key collides across distinct tuples');
+    }
+    byKey.set(normalized.authorityKey, normalized);
+  }
+  return Object.freeze([...byKey.values()].sort((a, b) => (
+    a.authorityKey < b.authorityKey ? -1 : a.authorityKey > b.authorityKey ? 1 : 0
+  )));
+};
+
+const isPrimaryFormatMigration = (current, next) => (
+  current?.formatVersion === 1
+  && next?.formatVersion === 2
+  && current.phase === 'settled'
+  && next.phase === current.phase
+  && next.status === current.status
+  && next.authorityEpoch === current.authorityEpoch
+  && next.revision === current.revision + 1
+  && next.authorityKey === current.authorityKey
+  && sameDurableAuthority(next.authority, current.authority)
+  && next.transition === null
+);
+
+const assertStoredReplacement = (current, next, custodyId) => {
+  if (custodyId.startsWith(TERMINAL_LEDGER_ROOT_PREFIX)) {
+    if (current === null) {
+      if (next.revision !== 1 || next.phase !== 'preparing') {
+        throw custodyCorrupt('fresh agent terminal ledger must begin preparing at revision 1');
+      }
+      return;
+    }
+    if (
+      next.revision !== current.revision + 1
+      || next.sourceCustodyId !== current.sourceCustodyId
+      || next.bucketCount !== current.bucketCount
+      || next.bucketCapacity !== current.bucketCapacity
+      || (current.legacyCut && !next.legacyCut)
+      || !(
+        (
+          current.phase === 'preparing'
+          && !current.legacyCut
+          && !next.legacyCut
+          && (next.phase === 'active' || next.phase === 'closed')
+        )
+        || (
+          (current.phase === 'active' || current.phase === 'closed')
+          && next.phase === current.phase
+          && !current.legacyCut
+          && next.legacyCut
+        )
+        || (
+          current.phase === 'active'
+          && next.phase === 'closed'
+          && next.legacyCut === current.legacyCut
+        )
+      )
+    ) {
+      throw custodyCorrupt('agent terminal-ledger root replacement is not monotonic');
+    }
+    return;
+  }
+  if (custodyId.startsWith(TERMINAL_LEDGER_BUCKET_PREFIX)) {
+    if (current === null) {
+      if (next.revision !== 1) {
+        throw custodyCorrupt('fresh agent terminal-ledger bucket must begin at revision 1');
+      }
+      return;
+    }
+    if (
+      next.revision !== current.revision + 1
+      || next.sourceCustodyId !== current.sourceCustodyId
+      || next.bucketIndex !== current.bucketIndex
+      || next.bucketCount !== current.bucketCount
+      || next.bucketCapacity !== current.bucketCapacity
+    ) {
+      throw custodyCorrupt('agent terminal-ledger bucket replacement changed its identity');
+    }
+    const union = unionTerminalLedgerEntries(current.entries, next.entries);
+    if (
+      union.length !== next.entries.length
+      || union.some((entry, index) => !sameTerminalLedgerEntry(entry, next.entries[index]))
+    ) {
+      throw custodyCorrupt('agent terminal-ledger bucket replacement forgot an entry');
+    }
+    return;
+  }
+
+  if (current === null) {
+    const validDirectInitialization = next.phase === 'settled'
+      && next.status === 'active';
+    const validFreshTransition = next.phase === 'clearing'
+      && next.transition.expectedRevision === null;
+    if (
+      next.authorityEpoch !== 0
+      || next.revision !== 1
+      || (!validDirectInitialization && !validFreshTransition)
+    ) {
+      throw custodyCorrupt('fresh agent custody must initialize or begin a transition at epoch 0 and revision 1');
+    }
+    return;
+  }
+  if (
+    current.revision === Number.MAX_SAFE_INTEGER
+    || next.revision !== current.revision + 1
+    || (current.formatVersion === 2 && next.formatVersion !== 2)
+  ) {
+    throw custodyCorrupt('agent custody replacement must advance revision exactly once without format downgrade');
+  }
+  if (isPrimaryFormatMigration(current, next)) return;
+  if (current.phase === 'exhausted') {
+    throw custodyCorrupt('exhausted agent custody cannot be replaced');
+  }
+  if (next.phase === 'exhausted') {
+    if (
+      next.status !== 'deleted'
+      || next.authorityEpoch !== current.authorityEpoch
+      || next.authorityKey !== current.authorityKey
+      || !sameDurableAuthority(next.authority, current.authority)
+    ) {
+      throw custodyCorrupt('agent custody exhaustion marker must tombstone its exact predecessor');
+    }
+    return;
+  }
+  if (current.phase === 'settled') {
+    if (
+      next.phase !== 'clearing'
+      || current.authorityEpoch === Number.MAX_SAFE_INTEGER
+      || next.authorityEpoch !== current.authorityEpoch + 1
+    ) {
+      throw custodyCorrupt('settled agent custody must advance into the next clearing epoch');
+    }
+    if (
+      next.transition.expectedRevision !== current.revision
+      || next.transition.expectedEpoch !== current.authorityEpoch
+      || next.transition.expectedAuthorityKey !== current.authorityKey
+      || next.transition.previousStatus !== current.status
+      || !sameDurableAuthority(next.transition.previousAuthority, current.authority)
+    ) {
+      throw custodyCorrupt('agent custody clearing transition does not bind its exact predecessor');
+    }
+    if (
+      current.status === 'deleted'
+      && next.status === 'active'
+      && current.authorityKey === next.authorityKey
+    ) {
+      throw custodyCorrupt('deleted agent custody cannot revive the same durable authority tuple');
+    }
+    return;
+  }
+  if (
+    next.phase !== 'settled'
+    || next.authorityEpoch !== current.authorityEpoch
+    || next.status !== current.status
+    || next.authorityKey !== current.authorityKey
+    || !sameDurableAuthority(next.authority, current.authority)
+  ) {
+    throw custodyCorrupt('clearing agent custody may only settle its exact successor');
+  }
 };
 
 const nextSafeCounter = (
@@ -616,12 +1046,20 @@ const memoryLockFor = (state, custodyId) => {
  */
 export function createMemoryAgentAuthorityCustodyStorage({
   state = { custody: Object.create(null) },
+  terminalLedgerParameters = null,
+  terminalLedgerCheckpoint = null,
 } = {}) {
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     throw new TypeError('createMemoryAgentAuthorityCustodyStorage requires a shared state object');
   }
   if (!state.custody || typeof state.custody !== 'object' || Array.isArray(state.custody)) {
     state.custody = Object.create(null);
+  }
+  const normalizedTerminalLedgerParameters = normalizeTerminalLedgerParameters(
+    terminalLedgerParameters,
+  );
+  if (terminalLedgerCheckpoint !== null && typeof terminalLedgerCheckpoint !== 'function') {
+    throw new TypeError('terminalLedgerCheckpoint must be a function or null');
   }
   const withOwnership = async (rawCustodyId, operation) => {
       const custodyId = normalizeCustodyPartitionId(rawCustodyId);
@@ -651,124 +1089,231 @@ export function createMemoryAgentAuthorityCustodyStorage({
         clearTimeout(waitTimer);
       }
       let active = true;
-      const owner = Object.freeze({
-        async withPartition(rawPartitionId, partitionOperation) {
-          if (!active) throw fenceError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'agent custody ownership was released');
-          const partitionId = normalizeCustodyPartitionId(rawPartitionId);
-          if (partitionId === custodyId) {
-            throw fenceError(
-              'SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT',
-              'agent custody ownership cannot reacquire its current partition',
-              { custodyId },
-            );
+      let acceptingOwnerOperations = true;
+      let retired = false;
+      let ownerOperationActive = false;
+      const ownerOperations = new Set();
+      const assertOwnerActive = () => {
+        if (!active || !acceptingOwnerOperations || retired) {
+          throw fenceError(
+            'SNAPBACK_AUTH_CUSTODY_LOCK_LOST',
+            retired
+              ? 'agent custody ownership was retired'
+              : 'agent custody ownership was released',
+          );
+        }
+      };
+      const startOwnerOperation = (operationName, operationBody) => {
+        try {
+          assertOwnerActive();
+        } catch (error) {
+          const refused = Promise.reject(error);
+          void refused.then(() => {}, () => {});
+          return refused;
+        }
+        if (ownerOperationActive) {
+          const refused = Promise.reject(fenceError(
+            'SNAPBACK_AUTH_CUSTODY_OPERATION_OVERLAP',
+            'agent custody owner operations must not overlap',
+            { operation: operationName },
+          ));
+          void refused.then(() => {}, () => {});
+          return refused;
+        }
+        ownerOperationActive = true;
+        const task = (async () => {
+          try {
+            return await operationBody();
+          } finally {
+            ownerOperationActive = false;
           }
-          return withOwnership(partitionId, partitionOperation);
+        })();
+        ownerOperations.add(task);
+        // Mark every child handled immediately. The ownership callback still
+        // decides whether a child failure is expected, while the outer scope
+        // retains and joins the exact promise before releasing its gate.
+        void task.then(() => {}, () => {});
+        return task;
+      };
+      const owner = Object.freeze({
+        scanPartitions({ cursor = null, limit = TERMINAL_LEDGER_SCAN_PAGE } = {}) {
+          return startOwnerOperation('scanPartitions', async () => {
+          if (
+            (cursor !== null && typeof cursor !== 'string')
+            || !Number.isSafeInteger(limit)
+            || limit < 1
+            || limit > TERMINAL_LEDGER_SCAN_PAGE
+          ) {
+            throw new TypeError('agent custody partition scan cursor or limit is invalid');
+          }
+          const allIds = Object.keys(state.custody);
+          if (allIds.length > TERMINAL_LEDGER_MAX_SCANNED_PARTITIONS) {
+            throw terminalLedgerScanLimit();
+          }
+          const ids = allIds
+            .sort()
+            .filter((id) => cursor === null || id > cursor)
+            .slice(0, limit);
+          const records = ids.map((partitionId) => {
+            // Scans carry minimally identified raw records. The gate consumer
+            // classifies ownership from partitionId and strictly validates
+            // only this custody's records, so corruption in an unrelated
+            // custody cannot wedge migration or diagnostics.
+            const value = clone(state.custody[partitionId]);
+            return Object.freeze({
+              partitionId,
+              value,
+              byteLength: encodedJsonByteLength(value),
+            });
+          });
+          const hasMore = ids.length === limit
+            && allIds.some((id) => id > ids[ids.length - 1]);
+          return Object.freeze({
+            records: Object.freeze(records),
+            nextCursor: hasMore ? ids[ids.length - 1] : null,
+          });
+          });
         },
-        async read() {
-          if (!active) throw fenceError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'agent custody ownership was released');
-          const raw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
-          return raw === null ? null : clone(validateCustodyRecord(raw, custodyId));
+        withPartition(rawPartitionId, partitionOperation) {
+          return startOwnerOperation('withPartition', async () => {
+            const partitionId = normalizeCustodyPartitionId(rawPartitionId);
+            if (partitionId === custodyId) {
+              throw fenceError(
+                'SNAPBACK_AUTH_CUSTODY_OWNERSHIP_REENTRANT',
+                'agent custody ownership cannot reacquire its current partition',
+                { custodyId },
+              );
+            }
+            return withOwnership(partitionId, partitionOperation);
+          });
         },
-        async replace(expectedRevision, nextValue) {
-          if (!active) throw fenceError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'agent custody ownership was released');
-          const currentRaw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
-          const current = currentRaw === null ? null : validateCustodyRecord(currentRaw, custodyId);
-          const actualRevision = current?.revision ?? null;
-          if (actualRevision !== expectedRevision) {
+        read() {
+          return startOwnerOperation('read', async () => {
+            const raw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+            return raw === null ? null : clone(validateStoredCustodyRecord(raw, custodyId));
+          });
+        },
+        replace(expectedRevision, nextValue) {
+          return startOwnerOperation('replace', async () => {
+            const currentRaw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+            const current = currentRaw === null
+              ? null
+              : validateStoredCustodyRecord(currentRaw, custodyId);
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw fenceError(
+                'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+                'durable agent custody changed before compare-and-swap',
+                { expectedRevision, actualRevision },
+              );
+            }
+            const next = validateStoredCustodyRecord(nextValue, custodyId);
+            assertStoredReplacement(current, next, custodyId);
+            Object.defineProperty(state.custody, custodyId, {
+              configurable: true,
+              enumerable: true,
+              writable: true,
+              value: clone(next),
+            });
+            return clone(next);
+          });
+        },
+        remove(expectedRevision) {
+          return startOwnerOperation('remove', async () => {
+            if (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1) {
+              throw new TypeError('agent custody removal requires a positive expectedRevision');
+            }
+            const currentRaw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+            const current = currentRaw === null
+              ? null
+              : validateStoredCustodyRecord(currentRaw, custodyId);
+            const actualRevision = current?.revision ?? null;
+            if (actualRevision !== expectedRevision) {
+              throw fenceError(
+                'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+                'durable agent custody changed before removal',
+                { expectedRevision, actualRevision },
+              );
+            }
+            delete state.custody[custodyId];
+            return true;
+          });
+        },
+        retire(expectedRevision) {
+          // Memory ownership has no separate advisory-lock carrier. Keep the
+          // stronger protocol verb so durable adapters can retire both the
+          // record and its physical lock under the universal gate.
+          return startOwnerOperation('retire', async () => {
+          if (
+            expectedRevision !== null
+            && (!Number.isSafeInteger(expectedRevision) || expectedRevision < 1)
+          ) {
+            throw new TypeError('agent custody retirement requires null or a positive expectedRevision');
+          }
+          if (!Object.hasOwn(state.custody, custodyId)) {
+            if (expectedRevision !== null) {
+              throw fenceError(
+                'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+                'durable agent custody changed before retirement',
+                { expectedRevision, actualRevision: null },
+              );
+            }
+            retired = true;
+            return false;
+          }
+          if (expectedRevision === null) {
             throw fenceError(
               'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
-              'durable agent custody changed before compare-and-swap',
-              { expectedRevision, actualRevision },
+              'durable agent custody appeared before empty partition retirement',
             );
           }
-          const next = validateCustodyRecord(nextValue, custodyId);
-          if (current === null) {
-            const validDirectInitialization = next.phase === 'settled'
-              && next.status === 'active';
-            const validFreshTransition = next.phase === 'clearing'
-              && next.transition.expectedRevision === null;
-            if (
-              next.authorityEpoch !== 0
-              || next.revision !== 1
-              || (!validDirectInitialization && !validFreshTransition)
-            ) {
-              throw custodyCorrupt('fresh agent custody must initialize or begin a transition at epoch 0 and revision 1');
-            }
-          } else {
-            if (
-              current.revision === Number.MAX_SAFE_INTEGER
-              || next.revision !== current.revision + 1
-            ) {
-              throw custodyCorrupt('agent custody replacement must advance revision exactly once');
-            }
-            if (current.phase === 'exhausted') {
-              throw custodyCorrupt('exhausted agent custody cannot be replaced');
-            } else if (next.phase === 'exhausted') {
-              if (
-                next.status !== 'deleted'
-                || next.authorityEpoch !== current.authorityEpoch
-                || next.authorityKey !== current.authorityKey
-                || !sameDurableAuthority(next.authority, current.authority)
-              ) {
-                throw custodyCorrupt('agent custody exhaustion marker must tombstone its exact predecessor');
-              }
-            } else if (current.phase === 'settled') {
-              if (
-                next.phase !== 'clearing'
-                || current.authorityEpoch === Number.MAX_SAFE_INTEGER
-                || next.authorityEpoch !== current.authorityEpoch + 1
-              ) {
-                throw custodyCorrupt('settled agent custody must advance into the next clearing epoch');
-              }
-              if (
-                next.transition.expectedRevision !== current.revision
-                || next.transition.expectedEpoch !== current.authorityEpoch
-                || next.transition.expectedAuthorityKey !== current.authorityKey
-                || next.transition.previousStatus !== current.status
-                || !sameDurableAuthority(next.transition.previousAuthority, current.authority)
-              ) {
-                throw custodyCorrupt('agent custody clearing transition does not bind its exact predecessor');
-              }
-              if (
-                current.status === 'deleted'
-                && next.status === 'active'
-                && current.authorityKey === next.authorityKey
-              ) {
-                throw custodyCorrupt('deleted agent custody cannot revive the same durable authority tuple');
-              }
-            } else if (current.phase === 'clearing' && (
-              next.phase !== 'settled'
-              || next.authorityEpoch !== current.authorityEpoch
-              || next.status !== current.status
-              || next.authorityKey !== current.authorityKey
-              || !sameDurableAuthority(next.authority, current.authority)
-            )) {
-              throw custodyCorrupt('clearing agent custody may only settle its exact successor');
-            }
+          const current = validateStoredCustodyRecord(state.custody[custodyId], custodyId);
+          if (current.revision !== expectedRevision) {
+            throw fenceError(
+              'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              'durable agent custody changed before retirement',
+              { expectedRevision, actualRevision: current.revision },
+            );
           }
-          Object.defineProperty(state.custody, custodyId, {
-            configurable: true,
-            enumerable: true,
-            writable: true,
-            value: clone(next),
+          delete state.custody[custodyId];
+          retired = true;
+          return true;
           });
-          return clone(next);
         },
       });
+      let result;
+      let operationFailed = false;
+      let operationError = null;
       try {
-        return await operation(owner);
+        result = await operation(owner);
+      } catch (error) {
+        operationFailed = true;
+        operationError = error;
       } finally {
+        // Structured ownership closes the start boundary first, then joins
+        // every child started while it was open. A hung unawaited child
+        // therefore keeps this partition's outer gate closed.
+        // @ref LLP 0055#grant-backed-live-and-queued-replay — the universal
+        //   custody gate owns every operation started through its owner.
+        acceptingOwnerOperations = false;
+        await Promise.allSettled([...ownerOperations]);
         active = false;
         release();
       }
+      if (operationFailed) throw operationError;
+      return result;
   };
   return Object.freeze({
     partitionOwnership: AGENT_CUSTODY_PARTITION_OWNERSHIP,
+    terminalLedgerParameters: normalizedTerminalLedgerParameters,
+    async terminalLedgerCheckpoint(name, context) {
+      if (terminalLedgerCheckpoint !== null) await terminalLedgerCheckpoint(name, context);
+    },
     withOwnership,
     snapshot(rawCustodyId) {
       const custodyId = normalizeCustodyPartitionId(rawCustodyId);
       const raw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
-      return raw === null ? null : clone(validateCustodyRecord(raw, custodyId));
+      return raw === null ? null : clone(validateStoredCustodyRecord(raw, custodyId));
     },
   });
 }
@@ -847,6 +1392,16 @@ export class AgentAuthorityFence {
 
   get hasDurableCustody() {
     return this.#storage !== null;
+  }
+
+  async inspectCustody() {
+    this.#assertNotInCommit('agent custody inspection is forbidden inside compareAndCommit');
+    if (this.#storage === null) {
+      throw new TypeError('agent custody inspection requires durable custody storage');
+    }
+    return this.#withCustodyGate((gateOwner) => (
+      this.#inspectTerminalLedgerUnderGate(gateOwner)
+    ));
   }
 
   get authority() {
@@ -2682,20 +3237,476 @@ export class AgentAuthorityFence {
 
   async #readDurable() {
     return this.#withCustodyGate((gateOwner) => (
-      this.#readRecordAt(this.#custodyId, gateOwner)
+      this.#readPrimaryForSynchronizationUnderGate(gateOwner)
     ));
   }
 
-  async #withCustodyGate(operation) {
+  async #withCustodyGate(operation, {
+    terminalAuthorities = [],
+    onTerminalAuthoritiesEnsured = null,
+  } = {}) {
     return this.#storage.withOwnership(this.#custodyGateId, async (gateOwner) => {
-      if (typeof gateOwner?.withPartition !== 'function') {
+      if (
+        typeof gateOwner?.withPartition !== 'function'
+        || typeof gateOwner?.scanPartitions !== 'function'
+        || typeof gateOwner?.remove !== 'function'
+        || typeof gateOwner?.retire !== 'function'
+      ) {
         throw fenceError(
           'SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED',
-          'agent custody gate owner cannot access an independently owned partition',
+          'agent custody gate owner cannot access, enumerate, remove, and retire independently owned partitions',
         );
       }
-      return operation(gateOwner);
+      const migration = await this.#ensureTerminalLedgerUnderGate(
+        gateOwner,
+        terminalAuthorities,
+        onTerminalAuthoritiesEnsured,
+      );
+      const result = await operation(gateOwner);
+      await this.#finalizeTerminalLedgerCutUnderGate(
+        gateOwner,
+        migration.legacyWitnesses,
+      );
+      return result;
     });
+  }
+
+  async #checkpointTerminalLedger(name, context = {}) {
+    if (typeof this.#storage?.terminalLedgerCheckpoint === 'function') {
+      await this.#storage.terminalLedgerCheckpoint(name, Object.freeze({
+        custodyId: this.#custodyId,
+        ...context,
+      }));
+    }
+  }
+
+  async #readTerminalLedgerRootUnderGate(gateOwner) {
+    const custodyId = terminalLedgerRootIdFor(this.#custodyId);
+    return gateOwner.withPartition(custodyId, async (owner) => {
+      const value = await owner.read();
+      return value === null ? null : validateTerminalLedgerRoot(value, custodyId);
+    });
+  }
+
+  async #inspectTerminalLedgerUnderGate(gateOwner) {
+    const root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    if (root === null || root.phase === 'preparing') {
+      throw custodyCorrupt('agent terminal ledger is unavailable for inspection');
+    }
+    const entries = new Map();
+    let witnessBytes = encodedJsonByteLength(root);
+    let largestBucket = 0;
+    // The root fixes the complete v2 namespace. Diagnostics therefore read at
+    // most 64 deterministic buckets and never discover unrelated partitions.
+    for (let bucketIndex = 0; bucketIndex < root.bucketCount; bucketIndex += 1) {
+      const bucket = await this.#readTerminalLedgerBucketUnderGate(
+        gateOwner,
+        root,
+        bucketIndex,
+      );
+      if (bucket === null) continue;
+      witnessBytes += encodedJsonByteLength(bucket);
+      largestBucket = Math.max(largestBucket, bucket.entries.length);
+      for (const entry of bucket.entries) {
+        const previous = entries.get(entry.authorityKey);
+        if (previous && !sameTerminalLedgerEntry(previous, entry)) {
+          throw custodyCorrupt('agent terminal-ledger diagnostics found a key collision');
+        }
+        entries.set(entry.authorityKey, entry);
+      }
+    }
+    const capacity = root.bucketCount * root.bucketCapacity;
+    const warningThreshold = Math.ceil(
+      capacity * TERMINAL_LEDGER_WARNING_NUMERATOR / TERMINAL_LEDGER_WARNING_DENOMINATOR,
+    );
+    const bucketWarningThreshold = Math.ceil(
+      root.bucketCapacity
+        * TERMINAL_LEDGER_WARNING_NUMERATOR
+        / TERMINAL_LEDGER_WARNING_DENOMINATOR,
+    );
+    return Object.freeze({
+      ledgerFormat: 'bucket-v2',
+      state: root.phase,
+      witnessCount: entries.size,
+      witnessBytes,
+      capacity,
+      warningThreshold,
+      bucketCapacity: root.bucketCapacity,
+      bucketWarningThreshold,
+      largestBucketCount: largestBucket,
+      warning: root.phase === 'closed'
+        || entries.size >= warningThreshold
+        || largestBucket >= bucketWarningThreshold,
+    });
+  }
+
+  async #replaceTerminalLedgerRootUnderGate(gateOwner, expected, next) {
+    return gateOwner.withPartition(next.custodyId, async (owner) => {
+      const replaced = await owner.replace(expected?.revision ?? null, clone(next));
+      return validateTerminalLedgerRoot(replaced, next.custodyId);
+    });
+  }
+
+  async #scanLegacyTerminalWitnessesUnderGate(gateOwner) {
+    const witnesses = [];
+    const seenPartitions = new Set();
+    let scannedPartitions = 0;
+    let scannedPages = 0;
+    let cursor = null;
+    for (;;) {
+      const page = await gateOwner.scanPartitions({
+        cursor,
+        limit: TERMINAL_LEDGER_SCAN_PAGE,
+      });
+      exactKeys(page, ['records', 'nextCursor'], 'agent custody partition scan page');
+      if (
+        !Array.isArray(page.records)
+        || page.records.length > TERMINAL_LEDGER_SCAN_PAGE
+      ) {
+        throw custodyCorrupt('agent custody partition scan records must be an array');
+      }
+      scannedPages += 1;
+      scannedPartitions += page.records.length;
+      if (
+        scannedPages > TERMINAL_LEDGER_MAX_SCANNED_PARTITIONS
+        || scannedPartitions > TERMINAL_LEDGER_MAX_SCANNED_PARTITIONS
+      ) {
+        throw terminalLedgerScanLimit();
+      }
+      for (const scanned of page.records) {
+        exactKeys(
+          scanned,
+          ['partitionId', 'value', 'byteLength'],
+          'agent custody partition scan record',
+        );
+        if (
+          typeof scanned.partitionId !== 'string'
+          || !Number.isSafeInteger(scanned.byteLength)
+          || scanned.byteLength < 0
+        ) {
+          throw custodyCorrupt('agent custody partition scan record metadata is invalid');
+        }
+        if (seenPartitions.has(scanned.partitionId)) {
+          throw custodyCorrupt('agent custody partition scan returned a duplicate record');
+        }
+        seenPartitions.add(scanned.partitionId);
+        if (
+          legacyTerminalWitnessKeyFromId(scanned.partitionId, this.#custodyId) === null
+        ) continue;
+        const witness = validateCustodyRecord(scanned.value, scanned.partitionId);
+        if (terminalWitnessIdFor(this.#custodyId, witness.authorityKey) !== scanned.partitionId) {
+          throw custodyCorrupt('legacy agent terminal witness identity is inconsistent');
+        }
+        if (
+          witness.formatVersion !== 1
+          || witness.status !== 'deleted'
+          || (witness.phase !== 'clearing' && witness.phase !== 'settled')
+        ) {
+          throw custodyCorrupt('legacy agent terminal witness has an invalid exclusion shape');
+        }
+        witnesses.push(Object.freeze({
+          partitionId: scanned.partitionId,
+          revision: witness.revision,
+          byteLength: scanned.byteLength,
+          entry: Object.freeze({
+            authorityKey: witness.authorityKey,
+            authority: witness.authority,
+          }),
+        }));
+      }
+      if (page.nextCursor === null) break;
+      if (
+        typeof page.nextCursor !== 'string'
+        || page.nextCursor === cursor
+      ) {
+        throw custodyCorrupt('agent custody partition scan cursor did not advance');
+      }
+      cursor = page.nextCursor;
+    }
+    return Object.freeze(witnesses);
+  }
+
+  async #readTerminalLedgerBucketUnderGate(gateOwner, root, bucketIndex) {
+    const custodyId = terminalLedgerBucketIdFor(this.#custodyId, bucketIndex);
+    return gateOwner.withPartition(custodyId, async (owner) => {
+      const value = await owner.read();
+      if (value === null) return null;
+      const bucket = validateTerminalLedgerBucket(value, custodyId);
+      if (
+        bucket.bucketCount !== root.bucketCount
+        || bucket.bucketCapacity !== root.bucketCapacity
+      ) {
+        throw custodyCorrupt('agent terminal-ledger bucket parameters disagree with its root');
+      }
+      return bucket;
+    });
+  }
+
+  async #closeTerminalLedgerUnderGate(gateOwner, root) {
+    if (root.phase === 'closed') return root;
+    if (!root.legacyCut) {
+      // Root closure is a global refusal for v2 readers. Before making that
+      // state durable beside a still-v1 primary, also exclude the current
+      // exact tuple in the representation understood by a v1 process. A
+      // crash may lose availability, but cannot let the old reader publish
+      // through the closed-ledger cut.
+      const primary = await this.#readRecordAt(this.#custodyId, gateOwner);
+      if (primary?.formatVersion === 1 && primary.phase !== 'exhausted') {
+        await this.#ensureLegacyTerminalWitnessUnderGate(
+          primary.authority,
+          'agent_terminal_ledger_closed_during_v1_cut',
+          gateOwner,
+        );
+        await this.#checkpointTerminalLedger('afterLegacyWitnessWrite', {
+          authorityKey: primary.authorityKey,
+          reason: 'ledger_close_v1_primary',
+        });
+      }
+    }
+    const closed = terminalLedgerRootRecord({
+      custodyId: this.#custodyId,
+      revision: nextSafeCounter(
+        root.revision,
+        'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+        'agent terminal-ledger revision',
+      ),
+      phase: 'closed',
+      legacyCut: root.legacyCut,
+      bucketCount: root.bucketCount,
+      bucketCapacity: root.bucketCapacity,
+    });
+    const replaced = await this.#replaceTerminalLedgerRootUnderGate(gateOwner, root, closed);
+    await this.#checkpointTerminalLedger('afterLedgerClosed');
+    return replaced;
+  }
+
+  async #insertTerminalLedgerEntryUnderGate(gateOwner, root, rawEntry) {
+    const entry = normalizeTerminalLedgerEntry(rawEntry);
+    if (root.phase === 'closed') return root;
+    const bucketIndex = terminalLedgerBucketIndexFor(entry.authorityKey, root.bucketCount);
+    const custodyId = terminalLedgerBucketIdFor(this.#custodyId, bucketIndex);
+    const bucket = await this.#readTerminalLedgerBucketUnderGate(
+      gateOwner,
+      root,
+      bucketIndex,
+    );
+    const existing = bucket?.entries.find((candidate) => candidate.authorityKey === entry.authorityKey);
+    if (existing !== undefined) {
+      if (!sameTerminalLedgerEntry(existing, entry)) {
+        throw custodyCorrupt('agent terminal-ledger key collides across distinct tuples');
+      }
+      return root;
+    }
+    if ((bucket?.entries.length ?? 0) >= root.bucketCapacity) {
+      return this.#closeTerminalLedgerUnderGate(gateOwner, root);
+    }
+    const next = terminalLedgerBucketRecord({
+      custodyId: this.#custodyId,
+      revision: (bucket?.revision ?? 0) + 1,
+      bucketIndex,
+      bucketCount: root.bucketCount,
+      bucketCapacity: root.bucketCapacity,
+      entries: unionTerminalLedgerEntries(bucket?.entries ?? [], [entry]),
+    });
+    await gateOwner.withPartition(custodyId, async (owner) => {
+      const replaced = await owner.replace(bucket?.revision ?? null, clone(next));
+      validateTerminalLedgerBucket(replaced, custodyId);
+    });
+    return root;
+  }
+
+  async #ensureTerminalLedgerUnderGate(
+    gateOwner,
+    terminalAuthorities,
+    onTerminalAuthoritiesEnsured = null,
+  ) {
+    let root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    if (root === null) {
+      const parameters = normalizeTerminalLedgerParameters(
+        this.#storage?.terminalLedgerParameters,
+      );
+      root = await this.#replaceTerminalLedgerRootUnderGate(
+        gateOwner,
+        null,
+        terminalLedgerRootRecord({
+          custodyId: this.#custodyId,
+          revision: 1,
+          phase: 'preparing',
+          bucketCount: parameters.bucketCount,
+          bucketCapacity: parameters.bucketCapacity,
+        }),
+      );
+      await this.#checkpointTerminalLedger('afterLedgerPreparing');
+    }
+
+    const terminalEntries = terminalAuthorities.map((authority) => Object.freeze({
+      authorityKey: canonicalAgentAuthorityKey(authority),
+      authority: normalizeDurableAuthority(authority),
+    }));
+    if (!root.legacyCut) {
+      // The v1 witness is the compatibility journal. It must settle before
+      // the v2 bucket write: after a crash, a v1 reader sees the exclusion and
+      // v2 recovery can always rebuild the bucket by scanning that witness.
+      for (const authority of terminalAuthorities) {
+        await this.#ensureLegacyTerminalWitnessUnderGate(
+          authority,
+          'agent_durable_authority_rejected_before_installation',
+          gateOwner,
+        );
+        await this.#checkpointTerminalLedger('afterLegacyWitnessWrite', {
+          authorityKey: canonicalAgentAuthorityKey(authority),
+          reason: 'terminal_authority_dual_write',
+        });
+      }
+    }
+    // Global discovery is confined to the pre-cut migration. Once the cut is
+    // durable, candidate tuples absorb their deterministic v1 journal
+    // partition by exact lookup instead of walking unrelated custodies.
+    const legacyWitnesses = root.legacyCut
+      ? Object.freeze([])
+      : await this.#scanLegacyTerminalWitnessesUnderGate(gateOwner);
+    if (root.legacyCut) {
+      for (const authority of terminalAuthorities) {
+        root = await this.#absorbLegacyTerminalWitnessUnderGate(
+          gateOwner,
+          root,
+          authority,
+        );
+      }
+    }
+    const entries = unionTerminalLedgerEntries(
+      legacyWitnesses.map((witness) => witness.entry),
+      terminalEntries,
+    );
+    for (const entry of entries) {
+      root = await this.#insertTerminalLedgerEntryUnderGate(gateOwner, root, entry);
+      if (root.phase === 'closed') break;
+    }
+    if (root.phase === 'preparing') {
+      await this.#checkpointTerminalLedger('afterLedgerBuckets', {
+        migratedWitnessCount: legacyWitnesses.length,
+      });
+      const active = terminalLedgerRootRecord({
+        custodyId: this.#custodyId,
+        revision: nextSafeCounter(
+          root.revision,
+          'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+          'agent terminal-ledger revision',
+        ),
+        phase: 'active',
+        bucketCount: root.bucketCount,
+        bucketCapacity: root.bucketCapacity,
+      });
+      root = await this.#replaceTerminalLedgerRootUnderGate(gateOwner, root, active);
+      await this.#checkpointTerminalLedger('afterLedgerActive');
+    }
+
+    // A direct terminal CAS still needs to distinguish primary corruption
+    // found after its exclusion became durable from corruption that prevented
+    // the exclusion itself. Report that boundary before consulting/migrating
+    // the primary row below.
+    onTerminalAuthoritiesEnsured?.();
+
+    // Complete a settled v1 primary cut on every gate, not only on explicit
+    // synchronization. Otherwise a stream of terminal verdicts for distinct
+    // tuples could leave the compatibility journal growing even though the
+    // bounded ledger is already active or closed.
+    await this.#readPrimaryForSynchronizationUnderGate(gateOwner);
+    return Object.freeze({ root, legacyWitnesses });
+  }
+
+  async #finalizeTerminalLedgerCutUnderGate(gateOwner, legacyWitnesses) {
+    let root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    const primary = await this.#readRecordAt(this.#custodyId, gateOwner);
+    const cutIsDurable = primary?.formatVersion === 2 || primary?.phase === 'exhausted';
+    if (!cutIsDurable) return;
+    if (root.legacyCut) return;
+    await this.#checkpointTerminalLedger('afterPrimaryV2');
+    for (let index = 0; index < legacyWitnesses.length; index += 1) {
+      const witness = legacyWitnesses[index];
+      await this.#retireLegacyTerminalWitnessUnderGate(gateOwner, witness);
+      await this.#checkpointTerminalLedger('afterLegacyWitnessRemove', {
+        remainingWitnessCount: legacyWitnesses.length - index - 1,
+      });
+    }
+    // The cut is the cleanup seal. It is written last: a crash before it
+    // rescans the remaining v1 journal, while a reader that observes it knows
+    // the initial journal has already been compacted and physically retired.
+    const cut = terminalLedgerRootRecord({
+      custodyId: this.#custodyId,
+      revision: nextSafeCounter(
+        root.revision,
+        'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+        'agent terminal-ledger revision',
+      ),
+      phase: root.phase,
+      legacyCut: true,
+      bucketCount: root.bucketCount,
+      bucketCapacity: root.bucketCapacity,
+    });
+    root = await this.#replaceTerminalLedgerRootUnderGate(gateOwner, root, cut);
+  }
+
+  async #readPrimaryForSynchronizationUnderGate(gateOwner) {
+    let observed = await this.#readRecordAt(this.#custodyId, gateOwner);
+    if (
+      observed?.formatVersion !== 1
+      || observed.phase !== 'settled'
+    ) {
+      return observed;
+    }
+    if (observed.revision >= Number.MAX_SAFE_INTEGER - 1) {
+      const root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+      if (
+        observed.revision !== Number.MAX_SAFE_INTEGER - 1
+        || root?.phase !== 'closed'
+      ) return observed;
+      // A closed ledger is already a permanent refusal. Consuming the final
+      // primary revision for the format cut makes old readers reject the row
+      // and lets v2 reclaim the compatibility journal; the resulting MAX
+      // record is itself durable counter poison and can never publish.
+    }
+    const rootBeforePrimaryCut = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    const retireLegacyPrimaryWitness = observed.status === 'deleted'
+      || rootBeforePrimaryCut?.phase === 'closed';
+    if (retireLegacyPrimaryWitness) {
+      await this.#ensureTerminalWitnessUnderGate(
+        observed.authority,
+        'agent_legacy_durable_tombstone_backfilled',
+        gateOwner,
+      );
+    }
+    const migrated = custodyRecord({
+      formatVersion: 2,
+      custodyId: observed.custodyId,
+      authorityEpoch: observed.authorityEpoch,
+      revision: nextSafeCounter(
+        observed.revision,
+        'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+        'agent custody revision',
+      ),
+      phase: observed.phase,
+      status: observed.status,
+      authority: observed.authority,
+    });
+    observed = await gateOwner.withPartition(this.#custodyId, async (owner) => {
+      const replaced = await owner.replace(observed.revision, clone(migrated));
+      return validateCustodyRecord(replaced, this.#custodyId);
+    });
+    if (retireLegacyPrimaryWitness) {
+      const witness = await this.#readLegacyTerminalWitnessExactUnderGate(
+        observed.authority,
+        gateOwner,
+      );
+      if (witness !== null) {
+        await this.#retireLegacyTerminalWitnessUnderGate(gateOwner, witness);
+        await this.#checkpointTerminalLedger('afterLegacyWitnessRemove', {
+          remainingWitnessCount: 0,
+          primaryTombstone: true,
+        });
+      }
+    }
+    return observed;
   }
 
   async #readRecordAt(custodyId, gateOwner) {
@@ -2715,19 +3726,126 @@ export class AgentAuthorityFence {
     );
   }
 
-  async #readTerminalWitnessUnderGate(authority = this.authority, gateOwner) {
-    const custodyId = this.#terminalWitnessId(authority);
-    const witness = await this.#readRecordAt(custodyId, gateOwner);
-    if (witness === null) return null;
-    if (
-      witness.status !== 'deleted'
-      || (witness.phase !== 'clearing' && witness.phase !== 'settled')
-      || witness.authorityKey !== canonicalAgentAuthorityKey(authority)
-      || !sameDurableAuthority(witness.authority, authority)
-    ) {
-      throw custodyCorrupt('agent terminal witness has an invalid exclusion shape');
+  async #readLegacyTerminalWitnessExactUnderGate(authority, gateOwner) {
+    const entry = normalizeTerminalLedgerEntry({
+      authorityKey: canonicalAgentAuthorityKey(authority),
+      authority,
+    });
+    const partitionId = terminalWitnessIdFor(this.#custodyId, entry.authorityKey);
+    return gateOwner.withPartition(partitionId, async (owner) => {
+      const value = await owner.read();
+      if (value === null) {
+        if (typeof owner.retire !== 'function') {
+          throw fenceError(
+            'SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED',
+            'agent custody partition owner cannot retire an empty legacy lock carrier',
+          );
+        }
+        await owner.retire(null);
+        return null;
+      }
+      const witness = validateCustodyRecord(value, partitionId);
+      if (
+        witness.formatVersion !== 1
+        || witness.status !== 'deleted'
+        || (witness.phase !== 'clearing' && witness.phase !== 'settled')
+        || witness.authorityKey !== entry.authorityKey
+        || !sameDurableAuthority(witness.authority, entry.authority)
+      ) {
+        throw custodyCorrupt('legacy agent terminal witness conflicts with its exact tuple');
+      }
+      return Object.freeze({
+        partitionId,
+        revision: witness.revision,
+        byteLength: encodedJsonByteLength(witness),
+        entry,
+      });
+    });
+  }
+
+  async #retireLegacyTerminalWitnessUnderGate(gateOwner, witness) {
+    await gateOwner.withPartition(witness.partitionId, async (owner) => {
+      if (typeof owner.retire !== 'function') {
+        throw fenceError(
+          'SNAPBACK_AUTH_CUSTODY_PARTITION_OWNERSHIP_REQUIRED',
+          'agent custody partition owner cannot retire compacted terminal witness files',
+        );
+      }
+      // Recovery may have retired this scanned witness earlier in the same
+      // universal-gate interval (for example while cutting a closed v1
+      // primary). Re-read under the exact partition owner so missing retires
+      // its carrier with a null CAS, while a present record uses its current
+      // exact revision. Never turn a positive expected revision into an
+      // idempotent wildcard at the adapter boundary.
+      const currentValue = await owner.read();
+      if (currentValue === null) {
+        await owner.retire(null);
+        return;
+      }
+      const current = validateCustodyRecord(currentValue, witness.partitionId);
+      if (
+        current.formatVersion !== 1
+        || current.status !== 'deleted'
+        || (current.phase !== 'clearing' && current.phase !== 'settled')
+        || current.authorityKey !== witness.entry.authorityKey
+        || !sameDurableAuthority(current.authority, witness.entry.authority)
+      ) {
+        throw custodyCorrupt('legacy agent terminal witness changed before retirement');
+      }
+      await owner.retire(current.revision);
+    });
+  }
+
+  async #absorbLegacyTerminalWitnessUnderGate(gateOwner, root, authority) {
+    const witness = await this.#readLegacyTerminalWitnessExactUnderGate(
+      authority,
+      gateOwner,
+    );
+    if (witness === null) return root;
+    const nextRoot = await this.#insertTerminalLedgerEntryUnderGate(
+      gateOwner,
+      root,
+      witness.entry,
+    );
+    // A true cut means the format-2 primary already made every conforming v1
+    // reader fail closed. The same universal gate excludes a v1 writer until
+    // both physical witness files have been retired.
+    if (nextRoot.legacyCut) {
+      await this.#retireLegacyTerminalWitnessUnderGate(gateOwner, witness);
+      await this.#checkpointTerminalLedger('afterLegacyWitnessRemove', {
+        remainingWitnessCount: 0,
+        postCutExact: true,
+      });
     }
-    return witness;
+    return nextRoot;
+  }
+
+  async #readTerminalWitnessUnderGate(authority = this.authority, gateOwner) {
+    let root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    if (root === null || root.phase === 'preparing') {
+      throw custodyCorrupt('agent terminal ledger is unavailable for exclusion');
+    }
+    const entry = normalizeTerminalLedgerEntry({
+      authorityKey: canonicalAgentAuthorityKey(authority),
+      authority,
+    });
+    if (root.legacyCut) {
+      root = await this.#absorbLegacyTerminalWitnessUnderGate(
+        gateOwner,
+        root,
+        authority,
+      );
+    }
+    if (root.phase === 'closed') {
+      return Object.freeze({ ...entry, terminalLedgerClosed: true });
+    }
+    const bucketIndex = terminalLedgerBucketIndexFor(entry.authorityKey, root.bucketCount);
+    const bucket = await this.#readTerminalLedgerBucketUnderGate(
+      gateOwner,
+      root,
+      bucketIndex,
+    );
+    return bucket?.entries.find((candidate) => sameTerminalLedgerEntry(candidate, entry)) ?? null;
   }
 
   async #readTerminalWitness(authority = this.authority) {
@@ -2736,7 +3854,7 @@ export class AgentAuthorityFence {
     ));
   }
 
-  async #ensureTerminalWitnessUnderGate(
+  async #ensureLegacyTerminalWitnessUnderGate(
     authority,
     reason = 'agent_durable_authority_rejected_before_installation',
     gateOwner,
@@ -2759,6 +3877,7 @@ export class AgentAuthorityFence {
         return;
       }
       const transition = custodyTransitionRecords({
+        formatVersion: 1,
         custodyId,
         predecessor: null,
         nextEpoch: 0,
@@ -2783,13 +3902,43 @@ export class AgentAuthorityFence {
     });
   }
 
+  async #ensureTerminalWitnessUnderGate(
+    authority,
+    reason = 'agent_durable_authority_rejected_before_installation',
+    gateOwner,
+  ) {
+    let root = await this.#readTerminalLedgerRootUnderGate(gateOwner);
+    if (!root.legacyCut) {
+      await this.#ensureLegacyTerminalWitnessUnderGate(authority, reason, gateOwner);
+      await this.#checkpointTerminalLedger('afterLegacyWitnessWrite', {
+        authorityKey: canonicalAgentAuthorityKey(authority),
+        reason,
+      });
+    }
+    root = await this.#insertTerminalLedgerEntryUnderGate(gateOwner, root, {
+      authorityKey: canonicalAgentAuthorityKey(authority),
+      authority,
+    });
+    if (!root.legacyCut) {
+      const primary = await this.#readRecordAt(this.#custodyId, gateOwner);
+      if (primary?.formatVersion === 2 || primary?.phase === 'exhausted') {
+        const witness = await this.#readLegacyTerminalWitnessExactUnderGate(
+          authority,
+          gateOwner,
+        );
+        if (witness !== null) {
+          await this.#retireLegacyTerminalWitnessUnderGate(gateOwner, witness);
+          await this.#checkpointTerminalLedger('afterLegacyWitnessRemove', {
+            remainingWitnessCount: 0,
+            preCutExact: true,
+          });
+        }
+      }
+    }
+  }
+
   async #recordTerminalWitness() {
     return this.#withCustodyGate(async (gateOwner) => {
-      await this.#ensureTerminalWitnessUnderGate(
-        this.authority,
-        'agent_durable_authority_rejected_before_installation',
-        gateOwner,
-      );
       // The witness is independent irreversible evidence. Establish it before
       // interpreting the primary row so malformed primary bytes cannot veto
       // terminal exclusion and later reopen after operator repair.
@@ -2801,7 +3950,7 @@ export class AgentAuthorityFence {
         observed,
         preservePrimary: observed !== null && !matchesConfigured,
       };
-    });
+    }, { terminalAuthorities: [this.authority] });
   }
 
   async #confirmDurableExact(expected, { allowTerminalWitness = false } = {}) {
@@ -2837,12 +3986,6 @@ export class AgentAuthorityFence {
     let primaryCasStarted = false;
     try {
       return await this.#withCustodyGate(async (gateOwner) => {
-        await this.#ensureTerminalWitnessUnderGate(
-          this.authority,
-          'agent_durable_authority_rejected_before_installation',
-          gateOwner,
-        );
-        witnessEnsured = true;
         const observed = await this.#readRecordAt(this.#custodyId, gateOwner);
         const observedMatchesConfigured = observed !== null
           && observed.authorityKey === this.#durableKey
@@ -2881,6 +4024,11 @@ export class AgentAuthorityFence {
           }
           return { record: validated, preservePrimary: false, alreadyTerminal: false };
         });
+      }, {
+        terminalAuthorities: [this.authority],
+        onTerminalAuthoritiesEnsured() {
+          witnessEnsured = true;
+        },
       });
     } catch (error) {
       firstError = error;
