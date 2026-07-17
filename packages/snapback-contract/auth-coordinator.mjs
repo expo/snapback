@@ -14,7 +14,7 @@ export const AUTH_CUSTODY_SUPERSEDED_WAIT_MS = 2_000;
 const MAX_SAFE = Number.MAX_SAFE_INTEGER;
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const AUTHORITY_KEY = /^sha256:[0-9a-f]{64}$/;
-const PHASES = new Set(['settled', 'clearing']);
+const PHASES = new Set(['settled', 'clearing', 'exhausted']);
 const AUTH_MODES = new Set(['dev', 'sessions']);
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
@@ -53,12 +53,34 @@ function assertSafeInteger(value, field, { positive = false } = {}) {
 
 function nextRevision(revision) {
   assertSafeInteger(revision, 'revision', { positive: true });
-  if (revision === MAX_SAFE) {
-    throw corrupt('custody revision is exhausted and the custody store must be replaced', {
-      field: 'revision',
-    });
+  // Reserve the final safe integer for a durable terminal marker. No settled
+  // authority may consume it and leave peers unable to learn that comparison
+  // identities can no longer advance.
+  if (revision >= MAX_SAFE - 1) {
+    throw coordinatorError(
+      'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+      'custody revision is exhausted and this custody is permanently closed',
+      { revision },
+    );
   }
   return revision + 1;
+}
+
+function durableCounterExhausted(record) {
+  return coordinatorError(
+    'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED',
+    'durable auth custody is permanently closed because a monotonic counter is exhausted',
+    {
+      authorityEpoch: record?.authorityEpoch ?? null,
+      revision: record?.revision ?? null,
+    },
+  );
+}
+
+function isCounterExhaustion(error) {
+  return error?.code === 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'
+    || error?.code === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+    || error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED';
 }
 
 function nextAuthorityEpoch(epoch) {
@@ -397,7 +419,18 @@ export function validateAuthCustody(record, expectedAppId = null) {
   if (!bearerValid(record.bearer) || !bearerValid(record.pendingBearer)) {
     throw corrupt('custody bearer fields must be non-empty strings or null');
   }
-  if (record.phase === 'settled') {
+  if (record.phase === 'exhausted') {
+    if (
+      authority !== null
+      || pendingAuthority !== null
+      || record.bearer !== null
+      || record.pendingBearer !== null
+      || record.refreshAfterMs !== null
+      || transitionIntent !== null
+    ) {
+      throw corrupt('exhausted custody must contain no publishable authority or credential state');
+    }
+  } else if (record.phase === 'settled') {
     if (authority === null || pendingAuthority !== null || record.pendingBearer !== null) {
       throw corrupt('settled custody has inconsistent current or pending fields');
     }
@@ -467,6 +500,13 @@ export function validateAuthCustody(record, expectedAppId = null) {
     if (pendingAuthority.kind === 'session' && (record.pendingBearer === null || record.refreshAfterMs === null)) {
       throw corrupt('session clearing successor requires a bearer and refresh time');
     }
+  }
+  if (record.phase !== 'exhausted' && record.revision === MAX_SAFE) {
+    throw coordinatorError(
+      'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+      'a non-terminal custody record consumed the final revision and is permanently closed',
+      { authorityEpoch: record.authorityEpoch, revision: record.revision },
+    );
   }
   return clone({
     formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
@@ -649,6 +689,8 @@ export class AuthCoordinator {
   #closed = false;
   #synchronizing = null;
   #inCommit = false;
+  #counterExhaustionError = null;
+  #counterExhaustionSettlement = null;
 
   constructor({
     appId,
@@ -675,10 +717,12 @@ export class AuthCoordinator {
 
   get appId() { return this.#appId; }
 
-  get phase() { return this.#record?.phase ?? 'blank'; }
+  get phase() { return this.#counterExhaustionError ? 'exhausted' : (this.#record?.phase ?? 'blank'); }
 
   get authority() {
-    return this.#record?.phase === 'settled' ? clone(this.#record.authority) : null;
+    return !this.#counterExhaustionError && this.#record?.phase === 'settled'
+      ? clone(this.#record.authority)
+      : null;
   }
 
   capture() {
@@ -699,7 +743,9 @@ export class AuthCoordinator {
   }
 
   isCurrent(capture) {
-    return !this.#publicationPaused && captureMatches(this.#appId, this.#record, capture);
+    return this.#counterExhaustionError === null
+      && !this.#publicationPaused
+      && captureMatches(this.#appId, this.#record, capture);
   }
 
   settledView() {
@@ -747,11 +793,10 @@ export class AuthCoordinator {
       );
     }
     const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      const existing = await owner.read();
+      const existing = await this.#readOwned(owner);
       if (existing !== null) {
         // @ref LLP 0059#transition-barrier — establishAnonymous is creation,
         // never an adoption/recovery shortcut that can reopen a paused gate.
-        validateAuthCustody(existing, this.#appId);
         throw coordinatorError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
           'durable custody already exists; synchronize before using it',
@@ -797,7 +842,7 @@ export class AuthCoordinator {
       // @ref LLP 0059#cross-context-ownership — reentrant resume checks share
       // no in-memory authority assumption and cannot start a nested barrier.
       return this.#storage.withOwnership(this.#appId, async (owner) => {
-        const durable = validateAuthCustody(await owner.read(), this.#appId);
+        const durable = await this.#readOwned(owner);
         const exact = durable.phase === 'settled'
           && durable.revision === this.#record.revision
           && durable.authorityEpoch === this.#record.authorityEpoch
@@ -815,13 +860,13 @@ export class AuthCoordinator {
     if (this.#synchronizing) return this.#synchronizing;
     const work = (async () => {
       const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      const record = await owner.read();
+      const record = await this.#readOwned(owner);
       if (record === null) {
         this.#publicationPaused = true;
         this.#record = null;
         return null;
       }
-      const validated = validateAuthCustody(record, this.#appId);
+      const validated = record;
       if (validated.phase === 'clearing') {
         return this.#recoverOwned(owner, validated, 'peer_recovery');
       }
@@ -877,7 +922,7 @@ export class AuthCoordinator {
       return await this.#storage.withOwnership(this.#appId, async (owner) => {
         let record;
         try {
-          record = await owner.read();
+          record = await this.#readOwned(owner);
         } catch (error) {
           // A mandatory durable read that cannot establish the current authority
           // invalidates every previously exposed local capture. In particular,
@@ -892,7 +937,7 @@ export class AuthCoordinator {
         }
         let validated;
         try {
-          validated = validateAuthCustody(record, this.#appId);
+          validated = record;
         } catch (error) {
           // Validation is part of the mandatory gate. Pause and blank the
           // predecessor before surfacing malformed durable bytes to the caller.
@@ -957,11 +1002,11 @@ export class AuthCoordinator {
     if (typeof commit !== 'function') throw new TypeError('compareAndCommit requires a commit callback');
     if (this.#publicationPaused) return { committed: false };
     return this.#storage.withOwnership(this.#appId, async (owner) => {
-      const record = await owner.read();
+      const record = await this.#readOwned(owner);
       if (this.#publicationPaused || !captureMatches(this.#appId, record, capture)) {
         return { committed: false };
       }
-      const validated = validateAuthCustody(record, this.#appId);
+      const validated = record;
       this.#adoptSettled(validated, { expose: true });
       const view = Object.freeze({
         ...captureFor(this.#appId, validated),
@@ -1007,17 +1052,25 @@ export class AuthCoordinator {
     validateRefreshTime(refreshAfterMs, 'refreshAfterMs');
     if (refreshAfterMs === null) throw new TypeError('compareAndRotateBearer requires refreshAfterMs');
     return this.#storage.withOwnership(this.#appId, async (owner) => {
-      const record = await owner.read();
+      const record = await this.#readOwned(owner);
       if (!captureMatches(this.#appId, record, capture, { revision: true })) {
         return { rotated: false };
       }
-      const current = validateAuthCustody(record, this.#appId);
+      const current = record;
       if (current.authority.kind !== 'session') {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot rotate a bearer');
       }
+      let revision;
+      try {
+        revision = nextRevision(current.revision);
+      } catch (error) {
+        if (!isCounterExhaustion(error)) throw error;
+        await this.#terminalizeOwned(owner, current, error);
+        throw error;
+      }
       const next = await owner.replace(current.revision, {
         ...current,
-        revision: nextRevision(current.revision),
+        revision,
         bearer,
         refreshAfterMs,
       });
@@ -1038,11 +1091,11 @@ export class AuthCoordinator {
     this.#assertOperationAllowed();
     if (typeof rotate !== 'function') throw new TypeError('withCredentialRotation requires a callback');
     const prepared = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      const record = await owner.read();
+      const record = await this.#readOwned(owner);
       if (!captureMatches(this.#appId, record, capture, { revision: true })) {
         return null;
       }
-      const current = validateAuthCustody(record, this.#appId);
+      const current = record;
       if (current.authority.kind !== 'session') {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'anonymous custody cannot refresh a bearer');
       }
@@ -1086,6 +1139,8 @@ export class AuthCoordinator {
       } catch (error) {
         if (
           error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT'
+          || error?.code === 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'
+          || error?.code === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
           || error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
         ) throw error;
         // A peer may still own a clearing transition; retry until the bounded
@@ -1135,11 +1190,10 @@ export class AuthCoordinator {
     this.#assertOperationAllowed();
     const normalized = normalizeSuccessor(successor);
     const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      let current = await owner.read();
+      let current = await this.#readOwned(owner);
       if (current === null) {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'no durable predecessor custody exists');
       }
-      current = validateAuthCustody(current, this.#appId);
       const successorKey = canonicalAuthorityKey(this.#appId, normalized.authority);
       if (current.phase === 'settled' && canonicalAuthorityKey(this.#appId, current.authority) === successorKey) {
         // An idempotent transition may run from inside successor resume. Exact
@@ -1156,7 +1210,19 @@ export class AuthCoordinator {
       if (!captureMatches(this.#appId, current, expected)) {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'authority changed before transition');
       }
-      const nextEpoch = nextAuthorityEpoch(current.authorityEpoch);
+      let nextEpoch;
+      let clearingRevision;
+      try {
+        nextEpoch = nextAuthorityEpoch(current.authorityEpoch);
+        clearingRevision = nextRevision(current.revision);
+        // A transition requires two durable increments. Check both before
+        // publishing clearing so exhaustion cannot strand a half-transition.
+        nextRevision(clearingRevision);
+      } catch (error) {
+        if (!isCounterExhaustion(error)) throw error;
+        await this.#terminalizeOwned(owner, current, error);
+        throw error;
+      }
       const expectedAuthorityKey = canonicalAuthorityKey(this.#appId, current.authority);
       const transitionIntent = {
         formatVersion: 1,
@@ -1174,7 +1240,7 @@ export class AuthCoordinator {
         formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
         appId: this.#appId,
         authorityEpoch: nextEpoch,
-        revision: nextRevision(current.revision),
+        revision: clearingRevision,
         phase: 'clearing',
         authority: null,
         pendingAuthority: normalized.authority,
@@ -1267,6 +1333,14 @@ export class AuthCoordinator {
 
   async #finishClearingOwned(owner, clearing, context) {
     const validated = validateAuthCustody(clearing, this.#appId);
+    let settledRevision;
+    try {
+      settledRevision = nextRevision(validated.revision);
+    } catch (error) {
+      if (!isCounterExhaustion(error)) throw error;
+      await this.#terminalizeOwned(owner, validated, error);
+      throw error;
+    }
     const barrier = Object.freeze({
       appId: this.#appId,
       expectedEpoch: context.expectedEpoch,
@@ -1304,7 +1378,7 @@ export class AuthCoordinator {
       await this.#runAwaitedPhase('commitDurable', barrier);
       const settled = await owner.replace(validated.revision, {
         ...validated,
-        revision: nextRevision(validated.revision),
+        revision: settledRevision,
         phase: 'settled',
         authority: validated.pendingAuthority,
         pendingAuthority: null,
@@ -1325,6 +1399,9 @@ export class AuthCoordinator {
       const failedPhase = this.#activeBarrier?.phase ?? 'unknown';
       this.#activeBarrier?.completion?.resolve();
       this.#activeBarrier = null;
+      if (isCounterExhaustion(error) || this.#counterExhaustionError) {
+        throw this.#counterExhaustionError ?? error;
+      }
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition barrier did not settle',
@@ -1435,12 +1512,15 @@ export class AuthCoordinator {
         'owner_transition_postconfirm_failed',
         () => this.#flushStagedPublications(this.#activeBarrier, confirmed),
       );
-      this.#publicationPaused = false;
+      this.#exposePublication();
       return captureFor(this.#appId, final);
     } catch (error) {
       this.#publicationPaused = true;
       this.#discardStagedPublications(this.#activeBarrier);
       await this.#reblankAfterResumeFailure(barrier);
+      if (isCounterExhaustion(error) || this.#counterExhaustionError) {
+        throw this.#counterExhaustionError ?? error;
+      }
       throw coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition resume did not complete',
@@ -1476,7 +1556,7 @@ export class AuthCoordinator {
       this.#adoptSettled(record, { expose: false });
       // No participant resume runs here: a durable offline authority can
       // validate retained leases, but it cannot establish an online transport.
-      this.#publicationPaused = false;
+      this.#exposePublication();
       return captureFor(this.#appId, record);
     } finally {
       this.#activeBarrier = null;
@@ -1508,15 +1588,146 @@ export class AuthCoordinator {
     }
   }
 
+  async #readOwned(owner) {
+    let raw = null;
+    try {
+      raw = await owner.read();
+      if (raw === null) return null;
+      const record = validateAuthCustody(raw, this.#appId);
+      if (record.phase === 'exhausted') {
+        const error = durableCounterExhausted(record);
+        this.#latchCounterExhaustion(error, record);
+        throw error;
+      }
+      return record;
+    } catch (error) {
+      if (isCounterExhaustion(error)) {
+        this.#latchCounterExhaustion(error);
+        // A legacy/non-coordinator writer may already have consumed the final
+        // revision without a terminal marker. That durable record is itself
+        // permanent poison; wake peers so they stop publication immediately
+        // and discover the same error through ownership.
+        if (
+          raw?.phase !== 'exhausted'
+          && raw?.revision === MAX_SAFE
+          && Number.isSafeInteger(raw?.authorityEpoch)
+          && raw.authorityEpoch >= 0
+        ) {
+          this.#publish({
+            authorityEpoch: raw.authorityEpoch,
+            revision: raw.revision,
+            phase: 'exhausted',
+          });
+        }
+      }
+      throw error;
+    }
+  }
+
+  async #terminalizeOwned(owner, current, error) {
+    this.#latchCounterExhaustion(error);
+    if (current.phase === 'exhausted') {
+      this.#record = current;
+      return current;
+    }
+    if (current.revision >= MAX_SAFE) return null;
+    const marker = await owner.replace(current.revision, {
+      formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+      appId: this.#appId,
+      authorityEpoch: current.authorityEpoch,
+      revision: current.revision + 1,
+      phase: 'exhausted',
+      authority: null,
+      pendingAuthority: null,
+      bearer: null,
+      pendingBearer: null,
+      refreshAfterMs: null,
+      transitionIntent: null,
+    });
+    this.#record = marker;
+    this.#publish(marker);
+    return marker;
+  }
+
+  #latchCounterExhaustion(error, durable = null) {
+    const prior = this.#record;
+    if (durable?.phase === 'exhausted') this.#record = durable;
+    this.#publicationPaused = true;
+    if (this.#counterExhaustionError === null) {
+      this.#counterExhaustionError = isCounterExhaustion(error)
+        ? error
+        : durableCounterExhausted(durable);
+    }
+    this.#discardStagedPublications(this.#activeBarrier);
+    if (this.#counterExhaustionSettlement !== null) return this.#counterExhaustionError;
+
+    const previousAuthority = prior?.phase === 'settled' ? clone(prior.authority) : null;
+    const context = Object.freeze({
+      appId: this.#appId,
+      expectedEpoch: prior?.authorityEpoch ?? durable?.authorityEpoch ?? 0,
+      expectedAuthorityKey: previousAuthority === null
+        ? null
+        : canonicalAuthorityKey(this.#appId, previousAuthority),
+      nextEpoch: durable?.authorityEpoch ?? prior?.authorityEpoch ?? 0,
+      nextAuthorityKey: null,
+      reason: 'auth_counter_exhausted',
+      disposition: 'delete',
+      recovery: durable !== null,
+      previousAuthority,
+      nextAuthority: null,
+    });
+    const quiescence = [];
+    for (const entry of this.#participants) {
+      if (entry.removed) continue;
+      try {
+        quiescence.push(Promise.resolve(participantMethod(entry.participant, 'quiesce', context)));
+      } catch (participantError) {
+        quiescence.push(Promise.reject(participantError));
+      }
+    }
+    // Publication closes before any asynchronous quiescence can yield. Invoke
+    // every destructive local phase even if another participant is faulty.
+    this.#terminalBlankParticipants(context);
+    this.#counterExhaustionSettlement = Promise.allSettled(quiescence).then(() => {
+      // Quiescence callbacks must not be able to repopulate predecessor state
+      // after the first synchronous cut.
+      this.#terminalBlankParticipants(context);
+    });
+    return this.#counterExhaustionError;
+  }
+
+  #terminalBlankParticipants(context) {
+    for (const entry of this.#participants) {
+      if (entry.removed) continue;
+      for (const method of ['blank', 'clearMemory']) {
+        try {
+          const result = participantMethod(entry.participant, method, context);
+          if (result && typeof result.then === 'function') void result.catch(() => {});
+        } catch {
+          // Exhaustion is permanent. One faulty participant cannot prevent the
+          // remaining participants from receiving the destructive cut.
+        }
+      }
+    }
+  }
+
+  #exposePublication() {
+    if (this.#counterExhaustionError) {
+      this.#publicationPaused = true;
+      throw this.#counterExhaustionError;
+    }
+    this.#publicationPaused = false;
+  }
+
   async #confirmDurableExact(expected, reason, onConfirmed = null) {
     try {
       return await this.#storage.withOwnership(this.#appId, async (owner) => {
-        const raw = await owner.read();
+        const raw = await this.#readOwned(owner);
         let durable;
         if (expected === null) {
           if (raw === null) durable = null;
         } else if (captureMatches(this.#appId, raw, expected, { revision: true })) {
-          durable = validateAuthCustody(raw, this.#appId);
+          durable = raw;
         }
         if (durable === undefined) {
           throw coordinatorError(
@@ -1625,7 +1836,7 @@ export class AuthCoordinator {
         captureFor(this.#appId, record),
         'peer_same_authority_postconfirm_failed',
       );
-      this.#publicationPaused = false;
+      this.#exposePublication();
       return;
     }
     this.#publicationPaused = true;
@@ -1678,11 +1889,14 @@ export class AuthCoordinator {
         'peer_adoption_postconfirm_failed',
         () => this.#flushStagedPublications(this.#activeBarrier, record),
       );
-      this.#publicationPaused = false;
+      this.#exposePublication();
     } catch (error) {
       this.#publicationPaused = true;
       this.#discardStagedPublications(this.#activeBarrier);
       await this.#reblankAfterResumeFailure(context);
+      if (isCounterExhaustion(error) || this.#counterExhaustionError) {
+        throw this.#counterExhaustionError ?? error;
+      }
       throw error;
     } finally {
       this.#activeBarrier = null;
@@ -1706,6 +1920,7 @@ export class AuthCoordinator {
   }
 
   #runSyncPhase(method, context) {
+    if (this.#counterExhaustionError) throw this.#counterExhaustionError;
     const barrier = this.#activeBarrier;
     barrier.phase = method;
     for (const entry of this.#participants) {
@@ -1723,9 +1938,11 @@ export class AuthCoordinator {
   }
 
   async #runAwaitedPhase(method, context, { reverse = false } = {}) {
+    if (this.#counterExhaustionError) throw this.#counterExhaustionError;
     const barrier = this.#activeBarrier;
     barrier.phase = method;
     for (;;) {
+      if (this.#counterExhaustionError) throw this.#counterExhaustionError;
       const ordered = reverse ? [...this.#participants].reverse() : [...this.#participants];
       const entry = ordered
         .find((candidate) => !candidate.removed && !this.#phaseDone(barrier, candidate, method));
@@ -1778,7 +1995,7 @@ export class AuthCoordinator {
       }
     }
     this.#record = validated;
-    if (expose) this.#publicationPaused = false;
+    if (expose) this.#exposePublication();
   }
 
   #publish(record) {
@@ -1825,6 +2042,10 @@ export class AuthCoordinator {
       || !PHASES.has(message.phase)
     ) return;
     if (this.#record && message.revision <= this.#record.revision) return;
+    if (message.phase === 'exhausted') {
+      this.#latchCounterExhaustion(durableCounterExhausted(message));
+      return;
+    }
     if (
       message.phase === 'clearing'
       || this.#record === null
@@ -1855,6 +2076,7 @@ export class AuthCoordinator {
 
   #assertUsable() {
     if (this.#closed) throw coordinatorError('SNAPBACK_AUTH_COORDINATOR_CLOSED', 'auth coordinator is closed');
+    if (this.#counterExhaustionError) throw this.#counterExhaustionError;
   }
 
   #assertOperationAllowed() {

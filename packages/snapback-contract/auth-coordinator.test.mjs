@@ -160,6 +160,18 @@ const hintStorage = {
     }, APP),
     { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
   );
+  const exhausted = {
+    ...valid,
+    revision: 2,
+    phase: 'exhausted',
+    authority: null,
+  };
+  assert.deepEqual(validateAuthCustody(exhausted, APP), exhausted);
+  assert.throws(
+    () => validateAuthCustody({ ...exhausted, authority: anonymous() }, APP),
+    { code: 'SNAPBACK_AUTH_CUSTODY_CORRUPT' },
+    'a durable exhaustion marker cannot retain a publishable predecessor',
+  );
 
   const previousAuthority = anonymous();
   const nextAuthority = session();
@@ -1384,8 +1396,11 @@ for (const bytes of hintBytes.values()) {
   await peer.close();
 }
 
-// Neither monotonic counter can wrap or silently reuse an old comparison id.
+// Authority-epoch exhaustion persists a secret-free terminal marker. Both the
+// owner and an already-exposed peer synchronously blank and permanently reject
+// predecessor publication; no terminal-clear result can report success.
 {
+  const terminalHub = new BroadcastHub();
   const epochState = { custody: {
     [APP]: {
       ...storage.snapshot(APP),
@@ -1397,40 +1412,181 @@ for (const bytes of hintBytes.values()) {
   const exhausted = new AuthCoordinator({
     appId: APP,
     storage: createMemoryAuthCustodyStorage({ state: epochState }),
-    broadcastChannelFactory: null,
+    broadcastChannelFactory: terminalHub.factory,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: epochState }),
+    broadcastChannelFactory: terminalHub.factory,
     hintStorage: null,
   });
   await exhausted.synchronize();
+  await peer.synchronize();
+  const ownerCapture = exhausted.capture();
+  const peerCapture = peer.capture();
+  const surfaces = {
+    owner: { visible: true, memory: true, resumed: 0 },
+    peer: { visible: true, memory: true, resumed: 0 },
+  };
+  for (const [name, subject] of [['owner', exhausted], ['peer', peer]]) {
+    subject.registerParticipant({
+      name: `${name}-epoch-exhaustion`,
+      async quiesce() {},
+      blank() { surfaces[name].visible = false; },
+      clearMemory() { surfaces[name].memory = false; },
+      async resume() { surfaces[name].resumed += 1; },
+    });
+  }
   assert.equal(
-    await errorCode(() => exhausted.transition(
-      exhausted.capture(),
-      successor(session(SESSION_B, USER_B), 'other', 60_000),
-    )),
+    await errorCode(() => exhausted.compareAndClear(ownerCapture, 'terminal_epoch_exhaustion')),
     'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
   );
+  assert.deepEqual(epochState.custody[APP], {
+    formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+    appId: APP,
+    authorityEpoch: Number.MAX_SAFE_INTEGER,
+    revision: 101,
+    phase: 'exhausted',
+    authority: null,
+    pendingAuthority: null,
+    bearer: null,
+    pendingBearer: null,
+    refreshAfterMs: null,
+    transitionIntent: null,
+  });
+  assert.deepEqual(surfaces, {
+    owner: { visible: false, memory: false, resumed: 0 },
+    peer: { visible: false, memory: false, resumed: 0 },
+  });
+  assert.equal(exhausted.phase, 'exhausted');
+  assert.equal(peer.phase, 'exhausted');
+  assert.equal(await errorCode(() => Promise.resolve(exhausted.capture())),
+    'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED');
+  assert.equal(
+    await errorCode(() => peer.compareAndCommit(peerCapture, () => assert.fail('predecessor published'))),
+    'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED',
+  );
+  await exhausted.close();
+  await peer.close();
 }
 
+// The last safe revision is reserved for the terminal marker. A bearer write
+// at the boundary cannot publish its candidate, and the peer receives the same
+// permanent cut without any bearer bytes in the wakeup.
 {
+  const terminalHub = new BroadcastHub();
   const revisionState = { custody: {
     [APP]: {
       ...storage.snapshot(APP),
-      revision: Number.MAX_SAFE_INTEGER,
+      revision: Number.MAX_SAFE_INTEGER - 1,
     },
   } };
   const exhausted = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: revisionState }),
+    broadcastChannelFactory: terminalHub.factory,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: revisionState }),
+    broadcastChannelFactory: terminalHub.factory,
+    hintStorage: null,
+  });
+  const ownershipPeer = new AuthCoordinator({
     appId: APP,
     storage: createMemoryAuthCustodyStorage({ state: revisionState }),
     broadcastChannelFactory: null,
     hintStorage: null,
   });
   await exhausted.synchronize();
+  await peer.synchronize();
+  await ownershipPeer.synchronize();
+  const peerCapture = peer.capture();
+  let peerVisible = true;
+  let ownershipPeerVisible = true;
+  peer.registerParticipant({
+    async quiesce() {},
+    blank() { peerVisible = false; },
+    clearMemory() {},
+    async resume() { assert.fail('an exhausted peer cannot resume'); },
+  });
+  ownershipPeer.registerParticipant({
+    async quiesce() {},
+    blank() { ownershipPeerVisible = false; },
+    clearMemory() {},
+    async resume() { assert.fail('an exhausted ownership peer cannot resume'); },
+  });
   assert.equal(
     await errorCode(() => exhausted.compareAndRotateBearer(exhausted.capture(), {
       bearer: 'never-written',
       refreshAfterMs: 70_000,
     })),
-    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+    'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
   );
+  assert.equal(revisionState.custody[APP].phase, 'exhausted');
+  assert.equal(revisionState.custody[APP].revision, Number.MAX_SAFE_INTEGER);
+  assert.equal(revisionState.custody[APP].bearer, null);
+  assert.equal(JSON.stringify(terminalHub.messages).includes('never-written'), false);
+  assert.equal(peerVisible, false);
+  assert.equal(ownershipPeerVisible, true, 'a missed wakeup stays a hint miss until the mandatory durable gate');
+  assert.equal(await errorCode(() => ownershipPeer.synchronize()),
+    'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED');
+  assert.equal(ownershipPeerVisible, false, 'encountering the durable marker under ownership blanks the peer');
+  assert.equal(
+    await errorCode(() => peer.compareAndCommit(peerCapture, () => assert.fail('predecessor published'))),
+    'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED',
+  );
+  await exhausted.close();
+  await peer.close();
+  await ownershipPeer.close();
+}
+
+// A legacy or injected record that already consumed MAX_SAFE cannot be
+// rewritten, but it is durable poison: every context that encounters it under
+// ownership blanks locally and rejects publication instead of treating the
+// unchanged authority key as current.
+{
+  const revisionState = { custody: {
+    [APP]: { ...storage.snapshot(APP) },
+  } };
+  const writer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: revisionState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const peer = new AuthCoordinator({
+    appId: APP,
+    storage: createMemoryAuthCustodyStorage({ state: revisionState }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await writer.synchronize();
+  await peer.synchronize();
+  const writerCapture = writer.capture();
+  const peerCapture = peer.capture();
+  revisionState.custody[APP].revision = Number.MAX_SAFE_INTEGER;
+  let writerBlank = false;
+  let peerBlank = false;
+  writer.registerParticipant({ blank() { writerBlank = true; }, clearMemory() {} });
+  peer.registerParticipant({ blank() { peerBlank = true; }, clearMemory() {} });
+  assert.equal(await errorCode(() => writer.compareAndRotateBearer(writerCapture, {
+    bearer: 'legacy-max-must-not-land',
+    refreshAfterMs: 80_000,
+  })), 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED');
+  assert.equal(writerBlank, true);
+  assert.equal(
+    await errorCode(() => peer.compareAndCommit(peerCapture, () => assert.fail('predecessor published'))),
+    'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+  );
+  assert.equal(peerBlank, true);
+  assert.equal(writer.isCurrent(writerCapture), false);
+  assert.equal(peer.isCurrent(peerCapture), false);
+  assert.equal(revisionState.custody[APP].bearer, storage.snapshot(APP).bearer);
+  await writer.close();
+  await peer.close();
 }
 
 // Offline restore is a durable reload, not an in-memory cache lookup. A
