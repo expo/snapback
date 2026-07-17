@@ -1031,6 +1031,7 @@ export class SnapbackClient {
     this.__authSessionCacheGeneration = 0;
     this.__authCounterCeiling = authCounterCeiling;
     this.__authCounterError = null;
+    this.__authCounterCut = false;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
     // of every receipt this client observed (mutation receipts riding
     // responses, subscription receipts emitted by live handles, ephemeral
@@ -1048,6 +1049,7 @@ export class SnapbackClient {
     this.__authTransportGeneration = 0;
     this.__authSessionCapture = null;
     this.__authMaterializations = new Set();
+    this.__authBarrierParticipants = new Set();
     this.__authorityPublicationCapture = null;
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
@@ -1146,8 +1148,79 @@ export class SnapbackClient {
   }
 
   #recordAuthCounterFailure(error) {
-    this.__authCounterError ??= error;
+    if (this.__authCounterError === null) {
+      let capture = null;
+      try { capture = this.authorityFence?.capture?.() ?? null; } catch { /* already clearing */ }
+      this.__authCounterError = error;
+      if (capture !== null) this.__terminalAuthorityCapture = capture;
+      this.#performAuthCounterTerminalCut(error, capture);
+    }
     return this.__authCounterError;
+  }
+
+  #performAuthCounterTerminalCut(error, capture) {
+    if (this.__authCounterCut) return;
+    this.__authCounterCut = true;
+    const context = Object.freeze({
+      previousCapture: capture,
+      terminalError: error,
+      reason: 'auth_counter_exhausted',
+      disposition: 'delete',
+      terminal: true,
+    });
+    for (const controller of this.__authControllers) {
+      try { controller.abort(error); } catch { /* remain closed */ }
+    }
+    for (const stream of this.__rawLiveStreams) {
+      try { stream.close(); } catch { /* remain closed */ }
+    }
+    for (const manager of this.__liveStreamManagers?.values?.() ?? []) {
+      try {
+        manager.close(error, {
+          error,
+          terminal: true,
+          code: error?.diagnostic?.code ?? error?.code,
+        });
+      } catch { /* remain closed */ }
+    }
+
+    const quiescence = [];
+    for (const entry of this.__authBarrierParticipants) {
+      if (entry.removed) continue;
+      try {
+        quiescence.push(Promise.resolve(entry.participant.quiesce?.(context)));
+      } catch (caught) {
+        quiescence.push(Promise.reject(caught));
+      }
+    }
+    const blankParticipants = () => {
+      for (const entry of this.__authBarrierParticipants) {
+        if (entry.removed) continue;
+        for (const method of ['blank', 'clearMemory']) {
+          try {
+            const value = entry.participant[method]?.(context);
+            if (value && typeof value.then === 'function') void value.catch(() => {});
+          } catch { /* one participant cannot retain the others */ }
+        }
+      }
+    };
+    blankParticipants();
+    if (this.__terminalTransportCut?.phases?.blank !== true) {
+      try { this.#blankAuthMaterializations(null, context); } catch { /* every entry was attempted */ }
+    }
+
+    // Clear cache and transport memory directly. Calling clearAuthSession()
+    // here would recursively consume the exhausted comparison identity.
+    this.__authSessionLastSuccessful = null;
+    this.__authSessionInFlight = null;
+    this.__authSessionCapture = null;
+    this.__connectionGrants.clear();
+    this.__laneConsumers.clear();
+    this.__receiptRing.length = 0;
+    this.__liveStreamManagers?.clear?.();
+    void Promise.allSettled(quiescence).then(() => {
+      blankParticipants();
+    });
   }
 
   #assertAuthCountersAvailable() {
@@ -1155,6 +1228,10 @@ export class SnapbackClient {
   }
 
   #terminalTransportPhaseAlreadyCut(phase, context) {
+    if (
+      this.__authCounterCut
+      && (phase === 'blank' || phase === 'clearMemory')
+    ) return true;
     const cut = this.__terminalTransportCut;
     if (!cut?.phases?.[phase] || !cut.capture) return false;
     if (context?.previousCapture) {
@@ -1182,7 +1259,7 @@ export class SnapbackClient {
           this.__authSessionCapture?.authorityEpoch === capture.authorityEpoch
           && this.__authSessionCapture?.authorityKey === capture.authorityKey
         ) {
-          return this.authorityFence.compareAndCommit(capture, () => (
+          return this.commitAuthorityPublication(capture, () => (
             this.__authSessionLastSuccessful
           )).then((committed) => {
             if (!committed.committed) throw staleAuthorityError();
@@ -1281,7 +1358,7 @@ export class SnapbackClient {
       await this.agentAuthority.synchronizeValidated(projected.authorityDescriptor);
       const capture = this.agentAuthority.capture();
       this.agentAuthority.bindHandshake(capture, projected.authorityDescriptor);
-      const committed = await this.agentAuthority.compareAndCommit(capture, () => (
+      const committed = await this.commitAuthorityPublication(capture, () => (
         this.#cacheAuthSession(projected, capture, cacheGeneration)
       ));
       if (!committed.committed) throw staleAuthorityError();
@@ -1355,7 +1432,7 @@ export class SnapbackClient {
     );
     this.agentAuthority.bindHandshake(capture, projected.authorityDescriptor);
     const cacheGeneration = this.__authSessionCacheGeneration;
-    const committed = await this.agentAuthority.compareAndCommit(capture, () => (
+    const committed = await this.commitAuthorityPublication(capture, () => (
       this.#cacheAuthSession(projected, capture, cacheGeneration)
     ));
     if (!committed.committed) throw staleAuthorityError();
@@ -1394,22 +1471,47 @@ export class SnapbackClient {
   }
 
   registerAuthBarrierParticipant(participant) {
-    this.#assertAuthCountersAvailable();
-    if (this.authCoordinator) {
-      // Insert browser stores/surfaces before the transport. The barrier's
-      // reverse resume order then brings the handshake/grant transport up
-      // first, while quiesce/blank still run deterministically in the
-      // declared list order.
-      return this.authCoordinator.registerParticipant(participant, {
-        before: this.__authTransportParticipant,
+    if (!participant || typeof participant !== 'object') {
+      throw new TypeError('auth barrier participant must be an object');
+    }
+    if (this.__authCounterError) {
+      const context = Object.freeze({
+        previousCapture: null,
+        terminalError: this.__authCounterError,
+        reason: 'auth_counter_exhausted',
+        disposition: 'delete',
+        terminal: true,
       });
+      try { participant.quiesce?.(context); } catch { /* remain closed */ }
+      try { participant.blank?.(context); } catch { /* remain closed */ }
+      try { participant.clearMemory?.(context); } catch { /* remain closed */ }
+      throw this.__authCounterError;
     }
-    // AgentAuthorityFence owns the same participant protocol, but its carrier
-    // has no separate browser transport participant to order around.
-    if (this.agentAuthority?.registerParticipant) {
-      return this.agentAuthority.registerParticipant(participant);
+    const entry = { participant, removed: false };
+    this.__authBarrierParticipants.add(entry);
+    let unregister;
+    try {
+      unregister = this.authCoordinator
+        // Insert browser stores/surfaces before the transport. Reverse resume
+        // brings the handshake up first; quiesce/blank keep declaration order.
+        ? this.authCoordinator.registerParticipant(participant, {
+            before: this.__authTransportParticipant,
+          })
+        : this.agentAuthority?.registerParticipant
+          ? this.agentAuthority.registerParticipant(participant)
+          : async () => {};
+    } catch (error) {
+      this.__authBarrierParticipants.delete(entry);
+      throw error;
     }
-    return async () => {};
+    return async () => {
+      entry.removed = true;
+      try {
+        await unregister();
+      } finally {
+        this.__authBarrierParticipants.delete(entry);
+      }
+    };
   }
 
   registerAuthMaterialization({ capture, blank }) {
@@ -1505,7 +1607,7 @@ export class SnapbackClient {
       // Terminal loss is synchronous while durable comparisons may queue.
       // Re-check inside the custody lock so work queued before the terminal
       // cut cannot republish after its surfaces were blanked.
-      if (this.#isTerminalAuthorityCapture(capture)) {
+      if (this.__authCounterError || this.#isTerminalAuthorityCapture(capture)) {
         return TERMINAL_AUTHORITY_PUBLICATION;
       }
       const previous = this.__authorityPublicationCapture;
@@ -1698,7 +1800,7 @@ export class SnapbackClient {
   }
 
   async #commitAuthSession(session, capture, cacheGeneration = this.__authSessionCacheGeneration) {
-    const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+    const committed = await this.commitAuthorityPublication(capture, () => (
       this.#cacheAuthSession(session, capture, cacheGeneration)
     ));
     if (!committed.committed) throw staleAuthorityError();
@@ -2125,7 +2227,7 @@ export class SnapbackClient {
         // the custody contract, so retain it locally and await only after the
         // lock releases. A peer transition can therefore refuse the old
         // intent, but can never reinterpret it as a successor-authority call.
-        const started = await this.authorityFence.compareAndCommit(
+        const started = await this.commitAuthorityPublication(
           expectedAuthorityCapture ?? capture,
           () => {
             requestTransportGeneration = this.__authTransportGeneration;
@@ -2143,7 +2245,7 @@ export class SnapbackClient {
         requestTransportGeneration !== this.__authTransportGeneration
         || !this.authorityFence.isCurrent(capture)
       ) throw staleAuthorityError();
-      const committed = await this.authorityFence.compareAndCommit(capture, () => (
+      const committed = await this.commitAuthorityPublication(capture, () => (
         markAuthorityCapture(result, capture)
       ));
       if (!committed.committed) throw staleAuthorityError();
@@ -2356,7 +2458,7 @@ export class SnapbackClient {
     ));
     if (!response) throw opaqueCredentialResponseError();
     if (!this.authCoordinator) return response;
-    const committed = await this.authCoordinator.compareAndCommit(capture, () => (
+    const committed = await this.commitAuthorityPublication(capture, () => (
       markAuthorityCapture(response, capture)
     ));
     if (!committed.committed) throw staleAuthorityError();

@@ -734,6 +734,57 @@ try {
     return { code: cachedError.code, settlementCode: settlementError.code, blanks };
   });
 
+  await suite.check('direct auth-session overflow performs one terminal local cut', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    const capture = authCoordinator.capture();
+    db.clearAuthSession();
+    db.__authSessionLastSuccessful = { privateProjection: 'predecessor' };
+    db.__authSessionCapture = {
+      authorityEpoch: capture.authorityEpoch,
+      authorityKey: capture.authorityKey,
+    };
+    let materializationBlanks = 0;
+    let participantBlanks = 0;
+    let participantClears = 0;
+    const unregisterMaterialization = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => { materializationBlanks += 1; },
+    });
+    const unregisterParticipant = db.registerAuthBarrierParticipant({
+      async quiesce() {},
+      blank() { participantBlanks += 1; },
+      clearMemory() { participantClears += 1; },
+      async commitDurable() {},
+      async resume() {},
+    });
+    const overflow = await assertThrows(
+      () => Promise.resolve(db.clearAuthSession()),
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+    );
+    assertEqual(db.__authSessionLastSuccessful, null);
+    assertEqual(materializationBlanks, 1, 'direct overflow blanks kit materializations');
+    assertEqual(participantBlanks, 1, 'direct overflow blanks Contract participants');
+    assertEqual(participantClears, 1, 'direct overflow clears Contract participant memory');
+    let publications = 0;
+    await assertThrows(
+      () => db.commitAuthorityPublication(capture, () => { publications += 1; }),
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+    );
+    assertEqual(publications, 0);
+    unregisterMaterialization();
+    await unregisterParticipant();
+    return {
+      code: overflow.code,
+      materializationBlanks,
+      participantBlanks,
+      participantClears,
+    };
+  });
+
   await suite.check('auth-transport counter exhaustion still closes and wedges publication', async () => {
     const authCoordinator = terminalCoordinatorBarrierSpy();
     const db = new SnapbackClient('http://stub', {

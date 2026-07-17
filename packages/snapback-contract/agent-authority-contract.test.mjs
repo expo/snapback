@@ -8,6 +8,7 @@ import {
   AgentAuthorityFence,
   createMemoryAgentAuthorityCustodyStorage,
 } from '../../demos/_kit/agent-authority.mjs';
+import { SnapbackClient } from '../../demos/_kit/client.mjs';
 import {
   canonicalAgentAuthorityKey,
   createMemorySnapbackClientStore,
@@ -571,5 +572,107 @@ await assert.rejects(
   /requires browser or agent authority custody/,
   'Contract must not fall back to unfenced browser or bearer authority',
 );
+
+// A real kit client owns a second process-local monotonic fence in addition to
+// AgentAuthorityFence. If that identity exhausts while a Contract query is in
+// flight, the captured result must return through the client publication gate;
+// a direct coordinator comparison would otherwise publish private predecessor
+// rows because the underlying AgentAuthorityFence is still current.
+{
+  const value = credential();
+  const authority = new AgentAuthorityFence(value);
+  const client = new SnapbackClient('http://stub', {
+    agentAuthority: authority,
+    authCounterCeiling: 1,
+  });
+  const authorityDescriptor = descriptorFor(value);
+  const sessionProjection = {
+    activeMode: 'sessions',
+    authorizationStreamIncarnation: AUTH_STREAM,
+    authority: {
+      kind: 'servicePrincipal',
+      userId: EFFECTIVE_USER,
+      sessionId: null,
+      isAuthenticated: true,
+    },
+    clientProtocols: {
+      authClient: 1,
+      authInvalidation: null,
+      authorityDescriptor: 1,
+      authorizedLease: null,
+    },
+    availability: {
+      queuedReplay: { available: true },
+      retainedReads: { available: false },
+    },
+    authorityDescriptor,
+  };
+  client.authSession = async () => {
+    await authority.synchronizeValidated(authorityDescriptor);
+    const capture = authority.capture();
+    authority.bindHandshake(capture, authorityDescriptor);
+    return sessionProjection;
+  };
+  client.currentAuthorizationScope = async () => ({
+    principalScope: {
+      authMode: 'sessions',
+      authorizationStreamIncarnation: AUTH_STREAM,
+      userId: EFFECTIVE_USER,
+    },
+    authorityDescriptor,
+    queryAuthorization: {},
+  });
+  let queryEntered;
+  let releaseQuery;
+  const entered = new Promise((resolve) => { queryEntered = resolve; });
+  const released = new Promise((resolve) => { releaseQuery = resolve; });
+  client.query = async () => {
+    queryEntered();
+    await released;
+    return { rows: [{ _id: 'private-predecessor', title: 'secret' }], version: 1 };
+  };
+  const exposedRows = [];
+  const guardedRuntime = {
+    ...runtime,
+    createContractMockQueryBoundary(initialRows) {
+      const rows = new Map(Object.entries(initialRows));
+      return {
+        current: (key) => rows.get(key) ?? [],
+        query: (key, project = (entry) => entry) => project(rows.get(key) ?? []),
+        write(key, update) {
+          const next = update(rows.get(key) ?? []);
+          rows.set(key, next);
+          if (next.some?.((row) => row?._id === 'private-predecessor')) {
+            exposedRows.push(...next);
+          }
+          return next;
+        },
+      };
+    },
+  };
+
+  client.clearAuthSession();
+  const creating = createSnapbackContractSurface({
+    runtime: guardedRuntime,
+    client,
+    userId: EFFECTIVE_USER,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    livePush: false,
+  });
+  await entered;
+  assert.throws(
+    () => client.clearAuthSession(),
+    (error) => error?.code === 'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+  );
+  releaseQuery();
+  await assert.rejects(
+    creating,
+    (error) => error?.code === 'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+  );
+  assert.deepEqual(exposedRows, [], 'the in-flight predecessor result never reaches the boundary');
+  await client.closeAuth();
+}
 
 console.log('PASS snapback-contract agent authority — durable rotation, tuple cut, terminal blank');

@@ -341,9 +341,15 @@ function captureForTransportValue(client, fallback, value) {
   return client?.authorityCaptureFor?.(value) ?? fallback;
 }
 
-async function compareContractCommit(coordinator, capture, commit) {
+async function compareContractCommit(client, coordinator, capture, commit) {
   if (!coordinator) return { committed: true, value: commit() };
   if (!capture) return { committed: false };
+  if (
+    clientOwnsAuthorityFence(client, coordinator)
+    && typeof client?.commitAuthorityPublication === 'function'
+  ) {
+    return client.commitAuthorityPublication(capture, commit);
+  }
   return coordinator.compareAndCommit(capture, commit);
 }
 
@@ -607,7 +613,7 @@ export async function createSnapbackContractSurface({
       if (!capture) return;
       // Generic clients that do not advertise an already-held receipt fence
       // run the complete app effect inside the final durable comparison.
-      void compareContractCommit(coordinator, capture, () => onReceipt(enriched))
+      void compareContractCommit(client, coordinator, capture, () => onReceipt(enriched))
         .then((outcome) => {
           if (!outcome.committed) {
             void confirmDurableAuthority();
@@ -641,7 +647,7 @@ export async function createSnapbackContractSurface({
         authorityKey: authorityCapture.authorityKey,
         authMode: coordinator.authority?.authMode ?? 'sessions',
       });
-      const bound = await compareContractCommit(coordinator, authorityCapture, () => undefined);
+      const bound = await compareContractCommit(client, coordinator, authorityCapture, () => undefined);
       if (!bound.committed) throw staleContractAuthorityError();
     }
     if (Array.isArray(liveQueries)) {
@@ -978,7 +984,7 @@ export async function createSnapbackContractSurface({
       commitAuthorityPublication: coordinator
         ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
           ? client.commitAuthorityPublication(capture, commit)
-          : compareContractCommit(coordinator, capture, commit)
+          : compareContractCommit(client, coordinator, capture, commit)
         : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
@@ -1068,18 +1074,18 @@ export async function createSnapbackContractSurface({
     const operationCapture = () => {
       if (!coordinator) return null;
       if (barrierPaused) throw staleContractAuthorityError();
-      return client?.authCoordinator === coordinator && typeof client?.captureAuthority === 'function'
+      return clientOwnsAuthorityFence(client, coordinator) && typeof client?.captureAuthority === 'function'
         ? client.captureAuthority()
         : coordinator.capture();
     };
     const commitCurrent = async (capture, commit) => {
-      const outcome = await compareContractCommit(coordinator, capture, commit);
+      const outcome = await compareContractCommit(client, coordinator, capture, commit);
       if (!outcome.committed) throw staleContractAuthorityError();
       return outcome.value;
     };
     const preflightDurable = async (capture) => {
       if (!coordinator) return;
-      const outcome = await compareContractCommit(coordinator, capture, () => undefined);
+      const outcome = await compareContractCommit(client, coordinator, capture, () => undefined);
       if (!outcome.committed) throw staleContractAuthorityError();
     };
 
@@ -1309,7 +1315,7 @@ export async function createSnapbackContractSurface({
       // A transition after preparation simply makes the commit stale.
       const overlaid = applyOptimisticOverlay(rows);
       const resolvedVersion = version ?? maxServerRowVersion(rows);
-      const outcome = await compareContractCommit(coordinator, capture, () => {
+      const outcome = await compareContractCommit(client, coordinator, capture, () => {
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
         if (!disposed && boundary && !queryAuthorizationHidden) {
@@ -1394,7 +1400,7 @@ export async function createSnapbackContractSurface({
           // @ref LLP 0059#cross-context-ownership — observer emission is the
           // app-visible effect, so it runs synchronously inside the durable
           // comparison instead of after an await plus an in-memory hint.
-          void compareContractCommit(coordinator, callbackCapture, () => {
+          void compareContractCommit(client, coordinator, callbackCapture, () => {
             const observers = [...liveCellObservers]
               .filter((record) => record.confirmed && record.lastCell);
             for (const record of observers) {
@@ -1411,7 +1417,7 @@ export async function createSnapbackContractSurface({
         onSubscriptionEvent: onSubscriptionEvent
           ? (event) => {
               const callbackCapture = captureForTransportValue(client, capture, event);
-              void compareContractCommit(coordinator, callbackCapture, () => {
+              void compareContractCommit(client, coordinator, callbackCapture, () => {
                 try { onSubscriptionEvent(event); } catch { /* isolate */ }
               })
                 .then((outcome) => {
@@ -1424,7 +1430,7 @@ export async function createSnapbackContractSurface({
           : null,
       });
       const resultCapture = captureForTransportValue(client, capture, handle);
-      const installed = await compareContractCommit(coordinator, resultCapture, () => {
+      const installed = await compareContractCommit(client, coordinator, resultCapture, () => {
         liveHandle = handle;
         retainedOffline = false;
       });
@@ -1490,7 +1496,7 @@ export async function createSnapbackContractSurface({
           authorityCapture,
         });
         const resultCapture = captureForTransportValue(client, initialCapture, snapshot);
-        const current = await compareContractCommit(coordinator, resultCapture, () => undefined);
+        const current = await compareContractCommit(client, coordinator, resultCapture, () => undefined);
         if (!current.committed) throw staleContractAuthorityError();
         initial = snapshot.rows;
         lastServerVersion = snapshot.version ?? maxServerRowVersion(initial);
@@ -1515,7 +1521,7 @@ export async function createSnapbackContractSurface({
       lastServerRows = liveHandle.rows;
       const racedRows = liveHandle.rows;
       const racedCapture = captureForTransportValue(client, authorityCapture, liveHandle);
-      const committed = await compareContractCommit(coordinator, racedCapture, () => {
+      const committed = await compareContractCommit(client, coordinator, racedCapture, () => {
         if (!queryAuthorizationHidden) boundary.write(boundaryKey, () => racedRows);
       });
       if (!committed.committed) throw staleContractAuthorityError();
@@ -2031,7 +2037,7 @@ export async function createSnapbackContractSurface({
           authorityCapture: capture,
         });
         const resultCapture = captureForTransportValue(client, capture, result);
-        const current = await compareContractCommit(coordinator, resultCapture, () => result.rows);
+        const current = await compareContractCommit(client, coordinator, resultCapture, () => result.rows);
         if (!current.committed) throw staleContractAuthorityError();
         const rows = current.value;
         const row = rows.find((r) => r._id === rowId);
@@ -2092,7 +2098,7 @@ export async function createSnapbackContractSurface({
             if (coordinator && !record.confirmed) {
               void confirmDurableAuthority().then(() => {
                 const confirmationCapture = authorityCapture;
-                return compareContractCommit(coordinator, confirmationCapture, () => {
+                return compareContractCommit(client, coordinator, confirmationCapture, () => {
                   if (record.confirmed || disposed || !liveCellObservers.has(record)) return;
                   record.confirmed = true;
                   if (record.lastCell && !barrierPaused && !barrierPreparing) {
@@ -2278,7 +2284,7 @@ export async function createSnapbackContractSurface({
           commitAuthorityPublication: (candidate, commit) => (
             typeof client.commitAuthorityPublication === 'function'
               ? client.commitAuthorityPublication(candidate, commit)
-              : compareContractCommit(coordinator, candidate, commit)
+              : compareContractCommit(client, coordinator, candidate, commit)
           ),
           onAuthorityRefused: () => {
             void confirmDurableAuthority().catch(() => {});
@@ -2296,7 +2302,7 @@ export async function createSnapbackContractSurface({
       }
       const resolvedVersion = version ?? maxServerRowVersion(rows);
       barrierPreparing = true;
-      const exposed = await compareContractCommit(coordinator, capture, () => {
+      const exposed = await compareContractCommit(client, coordinator, capture, () => {
         lastServerRows = rows;
         lastServerVersion = resolvedVersion;
         if (!disposed && boundary && !queryAuthorizationHidden) {
@@ -2520,7 +2526,7 @@ export async function createSnapbackContractSurface({
           scheduleAuthorityRefresh(context);
         },
       });
-      const current = await compareContractCommit(coordinator, authorityCapture, () => undefined);
+      const current = await compareContractCommit(client, coordinator, authorityCapture, () => undefined);
       if (!current.committed) throw staleContractAuthorityError();
     }
 
@@ -3509,7 +3515,7 @@ async function createMultiLiveContractSurface({
       commitAuthorityPublication: coordinator
         ? (capture, commit) => typeof client.commitAuthorityPublication === 'function'
           ? client.commitAuthorityPublication(capture, commit)
-          : compareContractCommit(coordinator, capture, commit)
+          : compareContractCommit(client, coordinator, capture, commit)
         : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
@@ -3528,12 +3534,12 @@ async function createMultiLiveContractSurface({
     const operationCapture = () => {
       if (!coordinator) return null;
       if (barrierPaused) throw staleContractAuthorityError();
-      return client?.authCoordinator === coordinator && typeof client?.captureAuthority === 'function'
+      return clientOwnsAuthorityFence(client, coordinator) && typeof client?.captureAuthority === 'function'
         ? client.captureAuthority()
         : coordinator.capture();
     };
     const commitCurrent = async (capture, commit) => {
-      const outcome = await compareContractCommit(coordinator, capture, commit);
+      const outcome = await compareContractCommit(client, coordinator, capture, commit);
       if (!outcome.committed) throw staleContractAuthorityError();
       return outcome.value;
     };
@@ -3581,7 +3587,7 @@ async function createMultiLiveContractSurface({
       wantLivePush ? { ...cell, connection: connectionFor(name) } : cell
     );
     const publishRows = async (capture, name, rows) => {
-      const outcome = await compareContractCommit(coordinator, capture, () => {
+      const outcome = await compareContractCommit(client, coordinator, capture, () => {
         if (!disposed && boundary && !authorizationHidden.has(name)) {
           boundary.write(name, () => rows);
         }
@@ -3635,7 +3641,7 @@ async function createMultiLiveContractSurface({
           const callbackCapture = captureForTransportValue(client, capture, detail);
           // @ref LLP 0059#cross-context-ownership — observer re-emission is the
           // app-facing effect and therefore stays inside the durable commit.
-          void compareContractCommit(coordinator, callbackCapture, () => {
+          void compareContractCommit(client, coordinator, callbackCapture, () => {
             reemitCells(name, connection);
             try {
               onConnectionChange?.(connection, { ...detail, queryName: name });
@@ -3650,7 +3656,7 @@ async function createMultiLiveContractSurface({
         onSubscriptionEvent: onSubscriptionEvent
           ? (event) => {
               const callbackCapture = captureForTransportValue(client, capture, event);
-              void compareContractCommit(coordinator, callbackCapture, () => {
+              void compareContractCommit(client, coordinator, callbackCapture, () => {
                 try { onSubscriptionEvent({ ...event, queryName: name }); } catch { /* isolate */ }
               })
                 .then((outcome) => {
@@ -3690,7 +3696,7 @@ async function createMultiLiveContractSurface({
         throw error;
       }
       for (const { name, handle, capture } of liveResults) {
-        const current = await compareContractCommit(coordinator, capture, () => undefined);
+        const current = await compareContractCommit(client, coordinator, capture, () => undefined);
         if (!current.committed) {
           handle.dispose?.();
           throw staleContractAuthorityError();
@@ -3714,7 +3720,7 @@ async function createMultiLiveContractSurface({
           authorityCapture: capture,
         });
         const resultCapture = captureForTransportValue(client, capture, snapshot);
-        const current = await compareContractCommit(coordinator, resultCapture, () => undefined);
+        const current = await compareContractCommit(client, coordinator, resultCapture, () => undefined);
         if (!current.committed) throw staleContractAuthorityError();
         // Coordinated poll-mode observers are tracked too: their initial
         // publication waits for the same durable custody confirmation.
@@ -3874,7 +3880,7 @@ async function createMultiLiveContractSurface({
         if (coordinator && !record.confirmed) {
           void confirmDurableAuthority().then(() => {
             const confirmationCapture = currentCapture;
-            return compareContractCommit(coordinator, confirmationCapture, () => {
+            return compareContractCommit(client, coordinator, confirmationCapture, () => {
               if (record.confirmed || disposed || !records.has(record)) return;
               record.confirmed = true;
               if (record.lastCell && !barrierPaused && !barrierPreparing) {
@@ -3957,6 +3963,7 @@ async function createMultiLiveContractSurface({
                 return;
               }
               const current = await compareContractCommit(
+                client,
                 coordinator,
                 result.capture,
                 () => undefined,
@@ -3976,7 +3983,7 @@ async function createMultiLiveContractSurface({
                 authorityCapture: context.capture,
               });
               const capture = captureForTransportValue(client, context.capture, snapshot);
-              const current = await compareContractCommit(coordinator, capture, () => undefined);
+              const current = await compareContractCommit(client, coordinator, capture, () => undefined);
               if (!current.committed) throw staleContractAuthorityError();
               stagedRows.set(name, snapshot.rows);
             }
@@ -4002,7 +4009,7 @@ async function createMultiLiveContractSurface({
             commitAuthorityPublication: (capture, commit) => (
               typeof client.commitAuthorityPublication === 'function'
                 ? client.commitAuthorityPublication(capture, commit)
-                : compareContractCommit(coordinator, capture, commit)
+                : compareContractCommit(client, coordinator, capture, commit)
             ),
             onAuthorityRefused: () => {
               void confirmDurableAuthority().catch(() => {});
@@ -4023,7 +4030,7 @@ async function createMultiLiveContractSurface({
         let installed = false;
         try {
           barrierPreparing = true;
-          const exposed = await compareContractCommit(coordinator, context.capture, () => {
+          const exposed = await compareContractCommit(client, coordinator, context.capture, () => {
             for (const [name, rows] of stagedRows) {
               if (!authorizationHidden.has(name)) boundary.write(name, () => rows);
             }
@@ -4098,7 +4105,7 @@ async function createMultiLiveContractSurface({
           scheduleAuthorityRefresh(context);
         },
       });
-      const current = await compareContractCommit(coordinator, currentCapture, () => undefined);
+      const current = await compareContractCommit(client, coordinator, currentCapture, () => undefined);
       if (!current.committed) throw staleContractAuthorityError();
     }
 
