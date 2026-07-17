@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
 ---
 
 # Scheduled execution with cron

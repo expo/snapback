@@ -10,7 +10,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-07-16
-reviewed-commit: 4f642f6c2cc01df2016986537fe7b72ab1d1ebeb
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Deploying the Cloudflare proof
@@ -35,7 +35,7 @@ volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
 volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
 ```
 
-The suite inventories every non-remote gate and currently runs 20 checks.
+The suite inventories every non-remote gate and currently runs 21 checks.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
 or billing. Those require a real Cloudflare run.

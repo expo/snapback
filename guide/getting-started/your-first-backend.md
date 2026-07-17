@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Your first backend
@@ -58,9 +58,10 @@ export default defineSchema({
 });
 ```
 
-The complete validator set: `v.string()`, `v.boolean()`, `v.integer()`,
-`v.real()` / `v.number()`, `v.json()`, `v.object({...})`, and
-`v.optional(inner)`. `defineSchema` also takes an options object:
+The complete validator set: `v.string()`, `v.principal()`, `v.id(table)`,
+`v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
+`v.object({...})`, and `v.optional(inner)`. `defineSchema` also takes an
+options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
 [presence recipe](../recipes/presence-cursors.md) and complete
 [ephemeral-state reference](../realtime/ephemeral-state.md)), `auth:`
@@ -148,12 +149,18 @@ globalThis.__snapbackHandlers = {
   },
 ```
 
-The `ctx` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
+The core `ctx.db` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
 `.in(field, [...])`.`order(field, dir)`.`collect()`, plus
 `ctx.db.get(table, id)`, `ctx.db.insert(table, values)`,
 `ctx.db.patch(table, id, values)`, `ctx.db.delete(table, id)`, and
 `ctx.auth.userId` — the server-derived identity
 ([never client-asserted](../auth/sessions-and-principals.md)).
+
+Membership declarations additionally generate query-side
+`ctx.permissions.<declaration>` checks and mutation-only
+`ctx.membership.<declaration>` operations. See
+[scoped roles and memberships](../auth/scoped-roles.md) for their typed surface
+and transition rules.
 
 ## Seed deterministically
 

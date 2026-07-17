@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
 ---
 
 # Scoped roles and memberships

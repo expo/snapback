@@ -10,7 +10,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: 97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61
 ---
 
 # Capability index
@@ -68,7 +68,8 @@ with the Snapback label and `guide-gap` in the title.
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
 motion, routing, Acto verification) is the **Exact guide**'s corpus —
-`repo(exact):guide/index.md` (one-directional for now; LLP 0061
+`repo(exact):guide/index.md`. The seam is reciprocal: Exact's
+`data.snapback` external-authority row points back to this guide (LLP 0061
 §Relationship).
 
 ## Surface map

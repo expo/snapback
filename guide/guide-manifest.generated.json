@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "53031339f8fe1ad472c8c77669e3bc823175317e"
+    "commit": "97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61"
   },
   "nav": {
     ".": [
@@ -195,8 +195,8 @@
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "d85bf1c02747900a3e8d8bcf4de522effb317c82",
-      "sha256": "6ab31814249018483f7aa5f501207273483f742e0255a62884d9c9c0e0854459",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "6568e065602a8d6aa333d6cd0003d46abd09a7b38a4af3ebee125126587723cb",
       "snippets": [
         {
           "lang": "js",
@@ -241,8 +241,8 @@
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "HEAD",
-      "sha256": "fe3fb4bfaf58699d41392d7ae129449fda71f0c7dbe20595a43154e3b217fd43",
+      "reviewedCommit": "d4fcfaf706ca9f307271d91b7a376c18774c630f",
+      "sha256": "d3fc8b3ac138d92bf854f66481715e585995d8a7ca8effc7c9c9fe70468a491d",
       "snippets": [
         {
           "lang": "js",
@@ -296,8 +296,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "b9d22d5e7b6a7c7a56c38c9552a5c95eb164754950909425903dd9217e04a68d",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "4477f7fcdae0fbf9f1128457f936a52154d785cf581092e6f83662c143236c3a",
       "snippets": [
         {
           "lang": "js",
@@ -376,8 +376,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "cefafef04e5503c267129525ebffc2a03f552df143075443ca214e0a6e4d35f8",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "47cbc308c88665b32403d20a2e26554325a92cb2a52dfc72d6c9d66f4984bd66",
       "snippets": [
         {
           "lang": "js",
@@ -419,8 +419,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "187702cb0d0f13625a9be11ecd8bb0602cacfe98b969f2a3afad60d924ab8ed7",
+      "reviewedCommit": "d4fcfaf706ca9f307271d91b7a376c18774c630f",
+      "sha256": "cf0fca18f209bbb3cd631531f99b88e7ce3ce80b47968db92e88fd749b93ca8b",
       "snippets": [
         {
           "lang": "js",
@@ -515,8 +515,8 @@
         "demos/todo-v2"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "7bc4d662ae3ae92faabc98e4c16f0f97c5f37f1d922c167ecd858883d6eaf67b",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "e2f0e262be6fedce8fc4dc7c747ceebda17de7563579225235276c24ac303422",
       "snippets": [
         {
           "lang": "js",
@@ -547,8 +547,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "cfc99930b6d95014133a8ecc5f2519728b5fa8cf58fe0e31c2e629e6f8a3a51a",
+      "reviewedCommit": "97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61",
+      "sha256": "7fdb94cb94e8e6c7b162d8c81296c0038ed42cfdf0d86149e4aa70e6e0299de9",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -577,9 +577,9 @@
         "demos/all-aboard/surfaces/contract",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "93ffb9761b1e1913ea1842e3c28d0f1a59f31f2133d71d11f1d44eec9fcc44e1",
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "5fdc6ae9d0f839d042f759e620ec03f88ce0547fadbbb709af7ec4683be2d547",
       "snippets": [
         {
           "lang": "contract",
@@ -628,6 +628,7 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "demos/_kit/client.mjs",
+        "demos/_kit/agent-authority-filesystem.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
@@ -638,8 +639,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "a6ca91c5b2df53096cfd4061bc843fc82c4667ade6dd65a78310ccc60952df7a",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "fc89e5dbc90a79eeb8a2dea222c524a3b9d64187cc7c2358cf2b98c6f2088f17",
       "snippets": [
         {
           "lang": "js",
@@ -674,8 +675,8 @@
         "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "17ee4853fd71dd2e538dce34ff3e15f31a6ae55cd97cdcfce67e5ff975ff9c7e",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "34bb169c2ba46020586ed3882330c8e2ee57458bf284999156cfa925c7906b9f",
       "snippets": [
         {
           "lang": "ts",
@@ -728,8 +729,8 @@
         "cloudflare/app/all-aboard.app.js"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "4f642f6c2cc01df2016986537fe7b72ab1d1ebeb",
-      "sha256": "684398f20c17d1de4841439cb06e9af854aa16e5839eee635d1b21231dd0e374",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "c5488118d59b6bb2ad38dc9bb84a2dc57e6a3b62f601e49a3cc476f90220f4c0",
       "snippets": [
         {
           "lang": "js",
@@ -762,8 +763,8 @@
         "demos/todo/surfaces/headless/run.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "069c19507e2eaf01aac9107303ef66212019146ef54698c791ce53193f322072",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "6cadfbe8030c2603de5ca7ca491eb6e007899c017c65c4f0c379f33c300c88c1",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -793,8 +794,8 @@
         "demos/todo-v2/snapback"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "d611a6a91e60e38c93e15ad5bc3bfae0733290d797343f6d9ce477181a95678b",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "8322be368d3bb350e7403d2bff20a737913a81ef7950fcf0dd18864b9b2c043d",
       "snippets": [
         {
           "lang": "js",
@@ -891,8 +892,8 @@
         "admin-ui"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "0cc293cd55017f24196427f02e8eb087a6ea53d0",
-      "sha256": "744d136aff20d3c50091adcc91e9f395cd6a4c1f8cb4bf4314bb87d635e2b2a9",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "5c776f4896db3e11ec1b26e6593479b0b3d1cd56d29f4f054398209015aecf22",
       "snippets": [
         {
           "lang": "js",
@@ -956,8 +957,8 @@
         "demos/todo"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "51b8d879d50e1ac4e44ef33ad41bc335558af0d2a9ed1c088b5b96f285fb3b60",
+      "reviewedCommit": "97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61",
+      "sha256": "d95e642711145cfd21fed304ecd55a06b857328a18ea3f2b8f53e9b111889ec7",
       "snippets": [
         {
           "lang": "json",
@@ -989,8 +990,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "e4704d0e24e4716db309dbbad11689c09aab309078126d0b24561e75a11d63aa",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "49626c3dfe4db1b67c1680f8778034ab7d73adabfdbfee6f88beda11f1eab25f",
       "snippets": [
         {
           "lang": "js",
@@ -1033,8 +1034,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "855d99745ee8ffa035c4758fbe5eff19e79af3d76634769061494e60fd79c636",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "21ab39f3491ce0b56c4ec5994d4f237e362c4f0dd67f4647e23cbaac8e968e14",
       "snippets": [
         {
           "lang": "js",
@@ -1077,8 +1078,8 @@
         "demos/all-aboard/surfaces/react/src/main.tsx"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "cc2da2586192e982011d6de54e51e5b4f55b2149b1a903268f0194a348aaef78",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "2d3e60a0f6309dd721b6a09749db4f0d710a01f84eb9fe5ea3eeede8f36212ef",
       "snippets": [
         {
           "lang": "js",
@@ -1131,8 +1132,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "2a372af84752924154235532dc150e8f3bb8c2a9",
-      "sha256": "96ca70df28f617cda45f29deccc519bf5e28cdf3edacf1ee37e3e665a9808ad6",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "53539f56900b672ad8868f9937ca41268e81a7c3a97f8803c838684d1e00a941",
       "snippets": [
         {
           "lang": "js",
@@ -1183,8 +1184,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "af0019190df14d9e26e147498f30a2fccb7b2cd15cb7cfd3ae566f3c8f09cb3c",
+      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
+      "sha256": "9e475e282347028f370867cb1dfdbb64d856bac57e0fe6532eb5d3780f7ea68f",
       "snippets": [
         {
           "lang": "js",
@@ -1247,8 +1248,8 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
       "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "d2a1d1c34336012d5fd442e76cf71a0a3517f2ef56911256bfbcaa05457c1ddc",
+      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
+      "sha256": "7df25646dfe7b7b776ea562432699bd191444a1884e9c23d479ba21309a04c2c",
       "snippets": [
         {
           "lang": "js",
@@ -1350,5 +1351,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "0e8df246dd04faa2ca048ebb80b372255c33560ba8d1f58993003d278b1ab49f"
+  "contentHash": "b4ed6b5352db152b29f1b6fe587bbd7777d5b206acfcea34d0cf2d68c658ea97"
 }

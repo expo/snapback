@@ -9,8 +9,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed: 2026-07-16
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # The Contract adapter
@@ -131,7 +131,26 @@ terminal scoped-token/grant outcome synchronously blanks the Contract boundary;
 tuple changes also delete predecessor durable work before the successor can
 resume. Retained service-principal reads remain refused on the local v1 plane,
 so agent-backed surfaces can use durable queued replay without claiming
-retained-read Parity.
+retained-read Parity. A terminal purge leaves the format-6 client store marked
+`terminallyUnbound`, so direct bind and old tuple captures stay invalid. A
+delayed first bind may consume that marker only for the coordinator's exact
+still-current capture and the store generation observed with the marker. If
+custody later proves a distinct one-epoch successor, that privacy-clean store
+binds during the successor barrier. Format-5 migration is deletion-only because
+it cannot prove an older writer did not erase the marker; drain and upgrade
+every tab/process sharing the same store key together.
+
+The final safe store generation is reserved for terminal deletion. Ordinary
+writes stop one value earlier. If an older writer already left bound bytes at
+the ceiling, retained and queued reads fail closed even when the deletion write
+itself fails; a successful purge may replace that final identity only with a
+clean terminal marker. That final marker is idempotent but cannot be rebound—
+replace the physical client store before admitting a successor.
+
+All non-null client authority aliases and an explicitly supplied
+`authCoordinator` must name the same fence object. A split configuration is
+refused with `SNAPBACK_CONTRACT_AUTH_COORDINATOR_MISMATCH`: transport results
+captured under fence A cannot be published by comparing them under fence B.
 
 What the surface does for you:
 

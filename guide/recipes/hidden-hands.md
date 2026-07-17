@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 2a372af84752924154235532dc150e8f3bb8c2a9
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Recipe: hidden hands

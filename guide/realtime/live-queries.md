@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Live queries
@@ -80,7 +80,7 @@ result) or `live_delta` (incremental add/remove — the analyzable
 unordered/filtered subset gets deltas; ordered queries fall back to
 replace; LLP 0008 §DK-3). `resync_required` tells the client to
 re-snapshot; `authorization_invalidation` is the auth barrier
-([protecting data](../auth/sessions-and-principals.md)). A subscription
+([protecting data](../auth/protecting-data.md)). A subscription
 asserts on delta kinds like this:
 
 ```js source=demos/_kit/tests/live-delta-e2e.mjs

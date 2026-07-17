@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 0cc293cd55017f24196427f02e8eb087a6ea53d0
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Admin console

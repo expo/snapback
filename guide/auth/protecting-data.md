@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: d85bf1c02747900a3e8d8bcf4de522effb317c82
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Protecting live and retained data
@@ -158,7 +158,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
       clientStoreId: namespace.clientStoreId,
       queryKey: namespace.queryKey,
       queryInstanceId: namespace.queryInstanceId,
-    });
+    }, undefined, { expectedAuthorityCapture: authorityCapture });
 ```
 
 V1 defaults to 24 hours and has a 24-hour hard maximum; configuration may only

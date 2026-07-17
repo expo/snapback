@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: 97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61
 ---
 
 # Capability index
@@ -73,7 +73,8 @@ with the Snapback label and `guide-gap` in the title.
 
 Cross-repo seam: Contract/Exact *authoring* (language, components, styling,
 motion, routing, Acto verification) is the **Exact guide**'s corpus —
-`repo(exact):guide/index.md` (one-directional for now; LLP 0061
+`repo(exact):guide/index.md`. The seam is reciprocal: Exact's
+`data.snapback` external-authority row points back to this guide (LLP 0061
 §Relationship).
 
 ## Surface map
@@ -574,7 +575,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Sessions and principals
@@ -711,7 +712,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: d85bf1c02747900a3e8d8bcf4de522effb317c82
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Protecting live and retained data
@@ -859,7 +860,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
       clientStoreId: namespace.clientStoreId,
       queryKey: namespace.queryKey,
       queryInstanceId: namespace.queryInstanceId,
-    });
+    }, undefined, { expectedAuthorityCapture: authorityCapture });
 ```
 
 V1 defaults to 24 hours and has a 24-hour hard maximum; configuration may only
@@ -912,7 +913,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
 ---
 
 # Scoped roles and memberships
@@ -975,6 +976,8 @@ export const eventMembers = defineTable({
   role: 'role',
   roles: ['host', 'guest'],
   pendingRoles: ['invited'],
+  bootstrapRole: 'host',
+  lastHolder: { protect: 'host' },
   incidental: ['joinedAt'],
   provenance: 'full',
   transitions: [],
@@ -1058,6 +1061,21 @@ boundary. Mark any function that can create durable authority with
 `authorityCreating: true`. That marker becomes part of delegated-agent consent
 and requires full membership provenance.
 
+A resource declaration with `bootstrapRole` also gets
+`ctx.membership.<declaration>.bootstrap(resourceValues)`. It returns the fresh,
+branded resource id and atomically inserts both the resource and a membership
+that seats the server-derived effective principal in the bootstrap role. A
+`lastHolder` declaration relies on this path: creating the protected resource
+without its initial eligible holder is refused.
+
+A JavaScript mutation dedicated to that one bootstrap operation may set
+`authorityCreating: false` even though its declared writes include the resource
+and membership tables. Bootstrap cannot name a different principal, so a
+delegated agent seats its effective user rather than itself. The runtime still
+rejects every non-bootstrap membership operation from such an unconsented
+wrapper; a mutation that can perform bootstrap *and* ordinary membership
+changes must use `authorityCreating: true`.
+
 The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
@@ -1072,6 +1090,8 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   declaration-bound predicate or `ctx.permissions.requireRole`.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
+- **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use
+  the declaration's atomic `bootstrap()` method.
 - **Do not use `ctx.permissions` in an action or retain a role-gated result
   offline.** Neither has the transactional/lease proof required by v1.
 
@@ -1159,7 +1179,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Queries
@@ -1383,7 +1403,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Actions and outbound fetch
@@ -1500,7 +1520,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
 ---
 
 # Scheduled execution with cron
@@ -1606,8 +1626,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed: 2026-07-16
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # The Contract adapter
@@ -1728,7 +1748,26 @@ terminal scoped-token/grant outcome synchronously blanks the Contract boundary;
 tuple changes also delete predecessor durable work before the successor can
 resume. Retained service-principal reads remain refused on the local v1 plane,
 so agent-backed surfaces can use durable queued replay without claiming
-retained-read Parity.
+retained-read Parity. A terminal purge leaves the format-6 client store marked
+`terminallyUnbound`, so direct bind and old tuple captures stay invalid. A
+delayed first bind may consume that marker only for the coordinator's exact
+still-current capture and the store generation observed with the marker. If
+custody later proves a distinct one-epoch successor, that privacy-clean store
+binds during the successor barrier. Format-5 migration is deletion-only because
+it cannot prove an older writer did not erase the marker; drain and upgrade
+every tab/process sharing the same store key together.
+
+The final safe store generation is reserved for terminal deletion. Ordinary
+writes stop one value earlier. If an older writer already left bound bytes at
+the ceiling, retained and queued reads fail closed even when the deletion write
+itself fails; a successful purge may replace that final identity only with a
+clean terminal marker. That final marker is idempotent but cannot be rebound—
+replace the physical client store before admitting a successor.
+
+All non-null client authority aliases and an explicitly supplied
+`authCoordinator` must name the same fence object. A split configuration is
+refused with `SNAPBACK_CONTRACT_AUTH_COORDINATOR_MISMATCH`: transport results
+captured under fence A cannot be published by comparing them under fence B.
 
 What the surface does for you:
 
@@ -1779,13 +1818,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # The headless client
@@ -1824,11 +1863,53 @@ CLI and daemon agents use `AgentAuthorityFence`, not the browser
 `AuthCoordinator`. Construct it from the scoped-token mint response plus its
 actor id, then pass it as `agentAuthority` with
 `authInvalidationProtocol: 1`. Replace an expiring token only through
-`replaceAgentCredential(...)`: the fence preserves the durable
-actor/credential-generation/grant axis, invalidates the old token carrier, and
-forces a fresh handshake before more work can publish. A changed grant or
-credential generation clears the bound descriptor, so queued work from the
-predecessor cannot migrate to the successor authority.
+`replaceAgentCredential(...)`. The client first offers the proposed bearer to
+`GET /auth/session` without changing custody, verifies the exact returned
+service-principal descriptor, and only then begins the transition. A rejected
+or mismatched proposal leaves the predecessor custody record and its queued
+work unchanged. A same-tuple replacement preserves the durable
+actor/credential-generation/grant axis while invalidating the old token
+carrier; a changed tuple deletes predecessor state before publishing the
+validated successor. In either case, no successor result can publish until an
+exact final custody comparison succeeds.
+
+Long-running Node CLI and daemon processes should import
+`createFilesystemAgentAuthorityCustodyStorage` directly from
+`demos/_kit/agent-authority-filesystem.mjs` and pass its result plus a stable
+`custodyId` to `AgentAuthorityFence`. The factory requires an absolute private
+state directory. It creates 0600 atomic custody files under a 0700 directory,
+serializes independent processes with a bounded OS advisory lock, and never
+persists the scoped-token bearer or carrier id. This is a Node-only import;
+browser code continues to import the portable client arm without filesystem
+dependencies. The first handshake, restart adoption, and interrupted-transition
+recovery all require the server-issued descriptor proof; plain synchronization
+cannot claim an unvalidated durable tuple. Treat the state directory and
+`custodyId` as stable deployment identity, not as per-process temporary state.
+
+The directory must be a normalized absolute path to an effective-user-owned
+`0700` directory. The adapter rejects untrusted symlink components, unsafe
+ancestor owners/ACLs, hard-linked or non-`0600` custody files, and records over
+64 KiB. Do not share it with another Unix account or mutate it from another
+same-uid process while Snapback is running.
+
+Durable deletion also writes a permanent witness for the exact
+actor/credential-generation/grant tuple. That witness contains no bearer or
+token id, but it intentionally survives later primary-row replacement so an
+old validated descriptor cannot reopen. The witness commits before Snapback
+reads or validates the primary row, so a corrupt primary can fail settlement
+without letting later repair erase the terminal fact. Witness partitions are
+reclaimed only by explicit custody-store replacement. Upgrade every process sharing one
+custody directory together; old and new Agent custody binaries must not run
+concurrently across this protocol change. Custom storage adapters must
+advertise `partitionOwnership: "partitioned-v1"` and implement the gate
+owner's independent `withPartition(...)` operation; a single global mutex
+adapter is refused.
+
+Contract's durable client store is a separate coordinated protocol. Its current
+format 6 makes the terminally-unbound anti-rebind marker mandatory and migrates
+format 5 deletion-only. Drain and upgrade every process or browser context
+sharing one physical client-store key together; upgrading only the Agent
+custody directory does not make a mixed-version client-store writer safe.
 
 Start app boot with `health()`, then
 `ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions
@@ -1945,7 +2026,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # The React arm
@@ -2040,7 +2121,7 @@ status: current
 targets: [cloudflare]
 maturity: partial
 reviewed: 2026-07-16
-reviewed-commit: 4f642f6c2cc01df2016986537fe7b72ab1d1ebeb
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Deploying the Cloudflare proof
@@ -2065,7 +2146,7 @@ volta run --node 24.18.0 -- node cloudflare/test/local-suite.mjs
 volta run --node 24.18.0 -- node cloudflare/test/measure.mjs
 ```
 
-The suite inventories every non-remote gate and currently runs 20 checks.
+The suite inventories every non-remote gate and currently runs 21 checks.
 Miniflare validates protocol, storage, handlers, secrets, egress, cron, and
 hibernation-event behavior, but it cannot prove platform eviction, placement,
 or billing. Those require a real Cloudflare run.
@@ -2239,7 +2320,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Your first backend
@@ -2287,9 +2368,10 @@ export default defineSchema({
 });
 ```
 
-The complete validator set: `v.string()`, `v.boolean()`, `v.integer()`,
-`v.real()` / `v.number()`, `v.json()`, `v.object({...})`, and
-`v.optional(inner)`. `defineSchema` also takes an options object:
+The complete validator set: `v.string()`, `v.principal()`, `v.id(table)`,
+`v.boolean()`, `v.integer()`, `v.real()` / `v.number()`, `v.json()`,
+`v.object({...})`, and `v.optional(inner)`. `defineSchema` also takes an
+options object:
 `ephemeral:` (a `defineEphemeral(...)` — see the
 [presence recipe](../recipes/presence-cursors.md) and complete
 [ephemeral-state reference](../realtime/ephemeral-state.md)), `auth:`
@@ -2377,12 +2459,18 @@ globalThis.__snapbackHandlers = {
   },
 ```
 
-The `ctx` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
+The core `ctx.db` surface: `ctx.db.query(table).withIndex(name).eq(field, value)`
 `.in(field, [...])`.`order(field, dir)`.`collect()`, plus
 `ctx.db.get(table, id)`, `ctx.db.insert(table, values)`,
 `ctx.db.patch(table, id, values)`, `ctx.db.delete(table, id)`, and
 `ctx.auth.userId` — the server-derived identity
 ([never client-asserted](../auth/sessions-and-principals.md)).
+
+Membership declarations additionally generate query-side
+`ctx.permissions.<declaration>` checks and mutation-only
+`ctx.membership.<declaration>` operations. See
+[scoped roles and memberships](../auth/scoped-roles.md) for their typed surface
+and transition rules.
 
 ## Seed deterministically
 
@@ -2467,7 +2555,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # The authoring loop
@@ -2565,7 +2653,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Secrets and deployment config
@@ -2669,7 +2757,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: 97cb1f8ed1f0ec2340f9fbfafd948b6657fdbc61
 ---
 
 # Host operations
@@ -2892,7 +2980,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 0cc293cd55017f24196427f02e8eb087a6ea53d0
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Admin console
@@ -3034,7 +3122,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Live queries
@@ -3104,7 +3192,7 @@ result) or `live_delta` (incremental add/remove — the analyzable
 unordered/filtered subset gets deltas; ordered queries fall back to
 replace; LLP 0008 §DK-3). `resync_required` tells the client to
 re-snapshot; `authorization_invalidation` is the auth barrier
-([protecting data](../auth/sessions-and-principals.md)). A subscription
+([protecting data](../auth/protecting-data.md)). A subscription
 asserts on delta kinds like this:
 
 ```js source=demos/_kit/tests/live-delta-e2e.mjs
@@ -3166,7 +3254,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Ephemeral realtime state
@@ -3342,7 +3430,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Recipe: presence cursors
@@ -3465,7 +3553,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 2a372af84752924154235532dc150e8f3bb8c2a9
+reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
 ---
 
 # Recipe: hidden hands
@@ -3571,7 +3659,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Offline retention and mutation replay
@@ -3606,6 +3694,31 @@ durable tuple coordinate advances the authority epoch and deletes predecessor
 work. Every replay still resolves and validates a current scoped token before
 the server acts. Agent authority does not enable retained service-principal
 reads in v1.
+
+Production CLI and daemon replay requires both a durable Contract
+`clientStore` and a filesystem-backed `AgentAuthorityFence`; the in-memory
+custody adapter is test-only. Construct the Contract surface before manually
+synchronizing the fence. Surface construction registers the physical store as
+a barrier participant before it performs the strict server handshake, so a
+restart that finds an interrupted `clearing` transition replays that store's
+epoch-bound deletion before custody can settle. Reversing that order can leave
+predecessor queue data outside the recovered authority barrier and is refused
+by the supported construction path.
+
+Terminal replay is explicit, not inferred from a null browser principal scope
+(Agent successors also have no browser principal scope). An exact-current
+nonterminal Agent successor preserves its already-committed store bytes. An
+exact-current terminal replay verifies or reapplies deletion. If terminal B
+finds that shared primary custody now belongs to A, Snapback leaves A's primary
+row and any A-keyed local store untouched, but purges and unbinds a local store
+still keyed to B so stale retained/queued B data cannot survive behind the
+terminal witness.
+
+Client-store write generations do not wrap. The maximum safe integer is
+reserved for the terminal privacy cut; an already-exhausted bound store exposes
+no retained or queued data even if durable replacement fails. A clean marker at
+that final identity can be replayed without another write, but requires explicit
+store replacement before any successor bind.
 
 ## Boot from retained rows honestly
 

@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Sessions and principals

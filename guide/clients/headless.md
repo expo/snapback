@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # The headless client
@@ -71,6 +71,31 @@ dependencies. The first handshake, restart adoption, and interrupted-transition
 recovery all require the server-issued descriptor proof; plain synchronization
 cannot claim an unvalidated durable tuple. Treat the state directory and
 `custodyId` as stable deployment identity, not as per-process temporary state.
+
+The directory must be a normalized absolute path to an effective-user-owned
+`0700` directory. The adapter rejects untrusted symlink components, unsafe
+ancestor owners/ACLs, hard-linked or non-`0600` custody files, and records over
+64 KiB. Do not share it with another Unix account or mutate it from another
+same-uid process while Snapback is running.
+
+Durable deletion also writes a permanent witness for the exact
+actor/credential-generation/grant tuple. That witness contains no bearer or
+token id, but it intentionally survives later primary-row replacement so an
+old validated descriptor cannot reopen. The witness commits before Snapback
+reads or validates the primary row, so a corrupt primary can fail settlement
+without letting later repair erase the terminal fact. Witness partitions are
+reclaimed only by explicit custody-store replacement. Upgrade every process sharing one
+custody directory together; old and new Agent custody binaries must not run
+concurrently across this protocol change. Custom storage adapters must
+advertise `partitionOwnership: "partitioned-v1"` and implement the gate
+owner's independent `withPartition(...)` operation; a single global mutex
+adapter is refused.
+
+Contract's durable client store is a separate coordinated protocol. Its current
+format 6 makes the terminally-unbound anti-rebind marker mandatory and migrates
+format 5 deletion-only. Drain and upgrade every process or browser context
+sharing one physical client-store key together; upgrading only the Agent
+custody directory does not make a mixed-version client-store writer safe.
 
 Start app boot with `health()`, then
 `ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions

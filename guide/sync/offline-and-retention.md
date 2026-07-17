@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
 ---
 
 # Offline retention and mutation replay
@@ -55,6 +55,21 @@ restart that finds an interrupted `clearing` transition replays that store's
 epoch-bound deletion before custody can settle. Reversing that order can leave
 predecessor queue data outside the recovered authority barrier and is refused
 by the supported construction path.
+
+Terminal replay is explicit, not inferred from a null browser principal scope
+(Agent successors also have no browser principal scope). An exact-current
+nonterminal Agent successor preserves its already-committed store bytes. An
+exact-current terminal replay verifies or reapplies deletion. If terminal B
+finds that shared primary custody now belongs to A, Snapback leaves A's primary
+row and any A-keyed local store untouched, but purges and unbinds a local store
+still keyed to B so stale retained/queued B data cannot survive behind the
+terminal witness.
+
+Client-store write generations do not wrap. The maximum safe integer is
+reserved for the terminal privacy cut; an already-exhausted bound store exposes
+no retained or queued data even if durable replacement fails. A clean marker at
+that final identity can be replayed without another write, but requires explicit
+store replacement before any successor bind.
 
 ## Boot from retained rows honestly
 
