@@ -1,7 +1,7 @@
 {
   "appId": "all-aboard",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:757f8891e39090d6",
+  "bundleHash": "sha256:75e78c6da540477a",
   "config": [
     {
       "acquisition": {
@@ -225,6 +225,7 @@
             "filters": [],
             "indexed_by": null,
             "limit": null,
+            "membershipFilters": [],
             "order": [],
             "table": "feedRefreshState"
           }
@@ -264,6 +265,7 @@
             "filters": [],
             "indexed_by": "by_time",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -308,6 +310,7 @@
             "filters": [],
             "indexed_by": "by_pattern",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -463,6 +466,7 @@
             "filters": [],
             "indexed_by": "by_order",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -514,6 +518,7 @@
             ],
             "indexed_by": "by_station",
             "limit": null,
+            "membershipFilters": [],
             "order": [],
             "table": "stopTimes"
           }
@@ -552,6 +557,7 @@
             "filters": [],
             "indexed_by": null,
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -573,7 +579,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "4cd197733e45f37f0f77ee1f3f254db6c09a99f492cf9a1d4416b49c9f186d90",
+  "inputsHash": "5d355635345b4ac87880ba63096109593c5a9076c0958306f9d93c596fd48432",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": [
     {

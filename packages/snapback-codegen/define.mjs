@@ -39,7 +39,7 @@ const AUTHORIZATION_DIMENSIONS = new Set([
 ]);
 const QUERY_SPEC_FIELDS = new Set([
   'table', 'args', 'filter', 'order', 'limit', 'index', 'defaultLive',
-  'auth', 'authorityIndependent', 'retainable', 'authScopeField',
+  'auth', 'authorityIndependent', 'retainable', 'authScopeField', 'membership',
 ]);
 const JS_QUERY_SPEC_FIELDS = new Set([
   'args', 'source', 'exportName', 'reads', 'result', 'authScopeField',
@@ -56,6 +56,17 @@ const TARGET_CAPABILITIES = new Set([
   'mutation_read_set_validation',
   'permission_epoch_resync',
 ]);
+const MEMBERSHIP_FIELDS = new Set([
+  'id', 'principal', 'resource', 'role', 'roles', 'pendingRoles',
+  'bootstrapRole', 'lastHolder', 'expiry', 'incidental', 'provenance',
+  'transitions', 'scope',
+]);
+const MEMBERSHIP_TRANSITION_FIELDS = new Set([
+  'op', 'by', 'target', 'from', 'to', 'fields',
+]);
+const MEMBERSHIP_OPS = new Set(['insert', 'setRole', 'remove', 'patch']);
+const MEMBERSHIP_TARGETS = new Set(['self', 'other']);
+const MEMBERSHIP_PROVENANCE = new Set(['creation', 'full']);
 
 function authoredFunctionAuth(spec, kind) {
   // @ref LLP 0058#closed-function-requirement — authoring accepts only the
@@ -117,6 +128,14 @@ function validator(fieldType, primitive) {
 
 export const v = {
   string: () => validator('String', 'string'),
+  // @ref LLP 0056#declaring-a-membership-table — principal and application
+  // ids stay strings on the wire while preserving their nominal identity in
+  // the manifest for authorization-axis validation.
+  principal: () => validator('Principal', 'string'),
+  id: (table) => {
+    assert(typeof table === 'string' && table.length > 0, 'v.id() expects a table name');
+    return validator({ Id: { table } }, 'string');
+  },
   boolean: () => validator('Boolean', 'boolean'),
   integer: () => validator('Integer', 'number'),
   real: () => validator('Real', 'number'),
@@ -135,9 +154,146 @@ export const v = {
   },
 };
 
+// The only two resource references admitted by the membership predicate IR.
+// An app-scoped declaration uses the host-owned singleton rather than an app
+// argument; TableBuilder.memberOf()/hasRole() also infer this form when their
+// resource argument is omitted.
+export const membershipResource = Object.freeze({
+  arg(path) {
+    assert(typeof path === 'string' && path.length > 0, 'membershipResource.arg() expects a path');
+    return Object.freeze({ __membershipResourceRef: true, kind: 'arg', path });
+  },
+  rowField(field) {
+    assert(typeof field === 'string' && field.length > 0, 'membershipResource.rowField() expects a field');
+    return Object.freeze({ __membershipResourceRef: true, kind: 'rowField', field });
+  },
+  app() {
+    return Object.freeze({ __membershipResourceRef: true, kind: 'app' });
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Schema
 // ---------------------------------------------------------------------------
+
+function exactObject(value, where, allowed) {
+  assert(value && typeof value === 'object' && !Array.isArray(value), `${where} must be an object`);
+  for (const field of Object.keys(value)) {
+    assert(allowed.has(field), `${where} has unknown field ${field}`);
+  }
+}
+
+function stringArray(value, where, { allowEmpty = false } = {}) {
+  assert(Array.isArray(value), `${where} must be an array`);
+  assert(allowEmpty || value.length > 0, `${where} must not be empty`);
+  const seen = new Set();
+  for (const item of value) {
+    assert(typeof item === 'string' && item.length > 0, `${where} entries must be non-empty strings`);
+    assert(!seen.has(item), `${where} repeats ${item}`);
+    seen.add(item);
+  }
+  return REFLECT_APPLY(ARRAY_SLICE, value, []);
+}
+
+function normalizeMembership(spec) {
+  exactObject(spec, 'membership()', MEMBERSHIP_FIELDS);
+  const scope = spec.scope ?? 'resource';
+  assert(scope === 'resource' || scope === 'app', 'membership() scope must be resource or app');
+  assert(typeof spec.principal === 'string' && spec.principal.length > 0, 'membership() requires principal');
+  assert(typeof spec.role === 'string' && spec.role.length > 0, 'membership() requires role');
+  if (scope === 'resource') {
+    assert(typeof spec.resource === 'string' && spec.resource.length > 0, 'resource membership() requires resource');
+  } else {
+    assert(spec.resource === undefined, 'app membership() cannot declare a resource field');
+  }
+  if (spec.id !== undefined) assert(typeof spec.id === 'string' && spec.id.length > 0, 'membership() id must be non-empty');
+  const roles = stringArray(spec.roles, 'membership() roles');
+  const pendingRoles = spec.pendingRoles === undefined
+    ? undefined
+    : stringArray(spec.pendingRoles, 'membership() pendingRoles');
+  const vocabulary = new Set([...roles, ...(pendingRoles ?? [])]);
+  assert(vocabulary.size === roles.length + (pendingRoles?.length ?? 0), 'membership() roles and pendingRoles must be disjoint');
+
+  if (spec.bootstrapRole !== undefined) {
+    assert(roles.includes(spec.bootstrapRole), 'membership() bootstrapRole must be a declared non-pending role');
+  }
+  let lastHolder;
+  if (spec.lastHolder !== undefined) {
+    exactObject(spec.lastHolder, 'membership() lastHolder', new Set(['protect']));
+    assert(roles.includes(spec.lastHolder.protect), 'membership() lastHolder.protect must be a non-pending role');
+    lastHolder = { protect: spec.lastHolder.protect };
+  }
+  let expiry;
+  if (spec.expiry !== undefined) {
+    exactObject(spec.expiry, 'membership() expiry', new Set(['field', 'onExpiry']));
+    assert(typeof spec.expiry.field === 'string' && spec.expiry.field.length > 0, 'membership() expiry.field is required');
+    assert(spec.expiry.onExpiry === 'remove', 'membership() expiry.onExpiry must be remove');
+    expiry = { field: spec.expiry.field, onExpiry: 'remove' };
+  }
+  const incidental = spec.incidental === undefined
+    ? undefined
+    : stringArray(spec.incidental, 'membership() incidental');
+  if (spec.provenance !== undefined) {
+    assert(MEMBERSHIP_PROVENANCE.has(spec.provenance), 'membership() provenance must be creation or full');
+  }
+
+  const transitions = (spec.transitions ?? []).map((transition, index) => {
+    const where = `membership() transitions[${index}]`;
+    exactObject(transition, where, MEMBERSHIP_TRANSITION_FIELDS);
+    assert(MEMBERSHIP_OPS.has(transition.op), `${where}.op is invalid`);
+    assert(MEMBERSHIP_TARGETS.has(transition.target), `${where}.target must be self or other`);
+    const by = stringArray(transition.by, `${where}.by`);
+    for (const caller of by) {
+      assert(caller === 'self' || caller === 'none' || vocabulary.has(caller), `${where}.by names undeclared class ${caller}`);
+    }
+    const from = transition.from === undefined ? undefined : stringArray(transition.from, `${where}.from`);
+    const to = transition.to === undefined ? undefined : stringArray(transition.to, `${where}.to`);
+    for (const role of [...(from ?? []), ...(to ?? [])]) {
+      assert(vocabulary.has(role), `${where} names undeclared role ${role}`);
+    }
+    const fields = transition.fields === undefined ? undefined : stringArray(transition.fields, `${where}.fields`);
+    if (transition.op === 'insert') {
+      assert(from === undefined, `${where}.from is forbidden for insert`);
+      assert(to !== undefined, `${where}.to is required for insert`);
+      assert(!by.includes('self'), `${where}.by cannot name self for insert`);
+    } else if (transition.op === 'setRole') {
+      assert(to !== undefined, `${where}.to is required for setRole`);
+      assert(fields === undefined, `${where}.fields is forbidden for setRole`);
+      assert(!by.includes('none'), `${where}.by cannot name none for setRole`);
+    } else if (transition.op === 'remove') {
+      assert(to === undefined && fields === undefined, `${where} remove forbids to and fields`);
+      assert(!by.includes('none'), `${where}.by cannot name none for remove`);
+    } else {
+      assert(to === undefined, `${where}.to is forbidden for patch`);
+      assert(fields !== undefined, `${where}.fields is required for patch`);
+      assert(!by.includes('none'), `${where}.by cannot name none for patch`);
+    }
+    return {
+      op: transition.op,
+      by,
+      target: transition.target,
+      ...(from ? { from } : {}),
+      ...(to ? { to } : {}),
+      ...(fields ? { fields } : {}),
+    };
+  });
+
+  return {
+    ...(spec.id !== undefined ? { id: spec.id } : {}),
+    principal: spec.principal,
+    ...(scope === 'resource' ? { resource: spec.resource } : {}),
+    role: spec.role,
+    roles,
+    ...(pendingRoles ? { pendingRoles } : {}),
+    ...(spec.bootstrapRole !== undefined ? { bootstrapRole: spec.bootstrapRole } : {}),
+    ...(lastHolder ? { lastHolder } : {}),
+    ...(expiry ? { expiry } : {}),
+    ...(incidental ? { incidental } : {}),
+    ...(spec.provenance !== undefined ? { provenance: spec.provenance } : {}),
+    transitions,
+    scope,
+  };
+}
 
 class TableBuilder {
   constructor(fields) {
@@ -168,6 +324,7 @@ class TableBuilder {
    *   independent authorization-dependence axis. */
   permissionBacking(fields) {
     assert(!this.permissionBackingDeclared, 'permissionBacking() may be declared only once per table');
+    assert(!this.membershipDeclaration, 'permissionBacking() cannot be combined with membership()');
     if (fields !== undefined) {
       assert(Array.isArray(fields), 'permissionBacking() fields must be an array');
       for (let index = 0; index < fields.length; index += 1) {
@@ -178,6 +335,58 @@ class TableBuilder {
     }
     this.permissionBackingDeclared = true;
     return this;
+  }
+
+  /** Declare this table as the closed role-per-resource authority primitive.
+   * The resource table is derived later from the resource field's v.id(...)
+   * validator, never repeated as an unverified string in this object.
+   * @ref LLP 0056#declaring-a-membership-table — one declaration owns the
+   * permission-backing derivation and its generated indexes. */
+  membership(spec) {
+    assert(!this.membershipDeclaration, 'membership() may be declared only once per table');
+    assert(!this.permissionBackingDeclared, 'membership() cannot be combined with permissionBacking()');
+    this.membershipDeclaration = normalizeMembership(spec);
+    return this;
+  }
+
+  _membershipPredicate(resource, roles) {
+    assert(this.membershipDeclaration, 'memberOf()/hasRole() requires membership()');
+    const declaration = this.membershipDeclaration.id ?? this.__tableName;
+    assert(declaration, 'membership helper table must be installed in defineSchema() before use');
+    let reference = resource;
+    if (this.membershipDeclaration.scope === 'app' && reference === undefined) {
+      reference = membershipResource.app();
+    }
+    assert(reference?.__membershipResourceRef === true, 'membership helper expects membershipResource.arg(), rowField(), or app()');
+    assert(
+      this.membershipDeclaration.scope === 'app' ? reference.kind === 'app' : reference.kind !== 'app',
+      `membership helper resource does not match ${this.membershipDeclaration.scope} scope`,
+    );
+    return Object.freeze({
+      __membershipPredicate: true,
+      declaration,
+      resource: reference,
+      roles,
+    });
+  }
+
+  memberOf(resource) {
+    return this._membershipPredicate(resource, null);
+  }
+
+  hasRole(resource, ...roles) {
+    assert(this.membershipDeclaration, 'hasRole() requires membership()');
+    if (this.membershipDeclaration?.scope === 'app' && typeof resource === 'string') {
+      roles.unshift(resource);
+      resource = undefined;
+    }
+    const normalized = stringArray(roles, 'hasRole() roles');
+    const vocabulary = new Set([
+      ...this.membershipDeclaration.roles,
+      ...(this.membershipDeclaration.pendingRoles ?? []),
+    ]);
+    for (const role of normalized) assert(vocabulary.has(role), `hasRole() names undeclared role ${role}`);
+    return this._membershipPredicate(resource, normalized);
   }
 }
 
@@ -193,6 +402,8 @@ export function defineSchema(tables, options = {}) {
   assert(tables && typeof tables === 'object', 'defineSchema expects a tables object');
   for (const [name, table] of Object.entries(tables)) {
     assert(table && table.__table, `table ${name} must be defineTable(...)`);
+    assert(!table.__tableName || table.__tableName === name, `one table builder cannot be installed as both ${table.__tableName} and ${name}`);
+    table.__tableName = name;
   }
   const ephemeralDef = options.ephemeral ?? null;
   if (ephemeralDef !== null) {
@@ -399,6 +610,12 @@ function queryDef(kind, spec) {
       `${kind} authScopeField must be a non-empty string`,
     );
   }
+  if (spec.membership !== undefined) {
+    assert(Array.isArray(spec.membership), `${kind} membership must be an array`);
+    for (const predicate of spec.membership) {
+      assert(predicate?.__membershipPredicate === true, `${kind} membership entries must come from a declaration-bound memberOf()/hasRole()`);
+    }
+  }
   return {
     [FN]: true,
     __kind: kind, // 'Query' | 'LiveQuery'
@@ -414,6 +631,7 @@ function queryDef(kind, spec) {
       order: spec.order ?? [],
       limit: spec.limit ?? null,
       index: spec.index ?? null,
+      membershipFilters: spec.membership ?? [],
     },
   };
 }

@@ -21,7 +21,7 @@
     "contract/paintCell.mutation.ts",
     "contract/paintCell.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:6681550461707dea",
+  "bundleHash": "sha256:c3d24fb9146a7958",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -40,8 +40,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "83007a06ccfe97647031c7ab7b1962c9ee524333174f5387a8b1501e199c0962",
-  "schemaHash": "sha256:f9515ba497ae2f2b",
+  "inputsHash": "a0576cd0eb1a100193511ca3d6a6d104e95afd73d18dc7d8de774a6cfae6748b",
+  "schemaHash": "sha256:4e478f43a192eb61",
   "schemaVersion": "snapback.v0",
   "tables": [
     "cells"

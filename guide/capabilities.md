@@ -50,7 +50,7 @@ with the Snapback label and `guide-gap` in the title.
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | partial | route /auth/agents/pair | llp/0055 | GAP (owner: ccheever, review: 2026-08-15) |
-| auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | design-only | — (design in review) | llp/0056 | GAP (owner: ccheever, review: 2026-08-15) |
+| auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in demos/_kit/client.mjs | llp/0012 | clients/headless.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |

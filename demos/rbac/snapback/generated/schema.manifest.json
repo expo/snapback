@@ -1,0 +1,80 @@
+{
+  "app": {
+    "description": "A real sessions-mode proof of source-authored membership declarations, generated membership writes, declaration-bound query visibility, imperative role checks, and central raw-write refusal.",
+    "name": "Scoped roles and memberships"
+  },
+  "appId": "rbac",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "auth": {
+    "mode": "sessions"
+  },
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "portabilityFlags": [],
+  "requiredCapabilities": [
+    "auth.sessions.v1"
+  ],
+  "schemaHash": "snapback.v1:sessions:schema:sha256:e967c0dde558e7f58975935c6c743c72aa8b130a1d05f4777520cf33fc6c2c22",
+  "schemaVersion": "snapback.v1",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "principal": "userId",
+        "provenance": "full",
+        "role": "role",
+        "roles": [
+          "member",
+          "admin"
+        ],
+        "scope": "app",
+        "transitions": [
+          {
+            "by": [
+              "none"
+            ],
+            "op": "insert",
+            "target": "self",
+            "to": [
+              "member"
+            ]
+          }
+        ]
+      },
+      "name": "appMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "message",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "announcements",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

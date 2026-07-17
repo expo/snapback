@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:2237e1ab42093790941e0fef6d52a422eae951615ff744303cbf49153f128ac2"
+    "sha256": "sha256:68d4f6047a59e9306341b34d761a1e6b474625203aba659661db4181823c73ec"
   },
   "manifestVersion": 1,
   "operations": [
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:fc6fb34326ef34a49fd8fcab39ef6c9d75fa08aa23c2048209d770565ffbaa20"
+    "sha256": "sha256:d7006baab83994f3769a6fb7355f667df4f9faa7261f94fcf7d84e89a47857d5"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",

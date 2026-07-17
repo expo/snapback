@@ -1,7 +1,7 @@
 {
   "appId": "card-game",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:b38cb45efe9a465095f0eea9553e5347d5825e595ccabaf37a9b706d1c613439",
+  "bundleHash": "snapback.v1:sessions:function:sha256:8cbf94330fbe0eefd1a96bf9ace2da68d087d237f3223727b34ede775984a467",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -102,6 +102,7 @@
             ],
             "indexed_by": "by_owner_game",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -177,7 +178,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:974bc48fa1c811518792d4bffcc406da78f385de5953b6503e7d1d4aa4498fb7",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:5b465251e24270d600169c9ef9dded231d85e6e35dc1740a469064033d00157d",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

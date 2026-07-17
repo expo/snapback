@@ -77,6 +77,8 @@ you never build around a feature because you didn't know it existed.
   derives who you are; scoped queries; logout barriers.
 - [Protecting live and retained data](./auth/protecting-data.md) —
   connection grants, invalidation obligations, recovery, and authorized leases.
+- [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
+  per-resource roles; gate queries; check and change membership safely.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 

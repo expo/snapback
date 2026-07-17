@@ -553,6 +553,14 @@ export async function generateInProcess(backendDir, options = {}) {
       validateAuthoringValidator(val, `${name}.${fieldName}`, (message) => {
         err('SCHEMA_INVALID_VALIDATOR', 'schema', message, { table: name, field: fieldName });
       });
+      const idTable = idFieldTypeTable(val.fieldType);
+      if (idTable !== null && !Object.hasOwn(schemaDef.tables, idTable)) {
+        err('SCHEMA_ID_TARGET_UNKNOWN', 'schema', `${name}.${fieldName} references unknown id table ${idTable}`, {
+          table: name,
+          field: fieldName,
+          targetTable: idTable,
+        });
+      }
       fields.push({ name: fieldName, field_type: val.fieldType, optional: val.optional });
     }
 
@@ -596,6 +604,169 @@ export async function generateInProcess(backendDir, options = {}) {
       }
     }
 
+    let membership;
+    if (table.membershipDeclaration !== undefined) {
+      const declaration = table.membershipDeclaration;
+      if (table.permissionBackingDeclared || table.permissionFields !== undefined) {
+        err('SCHEMA_MEMBERSHIP_PERMISSION_BACKING_CONFLICT', 'schema', `table ${name} cannot combine membership with permissionBacking`, { table: name });
+      }
+      const axis = (fieldName, axisName) => {
+        const source = table.fields[fieldName];
+        if (!source) {
+          err('SCHEMA_MEMBERSHIP_UNKNOWN_FIELD', 'schema', `table ${name} membership ${axisName} references unknown field ${String(fieldName)}`, {
+            table: name,
+            axis: axisName,
+            field: fieldName ?? null,
+          });
+          return null;
+        }
+        if (source.optional) {
+          err('SCHEMA_MEMBERSHIP_OPTIONAL_AXIS', 'schema', `table ${name} membership ${axisName} field ${fieldName} must be required`, {
+            table: name,
+            axis: axisName,
+            field: fieldName,
+          });
+        }
+        return source;
+      };
+      const principal = axis(declaration.principal, 'principal');
+      if (principal && principal.fieldType !== 'Principal') {
+        err('SCHEMA_MEMBERSHIP_PRINCIPAL_TYPE', 'schema', `table ${name} membership principal must use v.principal()`, {
+          table: name,
+          field: declaration.principal,
+        });
+      }
+      const role = axis(declaration.role, 'role');
+      if (role && role.fieldType !== 'String') {
+        err('SCHEMA_MEMBERSHIP_ROLE_TYPE', 'schema', `table ${name} membership role must use v.string()`, {
+          table: name,
+          field: declaration.role,
+        });
+      }
+      const declaredRoles = new Set(declaration.roles);
+      const vocabulary = [...declaration.roles, ...(declaration.pendingRoles ?? [])];
+      const foldedRoles = new Map();
+      for (const roleName of vocabulary) {
+        if (roleName === 'self' || roleName === 'none') {
+          err('SCHEMA_MEMBERSHIP_RESERVED_ROLE', 'schema', `table ${name} membership role ${JSON.stringify(roleName)} is a reserved caller class`, {
+            table: name,
+            role: roleName,
+          });
+        }
+        if (roleName.includes(':')) {
+          err('SCHEMA_MEMBERSHIP_ROLE_RESERVED_SEPARATOR', 'schema', `table ${name} membership role ${JSON.stringify(roleName)} contains the reserved ':' separator`, {
+            table: name,
+            role: roleName,
+          });
+        }
+        if (/[\u0000-\u001f\u007f-\u009f]/u.test(roleName)) {
+          err('SCHEMA_MEMBERSHIP_ROLE_CONTROL_CHARACTER', 'schema', `table ${name} membership role ${JSON.stringify(roleName)} contains a control character`, {
+            table: name,
+            role: roleName,
+          });
+        }
+        const folded = roleName.toLowerCase();
+        const prior = foldedRoles.get(folded);
+        if (prior !== undefined && prior !== roleName) {
+          err('SCHEMA_MEMBERSHIP_CONFUSABLE_ROLES', 'schema', `table ${name} membership roles ${JSON.stringify(prior)} and ${JSON.stringify(roleName)} differ only by case`, {
+            table: name,
+            roles: [prior, roleName],
+          });
+        } else {
+          foldedRoles.set(folded, roleName);
+        }
+      }
+      if (declaration.bootstrapRole !== undefined && !declaredRoles.has(declaration.bootstrapRole)) {
+        err('SCHEMA_MEMBERSHIP_BOOTSTRAP_ROLE_UNKNOWN', 'schema', `table ${name} membership bootstrapRole must name a declared non-pending role`, {
+          table: name,
+          role: declaration.bootstrapRole,
+        });
+      }
+      if (declaration.scope === 'app' && declaration.bootstrapRole !== undefined) {
+        err('SCHEMA_MEMBERSHIP_BOOTSTRAP_APP_SCOPE', 'schema', `table ${name} cannot declare bootstrapRole for app scope`, {
+          table: name,
+          role: declaration.bootstrapRole,
+        });
+      }
+      if (declaration.lastHolder !== undefined) {
+        if (declaration.scope === 'app') {
+          err('SCHEMA_MEMBERSHIP_LAST_HOLDER_APP_SCOPE', 'schema', `table ${name} cannot declare lastHolder for app scope`, {
+            table: name,
+          });
+        }
+        if (!declaredRoles.has(declaration.lastHolder.protect)) {
+          err('SCHEMA_MEMBERSHIP_LAST_HOLDER_ROLE_UNKNOWN', 'schema', `table ${name} membership lastHolder.protect must name a declared non-pending role`, {
+            table: name,
+            role: declaration.lastHolder.protect,
+          });
+        }
+        if (declaration.bootstrapRole !== declaration.lastHolder.protect) {
+          err('SCHEMA_MEMBERSHIP_LAST_HOLDER_BOOTSTRAP_MISMATCH', 'schema', `table ${name} membership lastHolder.protect requires the same bootstrapRole`, {
+            table: name,
+            protectedRole: declaration.lastHolder.protect,
+            bootstrapRole: declaration.bootstrapRole ?? null,
+          });
+        }
+      }
+      if (declaration.expiry !== undefined) {
+        const expiry = table.fields[declaration.expiry.field];
+        if (!expiry) {
+          err('SCHEMA_MEMBERSHIP_EXPIRY_FIELD_UNKNOWN', 'schema', `table ${name} membership expiry references unknown field ${declaration.expiry.field}`, {
+            table: name,
+            field: declaration.expiry.field,
+          });
+        } else if ([declaration.principal, declaration.resource, declaration.role].includes(declaration.expiry.field)) {
+          err('SCHEMA_MEMBERSHIP_EXPIRY_FIELD_AXIS', 'schema', `table ${name} membership expiry cannot name an authorization axis`, {
+            table: name,
+            field: declaration.expiry.field,
+          });
+        } else if (expiry.fieldType !== 'Integer' || expiry.optional !== true) {
+          err('SCHEMA_MEMBERSHIP_EXPIRY_FIELD_TYPE', 'schema', `table ${name} membership expiry field ${declaration.expiry.field} must use v.optional(v.integer())`, {
+            table: name,
+            field: declaration.expiry.field,
+          });
+        }
+      }
+      for (const incidental of declaration.incidental ?? []) {
+        if (!Object.hasOwn(table.fields, incidental)) {
+          err('SCHEMA_MEMBERSHIP_INCIDENTAL_UNKNOWN', 'schema', `table ${name} membership incidental references unknown field ${incidental}`, {
+            table: name,
+            field: incidental,
+          });
+        } else if ([declaration.principal, declaration.resource, declaration.role].includes(incidental)) {
+          err('SCHEMA_MEMBERSHIP_INCIDENTAL_FLOOR', 'schema', `table ${name} membership incidental cannot name an authorization axis`, {
+            table: name,
+            field: incidental,
+          });
+        }
+      }
+      for (const transition of declaration.transitions) {
+        for (const fieldName of transition.fields ?? []) {
+          if (!Object.hasOwn(table.fields, fieldName)) {
+            err('SCHEMA_MEMBERSHIP_TRANSITION_FIELD_UNKNOWN', 'schema', `table ${name} membership transition references unknown patch field ${fieldName}`, {
+              table: name,
+              field: fieldName,
+            });
+          }
+        }
+      }
+      let resourceTable;
+      if (declaration.scope === 'resource') {
+        const resource = axis(declaration.resource, 'resource');
+        resourceTable = idFieldTypeTable(resource?.fieldType);
+        if (resource && resourceTable === null) {
+          err('SCHEMA_MEMBERSHIP_RESOURCE_TYPE', 'schema', `table ${name} membership resource must use v.id(table)`, {
+            table: name,
+            field: declaration.resource,
+          });
+        }
+      }
+      membership = {
+        ...declaration,
+        ...(resourceTable !== null && resourceTable !== undefined ? { resourceTable } : {}),
+      };
+    }
+
     tables[name] = {
       name,
       fields,
@@ -603,7 +774,29 @@ export async function generateInProcess(backendDir, options = {}) {
       syncable: table.syncable,
       ...(table.permissionBackingDeclared ? { permissionBacking: true } : {}),
       ...(Array.isArray(table.permissionFields) ? { permissionFields: table.permissionFields } : {}),
+      ...(membership ? { membership } : {}),
     };
+  }
+
+  const membershipDeclarations = new Map();
+  for (const table of Object.values(tables)) {
+    if (!table.membership) continue;
+    const declaration = table.membership.id ?? table.name;
+    if (!IDENT.test(declaration)) {
+      err('SCHEMA_MEMBERSHIP_INVALID_ID', 'schema', `table ${table.name} membership declaration id ${declaration} is invalid`, {
+        table: table.name,
+        declaration,
+      });
+    }
+    const prior = membershipDeclarations.get(declaration);
+    if (prior) {
+      err('SCHEMA_MEMBERSHIP_DUPLICATE_ID', 'schema', `membership declaration ${declaration} is used by both ${prior.table.name} and ${table.name}`, {
+        declaration,
+        tables: [prior.table.name, table.name],
+      });
+    } else {
+      membershipDeclarations.set(declaration, { table, membership: table.membership });
+    }
   }
 
   // --- Build + validate functions --------------------------------------------
@@ -616,6 +809,20 @@ export async function generateInProcess(backendDir, options = {}) {
 
   const fieldNames = (t) => new Set(tables[t]?.fields.map((f) => f.name) ?? []);
   const isKnownField = (t, f) => SYSTEM_FIELDS.includes(f) || fieldNames(t).has(f);
+  const validateIdReferences = (validator, where, details) => {
+    const target = idFieldTypeTable(validator?.fieldType);
+    if (target !== null && !tables[target]) {
+      err('FUNCTION_ID_TARGET_UNKNOWN', 'function', `${where} references unknown id table ${target}`, {
+        ...details,
+        targetTable: target,
+      });
+    }
+    if (validator?.primitive === 'object') {
+      for (const [field, nested] of Object.entries(validator.fields ?? {})) {
+        validateIdReferences(nested, `${where}.${field}`, { ...details, field });
+      }
+    }
+  };
 
   for (const [name, def] of Object.entries(functionsModule)) {
     if (isIsolatedDefinition(def, 'cron')) {
@@ -647,6 +854,7 @@ export async function generateInProcess(backendDir, options = {}) {
       validateAuthoringValidator(argVal, `${name} arg ${argName}`, (message) => {
         err('FUNCTION_INVALID_VALIDATOR', 'function', message, { function: name, arg: argName });
       });
+      validateIdReferences(argVal, `${name} arg ${argName}`, { function: name, arg: argName });
       checkObjectValidatorFieldIdents(argVal, `arg ${argName}`, (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, arg: argName, field: fieldName });
       });
@@ -658,6 +866,7 @@ export async function generateInProcess(backendDir, options = {}) {
       checkObjectValidatorFieldIdents(def.result, 'result', (fieldName, where) => {
         err('FUNCTION_INVALID_IDENTIFIER', 'function', `${name}: ${where} has invalid field identifier ${fieldName}`, { function: name, field: fieldName });
       });
+      validateIdReferences(def.result, `${name} result`, { function: name });
     }
     if (GENERATED_API_RESERVED_EXPORTS.has(name)) {
       err('FUNCTION_RESERVED_EXPORT', 'function', `${name}: function export collides with a generated API namespace`, { function: name });
@@ -762,6 +971,7 @@ export async function generateInProcess(backendDir, options = {}) {
       };
     } else if (def.__kind === 'Query' || def.__kind === 'LiveQuery') {
       const t = def.plan.table;
+      const membershipReads = [];
       if (!tables[t]) {
         err('QUERY_UNKNOWN_TABLE', 'function', `${name}: unknown table ${t}`, { function: name, table: t });
       } else {
@@ -778,13 +988,111 @@ export async function generateInProcess(backendDir, options = {}) {
         if (def.plan.index && !tables[t].indexes.some((i) => i.name === def.plan.index)) {
           err('QUERY_UNKNOWN_INDEX', 'function', `${name}: unknown index ${t}.${def.plan.index}`, { function: name, table: t, index: def.plan.index });
         }
+        for (const predicate of def.plan.membershipFilters ?? []) {
+          if (!predicate || predicate.__membershipPredicate !== true) {
+            err('QUERY_MEMBERSHIP_INVALID', 'function', `${name}: membership predicate must come from a declaration-bound helper`, { function: name });
+            continue;
+          }
+          const found = membershipDeclarations.get(predicate.declaration);
+          if (!found) {
+            err('QUERY_MEMBERSHIP_UNKNOWN_DECLARATION', 'function', `${name}: membership predicate names unknown declaration ${String(predicate.declaration)}`, {
+              function: name,
+              declaration: predicate.declaration ?? null,
+            });
+            continue;
+          }
+          if (!membershipReads.includes(found.table.name)) membershipReads.push(found.table.name);
+          if (predicate.roles !== null) {
+            if (!Array.isArray(predicate.roles) || predicate.roles.length === 0) {
+              err('QUERY_MEMBERSHIP_EMPTY_ROLES', 'function', `${name}: hasRole must name at least one role`, {
+                function: name,
+                declaration: predicate.declaration,
+              });
+            } else {
+              const vocabulary = new Set([
+                ...found.membership.roles,
+                ...(found.membership.pendingRoles ?? []),
+              ]);
+              for (const roleName of predicate.roles) {
+                if (!vocabulary.has(roleName)) {
+                  err('QUERY_MEMBERSHIP_UNKNOWN_ROLE', 'function', `${name}: ${predicate.declaration}.hasRole names undeclared role ${String(roleName)}`, {
+                    function: name,
+                    declaration: predicate.declaration,
+                    role: roleName,
+                  });
+                }
+              }
+            }
+          }
+          const resource = predicate.resource;
+          if (!resource || resource.__membershipResourceRef !== true) {
+            err('QUERY_MEMBERSHIP_RESOURCE_REF_INVALID', 'function', `${name}: membership resource reference is invalid`, {
+              function: name,
+              declaration: predicate.declaration,
+            });
+            continue;
+          }
+          if (found.membership.scope === 'app') {
+            if (resource.kind !== 'app') {
+              err('QUERY_MEMBERSHIP_RESOURCE_TYPE_MISMATCH', 'function', `${name}: app-scoped declaration ${predicate.declaration} requires the app singleton`, {
+                function: name,
+                declaration: predicate.declaration,
+              });
+            }
+            continue;
+          }
+          const expectedTable = found.membership.resourceTable;
+          let actualTable = null;
+          if (resource.kind === 'rowField') {
+            const field = tables[t].fields.find((candidate) => candidate.name === resource.field);
+            if (!field) {
+              err('QUERY_MEMBERSHIP_RESOURCE_REF_INVALID', 'function', `${name}: membership row field ${String(resource.field)} does not exist on ${t}`, {
+                function: name,
+                declaration: predicate.declaration,
+                field: resource.field ?? null,
+              });
+              continue;
+            }
+            actualTable = idFieldTypeTable(field.field_type);
+          } else if (resource.kind === 'arg') {
+            const segments = typeof resource.path === 'string' ? resource.path.split('.') : [];
+            let validator = segments.length > 0 ? def.args[segments[0]] : null;
+            for (const segment of segments.slice(1)) {
+              validator = validator?.primitive === 'object' ? validator.fields?.[segment] : null;
+            }
+            if (!validator) {
+              err('QUERY_MEMBERSHIP_RESOURCE_REF_INVALID', 'function', `${name}: membership argument ${String(resource.path)} is not declared`, {
+                function: name,
+                declaration: predicate.declaration,
+                arg: resource.path ?? null,
+              });
+              continue;
+            }
+            actualTable = idFieldTypeTable(validator.fieldType);
+          } else {
+            err('QUERY_MEMBERSHIP_RESOURCE_REF_INVALID', 'function', `${name}: resource-scoped declaration ${predicate.declaration} requires an argument or row field reference`, {
+              function: name,
+              declaration: predicate.declaration,
+            });
+            continue;
+          }
+          if (actualTable !== expectedTable) {
+            err('QUERY_MEMBERSHIP_RESOURCE_TYPE_MISMATCH', 'function', `${name}: ${predicate.declaration} expects Id<${expectedTable}> but the helper received ${actualTable === null ? 'a non-id value' : `Id<${actualTable}>`}`, {
+              function: name,
+              declaration: predicate.declaration,
+              expectedTable,
+              actualTable,
+            });
+          }
+        }
       }
+      const queryReads = [...new Set([t, ...membershipReads])];
       functions.push({
         name,
         kind: def.__kind,
         ...authoredFunctionManifestFields(def),
-        runtime: { HostPlan: { Query: serializeQueryPlan(def.plan) } },
-        declaredReads: [t],
+        runtime: { HostPlan: { Query: serializeQueryPlan(def.plan, membershipDeclarations) } },
+        declaredReads: queryReads,
         declaredWrites: [],
         authScopeField: def.authScopeField ?? null,
         authorizationDependence: hostPlanAuthorizationDependence(def),
@@ -794,7 +1102,7 @@ export async function generateInProcess(backendDir, options = {}) {
         name,
         args: argDescriptors(def.args),
         argOrder: Object.keys(def.args),
-        reads: [t],
+        reads: queryReads,
         result: { kind: 'list', row: rowDescriptor(tables[t]) },
         serverRunnable: true,
         localRunnable: false,
@@ -1638,10 +1946,25 @@ export function serializeExpr(expr) {
   throw new Error(`unserializable expr ${JSON.stringify(expr)}`);
 }
 
-function serializeQueryPlan(plan) {
+function serializeQueryPlan(plan, membershipDeclarations) {
   return {
     table: plan.table,
     filters: plan.filters.map((f) => ({ field: f.field, op: f.op, value: serializeExpr(f.value) })),
+    membershipFilters: (plan.membershipFilters ?? []).map((predicate) => {
+      const membership = membershipDeclarations.get(predicate.declaration)?.membership;
+      return {
+        declaration: predicate.declaration,
+        resource: predicate.resource.kind === 'rowField'
+          ? { rowField: predicate.resource.field }
+          : {
+              arg: {
+                path: predicate.resource.kind === 'app' ? '__snapbackApp' : predicate.resource.path,
+                resourceTable: membership?.resourceTable ?? null,
+              },
+            },
+        ...(predicate.roles === null ? {} : { roles: predicate.roles }),
+      };
+    }),
     order: plan.order.map((o) => ({ field: o.field, direction: o.direction })),
     limit: plan.limit,
     indexed_by: plan.index,
@@ -2007,13 +2330,14 @@ function validateAuthoringValidator(val, where, report, seen = new Set()) {
     return false;
   }
   const primitives = new Map([
-    ['string', new Set(['String'])],
+    ['string', new Set(['String', 'Principal'])],
     ['boolean', new Set(['Boolean'])],
     ['number', new Set(['Integer', 'Real'])],
     ['unknown', new Set(['Json'])],
     ['object', new Set(['Json'])],
   ]);
-  if (!primitives.get(val.primitive)?.has(val.fieldType)) {
+  const idTable = idFieldTypeTable(val.fieldType);
+  if (!primitives.get(val.primitive)?.has(val.fieldType) && !(val.primitive === 'string' && idTable !== null)) {
     report(`${where} has unsupported validator primitive/field type ${JSON.stringify(val.primitive)}/${JSON.stringify(val.fieldType)}`);
     return false;
   }
@@ -2033,6 +2357,15 @@ function validateAuthoringValidator(val, where, report, seen = new Set()) {
   }
   seen.delete(val);
   return valid;
+}
+
+function idFieldTypeTable(fieldType) {
+  if (!fieldType || typeof fieldType !== 'object' || Array.isArray(fieldType)) return null;
+  if (Object.keys(fieldType).length !== 1 || !Object.hasOwn(fieldType, 'Id')) return null;
+  const id = fieldType.Id;
+  if (!id || typeof id !== 'object' || Array.isArray(id)) return null;
+  if (Object.keys(id).length !== 1 || typeof id.table !== 'string' || id.table.length === 0) return null;
+  return id.table;
 }
 
 function isPositiveSafeInteger(value) {
@@ -2312,7 +2645,9 @@ function rowDescriptor(table) {
     _updatedAt: { shape: 'primitive', name: 'number' },
   });
   for (const f of table.fields) {
-    const prim = { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[f.field_type];
+    const prim = f.field_type === 'Principal' || idFieldTypeTable(f.field_type) !== null
+      ? 'string'
+      : { String: 'string', Boolean: 'boolean', Integer: 'number', Real: 'number' }[f.field_type];
     const descriptor = prim ? { shape: 'primitive', name: prim } : { shape: 'unknown' };
     if (f.optional) descriptor.optional = true;
     fields[f.name] = descriptor;
@@ -2326,7 +2661,9 @@ function authoredFunctionManifestFields(def, declaredWrites = [], tables = {}) {
   // permission-backing table derives the marker; authors may conservatively
   // mark opaque or nested paths explicitly.
   const authorityCreating = def.authorityCreating === true
-    || [...declaredWrites].some((table) => tables[table]?.permissionBacking === true);
+    || [...declaredWrites].some((table) => (
+      tables[table]?.permissionBacking === true || tables[table]?.membership !== undefined
+    ));
   return {
     ...(def.auth !== undefined ? { authRequirement: def.auth } : {}),
     ...(def.authorityIndependent === true ? { authorityIndependent: true } : {}),
@@ -2365,6 +2702,7 @@ function hostPlanAuthorizationDependence(def) {
   for (const filter of def.plan?.filters ?? []) {
     collectAuthoredAuthorizationDimensions(filter.value, dimensions);
   }
+  if ((def.plan?.membershipFilters?.length ?? 0) > 0) dimensions.add('userId');
   if (def.authScopeField != null) dimensions.add('userId');
   return [...dimensions].sort();
 }
@@ -2825,6 +3163,8 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
   const lines = [
     HEADER,
     "export type SchemaVersion = 'snapback.v0';",
+    "export type Principal = string & { readonly __snapbackPrincipal: unique symbol };",
+    "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
     'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {',
@@ -2852,8 +3192,74 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
     '  readonly __scope?: Scope;',
     '  readonly __value?: Value;',
     '}',
-    'export interface GeneratedEphemeral {',
+    'export interface GeneratedDataModel {',
   ];
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const properties = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => (
+      `${fieldName}${validator.optional ? '?' : ''}: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`
+    ));
+    lines.push(`  ${tableName}: { _id: Id<'${tableName}'>; _version: number; _createdAt: number; _updatedAt: number${properties.length ? `; ${properties.join('; ')}` : ''} };`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedPermissions {',
+  );
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const membership = table.membershipDeclaration;
+    if (!membership) continue;
+    const declaration = membership.id ?? tableName;
+    const typeName = pascal(declaration);
+    const resourceTable = membership.scope === 'resource'
+      ? idFieldTypeTable(table.fields?.[membership.resource]?.fieldType)
+      : null;
+    const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'null';
+    lines.push(`  ${declaration}: { requireRole(resource: ${resourceType}, ...roles: ${typeName}Role[]): Promise<void> };`);
+  }
+  lines.push('}');
+  const membershipAliases = [];
+  const membershipMembers = [];
+  for (const [tableName, table] of Object.entries(schemaDef.tables ?? {})) {
+    const membership = table.membershipDeclaration;
+    if (!membership) continue;
+    const declaration = membership.id ?? tableName;
+    const typeName = pascal(declaration);
+    const roles = [...membership.roles, ...(membership.pendingRoles ?? [])];
+    membershipAliases.push(`export type ${typeName}Role = ${roles.map((role) => JSON.stringify(role)).join(' | ') || 'never'};`);
+    const insertFields = Object.entries(table.fields ?? {}).map(([fieldName, validator]) => {
+      const fieldType = fieldName === membership.role
+        ? `${typeName}Role`
+        : typeForGeneratedValidator(validator).replace(/ \| undefined$/, '');
+      return `${fieldName}${validator.optional ? '?' : ''}: ${fieldType}`;
+    });
+    const patchFields = Object.entries(table.fields ?? {})
+      .filter(([fieldName]) => ![membership.principal, membership.resource, membership.role].includes(fieldName))
+      .map(([fieldName, validator]) => `${fieldName}?: ${typeForGeneratedValidator(validator).replace(/ \| undefined$/, '')}`);
+    membershipAliases.push(`export type ${typeName}Insert = { ${insertFields.join('; ')} };`);
+    membershipAliases.push(`export type ${typeName}Patch = { ${patchFields.join('; ')} };`);
+    membershipMembers.push(`  ${declaration}: { insert(values: ${typeName}Insert): Promise<unknown>; setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
+  }
+  lines.push(...membershipAliases);
+  lines.push('export interface GeneratedMembership {');
+  lines.push(...membershipMembers);
+  lines.push(
+    '}',
+    'export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }',
+    'export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }',
+    'export interface GeneratedActionContext {}',
+    'export interface GeneratedFunctionContexts {',
+  );
+  for (const fn of functions) {
+    const context = fn.kind === 'Mutation'
+      ? 'GeneratedMutationContext'
+      : fn.kind === 'Action'
+        ? 'GeneratedActionContext'
+        : 'GeneratedQueryContext';
+    lines.push(`  ${fn.name}: ${context};`);
+  }
+  lines.push(
+    '}',
+    'export interface GeneratedEphemeral {',
+  );
   for (const collection of ephemeralCollections) {
     const def = schemaDef.ephemeral?.collections?.[collection.name];
     lines.push(`  ${collection.name}: EphemeralCollectionReference<'${collection.name}', ${typeForScope(def?.scope ?? {})}, ${typeForValidator(def?.value)}>;`);
@@ -2864,7 +3270,7 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
   );
   for (const fn of functions) {
     const def = functionsModule[fn.name];
-    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForArgs(def?.args ?? {})}>;`);
+    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForGeneratedArgs(def?.args ?? {})}>;`);
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('}');
@@ -3189,6 +3595,25 @@ function typeForArgs(args) {
   const entries = Object.entries(args);
   if (entries.length === 0) return 'Record<string, never>';
   return `{ ${entries.map(([name, val]) => typeProperty(name, val)).join('; ')} }`;
+}
+
+function typeForGeneratedArgs(args) {
+  const entries = Object.entries(args);
+  if (entries.length === 0) return 'Record<string, never>';
+  return `{ ${entries.map(([name, val]) => `${name}${val?.optional ? '?' : ''}: ${typeForGeneratedValidator(val).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+}
+
+function typeForGeneratedValidator(val) {
+  if (!val || !val.__validator) return 'unknown';
+  let type;
+  const idTable = idFieldTypeTable(val.fieldType);
+  if (val.fieldType === 'Principal') type = 'Principal';
+  else if (idTable !== null) type = `Id<'${idTable}'>`;
+  else type = { string: 'string', boolean: 'boolean', number: 'number', unknown: 'unknown' }[val.primitive] ?? 'unknown';
+  if (val.primitive === 'object') {
+    type = `{ ${Object.entries(val.fields ?? {}).map(([name, field]) => `${name}${field.optional ? '?' : ''}: ${typeForGeneratedValidator(field).replace(/ \| undefined$/, '')}`).join('; ')} }`;
+  }
+  return val.optional ? `${type} | undefined` : type;
 }
 
 function typeForScope(scope) {

@@ -1,7 +1,7 @@
 {
   "appId": "todo-v2",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:ae19cbd8acd6fa38",
+  "bundleHash": "sha256:aa84d10ccaeccd75",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -195,6 +195,7 @@
             ],
             "indexed_by": "by_user",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -247,6 +248,7 @@
             ],
             "indexed_by": "by_user",
             "limit": null,
+            "membershipFilters": [],
             "order": [
               {
                 "direction": "Asc",
@@ -372,7 +374,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "3497303610653ecee3bfc5e43dc0251ae6510dc6b807cbc541eaa8d46c2d7d0e",
+  "inputsHash": "14730ec9a93119d727e2ebdbdf6aa7f8785ea399e8eeb88164da6d1c4d0038b2",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

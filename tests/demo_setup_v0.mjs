@@ -12,6 +12,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'card-game',
   'cursors-web',
   'graffiti',
+  'rbac',
   'todo',
   'todo-v2',
 ]);

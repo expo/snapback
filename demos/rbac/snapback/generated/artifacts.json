@@ -1,0 +1,60 @@
+{
+  "appId": "rbac",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/joinApp.args.schema.json",
+    "operations/listAnnouncements.args.schema.json",
+    "operations/postAnnouncement.args.schema.json",
+    "operations/rawJoin.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/joinApp.mutation.ts",
+    "contract/joinApp.mutation.contract-meta.ts",
+    "contract/listAnnouncements.query.ts",
+    "contract/listAnnouncements.query.contract-meta.ts",
+    "contract/postAnnouncement.mutation.ts",
+    "contract/postAnnouncement.mutation.contract-meta.ts",
+    "contract/rawJoin.mutation.ts",
+    "contract/rawJoin.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "snapback.v1:sessions:function:sha256:0345950e567b04c81819ce48a40a68b4e3590ff0c42be53b80cad76a0c5cf11b",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "rbac:joinApp",
+      "kind": "Mutation",
+      "name": "joinApp"
+    },
+    {
+      "id": "rbac:listAnnouncements",
+      "kind": "LiveQuery",
+      "name": "listAnnouncements"
+    },
+    {
+      "id": "rbac:postAnnouncement",
+      "kind": "Mutation",
+      "name": "postAnnouncement"
+    },
+    {
+      "id": "rbac:rawJoin",
+      "kind": "Mutation",
+      "name": "rawJoin"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:e967c0dde558e7f58975935c6c743c72aa8b130a1d05f4777520cf33fc6c2c22",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "appMembers",
+    "announcements"
+  ]
+}

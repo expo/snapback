@@ -55,7 +55,7 @@ with the Snapback label and `guide-gap` in the title.
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | partial | route /auth/agents/pair | llp/0055 | GAP (owner: ccheever, review: 2026-08-15) |
-| auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | design-only | — (design in review) | llp/0056 | GAP (owner: ccheever, review: 2026-08-15) |
+| auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in demos/_kit/client.mjs | llp/0012 | clients/headless.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
@@ -255,6 +255,8 @@ you never build around a feature because you didn't know it existed.
   derives who you are; scoped queries; logout barriers.
 - [Protecting live and retained data](./auth/protecting-data.md) —
   connection grants, invalidation obligations, recovery, and authorized leases.
+- [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
+  per-resource roles; gate queries; check and change membership safely.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 
@@ -680,8 +682,8 @@ paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
 export/import work is not complete, so this guide does not present the slice as
 a finished end-to-end auth product. The [capability index](../capabilities.md)
 keeps it as an owned GAP until a dedicated page can teach the exact supported
-subset. Scoped roles/memberships (LLP 0056) remain a Review-stage design-only
-GAP.
+subset. For the shipped local role-per-resource surface, continue to
+[scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
 
@@ -894,6 +896,184 @@ product tradeoff.
 - **Do not treat reconnect as manual retry or lease renewal.**
 - **Do not cache authorized rows outside the lease-enforcing client store.**
 - **Do not infer hosted guarantees from the local readiness projection.**
+
+---
+
+<!-- snapback-guide-source: guide/auth/scoped-roles.md -->
+---
+title: Scoped roles and memberships
+id: auth.scoped-roles
+order: 3
+audience: agent-first
+capabilities: [auth.scoped-roles]
+authorities: [llp/0056-scoped-roles-and-memberships.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-codegen/index.mjs, src/manifest.rs, src/membership_rules.rs, src/storage.rs, demos/rbac/tests/acceptance/rbac.mjs]
+examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-16
+reviewed-commit: HEAD
+---
+
+# Scoped roles and memberships
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](./targets.md).
+
+Snapback models authorization roles as rows with a system-recognized shape:
+principal, optional resource, and role. The roster stays live app data, while
+the host owns the transition checks, query semi-join, denial, invalidation, and
+provenance. Roles are not copied into session claims.
+
+The shipped v1 lane is for online queries, live queries, and mutations. It does
+not yet make membership-gated results retainable offline, emit incremental
+semi-join deltas, or support hosted targets.
+
+## Declare an app-wide role set
+
+An app-scoped declaration omits the resource axis. This demo lets an
+authenticated non-member seat only themselves as `member`:
+
+```js source=demos/rbac/snapback/schema.mjs
+export const appMembers = defineTable({
+  userId: v.principal(),
+  role: v.string(),
+}).membership({
+  principal: 'userId',
+  role: 'role',
+  roles: ['member', 'admin'],
+  scope: 'app',
+  provenance: 'full',
+  transitions: [
+    { op: 'insert', by: ['none'], target: 'self', to: ['member'] },
+  ],
+});
+```
+
+The transition grammar is closed. Each operation declares its allowed caller
+class, self/other target, old/new roles, and—for inserts or patches—extra
+fields. Unknown keys, undeclared roles, unreachable combinations, and empty
+role sets fail artifact generation or activation. Runtime evaluation derives
+the principal and current membership inside the write transaction; the caller
+cannot supply either fact as authority.
+
+For a role per resource, add a required resource field typed with the nominal
+table id. `v.id('events')` is not interchangeable with another string-shaped
+id:
+
+```js source=packages/snapback-codegen/rbac-authoring.test.mjs
+export const eventMembers = defineTable({
+  eventId: v.id('events'),
+  userId: v.principal(),
+  role: v.string(),
+  joinedAt: v.integer(),
+}).membership({
+  id: 'eventMembers',
+  principal: 'userId',
+  resource: 'eventId',
+  role: 'role',
+  roles: ['host', 'guest'],
+  pendingRoles: ['invited'],
+  incidental: ['joinedAt'],
+  provenance: 'full',
+  transitions: [],
+});
+```
+
+Codegen derives `resourceTable` from that validator and carries the nominal
+type into the function artifact. An argument or row-field helper bound to
+`Id<'organizations'>` is rejected before publication when the declaration
+requires `Id<'events'>`.
+
+## Gate a query with the declaration
+
+Use helpers on the exported membership table, never a global role string.
+`memberOf()` admits any non-pending role; `hasRole(resource, ...roles)` admits
+only the named roles, including a pending role when explicitly named.
+
+For app scope, omit the resource. Snapback binds the host-owned app singleton:
+
+```js source=demos/rbac/snapback/functions.mjs
+export const listAnnouncements = defineLiveQuery({
+  auth: 'authenticated',
+  table: 'announcements',
+  args: {},
+  membership: [appMembers.memberOf()],
+  order: [asc('_createdAt')],
+});
+```
+
+For resource scope, pass exactly one of
+`membershipResource.arg('eventId')` or
+`membershipResource.rowField('eventId')`. The predicate is an authoritative
+membership semi-join, not an optimistic client expression. It records an
+ordinary captured database dependency even when no membership row exists, so
+joining can wake a previously empty live result.
+
+Membership tables are private authorization backing in v1. There is no
+application-returning `ctx.permissions.*.get()` and a normal query cannot use
+the roster as an existence oracle.
+
+## Check a role inside a transaction
+
+Query and mutation handlers receive declaration-qualified permission helpers.
+App scope uses `null` as the imperative resource value:
+
+```js source=demos/rbac/snapback/handlers.mjs
+  async postAnnouncement(ctx, args) {
+    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');
+    return await ctx.db.insert('announcements', {
+      authorId: ctx.auth.userId,
+      message: args.message,
+    });
+  },
+```
+
+A failed check is always `SNAPBACK_AUTH_PERMISSION_DENIED` with invariant
+public details `{ kind: 'role' }`. It reveals neither whether the resource nor
+membership exists. The denial is host-owned and remains terminal even if app
+JavaScript catches the thrown error. Actions have no transactional read set,
+so `ctx.permissions` is deliberately unavailable there.
+
+## Change membership through generated methods
+
+Only mutation handlers receive `ctx.membership`. Its `insert`, `setRole`,
+`remove`, and `patch` methods submit a host-owned command evaluated against the
+declaration:
+
+```js source=demos/rbac/snapback/handlers.mjs
+  async joinApp(ctx) {
+    await ctx.membership.appMembers.insert({
+      userId: ctx.auth.userId,
+      role: 'member',
+    });
+    return null;
+  },
+```
+
+Generic `ctx.db` and HostPlan writes to a membership table fail with
+`SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
+boundary. Mark any function that can create durable authority with
+`authorityCreating: true`. That marker becomes part of delegated-agent consent
+and requires full membership provenance.
+
+The generated TypeScript surface brands principals and resource ids, emits
+closed role unions and insert/patch values, exposes `GeneratedPermissions` to
+queries and mutations, and exposes `GeneratedMembership` only to mutations.
+
+## Anti-patterns
+
+- **Do not store roles in session claims.** Membership rows are the current
+  authority; copying them creates stale credentials.
+- **Do not accept a plain string where `v.id(table)` is required.** Preserve
+  the nominal resource binding through arguments and row fields.
+- **Do not query or sync the roster to make an authorization decision.** Use a
+  declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
+  mutation-only generated membership methods and declare every transition.
+- **Do not use `ctx.permissions` in an action or retain a role-gated result
+  offline.** Neither has the transactional/lease proof required by v1.
 
 ---
 
@@ -1421,8 +1601,8 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, packages/snapback-contract/index.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -1539,6 +1719,17 @@ missing, seeds only empty tables — a reload never resets data; LLP 0034
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
 
+Agent clients use the same surface constructor. A `SnapbackClient` configured
+with `AgentAuthorityFence` is resolved as explicit custody; Contract does not
+reinterpret it as a browser session and does not fall back to an unfenced
+bearer. Token rotation for the same actor/credential-generation/grant tuple
+keeps queued replay bound while refreshing the live carrier. A tuple change or
+terminal scoped-token/grant outcome synchronously blanks the Contract boundary;
+tuple changes also delete predecessor durable work before the successor can
+resume. Retained service-principal reads remain refused on the local v1 plane,
+so agent-backed surfaces can use durable queued replay without claiming
+retained-read Parity.
+
 What the surface does for you:
 
 - **Validates artifacts** — the Contract data manifest is checked against
@@ -1575,6 +1766,9 @@ What the surface does for you:
 - **Do not skip `artifactIndex`/manifest validation by passing stale
   generates.** Regenerate; the stale-rejection codes exist to stop exactly
   this.
+- **Do not pass a scoped token as a raw bearer to Contract.** Construct the
+  headless client with `AgentAuthorityFence`; protocol-v1 agent work without
+  that custody owner is refused.
 
 ---
 
@@ -3371,8 +3565,8 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [sync.offline]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs]
+examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -3403,6 +3597,15 @@ If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or
 authority scope quarantines/deletes the old privacy-bearing state before the
 new scope can inspect it.
+
+For `AgentAuthorityFence`, the durable authority key is a canonical SHA-256
+identity over the actor, credential id and generation, and grant id. Token id,
+bearer bytes, and carrier generation are deliberately excluded: rotating a
+token for that same tuple can replay its existing queue, while changing any
+durable tuple coordinate advances the authority epoch and deletes predecessor
+work. Every replay still resolves and validates a current scoped token before
+the server acts. Agent authority does not enable retained service-principal
+reads in v1.
 
 ## Boot from retained rows honestly
 
@@ -3500,6 +3703,8 @@ reducer. Server rows remain authoritative:
 - **Do not serve retained rows as live.** Render the stale connection axis.
 - **Do not cache authorized rows outside the lease-aware store.** Use the
   authorized-retention path or keep the surface online-only.
+- **Do not key an agent outbox by token id.** Tokens are live carriers; the
+  server-issued descriptor and durable grant tuple own replay identity.
 
 ---
 

@@ -1,0 +1,125 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:0345950e567b04c81819ce48a40a68b4e3590ff0c42be53b80cad76a0c5cf11b",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "manifestVersion": 2,
+  "mutations": {
+    "joinApp": {
+      "argOrder": [],
+      "args": {},
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "joinApp",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    },
+    "postAnnouncement": {
+      "argOrder": [
+        "message"
+      ],
+      "args": {
+        "message": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "announcements"
+      ],
+      "name": "postAnnouncement",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "announcements"
+      ]
+    },
+    "rawJoin": {
+      "argOrder": [],
+      "args": {},
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "rawJoin",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listAnnouncements": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listAnnouncements",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "announcements",
+        "appMembers"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "message": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:e967c0dde558e7f58975935c6c743c72aa8b130a1d05f4777520cf33fc6c2c22",
+  "schemaVersion": "snapback.v1"
+}

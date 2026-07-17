@@ -16,7 +16,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { SnapbackClient } from '../client.mjs';
+import { AgentAuthorityFence, SnapbackClient } from '../client.mjs';
 import { AuthCoordinator, createMemoryAuthCustodyStorage } from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import { assert, assertEqual, createSuite } from '../harness.mjs';
 
@@ -67,41 +67,57 @@ const kitVerdict = async (body) => {
     if (new URL(url).pathname === '/auth/session') return response(body);
     throw new Error(`unexpected path ${new URL(url).pathname}`);
   };
-  const coordinator = new AuthCoordinator({
-    appId: 'schema-parity-app',
-    storage: createMemoryAuthCustodyStorage(),
-    broadcastChannelFactory: null,
-    hintStorage: null,
-  });
   const authMode = body.activeMode === 'sessions' ? 'sessions' : 'dev';
   const incarnation = UUID_V7.test(body.authorizationStreamIncarnation ?? '')
     ? body.authorizationStreamIncarnation
     : '01890f3c-9d5b-7000-8000-000000000001';
-  let capture = await coordinator.establishAnonymous({
-    kind: 'anonymous',
-    authMode,
-    authorizationStreamIncarnation: incarnation,
-  });
-  if (
-    authMode === 'sessions'
-    && body.authority?.isAuthenticated
-    && UUID_V7.test(body.authority.sessionId ?? '')
-    && UUID_V7.test(body.authority.userId ?? '')
-  ) {
-    capture = await coordinator.transition(capture, {
-      authority: {
-        kind: 'session',
-        authMode: 'sessions',
-        authorizationStreamIncarnation: incarnation,
-        sessionId: body.authority.sessionId,
-        userId: body.authority.userId,
-      },
-      bearer: 'schema-parity-bearer',
-      refreshAfterMs: 1,
+  let clientOptions;
+  if (body.authority?.kind === 'servicePrincipal') {
+    clientOptions = {
+      agentAuthority: new AgentAuthorityFence({
+        actorUserId: '01890f3c-9d5b-7000-8000-000000000010',
+        credentialId: '01890f3c-9d5b-7000-8000-000000000011',
+        credentialGeneration: 1,
+        grantId: '01890f3c-9d5b-7000-8000-000000000012',
+        tokenId: '01890f3c-9d5b-7000-8000-000000000013',
+        bearerToken: 'schema-parity-agent-bearer',
+      }),
+    };
+  } else {
+    const coordinator = new AuthCoordinator({
+      appId: 'schema-parity-app',
+      storage: createMemoryAuthCustodyStorage(),
+      broadcastChannelFactory: null,
+      hintStorage: null,
     });
+    let capture = await coordinator.establishAnonymous({
+      kind: 'anonymous',
+      authMode,
+      authorizationStreamIncarnation: incarnation,
+    });
+    if (
+      authMode === 'sessions'
+      && body.authority?.kind === 'humanSession'
+      && body.authority.isAuthenticated
+      && UUID_V7.test(body.authority.sessionId ?? '')
+      && UUID_V7.test(body.authority.userId ?? '')
+    ) {
+      capture = await coordinator.transition(capture, {
+        authority: {
+          kind: 'session',
+          authMode: 'sessions',
+          authorizationStreamIncarnation: incarnation,
+          sessionId: body.authority.sessionId,
+          userId: body.authority.userId,
+        },
+        bearer: 'schema-parity-bearer',
+        refreshAfterMs: 1,
+      });
+    }
+    clientOptions = { authCoordinator: coordinator };
   }
   const db = new SnapbackClient('http://stub', {
-    authCoordinator: coordinator,
+    ...clientOptions,
     authInvalidationProtocol: body.clientProtocols?.authInvalidation ?? null,
     authorityDescriptorProtocol: body.clientProtocols?.authorityDescriptor ?? null,
     authorizedLeaseProtocol: body.clientProtocols?.authorizedLease ?? null,

@@ -5,7 +5,10 @@
   "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
   "exports": {
     ".": "./index.mjs",
-    "./define": "./define.mjs",
+    "./define": {
+      "types": "./define.d.ts",
+      "default": "./define.mjs"
+    },
     "./contract-emitter": "./contract-emitter.mjs"
   },
   "dependencies": {
@@ -15,6 +18,6 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "test": "node identifier-validation.test.mjs && node authoring-validation.test.mjs && node function-id.test.mjs && node auth-artifacts.test.mjs && node protected-query-profile.test.mjs && node retainability-profile.test.mjs && node dependency-graph.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node operation-schemas.test.mjs && node remote-service-publication.test.mjs && node data-tier-corpus.test.mjs && node auth-crypto-vectors.test.mjs"
+    "test": "node identifier-validation.test.mjs && node authoring-validation.test.mjs && node rbac-authoring.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler rbac-authoring-types.fixture.ts && node function-id.test.mjs && node auth-artifacts.test.mjs && node protected-query-profile.test.mjs && node retainability-profile.test.mjs && node dependency-graph.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node operation-schemas.test.mjs && node remote-service-publication.test.mjs && node data-tier-corpus.test.mjs && node auth-crypto-vectors.test.mjs"
   }
 }

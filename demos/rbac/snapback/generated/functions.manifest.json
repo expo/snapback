@@ -1,0 +1,178 @@
+{
+  "appId": "rbac",
+  "artifactKind": "functionManifest",
+  "bundleHash": "snapback.v1:sessions:function:sha256:0345950e567b04c81819ce48a40a68b4e3590ff0c42be53b80cad76a0c5cf11b",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "joinApp",
+      "exportedName": "joinApp",
+      "id": "rbac:joinApp",
+      "kind": "Mutation",
+      "name": "joinApp",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "joinApp",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listAnnouncements",
+      "exportedName": "listAnnouncements",
+      "id": "rbac:listAnnouncements",
+      "kind": "LiveQuery",
+      "name": "listAnnouncements",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "announcements",
+        "tables": [
+          "announcements",
+          "appMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "appMembers",
+                "resource": {
+                  "arg": {
+                    "path": "__snapbackApp",
+                    "resourceTable": null
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "announcements"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "postAnnouncement",
+      "exportedName": "postAnnouncement",
+      "id": "rbac:postAnnouncement",
+      "kind": "Mutation",
+      "name": "postAnnouncement",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "postAnnouncement",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "announcements",
+        "tables": [
+          "announcements"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "rawJoin",
+      "exportedName": "rawJoin",
+      "id": "rbac:rawJoin",
+      "kind": "Mutation",
+      "name": "rawJoin",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "rawJoin",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "schemaVersion": "snapback.v1",
+  "unsupportedDependencyDiagnostics": []
+}

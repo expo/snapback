@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "654bbd174bbe162362a5b8e748b9b87d7b749ace"
+    "commit": "53031339f8fe1ad472c8c77669e3bc823175317e"
   },
   "nav": {
     ".": [
@@ -37,6 +37,11 @@
         "id": "auth.protecting-data",
         "order": 2,
         "title": "Protecting live and retained data"
+      },
+      {
+        "id": "auth.scoped-roles",
+        "order": 3,
+        "title": "Scoped roles and memberships"
       },
       {
         "id": "auth.targets",
@@ -210,6 +215,62 @@
         }
       ]
     },
+    "auth.scoped-roles": {
+      "path": "guide/auth/scoped-roles.md",
+      "title": "Scoped roles and memberships",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.scoped-roles"
+      ],
+      "authorities": [
+        "llp/0056-scoped-roles-and-memberships.rfc.md",
+        "packages/snapback-codegen/define.mjs",
+        "packages/snapback-codegen/index.mjs",
+        "src/manifest.rs",
+        "src/membership_rules.rs",
+        "src/storage.rs",
+        "demos/rbac/tests/acceptance/rbac.mjs"
+      ],
+      "examples": [
+        "demos/rbac",
+        "packages/snapback-codegen/rbac-authoring.test.mjs"
+      ],
+      "reviewed": "2026-07-16",
+      "reviewedCommit": "HEAD",
+      "sha256": "fe3fb4bfaf58699d41392d7ae129449fda71f0c7dbe20595a43154e3b217fd43",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/rbac/snapback/schema.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/rbac-authoring.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/rbac/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/rbac/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/rbac/snapback/handlers.mjs"
+        }
+      ]
+    },
     "auth.sessions-and-principals": {
       "path": "guide/auth/sessions-and-principals.md",
       "title": "Sessions and principals",
@@ -236,7 +297,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "882be1bcbbbcd3acd6de40c5b1d603939c22d803b6b3c571f8a9edab43376d10",
+      "sha256": "b9d22d5e7b6a7c7a56c38c9552a5c95eb164754950909425903dd9217e04a68d",
       "snippets": [
         {
           "lang": "js",
@@ -487,7 +548,7 @@
       "examples": [],
       "reviewed": "2026-07-16",
       "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "a3d78e0ab603294d8480ecdd83045dbd159c3cb2b193eb7f19cb1d482c14a873",
+      "sha256": "cfc99930b6d95014133a8ecc5f2519728b5fa8cf58fe0e31c2e629e6f8a3a51a",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -507,15 +568,18 @@
         "llp/0005-contract-exact-react-integration.explainer.md",
         "llp/0034-contract-source-seam-provider-side.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
+        "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "llp/0059-session-projection-and-client-barrier.spec.md",
         "packages/snapback-contract/index.mjs"
       ],
       "examples": [
         "demos/todo-v2/surfaces/contract",
-        "demos/all-aboard/surfaces/contract"
+        "demos/all-aboard/surfaces/contract",
+        "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
       "reviewed": "2026-07-15",
       "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "a8562e6bdd39865bca769a077bf4707d064e173f2b276a8325335c2b8315cf18",
+      "sha256": "93ffb9761b1e1913ea1842e3c28d0f1a59f31f2133d71d11f1d44eec9fcc44e1",
       "snippets": [
         {
           "lang": "contract",
@@ -799,7 +863,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "1aa589c23f7d3341c7818242d0131b1da1fc75673401cd283a550caff6e9eb34",
+      "sha256": "95466369c86edcd2bfddf4f09a1303f607a0317fc13ac8f151e3effff00e12a0",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1173,16 +1237,18 @@
       "authorities": [
         "llp/0043-offline-replay-retention.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
+        "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/offline-replay.test.mjs"
       ],
       "examples": [
         "demos/card-game",
-        "demos/todo-v2/surfaces/contract"
+        "demos/todo-v2/surfaces/contract",
+        "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "4207da5cd170917c518a917f1e53b30681ee717683aed9f993eb1ee7c029f0fa",
+      "sha256": "d2a1d1c34336012d5fd442e76cf71a0a3517f2ef56911256bfbcaa05457c1ddc",
       "snippets": [
         {
           "lang": "js",
@@ -1246,6 +1312,7 @@
       "auth.authorized-leases",
       "auth.invalidation-barrier",
       "auth.scoped-queries",
+      "auth.scoped-roles",
       "auth.sessions",
       "auth.target-honesty",
       "backend.actions",
@@ -1276,13 +1343,12 @@
       "testing.acceptance"
     ],
     "gaps": [
-      "auth.agent-principals",
-      "auth.scoped-roles"
+      "auth.agent-principals"
     ]
   },
   "surfaces": {
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "6ec4c8cfb9920c9cd88d0103497ccab19a89a467f9bea45c1465c590c4da34f8"
+  "contentHash": "0e8df246dd04faa2ca048ebb80b372255c33560ba8d1f58993003d278b1ab49f"
 }

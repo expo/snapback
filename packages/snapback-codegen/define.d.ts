@@ -10,24 +10,51 @@
 // Validators
 // ---------------------------------------------------------------------------
 
-export interface Validator {
+export type FieldType =
+  | 'String'
+  | 'Boolean'
+  | 'Integer'
+  | 'Real'
+  | 'Json'
+  | 'Principal'
+  | { readonly Id: { readonly table: string } };
+
+export interface Validator<Value = unknown, Type extends FieldType = FieldType> {
   readonly __validator: true;
-  readonly fieldType: 'String' | 'Boolean' | 'Integer' | 'Real' | 'Json';
+  readonly fieldType: Type;
   readonly primitive: string;
   readonly optional: boolean;
   readonly fields?: Record<string, Validator>;
+  readonly __value?: Value;
 }
 
 export declare const v: {
-  string(): Validator;
-  boolean(): Validator;
-  integer(): Validator;
-  real(): Validator;
-  number(): Validator;
-  json(): Validator;
-  object(fields: Record<string, Validator>): Validator;
-  optional(inner: Validator): Validator;
+  string(): Validator<string, 'String'>;
+  principal(): Validator<string, 'Principal'>;
+  id<const Table extends string>(table: Table): Validator<string, { readonly Id: { readonly table: Table } }>;
+  boolean(): Validator<boolean, 'Boolean'>;
+  integer(): Validator<number, 'Integer'>;
+  real(): Validator<number, 'Real'>;
+  number(): Validator<number, 'Real'>;
+  json(): Validator<unknown, 'Json'>;
+  object<const Fields extends Record<string, Validator>>(fields: Fields): Validator<{ [Name in keyof Fields]: Fields[Name] extends Validator<infer Value, FieldType> ? Value : never }, 'Json'> & { readonly fields: Fields };
+  optional<Inner extends Validator>(inner: Inner): Inner;
 };
+
+export interface MembershipResourceRef<Table extends string = string> {
+  readonly __membershipResourceRef: true;
+  readonly __resourceTable: Table;
+}
+
+export declare const membershipResource: {
+  arg(path: string): MembershipResourceRef<string>;
+  rowField(field: string): MembershipResourceRef<string>;
+  app(): MembershipResourceRef<'app'>;
+};
+
+export interface MembershipPredicate {
+  readonly __membershipPredicate: true;
+}
 
 // ---------------------------------------------------------------------------
 // Value expressions (the closed v1 profile — LLP 0051 D2)
@@ -175,6 +202,12 @@ export interface FunctionAuthOptions {
   auth?: AuthRequirement;
 }
 
+export interface AuthorityCreatingAuthOptions extends FunctionAuthOptions {
+  /** Marks a mutation/action whose successful effects can create durable
+   * authority; scoped grants must consent to this exact function entry. */
+  authorityCreating?: boolean;
+}
+
 export interface QueryAuthOptions extends FunctionAuthOptions {
   /** Trusted declaration that the complete result is caller-authority invariant.
    * Item 4 accepts true only for a public, ambient-free HostPlan query. */
@@ -193,6 +226,8 @@ export interface HostPlanQuerySpec extends QueryAuthOptions {
   defaultLive?: boolean;
   /** Explicit userId disjointness declaration; never inferred. */
   authScopeField?: string;
+  /** Declaration-bound membership semi-joins, ANDed with ordinary filters. */
+  membership?: MembershipPredicate[];
 }
 
 export interface JsQuerySpec extends QueryAuthOptions {
@@ -208,13 +243,13 @@ export interface JsQuerySpec extends QueryAuthOptions {
   defaultLive?: boolean;
 }
 
-export interface HostPlanMutationSpec extends FunctionAuthOptions {
+export interface HostPlanMutationSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   plan: MutationStep | MutationStep[];
   returns?: ReturnSpec;
 }
 
-export interface JsMutationSpec extends FunctionAuthOptions {
+export interface JsMutationSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   source: string;
   exportName: string;
@@ -225,7 +260,7 @@ export interface JsMutationSpec extends FunctionAuthOptions {
   outgrewIr?: OutgrewIrClass;
 }
 
-export interface HostPlanActionSpec extends FunctionAuthOptions {
+export interface HostPlanActionSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   plan: unknown | unknown[];
   returns?: unknown;
@@ -233,20 +268,75 @@ export interface HostPlanActionSpec extends FunctionAuthOptions {
   uses?: string[];
 }
 
-export interface JsActionSpec extends FunctionAuthOptions {
+export interface JsActionSpec extends AuthorityCreatingAuthOptions {
   args?: Record<string, Validator>;
   js: { source: string; exportName: string };
   writes?: string[];
   uses?: string[];
 }
 
-export interface TableBuilder {
-  index(name: string, fields: string[]): TableBuilder;
-  sync(): TableBuilder;
-  permissionBacking(fields?: string[]): TableBuilder;
+export type MembershipRole = string;
+export interface MembershipLastHolder { protect: MembershipRole }
+export interface MembershipExpiry { field: string; onExpiry: 'remove' }
+export type MembershipTarget = 'self' | 'other';
+export type MembershipTransition =
+  | { op: 'insert'; by: MembershipRole[]; target: MembershipTarget; to: MembershipRole[]; fields?: string[] }
+  | { op: 'setRole'; by: MembershipRole[]; target: MembershipTarget; from?: MembershipRole[]; to: MembershipRole[] }
+  | { op: 'remove'; by: MembershipRole[]; target: MembershipTarget; from?: MembershipRole[] }
+  | { op: 'patch'; by: MembershipRole[]; target: MembershipTarget; from?: MembershipRole[]; fields: string[] };
+
+export interface ResourceMembershipSpec {
+  id?: string;
+  scope?: 'resource';
+  principal: string;
+  resource: string;
+  role: string;
+  roles: readonly MembershipRole[];
+  pendingRoles?: readonly MembershipRole[];
+  bootstrapRole?: MembershipRole;
+  lastHolder?: MembershipLastHolder;
+  expiry?: MembershipExpiry;
+  incidental?: readonly string[];
+  provenance?: 'creation' | 'full';
+  transitions?: readonly MembershipTransition[];
 }
 
-export declare function defineTable(fields: Record<string, Validator>): TableBuilder;
+export interface AppMembershipSpec extends Omit<ResourceMembershipSpec, 'scope' | 'resource' | 'bootstrapRole' | 'lastHolder'> {
+  scope: 'app';
+  bootstrapRole?: never;
+  lastHolder?: never;
+}
+
+export type MembershipSpec = ResourceMembershipSpec | AppMembershipSpec;
+
+type RolesOf<Spec extends MembershipSpec> =
+  | Spec['roles'][number]
+  | (Spec extends { pendingRoles: readonly (infer Role extends string)[] } ? Role : never);
+type ScopeOf<Spec extends MembershipSpec> = Spec extends { scope: 'app' } ? 'app' : 'resource';
+
+export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
+  index(name: string, fields: Array<keyof Fields & string>): TableBuilder<Fields>;
+  sync(): TableBuilder<Fields>;
+  permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
+  membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
+}
+
+export interface MembershipTableBuilder<
+  Fields extends Record<string, Validator> = Record<string, Validator>,
+  Role extends string = string,
+  Scope extends 'resource' | 'app' = 'resource',
+> extends TableBuilder<Fields> {
+  index(name: string, fields: Array<keyof Fields & string>): MembershipTableBuilder<Fields, Role, Scope>;
+  sync(): MembershipTableBuilder<Fields, Role, Scope>;
+  memberOf(...args: Scope extends 'app'
+    ? [] | [resource: MembershipResourceRef<'app'>]
+    : [resource: MembershipResourceRef]): MembershipPredicate;
+  hasRole(...args: Scope extends 'app'
+    ? [role: Role, ...roles: Role[]] | [resource: MembershipResourceRef<'app'>, role: Role, ...roles: Role[]]
+    : [resource: MembershipResourceRef, role: Role, ...roles: Role[]]): MembershipPredicate;
+}
+
+export declare function defineTable<const Fields extends Record<string, Validator>>(fields: Fields): TableBuilder<Fields>;
 export declare function defineSchema(
   tables: Record<string, unknown>,
   options?: {

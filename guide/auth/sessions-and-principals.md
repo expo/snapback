@@ -118,8 +118,8 @@ paths. The RFC's owner invitation/re-credentialing/revoke-all and logical
 export/import work is not complete, so this guide does not present the slice as
 a finished end-to-end auth product. The [capability index](../capabilities.md)
 keeps it as an owned GAP until a dedicated page can teach the exact supported
-subset. Scoped roles/memberships (LLP 0056) remain a Review-stage design-only
-GAP.
+subset. For the shipped local role-per-resource surface, continue to
+[scoped roles and memberships](./scoped-roles.md).
 
 ## Anti-patterns
 

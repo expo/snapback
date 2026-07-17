@@ -5,7 +5,14 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (G6 prerequisite: landed the mutation-only,
+**Revised:** 2026-07-16 (reconciled implementation status after the public
+authoring slice landed: codegen now exposes nominal `v.principal()` / `v.id()`,
+closed `.membership()` declarations, declaration-bound `memberOf` / `hasRole`,
+generated read-only permissions and mutation-only membership contexts, nominal
+resource-reference serialization, and fail-closed authoring diagnostics; the
+runtime activation, transition, raw-write, `lastHolder`, provenance, and
+authorization-invalidation guarantees are enforced rather than decorative).
+Earlier: 2026-07-15 (G6 prerequisite: landed the mutation-only,
 declaration-bound `ctx.membership.<decl>.{insert,setRole,remove,patch}` bridge;
 its closed host-owned writer carrier remains separate from raw writes through
 direct, nested, replay, and dry-run commit paths). Earlier: 2026-07-14
@@ -296,8 +303,8 @@ posture LLP 0053's commit hook relies on):
   removed role refuses activation** with a typed diagnostic naming the
   nonconforming rows (the 0039 collision-check pattern).
 - **Uniqueness.** One row per `(principal, resource)`, backed by a generated
-  **true unique** composite index (named new surface — today's `IndexManifest`
-  has no uniqueness flag). Exactly-one-wins on concurrent same-pair inserts is
+  **true unique** composite index (`IndexManifest.unique`, now landed).
+  Exactly-one-wins on concurrent same-pair inserts is
   delivered by that index at serialized commit under LLP 0004's ratified
   concurrency model.
 - **Principal and resource are immutable after insert.** A membership is
@@ -327,10 +334,9 @@ posture LLP 0053's commit hook relies on):
   `lastHolder` declaration over a populated resource table therefore refuses
   activation unless the same activation seats its holders (brownfield adoption
   seeds rosters), instead of activating resources that no eligible holder
-  protects. (M1's shipped scan predates parts of this pin — it runs pre-DDL in
-  the staged path, treats an absent membership table as a skip, and leaves
-  `resourceTable` optional; closing those gaps is a named M1-completion
-  obligation, before M2.)
+  protects. The final-state validator now implements this pin on every
+  activation path, including absent-roster and required nominal
+  `resourceTable` handling.
 - **Still an ordinary table** for reads: it joins, exports, and appears in
   generated client types. Its own visibility is fail-closed by default on the
   **enumerated enforceable surfaces** — an undeclared-rules membership table is
@@ -453,16 +459,14 @@ that rejects it: a typo'd `frmo` discarded from a `setRole` transition leaves
 and a typo'd `resourceTabel` or `lastHodler` erases a whole guarantee.
 **Critically, closing the four inner structs is not enough — the enclosing
 `TableManifest` must close too** (or carry an equivalent versioned
-must-understand mechanism), because it is currently open: a typo'd
+must-understand mechanism). That outer closure is now implemented; without it a typo'd
 `"membershp": {…}` silently erases the *entire* `.membership()` declaration
 before any validation or declaration-derived capability gate can observe it,
 leaving an ordinary raw-writable table — the exact fail-open outcome the closed
-grammar exists to prevent. The shipped M1 structs and `TableManifest` do not yet
-carry `deny_unknown_fields`, so this is the first M1-completion obligation
-(below), with adversarial parse-through-activation tests for the outer
-`membershp` as well as `frmo`/`resourceTabel`/`lastHodler`/unknown expiry fields. (M1's wire shape models every field optional and
-validates only vocabulary membership; enforcing this grammar at manifest load
-is a named M1-completion obligation and a precondition of M2 execution.)
+grammar exists to prevent. The membership structs and `TableManifest` now carry
+`deny_unknown_fields`, the generated schemas close the same objects, and
+adversarial parse-through-activation tests cover the outer `membershp` as well
+as `frmo`/`resourceTabel`/`lastHodler`/unknown expiry fields.
 
 | op | admissible `by` classes | `from` | `to` | `fields` |
 |---|---|---|---|---|
@@ -820,13 +824,14 @@ the declarative rules (fail-closed) is an open question.
 
 ### What exists, what this adds
 
-As shipped when this RFC was drafted — M1 has since landed the schema surface;
-the Implementation-status paragraph below is the current column: the filter IR
+As shipped when this RFC was drafted — the Implementation-status paragraph
+below is the current column — the filter IR
 is single-table (`QueryPlan` has one `table`;
 `ValueExpr` has no relationship/EXISTS form and one auth variable,
 `auth.userId`); `TableManifest` carried no membership metadata and
 `IndexManifest` no uniqueness flag (both now landed); `FieldManifest` has an `optional` flag
-(hence the non-null pin above); there is no `ctx.permissions` host operation;
+(hence the non-null pin above); the draft baseline had no `ctx.permissions`
+host operation (the declaration-bound operation has now landed);
 declarative write-side row rules are deferred by a ratified 0039 narrowing; the
 HostPlan `Get` is id-only; and LLP 0008 pins the v1 syncable-live subset to
 analyzable single-table filters, with richer queries riding the whole-handler
@@ -850,7 +855,19 @@ New surface this RFC adds:
 - the **`ctx.permissions` membership read** host operation (below);
 - the **HostPlan membership step** — follow-on, not v1.
 
-**Implementation status.** *M1 landed 2026-07-14 via ENG-24907* — the **schema
+**Implementation status (current 2026-07-16).** The public, enforced vertical
+slice is now present: closed declarations and final-state activation validation;
+nominal principal/resource types; transition, raw-write, `lastHolder`, expiry,
+and provenance enforcement; declaration-bound query predicates and
+`ctx.permissions`; mutation-only sanctioned membership writes; authorization
+invalidation; generated TypeScript contexts; and an acceptance-tested RBAC demo.
+The remaining named follow-ons are the cron-to-sweep binding,
+`--as-membership`, the persisted rename diagnostic, and the incremental
+semi-join/retained-offline lane. The dated milestone notes below explain the
+order in which those guarantees arrived; “did not land” in those notes refers
+to that milestone's original boundary, not the current tree.
+
+*M1 landed 2026-07-14 via ENG-24907* — the **schema
 surface**: the `.membership()` metadata on `TableManifest` (declaration model,
 stable id with manifest-global uniqueness, closed exact-decoded vocabulary with
 the reserved-name / `:` / control-character / confusable / disjointness traps,
@@ -859,22 +876,16 @@ validation), `v.principal()` as a `FieldType`, an `unique` flag on
 `IndexManifest` driving the generated true-unique `(principal, resource)` index,
 and the **fail-closed activation scan** over existing data (vocabulary,
 nullability, uniqueness, referential integrity, and the `lastHolder` holder
-presence). M1 deliberately does **not** land: the transition-matrix execution,
+presence). At that milestone, M1 deliberately did **not** land: the transition-matrix execution,
 generated write methods, and raw-write refusal (M2); the rule helpers and
 `ctx.permissions` read (M3); the matcher/predicate-IR and invalidation wiring
-(M4/M5); and the provenance columns/log (M5). Two M1 boundaries rest on later
-milestones: the `lastHolder` activation check counts holder *rows* — which is
-**laxer** than the pinned eligible-holder predicate, not conservative (it admits
-states the real check refuses). This is **no longer vacuous**: LLP 0055 agent
-deactivation has *landed* (G1, `src/storage/auth_agents.rs`), so a deactivated
-sole holder can exist today and the row-counting activation scan will wrongly
-admit it — the eligible-holder refinement (LLP 0055's recoverability predicate)
-is an active gap, not a future-only one. And referential integrity keys on a
-`resourceTable` binding the declaration records directly until codegen fills it
-from `v.id(...)` under the LLP 0004 authoring follow-on.
+(M4/M5); and the provenance columns/log (M5). The two then-open M1 boundaries
+are now closed: activation counts LLP 0055-eligible holders rather than rows,
+and codegen derives a required nominal `resourceTable` binding from `v.id(...)`
+instead of trusting a hand-written string.
 
-Round 14/15 named these **M1-completion obligations**, all due before M2, and
-none yet shipped: the **`deny_unknown_fields`** closure on every membership
+Round 14/15 named these **M1-completion obligations**, all due before M2 and
+unshipped at that review point: the **`deny_unknown_fields`** closure on every membership
 object (above); the per-op grammar refusals (§Writes — M1 requires `op`/`by`/`target` by
 deserialization and rejects unknown columns/axis-patches, but leaves `from`/`to`/
 `fields` optional in the wire shape with no per-operation admissibility,
@@ -897,27 +908,15 @@ syntax and manifest-local collision); the **eligible-holder (recoverability)
 activation check** replacing row-counting (active gap, since deactivation has
 landed); and the capability gate below.
 
-**Activation must be capability-gated until enforcement exists — and today it is
-not.** M1 is schema validation only: none of the declared runtime guarantees —
-the transition matrix, the raw-write refusal, `lastHolder` preservation, the
-sweep, the provenance columns — is enforced yet. State it plainly, because a
-safety reader will read this paragraph alone: **nothing refuses production
-activation of a `.membership()` declaration today.** An app can declare
-`lastHolder` now and have ordinary writes strand the resource the same day, with
-the manifest asserting a guarantee nothing delivers — the exact fail-open hazard
-this gate exists to close, and it is open until the gate lands. The obligation:
-activating a manifest containing a `.membership()` declaration **will refuse
-with a typed capability diagnostic until the milestones enforcing that
-declaration's feature set have landed** (the write contract is M2; a declaration
-using only surfaces whose enforcement has landed will activate), the requirement
-derived unforgeably from the declaration itself (not a broad "membership
-supported" bit that switches on unfinished subfeatures) and enforced on every
-schema-activation, deployment, and import path. The M1 acceptance fixtures
-**will** exercise the validator through an explicit dev-profile-only override
-that production profiles do not carry. This gate is **first** among the
-M1-completion obligations, because it is the one holding the fail-open window
-open. Capability honesty is the corpus posture: a declared guarantee either
-binds or refuses to activate — it is never decorative.
+**Activation is capability-honest.** The fail-open window identified by the M1
+review is closed: activation validates the final post-DDL/post-seed state, and
+the central storage boundary enforces the transition matrix, raw-write refusal,
+`lastHolder`, expiry, provenance, referential integrity, and invalidation on all
+ordinary writer paths. Production therefore does not accept a decorative
+`.membership()` guarantee; a declared feature either binds or activation fails
+with a typed diagnostic. The generated public authoring surface is validated
+against the same manifest grammar, so a typo, unknown nominal target, or
+resource-type mismatch is refused before artifacts are emitted.
 
 *M3 landed 2026-07-14 via ENG-24909* — the **rule helpers, the membership
 predicate IR, and `ctx.permissions`**: the declaration-bound membership
@@ -943,17 +942,15 @@ and a forged throw stays untyped. The client denial payload is the invariant
 only `MembershipExists` is refused by both the pure `ValueExpr` evaluator and the
 derived optimistic overlay, so a role check stays server-decided.
 
-M3 deliberately does **not** land: the matcher/room invalidation wiring beyond
+At M3's original landing, it deliberately did **not** land: the matcher/room invalidation wiring beyond
 the conservative capture (M4/M5); the incremental membership semi-join lane and
 retained/offline role-gated reads (the named LLP 0008 follow-on); and the
 generated per-declaration authoring spelling for the helpers and
-`ctx.permissions.<decl>` (LLP 0004 codegen — the shipped binding is the
-host-backed lowering it targets). The stricter *resource-type* load check
-(row field / argument **of the declared resource type**, rejecting a different
-resource type) is enforced conservatively (declaration existence, field
-existence on the queried table, and vocabulary membership) until codegen fills
-the field-reference types alongside `resourceTable`, matching M1's posture; the
-runtime fail-closes on an unresolved declaration or a bad row field either way.
+`ctx.permissions.<decl>`. The public codegen spelling, matcher/invalidation
+integration, and strict nominal resource-type check have since landed. Row-field
+and argument references now carry and validate the declared target table; an
+unresolved declaration, bad row field, unknown id table, or cross-table mismatch
+fails artifact generation or runtime load.
 *M2 landed 2026-07-14 via ENG-24908* — the **write path**, enforced at the host
 below every writer: the **writer-class seam** (one gate below both buffered Ibex
 writes and HostPlan — a raw `ctx.db` membership write, every generic HostPlan form
@@ -975,10 +972,12 @@ to the **eligible**-holder predicate now that G1 has landed. The 2026-07-15 G6
 prerequisite lands the generated JS authoring methods and
 `ctx.membership.<decl>.*` host-op dispatch, carrying the resolved invocation
 writer separately from raw buffered writes through direct, nested, replay, and
-dry-run paths. M2 deliberately does **not** land: the cron→sweep wiring and
+dry-run paths. At M2's original landing it deliberately did **not** land: the cron→sweep wiring and
 `--as-membership` (the remaining LLP 0004 codegen/bridge follow-on); the
 rule helpers and `ctx.permissions` read (M3); the matcher/predicate-IR and
-invalidation wiring (M4/M5); and the provenance columns/log (M5). One residual is
+invalidation wiring (M4/M5); and the provenance columns/log (M5). Those latter
+runtime and provenance layers have since landed; cron→sweep and
+`--as-membership` remain follow-ons. One residual is
 named rather than guessed: a membership removal racing a **concurrent
 deactivation** of the relied-upon survivor is not linearized by the captured
 membership-row dependency (deactivation touches `_auth_users`, not the survivor's
@@ -1034,15 +1033,12 @@ error. `resourceRef` in a helper may be a **row field of the table under query**
 whose type is that same resource reference, or a **query argument** of that type
 (both analyzable at subscribe time); anything else — a computed expression, a
 different resource type, a join through a third table — is outside the v1 grammar
-and is a load-time error. **This nominal resource-reference equality needs a
-manifest representation that does not exist yet**: the current authoring kit has
-neither `v.id()` nor `v.principal()` and Rust `FieldType` carries no
-target-bearing id type, so a plain string field cannot prove it references
-`events` rather than another table. Pinning a manifest-level `Id<table>` (or
-equivalent reference metadata on fields and arguments), with its serialization,
-codegen, schema migration, and validation, is therefore an **explicit M3
-prerequisite**, not merely a companion authoring obligation — the helper grammar
-cannot be enforced without it.
+and is a load-time error. This nominal resource-reference equality is now
+represented end to end: the authoring kit exposes `v.id(table)` and
+`v.principal()`, Rust `FieldType::Id` retains the target table, argument
+references serialize `{ path, resourceTable }`, and codegen plus runtime load
+validation reject unknown or mismatched targets. A plain string therefore
+cannot pose as `Id<"events">`.
 Auth variables resolve at subscribe time and fail closed when unauthenticated —
 internally a null principal matches no rows; at the surface an unauthenticated
 client subscribing to an auth-dependent query receives LLP 0011's typed
@@ -1111,21 +1107,13 @@ both and cannot leave them open:
   its own witness** — a stale deny is a fail-closed, retryable refusal (never
   fail-open, never a false proof).
 
-What is deferred (§Protocol obligations) is the *mechanism*: the exact
-linearization point at which the deny operation validates its captured reads
-before branding, and what a linearization-*failed* deny does to the
-registration. The ordinary denied-at-subscribe outcome is **not** open — it is
-pinned below. **Denial linearization is owned by M3** — the milestone that adds
-`requireRole` and the imperative `ctx.permissions` read — and `requireRole`
-**remains capability-gated (refused, typed) until M3 lands** its host-only
-terminal outcome carrying the preserved snapshot-bound dependency and a coherent
-witness. This is load-bearing because the shipped runtime discards captured
-reads on handler failure and current terminal-witness sampling reads the
-database's *current* head, which a grant landing between the denied lookup and
-that sampling could misbrand as witnessing a newer state — the exact
-never-echo/false-proof violation the pinned semantics forbid. So M3 owns denial
-preservation and branding as an explicit prerequisite, not a late detail, and no
-imperative membership helper ships enforcing before it.
+M3 owns the exact denial linearization mechanism: `requireRole` preserves the
+membership lookup's snapshot-bound dependency, emits only the existing trusted
+terminal authorization denial, and cannot be forged by application code. That
+mechanism has landed with the imperative `ctx.permissions` read; it is no longer
+a capability-gated placeholder. The ordinary denied-at-subscribe outcome is
+therefore fixed as described below, including its coherent witness and terminal
+retirement behavior.
 
 **Denied-at-subscribe is not empty-at-subscribe.** The empty-result capture wakes
 a *live subscription that matched nothing*; a subscription **denied** at

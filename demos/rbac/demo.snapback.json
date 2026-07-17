@@ -1,0 +1,58 @@
+{
+  "id": "rbac",
+  "title": "Scoped roles and memberships",
+  "description": "A real sessions-mode proof of source-authored membership declarations, generated membership writes, declaration-bound query visibility, imperative role checks, and central raw-write refusal.",
+  "artifactSchemaVersion": "snapback.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Auth", "RBAC", "Codegen", "Storage", "Realtime", "Testing"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "sessions",
+    "membershipDeclarations": true,
+    "membershipRuleHelpers": true,
+    "generatedMembershipWrites": true,
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/rbac/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headlessRbacProof": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/rbac/tests/acceptance/rbac.mjs",
+      "toolchain": "node>=24, cargo"
+    }
+  },
+  "acceptanceChecks": {
+    "headlessRbacProof": [
+      "generated membership insert seats only the signed-in principal under the declared transition",
+      "declaration-bound memberOf query returns existing rows to a member and no rows to a non-member",
+      "ctx.permissions requireRole permits a member mutation and returns the invariant denial to a non-member",
+      "raw ctx.db roster insertion is refused and grants no authority"
+    ]
+  },
+  "capabilityGaps": [
+    "incremental membership semi-join deltas",
+    "retained/offline membership-gated reads",
+    "hosted target support"
+  ],
+  "notClaiming": [
+    "that application roster rows are directly readable; v1 keeps them private and exposes only authorization helpers",
+    "role hierarchies or cross-declaration authority",
+    "hosted or multi-replica RBAC"
+  ]
+}
