@@ -1278,7 +1278,7 @@ type AuthCustodyV2 = {
   appId: CanonicalAppId
   authorityEpoch: SafeNonnegativeInteger
   revision: SafePositiveInteger
-  phase: "settled" | "clearing"
+  phase: "settled" | "clearing" | "exhausted"
   authority: ClientAuthorityV1 | null
   pendingAuthority: ClientAuthorityV1 | null
   bearer: string | null
@@ -1299,6 +1299,16 @@ keys and complete authorities, reason, and disposition. The intent remains on
 the settled successor so peer contexts can idempotently apply the same physical
 store transition before resume. No broadcast
 contains either bearer field.
+
+`exhausted` is the permanent, secret-free terminal state for a monotonic
+authority-epoch or custody-revision failure. Both authority fields, both bearer
+fields, refresh time, and transition intent are null; the record retains only
+its app id, exhausted epoch, terminal revision, and phase. It cannot be adopted,
+resumed, refreshed, or transitioned in place. Every observing context closes
+publication synchronously, quiesces and blanks all participants, and returns
+`SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED` (or the exact owner-side counter
+diagnostic). Recovery requires explicit replacement of the custody store, not
+counter reuse.
 
 Validation derives both authority keys from the intent's embedded predecessor
 and successor authorities. A clearing record additionally derives the
@@ -1323,9 +1333,14 @@ A fresh store is created only after a successful anonymous bootstrap handshake,
 at `authorityEpoch: 0` and `revision: 1`. Every custody record replacement,
 including clearing, settling, and bearer rotation, increments revision by
 exactly one. Every authority transition increments epoch by exactly one at the
-clearing write and keeps that epoch through settle. Neither counter wraps; an
-exhausted revision is custody corruption requiring replacement, and an
-exhausted epoch uses the dedicated diagnostic below.
+clearing write and keeps that epoch through settle. Neither counter wraps. The
+last safe revision is reserved for an `exhausted` marker, so an operation that
+cannot retain enough revision space first strips all publishable authority and
+credential state through that exact CAS. A legacy or externally injected
+non-terminal record that already consumed the maximum revision cannot be
+rewritten, but is durable poison: ownership still blanks the context and no
+predecessor publication callback may run. An exhausted epoch uses the
+dedicated diagnostic below and the same terminal marker when a revision remains.
 
 The record is keyed by canonical app id in IndexedDB database
 `snapback-auth-custody`, version 1, object store `custody`; fallback lease rows
@@ -1423,7 +1438,7 @@ type AuthCustodyBroadcastV1 = {
   appIdHash: string
   authorityEpoch: SafeNonnegativeInteger
   revision: SafePositiveInteger
-  phase: "clearing" | "settled"
+  phase: "clearing" | "settled" | "exhausted"
 }
 ```
 
@@ -1438,6 +1453,12 @@ custody. Each context also performs this check on `pageshow`, transition to
 visible, focus, and before publishing a Contract boundary. A context suspended
 during a transition cannot run callbacks; on resumption it blanks before it can
 commit or expose work under the predecessor capture.
+
+An `exhausted` wakeup is additionally an immediate local terminal cut: the
+receiver pauses publication and runs best-effort quiesce/blank/clear phases
+before any asynchronous durable reload. The reload remains authoritative and
+converges missed wakeups; the eager cut exists so an already-rendered peer does
+not retain predecessor materialization while ownership is pending.
 
 The transition owner does not wait for acknowledgements from unknown, crashed,
 or suspended contexts. The durable clearing epoch makes every predecessor
