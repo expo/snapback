@@ -17,7 +17,7 @@ use serde_json::{Value, json};
 use snapback::manifest::{
     AuthInput, FieldManifest, FieldType, HandlerInput, MembershipExpiry, MembershipLastHolder,
     MembershipManifest, MembershipOp, MembershipScope, MembershipTarget, MembershipTransition,
-    MutationPlan, MutationStep, QueryPlan, SchemaManifest, TableManifest, ValueExpr,
+    MutationPlan, MutationStep, SchemaManifest, TableManifest, ValueExpr,
 };
 use snapback::storage::{LocalDatabase, MembershipWriter};
 use std::collections::BTreeMap;
@@ -68,13 +68,20 @@ fn base_membership() -> MembershipManifest {
 }
 
 /// The `event_members` table carrying the given declaration. `userId` is
-/// `v.principal()`; the axes are non-null; `expiresAt` is a non-axis column.
+/// `v.principal()` and `eventId` is `v.id("events")`; the axes are non-null;
+/// `expiresAt` is a non-axis column.
 fn members_table(membership: Option<MembershipManifest>) -> TableManifest {
     TableManifest {
         name: "event_members".to_owned(),
         fields: vec![
             field("userId", FieldType::Principal, false),
-            field("eventId", FieldType::String, false),
+            field(
+                "eventId",
+                FieldType::Id {
+                    table: "events".to_owned(),
+                },
+                false,
+            ),
             field("role", FieldType::String, false),
             field("expiresAt", FieldType::Integer, true),
             field("notifyPrefs", FieldType::String, true),
@@ -135,20 +142,9 @@ fn insert_row(db: &mut LocalDatabase, table: &str, values: &[(&str, Value)]) {
 }
 
 fn row_count(db: &LocalDatabase, table: &str) -> usize {
-    db.query(
-        &QueryPlan {
-            table: table.to_owned(),
-            filters: vec![],
-            order: vec![],
-            limit: None,
-            membership_filters: Vec::new(),
-            indexed_by: None,
-        },
-        &input(),
-    )
-    .expect("query")
-    .rows
-    .len()
+    db.scan_table(table, 1, 0)
+        .expect("schema-aware admin scan")
+        .total
 }
 
 /// Seed an `events` row with a caller-chosen `_id` so a membership's `eventId`
@@ -213,6 +209,42 @@ fn principal_axis_must_be_v_principal() {
             .code
     };
     assert_eq!(code, "SNAPBACK_MEMBERSHIP_PRINCIPAL_TYPE");
+}
+
+#[test]
+fn resource_axis_must_be_v_id() {
+    // A plain string carries no resource-table identity, so accepting it would
+    // let the manifest claim a binding the field declaration cannot prove.
+    let mut members = members_table(Some(base_membership()));
+    members.fields[1] = field("eventId", FieldType::String, false);
+    let code = {
+        let mut db = LocalDatabase::memory().expect("memory db");
+        db.apply_schema(schema(vec![events_table(), members]))
+            .expect_err("resource axis must be v.id(resourceTable)")
+            .diagnostic
+            .code
+    };
+    assert_eq!(code, "SNAPBACK_MEMBERSHIP_RESOURCE_TYPE");
+}
+
+#[test]
+fn resource_axis_v_id_target_must_match_resource_table() {
+    let mut members = members_table(Some(base_membership()));
+    members.fields[1] = field(
+        "eventId",
+        FieldType::Id {
+            table: "projects".to_owned(),
+        },
+        false,
+    );
+    let code = {
+        let mut db = LocalDatabase::memory().expect("memory db");
+        db.apply_schema(schema(vec![events_table(), members]))
+            .expect_err("resource v.id target must match resourceTable")
+            .diagnostic
+            .code
+    };
+    assert_eq!(code, "SNAPBACK_MEMBERSHIP_RESOURCE_TABLE_MISMATCH");
 }
 
 #[test]
@@ -348,7 +380,6 @@ fn last_holder_is_not_available_on_app_scope() {
     membership.last_holder = Some(MembershipLastHolder {
         protect: "host".to_owned(),
     });
-    membership.bootstrap_role = Some("host".to_owned());
     // An app singleton has no creation event to anchor establishment on.
     assert_eq!(
         apply_err(membership),
@@ -398,7 +429,7 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
     membership.transitions = vec![MembershipTransition {
         op: MembershipOp::Insert,
         by: vec!["none".to_owned()],
-        target: MembershipTarget::Own,
+        target: MembershipTarget::Other,
         from: None,
         to: Some(vec!["guest".to_owned()]),
         fields: None,
@@ -412,16 +443,18 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
         effective_principal: "user_1".to_owned(),
     };
     let values = json!({
-        "userId": "user_1",
+        "userId": "user_2",
         "eventId": "event_1",
         "role": "guest"
     })
     .as_object()
     .expect("object")
     .clone();
-    // Plan both from the same pre-insert snapshot. The sanctioned gate owns
-    // membership authorization; the generated true-unique index still owns
-    // the exactly-one-wins serialization result.
+    // Plan both from the same pre-insert snapshot. The writer inserts another
+    // principal, so the first commit does not change the writer's absent
+    // caller-class witness and mask the unique-index result with an earlier
+    // authority conflict. The sanctioned gate owns authorization; the
+    // generated true-unique index owns this exactly-one-wins result.
     let first = db
         .plan_membership_insert(&writer, "event_members", values.clone())
         .expect("first plan");
@@ -446,7 +479,7 @@ fn concurrent_same_pair_inserts_yield_one_row_and_one_typed_conflict() {
     // admitted — the index is over the pair, not the principal alone.
     seed_event(&mut db, "event_2");
     let other_resource = json!({
-        "userId": "user_1",
+        "userId": "user_2",
         "eventId": "event_2",
         "role": "guest"
     })
