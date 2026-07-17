@@ -119,6 +119,31 @@ try {
   assert.equal(rejected.record.authorityEpoch, deleted.record.authorityEpoch);
   assert.equal(rejected.record.revision, deleted.record.revision);
 
+  // Force the macOS lockf fork/readiness race (and the equivalent Linux
+  // no-fork path): the helper owns the lock but delays its ready frame past
+  // the caller deadline. The failed child must close promptly, leave no
+  // inherited stdio helper alive, and release the kernel lock for a new owner.
+  const readyRaceStartedAt = performance.now();
+  const readyRace = await run(
+    'ready-timeout',
+    directory,
+    'agent:filesystem-ready-race',
+    '50',
+    '500',
+  );
+  const readyRaceElapsedMs = performance.now() - readyRaceStartedAt;
+  assert.equal(readyRace.ok, false);
+  assert.equal(readyRace.code, 'SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE');
+  assert(
+    readyRaceElapsedMs < 2_000,
+    `timed-out lock helper kept the child alive for ${readyRaceElapsedMs}ms`,
+  );
+  assert.equal(
+    (await run('probe', directory, 'agent:filesystem-ready-race', '500')).ok,
+    true,
+    'the readiness-timeout helper cannot retain the OS lock',
+  );
+
   // The OS advisory lock serializes distinct processes. Acquisition is
   // bounded, and SIGKILL cannot leave a time-stolen lock: kernel/process EOF
   // releases the owner, after which a new process safely acquires it.

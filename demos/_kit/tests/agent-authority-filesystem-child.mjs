@@ -17,7 +17,11 @@ const BEARER_SENTINEL = 'sbagt_filesystem_bearer_must_never_persist';
 const [action, directory, custodyId, timeoutText = '5000', holdText = '60000'] = process.argv.slice(2);
 const lockTimeoutMs = Number(timeoutText);
 const holdMs = Number(holdText);
-const storage = createFilesystemAgentAuthorityCustodyStorage({ directory, lockTimeoutMs });
+const storage = createFilesystemAgentAuthorityCustodyStorage({
+  directory,
+  lockTimeoutMs,
+  helperReadyDelayMs: action === 'ready-timeout' ? holdMs : 0,
+});
 
 const credential = ({ grantId = GRANT_A, tokenId = TOKEN_A } = {}) => ({
   actorUserId: ACTOR,
@@ -40,22 +44,30 @@ const emit = (value) => {
 
 try {
   if (action === 'init-a') {
-    const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
-    const capture = await fence.synchronize();
+    const value = credential();
+    const fence = new AgentAuthorityFence(value, { storage, custodyId });
+    const capture = await fence.synchronizeValidated(descriptorFor(value));
     emit({ ok: true, capture, record: await storage.snapshot(custodyId) });
   } else if (action === 'replace-b') {
-    const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
-    await fence.synchronize();
-    const capture = await fence.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+    const value = credential();
+    const fence = new AgentAuthorityFence(value, { storage, custodyId });
+    await fence.synchronizeValidated(descriptorFor(value));
+    const next = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+    const capture = await fence.replaceCredentialValidated(
+      fence.capture(),
+      next,
+      descriptorFor(next),
+    );
     emit({ ok: true, capture, record: await storage.snapshot(custodyId) });
   } else if (action === 'adopt-b') {
     const next = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
     const fence = new AgentAuthorityFence(next, { storage, custodyId });
-    const capture = await fence.synchronize();
+    const capture = await fence.synchronizeValidated(descriptorFor(next));
     emit({ ok: true, capture, record: await storage.snapshot(custodyId) });
   } else if (action === 'wedge-b') {
-    const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
-    await fence.synchronize();
+    const value = credential();
+    const fence = new AgentAuthorityFence(value, { storage, custodyId });
+    await fence.synchronizeValidated(descriptorFor(value));
     fence.registerParticipant({
       quiesce() {},
       blank() {},
@@ -65,7 +77,8 @@ try {
     });
     let failure = null;
     try {
-      await fence.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+      const next = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+      await fence.replaceCredentialValidated(fence.capture(), next, descriptorFor(next));
     } catch (error) {
       failure = { code: error?.code ?? null, message: error?.message ?? String(error) };
     }
@@ -89,8 +102,9 @@ try {
       record: await storage.snapshot(custodyId),
     });
   } else if (action === 'delete-a') {
-    const fence = new AgentAuthorityFence(credential(), { storage, custodyId });
-    await fence.synchronize();
+    const value = credential();
+    const fence = new AgentAuthorityFence(value, { storage, custodyId });
+    await fence.synchronizeValidated(descriptorFor(value));
     const termination = fence.terminate(
       fence.capture(),
       { authorityDisposition: 'durableDelete' },
@@ -98,10 +112,11 @@ try {
     await termination.settlement;
     emit({ ok: true, record: await storage.snapshot(custodyId) });
   } else if (action === 'reject-a') {
-    const fence = new AgentAuthorityFence(credential({ tokenId: TOKEN_B }), { storage, custodyId });
+    const value = credential({ tokenId: TOKEN_B });
+    const fence = new AgentAuthorityFence(value, { storage, custodyId });
     let failure = null;
     try {
-      await fence.synchronize();
+      await fence.synchronizeValidated(descriptorFor(value));
     } catch (error) {
       failure = { code: error?.code ?? null, message: error?.message ?? String(error) };
     }
@@ -115,6 +130,9 @@ try {
   } else if (action === 'probe') {
     const record = await storage.withOwnership(custodyId, (owner) => owner.read());
     emit({ ok: true, record });
+  } else if (action === 'ready-timeout') {
+    await storage.withOwnership(custodyId, (owner) => owner.read());
+    emit({ ok: true, unreachable: true });
   } else {
     throw new Error(`unknown child action ${action}`);
   }
@@ -123,5 +141,6 @@ try {
     ok: false,
     code: error?.code ?? null,
     message: error?.message ?? String(error),
+    details: error?.diagnostic?.details ?? null,
   });
 }

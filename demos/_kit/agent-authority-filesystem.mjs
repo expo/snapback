@@ -437,26 +437,61 @@ const lockCommand = () => {
 
 const LOCK_HELPER = String.raw`
 const nonce = process.argv[1];
-process.stdout.write(JSON.stringify({ formatVersion: 1, nonce, pid: process.pid }) + '\n');
+const readyDelayMs = Number(process.argv[2] ?? 0);
 process.stdin.setEncoding('utf8');
 let input = '';
-process.stdin.on('data', (chunk) => {
-  input += chunk;
-  if (input.includes('\n')) process.exit(input === 'release\n' ? 0 : 64);
+const released = new Promise((resolve) => {
+  process.stdin.on('data', (chunk) => {
+    input += chunk;
+    if (input.includes('\n')) resolve(input === 'release\n' ? 0 : 64);
+  });
+  process.stdin.on('end', () => resolve(0));
 });
-process.stdin.on('end', () => process.exit(0));
+process.stdin.resume();
+if (readyDelayMs > 0) {
+  await Promise.race([
+    new Promise((resolve) => setTimeout(resolve, readyDelayMs)),
+    released.then((status) => process.exit(status)),
+  ]);
+}
+process.stdout.write(JSON.stringify({ formatVersion: 1, nonce, pid: process.pid }) + '\n');
+process.exit(await released);
 `;
 
-const acquireLock = async (path, timeoutMs) => {
+const acquireLock = async (path, timeoutMs, helperReadyDelayMs) => {
   const nonce = randomBytes(16).toString('base64url');
   if (!BASE64URL_128.test(nonce)) throw new Error('unreachable invalid lock nonce');
   const command = lockCommand();
   const helper = `${LOCK_HELPER}\n// nonce argument follows`;
   const child = spawn(
     command.executable,
-    [...command.argumentsFor(path, timeoutMs, helper), nonce],
-    { stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true },
+    // A base64url nonce may begin with "-". Terminate Node option parsing so
+    // that such a nonce cannot be mistaken for a runtime flag and make lock
+    // acquisition fail nondeterministically with Node exit status 9.
+    [
+      ...command.argumentsFor(path, timeoutMs, helper),
+      '--',
+      nonce,
+      String(helperReadyDelayMs),
+    ],
+    {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      // Give lockf/flock and the command it launches one process group. On a
+      // readiness-timeout race we can terminate both, including macOS lockf's
+      // forked helper, rather than orphaning a pipe-holding Node child.
+      detached: true,
+    },
   );
+  const signalLockGroup = (signal) => {
+    try {
+      if (Number.isSafeInteger(child.pid) && child.pid > 0) {
+        process.kill(-child.pid, signal);
+        return;
+      }
+    } catch { /* fall back to the direct child below */ }
+    try { child.kill(signal); } catch { /* already gone */ }
+  };
   let stdout = '';
   let stderr = '';
   child.stdout.setEncoding('utf8');
@@ -476,7 +511,6 @@ const acquireLock = async (path, timeoutMs) => {
         callback();
       };
       timer = setTimeout(() => {
-        child.kill('SIGTERM');
         finish(() => reject(diagnostic(
           AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
           'timed out waiting for filesystem agent custody ownership',
@@ -518,7 +552,28 @@ const acquireLock = async (path, timeoutMs) => {
       inspect();
     });
   } catch (error) {
-    if (child.exitCode === null && !child.killed) child.kill('SIGTERM');
+    // Close the only writable end inherited by the helper first, so even a
+    // fork that wins the timeout race observes EOF and exits. Then signal the
+    // whole isolated process group and await stdio closure; `exit` alone only
+    // observes lockf on macOS and can leave its command child alive.
+    child.stdin.destroy();
+    signalLockGroup('SIGTERM');
+    const closed = new Promise((resolve) => {
+      if (child.exitCode !== null && child.stdout.closed && child.stderr.closed) resolve(true);
+      else child.once('close', () => resolve(true));
+    });
+    let cleanupTimer;
+    const timedOut = new Promise((resolve) => {
+      cleanupTimer = setTimeout(() => resolve(false), 2_000);
+    });
+    if (!await Promise.race([closed, timedOut])) {
+      signalLockGroup('SIGKILL');
+      await Promise.race([
+        closed,
+        new Promise((resolve) => setTimeout(resolve, 2_000)),
+      ]);
+    }
+    clearTimeout(cleanupTimer);
     throw error;
   }
 
@@ -538,7 +593,7 @@ const acquireLock = async (path, timeoutMs) => {
       if (child.exitCode !== null || child.killed) return;
       const exited = new Promise((resolve) => child.once('exit', resolve));
       child.stdin.end('release\n');
-      const releaseTimer = setTimeout(() => child.kill('SIGKILL'), 2_000);
+      const releaseTimer = setTimeout(() => signalLockGroup('SIGKILL'), 2_000);
       await exited;
       clearTimeout(releaseTimer);
     },
@@ -605,6 +660,7 @@ const atomicReplace = async ({
 export function createFilesystemAgentAuthorityCustodyStorage({
   directory,
   lockTimeoutMs = 5_000,
+  helperReadyDelayMs = 0,
 } = {}) {
   if (process.platform === 'win32') {
     throw diagnostic(
@@ -616,6 +672,10 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     throw new TypeError('filesystem agent custody directory must be an absolute path');
   }
   normalizeDuration(lockTimeoutMs, 'lockTimeoutMs');
+  normalizeDuration(helperReadyDelayMs, 'helperReadyDelayMs', {
+    minimum: 0,
+    maximum: 60_000,
+  });
 
   const pathsFor = (rawCustodyId) => {
     const custodyId = normalizeCustodyId(rawCustodyId);
@@ -635,7 +695,7 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     await assertPrivateDirectory(directory);
     await ensurePrivateLockFile(lockPath);
     await syncDirectory(directory);
-    const lock = await acquireLock(lockPath, lockTimeoutMs);
+    const lock = await acquireLock(lockPath, lockTimeoutMs, helperReadyDelayMs);
     let active = true;
     const owner = Object.freeze({
       async read() {
