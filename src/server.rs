@@ -6325,12 +6325,147 @@ fn stale_prepared_authority(authority: &PreparedAuthority, epoch_now_ms: u64) ->
     }
 }
 
+#[cfg(test)]
+const TEST_FINITE_AUTHORITY_PAUSE_HEADER: &str = "x-snapback-test-finite-authority-pause";
+
+#[cfg(test)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum TestFiniteAuthorityPausePoint {
+    BeforeHandler,
+    BeforeResponsePublication,
+}
+
+#[cfg(test)]
+#[derive(Clone)]
+struct TestFiniteAuthorityPauseEntry {
+    point: TestFiniteAuthorityPausePoint,
+    reached: Arc<tokio::sync::Barrier>,
+    release: Arc<tokio::sync::Barrier>,
+    response_status: Arc<StdMutex<Option<StatusCode>>>,
+}
+
+#[cfg(test)]
+struct TestFiniteAuthorityPause {
+    id: String,
+    reached: Arc<tokio::sync::Barrier>,
+    release: Arc<tokio::sync::Barrier>,
+    response_status: Arc<StdMutex<Option<StatusCode>>>,
+}
+
+#[cfg(test)]
+static TEST_FINITE_AUTHORITY_PAUSES: OnceLock<
+    StdMutex<std::collections::HashMap<String, TestFiniteAuthorityPauseEntry>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+fn test_finite_authority_pauses()
+-> &'static StdMutex<std::collections::HashMap<String, TestFiniteAuthorityPauseEntry>> {
+    TEST_FINITE_AUTHORITY_PAUSES.get_or_init(|| StdMutex::new(std::collections::HashMap::new()))
+}
+
+#[cfg(test)]
+fn install_test_finite_authority_pause(
+    point: TestFiniteAuthorityPausePoint,
+) -> TestFiniteAuthorityPause {
+    let id = format!("finite-authority-{}", Uuid::now_v7().simple());
+    let reached = Arc::new(tokio::sync::Barrier::new(2));
+    let release = Arc::new(tokio::sync::Barrier::new(2));
+    let response_status = Arc::new(StdMutex::new(None));
+    let entry = TestFiniteAuthorityPauseEntry {
+        point,
+        reached: reached.clone(),
+        release: release.clone(),
+        response_status: response_status.clone(),
+    };
+    let replaced = test_finite_authority_pauses()
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .insert(id.clone(), entry);
+    assert!(replaced.is_none(), "finite-authority pause id was reused");
+    TestFiniteAuthorityPause {
+        id,
+        reached,
+        release,
+        response_status,
+    }
+}
+
+#[cfg(test)]
+impl TestFiniteAuthorityPause {
+    fn id(&self) -> &str {
+        &self.id
+    }
+
+    async fn wait_until_reached(&self) {
+        self.reached.wait().await;
+    }
+
+    async fn release(&self) {
+        self.release.wait().await;
+    }
+
+    fn response_status(&self) -> Option<StatusCode> {
+        *self
+            .response_status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
+#[cfg(test)]
+impl Drop for TestFiniteAuthorityPause {
+    fn drop(&mut self) {
+        test_finite_authority_pauses()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .remove(&self.id);
+    }
+}
+
+#[cfg(test)]
+async fn pause_test_finite_authority_request(
+    pause_id: Option<&str>,
+    point: TestFiniteAuthorityPausePoint,
+    response_status: Option<StatusCode>,
+) {
+    let Some(pause_id) = pause_id else {
+        return;
+    };
+    let entry = {
+        let mut pauses = test_finite_authority_pauses()
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if pauses
+            .get(pause_id)
+            .is_some_and(|entry| entry.point == point)
+        {
+            pauses.remove(pause_id)
+        } else {
+            None
+        }
+    };
+    if let Some(entry) = entry {
+        *entry
+            .response_status
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = response_status;
+        entry.reached.wait().await;
+        entry.release.wait().await;
+    }
+}
+
 async fn enforce_registered_route_policy(
     spec: RouteSpec,
     runtime: AppState,
     mut request: Request<Body>,
     next: Next,
 ) -> Response {
+    #[cfg(test)]
+    let test_finite_authority_pause_id = request
+        .headers()
+        .get(TEST_FINITE_AUTHORITY_PAUSE_HEADER)
+        .and_then(|value| value.to_str().ok())
+        .map(str::to_owned);
     let policy_mode = runtime.active_policy_auth_mode();
     let effective = spec.effective_for(policy_mode);
     if request.method() == Method::OPTIONS {
@@ -7089,7 +7224,21 @@ async fn enforce_registered_route_policy(
     } else {
         request.extensions_mut().insert(effective);
     }
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        test_finite_authority_pause_id.as_deref(),
+        TestFiniteAuthorityPausePoint::BeforeHandler,
+        None,
+    )
+    .await;
     let mut response = next.run(request).await;
+    #[cfg(test)]
+    pause_test_finite_authority_request(
+        test_finite_authority_pause_id.as_deref(),
+        TestFiniteAuthorityPausePoint::BeforeResponsePublication,
+        Some(response.status()),
+    )
+    .await;
     // Routes whose body is consumed by the handler (not the policy peek) see
     // the guard's refusal as an extractor error of arbitrary shape. Publish
     // the canonical ingest diagnostic instead; a tripped guard proves the
@@ -15123,18 +15272,20 @@ mod tests {
         CRON_DISPATCH_CONCURRENCY_DEFAULT, CRON_DISPATCH_CONCURRENCY_MAX, ConnectionGrant,
         ConnectionOpenAttempt, DetachedActionHost, DetachedActionWorkerCounters,
         OpenConnectionRequest, PolicyAuthMode, PreparedAuthority, RealtimeEnvelope, SharedSnapback,
-        SnapbackApp, already_terminal_session_error, app, configured_action_worker_limit,
+        SnapbackApp, TEST_FINITE_AUTHORITY_PAUSE_HEADER, TestFiniteAuthorityPausePoint,
+        already_terminal_session_error, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
-        finish_registered_response, parse_action_watchdog_timeout, parse_optional_json,
-        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
-        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
-        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
+        finish_registered_response, install_test_finite_authority_pause,
+        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
+        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
+        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
+        status_for_diagnostic_code, with_snapback,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
-    use crate::auth::crypto::{OsRandom, SessionBearer};
+    use crate::auth::crypto::{AgentCredential, OsRandom, SessionBearer};
     use crate::auth::invalidation::{
         AuthorizationInvalidationConnection, IssuerId, LiveInvalidationIssuer, QueryNamespace,
     };
@@ -15154,7 +15305,8 @@ mod tests {
     };
     use crate::auth::service_fence::{
         ServiceAuthorityActResolution, ServiceAuthorityCommitInterlock,
-        ServiceAuthorityDisposition, ServiceAuthorityFenceRegistry,
+        ServiceAuthorityDeadlineTerminal, ServiceAuthorityDisposition,
+        ServiceAuthorityFenceRegistry,
     };
     use crate::auth::session_projection::RevocationReason;
     use crate::cron::CronRunOutcome;
@@ -15163,13 +15315,13 @@ mod tests {
         EnsureAppMode, LiveInvalidationAdmission, LiveSubscribeInput, LocalSnapback, StagedAction,
     };
     use crate::manifest::{
-        AuthInput, AuthManifest, AuthMode, AuthRequirement, CronActivationPolicy, CronJitterPolicy,
-        CronJobDefinition, CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule,
-        FieldManifest, FieldType, FilterExpr, FilterOp, FunctionDefinition, FunctionKind,
-        FunctionManifest, FunctionRuntime, HandlerInput, HandlerPlan, IbexModule,
-        MutationAcknowledgementRequest, MutationPlan, MutationStep, QueryPlan, ReturnValue,
-        SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest, SeedData, TableManifest,
-        TargetCapabilityId, ValueExpr,
+        ActionPlan, ActionReturnValue, ActionStep, AuthInput, AuthManifest, AuthMode,
+        AuthRequirement, CronActivationPolicy, CronJitterPolicy, CronJobDefinition,
+        CronOverlapPolicy, CronRetryMode, CronRetryPolicy, CronSchedule, FieldManifest, FieldType,
+        FilterExpr, FilterOp, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+        HandlerInput, HandlerPlan, IbexModule, MutationAcknowledgementRequest, MutationPlan,
+        MutationStep, QueryPlan, ReturnValue, SNAPBACK_SESSIONS_SCHEMA_VERSION, SchemaManifest,
+        SeedData, TableManifest, TargetCapabilityId, ValueExpr,
     };
     use crate::runtime::IbexActionHost;
     use crate::storage::ClientMutationIdentity;
@@ -16131,7 +16283,13 @@ mod tests {
         }
     }
 
-    fn sessions_activation_server_fixture() -> AppState {
+    fn sessions_activation_server_fixture_with(
+        predecessor_functions: FunctionManifest,
+        clock: Option<Arc<ManualServerAuthClock>>,
+    ) -> AppState {
+        let activation_now_ms = clock
+            .as_ref()
+            .map_or_else(super::now_millis, |clock| clock.epoch_ms());
         let mut snapback = LocalSnapback::memory().expect("memory activation server fixture");
         let schema = SchemaManifest {
             schema_version: SNAPBACK_SESSIONS_SCHEMA_VERSION.to_owned(),
@@ -16157,7 +16315,6 @@ mod tests {
             }],
             ..SchemaManifest::default()
         };
-        let predecessor_functions = activation_functions('2', false);
         let prepared = snapback
             .prepare_auth_provision(
                 EnsureAppMode::Sessions,
@@ -16182,7 +16339,7 @@ mod tests {
         let readiness = AuthProgramReadiness::new(true, true, true, true, true, true, true);
         let keyring = Arc::new(AuthKeyringStore::in_memory());
         keyring
-            .load_or_mint_initial(super::now_millis(), &OsRandom)
+            .load_or_mint_initial(activation_now_ms, &OsRandom)
             .expect("provision activation keyring before sessions consume");
         let settled = snapback
             .auth_database_mut()
@@ -16203,13 +16360,21 @@ mod tests {
         activate_catalog(
             snapback.auth_database_mut(),
             keyring.as_ref(),
-            super::now_millis(),
+            activation_now_ms,
             &OsRandom,
         )
         .expect("activate auth catalog");
         let provider = Arc::new(
-            AuthProvider::new(AuthProviderProfile::Test, keyring)
-                .expect("construct activation auth provider"),
+            match clock {
+                Some(clock) => AuthProvider::new_with_dependencies(
+                    AuthProviderProfile::Test,
+                    keyring,
+                    Arc::new(OsRandom),
+                    clock,
+                ),
+                None => AuthProvider::new(AuthProviderProfile::Test, keyring),
+            }
+            .expect("construct activation auth provider"),
         );
         let (authorization, version_stream, boot_sequence) = snapback
             .auth_database_mut()
@@ -16238,6 +16403,10 @@ mod tests {
             .expect("install activation sessions posture")
     }
 
+    fn sessions_activation_server_fixture() -> AppState {
+        sessions_activation_server_fixture_with(activation_functions('2', false), None)
+    }
+
     async fn sessions_activation_server_fixture_async() -> AppState {
         tokio::task::spawn_blocking(|| {
             let _sanction = crate::exec_guard::BlockingSanction::acquire();
@@ -16245,6 +16414,589 @@ mod tests {
         })
         .await
         .expect("construct activation fixture off the async workers")
+    }
+
+    fn finite_authority_matrix_functions() -> FunctionManifest {
+        let mut functions = activation_functions('9', false);
+        let mut action_args = BTreeMap::new();
+        action_args.insert(
+            "value".to_owned(),
+            ValueExpr::Literal(json!("forbidden-action-effect")),
+        );
+        let mut write_action = FunctionDefinition::new(
+            "writeAction",
+            FunctionKind::Action,
+            FunctionRuntime::HostPlan(HandlerPlan::Action(ActionPlan {
+                steps: vec![ActionStep::RunMutation {
+                    name: "queuedWrite".to_owned(),
+                    args: action_args,
+                    bind_result_as: None,
+                }],
+                return_value: Some(ActionReturnValue::ChangedCount),
+            })),
+        );
+        write_action.write_set_summary.tables = vec!["items".to_owned()];
+        functions.functions.push(write_action);
+        functions
+    }
+
+    struct FiniteAuthorityMatrixFixture {
+        state: AppState,
+        router: SnapbackApp,
+        clock: Arc<ManualServerAuthClock>,
+        start_ms: u64,
+        effective_user_id: String,
+        agent_user_id: String,
+        grant_id: String,
+        credential: String,
+        token: String,
+        token_id: String,
+        token_expires_at_ms: u64,
+    }
+
+    async fn finite_authority_matrix_fixture() -> FiniteAuthorityMatrixFixture {
+        let start_ms = 1_750_000_000_000;
+        let clock = Arc::new(ManualServerAuthClock::new(start_ms));
+        let fixture_clock = clock.clone();
+        let state = tokio::task::spawn_blocking(move || {
+            let _sanction = crate::exec_guard::BlockingSanction::acquire();
+            sessions_activation_server_fixture_with(
+                finite_authority_matrix_functions(),
+                Some(fixture_clock),
+            )
+        })
+        .await
+        .expect("construct finite-authority matrix fixture off async workers");
+        let provider = state.auth_provider.clone().expect("matrix auth provider");
+        let effective_user_id = "018f0d90-7b30-7a22-8c33-445566778899".to_owned();
+        let agent_user_id = "018f0d90-7b31-7a22-8c33-445566778899".to_owned();
+        let grant_id = "018f0d90-7b32-7a22-8c33-445566778899".to_owned();
+        let setup_effective_user_id = effective_user_id.clone();
+        let setup_agent_user_id = agent_user_id.clone();
+        let setup_grant_id = grant_id.clone();
+        let (credential, token, token_id, token_expires_at_ms) =
+            with_snapback(&state.snapback, move |snapback| {
+                let db = snapback.auth_database_mut();
+                db.reconcile_auth_scope_bases(&finite_authority_matrix_functions())?;
+                db.with_auth_transaction(|tx| {
+                    tx.execute(
+                        "INSERT INTO _auth_users(
+                           id, created_at_ms, kind, display_name, operator_contact,
+                           registration_provenance, deactivated_at_ms, owner_user_id
+                         ) VALUES(?1, ?2, 'human', NULL, NULL, NULL, NULL, NULL)",
+                        rusqlite::params![setup_effective_user_id, start_ms as i64],
+                    )?;
+                    Ok(())
+                })?;
+                db.create_agent_principal(
+                    &setup_agent_user_id,
+                    start_ms,
+                    &crate::storage::auth_agents::AgentRegistration {
+                        display_name: None,
+                        operator_contact: None,
+                        registration_provenance: "finite-authority-matrix".to_owned(),
+                        owner_user_id: Some(setup_effective_user_id.clone()),
+                    },
+                )?;
+                let credential = db.issue_initial_agent_credential(
+                    &setup_agent_user_id,
+                    start_ms,
+                    provider.agent_random_source(),
+                )?;
+                db.with_auth_transaction(|tx| {
+                    tx.execute(
+                        "INSERT INTO _auth_grants(
+                           id, actor_user_id, effective_user_id, scopes, created_at_ms,
+                           expires_at_ms, revoked_at_ms, created_by, request_id,
+                           consent_digest, last_used_at_ms
+                         ) VALUES(?1, ?2, ?3, ?4, ?5, ?6,
+                                  NULL, 'test', NULL, NULL, ?5)",
+                        rusqlite::params![
+                            setup_grant_id,
+                            setup_agent_user_id,
+                            setup_effective_user_id,
+                            r#"[{"fn":"fn:listItems","kind":"query","basis":0,"authorityCreating":false},{"fn":"fn:queuedWrite","kind":"mutation","basis":0,"authorityCreating":false},{"fn":"fn:writeAction","kind":"action","basis":0,"authorityCreating":false}]"#,
+                            start_ms as i64,
+                            (start_ms + 48 * 60 * 60 * 1_000) as i64,
+                        ],
+                    )?;
+                    Ok(())
+                })?;
+                let issued = db.mint_scoped_token(
+                    &credential.secret,
+                    &setup_grant_id,
+                    Some(24 * 60 * 60 * 1_000),
+                    start_ms,
+                    provider.agent_random_source(),
+                )?;
+                Ok::<_, SnapbackError>((
+                    credential.secret.expose_secret().to_owned(),
+                    issued.secret.expose_secret().to_owned(),
+                    issued.token_id,
+                    issued.expires_at_ms,
+                ))
+            })
+            .await
+            .expect("seed real finite service authority");
+        let router = app(state.clone());
+        FiniteAuthorityMatrixFixture {
+            state,
+            router,
+            clock,
+            start_ms,
+            effective_user_id,
+            agent_user_id,
+            grant_id,
+            credential,
+            token,
+            token_id,
+            token_expires_at_ms,
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum FiniteAuthorityMatrixRoute {
+        Query,
+        Mutation,
+        Action,
+        AuthSession,
+        ConnectionInsert,
+        ConnectionAct,
+    }
+
+    impl FiniteAuthorityMatrixRoute {
+        fn pause_point(self) -> TestFiniteAuthorityPausePoint {
+            match self {
+                Self::Query | Self::AuthSession => {
+                    TestFiniteAuthorityPausePoint::BeforeResponsePublication
+                }
+                Self::Mutation | Self::Action | Self::ConnectionInsert | Self::ConnectionAct => {
+                    TestFiniteAuthorityPausePoint::BeforeHandler
+                }
+            }
+        }
+    }
+
+    #[derive(Clone, Copy, Debug)]
+    enum FiniteAuthorityMatrixEnding {
+        GrantRevoke,
+        CredentialRotate,
+        CredentialRevoke,
+        PrincipalDeactivate,
+        TokenExpiry,
+        TokenCapEviction,
+    }
+
+    impl FiniteAuthorityMatrixEnding {
+        fn expected_disposition(self) -> &'static str {
+            match self {
+                Self::TokenExpiry | Self::TokenCapEviction => "carrier",
+                Self::GrantRevoke
+                | Self::CredentialRotate
+                | Self::CredentialRevoke
+                | Self::PrincipalDeactivate => "durableDelete",
+            }
+        }
+    }
+
+    async fn finite_authority_matrix_item_count(state: &AppState) -> usize {
+        with_snapback(&state.snapback, |snapback| {
+            snapback.scan_table("items", 100, 0).map(|scan| scan.total)
+        })
+        .await
+        .expect("scan matrix item effects")
+    }
+
+    async fn finite_authority_matrix_pending_durable(state: &AppState) -> usize {
+        with_snapback(&state.snapback, |snapback| {
+            snapback
+                .inspect()
+                .map(|inspect| inspect.ephemeral.pending_durable_messages)
+        })
+        .await
+        .expect("inspect matrix outbox effects")
+    }
+
+    async fn commit_finite_authority_matrix_ending(
+        fixture: &FiniteAuthorityMatrixFixture,
+        ending: FiniteAuthorityMatrixEnding,
+    ) {
+        match ending {
+            FiniteAuthorityMatrixEnding::GrantRevoke => {
+                let effective_user_id = fixture.effective_user_id.clone();
+                let grant_id = fixture.grant_id.clone();
+                let token_id = fixture.token_id.clone();
+                let now_ms = fixture.start_ms + 1;
+                fixture.clock.set(now_ms);
+                let revoked = with_snapback(&fixture.state.snapback, move |snapback| {
+                    snapback.auth_database_mut().revoke_grant_for_user(
+                        &effective_user_id,
+                        &grant_id,
+                        now_ms,
+                    )
+                })
+                .await
+                .expect("commit real grant revocation");
+                assert_eq!(revoked.token_ids, vec![token_id]);
+            }
+            FiniteAuthorityMatrixEnding::CredentialRotate => {
+                let credential = fixture.credential.clone();
+                let provider = fixture
+                    .state
+                    .auth_provider
+                    .clone()
+                    .expect("matrix provider");
+                let token_id = fixture.token_id.clone();
+                let now_ms = fixture.start_ms
+                    + crate::storage::auth_agent_credentials::AGENT_CREDENTIAL_ROTATION_MIN_INTERVAL_MS;
+                fixture.clock.set(now_ms);
+                let rotated = with_snapback(&fixture.state.snapback, move |snapback| {
+                    let credential =
+                        AgentCredential::parse(&credential).expect("parse matrix agent credential");
+                    snapback.auth_database_mut().rotate_agent_credential(
+                        &credential,
+                        now_ms,
+                        provider.agent_random_source(),
+                    )
+                })
+                .await
+                .expect("commit real credential rotation");
+                assert_eq!(rotated.invalidated_token_ids, vec![token_id]);
+            }
+            FiniteAuthorityMatrixEnding::CredentialRevoke => {
+                let credential = fixture.credential.clone();
+                let token_id = fixture.token_id.clone();
+                let now_ms = fixture.start_ms + 1;
+                fixture.clock.set(now_ms);
+                let revoked = with_snapback(&fixture.state.snapback, move |snapback| {
+                    let credential =
+                        AgentCredential::parse(&credential).expect("parse matrix agent credential");
+                    snapback
+                        .auth_database_mut()
+                        .revoke_agent_credential_family(&credential, now_ms)
+                })
+                .await
+                .expect("commit real credential-family revocation");
+                assert_eq!(revoked.token_ids, vec![token_id]);
+            }
+            FiniteAuthorityMatrixEnding::PrincipalDeactivate => {
+                let agent_user_id = fixture.agent_user_id.clone();
+                let now_ms = fixture.start_ms + 1;
+                fixture.clock.set(now_ms);
+                with_snapback(&fixture.state.snapback, move |snapback| {
+                    let manifest = snapback.auth_database_mut().schema().clone();
+                    snapback
+                        .auth_database_mut()
+                        .deactivate_agent(&agent_user_id, now_ms, &manifest)
+                })
+                .await
+                .expect("commit real principal deactivation");
+            }
+            FiniteAuthorityMatrixEnding::TokenExpiry => {
+                fixture.clock.set(fixture.token_expires_at_ms);
+                let deadline = ServiceAuthorityDeadlineTerminal {
+                    token_id: fixture.token_id.clone(),
+                    grant_id: fixture.grant_id.clone(),
+                    deadline_ms: fixture.token_expires_at_ms,
+                    disposition: ServiceAuthorityDisposition::Carrier,
+                };
+                with_snapback(&fixture.state.snapback, move |snapback| {
+                    snapback
+                        .auth_database_mut()
+                        .terminalize_expired_service_authority(&deadline)
+                })
+                .await
+                .expect("commit real token-expiry terminal transaction");
+            }
+            FiniteAuthorityMatrixEnding::TokenCapEviction => {
+                let credential = fixture.credential.clone();
+                let grant_id = fixture.grant_id.clone();
+                let token_id = fixture.token_id.clone();
+                let provider = fixture
+                    .state
+                    .auth_provider
+                    .clone()
+                    .expect("matrix provider");
+                let start_ms = fixture.start_ms;
+                fixture
+                    .clock
+                    .set(start_ms + crate::storage::auth_agent_credentials::SCOPED_TOKEN_LIVE_CAP);
+                let evicted = with_snapback(&fixture.state.snapback, move |snapback| {
+                    let credential =
+                        AgentCredential::parse(&credential).expect("parse matrix agent credential");
+                    let mut evicted = Vec::new();
+                    for offset in 1..=crate::storage::auth_agent_credentials::SCOPED_TOKEN_LIVE_CAP
+                    {
+                        let issued = snapback.auth_database_mut().mint_scoped_token(
+                            &credential,
+                            &grant_id,
+                            Some(24 * 60 * 60 * 1_000),
+                            start_ms + offset,
+                            provider.agent_random_source(),
+                        )?;
+                        evicted.extend(issued.evicted_token_ids);
+                    }
+                    Ok::<_, SnapbackError>(evicted)
+                })
+                .await
+                .expect("commit real token-cap eviction transaction");
+                assert_eq!(evicted, vec![token_id]);
+            }
+        }
+    }
+
+    struct FiniteAuthorityMatrixRequest {
+        request: Request<Body>,
+        pending_connection_id: Option<String>,
+        queued_connection_id: Option<String>,
+    }
+
+    async fn finite_authority_matrix_request(
+        fixture: &FiniteAuthorityMatrixFixture,
+        route: FiniteAuthorityMatrixRoute,
+    ) -> FiniteAuthorityMatrixRequest {
+        let bearer_request = |method: &str, uri: &str, body: Body| {
+            Request::builder()
+                .method(method)
+                .uri(uri)
+                .header(header::CONTENT_TYPE, "application/json")
+                .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
+                .header("x-snapback-auth-client-protocol", "1")
+                .body(body)
+                .expect("matrix finite bearer request")
+        };
+        let (request, pending_connection_id, queued_connection_id) = match route {
+            FiniteAuthorityMatrixRoute::Query => (
+                bearer_request("POST", "/query/listItems", Body::from(r#"{"args":{}}"#)),
+                None,
+                None,
+            ),
+            FiniteAuthorityMatrixRoute::Mutation => (
+                bearer_request(
+                    "POST",
+                    "/mutation/queuedWrite",
+                    Body::from(r#"{"args":{"value":"forbidden-mutation-effect"}}"#),
+                ),
+                None,
+                None,
+            ),
+            FiniteAuthorityMatrixRoute::Action => (
+                bearer_request("POST", "/action/writeAction", Body::from(r#"{"args":{}}"#)),
+                None,
+                None,
+            ),
+            FiniteAuthorityMatrixRoute::AuthSession => (
+                Request::builder()
+                    .method("GET")
+                    .uri("/auth/session")
+                    .header(header::AUTHORIZATION, format!("Bearer {}", fixture.token))
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .header("x-snapback-authority-descriptor-protocol", "1")
+                    .body(Body::empty())
+                    .expect("matrix auth/session request"),
+                None,
+                None,
+            ),
+            FiniteAuthorityMatrixRoute::ConnectionInsert => {
+                let connection_id = "matrix-pending-open".to_owned();
+                (
+                    connection_open_request(
+                        Some(&fixture.token),
+                        json!({
+                            "connectionId": connection_id,
+                            "authInvalidationProtocol": 1,
+                        }),
+                    ),
+                    Some(connection_id),
+                    None,
+                )
+            }
+            FiniteAuthorityMatrixRoute::ConnectionAct => {
+                let opened = fixture
+                    .router
+                    .clone()
+                    .oneshot(connection_open_request(
+                        Some(&fixture.token),
+                        json!({
+                            "connectionId": "matrix-open-for-act",
+                            "authInvalidationProtocol": 1,
+                        }),
+                    ))
+                    .await
+                    .expect("open real matrix service connection");
+                assert_eq!(opened.status(), StatusCode::OK);
+                let opened = response_json(opened).await;
+                let connection_id = opened["connectionId"]
+                    .as_str()
+                    .expect("matrix connection id")
+                    .to_owned();
+                let connection_token = opened["connectionToken"]
+                    .as_str()
+                    .expect("matrix connection token")
+                    .to_owned();
+                let (epoch_now_ms, monotonic_now) = super::auth_runtime_now(&fixture.state);
+                let prepared = fixture
+                    .state
+                    .connections
+                    .prepare_act(
+                        &connection_id,
+                        Some(&connection_token),
+                        fixture.state.auth_coordinator.as_deref(),
+                        false,
+                        epoch_now_ms,
+                        monotonic_now,
+                    )
+                    .expect("prepare matrix connection outbox effect");
+                fixture.state.ephemeral.enqueue_durable_bound_for_test(
+                    &connection_id,
+                    b"must-remain-queued".to_vec(),
+                    prepared.effect_fence(),
+                );
+                assert_eq!(
+                    finite_authority_matrix_pending_durable(&fixture.state).await,
+                    1,
+                    "matrix connection act begins with one queued frame"
+                );
+                (
+                    Request::builder()
+                        .method("GET")
+                        .uri(format!("/outbox/{connection_id}"))
+                        .header(super::CONNECTION_TOKEN_HEADER, connection_token)
+                        .header("x-snapback-auth-client-protocol", "1")
+                        .body(Body::empty())
+                        .expect("matrix connection act request"),
+                    None,
+                    Some(connection_id),
+                )
+            }
+        };
+        FiniteAuthorityMatrixRequest {
+            request,
+            pending_connection_id,
+            queued_connection_id,
+        }
+    }
+
+    #[tokio::test]
+    async fn finite_service_authority_real_route_by_terminal_ending_pause_matrix() {
+        const ROUTES: [FiniteAuthorityMatrixRoute; 6] = [
+            FiniteAuthorityMatrixRoute::Query,
+            FiniteAuthorityMatrixRoute::Mutation,
+            FiniteAuthorityMatrixRoute::Action,
+            FiniteAuthorityMatrixRoute::AuthSession,
+            FiniteAuthorityMatrixRoute::ConnectionInsert,
+            FiniteAuthorityMatrixRoute::ConnectionAct,
+        ];
+        const ENDINGS: [FiniteAuthorityMatrixEnding; 6] = [
+            FiniteAuthorityMatrixEnding::GrantRevoke,
+            FiniteAuthorityMatrixEnding::CredentialRotate,
+            FiniteAuthorityMatrixEnding::CredentialRevoke,
+            FiniteAuthorityMatrixEnding::PrincipalDeactivate,
+            FiniteAuthorityMatrixEnding::TokenExpiry,
+            FiniteAuthorityMatrixEnding::TokenCapEviction,
+        ];
+
+        for route in ROUTES {
+            for ending in ENDINGS {
+                let fixture = finite_authority_matrix_fixture().await;
+                assert_eq!(
+                    finite_authority_matrix_item_count(&fixture.state).await,
+                    1,
+                    "{route:?} x {ending:?} begins with only the seed row"
+                );
+                let FiniteAuthorityMatrixRequest {
+                    mut request,
+                    pending_connection_id,
+                    queued_connection_id,
+                } = finite_authority_matrix_request(&fixture, route).await;
+                let pause = install_test_finite_authority_pause(route.pause_point());
+                request.headers_mut().insert(
+                    HeaderName::from_static(TEST_FINITE_AUTHORITY_PAUSE_HEADER),
+                    HeaderValue::from_str(pause.id()).expect("matrix pause header"),
+                );
+                let router = fixture.router.clone();
+                let request_task = tokio::spawn(async move {
+                    router
+                        .oneshot(request)
+                        .await
+                        .expect("matrix route response")
+                });
+                tokio::time::timeout(Duration::from_secs(5), pause.wait_until_reached())
+                    .await
+                    .unwrap_or_else(|_| panic!("{route:?} x {ending:?} never reached its pause"));
+                if matches!(
+                    route,
+                    FiniteAuthorityMatrixRoute::Query | FiniteAuthorityMatrixRoute::AuthSession
+                ) {
+                    if pause.response_status() != Some(StatusCode::OK) {
+                        pause.release().await;
+                        let response = request_task.await.unwrap_or_else(|error| {
+                            panic!("{route:?} x {ending:?} task failed before terminal: {error}")
+                        });
+                        let status = response.status();
+                        let body = response_json(response).await;
+                        panic!(
+                            "{route:?} x {ending:?} did not compute a predecessor response: {status} {body}"
+                        );
+                    }
+                    assert_eq!(
+                        pause.response_status(),
+                        Some(StatusCode::OK),
+                        "{route:?} x {ending:?} must compute its predecessor response before terminal publication"
+                    );
+                }
+
+                commit_finite_authority_matrix_ending(&fixture, ending).await;
+                pause.release().await;
+                let response = request_task
+                    .await
+                    .unwrap_or_else(|error| panic!("{route:?} x {ending:?} task failed: {error}"));
+                assert_eq!(
+                    response.status(),
+                    StatusCode::UNAUTHORIZED,
+                    "{route:?} x {ending:?} must not publish a predecessor response"
+                );
+                let response = response_json(response).await;
+                assert_eq!(
+                    response["diagnostic"]["code"], "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "{route:?} x {ending:?} must fail with the scoped-token terminal diagnostic"
+                );
+                assert_eq!(
+                    response["diagnostic"]["details"]["authorityDisposition"],
+                    ending.expected_disposition(),
+                    "{route:?} x {ending:?} must preserve the exact terminal axis"
+                );
+
+                if matches!(
+                    route,
+                    FiniteAuthorityMatrixRoute::Mutation | FiniteAuthorityMatrixRoute::Action
+                ) {
+                    assert_eq!(
+                        finite_authority_matrix_item_count(&fixture.state).await,
+                        1,
+                        "{route:?} x {ending:?} must not commit its app-data effect"
+                    );
+                }
+                if let Some(connection_id) = pending_connection_id.as_deref() {
+                    assert!(
+                        !fixture
+                            .state
+                            .connections
+                            .lock()
+                            .grants
+                            .contains_key(connection_id),
+                        "{route:?} x {ending:?} must not insert a stale connection grant"
+                    );
+                }
+                if queued_connection_id.is_some() {
+                    assert_eq!(
+                        finite_authority_matrix_pending_durable(&fixture.state).await,
+                        1,
+                        "{route:?} x {ending:?} must leave the queued frame unleased and unconsumed"
+                    );
+                }
+            }
+        }
     }
 
     fn settled_sessions_state() -> AuthModeStateRecord {
