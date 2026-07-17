@@ -119,34 +119,38 @@ try {
   assert.equal(rejected.record.authorityEpoch, deleted.record.authorityEpoch);
   assert.equal(rejected.record.revision, deleted.record.revision);
 
-  // Force the macOS lockf fork/readiness race (and the equivalent Linux
-  // no-fork path): the helper owns the lock but delays its ready frame past
-  // the caller deadline. The failed child must close promptly, leave no
-  // inherited stdio helper alive, and release the kernel lock for a new owner.
-  const readyRaceStartedAt = performance.now();
-  const readyRace = await run(
-    'ready-timeout',
-    directory,
-    'agent:filesystem-ready-race',
-    '50',
-    '500',
-  );
-  const readyRaceElapsedMs = performance.now() - readyRaceStartedAt;
-  assert.equal(readyRace.ok, false);
-  assert.equal(readyRace.code, 'SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE');
-  assert(
-    readyRaceElapsedMs < 2_000,
-    `timed-out lock helper kept the child alive for ${readyRaceElapsedMs}ms`,
-  );
-  assert.equal(
-    (await run('probe', directory, 'agent:filesystem-ready-race', '500')).ok,
-    true,
-    'the readiness-timeout helper cannot retain the OS lock',
-  );
+  // The process that owns the kernel lock also performs rename(). Kill it in
+  // both deterministic linearization windows. A successor can then acquire
+  // custody, but the dead predecessor has no process left that could overwrite
+  // the successor after the lock was released.
+  for (const stage of ['before', 'after']) {
+    const custodyId = `agent:filesystem-${stage}-rename-crash`;
+    await run('init-a', directory, custodyId);
+    const predecessor = spawnChild([
+      `pause-${stage}-rename-b`,
+      directory,
+      custodyId,
+      '5000',
+      '60000',
+    ]);
+    const paused = await waitForLine(
+      predecessor,
+      (value) => value.event === `${stage}-rename`,
+    );
+    assert.equal(paused.context.nextRevision, 2);
+    predecessor.kill('SIGKILL');
+    await new Promise((resolve) => predecessor.once('exit', resolve));
+
+    const successor = await run('recover-b', directory, custodyId);
+    assert.equal(successor.ok, true);
+    assert.equal(successor.record.phase, 'settled');
+    assert.equal(successor.record.revision, 3);
+    assert.equal(successor.record.authority.grantId, replaced.record.authority.grantId);
+  }
 
   // The OS advisory lock serializes distinct processes. Acquisition is
-  // bounded, and SIGKILL cannot leave a time-stolen lock: kernel/process EOF
-  // releases the owner, after which a new process safely acquires it.
+  // bounded, and SIGKILL cannot leave a time-stolen lock: the crashing owner
+  // itself holds the SQLite/POSIX lock, which the kernel releases on exit.
   const holder = spawnChild(['hold', directory, 'agent:filesystem-lock', '5000', '60000']);
   await waitForLine(holder, (value) => value.event === 'acquired');
   const startedAt = performance.now();

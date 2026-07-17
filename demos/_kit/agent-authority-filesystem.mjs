@@ -10,7 +10,6 @@
 // @ref LLP 0059#cross-context-ownership — an OS advisory lock provides the
 // cross-process owner and is never stolen on elapsed wall time.
 
-import { spawn } from 'node:child_process';
 import { constants as fsConstants } from 'node:fs';
 import {
   lstat,
@@ -21,12 +20,12 @@ import {
 } from 'node:fs/promises';
 import { createHash, randomBytes } from 'node:crypto';
 import { isAbsolute, join } from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 
 const DIRECTORY_MODE = 0o700;
 const FILE_MODE = 0o600;
 const SAFE_COUNTER_MAX = Number.MAX_SAFE_INTEGER;
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
-const BASE64URL_128 = /^[A-Za-z0-9_-]{22}$/;
 const TOP_LEVEL_FIELDS = Object.freeze([
   'formatVersion',
   'custodyId',
@@ -394,208 +393,51 @@ const readRecordFile = async (path, custodyId) => {
   }
 };
 
-const lockCommand = () => {
-  if (process.platform === 'darwin' || process.platform.endsWith('bsd')) {
-    return Object.freeze({
-      executable: '/usr/bin/lockf',
-      argumentsFor: (lockPath, timeoutMs, helper) => [
-        '-knsw',
-        '-t',
-        String(Math.max(1, Math.ceil(timeoutMs / 1000))),
-        lockPath,
-        process.execPath,
-        '--input-type=module',
-        '--eval',
-        helper,
-      ],
-    });
-  }
-  if (process.platform === 'linux') {
-    return Object.freeze({
-      executable: '/usr/bin/flock',
-      argumentsFor: (lockPath, timeoutMs, helper) => [
-        '--exclusive',
-        // Keep the lock holder and helper as one killable process. Without
-        // --no-fork, an acquisition-timeout race could terminate flock while
-        // leaving its just-spawned helper holding an orphaned lock.
-        '--no-fork',
-        '--timeout',
-        String(timeoutMs / 1000),
-        lockPath,
-        process.execPath,
-        '--input-type=module',
-        '--eval',
-        helper,
-      ],
-    });
-  }
-  throw diagnostic(
-    AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.unsupported,
-    'secure filesystem agent custody requires POSIX advisory file locking',
-  );
-};
-
-const LOCK_HELPER = String.raw`
-const nonce = process.argv[1];
-const readyDelayMs = Number(process.argv[2] ?? 0);
-process.stdin.setEncoding('utf8');
-let input = '';
-const released = new Promise((resolve) => {
-  process.stdin.on('data', (chunk) => {
-    input += chunk;
-    if (input.includes('\n')) resolve(input === 'release\n' ? 0 : 64);
-  });
-  process.stdin.on('end', () => resolve(0));
-});
-process.stdin.resume();
-if (readyDelayMs > 0) {
-  await Promise.race([
-    new Promise((resolve) => setTimeout(resolve, readyDelayMs)),
-    released.then((status) => process.exit(status)),
-  ]);
-}
-process.stdout.write(JSON.stringify({ formatVersion: 1, nonce, pid: process.pid }) + '\n');
-process.exit(await released);
-`;
-
-const acquireLock = async (path, timeoutMs, helperReadyDelayMs) => {
-  const nonce = randomBytes(16).toString('base64url');
-  if (!BASE64URL_128.test(nonce)) throw new Error('unreachable invalid lock nonce');
-  const command = lockCommand();
-  const helper = `${LOCK_HELPER}\n// nonce argument follows`;
-  const child = spawn(
-    command.executable,
-    // A base64url nonce may begin with "-". Terminate Node option parsing so
-    // that such a nonce cannot be mistaken for a runtime flag and make lock
-    // acquisition fail nondeterministically with Node exit status 9.
-    [
-      ...command.argumentsFor(path, timeoutMs, helper),
-      '--',
-      nonce,
-      String(helperReadyDelayMs),
-    ],
-    {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      windowsHide: true,
-      // Give lockf/flock and the command it launches one process group. On a
-      // readiness-timeout race we can terminate both, including macOS lockf's
-      // forked helper, rather than orphaning a pipe-holding Node child.
-      detached: true,
-    },
-  );
-  const signalLockGroup = (signal) => {
-    try {
-      if (Number.isSafeInteger(child.pid) && child.pid > 0) {
-        process.kill(-child.pid, signal);
-        return;
-      }
-    } catch { /* fall back to the direct child below */ }
-    try { child.kill(signal); } catch { /* already gone */ }
-  };
-  let stdout = '';
-  let stderr = '';
-  child.stdout.setEncoding('utf8');
-  child.stderr.setEncoding('utf8');
-  child.stdin.on('error', () => {});
-  child.stdout.on('data', (chunk) => { stdout += chunk; });
-  child.stderr.on('data', (chunk) => { stderr = `${stderr}${chunk}`.slice(-4096); });
-
-  let timer;
+const acquireLock = (path, timeoutMs) => {
+  let database = null;
   try {
-    await new Promise((resolve, reject) => {
-      let settled = false;
-      const finish = (callback) => {
-        if (settled) return;
-        settled = true;
-        clearTimeout(timer);
-        callback();
-      };
-      timer = setTimeout(() => {
-        finish(() => reject(diagnostic(
-          AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
-          'timed out waiting for filesystem agent custody ownership',
-          { timeoutMs },
-        )));
-      }, timeoutMs);
-      const inspect = () => {
-        const newline = stdout.indexOf('\n');
-        if (newline === -1) return;
-        let ready;
-        try {
-          ready = JSON.parse(stdout.slice(0, newline));
-        } catch (error) {
-          finish(() => reject(ioFailure('start-lock-helper', error)));
-          return;
-        }
-        if (
-          ready?.formatVersion !== 1
-          || ready.nonce !== nonce
-          || !Number.isSafeInteger(ready.pid)
-          || ready.pid <= 0
-        ) {
-          finish(() => reject(ioFailure('start-lock-helper', new Error('invalid helper readiness'))));
-          return;
-        }
-        finish(resolve);
-      };
-      child.stdout.on('data', inspect);
-      child.once('error', (error) => finish(() => reject(ioFailure('spawn-lock-helper', error))));
-      child.once('exit', (status, signal) => finish(() => reject(diagnostic(
-        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
-        'filesystem agent custody lock helper exited before ownership',
-        {
-          status,
-          ...(signal === null ? {} : { signal }),
-          ...(stderr.length === 0 ? {} : { helperOutputPresent: true }),
-        },
-      ))));
-      inspect();
-    });
+    // The lock must live in this process. A child that merely holds lockf(2)
+    // can die after a parent-side liveness check and before rename(), allowing
+    // a successor to commit before the stale parent overwrites it. SQLite's
+    // BEGIN IMMEDIATE is a bounded POSIX advisory lock held by this exact
+    // DatabaseSync connection, so the callback, CAS, rename, and directory
+    // fsync all share one crash-released owner.
+    database = new DatabaseSync(path);
+    database.exec(`PRAGMA busy_timeout = ${timeoutMs}`);
+    database.exec('BEGIN IMMEDIATE');
   } catch (error) {
-    // Close the only writable end inherited by the helper first, so even a
-    // fork that wins the timeout race observes EOF and exits. Then signal the
-    // whole isolated process group and await stdio closure; `exit` alone only
-    // observes lockf on macOS and can leave its command child alive.
-    child.stdin.destroy();
-    signalLockGroup('SIGTERM');
-    const closed = new Promise((resolve) => {
-      if (child.exitCode !== null && child.stdout.closed && child.stderr.closed) resolve(true);
-      else child.once('close', () => resolve(true));
-    });
-    let cleanupTimer;
-    const timedOut = new Promise((resolve) => {
-      cleanupTimer = setTimeout(() => resolve(false), 2_000);
-    });
-    if (!await Promise.race([closed, timedOut])) {
-      signalLockGroup('SIGKILL');
-      await Promise.race([
-        closed,
-        new Promise((resolve) => setTimeout(resolve, 2_000)),
-      ]);
+    try { database?.close(); } catch { /* preserve acquisition failure */ }
+    if (error?.errcode === 5 || error?.errcode === 6) {
+      throw diagnostic(
+        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
+        'timed out waiting for filesystem agent custody ownership',
+        { timeoutMs },
+        error,
+      );
     }
-    clearTimeout(cleanupTimer);
-    throw error;
+    throw ioFailure('acquire-lock', error);
   }
 
   let released = false;
   return Object.freeze({
     assertActive() {
-      if (released || child.exitCode !== null || child.killed) {
+      if (released) {
         throw diagnostic(
           AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-          'filesystem agent custody ownership was lost',
+          'filesystem agent custody ownership was released',
         );
       }
     },
     async release() {
       if (released) return;
       released = true;
-      if (child.exitCode !== null || child.killed) return;
-      const exited = new Promise((resolve) => child.once('exit', resolve));
-      child.stdin.end('release\n');
-      const releaseTimer = setTimeout(() => signalLockGroup('SIGKILL'), 2_000);
-      await exited;
-      clearTimeout(releaseTimer);
+      try {
+        database.exec('COMMIT');
+      } catch (error) {
+        throw ioFailure('release-lock', error);
+      } finally {
+        try { database.close(); } catch { /* release failure above is authoritative */ }
+      }
     },
   });
 };
@@ -607,6 +449,7 @@ const atomicReplace = async ({
   expectedRevision,
   nextValue,
   lock,
+  testHooks,
 }) => {
   lock.assertActive();
   const current = await readRecordFile(recordPath, custodyId);
@@ -635,11 +478,21 @@ const atomicReplace = async ({
     await handle.sync();
     await handle.close();
     handle = null;
+    await testHooks?.beforeRecordRename?.(Object.freeze({
+      custodyId,
+      expectedRevision,
+      nextRevision: next.revision,
+    }));
     lock.assertActive();
     await rename(temporaryPath, recordPath);
     renamed = true;
     await syncDirectory(directory);
     lock.assertActive();
+    await testHooks?.afterRecordRename?.(Object.freeze({
+      custodyId,
+      expectedRevision,
+      nextRevision: next.revision,
+    }));
     return clone(next);
   } catch (error) {
     if (error?.code?.startsWith?.('SNAPBACK_')) throw error;
@@ -660,7 +513,7 @@ const atomicReplace = async ({
 export function createFilesystemAgentAuthorityCustodyStorage({
   directory,
   lockTimeoutMs = 5_000,
-  helperReadyDelayMs = 0,
+  testHooks = null,
 } = {}) {
   if (process.platform === 'win32') {
     throw diagnostic(
@@ -672,10 +525,21 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     throw new TypeError('filesystem agent custody directory must be an absolute path');
   }
   normalizeDuration(lockTimeoutMs, 'lockTimeoutMs');
-  normalizeDuration(helperReadyDelayMs, 'helperReadyDelayMs', {
-    minimum: 0,
-    maximum: 60_000,
-  });
+  if (
+    testHooks !== null
+    && (
+      typeof testHooks !== 'object'
+      || Array.isArray(testHooks)
+      || Object.keys(testHooks).some(
+        (name) => name !== 'beforeRecordRename' && name !== 'afterRecordRename',
+      )
+      || ['beforeRecordRename', 'afterRecordRename'].some(
+        (name) => testHooks[name] !== undefined && typeof testHooks[name] !== 'function',
+      )
+    )
+  ) {
+    throw new TypeError('filesystem agent custody testHooks are invalid');
+  }
 
   const pathsFor = (rawCustodyId) => {
     const custodyId = normalizeCustodyId(rawCustodyId);
@@ -695,7 +559,7 @@ export function createFilesystemAgentAuthorityCustodyStorage({
     await assertPrivateDirectory(directory);
     await ensurePrivateLockFile(lockPath);
     await syncDirectory(directory);
-    const lock = await acquireLock(lockPath, lockTimeoutMs, helperReadyDelayMs);
+    const lock = acquireLock(lockPath, lockTimeoutMs);
     let active = true;
     const owner = Object.freeze({
       async read() {
@@ -729,6 +593,7 @@ export function createFilesystemAgentAuthorityCustodyStorage({
           expectedRevision,
           nextValue,
           lock,
+          testHooks,
         });
       },
     });

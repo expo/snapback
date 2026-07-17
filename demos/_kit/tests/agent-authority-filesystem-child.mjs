@@ -17,10 +17,27 @@ const BEARER_SENTINEL = 'sbagt_filesystem_bearer_must_never_persist';
 const [action, directory, custodyId, timeoutText = '5000', holdText = '60000'] = process.argv.slice(2);
 const lockTimeoutMs = Number(timeoutText);
 const holdMs = Number(holdText);
+const emit = (value) => {
+  process.stdout.write(`${JSON.stringify(value)}\n`);
+};
 const storage = createFilesystemAgentAuthorityCustodyStorage({
   directory,
   lockTimeoutMs,
-  helperReadyDelayMs: action === 'ready-timeout' ? holdMs : 0,
+  testHooks: action === 'pause-before-rename-b'
+    ? {
+        async beforeRecordRename(context) {
+          emit({ event: 'before-rename', context });
+          await delay(holdMs);
+        },
+      }
+    : action === 'pause-after-rename-b'
+      ? {
+          async afterRecordRename(context) {
+            emit({ event: 'after-rename', context });
+            await delay(holdMs);
+          },
+        }
+      : null,
 });
 
 const credential = ({ grantId = GRANT_A, tokenId = TOKEN_A } = {}) => ({
@@ -38,17 +55,17 @@ const descriptorFor = (value) => ({
   sessionGeneration: 0,
 });
 
-const emit = (value) => {
-  process.stdout.write(`${JSON.stringify(value)}\n`);
-};
-
 try {
   if (action === 'init-a') {
     const value = credential();
     const fence = new AgentAuthorityFence(value, { storage, custodyId });
     const capture = await fence.synchronizeValidated(descriptorFor(value));
     emit({ ok: true, capture, record: await storage.snapshot(custodyId) });
-  } else if (action === 'replace-b') {
+  } else if (
+    action === 'replace-b'
+    || action === 'pause-before-rename-b'
+    || action === 'pause-after-rename-b'
+  ) {
     const value = credential();
     const fence = new AgentAuthorityFence(value, { storage, custodyId });
     await fence.synchronizeValidated(descriptorFor(value));
@@ -130,9 +147,6 @@ try {
   } else if (action === 'probe') {
     const record = await storage.withOwnership(custodyId, (owner) => owner.read());
     emit({ ok: true, record });
-  } else if (action === 'ready-timeout') {
-    await storage.withOwnership(custodyId, (owner) => owner.read());
-    emit({ ok: true, unreachable: true });
   } else {
     throw new Error(`unknown child action ${action}`);
   }
