@@ -41,6 +41,12 @@ const descriptor = (authorityInstanceId) => ({
   sessionGeneration: 0,
 });
 
+const descriptorFor = (value) => descriptor(deriveServiceAuthorityInstanceId(value));
+
+const replaceValidated = (fence, value) => (
+  fence.replaceCredentialValidated(fence.capture(), value, descriptorFor(value))
+);
+
 const manifest = {
   artifactKind: 'contractDataManifest',
   manifestVersion: 2,
@@ -245,7 +251,7 @@ const authority = new AgentAuthorityFence(credential(), {
   storage: authorityStorage,
   custodyId: 'agent:contract-main',
 });
-await authority.synchronize();
+await authority.synchronizeValidated(descriptorFor(credential()));
 const keyA = authority.capture().authorityKey;
 assert.match(keyA, /^sha256:[0-9a-f]{64}$/);
 assert.equal(keyA, 'sha256:53904370b9f9cf1f73c126b94a0f59e781c24f703baa2167118c473246451046');
@@ -287,7 +293,7 @@ assert.throws(
   /quiesce\(\) must be synchronous/,
   'agent barriers refuse participants that cannot quiesce before synchronous blank',
 );
-const orderedTransition = orderedFence.replaceCredential(credential({
+const orderedTransition = replaceValidated(orderedFence, credential({
   grantId: GRANT_B,
   tokenId: TOKEN_C,
   bearerToken: 'ordered-token',
@@ -321,7 +327,7 @@ failedFence.registerParticipant({
   clearMemory() { failedBarrierOrder.push('following-clear'); },
 });
 assert.throws(
-  () => failedFence.replaceCredential(credential({ grantId: GRANT_B })),
+  () => replaceValidated(failedFence, credential({ grantId: GRANT_B })),
   /injected quiesce failure/,
   'the first participant failure is surfaced after fail-closed blanking',
 );
@@ -375,7 +381,7 @@ assert.equal(queuedA.queued, true);
 assert.equal((await pendingFor(store, authority.capture())).length, 1);
 
 client.state.online = true;
-const rotatedCapture = await authority.replaceCredential(credential({
+const rotatedCapture = await replaceValidated(authority, credential({
   tokenId: TOKEN_B,
   bearerToken: 'agent-token-b',
 }));
@@ -402,7 +408,7 @@ assert.equal(queuedB.queued, true);
 assert.equal((await pendingFor(store, authority.capture())).length, 1);
 
 client.state.online = true;
-const changedCapture = await authority.replaceCredential(credential({
+const changedCapture = await replaceValidated(authority, credential({
   grantId: GRANT_B,
   tokenId: TOKEN_C,
   bearerToken: 'agent-token-c',
@@ -467,7 +473,7 @@ await assert.rejects(
     storage: recoveryStorage,
     custodyId: 'agent:contract-clearing-recovery',
   });
-  const predecessor = await writer.synchronize();
+  const predecessor = await writer.synchronizeValidated(descriptorFor(credential()));
   await recoveryStore.bindAuthority({
     authorityEpoch: predecessor.authorityEpoch,
     authorityKey: predecessor.authorityKey,
@@ -482,7 +488,7 @@ await assert.rejects(
     },
   });
   await assert.rejects(
-    writer.replaceCredential(credential({
+    replaceValidated(writer, credential({
       grantId: GRANT_B,
       tokenId: TOKEN_C,
       bearerToken: 'recovery-successor-token',

@@ -476,8 +476,19 @@ const liveTerminalAuthCloseError = () => {
   return error;
 };
 
-const safeNextCounter = (value, code, label) => {
-  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
+const safeNextCounter = (
+  value,
+  code,
+  label,
+  ceiling = Number.MAX_SAFE_INTEGER,
+) => {
+  if (
+    !Number.isSafeInteger(ceiling)
+    || ceiling < 1
+    || !Number.isSafeInteger(value)
+    || value < 0
+    || value >= ceiling
+  ) {
     const error = new Error(`${code}: ${label} is exhausted`);
     error.code = code;
     error.diagnostic = { code, message: `${label} is exhausted` };
@@ -980,6 +991,7 @@ export class SnapbackClient {
     authCoordinator = null,
     agentAuthority = null,
     clientStoreId = processClientStoreId,
+    authCounterCeiling = Number.MAX_SAFE_INTEGER,
   } = {}) {
     this.baseUrl = baseUrl.replace(/\/$/, '');
     this.adminToken = adminToken;
@@ -996,6 +1008,9 @@ export class SnapbackClient {
       throw new TypeError('authClientProtocol v1 requires browser or agent authority custody');
     }
     if ((authCoordinator || agentAuthority) && authClientProtocol === null) authClientProtocol = 1;
+    if (!Number.isSafeInteger(authCounterCeiling) || authCounterCeiling < 1) {
+      throw new TypeError('authCounterCeiling must be a positive safe integer');
+    }
     this.bearerToken = bearerToken;
     this.authCoordinator = authCoordinator;
     this.agentAuthority = agentAuthority;
@@ -1014,6 +1029,8 @@ export class SnapbackClient {
     this.__authSessionLastSuccessful = null;
     this.__authSessionInFlight = null;
     this.__authSessionCacheGeneration = 0;
+    this.__authCounterCeiling = authCounterCeiling;
+    this.__authCounterError = null;
     // Receipt retention, kit half (LLP 0034 §3 / ENG-22478): a bounded ring
     // of every receipt this client observed (mutation receipts riding
     // responses, subscription receipts emitted by live handles, ephemeral
@@ -1034,28 +1051,61 @@ export class SnapbackClient {
     this.__authorityPublicationCapture = null;
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
+    this.__terminalTransportCut = null;
     this.__authTransportParticipant = {
       name: 'snapback-kit-transport',
-      quiesce: () => {
-        this.__authTransportGeneration = safeNextCounter(
-          this.__authTransportGeneration,
-          'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
-          'auth transport generation',
-        );
-        for (const controller of this.__authControllers) controller.abort(staleAuthorityError());
-        for (const stream of this.__rawLiveStreams) stream.close();
-        for (const manager of this.__liveStreamManagers?.values?.() ?? []) manager.close();
+      quiesce: (context = {}) => {
+        if (this.#terminalTransportPhaseAlreadyCut('quiesce', context)) return;
+        let firstError = null;
+        try {
+          this.__authTransportGeneration = safeNextCounter(
+            this.__authTransportGeneration,
+            'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
+            'auth transport generation',
+            this.__authCounterCeiling,
+          );
+        } catch (error) {
+          firstError = this.#recordAuthCounterFailure(error);
+        }
+        for (const controller of this.__authControllers) {
+          try { controller.abort(staleAuthorityError()); } catch (error) { firstError ??= error; }
+        }
+        for (const stream of this.__rawLiveStreams) {
+          try { stream.close(); } catch (error) { firstError ??= error; }
+        }
+        for (const manager of this.__liveStreamManagers?.values?.() ?? []) {
+          try {
+            if (context.terminalError) {
+              manager.close(context.terminalError, {
+                error: context.terminalError,
+                terminal: true,
+                code: context.terminalError?.diagnostic?.code
+                  ?? context.terminalError?.code
+                  ?? 'SNAPBACK_AUTH_STREAM_RESET',
+              });
+            } else {
+              manager.close();
+            }
+          } catch (error) { firstError ??= error; }
+        }
+        if (firstError) throw firstError;
       },
       // @ref LLP 0059#exposure-invariant — the transport owns direct kit
       // materializations that are not represented by a Contract participant.
       // They blank synchronously in the same barrier as every other surface.
-      blank: (context) => this.#blankAuthMaterializations(null, context),
-      clearMemory: () => {
-        this.clearAuthSession();
+      blank: (context = {}) => {
+        if (this.#terminalTransportPhaseAlreadyCut('blank', context)) return;
+        this.#blankAuthMaterializations(context.previousCapture ?? null, context);
+      },
+      clearMemory: (context = {}) => {
+        if (this.#terminalTransportPhaseAlreadyCut('clearMemory', context)) return;
+        let firstError = null;
+        try { this.clearAuthSession(); } catch (error) { firstError = error; }
         this.__connectionGrants.clear();
         this.__laneConsumers.clear();
         this.__receiptRing.length = 0;
         this.__liveStreamManagers?.clear?.();
+        if (firstError) throw firstError;
       },
       commitDurable: async () => {},
       resume: async (context) => {
@@ -1065,6 +1115,7 @@ export class SnapbackClient {
           // scoped-token handshake after synchronize has reopened custody.
           this.__terminalAuthorityCapture = undefined;
           this.__terminalAuthorityHandle = null;
+          this.__terminalTransportCut = null;
           return;
         }
         await this.#resumeAuthTransport(context.capture, context.stagePublication);
@@ -1094,12 +1145,34 @@ export class SnapbackClient {
     );
   }
 
+  #recordAuthCounterFailure(error) {
+    this.__authCounterError ??= error;
+    return this.__authCounterError;
+  }
+
+  #assertAuthCountersAvailable() {
+    if (this.__authCounterError) throw this.__authCounterError;
+  }
+
+  #terminalTransportPhaseAlreadyCut(phase, context) {
+    const cut = this.__terminalTransportCut;
+    if (!cut?.phases?.[phase] || !cut.capture) return false;
+    if (context?.previousCapture) {
+      return sameAuthorityCapture(cut.capture, context.previousCapture);
+    }
+    return (
+      context?.expectedEpoch === cut.capture.authorityEpoch
+      && context?.expectedAuthorityKey === cut.capture.authorityKey
+    );
+  }
+
   /// Resolve the current server/mode/authority projection. A successful value
   /// is process- and generation-scoped by the returned nonce/generation; the
   /// cache is cleared on every authority change and terminal mode/credential
   /// diagnostic. Connection and subscribe boundaries request a fresh value.
   // @ref LLP 0058#kit-ordering — no online boundary relies on capability-manifest mode guesses.
   authSession({ force = false } = {}) {
+    this.#assertAuthCountersAvailable();
     if (this.authProtocols.authClient == null) return Promise.resolve(null);
     if (!force && this.__authSessionLastSuccessful) {
       if (!this.authorityFence) return Promise.resolve(this.__authSessionLastSuccessful);
@@ -1145,7 +1218,10 @@ export class SnapbackClient {
         this.#authOfferHeaders(true, undefined, offer),
       );
       const projected = this.#validateAuthSession(session, this.bearerToken, offer);
-      if (this.__authSessionCacheGeneration === cacheGeneration) {
+      if (
+        this.__authCounterError === null
+        && this.__authSessionCacheGeneration === cacheGeneration
+      ) {
         this.__authSessionLastSuccessful = projected;
         this.__authSessionCapture = null;
       }
@@ -1239,27 +1315,70 @@ export class SnapbackClient {
       throw new TypeError('replaceAgentCredential requires AgentAuthorityFence custody');
     }
     this.#ensureAgentTransportParticipant();
-    // AgentAuthorityFence performs the synchronous visibility cut before it
-    // returns this Promise, then resolves only after durable custody,
-    // participant persistence, and successor resume are confirmed.
-    const capture = await this.agentAuthority.replaceCredential(credential);
+    this.#assertAuthCountersAvailable();
+    const replacement = this.agentAuthority.credentialOfferForReplacement(credential);
+    const offer = this.#authSessionOffer();
+    const session = await this.#trackedFetchJson(
+      'GET',
+      '/auth/session',
+      undefined,
+      this.#authOfferHeaders(true, replacement.bearer, offer),
+    );
+    const projected = this.#validateAuthSession(session, replacement.bearer, offer);
+    if (
+      projected.activeMode !== 'sessions'
+      || projected.authority.kind !== 'servicePrincipal'
+    ) {
+      const diagnostic = {
+        code: 'SNAPBACK_AUTH_HANDSHAKE_INVALID',
+        message: 'agent credential replacement requires a service-principal authority response',
+      };
+      const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+      error.code = diagnostic.code;
+      error.diagnostic = diagnostic;
+      throw error;
+    }
+    // Only the server-proven descriptor can authorize the destructive local
+    // barrier. An invalid proposed bearer leaves predecessor custody and every
+    // predecessor surface untouched.
+    const capture = await this.agentAuthority.replaceCredentialValidated(
+      replacement.previousCapture,
+      credential,
+      projected.authorityDescriptor,
+    );
+    this.agentAuthority.bindHandshake(capture, projected.authorityDescriptor);
+    const cacheGeneration = this.__authSessionCacheGeneration;
+    const committed = await this.agentAuthority.compareAndCommit(capture, () => (
+      this.#cacheAuthSession(projected, capture, cacheGeneration)
+    ));
+    if (!committed.committed) throw staleAuthorityError();
     this.__terminalAuthorityCapture = undefined;
     this.__terminalAuthorityHandle = null;
+    this.__terminalTransportCut = null;
     return capture;
   }
 
   clearAuthSession() {
-    this.__authSessionCacheGeneration = safeNextCounter(
-      this.__authSessionCacheGeneration,
-      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
-      'auth session cache generation',
-    );
+    // Clear first: if the generation cannot advance, no predecessor cache may
+    // remain reachable under the last reusable comparison id.
     this.__authSessionLastSuccessful = null;
     this.__authSessionInFlight = null;
     this.__authSessionCapture = null;
+    if (this.__authCounterError) throw this.__authCounterError;
+    try {
+      this.__authSessionCacheGeneration = safeNextCounter(
+        this.__authSessionCacheGeneration,
+        'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+        'auth session cache generation',
+        this.__authCounterCeiling,
+      );
+    } catch (error) {
+      throw this.#recordAuthCounterFailure(error);
+    }
   }
 
   captureAuthority() {
+    this.#assertAuthCountersAvailable();
     return this.authorityFence?.capture?.() ?? null;
   }
 
@@ -1268,6 +1387,7 @@ export class SnapbackClient {
   }
 
   registerAuthBarrierParticipant(participant) {
+    this.#assertAuthCountersAvailable();
     if (this.authCoordinator) {
       // Insert browser stores/surfaces before the transport. The barrier's
       // reverse resume order then brings the handshake/grant transport up
@@ -1288,6 +1408,10 @@ export class SnapbackClient {
   registerAuthMaterialization({ capture, blank }) {
     if (typeof capture !== 'function' || typeof blank !== 'function') {
       throw new TypeError('auth materialization requires capture and blank callbacks');
+    }
+    if (this.__authCounterError) {
+      try { blank({ reason: 'auth_counter_exhausted', disposition: 'delete' }); } catch { /* remain closed */ }
+      throw this.__authCounterError;
     }
     const entry = Object.freeze({ capture, blank });
     this.__authMaterializations.add(entry);
@@ -1352,6 +1476,7 @@ export class SnapbackClient {
     if (typeof commit !== 'function') {
       throw new TypeError('commitAuthorityPublication requires a commit callback');
     }
+    this.#assertAuthCountersAvailable();
     if (!this.authorityFence) {
       const value = commit();
       if (value && typeof value.then === 'function') {
@@ -1406,61 +1531,74 @@ export class SnapbackClient {
     const authorityDisposition = error?.authorityDisposition === 'durableDelete'
       ? 'durableDelete'
       : 'carrier';
+    if (error && typeof error === 'object') error.authorityDisposition = authorityDisposition;
 
-    // Blank before invalidating/closing carriers so a close-only terminal
-    // path cannot return control with predecessor rows still readable.
-    try {
-      this.#blankAuthMaterializations(capture, {
-        reason: error?.code ?? 'SNAPBACK_AUTH_STREAM_RESET',
-        disposition: authorityDisposition === 'carrier' ? 'quarantine' : 'delete',
+    if (this.agentAuthority) {
+      // AgentAuthorityFence owns the synchronous transport participant barrier.
+      // Running the browser/manual cut as well would blank callbacks and
+      // advance carrier generations twice for one terminal event.
+      let agentTermination = null;
+      let terminationError = null;
+      try {
+        agentTermination = this.agentAuthority.terminate(capture, {
+          authorityDisposition,
+          terminalError: error,
+        });
+      } catch (caught) {
+        terminationError = caught;
+      }
+      let settlement;
+      if (terminationError) {
+        settlement = Promise.reject(terminationError);
+        void settlement.catch(() => {});
+      } else {
+        settlement = agentTermination && typeof agentTermination === 'object'
+          ? agentTermination.settlement
+          : Promise.resolve();
+      }
+      const terminalHandle = Object.freeze({
+        handled: true,
         authorityDisposition,
-        terminal: true,
+        settlement,
       });
-    } catch {
-      // The blank helper already attempted every registered surface. Continue
-      // through carrier invalidation and transport closure to stay fail-closed.
+      this.__terminalAuthorityHandle = terminalHandle;
+      return terminalHandle;
     }
-    try { this.clearAuthSession(); } catch { /* terminal closure continues */ }
-    try {
-      this.__authTransportGeneration = safeNextCounter(
-        this.__authTransportGeneration,
-        'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
-        'auth transport generation',
-      );
-    } catch { /* exact carrier invalidation below remains authoritative */ }
-    for (const controller of this.__authControllers) {
-      try { controller.abort(error ?? staleAuthorityError()); } catch { /* keep closing */ }
+
+    // Run the same participant phases that AuthCoordinator owns, and remember
+    // only phases that completed for this exact predecessor. A following
+    // durableDelete transition can then skip those local phases once while
+    // every other participant still executes normally. Failed phases retry.
+    const cut = {
+      capture: capture ?? null,
+      phases: { quiesce: false, blank: false, clearMemory: false },
+    };
+    this.__terminalTransportCut = cut;
+    const context = Object.freeze({
+      previousCapture: capture ?? null,
+      terminalError: error ?? staleAuthorityError(),
+      reason: error?.code ?? 'SNAPBACK_AUTH_STREAM_RESET',
+      disposition: authorityDisposition === 'carrier' ? 'quarantine' : 'delete',
+      authorityDisposition,
+      terminal: true,
+    });
+    let firstError = null;
+    for (const phase of ['quiesce', 'blank', 'clearMemory']) {
+      try {
+        this.__authTransportParticipant[phase](context);
+        cut.phases[phase] = true;
+      } catch (caught) {
+        firstError ??= caught;
+      }
     }
-    let agentTermination = null;
-    try {
-      agentTermination = this.agentAuthority?.terminate?.(
-        capture,
-        { authorityDisposition },
-      ) ?? null;
-    } catch { /* keep closing */ }
+    const settlement = firstError ? Promise.reject(firstError) : Promise.resolve();
+    void settlement.catch(() => {});
     const terminalHandle = Object.freeze({
       handled: true,
       authorityDisposition,
-      settlement: agentTermination && typeof agentTermination === 'object'
-        ? agentTermination.settlement
-        : Promise.resolve(),
+      settlement,
     });
     this.__terminalAuthorityHandle = terminalHandle;
-    if (error && typeof error === 'object') error.authorityDisposition = authorityDisposition;
-    for (const stream of [...this.__rawLiveStreams]) {
-      try { stream.close(); } catch { /* keep closing */ }
-    }
-    for (const manager of [...(this.__liveStreamManagers?.values?.() ?? [])]) {
-      try {
-        manager.close(error, {
-          error,
-          terminal: true,
-          code: error?.code ?? 'SNAPBACK_AUTH_STREAM_RESET',
-        });
-      } catch { /* keep closing */ }
-    }
-    this.__connectionGrants.clear();
-    this.__laneConsumers.clear();
     return terminalHandle;
   }
 
@@ -1529,6 +1667,7 @@ export class SnapbackClient {
   }
 
   #cacheAuthSession(session, capture, cacheGeneration = this.__authSessionCacheGeneration) {
+    this.#assertAuthCountersAvailable();
     if (this.__authSessionCacheGeneration !== cacheGeneration) return session;
     this.__authSessionLastSuccessful = session;
     this.__authSessionCapture = capture
@@ -1691,6 +1830,7 @@ export class SnapbackClient {
     stagePublication(capture, () => {
       this.__terminalAuthorityCapture = undefined;
       this.__terminalAuthorityHandle = null;
+      this.__terminalTransportCut = null;
       return this.#cacheAuthSession(session, capture);
     });
   }
@@ -1884,11 +2024,12 @@ export class SnapbackClient {
     supersededRetry = true,
     expectedAuthorityCapture = null,
   } = {}) {
+    this.#assertAuthCountersAvailable();
     let session = null;
     let capture = null;
     let bearerUsed = null;
     let terminalHandle = null;
-    const transportGeneration = this.__authTransportGeneration;
+    let requestTransportGeneration = null;
     try {
       if (this.authorityFence) {
         this.#ensureAgentTransportParticipant();
@@ -1965,17 +2106,19 @@ export class SnapbackClient {
         const started = await this.authorityFence.compareAndCommit(
           expectedAuthorityCapture ?? capture,
           () => {
+            requestTransportGeneration = this.__authTransportGeneration;
             requestTask = this.#trackedFetchJson(method, path, wireBody, merged);
           },
         );
         if (!started.committed || requestTask === null) throw staleAuthorityError();
       } else {
+        requestTransportGeneration = this.__authTransportGeneration;
         requestTask = this.#trackedFetchJson(method, path, wireBody, merged);
       }
       const result = await requestTask;
       if (!this.authorityFence || !capture) return result;
       if (
-        transportGeneration !== this.__authTransportGeneration
+        requestTransportGeneration !== this.__authTransportGeneration
         || !this.authorityFence.isCurrent(capture)
       ) throw staleAuthorityError();
       const committed = await this.authorityFence.compareAndCommit(capture, () => (

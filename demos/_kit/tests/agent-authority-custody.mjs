@@ -38,6 +38,14 @@ const descriptorFor = (value) => ({
   sessionGeneration: 0,
 });
 
+const synchronizeValidated = (fence, value = credential()) => (
+  fence.synchronizeValidated(descriptorFor(value))
+);
+
+const replaceValidated = (fence, value) => (
+  fence.replaceCredentialValidated(fence.capture(), value, descriptorFor(value))
+);
+
 const deferred = () => {
   let resolve;
   const promise = new Promise((done) => { resolve = done; });
@@ -50,7 +58,7 @@ const deferred = () => {
   const fence = new AgentAuthorityFence(credential());
   assert.equal(fence.hasDurableCustody, false);
   const first = fence.capture();
-  const rotated = await fence.replaceCredential(credential({ tokenId: TOKEN_B }));
+  const rotated = await replaceValidated(fence, credential({ tokenId: TOKEN_B }));
   assert.equal(rotated.authorityEpoch, first.authorityEpoch);
   assert.equal(rotated.carrierGeneration, first.carrierGeneration + 1);
   assert(fence.isCurrent(rotated));
@@ -65,10 +73,18 @@ const deferred = () => {
   const custodyId = 'agent:validated-restart';
   const predecessorCredential = credential();
   const predecessor = new AgentAuthorityFence(predecessorCredential, { storage, custodyId });
-  await predecessor.synchronize();
+  await synchronizeValidated(predecessor, predecessorCredential);
   const before = storage.snapshot(custodyId);
 
   const successorCredential = credential({ grantId: GRANT_B, tokenId: TOKEN_B });
+  const predecessorCapture = predecessor.capture();
+  assert.throws(
+    () => predecessor.replaceCredential(successorCredential),
+    code('SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED'),
+    'live replacement cannot bypass server descriptor proof',
+  );
+  assert(predecessor.isCurrent(predecessorCapture));
+  assert.deepEqual(storage.snapshot(custodyId), before);
   const successor = new AgentAuthorityFence(successorCredential, { storage, custodyId });
   const offer = successor.credentialOfferForHandshake();
   assert.deepEqual(offer, {
@@ -114,7 +130,13 @@ const deferred = () => {
     async resume() { order.push('resume'); },
   });
   assert.deepEqual(order, ['quiesce', 'blank'], 'registration begins paused and blank');
-  const capture = await fence.synchronize();
+  await assert.rejects(
+    fence.synchronize(),
+    code('SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED'),
+    'a fresh durable record cannot be initialized from an unvalidated bearer',
+  );
+  assert.equal(storage.snapshot('agent:init'), null);
+  const capture = await synchronizeValidated(fence);
   assert.deepEqual(order, [
     'quiesce',
     'blank',
@@ -127,7 +149,7 @@ const deferred = () => {
   assert.equal(storage.snapshot('agent:init').revision, 1);
 
   const beforeToken = storage.snapshot('agent:init');
-  const tokenTransition = fence.replaceCredential(credential({ tokenId: TOKEN_B }));
+  const tokenTransition = replaceValidated(fence, credential({ tokenId: TOKEN_B }));
   assert.throws(() => fence.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
   const tokenCapture = await tokenTransition;
   assert.equal(tokenCapture.authorityEpoch, 0, 'token churn does not advance durable epoch');
@@ -139,9 +161,9 @@ const deferred = () => {
 {
   const storage = createMemoryAgentAuthorityCustodyStorage();
   const owner = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:aba' });
-  const epoch0 = await owner.synchronize();
-  const epoch1 = await owner.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
-  const epoch2 = await owner.replaceCredential(credential({ grantId: GRANT_A, tokenId: TOKEN_C }));
+  const epoch0 = await synchronizeValidated(owner);
+  const epoch1 = await replaceValidated(owner, credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+  const epoch2 = await replaceValidated(owner, credential({ grantId: GRANT_A, tokenId: TOKEN_C }));
   assert.deepEqual(
     [epoch0.authorityEpoch, epoch1.authorityEpoch, epoch2.authorityEpoch],
     [0, 1, 2],
@@ -161,7 +183,12 @@ const deferred = () => {
     async commitDurable() { adoptionCommits += 1; },
     async resume() {},
   });
-  const restored = await restarted.synchronize();
+  await assert.rejects(
+    restarted.synchronize(),
+    code('SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED'),
+    'same-tuple restart still requires proof for the current bearer',
+  );
+  const restored = await synchronizeValidated(restarted);
   assert.equal(restored.authorityEpoch, 2, 'restart adopts the exact durable epoch');
   assert.equal(adoptionCommits, 0, 'settled same-tuple restart does not replay a delete');
 }
@@ -187,9 +214,9 @@ const deferred = () => {
     storage: ambiguous,
     custodyId: 'agent:ambiguous',
   });
-  await fence.synchronize();
+  await synchronizeValidated(fence);
   throwAfterCommit = true;
-  const staged = fence.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+  const staged = replaceValidated(fence, credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
   const settled = await staged;
   assert.equal(settled.authorityEpoch, 1);
   assert.equal(base.snapshot('agent:ambiguous').authorityEpoch, 1);
@@ -203,10 +230,10 @@ const deferred = () => {
   const storage = createMemoryAgentAuthorityCustodyStorage();
   const writer = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:peer' });
   const peer = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:peer' });
-  await writer.synchronize();
-  const peerEpoch0 = await peer.synchronize();
-  await writer.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
-  await writer.replaceCredential(credential({ grantId: GRANT_A, tokenId: TOKEN_C }));
+  await synchronizeValidated(writer);
+  const peerEpoch0 = await synchronizeValidated(peer);
+  await replaceValidated(writer, credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+  await replaceValidated(writer, credential({ grantId: GRANT_A, tokenId: TOKEN_C }));
 
   const resumeEntered = deferred();
   const releaseResume = deferred();
@@ -242,15 +269,15 @@ const deferred = () => {
   const storage = createMemoryAgentAuthorityCustodyStorage();
   const writer = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:compare' });
   const stalePeer = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:compare' });
-  await writer.synchronize();
-  const staleCapture = await stalePeer.synchronize();
+  await synchronizeValidated(writer);
+  const staleCapture = await synchronizeValidated(stalePeer);
   let blanks = 0;
   stalePeer.registerParticipant({
     quiesce() {},
     blank() { blanks += 1; },
     clearMemory() {},
   });
-  await writer.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
+  await replaceValidated(writer, credential({ grantId: GRANT_B, tokenId: TOKEN_B }));
   let publications = 0;
   const result = await stalePeer.compareAndCommit(staleCapture, () => {
     publications += 1;
@@ -267,7 +294,7 @@ const deferred = () => {
 {
   const storage = createMemoryAgentAuthorityCustodyStorage();
   const failed = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:wedge' });
-  await failed.synchronize();
+  await synchronizeValidated(failed);
   let blanks = 0;
   failed.registerParticipant({
     quiesce() {},
@@ -277,7 +304,7 @@ const deferred = () => {
     async resume() { assert.fail('a failed durable phase must not resume'); },
   });
   await assert.rejects(
-    failed.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+    replaceValidated(failed, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
     /injected durable participant failure/,
   );
   assert(blanks >= 2, 'failure reblanks after the initial synchronous cut');
@@ -318,7 +345,7 @@ const deferred = () => {
     storage,
     custodyId: 'agent:participant-ambiguous',
   });
-  await owner.synchronize();
+  await synchronizeValidated(owner);
   let loseResponse = true;
   owner.registerParticipant({
     quiesce() {},
@@ -334,7 +361,7 @@ const deferred = () => {
     async resume() {},
   });
   await assert.rejects(
-    owner.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+    replaceValidated(owner, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
     /participant response loss/,
   );
   const clearing = storage.snapshot('agent:participant-ambiguous');
@@ -376,20 +403,125 @@ const deferred = () => {
   const state = { custody: Object.create(null) };
   const storage = createMemoryAgentAuthorityCustodyStorage({ state });
   const seed = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:max' });
-  await seed.synchronize();
+  await synchronizeValidated(seed);
   state.custody['agent:max'] = {
     ...storage.snapshot('agent:max'),
     authorityEpoch: Number.MAX_SAFE_INTEGER,
   };
   const exhausted = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:max' });
-  await exhausted.synchronize();
+  await synchronizeValidated(exhausted);
   assert.throws(
-    () => exhausted.replaceCredential(credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+    () => replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
     code('SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'),
   );
   assert.throws(() => exhausted.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
   assert.equal(storage.snapshot('agent:max').authorityEpoch, Number.MAX_SAFE_INTEGER);
   assert.equal(storage.snapshot('agent:max').status, 'active');
+}
+
+// Every other comparison identity fails closed too. Carrier and barrier
+// ceilings are lowered only to make the otherwise unreachable safe-integer
+// boundary deterministic; durable revision exhaustion is injected through
+// the same persisted record a restarted process would read.
+{
+  const exhausted = new AgentAuthorityFence(credential(), {
+    volatileCounterCeiling: 1,
+  });
+  await replaceValidated(exhausted, credential({ tokenId: TOKEN_B }));
+  const lastCapture = exhausted.capture();
+  assert.throws(
+    () => replaceValidated(exhausted, credential({ tokenId: TOKEN_C })),
+    code('SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED'),
+  );
+  assert.equal(exhausted.isCurrent(lastCapture), false);
+  assert.throws(() => exhausted.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+}
+
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const exhausted = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:barrier-max',
+    volatileCounterCeiling: 1,
+  });
+  await synchronizeValidated(exhausted);
+  let blanks = 0;
+  exhausted.registerParticipant({
+    quiesce() {},
+    blank() { blanks += 1; },
+    clearMemory() {},
+  });
+  const lastCapture = exhausted.capture();
+  assert.throws(
+    () => replaceValidated(exhausted, credential({ tokenId: TOKEN_B })),
+    code('SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED'),
+  );
+  assert.equal(blanks, 1, 'barrier exhaustion still attempts synchronous blanking');
+  assert.equal(exhausted.isCurrent(lastCapture), false);
+  assert.throws(() => exhausted.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+}
+
+{
+  const state = { custody: Object.create(null) };
+  const storage = createMemoryAgentAuthorityCustodyStorage({ state });
+  const seed = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:revision-max',
+  });
+  await synchronizeValidated(seed);
+  state.custody['agent:revision-max'] = {
+    ...storage.snapshot('agent:revision-max'),
+    revision: Number.MAX_SAFE_INTEGER,
+  };
+  const exhausted = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:revision-max',
+  });
+  await synchronizeValidated(exhausted);
+  const lastCapture = exhausted.capture();
+  assert.throws(
+    () => replaceValidated(exhausted, credential({ grantId: GRANT_B, tokenId: TOKEN_B })),
+    code('SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'),
+  );
+  assert.equal(exhausted.isCurrent(lastCapture), false);
+  assert.equal(storage.snapshot('agent:revision-max').revision, Number.MAX_SAFE_INTEGER);
+  assert.equal(storage.snapshot('agent:revision-max').status, 'active');
+}
+
+// A synchronous participant fault cannot veto durable deletion. The terminal
+// handle rejects (so finite HTTP callers cannot report false settlement), but
+// custody reaches the exact tombstone after every local blank was attempted.
+{
+  const storage = createMemoryAgentAuthorityCustodyStorage();
+  const fence = new AgentAuthorityFence(credential(), {
+    storage,
+    custodyId: 'agent:terminal-sync-fault',
+  });
+  await synchronizeValidated(fence);
+  const order = [];
+  fence.registerParticipant({
+    quiesce() { order.push('failing-quiesce'); },
+    blank() {
+      order.push('failing-blank');
+      throw new Error('injected terminal blank failure');
+    },
+    clearMemory() { order.push('failing-clear'); },
+    async commitDurable() { order.push('durable-delete'); },
+  });
+  fence.registerParticipant({
+    quiesce() { order.push('following-quiesce'); },
+    blank() { order.push('following-blank'); },
+    clearMemory() { order.push('following-clear'); },
+  });
+  const capture = fence.capture();
+  const termination = fence.terminate(capture, { authorityDisposition: 'durableDelete' });
+  assert.equal(termination.accepted, true);
+  assert.equal(fence.isCurrent(capture), false);
+  await assert.rejects(termination.settlement, /injected terminal blank failure/);
+  assert(order.includes('following-blank'), 'one broken participant cannot veto later blanks');
+  assert(order.includes('durable-delete'), 'the durable delete phase still runs after a local fault');
+  assert.equal(storage.snapshot('agent:terminal-sync-fault').phase, 'settled');
+  assert.equal(storage.snapshot('agent:terminal-sync-fault').status, 'deleted');
 }
 
 // Carrier termination preserves the durable tuple and never invokes durable
@@ -398,7 +530,7 @@ const deferred = () => {
 {
   const storage = createMemoryAgentAuthorityCustodyStorage();
   const carrier = new AgentAuthorityFence(credential(), { storage, custodyId: 'agent:terminal' });
-  await carrier.synchronize();
+  await synchronizeValidated(carrier);
   let carrierCommits = 0;
   carrier.registerParticipant({
     quiesce() {},
@@ -419,7 +551,10 @@ const deferred = () => {
     credential({ tokenId: TOKEN_B }),
     { storage, custodyId: 'agent:terminal' },
   );
-  assert.equal((await successorToken.synchronize()).authorityEpoch, 0);
+  assert.equal((await synchronizeValidated(
+    successorToken,
+    credential({ tokenId: TOKEN_B }),
+  )).authorityEpoch, 0);
   let deleteContext = null;
   const deleteEntered = deferred();
   const releaseDelete = deferred();
@@ -464,7 +599,10 @@ const deferred = () => {
     credential({ tokenId: TOKEN_C }),
     { storage, custodyId: 'agent:terminal' },
   );
-  await assert.rejects(forbiddenRestart.synchronize(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
+  await assert.rejects(
+    synchronizeValidated(forbiddenRestart, credential({ tokenId: TOKEN_C })),
+    code('SNAPBACK_CLIENT_AUTHORITY_STALE'),
+  );
   assert.throws(() => forbiddenRestart.capture(), code('SNAPBACK_CLIENT_AUTHORITY_STALE'));
 
   const differentGrant = new AgentAuthorityFence(

@@ -86,7 +86,7 @@ const stale = (message = 'the operation completed under a stale agent authority'
 
 const credentialValidationRequired = () => fenceError(
   'SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED',
-  'the configured agent credential must complete a service-principal handshake before replacing durable custody',
+  'an agent credential must complete a service-principal handshake before durable custody can initialize, adopt, recover, or replace it',
 );
 
 const custodyCorrupt = (message, details = undefined) => (
@@ -471,8 +471,19 @@ const settledRecordForClearing = (record) => {
   });
 };
 
-const nextSafeCounter = (value, code, label) => {
-  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
+const nextSafeCounter = (
+  value,
+  code,
+  label,
+  ceiling = Number.MAX_SAFE_INTEGER,
+) => {
+  if (
+    !Number.isSafeInteger(ceiling)
+    || ceiling < 1
+    || !Number.isSafeInteger(value)
+    || value < 0
+    || value >= ceiling
+  ) {
     throw fenceError(code, `${label} cannot advance without losing comparison identity`);
   }
   return value + 1;
@@ -634,10 +645,19 @@ export class AgentAuthorityFence {
   #terminated = false;
   #synchronizing = null;
   #inCommit = false;
+  #volatileCounterCeiling;
 
-  constructor(credential, { storage = null, custodyId = null } = {}) {
+  constructor(credential, {
+    storage = null,
+    custodyId = null,
+    volatileCounterCeiling = Number.MAX_SAFE_INTEGER,
+  } = {}) {
     this.#credential = normalizeCredential(credential);
     this.#durableKey = canonicalAgentAuthorityKey(this.#credential);
+    if (!Number.isSafeInteger(volatileCounterCeiling) || volatileCounterCeiling < 1) {
+      throw new TypeError('volatileCounterCeiling must be a positive safe integer');
+    }
+    this.#volatileCounterCeiling = volatileCounterCeiling;
     if (storage === null) {
       if (custodyId !== null) {
         throw new TypeError('custodyId requires transactional agent custody storage');
@@ -779,6 +799,25 @@ export class AgentAuthorityFence {
     });
   }
 
+  credentialOfferForReplacement(credential) {
+    if (this.#inCommit) {
+      throw fenceError(
+        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+        'agent credential replacement offers are forbidden inside compareAndCommit',
+      );
+    }
+    const next = normalizeCredential(credential);
+    const previousCapture = this.capture();
+    // This is a validation-only carrier offer. It grants no publication or
+    // custody mutation authority; replaceCredentialValidated binds the server
+    // proof back to this exact predecessor before it can enter a barrier.
+    return Object.freeze({
+      previousCapture,
+      bearer: next.bearerToken,
+      tokenId: next.tokenId,
+    });
+  }
+
   async synchronizeValidated(descriptor) {
     const authorityInstanceId = descriptorKey(descriptor);
     if (authorityInstanceId !== deriveServiceAuthorityInstanceId(this.#credential)) {
@@ -803,7 +842,23 @@ export class AgentAuthorityFence {
     return this.capture();
   }
 
-  replaceCredential(credential) {
+  replaceCredential() {
+    throw credentialValidationRequired();
+  }
+
+  replaceCredentialValidated(expected, credential, descriptor) {
+    const next = normalizeCredential(credential);
+    const authorityInstanceId = descriptorKey(descriptor);
+    if (authorityInstanceId !== deriveServiceAuthorityInstanceId(next)) {
+      throw stale('agent handshake descriptor does not match the proposed credential');
+    }
+    if (!this.isCurrent(expected)) {
+      throw stale('agent authority changed while its replacement carrier was validating');
+    }
+    return this.#replaceCredentialValidated(next, descriptor);
+  }
+
+  #replaceCredentialValidated(next, descriptor) {
     if (
       !this.#publicationOpen
       || this.#barrierActive
@@ -812,7 +867,6 @@ export class AgentAuthorityFence {
     ) {
       throw stale('agent authority is clearing and cannot replace its credential');
     }
-    const next = normalizeCredential(credential);
     const nextDurableKey = canonicalAgentAuthorityKey(next);
     const previousCapture = this.#captureUnchecked();
     const previousAuthority = this.authority;
@@ -826,6 +880,7 @@ export class AgentAuthorityFence {
         this.#carrierGeneration,
         'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
         'agent carrier generation',
+        this.#volatileCounterCeiling,
       );
       if (durableChanged) {
         nextEpoch = nextSafeCounter(
@@ -854,20 +909,24 @@ export class AgentAuthorityFence {
         }
       }
     } catch (error) {
-      if (error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED') {
-        this.#wedgeSync(error, {
-          reason: 'agent_authority_epoch_exhausted',
-          disposition: 'delete',
-          authorityDisposition: 'durableDelete',
-          previousAuthority,
-          nextAuthority: null,
-          previousCapture,
-          capture: previousCapture,
-          expectedEpoch: previousCapture.authorityEpoch,
-          nextEpoch: previousCapture.authorityEpoch,
-          nextAuthorityKey: previousCapture.authorityKey,
-        });
-      }
+      this.#wedgeSync(error, {
+        reason: error?.code === 'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED'
+          ? 'agent_carrier_generation_exhausted'
+          : error?.code === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+            ? 'agent_custody_revision_exhausted'
+            : error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
+              ? 'agent_authority_epoch_exhausted'
+              : 'agent_authority_transition_failed',
+        disposition: 'delete',
+        authorityDisposition: 'durableDelete',
+        previousAuthority,
+        nextAuthority: null,
+        previousCapture,
+        capture: previousCapture,
+        expectedEpoch: previousCapture.authorityEpoch,
+        nextEpoch: previousCapture.authorityEpoch,
+        nextAuthorityKey: previousCapture.authorityKey,
+      });
       throw error;
     }
     const capture = authorityCapture(
@@ -896,7 +955,7 @@ export class AgentAuthorityFence {
     this.#carrierGeneration = nextCarrierGeneration;
     this.#durableEpoch = nextEpoch;
     this.#durableKey = nextDurableKey;
-    if (durableChanged) this.#authorityDescriptor = null;
+    this.#authorityDescriptor = Object.freeze({ ...descriptor });
     this.#credential = next;
     this.#terminated = false;
     const prepare = async () => {
@@ -935,6 +994,9 @@ export class AgentAuthorityFence {
     const authorityDisposition = typeof disposition === 'string'
       ? disposition
       : disposition?.authorityDisposition ?? 'carrier';
+    const terminalError = typeof disposition === 'object'
+      ? disposition?.terminalError ?? null
+      : null;
     if (authorityDisposition !== 'carrier' && authorityDisposition !== 'durableDelete') {
       throw new TypeError('agent termination authorityDisposition must be carrier or durableDelete');
     }
@@ -951,6 +1013,7 @@ export class AgentAuthorityFence {
         this.#carrierGeneration,
         'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
         'agent carrier generation',
+        this.#volatileCounterCeiling,
       );
       if (authorityDisposition === 'durableDelete') {
         nextEpoch = nextSafeCounter(
@@ -972,20 +1035,24 @@ export class AgentAuthorityFence {
         }
       }
     } catch (error) {
-      if (error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED') {
-        this.#wedgeSync(error, {
-          reason: 'agent_authority_epoch_exhausted',
-          disposition: 'delete',
-          authorityDisposition: 'durableDelete',
-          previousAuthority: this.authority,
-          nextAuthority: null,
-          previousCapture: capture,
-          capture,
-          expectedEpoch: capture.authorityEpoch,
-          nextEpoch: capture.authorityEpoch,
-          nextAuthorityKey: capture.authorityKey,
-        });
-      }
+      this.#wedgeSync(error, {
+        reason: error?.code === 'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED'
+          ? 'agent_carrier_generation_exhausted'
+          : error?.code === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
+            ? 'agent_custody_revision_exhausted'
+            : error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED'
+              ? 'agent_authority_epoch_exhausted'
+              : 'agent_authority_termination_failed',
+        disposition: 'delete',
+        authorityDisposition: 'durableDelete',
+        previousAuthority: this.authority,
+        nextAuthority: null,
+        previousCapture: capture,
+        capture,
+        expectedEpoch: capture.authorityEpoch,
+        nextEpoch: capture.authorityEpoch,
+        nextAuthorityKey: capture.authorityKey,
+      });
       throw error;
     }
     const nextCapture = authorityCapture(
@@ -1006,12 +1073,17 @@ export class AgentAuthorityFence {
       nextAuthorityKey: capture.authorityKey,
       disposition: authorityDisposition === 'carrier' ? 'retain' : 'delete',
       authorityDisposition,
+      ...(terminalError ? { terminalError } : {}),
       ...(durableTransition ? { transitionId: durableTransition.transition.transitionId } : {}),
       reason: authorityDisposition === 'carrier'
         ? 'agent_carrier_terminated'
         : 'agent_durable_authority_deleted',
     });
-    const barrier = this.#beginBarrier({ clearMemory: true, context });
+    const barrier = this.#beginBarrier({
+      clearMemory: true,
+      context,
+      deferSyncError: true,
+    });
     this.#carrierGeneration = nextCapture.carrierGeneration;
     this.#durableEpoch = nextEpoch;
     this.#authorityDescriptor = null;
@@ -1035,7 +1107,11 @@ export class AgentAuthorityFence {
       this.#terminated = true;
       return confirmed;
     };
-    if (this.#storage === null && barrier.entries.length === 0) {
+    if (
+      this.#storage === null
+      && barrier.entries.length === 0
+      && barrier.syncError === null
+    ) {
       this.#completeBarrierImmediate(barrier, { open: false });
     } else {
       this.#finishBarrier(barrier, context, {
@@ -1125,16 +1201,44 @@ export class AgentAuthorityFence {
     };
   }
 
-  #beginBarrier({ clearMemory, context }) {
+  #beginBarrier({ clearMemory, context, deferSyncError = false }) {
     if (this.#barrierActive) {
       throw stale('an agent authority transition is already active');
     }
     const entries = this.#participants.filter((entry) => !entry.removed);
-    this.#barrierGeneration = nextSafeCounter(
-      this.#barrierGeneration,
-      'SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED',
-      'agent barrier generation',
-    );
+    try {
+      this.#barrierGeneration = nextSafeCounter(
+        this.#barrierGeneration,
+        'SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED',
+        'agent barrier generation',
+        this.#volatileCounterCeiling,
+      );
+    } catch (error) {
+      // An exhausted barrier id cannot be reused, but confidentiality still
+      // requires an immediate visibility cut. There is no successor barrier
+      // to resume: close publication permanently and attempt every local
+      // quiesce/blank/clear callback before surfacing the stable diagnostic.
+      this.#barrierActive = true;
+      this.#publicationOpen = false;
+      this.#barrierPhase = 'quiescing';
+      for (const { participant } of entries) {
+        try { this.#invokeSyncParticipant(participant, 'quiesce', context); } catch { /* preserve counter failure */ }
+      }
+      this.#barrierPhase = 'blanking';
+      for (const { participant } of entries) {
+        try { this.#invokeSyncParticipant(participant, 'blank', context); } catch { /* preserve counter failure */ }
+      }
+      if (clearMemory) {
+        this.#barrierPhase = 'clearing-memory';
+        for (const { participant } of entries) {
+          try { this.#invokeSyncParticipant(participant, 'clearMemory', context); } catch { /* preserve counter failure */ }
+        }
+      }
+      this.#barrierError = error;
+      this.#barrierPhase = 'failed';
+      this.#barrierPromise = Promise.resolve();
+      throw error;
+    }
     const generation = this.#barrierGeneration;
     this.#barrierActive = true;
     this.#publicationOpen = false;
@@ -1165,11 +1269,13 @@ export class AgentAuthorityFence {
       for (const { participant } of entries) invoke(participant, 'clearMemory');
     }
     if (firstError) {
-      this.#barrierError = firstError;
-      this.#barrierPhase = 'failed';
-      throw firstError;
+      if (!deferSyncError) {
+        this.#barrierError = firstError;
+        this.#barrierPhase = 'failed';
+        throw firstError;
+      }
     }
-    return { entries, generation };
+    return { entries, generation, syncError: firstError };
   }
 
   #finishBarrier(barrier, context, {
@@ -1200,6 +1306,11 @@ export class AgentAuthorityFence {
         this.#barrierPhase = 'confirming-durable';
         await this.#confirmDurableExact(durableRecord);
       }
+      // Terminal deletion deliberately continues through its durable phases
+      // after a synchronous participant failure. The tombstone may settle,
+      // but the public settlement must still reject so callers never mistake
+      // a partially failed local cut for a clean terminal transition.
+      if (barrier.syncError) throw barrier.syncError;
       if (barrier.generation === this.#barrierGeneration) {
         this.#barrierActive = false;
         this.#barrierPhase = null;
@@ -1364,6 +1475,14 @@ export class AgentAuthorityFence {
       && observed.authorityKey === desiredKey
       && sameDurableAuthority(observed.authority, desiredAuthority);
 
+    // A process with no locally established durable record has no authority
+    // to initialize, adopt, recover, or replace custody until the exact bearer
+    // has completed a protocol-v1 service-principal handshake. Merely knowing
+    // the durable tuple is not proof that its current carrier is valid.
+    if (this.#durableRecord === null && !desiredIsValidated) {
+      throw credentialValidationRequired();
+    }
+
     if (observed?.phase === 'clearing') {
       if (!desiredMatches) {
         return {
@@ -1373,9 +1492,6 @@ export class AgentAuthorityFence {
           disposition: 'delete',
           error: stale('durable agent custody is clearing toward a tuple unavailable in this process'),
         };
-      }
-      if (this.#durableRecord === null && !desiredIsValidated) {
-        throw credentialValidationRequired();
       }
       return {
         observed,
@@ -1418,7 +1534,6 @@ export class AgentAuthorityFence {
           disposition: observed.status === 'deleted' ? 'delete' : 'retain',
         };
       }
-      if (!desiredIsValidated) throw credentialValidationRequired();
       const nextEpoch = nextSafeCounter(
         observed.authorityEpoch,
         'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',

@@ -6,12 +6,13 @@ import {
 } from '../../../packages/snapback-contract/auth-coordinator.mjs';
 import {
   AgentAuthorityFence,
+  createMemoryAgentAuthorityCustodyStorage,
   SnapbackClient,
   deriveServiceAuthorityInstanceId,
 } from '../client.mjs';
 import { assert, assertEqual, assertThrows, createSuite } from '../harness.mjs';
 
-const suite = createSuite('_kit auth handshake', { expectedChecks: 19 });
+const suite = createSuite('_kit auth handshake', { expectedChecks: 21 });
 const originalFetch = globalThis.fetch;
 const APP_ID = 'snapback.test/auth-handshake';
 const AUTHORITY = '018f0d90-7b24-7a22-8c33-445566778899';
@@ -492,6 +493,97 @@ try {
     return { rejectedUncoordinated: true, coordinatedOffer: 1 };
   });
 
+  await suite.check('a fresh durable agent request binds its transport fence after validated bootstrap', async () => {
+    const calls = [];
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      calls.push(path);
+      if (path === '/auth/session') return response(agentHandshake());
+      if (path === '/query/listTodos') return response({ rows: [{ id: 'fresh-agent-row' }] });
+      throw new Error(`unexpected path ${path}`);
+    };
+    const authority = new AgentAuthorityFence(
+      agentCredential(AGENT_TOKEN_A, 'agent-token-a'),
+      {
+        storage: createMemoryAgentAuthorityCustodyStorage(),
+        custodyId: 'agent:fresh-direct-request',
+      },
+    );
+    const db = new SnapbackClient('http://stub', {
+      agentAuthority: authority,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+      clientStoreId: 'fresh_agent_store',
+    });
+    const result = await db.query('listTodos');
+    assertEqual(result.rows[0].id, 'fresh-agent-row');
+    assertEqual(
+      calls,
+      ['/auth/session', '/query/listTodos'],
+      'the bootstrap barrier generation becomes the request baseline, not a stale entry sample',
+    );
+    await db.closeAuth();
+    return { calls };
+  });
+
+  await suite.check('an invalid live agent replacement leaves predecessor custody untouched', async () => {
+    const storage = createMemoryAgentAuthorityCustodyStorage();
+    const initial = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
+    const authority = new AgentAuthorityFence(initial, {
+      storage,
+      custodyId: 'agent:invalid-live-replacement',
+    });
+    let rejectReplacement = false;
+    globalThis.fetch = async (url) => {
+      const path = new URL(url).pathname;
+      if (path === '/auth/session' && rejectReplacement) {
+        return response({
+          diagnostic: {
+            code: 'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+            message: 'the proposed replacement bearer is invalid',
+            details: { authorityDisposition: 'carrier' },
+          },
+        }, 401);
+      }
+      if (path === '/auth/session') return response(agentHandshake());
+      if (path === '/query/listTodos') return response({ rows: [{ id: 'predecessor-still-live' }] });
+      throw new Error(`unexpected path ${path}`);
+    };
+    const db = new SnapbackClient('http://stub', {
+      agentAuthority: authority,
+      authInvalidationProtocol: 1,
+      authorityDescriptorProtocol: 1,
+    });
+    await db.authSession();
+    const predecessor = authority.capture();
+    const before = storage.snapshot('agent:invalid-live-replacement');
+    let blanks = 0;
+    const unregister = db.registerAuthMaterialization({
+      capture: () => predecessor,
+      blank: () => { blanks += 1; },
+    });
+    rejectReplacement = true;
+    const replacementError = await assertThrows(
+      () => db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'invalid-new-bearer', {
+        grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
+      })),
+      'SNAPBACK_AUTH_SCOPED_TOKEN_INVALID',
+    );
+    assert(authority.isCurrent(predecessor), 'the exact predecessor remains current');
+    assertEqual(
+      storage.snapshot('agent:invalid-live-replacement'),
+      before,
+      'an invalid proposal performs no durable write',
+    );
+    assertEqual(blanks, 0, 'an invalid proposal never enters the destructive barrier');
+    assertEqual(authority.credentialFor(predecessor).bearer, initial.bearerToken);
+    rejectReplacement = false;
+    assertEqual((await db.query('listTodos')).rows[0].id, 'predecessor-still-live');
+    unregister();
+    await db.closeAuth();
+    return { code: replacementError.code, blanks };
+  });
+
   await suite.check('agent custody preserves durable replay across token churn and fences stale carrier work', async () => {
     const calls = [];
     let releaseQuery;
@@ -501,7 +593,17 @@ try {
     globalThis.fetch = async (url, init) => {
       const path = new URL(url).pathname;
       calls.push({ path, init });
-      if (path === '/auth/session') return response(agentHandshake());
+      if (path === '/auth/session') {
+        const projected = agentHandshake();
+        if (init.headers.authorization === 'Bearer other-grant-token') {
+          projected.authorityDescriptor.authorityInstanceId = deriveServiceAuthorityInstanceId(
+            agentCredential(AGENT_TOKEN_A, 'other-grant-token', {
+              grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
+            }),
+          );
+        }
+        return response(projected);
+      }
       if (path === '/query/listTodos') {
         queryEntered();
         await queryRelease;
@@ -555,7 +657,13 @@ try {
       grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
     }));
     assert(!authority.isCurrent(beforeGrantChange), 'a changed durable grant invalidates prior work');
-    assertEqual(authority.authorityDescriptor, null, 'a changed durable grant must rebind its descriptor');
+    assertEqual(
+      authority.authorityDescriptor.authorityInstanceId,
+      deriveServiceAuthorityInstanceId(agentCredential(AGENT_TOKEN_A, 'other-grant-token', {
+        grantId: '018f0d90-7b2b-7a22-8c33-445566778899',
+      })),
+      'a changed durable grant binds only its newly validated descriptor',
+    );
     return { requests: calls.length, staleCarrierRefused: true };
   });
 
@@ -595,6 +703,10 @@ try {
   });
 
   await suite.check('agent credential replacement cuts the carrier despite a broken direct blank', async () => {
+    globalThis.fetch = async (url) => {
+      assertEqual(new URL(url).pathname, '/auth/session');
+      return response(agentHandshake());
+    };
     const authority = new AgentAuthorityFence(agentCredential(AGENT_TOKEN_A, 'agent-token-a'));
     const db = new SnapbackClient('http://stub', {
       agentAuthority: authority,

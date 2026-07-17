@@ -16,6 +16,7 @@
 import {
   AgentAuthorityFence,
   createMemoryAgentAuthorityCustodyStorage,
+  deriveServiceAuthorityInstanceId,
   EphemeralOverlay,
   SnapbackClient as RuntimeSnapbackClient,
 } from '../client.mjs';
@@ -93,6 +94,12 @@ const agentCredential = (tokenId, bearerToken) => ({
   tokenId,
   bearerToken,
 });
+
+const agentDescriptor = (value) => ({
+  descriptorVersion: 1,
+  authorityInstanceId: deriveServiceAuthorityInstanceId(value),
+  sessionGeneration: 0,
+});
 let coordinatorSequence = 0;
 const coordinatorCustody = async ({ session = false } = {}) => {
   coordinatorSequence += 1;
@@ -151,6 +158,54 @@ const terminalCoordinatorSpy = () => {
       return { cleared: true };
     },
   };
+};
+
+const terminalCoordinatorBarrierSpy = () => {
+  const capture = Object.freeze({
+    authorityEpoch: 8,
+    custodyRevision: 12,
+    authorityKey: `sha256:${'b'.repeat(64)}`,
+  });
+  const participants = [];
+  let current = true;
+  const coordinator = {
+    appId: 'snapback.test/client-errors-terminal-barrier-spy',
+    capture: () => capture,
+    synchronize: async () => capture,
+    credentialFor: () => ({ bearer: null }),
+    isCurrent: (candidate) => current && candidate === capture,
+    registerParticipant(participant, { before = null } = {}) {
+      const index = before === null ? -1 : participants.indexOf(before);
+      if (index === -1) participants.push(participant);
+      else participants.splice(index, 0, participant);
+      return async () => {
+        const registered = participants.indexOf(participant);
+        if (registered !== -1) participants.splice(registered, 1);
+      };
+    },
+    compareAndCommit: async (candidate, commit) => (
+      candidate === capture && current
+        ? { committed: true, value: commit({ ...capture, authority: { kind: 'session' } }) }
+        : { committed: false }
+    ),
+    async compareAndClear(candidate) {
+      if (candidate !== capture || !current) return { cleared: false };
+      const context = Object.freeze({
+        expectedEpoch: capture.authorityEpoch,
+        expectedAuthorityKey: capture.authorityKey,
+        reason: 'terminal_test_clear',
+        disposition: 'delete',
+      });
+      for (const participant of participants) await participant.quiesce?.(context);
+      for (const participant of participants) participant.blank?.(context);
+      for (const participant of participants) participant.clearMemory?.(context);
+      for (const participant of participants) await participant.commitDurable?.(context);
+      current = false;
+      return { cleared: true };
+    },
+    transportParticipant: () => participants.at(-1),
+  };
+  return coordinator;
 };
 
 const missedWakeupCoordinatorSpy = () => {
@@ -356,12 +411,19 @@ try {
 
   await suite.check('finite agent revocation waits for durable deletion before rejecting', async () => {
     const storage = createMemoryAgentAuthorityCustodyStorage();
+    const initialCredential = agentCredential(AGENT_TOKEN_A, 'agent-token-a');
     const authority = new AgentAuthorityFence(
-      agentCredential(AGENT_TOKEN_A, 'agent-token-a'),
+      initialCredential,
       { storage, custodyId: 'agent:finite-terminal-settlement' },
     );
-    await authority.synchronize();
+    await authority.synchronizeValidated(agentDescriptor(initialCredential));
     const db = new SnapbackClient('http://stub', { agentAuthority: authority });
+    let directBlanks = 0;
+    const terminalCapture = authority.capture();
+    const unregisterMaterialization = db.registerAuthMaterialization({
+      capture: () => terminalCapture,
+      blank: () => { directBlanks += 1; },
+    });
     db.authSession = async () => ({
       activeMode: 'sessions',
       authority: {
@@ -392,7 +454,6 @@ try {
         details: { authorityDisposition: 'durableDelete' },
       },
     }));
-    const terminalCapture = authority.capture();
     let rejected = false;
     const request = db.query('privateRows').catch((error) => {
       rejected = true;
@@ -428,8 +489,123 @@ try {
     const tombstone = storage.snapshot('agent:finite-terminal-settlement');
     assertEqual(tombstone.phase, 'settled');
     assertEqual(tombstone.status, 'deleted');
+    assertEqual(directBlanks, 1, 'one agent terminal event blanks each direct surface once');
+    unregisterMaterialization();
     await db.closeAuth();
     return { disposition: error.authorityDisposition, status: tombstone.status };
+  });
+
+  await suite.check('browser durable deletion reuses one exact synchronous client cut', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', { authCoordinator });
+    const capture = authCoordinator.capture();
+    let directBlanks = 0;
+    const durablePhases = [];
+    const unregisterMaterialization = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => { directBlanks += 1; },
+    });
+    const unregisterDurable = db.registerAuthBarrierParticipant({
+      quiesce: () => durablePhases.push('quiesce'),
+      blank: () => durablePhases.push('blank'),
+      clearMemory: () => durablePhases.push('clearMemory'),
+      commitDurable: async () => durablePhases.push('commitDurable'),
+    });
+    const error = diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401);
+    error.authorityDisposition = 'durableDelete';
+    const terminal = db.handleTerminalAuthLoss(capture, error);
+    assertEqual(directBlanks, 1, 'the manual confidentiality cut blanks once');
+    await authCoordinator.compareAndClear(capture, error.code);
+    assertEqual(
+      directBlanks,
+      1,
+      'the exact following coordinator transition does not replay the client blank',
+    );
+    assertEqual(
+      durablePhases,
+      ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
+      'non-precut durable participants still complete every coordinator phase',
+    );
+    await terminal.settlement;
+    unregisterMaterialization();
+    await unregisterDurable();
+    await db.closeAuth();
+    return { directBlanks, durablePhases };
+  });
+
+  await suite.check('auth-session counter exhaustion clears predecessor cache and wedges requests', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    db.clearAuthSession();
+    const capture = authCoordinator.capture();
+    db.__authSessionLastSuccessful = { privateProjection: 'predecessor' };
+    db.__authSessionCapture = {
+      authorityEpoch: capture.authorityEpoch,
+      authorityKey: capture.authorityKey,
+    };
+    let blanks = 0;
+    const unregister = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => { blanks += 1; },
+    });
+    const terminal = db.handleTerminalAuthLoss(
+      capture,
+      diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401),
+    );
+    const settlementError = await assertThrows(
+      () => terminal.settlement,
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+    );
+    assertEqual(db.__authSessionLastSuccessful, null, 'overflow cannot retain the old cache');
+    assertEqual(blanks, 1, 'materializations still blank when cache generation exhausts');
+    const cachedError = await assertThrows(
+      () => db.authSession(),
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+    );
+    let fetches = 0;
+    globalThis.fetch = async () => { fetches += 1; return stubFetch(200, '{}')(); };
+    await assertThrows(
+      () => db.query('privateRows'),
+      'SNAPBACK_CLIENT_AUTH_SESSION_GENERATION_EXHAUSTED',
+    );
+    assertEqual(fetches, 0, 'a wedged cache identity cannot start another request');
+    unregister();
+    return { code: cachedError.code, settlementCode: settlementError.code, blanks };
+  });
+
+  await suite.check('auth-transport counter exhaustion still closes and wedges publication', async () => {
+    const authCoordinator = terminalCoordinatorBarrierSpy();
+    const db = new SnapbackClient('http://stub', {
+      authCoordinator,
+      authCounterCeiling: 1,
+    });
+    authCoordinator.transportParticipant().quiesce({ reason: 'prime_transport_counter' });
+    const capture = authCoordinator.capture();
+    let blanks = 0;
+    const unregister = db.registerAuthMaterialization({
+      capture: () => capture,
+      blank: () => { blanks += 1; },
+    });
+    const terminal = db.handleTerminalAuthLoss(
+      capture,
+      diagnosticError('SNAPBACK_AUTH_SESSION_REVOKED', 'revoked', 401),
+    );
+    const settlementError = await assertThrows(
+      () => terminal.settlement,
+      'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
+    );
+    assertEqual(blanks, 1, 'transport overflow cannot veto synchronous blanking');
+    let publications = 0;
+    const publicationError = await assertThrows(
+      () => db.commitAuthorityPublication(capture, () => { publications += 1; }),
+      'SNAPBACK_CLIENT_AUTH_TRANSPORT_GENERATION_EXHAUSTED',
+    );
+    assertEqual(publications, 0, 'a wedged transport cannot publish predecessor state');
+    unregister();
+    return { code: publicationError.code, settlementCode: settlementError.code, blanks };
   });
 
   await suite.check('legacy scoped-token refusals default to the non-destructive carrier path', async () => {
@@ -1114,7 +1290,12 @@ try {
     });
     await subscribeStarted;
     const predecessor = authority.capture();
-    const replacement = db.replaceAgentCredential(agentCredential(AGENT_TOKEN_B, 'agent-token-b'));
+    const successorCredential = agentCredential(AGENT_TOKEN_B, 'agent-token-b');
+    const replacement = authority.replaceCredentialValidated(
+      predecessor,
+      successorCredential,
+      agentDescriptor(successorCredential),
+    );
     assert(!authority.isCurrent(predecessor), 'the predecessor carrier was cut');
     await replacement;
     releaseSubscribe();
