@@ -5,8 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-16 (client-store format-6 terminal fencing: the persisted anti-rebind marker is mandatory, v5 migration is deletion-only, delayed adoption compares store generation, and shared client-store writers require coordinated rollout). 2026-07-16 (Agent terminal-ledger reconciliation: tuple witnesses
-share one universal gate with primary custody, old tombstones backfill before
+**Revised:** 2026-07-16 (client-store format-6 terminal fencing: the persisted anti-rebind marker is mandatory, v5 migration is deletion-only, delayed adoption compares store generation, the final safe generation is reserved for terminal deletion, and shared client-store writers require coordinated rollout). 2026-07-16 (Agent terminal-ledger reconciliation: tuple witnesses
+share one universal gate with primary custody, persist before primary
+interpretation, old tombstones backfill before
 replacement, adapter partition ownership and coordinated rollout are explicit,
 and terminal store replay is distinguished from an exact-current nonterminal
 service successor). 2026-07-16 (finite service-authority closure: scoped-token
@@ -1426,7 +1427,9 @@ cannot null every authority field without losing the anti-resurrection key.
 
 Durable Agent custody additionally owns a permanent side ledger keyed by
 `(custodyId, authorityKey)`. An exact `durableDelete` writes that tuple-specific
-witness before primary-row cleanup. Primary reads/writes, witness reads/writes,
+witness before reading, validating, or cleaning the primary row. Primary
+corruption may reject settlement, but repair cannot erase the already-durable
+terminal fact. Primary reads/writes, witness reads/writes,
 active installation and final publication comparison all take one reserved
 universal gate, then an independently owned primary or witness partition. A
 matching witness makes every active operation stale, including an already-open
@@ -1950,6 +1953,15 @@ deleted record, the ordinary callback may likewise bind a fully privacy-clean,
 fully unbound store to that proven successor. Neither exception applies to a
 dirty or partially bound store, and the successor case MUST still use exactly
 `expectedEpoch + 1`.
+
+The store write generation reserves `Number.MAX_SAFE_INTEGER` for the final
+terminal deletion identity: ordinary commits refuse before consuming it. A
+bound record already at that ceiling (possible from a pre-reservation writer)
+is authority- and queue-stale for every public data read/act. Terminal purge
+may overwrite that final identity only with a fully privacy-clean,
+`terminallyUnbound` record; repeated purge of the clean marker is write-free.
+No transition may consume a final-generation marker—recovery requires explicit
+replacement of the physical client store.
 
 The terminal invocation snapshots its mandatory participants before any
 synchronous cut. Scheduled/fresh deletion attempts every snapshotted exact-key

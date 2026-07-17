@@ -921,6 +921,138 @@ for (const {
   );
 }
 
+// Corrupt primary custody cannot veto the tuple-specific terminal witness.
+// Repairing/removing the malformed primary later must not let the exact
+// rejected durable tuple initialize as active again.
+{
+  const custodyId = 'agent:contract-terminal-witness-before-corrupt-primary';
+  const custodyState = { custody: {} };
+  const custodyStorage = createMemoryAgentAuthorityCustodyStorage({ state: custodyState });
+  const value = credential({
+    grantId: GRANT_B,
+    tokenId: TOKEN_B,
+    bearerToken: 'terminal-corrupt-primary',
+  });
+  const seed = new AgentAuthorityFence(value, { storage: custodyStorage, custodyId });
+  const capture = await seed.synchronizeValidated(descriptorFor(value));
+  custodyState.custody[custodyId] = { corruptPrimary: 'must-not-veto-witness' };
+
+  const clientStore = createMemorySnapbackClientStore();
+  const localAuthority = {
+    authorityEpoch: capture.authorityEpoch,
+    authorityKey: capture.authorityKey,
+  };
+  await clientStore.bindAuthority({ ...localAuthority, authMode: 'sessions' });
+  await clientStore.putRetainedQuery('corrupt-primary-private', {
+    ...localAuthority,
+    rows: [{ secret: 'corrupt-primary-secret' }],
+  });
+
+  const terminalFence = new AgentAuthorityFence(value, {
+    storage: custodyStorage,
+    custodyId,
+  });
+  terminalFence.registerParticipant(createSnapbackClientStoreAuthParticipant(clientStore));
+  const terminal = terminalFence.terminateValidatedCredential(
+    terminalFence.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await assert.rejects(
+    terminal.settlement,
+    (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  const witnessPartitions = Object.keys(custodyState.custody).filter((partition) => (
+    partition.startsWith('snapback.agent-terminal-witness.v1:')
+  ));
+  assert.equal(witnessPartitions.length, 1);
+  assert.equal(custodyState.custody[witnessPartitions[0]].status, 'deleted');
+  assert.equal(
+    JSON.stringify(await clientStore.snapshot()).includes('corrupt-primary-secret'),
+    false,
+  );
+
+  delete custodyState.custody[custodyId];
+  const restartedValue = {
+    ...value,
+    tokenId: TOKEN_C,
+    bearerToken: 'terminal-corrupt-primary-restart',
+  };
+  const restarted = new AgentAuthorityFence(restartedValue, {
+    storage: custodyStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    restarted.synchronizeValidated(descriptorFor(restartedValue)),
+    (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.notEqual(custodyStorage.snapshot(custodyId)?.status, 'active');
+}
+
+// The same witness-before-primary rule applies when this process already
+// synchronized the active row and enters the direct terminal CAS path.
+{
+  const custodyId = 'agent:contract-active-terminal-witness-before-corrupt-primary';
+  const custodyState = { custody: {} };
+  const custodyStorage = createMemoryAgentAuthorityCustodyStorage({ state: custodyState });
+  const value = credential({
+    grantId: GRANT_B,
+    tokenId: TOKEN_B,
+    bearerToken: 'active-terminal-corrupt-primary',
+  });
+  const activeFence = new AgentAuthorityFence(value, {
+    storage: custodyStorage,
+    custodyId,
+  });
+  const capture = await activeFence.synchronizeValidated(descriptorFor(value));
+
+  const clientStore = createMemorySnapbackClientStore();
+  const localAuthority = {
+    authorityEpoch: capture.authorityEpoch,
+    authorityKey: capture.authorityKey,
+  };
+  await clientStore.bindAuthority({ ...localAuthority, authMode: 'sessions' });
+  await clientStore.putRetainedQuery('active-corrupt-primary-private', {
+    ...localAuthority,
+    rows: [{ secret: 'active-corrupt-primary-secret' }],
+  });
+  activeFence.registerParticipant(createSnapbackClientStoreAuthParticipant(clientStore));
+  custodyState.custody[custodyId] = { corruptPrimary: 'must-not-veto-direct-witness' };
+
+  const terminal = activeFence.terminateValidatedCredential(
+    activeFence.credentialOfferForHandshake(),
+    { authorityDisposition: 'durableDelete' },
+  );
+  await assert.rejects(
+    terminal.settlement,
+    (error) => error?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  const witnessPartitions = Object.keys(custodyState.custody).filter((partition) => (
+    partition.startsWith('snapback.agent-terminal-witness.v1:')
+  ));
+  assert.equal(witnessPartitions.length, 1);
+  assert.equal(custodyState.custody[witnessPartitions[0]].status, 'deleted');
+  assert.equal(
+    JSON.stringify(await clientStore.snapshot()).includes('active-corrupt-primary-secret'),
+    false,
+  );
+
+  delete custodyState.custody[custodyId];
+  const restartedValue = {
+    ...value,
+    tokenId: TOKEN_C,
+    bearerToken: 'active-terminal-corrupt-primary-restart',
+  };
+  const restarted = new AgentAuthorityFence(restartedValue, {
+    storage: custodyStorage,
+    custodyId,
+  });
+  await assert.rejects(
+    restarted.synchronizeValidated(descriptorFor(restartedValue)),
+    (error) => error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  assert.notEqual(custodyStorage.snapshot(custodyId)?.status, 'active');
+}
+
 // A peer may retain an in-memory active B capture after another B owner has
 // already settled the shared tombstone. Its idempotent terminal call still
 // purges exact local B and recognizes the peer tombstone as success.

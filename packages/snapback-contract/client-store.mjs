@@ -1186,7 +1186,20 @@ function staleStoreAuthorityError(operation) {
   );
 }
 
+function clientStoreGenerationExhaustedError() {
+  return clientStoreStateError(
+    'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+    'client-store write generation is exhausted and the store must be replaced',
+  );
+}
+
 function expectedAuthorityMatchesState(state, expected = {}) {
+  // MAX_SAFE_INTEGER is reserved as the final terminal deletion identity.
+  // A format-6 writer from before that reservation may already have left a
+  // bound store at the ceiling. Its bytes remain parseable so purge/clear can
+  // recover them, but no public authority-bound read or act may treat them as
+  // current in the meantime.
+  if (state.generation === Number.MAX_SAFE_INTEGER) return false;
   if (state.authorityEpoch === null) {
     if (state.terminallyUnbound) return false;
     return expected.authorityEpoch === undefined || expected.authorityEpoch === null;
@@ -1237,7 +1250,7 @@ function queueCapture(state) {
 function expectedQueueMatchesState(state, expected = {}) {
   const hasAuthority = Object.hasOwn(expected, 'authorityGeneration');
   const hasQueue = Object.hasOwn(expected, 'queueGeneration');
-  if (state.terminallyUnbound) return false;
+  if (state.generation === Number.MAX_SAFE_INTEGER || state.terminallyUnbound) return false;
   if (state.authorityEpoch === null && !hasAuthority && !hasQueue) return true;
   return hasAuthority
     && hasQueue
@@ -1265,6 +1278,18 @@ function advanceQueueGeneration(state, authorityGeneration = null) {
   if (authorityGeneration !== null) {
     state.queueAuthorization.authorityGeneration = authorityGeneration;
   }
+}
+
+function advanceQueueForTerminalCut(state, authorityGeneration = null) {
+  if (state.queueAuthorization.queueGeneration < Number.MAX_SAFE_INTEGER) {
+    advanceQueueGeneration(state, authorityGeneration);
+    return;
+  }
+  // The queue counter itself has no successor. Change the other comparison
+  // axis to a value distinct from every capture at the ceiling; terminal
+  // unbinding then makes that final identity permanently non-runnable.
+  state.queueAuthorization.authorityGeneration =
+    state.queueAuthorization.authorityGeneration === 0 ? 1 : 0;
 }
 
 function redactedStrandedMutation(entry, state, reason, disposition) {
@@ -1488,23 +1513,44 @@ function invalidateQueriesForAuthorityTransition(state, { deleteRows }) {
 
 function createStore({ read, write, withExclusive = (operation) => operation() }) {
   const load = () => normalizeState(read());
-  const save = (state) => {
+  const writeValidated = (state) => {
     // Validate a detached candidate before replacing durable bytes. Besides
     // preserving corrupt/future input, this keeps failed writes from
     // poisoning the in-memory reference adapter.
     const next = clone(state);
-    if (next.generation === Number.MAX_SAFE_INTEGER) {
-      throw clientStoreStateError(
-        'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
-        'client-store write generation is exhausted and the store must be replaced',
-      );
-    }
-    next.generation += 1;
     normalizeState(next);
     write(next);
     return next;
   };
-  const transact = (operation) => withExclusive(() => operation(load(), save));
+  const save = (state) => {
+    const next = clone(state);
+    // Reserve the final safe integer for a terminal privacy cut. Ordinary
+    // work may never consume it and leave no durable deletion identity.
+    if (next.generation >= Number.MAX_SAFE_INTEGER - 1) {
+      throw clientStoreGenerationExhaustedError();
+    }
+    next.generation += 1;
+    return writeValidated(next);
+  };
+  const saveTerminal = (state) => {
+    const next = clone(state);
+    if (!terminalAuthorityDataIsClean(next)) {
+      throw clientStoreStateError(
+        'SNAPBACK_CLIENT_STORE_TERMINAL_DIRTY',
+        'terminal client-store commit still contains authority-bound data',
+      );
+    }
+    // A pre-reservation writer may already have consumed MAX_SAFE_INTEGER.
+    // Replacing those bytes at the same final identity is safe because every
+    // authority/queue comparison rejects the ceiling and only purge/clear can
+    // operate there. Below the ceiling, terminal work still advances exactly
+    // once and uses the reserved value only when no ordinary value remains.
+    if (next.generation < Number.MAX_SAFE_INTEGER) next.generation += 1;
+    return writeValidated(next);
+  };
+  const transact = (operation) => withExclusive(
+    () => operation(load(), save, saveTerminal),
+  );
   return {
     version: SNAPBACK_CLIENT_STORE_VERSION,
 
@@ -1521,6 +1567,9 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         throw new TypeError('bindAuthority authMode must be dev or sessions');
       }
       return transact((state, commit) => {
+        if (state.generation === Number.MAX_SAFE_INTEGER) {
+          throw clientStoreGenerationExhaustedError();
+        }
         if (state.authorityEpoch !== null) {
           if (state.authorityEpoch === authorityEpoch && state.authorityKey === authorityKey) {
             return clone({ authorityEpoch, authorityKey });
@@ -1611,7 +1660,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (nextPrincipalScope !== null) {
         assertPrincipalScope(nextPrincipalScope, 'nextPrincipalScope');
       }
-      return transact((state, commit) => {
+      return transact((state, commit, commitTerminal) => {
         if (
           expectedStoreGeneration !== null
           && state.generation !== expectedStoreGeneration
@@ -1697,7 +1746,7 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         state.authorityEpoch = nextEpoch;
         state.authorityKey = nextAuthorityKey;
         state.terminallyUnbound = false;
-        commit(state);
+        (terminal ? commitTerminal : commit)(state);
         return clone({ authorityEpoch: nextEpoch, authorityKey: nextAuthorityKey });
       });
     },
@@ -1706,9 +1755,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
       if (typeof authorityKey !== 'string' || !AUTHORITY_KEY_PATTERN.test(authorityKey)) {
         throw new TypeError('purgeAuthority requires a canonical authorityKey');
       }
-      return transact((state, commit) => {
+      return transact((state, _commit, commitTerminal) => {
         if (state.authorityKey !== null && state.authorityKey !== authorityKey) {
           return { purged: false, fenced: false };
+        }
+        if (state.terminallyUnbound && terminalAuthorityDataIsClean(state)) {
+          return { purged: true, fenced: true };
         }
         clearAllQueueNamespaces(state);
         state.queueAuthorization.pendingByScope = {};
@@ -1720,41 +1772,42 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
         // Invalidate every queue capture taken before the terminal cut. At the
         // numeric ceiling the unbound-state rule above is itself the permanent
         // non-aliasing fence; do not wrap the comparison generation.
-        if (state.queueAuthorization.queueGeneration < Number.MAX_SAFE_INTEGER) {
-          advanceQueueGeneration(state, 0);
-        } else {
-          // queueGeneration cannot advance or wrap. Its maximum value first
-          // existed under the current authority generation (no later
-          // transition can succeed), so changing the other comparison axis is
-          // a fresh, permanent invalidation identity.
-          state.queueAuthorization.authorityGeneration =
-            state.queueAuthorization.authorityGeneration === 0 ? 1 : 0;
-        }
+        advanceQueueForTerminalCut(state, 0);
         // This path is used when shared custody proves another tuple owns the
         // primary row. Unbinding the exact stale local key invalidates every
         // old authority/queue capture without consuming a successor epoch.
         state.authorityEpoch = null;
         state.authorityKey = null;
         state.terminallyUnbound = true;
-        commit(state);
+        commitTerminal(state);
         return { purged: true, fenced: true };
       });
     },
 
     async authorityScope() {
-      return transact((state) => clone({
-        authorityEpoch: state.authorityEpoch,
-        authorityKey: state.authorityKey,
-      }));
+      return transact((state) => {
+        if (state.generation === Number.MAX_SAFE_INTEGER && !state.terminallyUnbound) {
+          throw clientStoreGenerationExhaustedError();
+        }
+        return clone({
+          authorityEpoch: state.authorityEpoch,
+          authorityKey: state.authorityKey,
+        });
+      });
     },
 
     async authorityBindingCapture() {
-      return transact((state) => clone({
-        storeGeneration: state.generation,
-        authorityEpoch: state.authorityEpoch,
-        authorityKey: state.authorityKey,
-        terminallyUnbound: state.terminallyUnbound,
-      }));
+      return transact((state) => {
+        if (state.generation === Number.MAX_SAFE_INTEGER && !state.terminallyUnbound) {
+          throw clientStoreGenerationExhaustedError();
+        }
+        return clone({
+          storeGeneration: state.generation,
+          authorityEpoch: state.authorityEpoch,
+          authorityKey: state.authorityKey,
+          terminallyUnbound: state.terminallyUnbound,
+        });
+      });
     },
 
     // @ref LLP 0053#dispositions-with-producers-and-meanings — pending
@@ -3057,7 +3110,12 @@ function createStore({ read, write, withExclusive = (operation) => operation() }
     },
 
     async snapshot() {
-      return transact((state) => clone(state));
+      return transact((state) => {
+        if (state.generation === Number.MAX_SAFE_INTEGER && !state.terminallyUnbound) {
+          throw clientStoreGenerationExhaustedError();
+        }
+        return clone(state);
+      });
     },
 
     async clear() {

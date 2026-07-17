@@ -2785,15 +2785,18 @@ export class AgentAuthorityFence {
 
   async #recordTerminalWitness() {
     return this.#withCustodyGate(async (gateOwner) => {
-      const observed = await this.#readRecordAt(this.#custodyId, gateOwner);
-      const matchesConfigured = observed !== null
-        && observed.authorityKey === this.#durableKey
-        && sameDurableAuthority(observed.authority, this.authority);
       await this.#ensureTerminalWitnessUnderGate(
         this.authority,
         'agent_durable_authority_rejected_before_installation',
         gateOwner,
       );
+      // The witness is independent irreversible evidence. Establish it before
+      // interpreting the primary row so malformed primary bytes cannot veto
+      // terminal exclusion and later reopen after operator repair.
+      const observed = await this.#readRecordAt(this.#custodyId, gateOwner);
+      const matchesConfigured = observed !== null
+        && observed.authorityKey === this.#durableKey
+        && sameDurableAuthority(observed.authority, this.authority);
       return {
         observed,
         preservePrimary: observed !== null && !matchesConfigured,
@@ -2830,17 +2833,20 @@ export class AgentAuthorityFence {
 
   async #replaceTerminalDurableExact(expected, target) {
     let firstError;
+    let witnessEnsured = false;
+    let primaryCasStarted = false;
     try {
       return await this.#withCustodyGate(async (gateOwner) => {
-        const observed = await this.#readRecordAt(this.#custodyId, gateOwner);
-        const observedMatchesConfigured = observed !== null
-          && observed.authorityKey === this.#durableKey
-          && sameDurableAuthority(observed.authority, this.authority);
         await this.#ensureTerminalWitnessUnderGate(
           this.authority,
           'agent_durable_authority_rejected_before_installation',
           gateOwner,
         );
+        witnessEnsured = true;
+        const observed = await this.#readRecordAt(this.#custodyId, gateOwner);
+        const observedMatchesConfigured = observed !== null
+          && observed.authorityKey === this.#durableKey
+          && sameDurableAuthority(observed.authority, this.authority);
         if (sameCustodyRecord(observed, target)) {
           return { record: observed, preservePrimary: false, alreadyTerminal: false };
         }
@@ -2867,6 +2873,7 @@ export class AgentAuthorityFence {
           if (!sameCustodyRecord(current, expected)) {
             throw stale('durable agent custody changed inside the terminal ownership interval');
           }
+          primaryCasStarted = true;
           const replaced = await owner.replace(expected?.revision ?? null, clone(target));
           const validated = validateCustodyRecord(replaced, this.#custodyId);
           if (!sameCustodyRecord(validated, target)) {
@@ -2878,6 +2885,15 @@ export class AgentAuthorityFence {
     } catch (error) {
       firstError = error;
     }
+
+    // No primary CAS can have committed when validation failed before replace.
+    // The terminal witness is already durable, so preserve the precise corrupt
+    // diagnosis rather than obscuring it as an ambiguous write outcome.
+    if (
+      witnessEnsured
+      && !primaryCasStarted
+      && firstError?.code === 'SNAPBACK_AUTH_CUSTODY_CORRUPT'
+    ) throw firstError;
 
     // Reconcile both throw-after-write and a distinct successor that won by
     // bypassing or preceding this ownership interval. The terminal witness is

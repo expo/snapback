@@ -6,7 +6,8 @@
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
 **Revised:** 2026-07-16 (terminal side-ledger reconciliation: durable Agent
-custody records tuple-specific terminal witnesses before primary cleanup,
+custody records tuple-specific terminal witnesses before primary read,
+validation, or cleanup,
 backfills pre-ledger tombstones, requires independent partition ownership, and
 pins coordinated rollout plus permanent witness retention). 2026-07-16 (finite service-authority closure: exact token witnesses
 now fence every finite response/effect, auth-session descriptor, connection
@@ -1965,7 +1966,10 @@ ids remain memory-only. Beside the primary row it persists one permanent,
 tuple-specific terminal witness for every durable tuple that receives an exact
 `durableDelete` verdict. Main-row reads and writes, witness reads and writes,
 and final publication comparisons serialize through one reserved custody gate.
-The terminal process records the witness before primary cleanup. Every active
+The terminal process records the witness before even reading or validating the
+primary row, and therefore before primary cleanup. A corrupt primary may still
+reject settlement, but later repair or removal cannot reopen the witnessed
+tuple. Every active
 install, adoption, confirmation, and publication comparison refuses a matching
 witness; a distinct proposed tuple cannot delete the active primary row, and a
 fresh null-CAS loser re-enters the gate before deciding whether the winner is

@@ -8,6 +8,7 @@ import {
   createMemoryAuthCustodyStorage,
 } from './auth-coordinator.mjs';
 import {
+  createLocalStorageSnapbackClientStore,
   createMemorySnapbackClientStore,
   createSnapbackClientStoreAuthParticipant,
   SNAPBACK_CLIENT_STORE_VERSION,
@@ -1299,10 +1300,154 @@ assert.deepEqual(
   state.generation = Number.MAX_SAFE_INTEGER;
   const exhausted = createMemorySnapbackClientStore({ state });
   await expectCode(
-    'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+    'SNAPBACK_CLIENT_STORE_AUTHORITY_STALE',
     () => exhausted.scopeToAuth('next', { authorityEpoch: 1, authorityKey: key1 }),
   );
-  assert.equal((await exhausted.snapshot()).generation, Number.MAX_SAFE_INTEGER);
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+    () => exhausted.bindAuthority({ authorityEpoch: 1, authorityKey: key1 }),
+  );
+  await expectCode('SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED', () => exhausted.snapshot());
+  assert.equal(state.generation, Number.MAX_SAFE_INTEGER);
+}
+
+// MAX_SAFE_INTEGER is the final terminal-deletion identity. A legacy/current
+// bound store already at that ceiling exposes no retained or queued payload,
+// terminal purge may replace it in place, and the clean marker is idempotent.
+{
+  const exhaustedState = {};
+  const exhausted = createMemorySnapbackClientStore({ state: exhaustedState });
+  const authority = { authorityEpoch: 0, authorityKey: keyB };
+  await exhausted.bindAuthority({ ...authority, authMode: 'sessions' });
+  const queue = await exhausted.captureMutationQueue(authority);
+  await exhausted.putRetainedQuery('generation-ceiling-private', {
+    ...authority,
+    rows: [{ secret: 'generation-ceiling-retained' }],
+  });
+  await exhausted.enqueueMutation({
+    id: 'cm_generation_ceiling_private',
+    function: 'writeGenerationCeilingPrivate',
+    ...authority,
+    ...queue,
+  });
+  exhaustedState.generation = Number.MAX_SAFE_INTEGER;
+
+  assert.equal(
+    await exhausted.getRetainedQuery('generation-ceiling-private', authority),
+    null,
+  );
+  assert.deepEqual(await exhausted.pendingMutations({ ...authority, ...queue }), []);
+  await expectCode('SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED', () => exhausted.snapshot());
+
+  assert.deepEqual(await exhausted.purgeAuthority({ authorityKey: keyB }), {
+    purged: true,
+    fenced: true,
+  });
+  const terminal = await exhausted.snapshot();
+  assert.equal(terminal.generation, Number.MAX_SAFE_INTEGER);
+  assert.equal(terminal.terminallyUnbound, true);
+  assert.equal(JSON.stringify(terminal).includes('generation-ceiling-retained'), false);
+  assert.equal(JSON.stringify(terminal).includes('cm_generation_ceiling_private'), false);
+  const exactTerminal = JSON.stringify(terminal);
+  assert.deepEqual(await exhausted.purgeAuthority({ authorityKey: keyB }), {
+    purged: true,
+    fenced: true,
+  });
+  assert.equal(JSON.stringify(await exhausted.snapshot()), exactTerminal);
+}
+
+// If the physical terminal write itself fails, already-exhausted predecessor
+// bytes stay inaccessible through every authority-bound read until clear or a
+// later purge succeeds.
+{
+  const source = createMemorySnapbackClientStore();
+  const authority = { authorityEpoch: 0, authorityKey: keyB };
+  await source.bindAuthority({ ...authority, authMode: 'sessions' });
+  const queue = await source.captureMutationQueue(authority);
+  await source.putRetainedQuery('failed-terminal-private', {
+    ...authority,
+    rows: [{ secret: 'failed-terminal-retained' }],
+  });
+  await source.enqueueMutation({
+    id: 'cm_failed_terminal_private',
+    function: 'writeFailedTerminalPrivate',
+    ...authority,
+    ...queue,
+  });
+  const rawState = await source.snapshot();
+  rawState.generation = Number.MAX_SAFE_INTEGER;
+  const raw = JSON.stringify(rawState);
+  const failedWriteStore = createLocalStorageSnapbackClientStore({
+    key: 'generation-ceiling-write-failure',
+    storage: {
+      getItem() { return raw; },
+      setItem() { throw new Error('injected terminal write failure'); },
+    },
+    lockManager: {
+      request(_name, _options, operation) { return operation(); },
+    },
+  });
+  await assert.rejects(
+    failedWriteStore.purgeAuthority({ authorityKey: keyB }),
+    /injected terminal write failure/,
+  );
+  assert.equal(
+    await failedWriteStore.getRetainedQuery('failed-terminal-private', authority),
+    null,
+  );
+  assert.deepEqual(await failedWriteStore.pendingMutations({ ...authority, ...queue }), []);
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+    () => failedWriteStore.snapshot(),
+  );
+}
+
+// Ordinary writes stop one value early. A terminal participant can consume
+// the reserved value, clear all data, and settle the marker without wrapping.
+{
+  const finalState = {};
+  const finalStore = createMemorySnapbackClientStore({ state: finalState });
+  const authority = { authorityEpoch: 0, authorityKey: keyB };
+  await finalStore.bindAuthority({ ...authority, authMode: 'sessions' });
+  const queue = await finalStore.captureMutationQueue(authority);
+  await finalStore.putRetainedQuery('reserved-terminal-private', {
+    ...authority,
+    rows: [{ secret: 'reserved-terminal-retained' }],
+  });
+  await finalStore.enqueueMutation({
+    id: 'cm_reserved_terminal_private',
+    function: 'writeReservedTerminalPrivate',
+    ...authority,
+    ...queue,
+  });
+  finalState.generation = Number.MAX_SAFE_INTEGER - 1;
+  await expectCode(
+    'SNAPBACK_CLIENT_STORE_GENERATION_EXHAUSTED',
+    () => finalStore.scopeToAuth('must-not-consume-reserved', authority),
+  );
+  finalState.queueAuthorization.queueGeneration = Number.MAX_SAFE_INTEGER;
+  const participant = createSnapbackClientStoreAuthParticipant(finalStore);
+  const context = {
+    previousAuthority: {
+      kind: 'servicePrincipal',
+      authMode: 'sessions',
+      actorUserId: USER,
+      credentialId: SESSION,
+      credentialGeneration: 0,
+      grantId: SESSION_B,
+    },
+    nextAuthority: null,
+    expectedEpoch: null,
+    nextEpoch: 0,
+    nextAuthorityKey: keyB,
+    disposition: 'delete',
+  };
+  await participant.commitTerminalDurable(context);
+  const terminal = await finalStore.snapshot();
+  assert.equal(terminal.generation, Number.MAX_SAFE_INTEGER);
+  assert.equal(terminal.terminallyUnbound, true);
+  assert.equal(JSON.stringify(terminal).includes('reserved-terminal-retained'), false);
+  assert.equal(JSON.stringify(terminal).includes('cm_reserved_terminal_private'), false);
 }
 
 // A suspended context can miss multiple transitions while another owner has
