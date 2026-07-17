@@ -4,8 +4,8 @@ id: sync.offline-and-retention
 order: 1
 audience: agent-first
 capabilities: [sync.offline]
-authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs]
-examples: [demos/card-game, demos/todo-v2/surfaces/contract]
+authorities: [llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-contract/index.mjs, packages/snapback-contract/offline-replay.test.mjs]
+examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -36,6 +36,15 @@ If any identity or replay proof is missing, queued writes and retention are
 disabled instead of being rebound to a guessed backend. A changed artifact or
 authority scope quarantines/deletes the old privacy-bearing state before the
 new scope can inspect it.
+
+For `AgentAuthorityFence`, the durable authority key is a canonical SHA-256
+identity over the actor, credential id and generation, and grant id. Token id,
+bearer bytes, and carrier generation are deliberately excluded: rotating a
+token for that same tuple can replay its existing queue, while changing any
+durable tuple coordinate advances the authority epoch and deletes predecessor
+work. Every replay still resolves and validates a current scoped token before
+the server acts. Agent authority does not enable retained service-principal
+reads in v1.
 
 ## Boot from retained rows honestly
 
@@ -133,3 +142,5 @@ reducer. Server rows remain authoritative:
 - **Do not serve retained rows as live.** Render the stale connection axis.
 - **Do not cache authorized rows outside the lease-aware store.** Use the
   authorized-retention path or keep the surface online-only.
+- **Do not key an agent outbox by token id.** Tokens are live carriers; the
+  server-issued descriptor and durable grant tuple own replay identity.

@@ -17,6 +17,7 @@ export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 export {
   AuthCoordinator,
   authAppIdHash,
+  canonicalAgentAuthorityKey,
   canonicalAuthorityKey,
   createMemoryAuthCustodyStorage,
   normalizeClientAuthority,
@@ -175,7 +176,8 @@ function createContractQueryAuthorizationQueue(store, capture, authorizedQuery =
 }
 
 function registerContractParticipant(client, coordinator, participant) {
-  return typeof client?.registerAuthBarrierParticipant === 'function'
+  return clientOwnsAuthorityFence(client, coordinator)
+    && typeof client?.registerAuthBarrierParticipant === 'function'
     ? client.registerAuthBarrierParticipant(participant)
     : coordinator.registerParticipant(participant);
 }
@@ -230,10 +232,13 @@ function staleContractAuthorityError() {
 }
 
 function resolveAuthCoordinator(client, explicit) {
-  const coordinator = explicit ?? client?.authCoordinator ?? null;
+  const coordinator = explicit
+    ?? client?.authCoordinator
+    ?? client?.agentAuthority
+    ?? null;
   if (!coordinator) {
     if (client?.authProtocols?.authClient === 1) {
-      throw new TypeError('auth-client protocol v1 requires canonical AuthCoordinator custody');
+      throw new TypeError('auth-client protocol v1 requires browser or agent authority custody');
     }
     return null;
   }
@@ -264,13 +269,19 @@ const offeredProtocolEchoV1 = (client, session, axis) => (
   && (client?.authProtocols == null || client.authProtocols[axis] === 1)
 );
 
+const clientOwnsAuthorityFence = (client, coordinator) => (
+  client?.authorityFence === coordinator
+  || client?.authCoordinator === coordinator
+  || client?.agentAuthority === coordinator
+);
+
 async function bootContractAuthority(client, coordinator, { durableOffline = false } = {}) {
   if (!coordinator) return { capture: null, durableAuthorityRestored: false };
   if (durableOffline && typeof coordinator.restoreOffline === 'function') {
     const restored = await coordinator.restoreOffline();
     if (restored) {
       return {
-        capture: client?.authCoordinator === coordinator
+        capture: clientOwnsAuthorityFence(client, coordinator)
           && typeof client?.captureAuthority === 'function'
           ? client.captureAuthority()
           : restored,
@@ -280,13 +291,13 @@ async function bootContractAuthority(client, coordinator, { durableOffline = fal
   }
   // The kit owns handshake/custody reconciliation. A generic coordinator test
   // double may omit authSession and arrive already settled.
-  if (client?.authCoordinator === coordinator && typeof client?.authSession === 'function') {
+  if (clientOwnsAuthorityFence(client, coordinator) && typeof client?.authSession === 'function') {
     await client.authSession();
   } else if (typeof coordinator.synchronize === 'function') {
     await coordinator.synchronize();
   }
   return {
-    capture: client?.authCoordinator === coordinator && typeof client?.captureAuthority === 'function'
+    capture: clientOwnsAuthorityFence(client, coordinator) && typeof client?.captureAuthority === 'function'
       ? client.captureAuthority()
       : coordinator.capture(),
     durableAuthorityRestored: false,
@@ -2352,7 +2363,7 @@ export async function createSnapbackContractSurface({
       //   settled capture or explicitly blank while the successor is prepared.
       unregisterSurfaceParticipant = registerContractParticipant(client, coordinator, {
         name: `snapback-contract-surface:${surfaceRootId}`,
-        async quiesce() {
+        quiesce() {
           barrierPaused = true;
           resumeGeneration += 1;
           if (resumeTimer !== null) {
@@ -2393,13 +2404,15 @@ export async function createSnapbackContractSurface({
         async commitDurable() {},
         async resume(context) {
           authorityCapture = context.capture;
-          // The participant itself performs the mandatory durable reload while
-          // the coordinator's local exposure barrier is still closed. This is
-          // outside cross-context ownership; exact successor confirmation may
-          // re-acquire custody, while a concurrent successor aborts resume.
-          // @ref LLP 0059#cross-context-ownership — Contract resume cannot
-          // defer its authority check until after the barrier has reopened.
-          await coordinator.synchronize();
+          // Browser custody performs the mandatory cross-context reload while
+          // its exposure barrier is still closed. Agent custody has no peer
+          // browser owner; its local fence keeps compareAndCommit closed until
+          // this participant returns and the carrier barrier completes.
+          // @ref LLP 0059#cross-context-ownership — browser Contract resume
+          // cannot defer its authority check until after the barrier reopens.
+          if (client?.authCoordinator === coordinator) {
+            await coordinator.synchronize();
+          }
           scheduleAuthorityRefresh(context);
         },
       });
@@ -3876,7 +3889,7 @@ async function createMultiLiveContractSurface({
     if (coordinator) {
       unregisterSurfaceParticipant = registerContractParticipant(client, coordinator, {
         name: `snapback-contract-multi-surface:${rootId}`,
-        async quiesce() {
+        quiesce() {
           barrierPaused = true;
           resumeGeneration += 1;
           if (resumeTimer !== null) {
@@ -3907,9 +3920,12 @@ async function createMultiLiveContractSurface({
         async commitDurable() {},
         async resume(context) {
           currentCapture = context.capture;
-          // @ref LLP 0059#cross-context-ownership — multi-live surfaces share
-          // the same exact durable resume fence as the single-query surface.
-          await coordinator.synchronize();
+          // @ref LLP 0059#cross-context-ownership — browser multi-live
+          // surfaces share the same exact durable resume fence as the
+          // single-query surface. Agent custody is one local carrier fence.
+          if (client?.authCoordinator === coordinator) {
+            await coordinator.synchronize();
+          }
           scheduleAuthorityRefresh(context);
         },
       });

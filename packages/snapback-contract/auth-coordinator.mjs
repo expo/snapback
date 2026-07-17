@@ -210,6 +210,39 @@ export function canonicalAuthorityKey(appId, authority) {
   return `sha256:${sha256Hex(`snapback.auth-authority.v1\n${JSON.stringify(ordered)}`)}`;
 }
 
+// Agent custody has a durable grant-tuple axis distinct from browser session
+// custody. Keep this synchronous so headless clients can capture/fence work at
+// the call boundary in browsers, Node, and native JS shells.
+//
+// @ref LLP 0055#grant-backed-live-and-queued-replay — token id and carrier
+// generation deliberately do not participate in durable queued-replay identity.
+export function canonicalAgentAuthorityKey({
+  actorUserId,
+  credentialId,
+  credentialGeneration,
+  grantId,
+} = {}) {
+  for (const [field, value] of [
+    ['actorUserId', actorUserId],
+    ['credentialId', credentialId],
+    ['grantId', grantId],
+  ]) {
+    if (!UUID_V7.test(value ?? '')) {
+      throw new TypeError(`${field} must be a UUIDv7`);
+    }
+  }
+  if (!Number.isSafeInteger(credentialGeneration) || credentialGeneration < 0) {
+    throw new TypeError('credentialGeneration must be a non-negative safe integer');
+  }
+  const ordered = {
+    actorUserId,
+    credentialId,
+    credentialGeneration,
+    grantId,
+  };
+  return `sha256:${sha256Hex(`snapback.agent-authority.v1\n${JSON.stringify(ordered)}`)}`;
+}
+
 export function authAppIdHash(appId) {
   return sha256Hex(`snapback.auth-app.v1\n${canonicalAppId(appId)}`);
 }

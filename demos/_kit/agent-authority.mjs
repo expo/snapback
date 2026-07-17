@@ -8,6 +8,8 @@
 // keyed by the grant tuple while live publication is additionally fenced by
 // the exact token carrier generation.
 
+import { canonicalAgentAuthorityKey } from '../../packages/snapback-contract/auth-coordinator.mjs';
+
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const requireUuid = (value, name) => {
@@ -29,8 +31,19 @@ const requireBearer = (value) => {
   return value;
 };
 
-const tupleKey = ({ actorUserId, credentialId, credentialGeneration, grantId }) => (
-  `${actorUserId}\u0000${credentialId}\u0000${credentialGeneration}\u0000${grantId}`
+const durableAuthority = ({ actorUserId, credentialId, credentialGeneration, grantId }) => (
+  Object.freeze({
+    kind: 'servicePrincipal',
+    authMode: 'sessions',
+    actorUserId,
+    credentialId,
+    credentialGeneration,
+    grantId,
+  })
+);
+
+const authorityCapture = (authorityEpoch, authorityKey, carrierGeneration, tokenId) => (
+  Object.freeze({ authorityEpoch, authorityKey, carrierGeneration, tokenId })
 );
 
 const normalizeCredential = (value) => Object.freeze({
@@ -71,10 +84,21 @@ export class AgentAuthorityFence {
   #durableEpoch = 0;
   #carrierGeneration = 0;
   #authorityDescriptor = null;
+  #participants = [];
+  #barrierGeneration = 0;
+  #barrierActive = false;
+  #barrierPhase = null;
+  #barrierPromise = Promise.resolve();
+  #barrierError = null;
+  #terminated = false;
 
   constructor(credential) {
     this.#credential = normalizeCredential(credential);
-    this.#durableKey = tupleKey(this.#credential);
+    this.#durableKey = canonicalAgentAuthorityKey(this.#credential);
+  }
+
+  get authority() {
+    return durableAuthority(this.#credential);
   }
 
   get authorityDescriptor() {
@@ -84,18 +108,25 @@ export class AgentAuthorityFence {
   }
 
   capture() {
-    return Object.freeze({
-      authorityEpoch: this.#durableEpoch,
-      authorityKey: this.#durableKey,
-      carrierGeneration: this.#carrierGeneration,
-      tokenId: this.#credential.tokenId,
-    });
+    return authorityCapture(
+      this.#durableEpoch,
+      this.#durableKey,
+      this.#carrierGeneration,
+      this.#credential.tokenId,
+    );
   }
 
-  synchronize() { return Promise.resolve(this.capture()); }
+  async synchronize() {
+    if (this.#barrierActive) await this.#barrierPromise;
+    if (this.#barrierError) throw this.#barrierError;
+    return this.capture();
+  }
 
   isCurrent(capture) {
-    return capture?.authorityEpoch === this.#durableEpoch
+    return !this.#terminated
+      && !this.#barrierActive
+      && this.#barrierError === null
+      && capture?.authorityEpoch === this.#durableEpoch
       && capture?.authorityKey === this.#durableKey
       && capture?.carrierGeneration === this.#carrierGeneration
       && capture?.tokenId === this.#credential.tokenId;
@@ -123,16 +154,44 @@ export class AgentAuthorityFence {
   }
 
   replaceCredential(credential) {
-    const next = normalizeCredential(credential);
-    const nextDurableKey = tupleKey(next);
-    this.#carrierGeneration += 1;
-    if (nextDurableKey !== this.#durableKey) {
-      this.#durableEpoch += 1;
-      this.#durableKey = nextDurableKey;
-      this.#authorityDescriptor = null;
+    if (this.#barrierActive || this.#barrierError) {
+      throw stale('agent authority is clearing and cannot replace its credential');
     }
+    const next = normalizeCredential(credential);
+    const nextDurableKey = canonicalAgentAuthorityKey(next);
+    const previousCapture = this.capture();
+    const previousAuthority = this.authority;
+    const durableChanged = nextDurableKey !== this.#durableKey;
+    const nextEpoch = this.#durableEpoch + (durableChanged ? 1 : 0);
+    const nextCarrierGeneration = this.#carrierGeneration + 1;
+    const capture = authorityCapture(
+      nextEpoch,
+      nextDurableKey,
+      nextCarrierGeneration,
+      next.tokenId,
+    );
+    const nextAuthority = durableAuthority(next);
+    const context = Object.freeze({
+      capture,
+      authority: nextAuthority,
+      previousAuthority,
+      nextAuthority,
+      previousCapture,
+      expectedEpoch: previousCapture.authorityEpoch,
+      nextEpoch,
+      nextAuthorityKey: nextDurableKey,
+      disposition: 'delete',
+      reason: durableChanged ? 'agent_authority_changed' : 'agent_token_rotated',
+    });
+    const barrier = this.#beginBarrier({ clearMemory: durableChanged, context });
+    this.#carrierGeneration = nextCarrierGeneration;
+    this.#durableEpoch = nextEpoch;
+    this.#durableKey = nextDurableKey;
+    if (durableChanged) this.#authorityDescriptor = null;
     this.#credential = next;
-    return this.capture();
+    this.#terminated = false;
+    this.#finishBarrier(barrier, context, { commitDurable: durableChanged, resume: true });
+    return capture;
   }
 
   terminate(capture) {
@@ -144,8 +203,29 @@ export class AgentAuthorityFence {
     // The durable grant tuple remains available to a separately supplied
     // successor credential, but no work captured under this carrier can
     // publish again.
-    this.#carrierGeneration += 1;
+    const nextCapture = authorityCapture(
+      this.#durableEpoch,
+      this.#durableKey,
+      this.#carrierGeneration + 1,
+      this.#credential.tokenId,
+    );
+    const context = Object.freeze({
+      capture: nextCapture,
+      authority: this.authority,
+      previousAuthority: this.authority,
+      nextAuthority: null,
+      previousCapture: capture,
+      expectedEpoch: capture.authorityEpoch,
+      nextEpoch: capture.authorityEpoch,
+      nextAuthorityKey: capture.authorityKey,
+      disposition: 'delete',
+      reason: 'agent_carrier_terminated',
+    });
+    const barrier = this.#beginBarrier({ clearMemory: true, context });
+    this.#carrierGeneration = nextCapture.carrierGeneration;
     this.#authorityDescriptor = null;
+    this.#terminated = true;
+    this.#finishBarrier(barrier, context, { commitDurable: false, resume: false });
     return true;
   }
 
@@ -162,5 +242,112 @@ export class AgentAuthorityFence {
       throw new TypeError('compareAndCommit callback must be synchronous');
     }
     return Promise.resolve({ committed: true, value });
+  }
+
+  registerParticipant(participant) {
+    if (!participant || typeof participant !== 'object') {
+      throw new TypeError('participant must be an object');
+    }
+    if (this.#barrierActive || this.#barrierError || this.#terminated) {
+      throw stale('agent authority is unavailable for participant registration');
+    }
+    // Agent replacement and terminal loss are synchronous carrier cuts. Their
+    // local participants must therefore finish quiescence before this method
+    // can synchronously blank every boundary. Browser AuthCoordinator retains
+    // the broader awaited participant contract for cross-context transitions.
+    for (const method of ['quiesce', 'blank', 'clearMemory']) {
+      if (participant[method]?.constructor?.name === 'AsyncFunction') {
+        throw new TypeError(`agent authority participant ${method}() must be synchronous`);
+      }
+    }
+    const entry = { participant, removed: false };
+    this.#participants.push(entry);
+    return async () => {
+      entry.removed = true;
+      await this.#barrierPromise;
+      this.#participants = this.#participants.filter((candidate) => candidate !== entry);
+    };
+  }
+
+  #beginBarrier({ clearMemory, context }) {
+    const entries = this.#participants.filter((entry) => !entry.removed);
+    if (entries.length === 0) return null;
+    this.#barrierGeneration += 1;
+    const generation = this.#barrierGeneration;
+    this.#barrierActive = true;
+    this.#barrierPhase = 'quiescing';
+    // @ref LLP 0059#transition-barrier — even this local carrier-only owner
+    // completes quiescence before synchronous blanking; otherwise an in-flight
+    // callback could repopulate a boundary after the terminal cut returned.
+    let firstError = null;
+    const invoke = (participant, method) => {
+      if (typeof participant?.[method] !== 'function') return undefined;
+      try {
+        const result = participant[method](context);
+        if (result && typeof result.then === 'function') {
+          void Promise.resolve(result).catch(() => {});
+          throw new TypeError(`agent authority participant ${method}() must be synchronous`);
+        }
+        return result;
+      } catch (error) {
+        firstError ??= error;
+        return undefined;
+      }
+    };
+    for (const { participant } of entries) {
+      invoke(participant, 'quiesce');
+    }
+    if (firstError) {
+      this.#barrierError = firstError;
+      this.#barrierPhase = 'failed';
+      throw firstError;
+    }
+    this.#barrierPhase = 'blanking';
+    for (const { participant } of entries) invoke(participant, 'blank');
+    if (firstError) {
+      this.#barrierError = firstError;
+      this.#barrierPhase = 'failed';
+      throw firstError;
+    }
+    if (clearMemory) {
+      this.#barrierPhase = 'clearing-memory';
+      for (const { participant } of entries) invoke(participant, 'clearMemory');
+    }
+    if (firstError) {
+      this.#barrierError = firstError;
+      this.#barrierPhase = 'failed';
+      throw firstError;
+    }
+    return { entries, generation };
+  }
+
+  #finishBarrier(barrier, context, { commitDurable, resume }) {
+    if (!barrier) return;
+    const frozenContext = Object.freeze({ ...context });
+    const complete = async () => {
+      if (commitDurable) {
+        this.#barrierPhase = 'committing-durable';
+        for (const { participant } of barrier.entries) {
+          await participant.commitDurable?.(frozenContext);
+        }
+      }
+      if (resume) {
+        this.#barrierPhase = 'resuming';
+        for (const { participant } of [...barrier.entries].reverse()) {
+          await participant.resume?.(frozenContext);
+        }
+      }
+      if (barrier.generation === this.#barrierGeneration) {
+        this.#barrierActive = false;
+        this.#barrierPhase = null;
+      }
+    };
+    this.#barrierPromise = complete().catch((error) => {
+      if (barrier.generation === this.#barrierGeneration) {
+        this.#barrierError = error;
+        this.#barrierActive = true;
+        this.#barrierPhase = 'failed';
+      }
+    });
   }
 }

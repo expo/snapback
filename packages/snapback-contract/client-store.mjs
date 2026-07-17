@@ -3074,7 +3074,7 @@ export function createSnapbackClientStoreAuthParticipant(store, {
   }
   return Object.freeze({
     name,
-    async quiesce() {},
+    quiesce() {},
     blank() {},
     clearMemory() {},
     async commitDurable(context) {

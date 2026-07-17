@@ -4,8 +4,8 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, packages/snapback-contract/index.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -122,6 +122,17 @@ missing, seeds only empty tables — a reload never resets data; LLP 0034
 authorized retained snapshot; a true first run fails with the original
 network error instead of inventing an empty app.
 
+Agent clients use the same surface constructor. A `SnapbackClient` configured
+with `AgentAuthorityFence` is resolved as explicit custody; Contract does not
+reinterpret it as a browser session and does not fall back to an unfenced
+bearer. Token rotation for the same actor/credential-generation/grant tuple
+keeps queued replay bound while refreshing the live carrier. A tuple change or
+terminal scoped-token/grant outcome synchronously blanks the Contract boundary;
+tuple changes also delete predecessor durable work before the successor can
+resume. Retained service-principal reads remain refused on the local v1 plane,
+so agent-backed surfaces can use durable queued replay without claiming
+retained-read Parity.
+
 What the surface does for you:
 
 - **Validates artifacts** — the Contract data manifest is checked against
@@ -158,3 +169,6 @@ What the surface does for you:
 - **Do not skip `artifactIndex`/manifest validation by passing stale
   generates.** Regenerate; the stale-rejection codes exist to stop exactly
   this.
+- **Do not pass a scoped token as a raw bearer to Contract.** Construct the
+  headless client with `AgentAuthorityFence`; protocol-v1 agent work without
+  that custody owner is refused.
