@@ -715,12 +715,7 @@ export class AgentAuthorityFence {
   }
 
   capture() {
-    if (this.#inCommit) {
-      throw fenceError(
-        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
-        'agent custody operations are forbidden inside compareAndCommit',
-      );
-    }
+    this.#assertNotInCommit('agent custody operations are forbidden inside compareAndCommit');
     if (
       !this.#publicationOpen
       || this.#barrierActive
@@ -746,12 +741,7 @@ export class AgentAuthorityFence {
   }
 
   async #synchronizeWithValidation(validatedAuthorityInstanceId) {
-    if (this.#inCommit) {
-      throw fenceError(
-        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
-        'agent custody synchronization is forbidden inside compareAndCommit',
-      );
-    }
+    this.#assertNotInCommit('agent custody synchronization is forbidden inside compareAndCommit');
     if (this.#synchronizing !== null) {
       const active = this.#synchronizing;
       try {
@@ -799,12 +789,7 @@ export class AgentAuthorityFence {
   }
 
   credentialOfferForHandshake() {
-    if (this.#inCommit) {
-      throw fenceError(
-        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
-        'agent credential offers are forbidden inside compareAndCommit',
-      );
-    }
+    this.#assertNotInCommit('agent credential offers are forbidden inside compareAndCommit');
     if (
       this.#terminated
       || this.#barrierActive
@@ -828,12 +813,7 @@ export class AgentAuthorityFence {
   }
 
   credentialOfferForReplacement(credential) {
-    if (this.#inCommit) {
-      throw fenceError(
-        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
-        'agent credential replacement offers are forbidden inside compareAndCommit',
-      );
-    }
+    this.#assertNotInCommit('agent credential replacement offers are forbidden inside compareAndCommit');
     const next = normalizeCredential(credential);
     const previousCapture = this.capture();
     // This is a validation-only carrier offer. It grants no publication or
@@ -847,6 +827,7 @@ export class AgentAuthorityFence {
   }
 
   async synchronizeValidated(descriptor) {
+    this.#assertNotInCommit('agent custody synchronization is forbidden inside compareAndCommit');
     const authorityInstanceId = descriptorKey(descriptor);
     if (authorityInstanceId !== deriveServiceAuthorityInstanceId(this.#credential)) {
       throw stale('agent handshake descriptor does not match the configured credential');
@@ -855,6 +836,7 @@ export class AgentAuthorityFence {
   }
 
   bindHandshake(capture, descriptor) {
+    this.#assertNotInCommit('agent handshake binding is forbidden inside compareAndCommit');
     if (!this.isCurrent(capture)) throw stale();
     const authorityInstanceId = descriptorKey(descriptor);
     if (authorityInstanceId !== deriveServiceAuthorityInstanceId(this.#credential)) {
@@ -871,10 +853,12 @@ export class AgentAuthorityFence {
   }
 
   replaceCredential() {
+    this.#assertNotInCommit('agent credential replacement is forbidden inside compareAndCommit');
     throw credentialValidationRequired();
   }
 
   replaceCredentialValidated(expected, credential, descriptor) {
+    this.#assertNotInCommit('agent credential replacement is forbidden inside compareAndCommit');
     const next = normalizeCredential(credential);
     const authorityInstanceId = descriptorKey(descriptor);
     if (authorityInstanceId !== deriveServiceAuthorityInstanceId(next)) {
@@ -1018,6 +1002,7 @@ export class AgentAuthorityFence {
   }
 
   terminateValidatedCredential(offer, disposition = {}) {
+    this.#assertNotInCommit('agent credential termination is forbidden inside compareAndCommit');
     const authorityDisposition = typeof disposition === 'string'
       ? disposition
       : disposition?.authorityDisposition ?? 'carrier';
@@ -1073,6 +1058,7 @@ export class AgentAuthorityFence {
   }
 
   terminate(capture, disposition = 'carrier') {
+    this.#assertNotInCommit('agent credential termination is forbidden inside compareAndCommit');
     const authorityDisposition = typeof disposition === 'string'
       ? disposition
       : disposition?.authorityDisposition ?? 'carrier';
@@ -1469,24 +1455,31 @@ export class AgentAuthorityFence {
   }
 
   compareAndCommit(capture, commit) {
+    this.#assertNotInCommit('nested agent publication commits are forbidden inside compareAndCommit');
     if (typeof commit !== 'function') {
       throw new TypeError('compareAndCommit requires a commit callback');
     }
     if (!this.isCurrent(capture)) return Promise.resolve({ committed: false });
     if (this.#storage === null) {
-      const value = commit(Object.freeze({
-        ...capture,
-        authorityDescriptor: this.authorityDescriptor,
-      }));
-      if (value && typeof value.then === 'function') {
-        throw new TypeError('compareAndCommit callback must be synchronous');
+      this.#inCommit = true;
+      try {
+        const value = commit(Object.freeze({
+          ...capture,
+          authorityDescriptor: this.authorityDescriptor,
+        }));
+        if (value && typeof value.then === 'function') {
+          throw new TypeError('compareAndCommit callback must be synchronous');
+        }
+        return Promise.resolve({ committed: true, value });
+      } finally {
+        this.#inCommit = false;
       }
-      return Promise.resolve({ committed: true, value });
     }
     return this.#compareAndCommitDurable(capture, commit);
   }
 
   registerParticipant(participant) {
+    this.#assertNotInCommit('agent participant registration is forbidden inside compareAndCommit');
     if (!participant || typeof participant !== 'object') {
       throw new TypeError('participant must be an object');
     }
@@ -1523,10 +1516,13 @@ export class AgentAuthorityFence {
         throw firstError;
       }
     }
-    return async () => {
+    return () => {
+      this.#assertNotInCommit('agent participant removal is forbidden inside compareAndCommit');
       entry.removed = true;
-      await this.#barrierPromise;
-      this.#participants = this.#participants.filter((candidate) => candidate !== entry);
+      return (async () => {
+        await this.#barrierPromise;
+        this.#participants = this.#participants.filter((candidate) => candidate !== entry);
+      })();
     };
   }
 
@@ -1732,6 +1728,12 @@ export class AgentAuthorityFence {
       throw new TypeError(`agent authority participant ${method}() must be synchronous`);
     }
     return result;
+  }
+
+  #assertNotInCommit(message) {
+    if (this.#inCommit) {
+      throw fenceError('SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT', message);
+    }
   }
 
   #wedgeSync(error, context) {

@@ -64,6 +64,39 @@ const deferred = () => {
   assert(fence.isCurrent(rotated));
 }
 
+// Publication callbacks are a non-reentrant custody boundary in both
+// online-only and durable modes. A callback may catch the stable refusal, but
+// it cannot terminate, rotate, rebind, or change the participant set and then
+// receive a successful publication result for the retired predecessor.
+for (const durable of [false, true]) {
+  const options = durable
+    ? { storage: createMemoryAgentAuthorityCustodyStorage(), custodyId: `agent:commit-reentrant:${durable}` }
+    : {};
+  const fence = new AgentAuthorityFence(credential(), options);
+  if (durable) await synchronizeValidated(fence);
+  const capture = fence.capture();
+  const unregister = fence.registerParticipant({ quiesce() {}, blank() {}, clearMemory() {} });
+  const next = credential({ tokenId: TOKEN_B });
+  const reentrant = (operation) => assert.throws(
+    operation,
+    code('SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT'),
+  );
+  const result = await fence.compareAndCommit(capture, () => {
+    reentrant(() => fence.capture());
+    reentrant(() => fence.bindHandshake(capture, descriptorFor(credential())));
+    reentrant(() => fence.replaceCredentialValidated(capture, next, descriptorFor(next)));
+    reentrant(() => fence.terminate(capture));
+    reentrant(() => fence.registerParticipant({}));
+    reentrant(() => unregister());
+    reentrant(() => fence.compareAndCommit(capture, () => assert.fail('nested commit ran')));
+    return durable ? 'durable' : 'volatile';
+  });
+  assert.deepEqual(result, { committed: true, value: durable ? 'durable' : 'volatile' });
+  assert(fence.isCurrent(capture), 'reentrant custody attempts leave the published capture current');
+  assert.equal(fence.authorityDescriptor, null, 'reentrant binding cannot mutate descriptor state');
+  await unregister();
+}
+
 // A configured successor may offer its carrier to /auth/session without
 // receiving publication authority. A mismatched settled predecessor is never
 // changed until the exact service descriptor has been validated inside the
