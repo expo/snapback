@@ -8,7 +8,10 @@
 // keyed by the grant tuple while live publication is additionally fenced by
 // the exact token carrier generation.
 
-import { canonicalAgentAuthorityKey } from '../../packages/snapback-contract/auth-coordinator.mjs';
+import {
+  canonicalAgentAuthorityKey,
+  deriveServiceAuthorityInstanceId,
+} from '../../packages/snapback-contract/auth-coordinator.mjs';
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
@@ -66,22 +69,560 @@ const descriptorKey = (descriptor) => {
   return descriptor.authorityInstanceId;
 };
 
-const stale = () => {
-  const error = new Error(
-    'SNAPBACK_CLIENT_AUTHORITY_STALE: the operation completed under a stale agent authority',
-  );
-  error.code = 'SNAPBACK_CLIENT_AUTHORITY_STALE';
+const fenceError = (code, message, details = undefined) => {
+  const error = new Error(`${code}: ${message}`);
+  error.code = code;
   error.diagnostic = {
-    code: error.code,
-    message: 'the operation completed under a stale agent authority',
+    code,
+    message,
+    ...(details === undefined ? {} : { details }),
   };
   return error;
 };
+
+const stale = (message = 'the operation completed under a stale agent authority') => (
+  fenceError('SNAPBACK_CLIENT_AUTHORITY_STALE', message)
+);
+
+const credentialValidationRequired = () => fenceError(
+  'SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED',
+  'the configured agent credential must complete a service-principal handshake before replacing durable custody',
+);
+
+const custodyCorrupt = (message, details = undefined) => (
+  fenceError('SNAPBACK_AUTH_CUSTODY_CORRUPT', message, details)
+);
+
+const clone = (value) => (value === null || value === undefined
+  ? value
+  : JSON.parse(JSON.stringify(value)));
+
+const exactKeys = (value, expected, where) => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw custodyCorrupt(`${where} must be an object`);
+  }
+  const actual = Object.keys(value).sort();
+  const wanted = [...expected].sort();
+  if (actual.length !== wanted.length || actual.some((key, index) => key !== wanted[index])) {
+    throw custodyCorrupt(`${where} has an invalid field set`, { fields: actual });
+  }
+};
+
+const normalizeCustodyId = (value) => {
+  if (
+    typeof value !== 'string'
+    || value.length === 0
+    || value.length > 512
+    || /[\u0000-\u001f\u007f-\u009f]/u.test(value)
+  ) {
+    throw new TypeError('custodyId must be a stable non-empty string without control characters');
+  }
+  return value;
+};
+
+const normalizeDurableAuthority = (value) => {
+  exactKeys(value, [
+    'kind',
+    'authMode',
+    'actorUserId',
+    'credentialId',
+    'credentialGeneration',
+    'grantId',
+  ], 'agent custody authority');
+  if (value.kind !== 'servicePrincipal' || value.authMode !== 'sessions') {
+    throw custodyCorrupt('agent custody authority must be a sessions service principal');
+  }
+  return durableAuthority({
+    actorUserId: requireUuid(value.actorUserId, 'actorUserId'),
+    credentialId: requireUuid(value.credentialId, 'credentialId'),
+    credentialGeneration: requireGeneration(value.credentialGeneration),
+    grantId: requireUuid(value.grantId, 'grantId'),
+  });
+};
+
+const sameDurableAuthority = (left, right) => (
+  left?.kind === right?.kind
+  && left?.authMode === right?.authMode
+  && left?.actorUserId === right?.actorUserId
+  && left?.credentialId === right?.credentialId
+  && left?.credentialGeneration === right?.credentialGeneration
+  && left?.grantId === right?.grantId
+);
+
+const transitionIdFor = ({
+  custodyId,
+  expectedRevision,
+  expectedEpoch,
+  expectedAuthorityKey,
+  previousStatus,
+  nextEpoch,
+  nextAuthorityKey,
+  nextStatus,
+  reason,
+  disposition,
+}) => `agent-transition-v1:${JSON.stringify({
+  custodyId,
+  expectedRevision,
+  expectedEpoch,
+  expectedAuthorityKey,
+  previousStatus,
+  nextEpoch,
+  nextAuthorityKey,
+  nextStatus,
+  reason,
+  disposition,
+})}`;
+
+const validateTransition = (value, custodyId) => {
+  exactKeys(value, [
+    'formatVersion',
+    'transitionId',
+    'expectedRevision',
+    'expectedEpoch',
+    'expectedAuthorityKey',
+    'previousStatus',
+    'previousAuthority',
+    'nextEpoch',
+    'nextAuthorityKey',
+    'nextStatus',
+    'nextAuthority',
+    'reason',
+    'disposition',
+  ], 'agent custody transition');
+  if (value.formatVersion !== 1) {
+    throw custodyCorrupt('agent custody transition formatVersion must be 1');
+  }
+  const hasPredecessor = value.expectedRevision !== null;
+  if (hasPredecessor) {
+    if (!Number.isSafeInteger(value.expectedRevision) || value.expectedRevision <= 0) {
+      throw custodyCorrupt('agent custody transition expectedRevision must be positive or null');
+    }
+    if (!Number.isSafeInteger(value.expectedEpoch) || value.expectedEpoch < 0) {
+      throw custodyCorrupt('agent custody transition expectedEpoch must be non-negative');
+    }
+    if (value.previousStatus !== 'active' && value.previousStatus !== 'deleted') {
+      throw custodyCorrupt('agent custody transition previousStatus is invalid');
+    }
+  } else if (
+    value.expectedEpoch !== null
+    || value.expectedAuthorityKey !== null
+    || value.previousStatus !== null
+    || value.previousAuthority !== null
+  ) {
+    throw custodyCorrupt('fresh agent custody transition must have a null predecessor');
+  }
+  const previousAuthority = hasPredecessor
+    ? normalizeDurableAuthority(value.previousAuthority)
+    : null;
+  if (
+    hasPredecessor
+    && canonicalAgentAuthorityKey(previousAuthority) !== value.expectedAuthorityKey
+  ) {
+    throw custodyCorrupt('agent custody transition predecessor key is inconsistent');
+  }
+  if (!Number.isSafeInteger(value.nextEpoch) || value.nextEpoch < 0) {
+    throw custodyCorrupt('agent custody transition nextEpoch must be non-negative');
+  }
+  if (
+    (hasPredecessor && value.nextEpoch !== value.expectedEpoch + 1)
+    || (!hasPredecessor && value.nextEpoch !== 0)
+  ) {
+    throw custodyCorrupt('agent custody transition epochs must be consecutive (or begin at zero)');
+  }
+  if (value.nextStatus !== 'active' && value.nextStatus !== 'deleted') {
+    throw custodyCorrupt('agent custody transition nextStatus is invalid');
+  }
+  const nextAuthority = normalizeDurableAuthority(value.nextAuthority);
+  if (canonicalAgentAuthorityKey(nextAuthority) !== value.nextAuthorityKey) {
+    throw custodyCorrupt('agent custody transition successor key is inconsistent');
+  }
+  if (hasPredecessor) {
+    const validEnding = value.previousStatus === 'active'
+      && value.nextStatus === 'deleted'
+      && value.expectedAuthorityKey === value.nextAuthorityKey;
+    const validReplacement = value.nextStatus === 'active'
+      && value.expectedAuthorityKey !== value.nextAuthorityKey;
+    if (!validEnding && !validReplacement) {
+      throw custodyCorrupt('agent custody transition is neither an exact deletion nor a distinct tuple replacement');
+    }
+  } else if (value.nextStatus !== 'active') {
+    throw custodyCorrupt('fresh agent custody transition cannot initialize deleted authority');
+  }
+  if (typeof value.reason !== 'string' || value.reason.length === 0) {
+    throw custodyCorrupt('agent custody transition reason is missing');
+  }
+  if (value.disposition !== 'retain' && value.disposition !== 'delete') {
+    throw custodyCorrupt('agent custody transition disposition is invalid');
+  }
+  const normalized = {
+    formatVersion: 1,
+    transitionId: value.transitionId,
+    expectedRevision: value.expectedRevision,
+    expectedEpoch: value.expectedEpoch,
+    expectedAuthorityKey: value.expectedAuthorityKey,
+    previousStatus: value.previousStatus,
+    previousAuthority,
+    nextEpoch: value.nextEpoch,
+    nextAuthorityKey: value.nextAuthorityKey,
+    nextStatus: value.nextStatus,
+    nextAuthority,
+    reason: value.reason,
+    disposition: value.disposition,
+  };
+  if (value.transitionId !== transitionIdFor({ custodyId, ...normalized })) {
+    throw custodyCorrupt('agent custody transitionId does not bind its exact target');
+  }
+  // Validate the partition here too, even though it is not repeated in the
+  // intent. This keeps adapter errors attributed to the owning custody row.
+  normalizeCustodyId(custodyId);
+  return Object.freeze(normalized);
+};
+
+const validateCustodyRecord = (value, expectedCustodyId) => {
+  exactKeys(value, [
+    'formatVersion',
+    'custodyId',
+    'authorityEpoch',
+    'revision',
+    'phase',
+    'status',
+    'authorityKey',
+    'authority',
+    'transition',
+  ], 'agent custody record');
+  if (value.formatVersion !== 1) {
+    throw custodyCorrupt('agent custody formatVersion must be 1');
+  }
+  const custodyId = normalizeCustodyId(value.custodyId);
+  if (custodyId !== expectedCustodyId) {
+    throw custodyCorrupt('agent custody record belongs to a different custodyId');
+  }
+  if (!Number.isSafeInteger(value.authorityEpoch) || value.authorityEpoch < 0) {
+    throw custodyCorrupt('agent custody authorityEpoch must be a safe non-negative integer');
+  }
+  if (!Number.isSafeInteger(value.revision) || value.revision <= 0) {
+    throw custodyCorrupt('agent custody revision must be a safe positive integer');
+  }
+  if (value.phase !== 'settled' && value.phase !== 'clearing') {
+    throw custodyCorrupt('agent custody phase must be settled or clearing');
+  }
+  if (value.status !== 'active' && value.status !== 'deleted') {
+    throw custodyCorrupt('agent custody status must be active or deleted');
+  }
+  const authority = normalizeDurableAuthority(value.authority);
+  const authorityKey = canonicalAgentAuthorityKey(authority);
+  if (value.authorityKey !== authorityKey) {
+    throw custodyCorrupt('agent custody authorityKey does not bind its durable tuple');
+  }
+  const transition = value.phase === 'clearing'
+    ? validateTransition(value.transition, custodyId)
+    : value.transition;
+  if (value.phase === 'settled' && transition !== null) {
+    throw custodyCorrupt('settled agent custody cannot retain a clearing transition');
+  }
+  if (value.phase === 'clearing') {
+    if (
+      transition.nextEpoch !== value.authorityEpoch
+      || transition.nextStatus !== value.status
+      || transition.nextAuthorityKey !== authorityKey
+      || !sameDurableAuthority(transition.nextAuthority, authority)
+    ) {
+      throw custodyCorrupt('clearing agent custody does not match its transition successor');
+    }
+    const expectedRevision = transition.expectedRevision === null
+      ? 1
+      : transition.expectedRevision + 1;
+    if (!Number.isSafeInteger(expectedRevision) || value.revision !== expectedRevision) {
+      throw custodyCorrupt('clearing agent custody revision does not follow its predecessor');
+    }
+  }
+  return Object.freeze({
+    formatVersion: 1,
+    custodyId,
+    authorityEpoch: value.authorityEpoch,
+    revision: value.revision,
+    phase: value.phase,
+    status: value.status,
+    authorityKey,
+    authority,
+    transition,
+  });
+};
+
+const custodyRecord = ({
+  custodyId,
+  authorityEpoch,
+  revision,
+  phase = 'settled',
+  status,
+  authority,
+  transition = null,
+}) => (
+  validateCustodyRecord({
+    formatVersion: 1,
+    custodyId,
+    authorityEpoch,
+    revision,
+    phase,
+    status,
+    authorityKey: canonicalAgentAuthorityKey(authority),
+    authority,
+    transition,
+  }, custodyId)
+);
+
+const sameCustodyRecord = (left, right) => (
+  left === null || right === null
+    ? left === right
+    : left.formatVersion === right.formatVersion
+      && left.custodyId === right.custodyId
+      && left.authorityEpoch === right.authorityEpoch
+      && left.revision === right.revision
+      && left.phase === right.phase
+      && left.status === right.status
+      && left.authorityKey === right.authorityKey
+      && sameDurableAuthority(left.authority, right.authority)
+      && JSON.stringify(left.transition) === JSON.stringify(right.transition)
+);
+
+const custodyTransitionRecords = ({
+  custodyId,
+  predecessor,
+  nextEpoch,
+  nextStatus,
+  nextAuthority,
+  reason,
+  disposition,
+}) => {
+  const clearingRevision = predecessor === null
+    ? 1
+    : nextSafeCounter(
+      predecessor.revision,
+      'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+      'agent custody revision',
+    );
+  const settledRevision = nextSafeCounter(
+    clearingRevision,
+    'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+    'agent custody revision',
+  );
+  const nextAuthorityKey = canonicalAgentAuthorityKey(nextAuthority);
+  const transition = Object.freeze({
+    formatVersion: 1,
+    transitionId: transitionIdFor({
+      custodyId,
+      expectedRevision: predecessor?.revision ?? null,
+      expectedEpoch: predecessor?.authorityEpoch ?? null,
+      expectedAuthorityKey: predecessor?.authorityKey ?? null,
+      previousStatus: predecessor?.status ?? null,
+      nextEpoch,
+      nextAuthorityKey,
+      nextStatus,
+      reason,
+      disposition,
+    }),
+    expectedRevision: predecessor?.revision ?? null,
+    expectedEpoch: predecessor?.authorityEpoch ?? null,
+    expectedAuthorityKey: predecessor?.authorityKey ?? null,
+    previousStatus: predecessor?.status ?? null,
+    previousAuthority: predecessor?.authority ?? null,
+    nextEpoch,
+    nextAuthorityKey,
+    nextStatus,
+    nextAuthority,
+    reason,
+    disposition,
+  });
+  const clearing = custodyRecord({
+    custodyId,
+    authorityEpoch: nextEpoch,
+    revision: clearingRevision,
+    phase: 'clearing',
+    status: nextStatus,
+    authority: nextAuthority,
+    transition,
+  });
+  const settled = custodyRecord({
+    custodyId,
+    authorityEpoch: nextEpoch,
+    revision: settledRevision,
+    phase: 'settled',
+    status: nextStatus,
+    authority: nextAuthority,
+  });
+  return Object.freeze({ transition, clearing, settled });
+};
+
+const settledRecordForClearing = (record) => {
+  if (record?.phase !== 'clearing') {
+    throw custodyCorrupt('agent custody recovery requires a clearing record');
+  }
+  return custodyRecord({
+    custodyId: record.custodyId,
+    authorityEpoch: record.authorityEpoch,
+    revision: nextSafeCounter(
+      record.revision,
+      'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+      'agent custody revision',
+    ),
+    phase: 'settled',
+    status: record.status,
+    authority: record.authority,
+  });
+};
+
+const nextSafeCounter = (value, code, label) => {
+  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) {
+    throw fenceError(code, `${label} cannot advance without losing comparison identity`);
+  }
+  return value + 1;
+};
+
+const memoryLocks = new WeakMap();
+
+const memoryLockFor = (state, custodyId) => {
+  let locks = memoryLocks.get(state);
+  if (!locks) {
+    locks = new Map();
+    memoryLocks.set(state, locks);
+  }
+  let lock = locks.get(custodyId);
+  if (!lock) {
+    lock = { tail: Promise.resolve() };
+    locks.set(custodyId, lock);
+  }
+  return lock;
+};
+
+/**
+ * Deterministic transactional storage for tests and native/headless adapters.
+ * Share the same `state` object across fixtures to model independent processes.
+ */
+export function createMemoryAgentAuthorityCustodyStorage({
+  state = { custody: Object.create(null) },
+} = {}) {
+  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+    throw new TypeError('createMemoryAgentAuthorityCustodyStorage requires a shared state object');
+  }
+  if (!state.custody || typeof state.custody !== 'object' || Array.isArray(state.custody)) {
+    state.custody = Object.create(null);
+  }
+  return Object.freeze({
+    async withOwnership(rawCustodyId, operation) {
+      const custodyId = normalizeCustodyId(rawCustodyId);
+      if (typeof operation !== 'function') {
+        throw new TypeError('agent custody ownership requires an operation callback');
+      }
+      const lock = memoryLockFor(state, custodyId);
+      let release;
+      const prior = lock.tail;
+      lock.tail = new Promise((resolve) => { release = resolve; });
+      await prior;
+      let active = true;
+      const owner = Object.freeze({
+        async read() {
+          if (!active) throw fenceError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'agent custody ownership was released');
+          const raw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+          return raw === null ? null : clone(validateCustodyRecord(raw, custodyId));
+        },
+        async replace(expectedRevision, nextValue) {
+          if (!active) throw fenceError('SNAPBACK_AUTH_CUSTODY_LOCK_LOST', 'agent custody ownership was released');
+          const currentRaw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+          const current = currentRaw === null ? null : validateCustodyRecord(currentRaw, custodyId);
+          const actualRevision = current?.revision ?? null;
+          if (actualRevision !== expectedRevision) {
+            throw fenceError(
+              'SNAPBACK_AUTH_CUSTODY_CAS_STALE',
+              'durable agent custody changed before compare-and-swap',
+              { expectedRevision, actualRevision },
+            );
+          }
+          const next = validateCustodyRecord(nextValue, custodyId);
+          if (current === null) {
+            if (
+              next.authorityEpoch !== 0
+              || next.revision !== 1
+              || next.status !== 'active'
+              || (
+                next.phase === 'clearing'
+                && next.transition.expectedRevision !== null
+              )
+            ) {
+              throw custodyCorrupt('fresh agent custody must begin active at epoch 0 and revision 1');
+            }
+          } else {
+            if (
+              current.revision === Number.MAX_SAFE_INTEGER
+              || next.revision !== current.revision + 1
+            ) {
+              throw custodyCorrupt('agent custody replacement must advance revision exactly once');
+            }
+            if (current.phase === 'settled') {
+              if (
+                next.phase !== 'clearing'
+                || current.authorityEpoch === Number.MAX_SAFE_INTEGER
+                || next.authorityEpoch !== current.authorityEpoch + 1
+              ) {
+                throw custodyCorrupt('settled agent custody must advance into the next clearing epoch');
+              }
+              if (
+                next.transition.expectedRevision !== current.revision
+                || next.transition.expectedEpoch !== current.authorityEpoch
+                || next.transition.expectedAuthorityKey !== current.authorityKey
+                || next.transition.previousStatus !== current.status
+                || !sameDurableAuthority(next.transition.previousAuthority, current.authority)
+              ) {
+                throw custodyCorrupt('agent custody clearing transition does not bind its exact predecessor');
+              }
+              if (
+                current.status === 'deleted'
+                && next.status === 'active'
+                && current.authorityKey === next.authorityKey
+              ) {
+                throw custodyCorrupt('deleted agent custody cannot revive the same durable authority tuple');
+              }
+            } else if (
+              next.phase !== 'settled'
+              || next.authorityEpoch !== current.authorityEpoch
+              || next.status !== current.status
+              || next.authorityKey !== current.authorityKey
+              || !sameDurableAuthority(next.authority, current.authority)
+            ) {
+              throw custodyCorrupt('clearing agent custody may only settle its exact successor');
+            }
+          }
+          Object.defineProperty(state.custody, custodyId, {
+            configurable: true,
+            enumerable: true,
+            writable: true,
+            value: clone(next),
+          });
+          return clone(next);
+        },
+      });
+      try {
+        return await operation(owner);
+      } finally {
+        active = false;
+        release();
+      }
+    },
+    snapshot(rawCustodyId) {
+      const custodyId = normalizeCustodyId(rawCustodyId);
+      const raw = Object.hasOwn(state.custody, custodyId) ? state.custody[custodyId] : null;
+      return raw === null ? null : clone(validateCustodyRecord(raw, custodyId));
+    },
+  });
+}
 
 export class AgentAuthorityFence {
   #credential;
   #durableKey;
   #durableEpoch = 0;
+  #durableRecord = null;
+  #storage = null;
+  #custodyId = null;
+  #publicationOpen = true;
   #carrierGeneration = 0;
   #authorityDescriptor = null;
   #participants = [];
@@ -91,10 +632,30 @@ export class AgentAuthorityFence {
   #barrierPromise = Promise.resolve();
   #barrierError = null;
   #terminated = false;
+  #synchronizing = null;
+  #inCommit = false;
 
-  constructor(credential) {
+  constructor(credential, { storage = null, custodyId = null } = {}) {
     this.#credential = normalizeCredential(credential);
     this.#durableKey = canonicalAgentAuthorityKey(this.#credential);
+    if (storage === null) {
+      if (custodyId !== null) {
+        throw new TypeError('custodyId requires transactional agent custody storage');
+      }
+      return;
+    }
+    if (typeof storage?.withOwnership !== 'function') {
+      throw new TypeError('agent custody storage must provide withOwnership(custodyId, operation)');
+    }
+    this.#storage = storage;
+    this.#custodyId = normalizeCustodyId(custodyId);
+    // Durable configurations begin blank. The first synchronization owns
+    // initialization/adoption and runs the full local publication barrier.
+    this.#publicationOpen = false;
+  }
+
+  get hasDurableCustody() {
+    return this.#storage !== null;
   }
 
   get authority() {
@@ -108,6 +669,24 @@ export class AgentAuthorityFence {
   }
 
   capture() {
+    if (this.#inCommit) {
+      throw fenceError(
+        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+        'agent custody operations are forbidden inside compareAndCommit',
+      );
+    }
+    if (
+      !this.#publicationOpen
+      || this.#barrierActive
+      || this.#barrierError !== null
+      || this.#terminated
+    ) {
+      throw stale('agent authority custody is not synchronized for publication');
+    }
+    return this.#captureUnchecked();
+  }
+
+  #captureUnchecked() {
     return authorityCapture(
       this.#durableEpoch,
       this.#durableKey,
@@ -117,13 +696,46 @@ export class AgentAuthorityFence {
   }
 
   async synchronize() {
-    if (this.#barrierActive) await this.#barrierPromise;
-    if (this.#barrierError) throw this.#barrierError;
-    return this.capture();
+    return this.#synchronizeWithValidation(null);
+  }
+
+  async #synchronizeWithValidation(validatedAuthorityInstanceId) {
+    if (this.#inCommit) {
+      throw fenceError(
+        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+        'agent custody synchronization is forbidden inside compareAndCommit',
+      );
+    }
+    if (this.#synchronizing !== null) {
+      const active = this.#synchronizing;
+      try {
+        return await active;
+      } catch (error) {
+        if (
+          validatedAuthorityInstanceId === null
+          || error?.code !== 'SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED'
+        ) {
+          throw error;
+        }
+        // A validated caller may have joined an unvalidated first-sync read.
+        // That read is side-effect free on this diagnostic, so retry it with
+        // the caller's service descriptor proof instead of making callers
+        // race the internal promise cleanup.
+        if (this.#synchronizing === active) this.#synchronizing = null;
+      }
+    }
+    const pending = this.#synchronizeInternal(validatedAuthorityInstanceId);
+    this.#synchronizing = pending;
+    try {
+      return await pending;
+    } finally {
+      if (this.#synchronizing === pending) this.#synchronizing = null;
+    }
   }
 
   isCurrent(capture) {
     return !this.#terminated
+      && this.#publicationOpen
       && !this.#barrierActive
       && this.#barrierError === null
       && capture?.authorityEpoch === this.#durableEpoch
@@ -140,9 +752,47 @@ export class AgentAuthorityFence {
     });
   }
 
+  credentialOfferForHandshake() {
+    if (this.#inCommit) {
+      throw fenceError(
+        'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT',
+        'agent credential offers are forbidden inside compareAndCommit',
+      );
+    }
+    if (
+      this.#terminated
+      || this.#barrierActive
+      || this.#barrierError !== null
+    ) {
+      throw stale('agent credential is unavailable during a custody transition');
+    }
+    if (this.#storage === null && !this.#publicationOpen) {
+      throw stale('agent credential is unavailable while publication is closed');
+    }
+    // @ref LLP 0059#durable-custody-record — this is a narrowly scoped carrier
+    // offer for /auth/session validation. It deliberately returns neither an
+    // authority capture nor publication permission, and never reads or writes
+    // the durable custody record.
+    return Object.freeze({
+      bearer: this.#credential.bearerToken,
+      tokenId: this.#credential.tokenId,
+    });
+  }
+
+  async synchronizeValidated(descriptor) {
+    const authorityInstanceId = descriptorKey(descriptor);
+    if (authorityInstanceId !== deriveServiceAuthorityInstanceId(this.#credential)) {
+      throw stale('agent handshake descriptor does not match the configured credential');
+    }
+    return this.#synchronizeWithValidation(authorityInstanceId);
+  }
+
   bindHandshake(capture, descriptor) {
     if (!this.isCurrent(capture)) throw stale();
     const authorityInstanceId = descriptorKey(descriptor);
+    if (authorityInstanceId !== deriveServiceAuthorityInstanceId(this.#credential)) {
+      throw stale('agent handshake descriptor does not match durable credential/grant custody');
+    }
     if (
       this.#authorityDescriptor !== null
       && this.#authorityDescriptor.authorityInstanceId !== authorityInstanceId
@@ -154,16 +804,72 @@ export class AgentAuthorityFence {
   }
 
   replaceCredential(credential) {
-    if (this.#barrierActive || this.#barrierError) {
+    if (
+      !this.#publicationOpen
+      || this.#barrierActive
+      || this.#barrierError
+      || this.#terminated
+    ) {
       throw stale('agent authority is clearing and cannot replace its credential');
     }
     const next = normalizeCredential(credential);
     const nextDurableKey = canonicalAgentAuthorityKey(next);
-    const previousCapture = this.capture();
+    const previousCapture = this.#captureUnchecked();
     const previousAuthority = this.authority;
     const durableChanged = nextDurableKey !== this.#durableKey;
-    const nextEpoch = this.#durableEpoch + (durableChanged ? 1 : 0);
-    const nextCarrierGeneration = this.#carrierGeneration + 1;
+    let nextEpoch = this.#durableEpoch;
+    let nextCarrierGeneration;
+    let targetRecord = this.#durableRecord;
+    let durableTransition = null;
+    try {
+      nextCarrierGeneration = nextSafeCounter(
+        this.#carrierGeneration,
+        'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
+        'agent carrier generation',
+      );
+      if (durableChanged) {
+        nextEpoch = nextSafeCounter(
+          this.#durableEpoch,
+          'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+          'agent authority epoch',
+        );
+        if (this.#storage !== null) {
+          if (
+            this.#durableRecord === null
+            || this.#durableRecord.phase !== 'settled'
+            || this.#durableRecord.status !== 'active'
+          ) {
+            throw stale('durable agent custody must synchronize before tuple replacement');
+          }
+          durableTransition = custodyTransitionRecords({
+            custodyId: this.#custodyId,
+            predecessor: this.#durableRecord,
+            nextEpoch,
+            nextStatus: 'active',
+            nextAuthority: durableAuthority(next),
+            reason: 'agent_authority_changed',
+            disposition: 'delete',
+          });
+          targetRecord = durableTransition.settled;
+        }
+      }
+    } catch (error) {
+      if (error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED') {
+        this.#wedgeSync(error, {
+          reason: 'agent_authority_epoch_exhausted',
+          disposition: 'delete',
+          authorityDisposition: 'durableDelete',
+          previousAuthority,
+          nextAuthority: null,
+          previousCapture,
+          capture: previousCapture,
+          expectedEpoch: previousCapture.authorityEpoch,
+          nextEpoch: previousCapture.authorityEpoch,
+          nextAuthorityKey: previousCapture.authorityKey,
+        });
+      }
+      throw error;
+    }
     const capture = authorityCapture(
       nextEpoch,
       nextDurableKey,
@@ -180,52 +886,166 @@ export class AgentAuthorityFence {
       expectedEpoch: previousCapture.authorityEpoch,
       nextEpoch,
       nextAuthorityKey: nextDurableKey,
-      disposition: 'delete',
+      disposition: durableChanged ? 'delete' : 'retain',
+      ...(durableTransition ? { transitionId: durableTransition.transition.transitionId } : {}),
       reason: durableChanged ? 'agent_authority_changed' : 'agent_token_rotated',
     });
     const barrier = this.#beginBarrier({ clearMemory: durableChanged, context });
+    // The visibility cut above happens before either the staged in-memory
+    // successor or the asynchronous durable CAS can become observable.
     this.#carrierGeneration = nextCarrierGeneration;
     this.#durableEpoch = nextEpoch;
     this.#durableKey = nextDurableKey;
     if (durableChanged) this.#authorityDescriptor = null;
     this.#credential = next;
     this.#terminated = false;
-    this.#finishBarrier(barrier, context, { commitDurable: durableChanged, resume: true });
-    return capture;
+    const prepare = async () => {
+      if (this.#storage === null) return null;
+      const confirmed = durableChanged
+        ? await this.#replaceDurableExact(this.#durableRecord, durableTransition.clearing)
+        : await this.#confirmDurableExact(this.#durableRecord);
+      this.#installDurableRecord(confirmed);
+      return confirmed;
+    };
+    const settle = async (prepared) => {
+      if (this.#storage === null || !durableChanged) return prepared;
+      const confirmed = await this.#replaceDurableExact(
+        durableTransition.clearing,
+        targetRecord,
+      );
+      this.#installDurableRecord(confirmed);
+      return confirmed;
+    };
+    if (this.#storage === null && barrier.entries.length === 0) {
+      this.#completeBarrierImmediate(barrier, { open: true });
+    } else {
+      this.#finishBarrier(barrier, context, {
+        prepare,
+        settle,
+        commitDurable: durableChanged,
+        resume: true,
+        open: true,
+      });
+    }
+    return this.#awaitBarrierCapture(capture);
   }
 
-  terminate(capture) {
+  terminate(capture, disposition = 'carrier') {
     if (!this.isCurrent(capture)) return false;
+    const authorityDisposition = typeof disposition === 'string'
+      ? disposition
+      : disposition?.authorityDisposition ?? 'carrier';
+    if (authorityDisposition !== 'carrier' && authorityDisposition !== 'durableDelete') {
+      throw new TypeError('agent termination authorityDisposition must be carrier or durableDelete');
+    }
     // @ref LLP 0055#ending-authority-revocation-expiry-deactivation — a
-    // terminal scoped-token result closes its exact carrier generation.
-    // A terminal carrier outcome must retire the exact token generation
-    // before any transport teardown can synchronously re-enter the client.
-    // The durable grant tuple remains available to a separately supplied
-    // successor credential, but no work captured under this carrier can
-    // publish again.
+    // carrier result retires only the exact token generation. A durableDelete
+    // additionally advances and tombstones the durable tuple so restart cannot
+    // re-admit queued authority under the same grant.
+    let nextCarrierGeneration;
+    let nextEpoch = this.#durableEpoch;
+    let targetRecord = this.#durableRecord;
+    let durableTransition = null;
+    try {
+      nextCarrierGeneration = nextSafeCounter(
+        this.#carrierGeneration,
+        'SNAPBACK_CLIENT_AUTH_CARRIER_GENERATION_EXHAUSTED',
+        'agent carrier generation',
+      );
+      if (authorityDisposition === 'durableDelete') {
+        nextEpoch = nextSafeCounter(
+          this.#durableEpoch,
+          'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+          'agent authority epoch',
+        );
+        if (this.#storage !== null) {
+          durableTransition = custodyTransitionRecords({
+            custodyId: this.#custodyId,
+            predecessor: this.#durableRecord,
+            nextEpoch,
+            nextStatus: 'deleted',
+            nextAuthority: this.#durableRecord.authority,
+            reason: 'agent_durable_authority_deleted',
+            disposition: 'delete',
+          });
+          targetRecord = durableTransition.settled;
+        }
+      }
+    } catch (error) {
+      if (error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED') {
+        this.#wedgeSync(error, {
+          reason: 'agent_authority_epoch_exhausted',
+          disposition: 'delete',
+          authorityDisposition: 'durableDelete',
+          previousAuthority: this.authority,
+          nextAuthority: null,
+          previousCapture: capture,
+          capture,
+          expectedEpoch: capture.authorityEpoch,
+          nextEpoch: capture.authorityEpoch,
+          nextAuthorityKey: capture.authorityKey,
+        });
+      }
+      throw error;
+    }
     const nextCapture = authorityCapture(
-      this.#durableEpoch,
+      nextEpoch,
       this.#durableKey,
-      this.#carrierGeneration + 1,
+      nextCarrierGeneration,
       this.#credential.tokenId,
     );
+    const previousAuthority = this.authority;
     const context = Object.freeze({
       capture: nextCapture,
-      authority: this.authority,
-      previousAuthority: this.authority,
-      nextAuthority: null,
+      authority: authorityDisposition === 'carrier' ? previousAuthority : null,
+      previousAuthority,
+      nextAuthority: authorityDisposition === 'carrier' ? previousAuthority : null,
       previousCapture: capture,
       expectedEpoch: capture.authorityEpoch,
-      nextEpoch: capture.authorityEpoch,
+      nextEpoch,
       nextAuthorityKey: capture.authorityKey,
-      disposition: 'delete',
-      reason: 'agent_carrier_terminated',
+      disposition: authorityDisposition === 'carrier' ? 'retain' : 'delete',
+      authorityDisposition,
+      ...(durableTransition ? { transitionId: durableTransition.transition.transitionId } : {}),
+      reason: authorityDisposition === 'carrier'
+        ? 'agent_carrier_terminated'
+        : 'agent_durable_authority_deleted',
     });
     const barrier = this.#beginBarrier({ clearMemory: true, context });
     this.#carrierGeneration = nextCapture.carrierGeneration;
+    this.#durableEpoch = nextEpoch;
     this.#authorityDescriptor = null;
     this.#terminated = true;
-    this.#finishBarrier(barrier, context, { commitDurable: false, resume: false });
+    const prepare = async () => {
+      if (this.#storage === null) return null;
+      const confirmed = authorityDisposition === 'durableDelete'
+        ? await this.#replaceDurableExact(this.#durableRecord, durableTransition.clearing)
+        : await this.#confirmDurableExact(this.#durableRecord);
+      this.#installDurableRecord(confirmed);
+      this.#terminated = true;
+      return confirmed;
+    };
+    const settle = async (prepared) => {
+      if (this.#storage === null || authorityDisposition !== 'durableDelete') return prepared;
+      const confirmed = await this.#replaceDurableExact(
+        durableTransition.clearing,
+        targetRecord,
+      );
+      this.#installDurableRecord(confirmed);
+      this.#terminated = true;
+      return confirmed;
+    };
+    if (this.#storage === null && barrier.entries.length === 0) {
+      this.#completeBarrierImmediate(barrier, { open: false });
+    } else {
+      this.#finishBarrier(barrier, context, {
+        prepare,
+        settle,
+        commitDurable: authorityDisposition === 'durableDelete',
+        resume: false,
+        open: false,
+      });
+    }
     return true;
   }
 
@@ -234,14 +1054,17 @@ export class AgentAuthorityFence {
       throw new TypeError('compareAndCommit requires a commit callback');
     }
     if (!this.isCurrent(capture)) return Promise.resolve({ committed: false });
-    const value = commit(Object.freeze({
-      ...capture,
-      authorityDescriptor: this.authorityDescriptor,
-    }));
-    if (value && typeof value.then === 'function') {
-      throw new TypeError('compareAndCommit callback must be synchronous');
+    if (this.#storage === null) {
+      const value = commit(Object.freeze({
+        ...capture,
+        authorityDescriptor: this.authorityDescriptor,
+      }));
+      if (value && typeof value.then === 'function') {
+        throw new TypeError('compareAndCommit callback must be synchronous');
+      }
+      return Promise.resolve({ committed: true, value });
     }
-    return Promise.resolve({ committed: true, value });
+    return this.#compareAndCommitDurable(capture, commit);
   }
 
   registerParticipant(participant) {
@@ -262,6 +1085,25 @@ export class AgentAuthorityFence {
     }
     const entry = { participant, removed: false };
     this.#participants.push(entry);
+    if (!this.#publicationOpen && this.#storage !== null && this.#durableRecord === null) {
+      let firstError = null;
+      for (const method of ['quiesce', 'blank']) {
+        try {
+          this.#invokeSyncParticipant(participant, method, Object.freeze({
+            reason: 'agent_custody_initializing',
+            disposition: 'retain',
+            authorityDisposition: 'carrier',
+          }));
+        } catch (error) {
+          firstError ??= error;
+        }
+      }
+      if (firstError) {
+        this.#barrierError = firstError;
+        this.#barrierPhase = 'failed';
+        throw firstError;
+      }
+    }
     return async () => {
       entry.removed = true;
       await this.#barrierPromise;
@@ -270,25 +1112,26 @@ export class AgentAuthorityFence {
   }
 
   #beginBarrier({ clearMemory, context }) {
+    if (this.#barrierActive) {
+      throw stale('an agent authority transition is already active');
+    }
     const entries = this.#participants.filter((entry) => !entry.removed);
-    if (entries.length === 0) return null;
-    this.#barrierGeneration += 1;
+    this.#barrierGeneration = nextSafeCounter(
+      this.#barrierGeneration,
+      'SNAPBACK_CLIENT_AUTH_BARRIER_GENERATION_EXHAUSTED',
+      'agent barrier generation',
+    );
     const generation = this.#barrierGeneration;
     this.#barrierActive = true;
+    this.#publicationOpen = false;
     this.#barrierPhase = 'quiescing';
     // @ref LLP 0059#transition-barrier — even this local carrier-only owner
     // completes quiescence before synchronous blanking; otherwise an in-flight
     // callback could repopulate a boundary after the terminal cut returned.
     let firstError = null;
     const invoke = (participant, method) => {
-      if (typeof participant?.[method] !== 'function') return undefined;
       try {
-        const result = participant[method](context);
-        if (result && typeof result.then === 'function') {
-          void Promise.resolve(result).catch(() => {});
-          throw new TypeError(`agent authority participant ${method}() must be synchronous`);
-        }
-        return result;
+        return this.#invokeSyncParticipant(participant, method, context);
       } catch (error) {
         firstError ??= error;
         return undefined;
@@ -297,18 +1140,12 @@ export class AgentAuthorityFence {
     for (const { participant } of entries) {
       invoke(participant, 'quiesce');
     }
-    if (firstError) {
-      this.#barrierError = firstError;
-      this.#barrierPhase = 'failed';
-      throw firstError;
-    }
+    // A throwing participant cannot veto confidentiality for every surface.
+    // The active fence already rejects new publication; continue through all
+    // synchronous blank/clear callbacks, then wedge and surface the first
+    // failure without changing the credential.
     this.#barrierPhase = 'blanking';
     for (const { participant } of entries) invoke(participant, 'blank');
-    if (firstError) {
-      this.#barrierError = firstError;
-      this.#barrierPhase = 'failed';
-      throw firstError;
-    }
     if (clearMemory) {
       this.#barrierPhase = 'clearing-memory';
       for (const { participant } of entries) invoke(participant, 'clearMemory');
@@ -321,33 +1158,504 @@ export class AgentAuthorityFence {
     return { entries, generation };
   }
 
-  #finishBarrier(barrier, context, { commitDurable, resume }) {
-    if (!barrier) return;
+  #finishBarrier(barrier, context, {
+    prepare,
+    settle = async (record) => record,
+    commitDurable,
+    resume,
+    open,
+  }) {
     const frozenContext = Object.freeze({ ...context });
     const complete = async () => {
+      let durableRecord = await prepare();
       if (commitDurable) {
         this.#barrierPhase = 'committing-durable';
         for (const { participant } of barrier.entries) {
           await participant.commitDurable?.(frozenContext);
         }
       }
+      this.#barrierPhase = 'settling-durable';
+      durableRecord = await settle(durableRecord);
       if (resume) {
         this.#barrierPhase = 'resuming';
         for (const { participant } of [...barrier.entries].reverse()) {
           await participant.resume?.(frozenContext);
         }
       }
+      if (this.#storage !== null && durableRecord !== null) {
+        this.#barrierPhase = 'confirming-durable';
+        await this.#confirmDurableExact(durableRecord);
+      }
       if (barrier.generation === this.#barrierGeneration) {
         this.#barrierActive = false;
         this.#barrierPhase = null;
+        this.#publicationOpen = open && !this.#terminated;
       }
     };
     this.#barrierPromise = complete().catch((error) => {
       if (barrier.generation === this.#barrierGeneration) {
         this.#barrierError = error;
         this.#barrierActive = true;
+        this.#publicationOpen = false;
         this.#barrierPhase = 'failed';
+        for (const { participant } of barrier.entries) {
+          try { this.#invokeSyncParticipant(participant, 'blank', frozenContext); } catch { /* preserve first failure */ }
+        }
       }
     });
+  }
+
+  #completeBarrierImmediate(barrier, { open }) {
+    if (barrier.generation !== this.#barrierGeneration) return;
+    this.#barrierActive = false;
+    this.#barrierPhase = null;
+    this.#publicationOpen = open && !this.#terminated;
+    this.#barrierPromise = Promise.resolve();
+  }
+
+  async #awaitBarrierCapture(expected) {
+    await this.#barrierPromise;
+    if (this.#barrierError) throw this.#barrierError;
+    if (this.#terminated || !this.isCurrent(expected)) {
+      throw stale('agent authority transition did not settle on its exact successor');
+    }
+    return this.#captureUnchecked();
+  }
+
+  #invokeSyncParticipant(participant, method, context) {
+    if (typeof participant?.[method] !== 'function') return undefined;
+    const result = participant[method](context);
+    if (result && typeof result.then === 'function') {
+      void Promise.resolve(result).catch(() => {});
+      throw new TypeError(`agent authority participant ${method}() must be synchronous`);
+    }
+    return result;
+  }
+
+  #wedgeSync(error, context) {
+    if (!this.#barrierActive) {
+      try {
+        this.#beginBarrier({ clearMemory: true, context: Object.freeze({ ...context }) });
+      } catch {
+        // The original counter/custody failure owns the stable diagnosis.
+      }
+    }
+    this.#publicationOpen = false;
+    this.#barrierActive = true;
+    this.#barrierPhase = 'failed';
+    this.#barrierError = error;
+    this.#barrierPromise = Promise.resolve();
+  }
+
+  async #synchronizeInternal(validatedAuthorityInstanceId) {
+    if (this.#barrierActive) {
+      await this.#barrierPromise;
+      if (this.#barrierError) throw this.#barrierError;
+      if (this.#terminated) throw stale('durable agent authority has terminated');
+      return this.capture();
+    }
+    if (this.#barrierError) throw this.#barrierError;
+    if (this.#storage === null) {
+      if (this.#terminated) throw stale('agent authority has terminated');
+      return this.capture();
+    }
+
+    let observed;
+    try {
+      observed = await this.#readDurable();
+    } catch (error) {
+      this.#wedgeSync(error, {
+        reason: 'agent_custody_read_failed',
+        disposition: 'delete',
+        previousAuthority: this.authority,
+        nextAuthority: null,
+        previousCapture: this.#captureUnchecked(),
+        capture: this.#captureUnchecked(),
+        expectedEpoch: this.#durableEpoch,
+        nextEpoch: this.#durableEpoch,
+        nextAuthorityKey: this.#durableKey,
+      });
+      throw error;
+    }
+
+    if (
+      this.#durableRecord !== null
+      && this.#publicationOpen
+      && sameCustodyRecord(observed, this.#durableRecord)
+    ) {
+      if (observed.phase !== 'settled' || observed.status === 'deleted') {
+        this.#terminated = true;
+        this.#publicationOpen = false;
+        throw stale('durable agent authority is not settled and active');
+      }
+      return this.#captureUnchecked();
+    }
+
+    let plan;
+    try {
+      plan = this.#synchronizationPlan(observed, validatedAuthorityInstanceId);
+    } catch (error) {
+      if (error?.code === 'SNAPBACK_CLIENT_AGENT_CREDENTIAL_VALIDATION_REQUIRED') {
+        // The configured bearer remains usable only for the narrow handshake
+        // offer. Publication stays closed and, critically, settled predecessor
+        // custody remains byte-for-byte untouched.
+        this.#publicationOpen = false;
+        throw error;
+      }
+      this.#wedgeSync(error, {
+        reason: 'agent_custody_synchronization_failed',
+        disposition: 'delete',
+        previousAuthority: this.authority,
+        nextAuthority: null,
+        previousCapture: this.#captureUnchecked(),
+        capture: this.#captureUnchecked(),
+        expectedEpoch: this.#durableEpoch,
+        nextEpoch: this.#durableEpoch,
+        nextAuthorityKey: this.#durableKey,
+      });
+      throw error;
+    }
+    await this.#executeSynchronizationPlan(plan);
+    if (this.#barrierError) throw this.#barrierError;
+    if (this.#terminated) throw stale('durable agent authority is deleted');
+    return this.capture();
+  }
+
+  #synchronizationPlan(observed, validatedAuthorityInstanceId) {
+    const desiredAuthority = this.authority;
+    const desiredKey = this.#durableKey;
+    const desiredIsValidated = validatedAuthorityInstanceId
+      === deriveServiceAuthorityInstanceId(this.#credential);
+    const desiredMatches = observed !== null
+      && observed.authorityKey === desiredKey
+      && sameDurableAuthority(observed.authority, desiredAuthority);
+
+    if (observed?.phase === 'clearing') {
+      if (!desiredMatches) {
+        return {
+          observed,
+          target: observed,
+          reason: 'agent_custody_clearing_mismatch',
+          disposition: 'delete',
+          error: stale('durable agent custody is clearing toward a tuple unavailable in this process'),
+        };
+      }
+      if (this.#durableRecord === null && !desiredIsValidated) {
+        throw credentialValidationRequired();
+      }
+      return {
+        observed,
+        clearing: observed,
+        target: settledRecordForClearing(observed),
+        writeClearing: false,
+        commitDurable: true,
+        transition: observed.transition,
+        reason: observed.transition.reason,
+        disposition: observed.transition.disposition,
+      };
+    }
+
+    if (this.#durableRecord === null) {
+      if (observed === null) {
+        return {
+          observed,
+          target: custodyRecord({
+            custodyId: this.#custodyId,
+            authorityEpoch: 0,
+            revision: 1,
+            phase: 'settled',
+            status: 'active',
+            authority: desiredAuthority,
+          }),
+          writeDirect: true,
+          commitDurable: false,
+          reason: 'agent_custody_initialized',
+          disposition: 'retain',
+        };
+      }
+      if (desiredMatches) {
+        return {
+          observed,
+          target: observed,
+          commitDurable: false,
+          reason: observed.status === 'deleted'
+            ? 'agent_custody_deleted_restart'
+            : 'agent_custody_restart_adopted',
+          disposition: observed.status === 'deleted' ? 'delete' : 'retain',
+        };
+      }
+      if (!desiredIsValidated) throw credentialValidationRequired();
+      const nextEpoch = nextSafeCounter(
+        observed.authorityEpoch,
+        'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED',
+        'agent authority epoch',
+      );
+      const transition = custodyTransitionRecords({
+        custodyId: this.#custodyId,
+        predecessor: observed,
+        nextEpoch,
+        nextStatus: 'active',
+        nextAuthority: desiredAuthority,
+        reason: 'agent_custody_restart_replaced',
+        disposition: 'delete',
+      });
+      return {
+        observed,
+        clearing: transition.clearing,
+        target: transition.settled,
+        writeClearing: true,
+        commitDurable: true,
+        transition: transition.transition,
+        reason: 'agent_custody_restart_replaced',
+        disposition: 'delete',
+      };
+    }
+
+    if (desiredMatches) {
+      return {
+        observed,
+        target: observed,
+        commitDurable: !sameCustodyRecord(observed, this.#durableRecord),
+        reason: observed.status === 'deleted'
+          ? 'agent_custody_peer_deleted'
+          : 'agent_custody_peer_adopted',
+        disposition: observed.status === 'deleted' ? 'delete' : 'delete',
+      };
+    }
+
+    return {
+      observed,
+      target: observed,
+      write: false,
+      reason: 'agent_custody_peer_mismatch',
+      disposition: 'delete',
+      error: stale('durable agent custody changed to a tuple unavailable in this process'),
+    };
+  }
+
+  async #executeSynchronizationPlan(plan) {
+    const previousRecord = this.#durableRecord;
+    const contextPredecessor = previousRecord ?? plan.observed;
+    const target = plan.target;
+    const targetEpoch = target?.authorityEpoch ?? this.#durableEpoch;
+    const targetKey = target?.authorityKey ?? this.#durableKey;
+    const targetIsDesired = target !== null
+      && target.authorityKey === this.#durableKey
+      && sameDurableAuthority(target.authority, this.authority);
+    const nextAuthority = targetIsDesired && target.status === 'active' ? this.authority : null;
+    const context = Object.freeze({
+      capture: authorityCapture(
+        targetEpoch,
+        targetKey,
+        this.#carrierGeneration,
+        this.#credential.tokenId,
+      ),
+      authority: nextAuthority,
+      previousAuthority: plan.transition
+        ? plan.transition.previousAuthority
+        : contextPredecessor?.status === 'active'
+          ? contextPredecessor.authority
+          : null,
+      nextAuthority,
+      previousCapture: this.#captureUnchecked(),
+      expectedEpoch: plan.transition?.expectedEpoch
+        ?? previousRecord?.authorityEpoch
+        ?? plan.observed?.authorityEpoch
+        ?? targetEpoch,
+      nextEpoch: targetEpoch,
+      nextAuthorityKey: targetKey,
+      disposition: plan.disposition,
+      ...(plan.transition ? { transitionId: plan.transition.transitionId } : {}),
+      ...(target?.status === 'deleted' ? { authorityDisposition: 'durableDelete' } : {}),
+      reason: plan.reason,
+    });
+    const barrier = this.#beginBarrier({ clearMemory: true, context });
+    const prepare = async () => {
+      if (plan.error) throw plan.error;
+      const confirmed = plan.clearing
+        ? plan.writeClearing
+          ? await this.#replaceDurableExact(plan.observed, plan.clearing)
+          : await this.#confirmDurableExact(plan.clearing)
+        : plan.writeDirect
+          ? await this.#replaceDurableExact(plan.observed, target)
+          : await this.#confirmDurableExact(target);
+      this.#installDurableRecord(confirmed);
+      return confirmed;
+    };
+    const settle = async (prepared) => {
+      if (!plan.clearing) return prepared;
+      const confirmed = await this.#replaceDurableExact(plan.clearing, target);
+      this.#installDurableRecord(confirmed);
+      return confirmed;
+    };
+    this.#finishBarrier(barrier, context, {
+      prepare,
+      settle,
+      commitDurable: plan.commitDurable === true,
+      resume: target?.status === 'active' && !plan.error,
+      open: target?.status === 'active' && !plan.error,
+    });
+    await this.#barrierPromise;
+  }
+
+  async #readDurable() {
+    return this.#storage.withOwnership(this.#custodyId, async (owner) => {
+      if (!owner || typeof owner.read !== 'function' || typeof owner.replace !== 'function') {
+        throw new TypeError('agent custody owner must provide read() and replace()');
+      }
+      const value = await owner.read();
+      return value === null ? null : validateCustodyRecord(value, this.#custodyId);
+    });
+  }
+
+  async #confirmDurableExact(expected) {
+    if (expected === null) {
+      throw custodyCorrupt('agent custody confirmation requires an exact target record');
+    }
+    return this.#storage.withOwnership(this.#custodyId, async (owner) => {
+      const currentValue = await owner.read();
+      const current = currentValue === null
+        ? null
+        : validateCustodyRecord(currentValue, this.#custodyId);
+      if (!sameCustodyRecord(current, expected)) {
+        throw stale('durable agent custody changed before exact confirmation');
+      }
+      return current;
+    });
+  }
+
+  async #replaceDurableExact(expected, target) {
+    let firstError;
+    try {
+      return await this.#storage.withOwnership(this.#custodyId, async (owner) => {
+        const currentValue = await owner.read();
+        const current = currentValue === null
+          ? null
+          : validateCustodyRecord(currentValue, this.#custodyId);
+        if (sameCustodyRecord(current, target)) return current;
+        if (!sameCustodyRecord(current, expected)) {
+          throw stale('durable agent custody no longer matches the exact CAS predecessor');
+        }
+        const replaced = await owner.replace(expected?.revision ?? null, clone(target));
+        const validated = validateCustodyRecord(replaced, this.#custodyId);
+        if (!sameCustodyRecord(validated, target)) {
+          throw custodyCorrupt('agent custody CAS returned a record other than its exact target');
+        }
+        return validated;
+      });
+    } catch (error) {
+      firstError = error;
+    }
+
+    // A storage adapter may throw after its transaction committed but before
+    // the response reached this process. Only an exact target reread converts
+    // that ambiguous outcome to success; every other shape preserves failure.
+    try {
+      const confirmed = await this.#confirmDurableExact(target);
+      if (sameCustodyRecord(confirmed, target)) return confirmed;
+    } catch (confirmationError) {
+      if (confirmationError?.code !== 'SNAPBACK_CLIENT_AUTHORITY_STALE') {
+        throw fenceError(
+          'SNAPBACK_AUTH_CUSTODY_AMBIGUOUS',
+          'agent custody CAS failed and its exact target could not be confirmed',
+          {
+            causeCode: firstError?.code ?? null,
+            confirmationCode: confirmationError?.code ?? null,
+          },
+        );
+      }
+    }
+    throw firstError;
+  }
+
+  #installDurableRecord(record) {
+    const validated = validateCustodyRecord(record, this.#custodyId);
+    if (
+      validated.authorityKey !== this.#durableKey
+      || !sameDurableAuthority(validated.authority, this.authority)
+    ) {
+      throw stale('durable agent custody does not match the process credential tuple');
+    }
+    this.#durableRecord = validated;
+    this.#durableEpoch = validated.authorityEpoch;
+    this.#durableKey = validated.authorityKey;
+    if (validated.phase === 'clearing') this.#authorityDescriptor = null;
+    if (validated.status === 'deleted') {
+      this.#authorityDescriptor = null;
+      this.#terminated = true;
+    } else {
+      this.#terminated = false;
+    }
+  }
+
+  async #compareAndCommitDurable(capture, commit) {
+    let durableMismatch = false;
+    let observedMismatch = null;
+    let callbackInvoked = false;
+    try {
+      const result = await this.#storage.withOwnership(this.#custodyId, async (owner) => {
+        const currentValue = await owner.read();
+        const current = currentValue === null
+          ? null
+          : validateCustodyRecord(currentValue, this.#custodyId);
+        if (
+          !sameCustodyRecord(current, this.#durableRecord)
+          || current?.phase !== 'settled'
+          || current?.status !== 'active'
+        ) {
+          durableMismatch = true;
+          observedMismatch = current;
+          return { committed: false };
+        }
+        if (!this.isCurrent(capture)) return { committed: false };
+        callbackInvoked = true;
+        this.#inCommit = true;
+        try {
+          const value = commit(Object.freeze({
+            ...capture,
+            authorityDescriptor: this.authorityDescriptor,
+          }));
+          if (value && typeof value.then === 'function') {
+            throw new TypeError('compareAndCommit callback must be synchronous');
+          }
+          return { committed: true, value };
+        } finally {
+          this.#inCommit = false;
+        }
+      });
+      if (durableMismatch) {
+        this.#wedgeSync(
+          stale('durable agent custody changed before publication'),
+          {
+            reason: 'agent_custody_missed_wakeup',
+            disposition: 'delete',
+            previousAuthority: this.authority,
+            nextAuthority: null,
+            previousCapture: capture,
+            capture,
+            expectedEpoch: capture.authorityEpoch,
+            nextEpoch: observedMismatch?.authorityEpoch ?? capture.authorityEpoch,
+            nextAuthorityKey: observedMismatch?.authorityKey ?? capture.authorityKey,
+          },
+        );
+      }
+      return result;
+    } catch (error) {
+      this.#inCommit = false;
+      if (!callbackInvoked) {
+        this.#wedgeSync(error, {
+          reason: 'agent_custody_compare_failed',
+          disposition: 'delete',
+          previousAuthority: this.authority,
+          nextAuthority: null,
+          previousCapture: capture,
+          capture,
+          expectedEpoch: capture.authorityEpoch,
+          nextEpoch: capture.authorityEpoch,
+          nextAuthorityKey: capture.authorityKey,
+        });
+      }
+      throw error;
+    }
   }
 }
