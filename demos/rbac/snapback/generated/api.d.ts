@@ -38,7 +38,7 @@ export interface GeneratedPermissions {
 }
 export type AppMembersRole = "member" | "admin";
 export type AppMembersInsert = { userId: Principal; role: AppMembersRole };
-export type AppMembersPatch = {  };
+export type AppMembersPatch = Record<string, never>;
 export interface GeneratedMembership {
   appMembers: { insert(values: AppMembersInsert): Promise<unknown>; setRole(memberId: Id<'appMembers'>, role: AppMembersRole): Promise<unknown>; remove(memberId: Id<'appMembers'>): Promise<unknown>; patch(memberId: Id<'appMembers'>, values: AppMembersPatch): Promise<unknown> };
 }
