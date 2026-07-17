@@ -4,7 +4,7 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
 status: current
 targets: [local]
@@ -54,6 +54,16 @@ actor/credential-generation/grant axis, invalidates the old token carrier, and
 forces a fresh handshake before more work can publish. A changed grant or
 credential generation clears the bound descriptor, so queued work from the
 predecessor cannot migrate to the successor authority.
+
+Long-running Node CLI and daemon processes should import
+`createFilesystemAgentAuthorityCustodyStorage` directly from
+`demos/_kit/agent-authority-filesystem.mjs` and pass its result plus a stable
+`custodyId` to `AgentAuthorityFence`. The factory requires an absolute private
+state directory. It creates 0600 atomic custody files under a 0700 directory,
+serializes independent processes with a bounded OS advisory lock, and never
+persists the scoped-token bearer or carrier id. This is a Node-only import;
+browser code continues to import the portable client arm without filesystem
+dependencies.
 
 Start app boot with `health()`, then
 `ensureApp({ schema, functions, seed })`. Ensure is idempotent: it provisions

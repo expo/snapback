@@ -481,4 +481,6 @@ const deferred = () => {
   assert.equal(storage.snapshot('agent:terminal').status, 'active');
 }
 
+await import('./agent-authority-filesystem.mjs');
+
 console.log('PASS agent authority durable custody — restart, ABA, CAS, peer, wedge, terminal');
