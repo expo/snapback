@@ -8,6 +8,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { mkdtemp } from 'node:fs/promises';
 
+import { createFilesystemAgentAuthorityCustodyStorage } from '../agent-authority-filesystem.mjs';
+
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CHILD = join(HERE, 'agent-authority-filesystem-child.mjs');
 const BEARER_SENTINEL = 'sbagt_filesystem_bearer_must_never_persist';
@@ -153,6 +155,21 @@ try {
   // itself holds the SQLite/POSIX lock, which the kernel releases on exit.
   const holder = spawnChild(['hold', directory, 'agent:filesystem-lock', '5000', '60000']);
   await waitForLine(holder, (value) => value.event === 'acquired');
+  const localContender = createFilesystemAgentAuthorityCustodyStorage({
+    directory,
+    lockTimeoutMs: 150,
+  });
+  let eventLoopAdvanced = false;
+  setTimeout(() => { eventLoopAdvanced = true; }, 25);
+  const localFailure = localContender
+    .withOwnership('agent:filesystem-lock', (owner) => owner.read())
+    .then(() => null, (error) => error);
+  await new Promise((resolve) => setTimeout(resolve, 50));
+  assert.equal(eventLoopAdvanced, true, 'cross-process lock waiting must not freeze the event loop');
+  assert.equal(
+    (await localFailure)?.code,
+    'SNAPBACK_AUTH_CUSTODY_LOCK_UNAVAILABLE',
+  );
   const startedAt = performance.now();
   const blocked = await run('probe', directory, 'agent:filesystem-lock', '150');
   const elapsedMs = performance.now() - startedAt;
@@ -169,6 +186,32 @@ try {
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
   assert.equal(postCrash.ok, true, 'a crashed owner must not leave stale filesystem ownership');
+
+  // Same-process callers queue before attempting the OS lock. Queue time is
+  // not misclassified as cross-process lock timeout, and the first async owner
+  // can resume to release instead of being starved by a synchronous waiter.
+  const localStorage = createFilesystemAgentAuthorityCustodyStorage({
+    directory,
+    lockTimeoutMs: 25,
+  });
+  let firstEntered;
+  const entered = new Promise((resolve) => { firstEntered = resolve; });
+  const order = [];
+  const first = localStorage.withOwnership('agent:filesystem-local-fifo', async (owner) => {
+    order.push('first:start');
+    firstEntered();
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    await owner.read();
+    order.push('first:end');
+  });
+  await entered;
+  const second = localStorage.withOwnership('agent:filesystem-local-fifo', async (owner) => {
+    order.push('second:start');
+    await owner.read();
+    order.push('second:end');
+  });
+  await Promise.all([first, second]);
+  assert.deepEqual(order, ['first:start', 'first:end', 'second:start', 'second:end']);
 
   const entries = await readdir(directory);
   assert(entries.some((entry) => entry.endsWith('.json')));

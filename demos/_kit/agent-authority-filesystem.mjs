@@ -25,6 +25,8 @@ import { DatabaseSync } from 'node:sqlite';
 const DIRECTORY_MODE = 0o700;
 const FILE_MODE = 0o600;
 const SAFE_COUNTER_MAX = Number.MAX_SAFE_INTEGER;
+const LOCK_RETRY_MS = 10;
+const PROCESS_OWNERSHIP = new Map();
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const TOP_LEVEL_FIELDS = Object.freeze([
   'formatVersion',
@@ -393,29 +395,55 @@ const readRecordFile = async (path, custodyId) => {
   }
 };
 
-const acquireLock = (path, timeoutMs) => {
-  let database = null;
+const withProcessOwnership = async (key, operation) => {
+  const previous = PROCESS_OWNERSHIP.get(key) ?? Promise.resolve();
+  let release;
+  const current = new Promise((resolve) => { release = resolve; });
+  PROCESS_OWNERSHIP.set(key, current);
+  await previous.catch(() => {});
   try {
-    // The lock must live in this process. A child that merely holds lockf(2)
-    // can die after a parent-side liveness check and before rename(), allowing
-    // a successor to commit before the stale parent overwrites it. SQLite's
-    // BEGIN IMMEDIATE is a bounded POSIX advisory lock held by this exact
-    // DatabaseSync connection, so the callback, CAS, rename, and directory
-    // fsync all share one crash-released owner.
-    database = new DatabaseSync(path);
-    database.exec(`PRAGMA busy_timeout = ${timeoutMs}`);
-    database.exec('BEGIN IMMEDIATE');
-  } catch (error) {
-    try { database?.close(); } catch { /* preserve acquisition failure */ }
-    if (error?.errcode === 5 || error?.errcode === 6) {
-      throw diagnostic(
-        AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
-        'timed out waiting for filesystem agent custody ownership',
-        { timeoutMs },
-        error,
-      );
+    return await operation();
+  } finally {
+    release();
+    if (PROCESS_OWNERSHIP.get(key) === current) PROCESS_OWNERSHIP.delete(key);
+  }
+};
+
+const acquireLock = async (path, timeoutMs) => {
+  const startedAt = performance.now();
+  let lastBusy = null;
+  let database = null;
+  for (;;) {
+    try {
+      // The lock must live in this process. A child that merely holds lockf(2)
+      // can die after a parent-side liveness check and before rename(), allowing
+      // a successor to commit before the stale parent overwrites it. SQLite's
+      // BEGIN IMMEDIATE is a POSIX advisory lock held by this exact DatabaseSync
+      // connection, so callback, CAS, rename, and directory fsync share one
+      // crash-released owner. Busy acquisition is polled nonblocking so another
+      // process cannot freeze this process's event loop while it owns the lock.
+      database = new DatabaseSync(path);
+      database.exec('PRAGMA busy_timeout = 0');
+      database.exec('BEGIN IMMEDIATE');
+      break;
+    } catch (error) {
+      try { database?.close(); } catch { /* preserve acquisition failure */ }
+      database = null;
+      if (error?.errcode !== 5 && error?.errcode !== 6) {
+        throw ioFailure('acquire-lock', error);
+      }
+      lastBusy = error;
+      const remainingMs = timeoutMs - (performance.now() - startedAt);
+      if (remainingMs <= 0) {
+        throw diagnostic(
+          AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockUnavailable,
+          'timed out waiting for filesystem agent custody ownership',
+          { timeoutMs },
+          lastBusy,
+        );
+      }
+      await new Promise((resolve) => setTimeout(resolve, Math.min(LOCK_RETRY_MS, remainingMs)));
     }
-    throw ioFailure('acquire-lock', error);
   }
 
   let released = false;
@@ -556,55 +584,57 @@ export function createFilesystemAgentAuthorityCustodyStorage({
       throw new TypeError('filesystem agent custody ownership requires an operation callback');
     }
     const { custodyId, recordPath, lockPath } = pathsFor(rawCustodyId);
-    await assertPrivateDirectory(directory);
-    await ensurePrivateLockFile(lockPath);
-    await syncDirectory(directory);
-    const lock = acquireLock(lockPath, lockTimeoutMs);
-    let active = true;
-    const owner = Object.freeze({
-      async read() {
-        if (!active) {
-          throw diagnostic(
-            AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-            'filesystem agent custody ownership was released',
-          );
-        }
-        lock.assertActive();
-        const value = await readRecordFile(recordPath, custodyId);
-        lock.assertActive();
-        return value;
-      },
-      async replace(expectedRevision, nextValue) {
-        if (!active) {
-          throw diagnostic(
-            AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
-            'filesystem agent custody ownership was released',
-          );
-        }
-        if (expectedRevision !== null) {
-          assertSafeCounter(expectedRevision, 'filesystem agent custody expectedRevision', {
-            positive: true,
+    return withProcessOwnership(lockPath, async () => {
+      await assertPrivateDirectory(directory);
+      await ensurePrivateLockFile(lockPath);
+      await syncDirectory(directory);
+      const lock = await acquireLock(lockPath, lockTimeoutMs);
+      let active = true;
+      const owner = Object.freeze({
+        async read() {
+          if (!active) {
+            throw diagnostic(
+              AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+              'filesystem agent custody ownership was released',
+            );
+          }
+          lock.assertActive();
+          const value = await readRecordFile(recordPath, custodyId);
+          lock.assertActive();
+          return value;
+        },
+        async replace(expectedRevision, nextValue) {
+          if (!active) {
+            throw diagnostic(
+              AGENT_AUTHORITY_FILESYSTEM_DIAGNOSTICS.lockLost,
+              'filesystem agent custody ownership was released',
+            );
+          }
+          if (expectedRevision !== null) {
+            assertSafeCounter(expectedRevision, 'filesystem agent custody expectedRevision', {
+              positive: true,
+            });
+          }
+          return atomicReplace({
+            directory,
+            recordPath,
+            custodyId,
+            expectedRevision,
+            nextValue,
+            lock,
+            testHooks,
           });
-        }
-        return atomicReplace({
-          directory,
-          recordPath,
-          custodyId,
-          expectedRevision,
-          nextValue,
-          lock,
-          testHooks,
-        });
-      },
+        },
+      });
+      try {
+        const result = await operation(owner);
+        lock.assertActive();
+        return result;
+      } finally {
+        active = false;
+        await lock.release();
+      }
     });
-    try {
-      const result = await operation(owner);
-      lock.assertActive();
-      return result;
-    } finally {
-      active = false;
-      await lock.release();
-    }
   };
 
   return Object.freeze({
