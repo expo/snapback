@@ -250,8 +250,9 @@ mod tests {
 
     #[test]
     fn service_descriptor_survives_token_churn_but_not_durable_axis_changes() {
-        let first = descriptor_for_resolved_authority(&service("token-a", 3, "grant-a"), INCARNATION)
-            .unwrap();
+        let first =
+            descriptor_for_resolved_authority(&service("token-a", 3, "grant-a"), INCARNATION)
+                .unwrap();
         let replacement_token =
             descriptor_for_resolved_authority(&service("token-b", 3, "grant-a"), INCARNATION)
                 .unwrap();
@@ -264,9 +265,25 @@ mod tests {
 
         assert_eq!(first, replacement_token);
         assert_ne!(first.authority_instance_id, rotated.authority_instance_id);
-        assert_ne!(first.authority_instance_id, replaced_grant.authority_instance_id);
+        assert_ne!(
+            first.authority_instance_id,
+            replaced_grant.authority_instance_id
+        );
         assert!(canonical_uuid_v7(&first.authority_instance_id).is_ok());
         assert_eq!(first.session_generation, 0);
+    }
+
+    #[test]
+    fn service_descriptor_has_a_cross_language_fixed_vector() {
+        assert_eq!(
+            service_authority_instance_id(
+                "018f0d90-7b01-7a22-8c33-445566778899",
+                "018f0d90-7b02-7a22-8c33-445566778899",
+                4,
+                "018f0d90-7b03-7a22-8c33-445566778899",
+            ),
+            "49082da1-0362-7c7d-bb41-1f6e925b688f"
+        );
     }
 
     #[test]
