@@ -2,6 +2,7 @@
 // function-kind routing, and bounded/fatal JSON decoding on every body route.
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
+import { request as httpRequest } from 'node:http';
 import { startProof, ADMIN_TOKEN } from './harness.mjs';
 import { validateWriteValues } from '../src/host-ops.js';
 
@@ -84,13 +85,60 @@ for (const typeCase of structuralCorpus.typeCases) {
 const proof = await startProof({ app: 'notes', port: 0 });
 try {
   const base = await proof.url();
-  const raw = async (path, { body = '{}', contentType = 'application/json', headers = {} } = {}) => {
-    const response = await fetch(`${base}${path}`, {
-      method: 'POST',
-      headers: { ...(contentType === null ? {} : { 'content-type': contentType }), ...headers },
-      body,
+  const rawRequestInit = ({ body = '{}', contentType = 'application/json', headers = {} } = {}) => ({
+    method: 'POST',
+    headers: { ...(contentType === null ? {} : { 'content-type': contentType }), ...headers },
+    body,
+  });
+  const readRawResponse = async (response) => ({ status: response.status, body: await response.json() });
+  const raw = async (path, options = {}) => readRawResponse(await fetch(
+    `${base}${path}`,
+    rawRequestInit(options),
+  ));
+  // @ref LLP 0040#proof-runtime-preflight-2026-07-14-eng-24454 — workerd
+  // must reject the declared 4.1 MB length before requesting the body; this
+  // header-only exchange proves that fast path without starting an uploader.
+  const rawOversized = async (path, options = {}) => {
+    const init = rawRequestInit(options);
+    const body = Buffer.from(init.body);
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const rejectOnce = (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      };
+      const request = httpRequest(`${base}${path}`, {
+        method: init.method,
+        headers: {
+          ...init.headers,
+          'content-length': String(body.byteLength),
+          expect: '100-continue',
+        },
+      }, (response) => {
+        const chunks = [];
+        response.on('data', (chunk) => chunks.push(Buffer.from(chunk)));
+        response.once('error', rejectOnce);
+        response.once('end', () => {
+          if (settled) return;
+          try {
+            const responseBody = JSON.parse(Buffer.concat(chunks).toString('utf8'));
+            settled = true;
+            resolve({ status: response.statusCode, body: responseBody });
+          } catch (error) {
+            rejectOnce(error);
+          }
+        });
+      });
+      request.once('continue', () => request.destroy(new Error(
+        'oversized request reached body upload instead of the Content-Length rejection',
+      )));
+      request.once('error', rejectOnce);
+      request.setTimeout(5_000, () => request.destroy(new Error(
+        'timed out waiting for the oversized Content-Length rejection',
+      )));
+      request.flushHeaders();
     });
-    return { status: response.status, body: await response.json() };
   };
 
   // Required/type/unknown/protected-field failures, including values derived
@@ -215,6 +263,7 @@ try {
     },
     {
       name: 'oversized body',
+      transport: 'expect-continue',
       request: { body: JSON.stringify({ padding: 'x'.repeat(4_100_000) }) },
       expected: diagnostic(
         413,
@@ -241,7 +290,8 @@ try {
   for (const route of bodyRoutes) {
     const before = await sideEffectFingerprint();
     for (const failure of bodyFailures) {
-      const actual = await raw(route.path, {
+      const submit = failure.transport === 'expect-continue' ? rawOversized : raw;
+      const actual = await submit(route.path, {
         ...failure.request,
         headers: { ...(route.headers || {}), ...(failure.request.headers || {}) },
       });

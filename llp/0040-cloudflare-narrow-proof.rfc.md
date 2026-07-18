@@ -5,7 +5,7 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
+**Revised:** 2026-07-17 (the pinned Node 24.18.0 protocol-hardening proof now uses an `Expect: 100-continue` header-only exchange for oversized uploads, preserving the real-loopback Content-Length fast path without starting a reset-prone uploader or retrying); 2026-07-12 (ENG-24341–ENG-24369 / ENG-24387–ENG-24388 final review: subscription rows/args and both legacy/total sockets have enforced manifest-advertised ceilings; foundational schema drift remains diagnosable/resettable; deploy health is pinned to Cloudflare's exact Worker-version metadata after code deploy and a post-secret final deploy. Earlier:
 whole-codebase review hardening closes hosted provisioning, schema/index,
 action/cron, secret, realtime-session, request-decoding, reset/migration,
 deployment-identity, config-operations, bootstrap, and cache-hygiene gaps; see
@@ -713,6 +713,20 @@ transport (the deeper fix is upstream-shaped and out of scope here):
   logic is asserted independent of the interpreter it runs under. The manifest's
   pinned suite count moves from 19 to 20. `package.json` `engines.node` declares
   `24.x` as a compatibility signal, not the CI authority.
+
+The pinned Node 24.18.0 runtime also exposed a narrower local-client race in
+the protocol-hardening matrix. The parser correctly rejects a declared 4.1 MB
+body from `Content-Length` before reading the upload, but the real-loopback
+Node client can still be writing that body when workerd returns 413 and closes
+the request. Reading the already-started response then intermittently fails
+with `EPIPE` or `ECONNRESET` instead of exposing the JSON diagnostic. The
+oversized-upload cases now use Node's HTTP client with the exact declared
+length and `Expect: 100-continue`: they send only headers, require workerd's
+final 413, and fail if the server asks them to begin uploading. This retains
+the real-loopback Content-Length fast path and is not a retry. Production keeps
+the bounded early rejection, the exact diagnostic and no-side-effect
+assertions are unchanged, and any first transport failure still fails the
+proof.
 
 ## Status
 
