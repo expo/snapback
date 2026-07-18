@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "0ef40d4a2c1856b841585474602878b6d96a3c59"
+    "commit": "1af4c69c29e4908357d64a3052ff42469b2a1f02"
   },
   "nav": {
     ".": [
@@ -1297,8 +1297,8 @@
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
-      "sha256": "538ade0ac08dd77dac9d17187d602b87db6e1aed5178a10c24bcd0e6801633af",
+      "reviewedCommit": "1af4c69c29e4908357d64a3052ff42469b2a1f02",
+      "sha256": "9799fa07430bf404af00bf1bc7ee51f3f7cc602b8ecc88a8d58c31b8edc854ca",
       "snippets": [
         {
           "lang": "js",
@@ -1356,5 +1356,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "a88304a9e68fbb1920fedae3e04758119c02bad8f0ed11ee0702aa06bc5c2969"
+  "contentHash": "2c839edae1766309145826ccf9110555443751d994f3fc4872ea51862bb6554d"
 }
