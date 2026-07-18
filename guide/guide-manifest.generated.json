@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9bb0c6c343538d03b734c9931fc6b5cd2d34fb2d"
+    "commit": "0ef40d4a2c1856b841585474602878b6d96a3c59"
   },
   "nav": {
     ".": [
@@ -768,8 +768,8 @@
         "demos/todo/surfaces/headless/run.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "67837f03415a07a8d168b9c9bdb7471c41187be2d202b908751b7d3b3c6ace67",
+      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
+      "sha256": "7fcaf74db00d65c80f1ae8c87305d3000185f21165ec2603e0b0f98cca176c31",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -929,9 +929,9 @@
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "8008b1e22bad0dc24c32ef5130e53416086cf0e679e046e530d869f202dd3a75",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
+      "sha256": "f52e1c57059f27efaca16662cd3f921a30082357bf858c6b58374e1fa927b2a2",
       "snippets": [
         {
           "lang": "js",
@@ -1296,9 +1296,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "41acfaaf515fd3466030dab84e969030d41225dda82e8bb69644722e7a3bd89f",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
+      "sha256": "538ade0ac08dd77dac9d17187d602b87db6e1aed5178a10c24bcd0e6801633af",
       "snippets": [
         {
           "lang": "js",
@@ -1356,5 +1356,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "6aebd5b893defa58a534dd5689cc8a3cc2934cbf80d1576018085c3433090be2"
+  "contentHash": "a88304a9e68fbb1920fedae3e04758119c02bad8f0ed11ee0702aa06bc5c2969"
 }
