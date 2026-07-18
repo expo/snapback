@@ -5,7 +5,11 @@
 **Systems:** Auth, Security, Deployment, HTTP, Realtime, Client integration, Browser, Operations
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+**Revised:** 2026-07-17 (self-terminal logout response ownership: live
+revocation may blank predecessor surfaces but cannot abort the exact logout
+response before captured-authority settlement; the ownership-backed
+confirmation preserves fatal custody diagnostics and follows custody/barrier
+liveness without a false local deadline). 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this RFC after ENG-25001 closed the review findings and the FINAL5
 Codex and Fable reviews both returned READY; Status advanced to Accepted while
 the current local target remains explicitly not hosted-auth ready); 2026-07-15 (FINAL5 review archive and minor closure: archived the
@@ -1010,7 +1014,19 @@ material.
 - Credential-success poison cases cover exchange request proof and successor,
   refresh predecessor and successor, and logout body reflection. Exact empty
   204 alone returns `null`; malformed 2xx logout clears only current captured
-  custody and then returns a generic credential-free error.
+  custody and then returns a generic credential-free error. The logout request
+  itself is not part of the general predecessor transport-controller set: a
+  live socket may observe the same revocation and synchronously blank every
+  predecessor surface, but cannot abort the response whose exact status/body
+  facts let logout finish the captured-authority clear. A peer-installed
+  successor still wins and makes the completion stale; accepting an already
+  anonymous outcome requires joining any in-flight clearing transition and an
+  ownership-backed durable synchronization, not a process-local settled view
+  that may have missed a later peer transition. That final confirmation follows
+  custody-owner and participant-barrier liveness rather than claiming a local
+  wall-clock deadline: abandoning owned work on a timer could leave an orphaned
+  publication after logout returned. Non-transient custody failures retain
+  their original stable diagnostic; only clearing/stale transition races retry.
 - Issuing-path failure cases: malformed 2xx and arbitrary non-2xx failures on
   exchange, refresh, console mint, and challenge request produce fixed opaque
   errors with **no response bytes and no reader-error payload** — proven with a

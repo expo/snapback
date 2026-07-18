@@ -263,6 +263,7 @@ let exchangeTypedFailure = null;
 let refreshPoison = null;
 let logoutMode = 'empty';
 let logoutReadFailureHook = null;
+let logoutTerminalHook = null;
 let supersededHook = null;
 let delayedQueryResolve = null;
 let delayedQueryStartedResolve = null;
@@ -383,6 +384,16 @@ globalThis.fetch = async (url, init = {}) => {
             [`reflected_${bearer}`]: bearer,
           };
           throw error;
+        },
+      };
+    }
+    if (logoutMode === 'terminal-during-read') {
+      return {
+        ok: true,
+        status: 204,
+        async text() {
+          await logoutTerminalHook?.();
+          return '';
         },
       };
     }
@@ -848,6 +859,114 @@ try {
   assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
   assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
 
+  // The logout request owns its response through the same-session terminal
+  // cut. A live socket can observe revocation and synchronously blank every
+  // predecessor surface, but it must not abort the logout response that caused
+  // that terminal event.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  logoutMode = 'terminal-during-read';
+  const logoutCapture = coordinator.capture();
+  logoutTerminalHook = async () => {
+    const error = new Error('SNAPBACK_AUTH_SESSION_REVOKED: session logged out');
+    error.code = 'SNAPBACK_AUTH_SESSION_REVOKED';
+    error.diagnostic = { code: error.code, message: 'session logged out' };
+    error.authorityDisposition = 'durableDelete';
+    db.handleTerminalAuthLoss(logoutCapture, error);
+    await coordinator.compareAndClear(logoutCapture, 'logout_live_terminal');
+  };
+  assert.equal(await db.authLogout(), null);
+  logoutTerminalHook = null;
+  logoutMode = 'empty';
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
+
+  // A completed peer clear can force logout through its durable confirmation
+  // path. Fatal custody diagnostics from that path must remain exact: mapping
+  // corruption, exhaustion, or lock/read failures to ordinary stale authority
+  // would erase the evidence callers need to fail closed and repair custody.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  logoutMode = 'terminal-during-read';
+  const fatalConfirmationCapture = coordinator.capture();
+  const fatalConfirmationError = new Error(
+    'TEST_LOGOUT_CONFIRMATION_FATAL: exact custody evidence',
+  );
+  fatalConfirmationError.code = 'TEST_LOGOUT_CONFIRMATION_FATAL';
+  fatalConfirmationError.diagnostic = {
+    code: fatalConfirmationError.code,
+    message: 'exact custody evidence',
+  };
+  logoutTerminalHook = async () => {
+    await coordinator.compareAndClear(
+      fatalConfirmationCapture,
+      'logout_confirmation_fatal_fixture',
+    );
+    coordinator.synchronize = async () => { throw fatalConfirmationError; };
+  };
+  try {
+    await assert.rejects(
+      db.authLogout(),
+      (error) => error === fatalConfirmationError,
+    );
+  } finally {
+    delete coordinator.synchronize;
+    logoutTerminalHook = null;
+    logoutMode = 'empty';
+  }
+  assert.equal(coordinator.settledView().authority.kind, 'anonymous');
+  assert.equal(Object.hasOwn(coordinator.settledView(), 'bearer'), false);
+
+  // A missed peer wakeup can leave the local view anonymous after the terminal
+  // cut while durable custody has already advanced again to session B. Logout
+  // must re-read under ownership rather than accepting that stale local view.
+  await db.authExchange({ challengeId: CHALLENGE_ID, code: LOGIN_CODE });
+  calls = [];
+  logoutMode = 'terminal-during-read';
+  const supersededLogoutCapture = coordinator.capture();
+  logoutTerminalHook = async () => {
+    const error = new Error('SNAPBACK_AUTH_SESSION_REVOKED: predecessor logged out');
+    error.code = 'SNAPBACK_AUTH_SESSION_REVOKED';
+    error.diagnostic = { code: error.code, message: 'predecessor logged out' };
+    error.authorityDisposition = 'durableDelete';
+    db.handleTerminalAuthLoss(supersededLogoutCapture, error);
+    await coordinator.compareAndClear(supersededLogoutCapture, 'logout_live_terminal');
+
+    staleLogoutPeer = new AuthCoordinator({
+      appId: APP,
+      storage: createMemoryAuthCustodyStorage({ state: custodyState }),
+      broadcastChannelFactory: null,
+      hintStorage: null,
+    });
+    await staleLogoutPeer.synchronize();
+    const anonymousCapture = staleLogoutPeer.capture();
+    bearerAuthority.set(BEARER_B, sessionB);
+    await staleLogoutPeer.transition(anonymousCapture, {
+      authority: sessionB,
+      bearer: BEARER_B,
+      refreshAfterMs: 40_000,
+    }, 'test_logout_terminal_then_successor');
+  };
+  await assert.rejects(
+    db.authLogout(),
+    (error) => error?.diagnostic?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE',
+  );
+  logoutTerminalHook = null;
+  logoutMode = 'empty';
+  assert.equal(storage.snapshot(APP).authority.sessionId, SESSION_B);
+  await coordinator.synchronize();
+  assert.equal(coordinator.settledView().authority.sessionId, SESSION_B);
+  const successorCapture = staleLogoutPeer.capture();
+  await staleLogoutPeer.transition(successorCapture, {
+    authority: anonymous,
+    bearer: null,
+    refreshAfterMs: null,
+  }, 'test_logout_successor_cleanup');
+  await coordinator.synchronize();
+  await staleLogoutPeer.close();
+  staleLogoutPeer = null;
+
   // Exact reviewer replay: the response status is already known 2xx when the
   // body reader rejects with bearer/body material. Opaque facts cross the
   // transport boundary, current custody clears, and the fixed invalid-response
@@ -908,7 +1027,7 @@ try {
   });
   assert.equal(staleFailureProjection.includes(BEARER_A), false);
   assert.equal(staleFailureProjection.includes(READ_FAILURE_SECRET), false);
-  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout']);
+  assert.deepEqual(calls.map(({ path }) => path), ['/auth/logout', '/auth/session']);
   await staleLogoutPeer.close();
   staleLogoutPeer = null;
 

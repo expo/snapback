@@ -2615,10 +2615,18 @@ export class SnapbackClient {
     }
     await this.authSession();
     const capture = this.authCoordinator.capture();
-    const bearer = this.authCoordinator.credentialFor(capture).bearer;
+    const credential = this.authCoordinator.credentialFor(capture);
+    const bearer = credential.bearer;
     // @ref LLP 0060#c1-the-v1-custody-claim — exact empty 204 is the only
     // public logout success; malformed 2xx still clears captured custody.
-    const response = await this.#trackedFetchJson(
+    // The logout request is the operation that terminalizes this exact
+    // predecessor. Keep it outside the general tracked-controller set so a
+    // live socket observing that same revocation cannot abort the response
+    // before logout records its exact status/body facts. A competing successor
+    // is still rejected by compareAndClear below.
+    // @ref LLP 0060#c1-the-v1-custody-claim — self-terminal logout owns its
+    // response through the captured-authority clear boundary.
+    const response = await this.#fetchJson(
       'POST',
       '/auth/logout',
       {},
@@ -2626,7 +2634,44 @@ export class SnapbackClient {
       { successfulResponseFacts: true },
     );
     const cleared = await this.authCoordinator.compareAndClear(capture, 'logout');
-    if (!cleared.cleared) throw staleAuthorityError();
+    if (!cleared.cleared) {
+      let terminallyAnonymous = false;
+      for (;;) {
+        try {
+          // Synchronize may return an exact durable capture reentrantly while
+          // the matching local resume barrier is still closed. The final
+          // compare-and-commit both waits for exposure and rechecks that exact
+          // durable record under ownership, so a missed peer successor wins.
+          const confirmed = await this.authCoordinator.synchronize();
+          if (confirmed !== null) {
+            const confirmation = await this.authCoordinator.compareAndCommit(
+              confirmed,
+              ({ authority }) => authority.kind === 'anonymous'
+                && authority.authMode === credential.authority.authMode
+                && authority.authorizationStreamIncarnation
+                  === credential.authority.authorizationStreamIncarnation,
+            );
+            if (confirmation.committed) {
+              terminallyAnonymous = confirmation.value === true;
+              break;
+            }
+          }
+        } catch (error) {
+          const code = error?.code ?? error?.diagnostic?.code;
+          if (
+            code !== 'SNAPBACK_CLIENT_AUTHORITY_CLEARING'
+            && code !== 'SNAPBACK_CLIENT_AUTHORITY_STALE'
+          ) throw error;
+        }
+        // Ownership acquisition and participant barriers are deliberately
+        // non-cancellable: abandoning either could let an orphaned operation
+        // publish after logout returned. Follow the custody transition's
+        // liveness instead of advertising a wall-clock deadline that cannot
+        // safely cover the owned work.
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+      if (!terminallyAnonymous) throw staleAuthorityError();
+    }
     if (response.status !== 204 || !response.emptyBody) {
       const error = new Error(
         'SNAPBACK_AUTH_CREDENTIAL_RESPONSE_INVALID: auth provider returned an invalid logout response',
