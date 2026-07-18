@@ -9,8 +9,8 @@ examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Scoped roles and memberships

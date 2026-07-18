@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Queries
@@ -61,14 +61,22 @@ lookup paths.
 
 ## Read one snapshot
 
-The local target runs query handlers on the WAL reader pool with a transaction
-pinned when the handler starts. Every `get`, indexed query, and the terminal
-`version` observes that snapshot. Queries never write; a write attempt is a
-typed refusal.
+The local target pins one transaction for the whole query invocation. The
+normal file-backed read lane uses the WAL reader pool; direct-library,
+live-subscription, and in-memory fallback lanes pin the serialized connection
+instead. Every `get`, indexed query, membership witness, and terminal `version`
+observes that same snapshot. Queries never write; a write attempt is a typed
+refusal.
 
-Inside a mutation, `ctx.db` reads use the mutation's snapshot plus its own
-buffered writes. Those reads become commit dependencies, described in
-[mutations](./mutations.md).
+Inside a mutation, `ctx.db` layers the mutation's own buffered writes over each
+logical storage read. Those reads become commit dependencies, described in
+[mutations](./mutations.md). Each logical read pins its reported head and rows
+together; buffered-query overlays capture the exact overfetch and touched rows
+they consumed before commit validation.
+
+The returned `version` is an exact integer in
+`0..=Number.MAX_SAFE_INTEGER`. A malformed, negative, or out-of-range durable
+cursor fails closed instead of being rounded, wrapped, or replaced with zero.
 
 ## Scope on the server
 

@@ -14,8 +14,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: de78f0d44076bb9bebbb81b4d67178ab5b64b053
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Capability index
@@ -574,8 +574,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Sessions and principals
@@ -706,13 +706,13 @@ id: auth.protecting-data
 order: 2
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/local/authorization_acceptance.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/auth/service_fence.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Protecting live and retained data
@@ -915,8 +915,8 @@ examples: [demos/rbac, packages/snapback-codegen/rbac-authoring.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Scoped roles and memberships
@@ -1181,8 +1181,8 @@ examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Queries
@@ -1233,14 +1233,22 @@ lookup paths.
 
 ## Read one snapshot
 
-The local target runs query handlers on the WAL reader pool with a transaction
-pinned when the handler starts. Every `get`, indexed query, and the terminal
-`version` observes that snapshot. Queries never write; a write attempt is a
-typed refusal.
+The local target pins one transaction for the whole query invocation. The
+normal file-backed read lane uses the WAL reader pool; direct-library,
+live-subscription, and in-memory fallback lanes pin the serialized connection
+instead. Every `get`, indexed query, membership witness, and terminal `version`
+observes that same snapshot. Queries never write; a write attempt is a typed
+refusal.
 
-Inside a mutation, `ctx.db` reads use the mutation's snapshot plus its own
-buffered writes. Those reads become commit dependencies, described in
-[mutations](./mutations.md).
+Inside a mutation, `ctx.db` layers the mutation's own buffered writes over each
+logical storage read. Those reads become commit dependencies, described in
+[mutations](./mutations.md). Each logical read pins its reported head and rows
+together; buffered-query overlays capture the exact overfetch and touched rows
+they consumed before commit validation.
+
+The returned `version` is an exact integer in
+`0..=Number.MAX_SAFE_INTEGER`. A malformed, negative, or out-of-range durable
+cursor fails closed instead of being rounded, wrapped, or replaced with zero.
 
 ## Scope on the server
 
@@ -1282,8 +1290,8 @@ examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Mutations
@@ -1292,9 +1300,11 @@ reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-A mutation reads a snapshot, buffers writes, validates its dependencies, and
-commits once. Every row changed by that commit receives the same monotonic
-commit version. A rejected mutation commits nothing.
+A mutation makes snapshot-atomic logical reads, buffers writes, validates its
+captured dependencies, and commits once. It does not hold one SQLite read
+transaction across arbitrary asynchronous handler work; commit-time OCC rejects
+relevant drift between reads. Every row changed by the commit receives the
+same monotonic version. A rejected mutation commits nothing.
 
 ## Define the write boundary
 
@@ -1346,7 +1356,9 @@ created id, changed count, and server-owned row fields together:
 
 An error is a structured `SNAPBACK_*` diagnostic. A rejected queued mutation
 still has a terminal receipt on the error envelope so the client store can
-settle it without guessing.
+settle it without guessing. A confirmed receipt always carries a non-null
+durable `snapshotVersion`; `null` is allowed only for a rejected invocation
+whose durable cursor could not be read safely.
 
 ## Preserve invariants with read sets
 
@@ -1378,7 +1390,10 @@ conflict.
 All affected rows share the mutation's `version`; no-op writes do not advance
 it. Durable live delivery is produced from the committed write set, so clients
 never observe a partial mutation. The version is a logical ordering within one
-app database, not a wall-clock timestamp.
+app database, not a wall-clock timestamp. It is an exact integer in
+`0..=Number.MAX_SAFE_INTEGER`. The maximum commit is usable, but an operation
+that needs its successor fails before writing with
+`SNAPBACK_STORAGE_VERSION_EXHAUSTED`; never round or synthesize a cursor.
 
 ## Anti-patterns
 
@@ -1405,8 +1420,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Actions and outbound fetch
@@ -1522,8 +1537,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Scheduled execution with cron
@@ -1604,6 +1619,16 @@ The acceptance asserts the whole path—tick → action → mutation → live up
 and the bounded recent-run ledger. Assert the job and a successful run so a
 vacuous tick cannot pass.
 
+Definition generations and run sequences are exact JavaScript-safe integer
+identities. The maximum value is usable once; a successor fails before taking
+ownership with `SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED` or
+`SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED`. An out-of-range persisted counter is
+`SNAPBACK_CRON_STATE_INVALID`, never an implicit reset. Treat these as terminal
+operator diagnostics for that scheduler state rather than retrying the job.
+Scheduled-batch staging is atomic: exhaustion in any job publishes none of the
+batch's claims. Inspect's consecutive-failure count saturates at the same
+portable maximum instead of wrapping.
+
 ## Anti-patterns
 
 - **Do not schedule a mutation directly.** Cron targets actions; the action
@@ -1629,8 +1654,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The Contract adapter
@@ -1795,7 +1820,11 @@ What the surface does for you:
   pretending. The complete retention, outbox, replay, and settlement contract
   is in [offline retention and mutation replay](../sync/offline-and-retention.md).
 - **Ephemeral channels** — bound as generated links (subscribe + publish
-  pairs); see the [presence recipe](../recipes/presence-cursors.md) and
+  pairs). For connection-keyed maps, the adapter derives `self` from the
+  opaque granted id captured by the successful overlay subscribe—not from the
+  surface's readable `connectionId` label—so collision and mint-only
+  containment remain correct. See the
+  [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
 
 ## Anti-patterns
@@ -1827,7 +1856,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9365aa708f1925a5cdbd2ca4dc38fc37cc36783b
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The headless client
@@ -1991,6 +2020,14 @@ harnesses. App UI code normally uses `liveQuery`.
 `subscribeEphemeral(ref, { connectionId, scope, ... })` returns an overlay
 whose `currentEntries()`, `onChange`, `publish`, `delete`, and
 `dispose` methods implement the snapshot/delta/expiry contract.
+The `connectionId` argument is a readable, client-local label used to share a
+grant and socket. It is not wire identity. `overlay.grantedConnectionId` is
+the exact opaque id used by the successful subscribe and therefore the key of
+this overlay's connection-owned entry. Those strings may happen to match when
+the local server adopts an unclaimed suggestion, but collision or mint-only
+containment makes them diverge. Low-level adapters that construct raw frames
+must obtain `(await client.connectionGrant(label)).id`; never put the readable
+label in a `connection_id` wire field.
 `publishEphemeral`, `deleteEphemeral`, and `unsubscribeEphemeral` are the
 lower-level transport operations. See the
 [presence recipe](../recipes/presence-cursors.md) for the paved feature and
@@ -2052,6 +2089,8 @@ lifecycle; they are not additional client methods.
   idempotently at boot; reserve reset/tick/load primitives for dev/ops/tests.
 - **Do not treat `openLiveStream` as the ordinary subscription API.** Use
   `liveQuery({ transport: 'stream' })` unless writing an adapter.
+- **Do not treat the readable connection label as the granted wire id.** Use
+  the overlay/grant authority fact for connection-owned keys and raw frames.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
 - **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays, and
   coordinator participants own resources.
@@ -2070,8 +2109,8 @@ examples: [demos/all-aboard/surfaces/react/src/main.tsx, demos/cursors-web/surfa
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The React arm
@@ -2141,6 +2180,11 @@ recovery. `demos/cursors-web/surfaces/react/src/useCursorRoom.ts` is the
 reference hook for the full pattern (state mapping, `needs_resync`
 handling, frozen maps).
 
+For a connection-keyed map, compute `self` as
+`entry.key === overlay.grantedConnectionId`. The hook's readable
+`connectionId` is only the client registry label; it can differ from the
+opaque id that the server granted and used as the entry lease key.
+
 ## Anti-patterns
 
 - **Do not build a polling loop where a subscription exists** — wire
@@ -2150,6 +2194,8 @@ handling, frozen maps).
   finding.
 - **Do not leak handles across HMR/StrictMode remounts.** Track and
   dispose, including late-resolving subscribes.
+- **Do not compare presence keys with a readable connection label.** Read the
+  successful overlay's `grantedConnectionId` authority fact.
 
 ---
 
@@ -2801,8 +2847,8 @@ examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: de78f0d44076bb9bebbb81b4d67178ab5b64b053
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Host operations
@@ -2834,6 +2880,11 @@ Every response contains `schemaVersion`, `resultKind: "hostOpsResult"`,
 `artifacts`, `data`, `diagnostics[]`, and `next[]`. A known-but-unbuilt
 operation returns `ok: false` with a structured diagnostic, never a fake 404
 or empty success.
+
+`artifacts.databaseVersion` contains an integer only when the durable cursor
+decodes as an exact portable value. If storage cannot supply a trustworthy
+cursor, the envelope becomes `ok: false`, serializes that value as `null`, and
+carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 
@@ -3024,8 +3075,8 @@ examples: [admin-ui]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Admin console
@@ -3166,8 +3217,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Live queries
@@ -3229,6 +3280,10 @@ can't be established), `onUpdate(rows, meta)`, `onConnectionChange`,
 `connectionId` (one shared socket per connection id multiplexes all of that
 connection's live handles), and per-socket `stream:` tuning
 (heartbeat/freshness/reconnect). Always `dispose()` handles you created.
+The supplied `connectionId` is a readable client-local label; the kit resolves
+and refreshes its opaque granted wire id for high-level calls. A low-level
+adapter constructing raw frames must use
+`(await client.connectionGrant(label)).id`, never the readable label.
 
 ## What arrives: replace and delta
 
@@ -3298,8 +3353,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Ephemeral realtime state
@@ -3368,7 +3423,9 @@ Do not treat authoring defaults as hosted scale promises.
 ## Choose a key mode deliberately
 
 - `connection` gives each active connection its own value and reclaims it on
-  disconnect or expiry. It is the normal cursor/presence choice.
+  disconnect or expiry. Its key is the opaque id granted to the transport,
+  not the app's readable connection label. It is the normal cursor/presence
+  choice.
 - `session` derives the key from the authenticated session, so reconnecting
   can refresh the same lease. A caller-supplied session id is only an
   assertion and must match transport authority.
@@ -3406,7 +3463,11 @@ authorization beyond connection ownership is not shipped.
 consumer before requesting its authoritative snapshot, buffers in-flight
 deltas, then applies them after the snapshot boundary. The returned overlay
 provides `currentEntries()`, `onChange`, `publish`, `delete`, `drain`, and
-`dispose`.
+`dispose`, plus `grantedConnectionId`: the exact opaque connection id used by
+that successful subscribe. Compare a connection-owned entry's `key` with this
+field to identify self. Do not compare it with the readable `connectionId`
+argument, which only keys the client's grant/socket registries and may diverge
+after collision or mint-only containment.
 
 Each current entry is:
 
@@ -3459,6 +3520,8 @@ into the same surface.
   boundary.
 - **Do not claim multi-instance presence.** The current shipped adapter is
   process-local.
+- **Do not derive self from a readable connection label.** The granted id on
+  the overlay is the connection-owned lease key.
 
 ---
 
@@ -3474,8 +3537,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Recipe: presence cursors
@@ -3517,8 +3580,11 @@ collection; cursors-web's `webCursors` follows the same form):
       subscribe: allow.all(),
 ```
 
-`key: 'connection'` makes the lease key the publisher's connection id —
-presence provenance for free: an entry with your connection id *is* you.
+`key: 'connection'` makes the lease key the publisher's opaque,
+server-granted connection id—presence provenance without a spoofable app
+field. The readable `connectionId` that app code passes to the kit is only a
+local grant/socket label; it may match the lease key after initial dev
+adoption, but collision or mint-only containment makes them diverge.
 Regenerate after editing (the generated publish descriptor carries the
 budget facts your client code should assert against, e.g. cursors-web
 checks its declared publish rate fits `sustainedHz` at init).
@@ -3547,8 +3613,10 @@ snapshot, then buffers and applies deltas from the shared live socket
 ```
 
 Read entries with `overlay.currentEntries()` — each is
-`{ key, value, expiresAtMs, ... }`; `entry.key === connectionId` is
-"self". `onChange` also delivers a level-triggered `'needs_resync'` when
+`{ key, value, expiresAtMs, ... }`; `entry.key ===
+overlay.grantedConnectionId` is "self". `grantedConnectionId` is captured
+from the exact successful subscribe attempt, including a token-refresh retry.
+`onChange` also delivers a level-triggered `'needs_resync'` when
 connection continuity is lost (epoch boundary / queue overflow): present
 degraded state, then re-enter with a fresh `subscribeEphemeral` and swap
 the overlay.
@@ -3580,6 +3648,8 @@ renderable during degradation instead of silently vanishing.
   seconds; the ephemeral store exists for exactly this.
 - **Do not invent your own presence keys.** `key: 'connection'` gives you
   provenance; a custom name field is spoofable and duplicates on refresh.
+- **Do not compare entry keys with the readable connection label.** Compare
+  with `overlay.grantedConnectionId`; only the server grant is lease identity.
 - **Do not publish above the declared budget** — assert your sample rate
   fits the generated budget facts at init, like the reference hook does.
 
@@ -3597,8 +3667,8 @@ examples: [demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Recipe: hidden hands
@@ -3703,8 +3773,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-c
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Offline retention and mutation replay
@@ -3749,6 +3819,14 @@ restart that finds an interrupted `clearing` transition replays that store's
 epoch-bound deletion before custody can settle. Reversing that order can leave
 predecessor queue data outside the recovered authority barrier and is refused
 by the supported construction path.
+
+The surface re-synchronizes durable custody before client-store reads,
+retained publication, enqueue/acknowledgement, and final replay dispatch. A
+missed process-local or BroadcastChannel wakeup therefore cannot expose or
+settle predecessor rows and queued writes under a peer successor. The visible
+surface blanks at the authority cut; durable predecessor work remains owned by
+the barrier until its exact deletion/transition settles rather than being
+silently acknowledged or discarded.
 
 Terminal replay is explicit, not inferred from a null browser principal scope
 (Agent successors also have no browser principal scope). An exact-current

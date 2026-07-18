@@ -9,8 +9,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Ephemeral realtime state
@@ -79,7 +79,9 @@ Do not treat authoring defaults as hosted scale promises.
 ## Choose a key mode deliberately
 
 - `connection` gives each active connection its own value and reclaims it on
-  disconnect or expiry. It is the normal cursor/presence choice.
+  disconnect or expiry. Its key is the opaque id granted to the transport,
+  not the app's readable connection label. It is the normal cursor/presence
+  choice.
 - `session` derives the key from the authenticated session, so reconnecting
   can refresh the same lease. A caller-supplied session id is only an
   assertion and must match transport authority.
@@ -117,7 +119,11 @@ authorization beyond connection ownership is not shipped.
 consumer before requesting its authoritative snapshot, buffers in-flight
 deltas, then applies them after the snapshot boundary. The returned overlay
 provides `currentEntries()`, `onChange`, `publish`, `delete`, `drain`, and
-`dispose`.
+`dispose`, plus `grantedConnectionId`: the exact opaque connection id used by
+that successful subscribe. Compare a connection-owned entry's `key` with this
+field to identify self. Do not compare it with the readable `connectionId`
+argument, which only keys the client's grant/socket registries and may diverge
+after collision or mint-only containment.
 
 Each current entry is:
 
@@ -170,3 +176,5 @@ into the same surface.
   boundary.
 - **Do not claim multi-instance presence.** The current shipped adapter is
   process-local.
+- **Do not derive self from a readable connection label.** The granted id on
+  the overlay is the connection-owned lease key.

@@ -9,8 +9,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The Contract adapter
@@ -175,7 +175,11 @@ What the surface does for you:
   pretending. The complete retention, outbox, replay, and settlement contract
   is in [offline retention and mutation replay](../sync/offline-and-retention.md).
 - **Ephemeral channels** — bound as generated links (subscribe + publish
-  pairs); see the [presence recipe](../recipes/presence-cursors.md) and
+  pairs). For connection-keyed maps, the adapter derives `self` from the
+  opaque granted id captured by the successful overlay subscribe—not from the
+  surface's readable `connectionId` label—so collision and mint-only
+  containment remain correct. See the
+  [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
 
 ## Anti-patterns

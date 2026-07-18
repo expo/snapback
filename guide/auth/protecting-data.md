@@ -4,13 +4,13 @@ id: auth.protecting-data
 order: 2
 audience: agent-first
 capabilities: [auth.invalidation-barrier, auth.authorized-leases]
-authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/local/authorization_acceptance.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
+authorities: [llp/0053-authorization-invalidation.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, src/auth/mode.rs, src/auth/service_fence.rs, src/local/authorization_acceptance.rs, src/server.rs, demos/_kit/tests/auth-invalidation-client.mjs, packages/snapback-contract/authorized-lease.mjs]
 examples: [demos/card-game, demos/_kit/tests/auth-invalidation-client.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Protecting live and retained data

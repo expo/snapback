@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Live queries
@@ -72,6 +72,10 @@ can't be established), `onUpdate(rows, meta)`, `onConnectionChange`,
 `connectionId` (one shared socket per connection id multiplexes all of that
 connection's live handles), and per-socket `stream:` tuning
 (heartbeat/freshness/reconnect). Always `dispose()` handles you created.
+The supplied `connectionId` is a readable client-local label; the kit resolves
+and refreshes its opaque granted wire id for high-level calls. A low-level
+adapter constructing raw frames must use
+`(await client.connectionGrant(label)).id`, never the readable label.
 
 ## What arrives: replace and delta
 

@@ -9,8 +9,8 @@ examples: [demos/card-game, demos/todo-v2/surfaces/contract, packages/snapback-c
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Offline retention and mutation replay
@@ -55,6 +55,14 @@ restart that finds an interrupted `clearing` transition replays that store's
 epoch-bound deletion before custody can settle. Reversing that order can leave
 predecessor queue data outside the recovered authority barrier and is refused
 by the supported construction path.
+
+The surface re-synchronizes durable custody before client-store reads,
+retained publication, enqueue/acknowledgement, and final replay dispatch. A
+missed process-local or BroadcastChannel wakeup therefore cannot expose or
+settle predecessor rows and queued writes under a peer successor. The visible
+surface blanks at the authority cut; durable predecessor work remains owned by
+the barrier until its exact deletion/transition settles rather than being
+silently acknowledged or discarded.
 
 Terminal replay is explicit, not inferred from a null browser principal scope
 (Agent successors also have no browser principal scope). An exact-current

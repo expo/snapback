@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9365aa708f1925a5cdbd2ca4dc38fc37cc36783b
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The headless client
@@ -174,6 +174,14 @@ harnesses. App UI code normally uses `liveQuery`.
 `subscribeEphemeral(ref, { connectionId, scope, ... })` returns an overlay
 whose `currentEntries()`, `onChange`, `publish`, `delete`, and
 `dispose` methods implement the snapshot/delta/expiry contract.
+The `connectionId` argument is a readable, client-local label used to share a
+grant and socket. It is not wire identity. `overlay.grantedConnectionId` is
+the exact opaque id used by the successful subscribe and therefore the key of
+this overlay's connection-owned entry. Those strings may happen to match when
+the local server adopts an unclaimed suggestion, but collision or mint-only
+containment makes them diverge. Low-level adapters that construct raw frames
+must obtain `(await client.connectionGrant(label)).id`; never put the readable
+label in a `connection_id` wire field.
 `publishEphemeral`, `deleteEphemeral`, and `unsubscribeEphemeral` are the
 lower-level transport operations. See the
 [presence recipe](../recipes/presence-cursors.md) for the paved feature and
@@ -235,6 +243,8 @@ lifecycle; they are not additional client methods.
   idempotently at boot; reserve reset/tick/load primitives for dev/ops/tests.
 - **Do not treat `openLiveStream` as the ordinary subscription API.** Use
   `liveQuery({ transport: 'stream' })` unless writing an adapter.
+- **Do not treat the readable connection label as the granted wire id.** Use
+  the overlay/grant authority fact for connection-owned keys and raw frames.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
 - **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays, and
   coordinator participants own resources.

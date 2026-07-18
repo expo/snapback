@@ -9,8 +9,8 @@ examples: [demos/todo, demos/todo-v2]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Mutations
@@ -19,9 +19,11 @@ reviewed-commit: 1af150e0a1acffb372b7ac64fe32b61f1bf64db2
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-A mutation reads a snapshot, buffers writes, validates its dependencies, and
-commits once. Every row changed by that commit receives the same monotonic
-commit version. A rejected mutation commits nothing.
+A mutation makes snapshot-atomic logical reads, buffers writes, validates its
+captured dependencies, and commits once. It does not hold one SQLite read
+transaction across arbitrary asynchronous handler work; commit-time OCC rejects
+relevant drift between reads. Every row changed by the commit receives the
+same monotonic version. A rejected mutation commits nothing.
 
 ## Define the write boundary
 
@@ -73,7 +75,9 @@ created id, changed count, and server-owned row fields together:
 
 An error is a structured `SNAPBACK_*` diagnostic. A rejected queued mutation
 still has a terminal receipt on the error envelope so the client store can
-settle it without guessing.
+settle it without guessing. A confirmed receipt always carries a non-null
+durable `snapshotVersion`; `null` is allowed only for a rejected invocation
+whose durable cursor could not be read safely.
 
 ## Preserve invariants with read sets
 
@@ -105,7 +109,10 @@ conflict.
 All affected rows share the mutation's `version`; no-op writes do not advance
 it. Durable live delivery is produced from the committed write set, so clients
 never observe a partial mutation. The version is a logical ordering within one
-app database, not a wall-clock timestamp.
+app database, not a wall-clock timestamp. It is an exact integer in
+`0..=Number.MAX_SAFE_INTEGER`. The maximum commit is usable, but an operation
+that needs its successor fails before writing with
+`SNAPBACK_STORAGE_VERSION_EXHAUSTED`; never round or synthesize a cursor.
 
 ## Anti-patterns
 

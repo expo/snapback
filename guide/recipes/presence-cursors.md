@@ -9,8 +9,8 @@ examples: [demos/cursors-web, demos/todo-v2/snapback/schema.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Recipe: presence cursors
@@ -52,8 +52,11 @@ collection; cursors-web's `webCursors` follows the same form):
       subscribe: allow.all(),
 ```
 
-`key: 'connection'` makes the lease key the publisher's connection id —
-presence provenance for free: an entry with your connection id *is* you.
+`key: 'connection'` makes the lease key the publisher's opaque,
+server-granted connection id—presence provenance without a spoofable app
+field. The readable `connectionId` that app code passes to the kit is only a
+local grant/socket label; it may match the lease key after initial dev
+adoption, but collision or mint-only containment makes them diverge.
 Regenerate after editing (the generated publish descriptor carries the
 budget facts your client code should assert against, e.g. cursors-web
 checks its declared publish rate fits `sustainedHz` at init).
@@ -82,8 +85,10 @@ snapshot, then buffers and applies deltas from the shared live socket
 ```
 
 Read entries with `overlay.currentEntries()` — each is
-`{ key, value, expiresAtMs, ... }`; `entry.key === connectionId` is
-"self". `onChange` also delivers a level-triggered `'needs_resync'` when
+`{ key, value, expiresAtMs, ... }`; `entry.key ===
+overlay.grantedConnectionId` is "self". `grantedConnectionId` is captured
+from the exact successful subscribe attempt, including a token-refresh retry.
+`onChange` also delivers a level-triggered `'needs_resync'` when
 connection continuity is lost (epoch boundary / queue overflow): present
 degraded state, then re-enter with a fresh `subscribeEphemeral` and swap
 the overlay.
@@ -115,5 +120,7 @@ renderable during degradation instead of silently vanishing.
   seconds; the ephemeral store exists for exactly this.
 - **Do not invent your own presence keys.** `key: 'connection'` gives you
   provenance; a custom name field is spoofable and duplicates on refresh.
+- **Do not compare entry keys with the readable connection label.** Compare
+  with `overlay.grantedConnectionId`; only the server grant is lease identity.
 - **Do not publish above the declared budget** — assert your sample rate
   fits the generated budget facts at init, like the reference hook does.

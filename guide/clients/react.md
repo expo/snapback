@@ -9,8 +9,8 @@ examples: [demos/all-aboard/surfaces/react/src/main.tsx, demos/cursors-web/surfa
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # The React arm
@@ -80,6 +80,11 @@ recovery. `demos/cursors-web/surfaces/react/src/useCursorRoom.ts` is the
 reference hook for the full pattern (state mapping, `needs_resync`
 handling, frozen maps).
 
+For a connection-keyed map, compute `self` as
+`entry.key === overlay.grantedConnectionId`. The hook's readable
+`connectionId` is only the client registry label; it can differ from the
+opaque id that the server granted and used as the entry lease key.
+
 ## Anti-patterns
 
 - **Do not build a polling loop where a subscription exists** — wire
@@ -89,3 +94,5 @@ handling, frozen maps).
   finding.
 - **Do not leak handles across HMR/StrictMode remounts.** Track and
   dispose, including late-resolving subscribes.
+- **Do not compare presence keys with a readable connection label.** Read the
+  successful overlay's `grantedConnectionId` authority fact.

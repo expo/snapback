@@ -9,8 +9,8 @@ examples: [demos/todo]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: de78f0d44076bb9bebbb81b4d67178ab5b64b053
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Host operations
@@ -42,6 +42,11 @@ Every response contains `schemaVersion`, `resultKind: "hostOpsResult"`,
 `artifacts`, `data`, `diagnostics[]`, and `next[]`. A known-but-unbuilt
 operation returns `ok: false` with a structured diagnostic, never a fake 404
 or empty success.
+
+`artifacts.databaseVersion` contains an integer only when the durable cursor
+decodes as an exact portable value. If storage cannot supply a trustworthy
+cursor, the envelope becomes `ok: false`, serializes that value as `null`, and
+carries the storage diagnostic; tooling must not substitute zero.
 
 ## Served request operations
 

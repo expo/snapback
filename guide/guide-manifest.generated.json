@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9365aa708f1925a5cdbd2ca4dc38fc37cc36783b"
+    "commit": "9c9786772d9e590cbc37002609d0618338020569"
   },
   "nav": {
     ".": [
@@ -186,7 +186,9 @@
         "llp/0053-authorization-invalidation.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "src/auth/mode.rs",
+        "src/auth/service_fence.rs",
         "src/local/authorization_acceptance.rs",
+        "src/server.rs",
         "demos/_kit/tests/auth-invalidation-client.mjs",
         "packages/snapback-contract/authorized-lease.mjs"
       ],
@@ -194,9 +196,9 @@
         "demos/card-game",
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "208d632afe9847d85ea78c60a71203fecca7d0bdb0dfeeeae1075f288f640f89",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "12f935d9ed0d1d10ca8cece952a20b015ceffd459873bec6fcef7cd6aea34aa9",
       "snippets": [
         {
           "lang": "js",
@@ -240,9 +242,9 @@
         "demos/rbac",
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "d4fcfaf706ca9f307271d91b7a376c18774c630f",
-      "sha256": "d3fc8b3ac138d92bf854f66481715e585995d8a7ca8effc7c9c9fe70468a491d",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "45598734afd9bce57e67f18afdee2e220d5a3022ae6ea1527bc7fcd566a29dd1",
       "snippets": [
         {
           "lang": "js",
@@ -295,9 +297,9 @@
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "4477f7fcdae0fbf9f1128457f936a52154d785cf581092e6f83662c143236c3a",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "2cb6150c3ac182d4570a48b4e42452e6d827dcfb8d037b01e483a70f373ff98b",
       "snippets": [
         {
           "lang": "js",
@@ -375,9 +377,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "47cbc308c88665b32403d20a2e26554325a92cb2a52dfc72d6c9d66f4984bd66",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "224801b8fa54d89063e22df0d900e4fe54cccf6c6f666295ddceb43e4d84de06",
       "snippets": [
         {
           "lang": "js",
@@ -418,9 +420,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "d4fcfaf706ca9f307271d91b7a376c18774c630f",
-      "sha256": "cf0fca18f209bbb3cd631531f99b88e7ce3ce80b47968db92e88fd749b93ca8b",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "6982c3876b5cc6ea94afde827d6553f24f888f26975eea0e3850e9b149ce17b7",
       "snippets": [
         {
           "lang": "js",
@@ -464,9 +466,9 @@
         "demos/todo",
         "demos/todo-v2"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "1af150e0a1acffb372b7ac64fe32b61f1bf64db2",
-      "sha256": "6b4afe848fb1e4130af2ab74e7a83deebe4c11a56971d3f045d05f08bd2d9424",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "25d22dc3fc896ea0d8be4f695ca71711727b80bf9d085f5eb67ca2c06430c45e",
       "snippets": [
         {
           "lang": "js",
@@ -514,9 +516,9 @@
         "demos/todo",
         "demos/todo-v2"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "e2f0e262be6fedce8fc4dc7c747ceebda17de7563579225235276c24ac303422",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "b70e7daa4252a65173a850d636151a46e304ebe5983052b52d5d0b4c868f9584",
       "snippets": [
         {
           "lang": "js",
@@ -546,9 +548,9 @@
         "src/admin.rs"
       ],
       "examples": [],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "de78f0d44076bb9bebbb81b4d67178ab5b64b053",
-      "sha256": "1194586adba59b76983ea9982ba3004dd55edb67e8f9e888828a7c430cc29346",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "6790cea3a7a1a8575831c579b27e69187aa0c1aa71fd6b1030df3673c759b945",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -577,9 +579,9 @@
         "demos/all-aboard/surfaces/contract",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "5fdc6ae9d0f839d042f759e620ec03f88ce0547fadbbb709af7ec4683be2d547",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "a2b4c5ecdb748d264a02e32bc33eb359affc52009e759272266a28b9e54efbc7",
       "snippets": [
         {
           "lang": "contract",
@@ -642,8 +644,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9365aa708f1925a5cdbd2ca4dc38fc37cc36783b",
-      "sha256": "555caf7e19ea20194177dfa040643c7cd947afb529fd96484b2cc55981e60241",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "1ea08bf02878b462f07de9a459e66aeb58433b765d4f48376d5fd14ddc28db16",
       "snippets": [
         {
           "lang": "js",
@@ -677,9 +679,9 @@
         "demos/all-aboard/surfaces/react/src/main.tsx",
         "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "34bb169c2ba46020586ed3882330c8e2ee57458bf284999156cfa925c7906b9f",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "714672ba36e993871e251dbc9e6bb79a4dae6e158a3a9af637c6e72a8a516555",
       "snippets": [
         {
           "lang": "ts",
@@ -894,9 +896,9 @@
       "examples": [
         "admin-ui"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "5c776f4896db3e11ec1b26e6593479b0b3d1cd56d29f4f054398209015aecf22",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "fc384c6c1711277aff61b605603d13dbcb202dd99b8c4f08ca21fe2caa415574",
       "snippets": [
         {
           "lang": "js",
@@ -959,9 +961,9 @@
       "examples": [
         "demos/todo"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "de78f0d44076bb9bebbb81b4d67178ab5b64b053",
-      "sha256": "a35ccea20f09dc77eda7d39ed4f116b11a8fe2c713d82335fe9f6ce349070722",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "c74385dd0186e3a683dd0f0e9c0f44d3e98a6e07562913795e5820011cb69a2a",
       "snippets": [
         {
           "lang": "json",
@@ -1036,9 +1038,9 @@
         "demos/cursors-web",
         "demos/todo-v2/snapback/schema.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "21ab39f3491ce0b56c4ec5994d4f237e362c4f0dd67f4647e23cbaac8e968e14",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "d26b10c006890e402212f8ec3f2371a4a16fd323972c318f8a8d190387806459",
       "snippets": [
         {
           "lang": "js",
@@ -1080,9 +1082,9 @@
         "demos/_kit/tests/live-delta-e2e.mjs",
         "demos/all-aboard/surfaces/react/src/main.tsx"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "2d3e60a0f6309dd721b6a09749db4f0d710a01f84eb9fe5ea3eeede8f36212ef",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "a45d16fd3462007e0ef67b39445dc8cb857ffb11199cd6381f4adabab3a78bde",
       "snippets": [
         {
           "lang": "js",
@@ -1134,9 +1136,9 @@
       "examples": [
         "demos/card-game"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "53539f56900b672ad8868f9937ca41268e81a7c3a97f8803c838684d1e00a941",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "8d4008cfb4f721e67591370ff718b94e4ad57636d1f3c6939c7f7dc5c6b56b12",
       "snippets": [
         {
           "lang": "js",
@@ -1186,9 +1188,9 @@
         "demos/cursors-web",
         "demos/todo-v2/snapback/schema.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "9e475e282347028f370867cb1dfdbb64d856bac57e0fe6532eb5d3780f7ea68f",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "40b2579c4d173934821aa67789df1356a44971adaec9cd1d31c2105f02860c9c",
       "snippets": [
         {
           "lang": "js",
@@ -1250,9 +1252,9 @@
         "demos/todo-v2/surfaces/contract",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "7df25646dfe7b7b776ea562432699bd191444a1884e9c23d479ba21309a04c2c",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
+      "sha256": "c6c360e071b776c1e5a6c0f866d76d3e35f92d371f4bb60e375f883e151fbd81",
       "snippets": [
         {
           "lang": "js",
@@ -1354,5 +1356,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2c31a3f6160e1c400af7b814dd1c7d777e7bef41691e33d869a4237a55aea8eb"
+  "contentHash": "2c780bc12a7221ef0c74772111add5afcb0e4f08bcf3dd140af36a4a0a29f864"
 }

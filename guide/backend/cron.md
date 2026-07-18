@@ -9,8 +9,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: d4fcfaf706ca9f307271d91b7a376c18774c630f
+reviewed: 2026-07-17
+reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
 ---
 
 # Scheduled execution with cron
@@ -90,6 +90,16 @@ The acceptance asserts the whole path—tick → action → mutation → live up
 `GET /inspect` exposes registered jobs, activation state, next/last timing,
 and the bounded recent-run ledger. Assert the job and a successful run so a
 vacuous tick cannot pass.
+
+Definition generations and run sequences are exact JavaScript-safe integer
+identities. The maximum value is usable once; a successor fails before taking
+ownership with `SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED` or
+`SNAPBACK_CRON_RUN_SEQUENCE_EXHAUSTED`. An out-of-range persisted counter is
+`SNAPBACK_CRON_STATE_INVALID`, never an implicit reset. Treat these as terminal
+operator diagnostics for that scheduler state rather than retrying the job.
+Scheduled-batch staging is atomic: exhaustion in any job publishes none of the
+batch's claims. Inspect's consecutive-failure count saturates at the same
+portable maximum instead of wrapping.
 
 ## Anti-patterns
 
