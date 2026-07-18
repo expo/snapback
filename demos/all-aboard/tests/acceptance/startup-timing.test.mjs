@@ -1,11 +1,26 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { performance } from 'node:perf_hooks';
 
 import { assertFirstBoardPaintBudget } from './startup-timing.mjs';
+
+const webEntrySource = readFileSync(
+  new URL('../../surfaces/contract/main.ts', import.meta.url),
+  'utf8',
+);
+assert.doesNotMatch(
+  webEntrySource,
+  /from\s+['"]\.\/snapback[^'"]*['"]/,
+  'the web entry must not request a root /snapback* module that the Vite API proxy prefix intercepts',
+);
+assert.match(
+  webEntrySource,
+  /from\s+['"]\.\/web-target['"]/,
+  'the web entry must select target behavior through the proxy-safe web adapter',
+);
 
 assert.deepEqual(
   assertFirstBoardPaintBudget(

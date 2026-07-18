@@ -49,7 +49,7 @@ import { mountAllAboardRouter, type AllAboardRouterHandle } from './router';
 import {
   snapbackTargetClientOptions,
   snapbackWebBaseUrl,
-} from './snapback-target';
+} from './web-target';
 import { installTrainSelectionTransition } from './transitions';
 
 let routerHandle: AllAboardRouterHandle | null = null;

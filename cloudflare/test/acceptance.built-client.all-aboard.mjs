@@ -4,8 +4,8 @@
 //
 // The pre-auth Cloudflare proof ships a browser/native artifact whose client
 // is selected at build time by `__SNAPBACK_TARGET_PROFILE__` (compiled into
-// demos/all-aboard/surfaces/contract/snapback-target.ts and consumed by
-// main.ts / native.ts). A Vite `define` or target-entry wiring regression
+// the separate web-target.ts and snapback-target.ts adapters consumed by
+// main.ts and native.ts). A Vite `define` or target-entry wiring regression
 // could keep the pre-auth factory's guard literal in the bundle while actually
 // executing the auth-capable local branch — so the DEPLOYED browser would
 // probe the unsupported `/auth/session` handshake. A text search over the
@@ -37,7 +37,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, '../..');
 const surfaceRoot = path.join(repoRoot, 'demos/all-aboard/surfaces/contract');
-const targetModule = path.join(surfaceRoot, 'snapback-target.ts');
+const webTargetModule = path.join(surfaceRoot, 'web-target.ts');
+const nativeTargetModule = path.join(surfaceRoot, 'snapback-target.ts');
+const webEntryModule = path.join(surfaceRoot, 'main.ts');
 const kitClientModule = path.join(repoRoot, 'demos/_kit/client.mjs');
 
 const CLOUDFLARE_PROFILE = 'cloudflare-do-sqlite-v8';
@@ -67,31 +69,34 @@ function check(label, condition) {
 // web (main.ts) and native (native.ts) entries do:
 //   new SnapbackClient(<surface base url>, snapbackTargetClientOptions())
 // The client-selection and base-url resolution both run through the real
-// snapback-target.ts, so a wiring regression there is executed here, not
+// surface-specific adapters, so a wiring regression is executed here, not
 // merely searched for.
 function entrySource() {
   return `
 import {
-  snapbackTargetClientOptions,
+  snapbackTargetClientOptions as webTargetClientOptions,
   snapbackWebBaseUrl,
+} from ${JSON.stringify(webTargetModule)};
+import {
+  snapbackTargetClientOptions as nativeTargetClientOptions,
   snapbackNativeBaseUrl,
-} from ${JSON.stringify(targetModule)};
+} from ${JSON.stringify(nativeTargetModule)};
 import { SnapbackClient } from ${JSON.stringify(kitClientModule)};
 
-export function targetClientOptions() {
-  return snapbackTargetClientOptions();
+export function targetClientOptions(surface) {
+  return surface === 'web' ? webTargetClientOptions() : nativeTargetClientOptions();
 }
 
-// Mirrors main.ts:287 — the shipped web entry's client construction.
+// Mirrors main.ts — the shipped web entry's client construction.
 export function bootWebClient(serverOrigin) {
   const base = snapbackWebBaseUrl('same-origin', serverOrigin);
-  return { base, client: new SnapbackClient(base, snapbackTargetClientOptions()) };
+  return { base, client: new SnapbackClient(base, webTargetClientOptions()) };
 }
 
 // Mirrors native.ts — the shipped static native entry's client construction.
 export function bootNativeClient(serverOrigin) {
   const base = snapbackNativeBaseUrl('same-origin', serverOrigin);
-  return { base, client: new SnapbackClient(base, snapbackTargetClientOptions()) };
+  return { base, client: new SnapbackClient(base, nativeTargetClientOptions()) };
 }
 `;
 }
@@ -176,7 +181,7 @@ function installStubGateway() {
 
 async function driveClient(builtPath, surface) {
   const mod = await import(pathToFileURL(builtPath).href);
-  const options = mod.targetClientOptions();
+  const options = mod.targetClientOptions(surface);
   const gateway = installStubGateway();
   let booted;
   let queryError = null;
@@ -211,6 +216,16 @@ function probedAuthSession(requestedPaths) {
 async function main() {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'snapback-built-client-'));
   try {
+    const webEntrySource = fs.readFileSync(webEntryModule, 'utf8');
+    check(
+      'the shipped web entry imports the proxy-safe web target adapter',
+      /from\s+['"]\.\/web-target['"]/.test(webEntrySource),
+    );
+    check(
+      'the shipped web entry never imports the native /snapback-target module',
+      !/from\s+['"]\.\/snapback-target['"]/.test(webEntrySource),
+    );
+
     const cloudflareBuild = buildEntry(tempDir, CLOUDFLARE_PROFILE);
     const localBuild = buildEntry(tempDir, LOCAL_PROFILE);
 
