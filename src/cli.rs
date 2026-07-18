@@ -3159,7 +3159,10 @@ impl ReadyFileTarget {
         if result == 0 {
             // SAFETY: fstatat initialized stat on success.
             let stat = unsafe { stat.assume_init() };
-            return Ok(Some((stat.st_dev as u64, stat.st_ino)));
+            return Ok(Some((
+                crate::instance_lock::stat_device_id(&stat),
+                stat.st_ino,
+            )));
         }
         let error = std::io::Error::last_os_error();
         if error.kind() == ErrorKind::NotFound {

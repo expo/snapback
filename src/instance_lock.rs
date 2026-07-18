@@ -190,6 +190,20 @@ pub(crate) struct TargetInstanceReservation {
     lock_identity: (u64, u64),
 }
 
+/// Normalize the platform-specific `dev_t` representation used by `libc::stat`.
+///
+/// Linux already exposes `st_dev` as `u64`, while the other supported Unix
+/// targets require an explicit normalization.
+#[cfg(target_os = "linux")]
+pub(crate) fn stat_device_id(stat: &libc::stat) -> u64 {
+    stat.st_dev
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+pub(crate) fn stat_device_id(stat: &libc::stat) -> u64 {
+    stat.st_dev as u64
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct FileIdentity {
     device: u64,
@@ -211,7 +225,7 @@ impl FileIdentity {
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
     pub(crate) fn from_stat(stat: &libc::stat) -> Self {
         Self {
-            device: stat.st_dev as u64,
+            device: stat_device_id(stat),
             inode: stat.st_ino,
         }
     }
@@ -321,7 +335,7 @@ impl Drop for CreatedReservationCleanup<'_> {
         } == 0;
         if found {
             let stat = unsafe { stat.assume_init() };
-            if (stat.st_dev as u64, stat.st_ino) == self.identity {
+            if (stat_device_id(&stat), stat.st_ino) == self.identity {
                 unsafe {
                     libc::unlinkat(self.parent.as_raw_fd(), self.name.as_ptr(), 0);
                 }
@@ -845,7 +859,7 @@ impl TargetInstanceReservation {
             .stat_at(&self.lock_name)?
             .ok_or_else(|| anyhow!("target-instance reservation entry disappeared"))?;
         anyhow::ensure!(
-            (lock.st_dev as u64, lock.st_ino) == self.lock_identity,
+            (stat_device_id(&lock), lock.st_ino) == self.lock_identity,
             "target-instance reservation entry changed while locked"
         );
         let strict =
@@ -1436,7 +1450,7 @@ mod platform {
 #[cfg(test)]
 mod tests {
     use super::{
-        DatabaseInstanceLock, TargetInstanceReservation, lock_path_for_database,
+        DatabaseInstanceLock, FileIdentity, TargetInstanceReservation, lock_path_for_database,
         target_reservation_path_for_database,
     };
 
@@ -1455,6 +1469,32 @@ mod tests {
     fn ipv6_url_hosts_are_bracketed() {
         assert_eq!(super::url_host("::1"), "[::1]");
         assert_eq!(super::url_host("127.0.0.1"), "127.0.0.1");
+    }
+
+    #[cfg(any(target_vendor = "apple", target_os = "linux"))]
+    #[test]
+    fn raw_stat_identity_matches_metadata_identity() {
+        use std::mem::MaybeUninit;
+        use std::os::fd::AsRawFd as _;
+
+        let file = tempfile::tempfile().expect("temporary file");
+        let mut stat = MaybeUninit::<libc::stat>::uninit();
+        // SAFETY: `stat` points to writable storage and `file` keeps the
+        // descriptor valid for the duration of the call.
+        let result = unsafe { libc::fstat(file.as_raw_fd(), stat.as_mut_ptr()) };
+        assert_eq!(
+            result,
+            0,
+            "fstat failed: {}",
+            std::io::Error::last_os_error()
+        );
+        // SAFETY: fstat initialized `stat` after returning success.
+        let stat = unsafe { stat.assume_init() };
+
+        assert_eq!(
+            FileIdentity::from_stat(&stat),
+            FileIdentity::from_file(&file).expect("metadata identity")
+        );
     }
 
     #[cfg(any(target_vendor = "apple", target_os = "linux"))]
