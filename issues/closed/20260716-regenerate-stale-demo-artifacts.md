@@ -45,3 +45,11 @@ new content-addressed JavaScript bundle and source map; commit `728c754`
 records that output. The pinned canonical proof rebuilds this surface as a
 required gate, so a clean proof also establishes that the checked-in bundle is
 stable against the final RBAC inputs.
+
+Follow-up on 2026-07-17: the opaque connection-grant identity and self-terminal
+logout fixes subsequently changed the shared demo client and Contract runtime
+bundled by Cursors. The required-surface gate regenerated the stale
+`index-Cvlbg3PO` assets as the content-addressed `index-Br3fTKkW` bundle and
+source map. The replacement is committed with this ticket update; a second
+required-surface build reproduced identical JavaScript, source-map, and HTML
+SHA-256 digests.
