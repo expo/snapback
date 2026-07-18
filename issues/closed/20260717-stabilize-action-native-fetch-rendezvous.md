@@ -37,8 +37,22 @@ process-global native fetch path under the wide non-timeout budget first. Its
 short deadline therefore measures abandonment while waiting for the held app
 mutex, not unrelated first-use runtime/network initialization.
 
+A canonical-proof follow-up found one remaining legacy two-second rendezvous in
+the secret-redaction/config-rotation case. That proof now uses the same shared
+causal helper: it waits under the coarse cold-start bound for the held fetch,
+while racing the cron request task so a real early action failure reports its
+response immediately. Rotation still occurs only after the fetch-start signal,
+preserving the staging-time redactor invariant rather than weakening it with a
+sleep or a larger semantic timeout. Post-release settlement uses that same
+coarse bound rather than retaining another unrelated three-second scheduling
+threshold.
+
 Focused proof on 2026-07-17:
 
 - `action_run_does_not_hold_the_write_mutex` — passed 10/10 repeated isolated
   runs.
+- `detached_action_secret_redaction_survives_config_rotation` — passed 10/10
+  repeated isolated runs after the follow-up; observed runtimes were
+  1.72–2.23 seconds, confirming the old two-second setup threshold was
+  marginal under ordinary host variance.
 - `cargo test --test action_watchdog_v0 -- --nocapture` — 11 passed.

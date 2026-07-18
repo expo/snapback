@@ -481,7 +481,7 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
     assert!(public_action.contains("[REDACTED]"), "{public_action}");
 
     let cron_app = app.clone();
-    let cron = tokio::spawn(async move {
+    let mut cron = tokio::spawn(async move {
         let response = cron_app
             .oneshot(post_json(
                 "/_snapback/api/cron/rotatingSecret/run",
@@ -491,10 +491,7 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
             .expect("manual cron response");
         body_json(response).await
     });
-    tokio::time::timeout(Duration::from_secs(2), fetch_started)
-        .await
-        .expect("cron reaches held fetch")
-        .expect("fetch-start signal");
+    await_paused_action_fetch_start("secret-rotation cron", fetch_started, &mut cron).await;
     state
         .lock()
         .await
@@ -507,7 +504,7 @@ async fn detached_action_secret_redaction_survives_config_rotation() {
         .expect("rotate secret to B");
     release_fetch.send(()).expect("release held cron fetch");
     let cron_body = serde_json::to_string(
-        &tokio::time::timeout(Duration::from_secs(3), cron)
+        &tokio::time::timeout(NATIVE_FETCH_START_BOUND, cron)
             .await
             .expect("cron settles")
             .expect("cron task"),
