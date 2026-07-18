@@ -35,6 +35,8 @@ running.
 - A subprocess fixture proves SIGINT and SIGTERM both preserve signal
   termination and leave neither the server leader nor a TERM-resistant
   descendant alive.
+- If another runner listener absorbs a re-delivered signal, ownership state is
+  released so a later server and signal receive a fresh cleanup generation.
 
 ## Resolution
 
@@ -51,6 +53,14 @@ rejections rather than treating them as success, and then re-delivers the
 original signal. Explicit `stop()` remains idempotent and continues to reject
 unchanged on cleanup failure. A disposable parent fixture covers both signals
 against a server group containing a TERM-resistant descendant.
+
+Signal shutdown is generation-scoped and releases its latch before
+re-delivery. This matters when a larger test runner already has a listener and
+intentionally keeps the parent alive: a second owned server re-installs the
+shared handlers, and a later signal performs full tree cleanup instead of being
+misclassified as a force-exit repeat. A two-generation subprocess regression
+proves both resistant process trees are gone while the pre-existing listener
+absorbs both re-delivered signals.
 
 Verified with:
 

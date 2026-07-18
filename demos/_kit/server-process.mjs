@@ -564,16 +564,20 @@ function beginOwnedServerSignalShutdown(signal) {
   if (ownedServerSignalShutdown) {
     // A second signal is the operator's force-exit request. Restore native
     // handling before re-delivery instead of starting overlapping cleanups.
-    removeOwnedServerSignalHandlers();
-    redispatchOwnedServerSignal(signal);
+    // If another listener deliberately absorbs that signal, releasing the
+    // active generation also prevents its eventual completion from erasing a
+    // newer generation's handlers or leaving shutdown permanently latched.
+    releaseOwnedServerSignalShutdown(ownedServerSignalShutdown, signal);
     return;
   }
 
-  ownedServerSignalShutdown = { signal };
-  void finishOwnedServerSignalShutdown(signal);
+  const shutdown = { signal };
+  ownedServerSignalShutdown = shutdown;
+  void finishOwnedServerSignalShutdown(shutdown);
 }
 
-async function finishOwnedServerSignalShutdown(signal) {
+async function finishOwnedServerSignalShutdown(shutdown) {
+  const { signal } = shutdown;
   const failures = [];
   // A child registered by an already-running startup continuation while an
   // earlier batch settles joins the next batch; no owned tree is omitted.
@@ -590,7 +594,16 @@ async function finishOwnedServerSignalShutdown(signal) {
       `snapback signal cleanup failed for ${failures.length} owned server process tree(s)`,
     ));
   }
+  releaseOwnedServerSignalShutdown(shutdown, signal);
+}
+
+function releaseOwnedServerSignalShutdown(shutdown, signal) {
+  // A force-exit signal may already have superseded this asynchronous cleanup
+  // generation. In that case its release owns the re-dispatch; the stale
+  // continuation must not remove handlers installed for later children.
+  if (ownedServerSignalShutdown !== shutdown) return;
   removeOwnedServerSignalHandlers();
+  ownedServerSignalShutdown = null;
   redispatchOwnedServerSignal(signal);
 }
 

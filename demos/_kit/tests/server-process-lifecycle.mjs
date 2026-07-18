@@ -86,35 +86,76 @@ writeFileSync(signalOwnerFixture, String.raw`
 const { __startServerForTests } = await import(process.env.SERVER_PROCESS_MODULE_URL);
 const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
 const fixture = process.env.FIXTURE_SERVER_PATH;
-const server = await __startServerForTests({
-  port: 0,
-  cwd: process.env.FIXTURE_CWD,
-  startupTimeoutMs: 2_000,
-}, {
-  expectedIdentity: expected,
-  preflight: () => ({}),
-  launchSpec: ({ readyFile, cwd, env }) => ({
-    command: process.execPath,
-    args: [fixture, readyFile],
-    cwd,
-    env: {
-      ...env,
-      FIXTURE_EXPECTED: JSON.stringify(expected),
-      FIXTURE_RESISTANT_DESCENDANT: '1',
+const coexistenceSignal = process.env.FIXTURE_COEXISTENCE_SIGNAL || null;
+let observedSignals = 0;
+let generation = 0;
+
+// Register before startServer installs its owner. This listener deliberately
+// keeps the fixture alive after the helper re-delivers the signal, modeling a
+// larger test runner that owns its own shutdown policy.
+if (coexistenceSignal) {
+  process.on(coexistenceSignal, () => {
+    observedSignals += 1;
+    if (observedSignals % 2 === 0) {
+      process.send({
+        phase: 'signal-redispatched',
+        signal: coexistenceSignal,
+        observedSignals,
+        generation,
+      });
+    }
+  });
+}
+
+async function startAndPublish() {
+  const server = await __startServerForTests({
+    port: 0,
+    cwd: process.env.FIXTURE_CWD,
+    startupTimeoutMs: 2_000,
+  }, {
+    expectedIdentity: expected,
+    preflight: () => ({}),
+    launchSpec: ({ readyFile, cwd, env }) => ({
+      command: process.execPath,
+      args: [fixture, readyFile],
+      cwd,
+      env: {
+        ...env,
+        FIXTURE_EXPECTED: JSON.stringify(expected),
+        FIXTURE_RESISTANT_DESCENDANT: '1',
+      },
+    }),
+    stopOptions: {
+      graceMs: 25,
+      processGroupTimeoutMs: 1_000,
+      leaderCloseTimeoutMs: 1_000,
     },
-  }),
-  stopOptions: {
-    graceMs: 25,
-    processGroupTimeoutMs: 1_000,
-    leaderCloseTimeoutMs: 1_000,
-  },
-});
-const health = await fetch(server.baseUrl + '/health').then((response) => response.json());
-process.send({
-  serverPid: health.pid,
-  descendantPid: health.resistantDescendantPid,
-});
-setInterval(() => {}, 1_000);
+  });
+  const health = await fetch(server.baseUrl + '/health').then((response) => response.json());
+  generation += 1;
+  process.send({
+    phase: 'server-ready',
+    generation,
+    serverPid: health.pid,
+    descendantPid: health.resistantDescendantPid,
+  });
+}
+
+await startAndPublish();
+if (coexistenceSignal) {
+  process.on('message', (message) => {
+    if (message?.command === 'start-next') {
+      void startAndPublish().catch((error) => {
+        console.error(error);
+        process.exit(2);
+      });
+    } else if (message?.command === 'exit') {
+      process.exit(0);
+    }
+  });
+} else {
+  setInterval(() => {}, 1_000);
+}
 `);
 
 const deps = {
@@ -451,6 +492,103 @@ try {
         }
         forceKillProcessGroup(signalOwnedPids?.serverPid);
       }
+    }
+
+    // A pre-existing runner listener may intentionally absorb the helper's
+    // re-delivered signal. The signal owner must then be reusable: a later
+    // start gets a fresh ownership generation, and its signal still performs
+    // strict tree cleanup rather than taking the stale "second signal" path.
+    const coexistenceOwner = spawn(process.execPath, [signalOwnerFixture], {
+      cwd: scratch,
+      env: {
+        ...process.env,
+        SERVER_PROCESS_MODULE_URL: new URL('../server-process.mjs', import.meta.url).href,
+        FIXTURE_SERVER_PATH: fixture,
+        FIXTURE_CWD: scratch,
+        FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+        FIXTURE_COEXISTENCE_SIGNAL: 'SIGTERM',
+      },
+      stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+    });
+    let coexistenceLog = '';
+    coexistenceOwner.stdout.on('data', (chunk) => { coexistenceLog += chunk; });
+    coexistenceOwner.stderr.on('data', (chunk) => { coexistenceLog += chunk; });
+    const coexistenceGroups = [];
+    try {
+      const first = await waitForChildMessage(coexistenceOwner);
+      assert.equal(first.phase, 'server-ready', JSON.stringify(first));
+      assert.equal(first.generation, 1, JSON.stringify(first));
+      coexistenceGroups.push(first.serverPid);
+      process.kill(first.serverPid, 0);
+      process.kill(first.descendantPid, 0);
+
+      const firstRedispatch = waitForChildMessage(coexistenceOwner);
+      assert.equal(coexistenceOwner.kill('SIGTERM'), true, 'coexistence fixture accepted first SIGTERM');
+      const firstSignal = await firstRedispatch;
+      assert.deepEqual(
+        {
+          phase: firstSignal.phase,
+          signal: firstSignal.signal,
+          observedSignals: firstSignal.observedSignals,
+          generation: firstSignal.generation,
+        },
+        {
+          phase: 'signal-redispatched',
+          signal: 'SIGTERM',
+          observedSignals: 2,
+          generation: 1,
+        },
+      );
+      assertPidGone(first.serverPid, 'absorbed first signal still cleans the first server leader');
+      assertPidGone(first.descendantPid, 'absorbed first signal still cleans the first descendant');
+      process.kill(coexistenceOwner.pid, 0);
+
+      const secondReady = waitForChildMessage(coexistenceOwner);
+      assert.equal(
+        coexistenceOwner.send({ command: 'start-next' }),
+        true,
+        'coexistence fixture accepted the second start request',
+      );
+      const second = await secondReady;
+      assert.equal(second.phase, 'server-ready', JSON.stringify(second));
+      assert.equal(second.generation, 2, JSON.stringify(second));
+      coexistenceGroups.push(second.serverPid);
+      process.kill(second.serverPid, 0);
+      process.kill(second.descendantPid, 0);
+
+      const secondRedispatch = waitForChildMessage(coexistenceOwner);
+      assert.equal(coexistenceOwner.kill('SIGTERM'), true, 'coexistence fixture accepted second SIGTERM');
+      const secondSignal = await secondRedispatch;
+      assert.deepEqual(
+        {
+          phase: secondSignal.phase,
+          signal: secondSignal.signal,
+          observedSignals: secondSignal.observedSignals,
+          generation: secondSignal.generation,
+        },
+        {
+          phase: 'signal-redispatched',
+          signal: 'SIGTERM',
+          observedSignals: 4,
+          generation: 2,
+        },
+      );
+      assertPidGone(second.serverPid, 'later signal cleans the re-armed server leader');
+      assertPidGone(second.descendantPid, 'later signal cleans the re-armed descendant');
+      assert.doesNotMatch(coexistenceLog, /signal cleanup failed|cleanup not attested/);
+
+      const coexistenceClose = waitForChildClose(coexistenceOwner);
+      assert.equal(
+        coexistenceOwner.send({ command: 'exit' }),
+        true,
+        'coexistence fixture accepted explicit completion',
+      );
+      assert.deepEqual(await coexistenceClose, { code: 0, signal: null });
+    } finally {
+      if (coexistenceOwner.exitCode === null && coexistenceOwner.signalCode === null) {
+        coexistenceOwner.kill('SIGKILL');
+      }
+      for (const pid of coexistenceGroups) forceKillProcessGroup(pid);
     }
   }
 
