@@ -14,6 +14,7 @@
   var trustedCreate = Object.create;
   var trustedDefineProperty = Object.defineProperty;
   var trustedGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
+  var trustedGetPrototypeOf = Object.getPrototypeOf;
   var trustedHasOwnProperty = Object.prototype.hasOwnProperty;
   var trustedFreeze = Object.freeze;
   var trustedFunctionPrototype = TrustedFunction && TrustedFunction.prototype;
@@ -25,6 +26,8 @@
   var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
   var trustedPromiseResolve = TrustedPromise && TrustedPromise.resolve;
   var trustedPromiseThen = TrustedPromise && TrustedPromise.prototype.then;
+  var trustedRegExpExec = RegExp.prototype.exec;
+  var snapbackCodePattern = /^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/;
   var harnessPromiseThen = trustedPromiseThen;
   var trustedWeakSetAdd = TrustedWeakSet && TrustedWeakSet.prototype.add;
   var trustedWeakSetHas = TrustedWeakSet && TrustedWeakSet.prototype.has;
@@ -38,8 +41,32 @@
     return error;
   }
   function codeFromMessage(message) {
-    var match = String(message || "").match(/^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/);
-    return match ? match[1] : null;
+    if (typeof message !== "string") return null;
+    try {
+      var match = trustedReflectApply(trustedRegExpExec, snapbackCodePattern, [message]);
+      return match ? match[1] : null;
+    } catch (_) {
+      return null;
+    }
+  }
+  // @ref LLP 0009#harness-control-plane-boundary — only a getter-free native
+  // constructor path may create a child capability the rejection floor trusts.
+  function promiseReactionPathIsCanonical(promise, constructor, prototype) {
+    if (!promise || (typeof promise !== "object" && typeof promise !== "function")) return false;
+    try {
+      if (trustedReflectApply(trustedGetPrototypeOf, undefined, [promise]) !== prototype) {
+        return false;
+      }
+      var ownConstructor = trustedGetOwnPropertyDescriptor(promise, "constructor");
+      return !ownConstructor ||
+        (trustedReflectApply(trustedHasOwnProperty, ownConstructor, ["value"]) &&
+          ownConstructor.value === constructor);
+    } catch (_) {
+      return false;
+    }
+  }
+  function failUnsafePromiseReaction() {
+    throw new TrustedError("Promise reaction receiver has a non-canonical constructor path");
   }
   // Normalize every promise the harness itself awaits through captured
   // intrinsics, then attach a real reaction before the await. Hermes builds
@@ -51,10 +78,22 @@
   // observations cross the sealed mediator before native settlement awaits.
   function observeHarnessPromise(value) {
     var promise = trustedReflectApply(trustedPromiseResolve, TrustedPromise, [value]);
-    return trustedReflectApply(harnessPromiseThen, promise, [
+    var observed = trustedReflectApply(harnessPromiseThen, promise, [
       function(resolved) { return resolved; },
       function(error) { throw error; }
     ]);
+    // The propagating reaction above creates its own child promise. Linux
+    // Hermes can report that child's rejection before native `await` records
+    // its internal reaction, so mark the child handled through the same sealed
+    // mediator. Both callbacks return undefined, which guarantees that the
+    // ignored guard promise fulfills; `observed` still carries the exact value
+    // or rejection to native `await`. Application-detached promises never
+    // cross this helper and remain visible to the rejection ledger.
+    trustedReflectApply(harnessPromiseThen, observed, [
+      function() { return undefined; },
+      function() { return undefined; }
+    ]);
+    return observed;
   }
   function literal(value) { return { Literal: value }; }
   var QUERY_MAX_LIMIT = 1024;
@@ -228,13 +267,17 @@
   // Hermes' internal Promise bytecode exposes its rejection and handle hooks
   // as constructor properties. Constructor identity cannot be replaced:
   // Promise.prototype.then deliberately branches on that exact identity.
-  // Instead, install sealed mediator hooks. `_C` ignores its caller-supplied
-  // reason and observes the promise through the captured pre-application
-  // `then`; `_B` is inert. A sealed wrapper around `then` is the only path that
-  // marks a promise handled, and does so only after the real method succeeds.
+  // Instead, install sealed mediator hooks. `_C` records a fail-closed
+  // provisional entry, then refines it only if an observer attached through
+  // the captured pre-application `then` actually runs; `_B` is inert. A sealed
+  // wrapper around `then` is the only path that
+  // marks a promise handled, and does so only after an attached reaction
+  // actually runs. A hostile own constructor can make Hermes' native `then`
+  // return normally without invoking its executor, so return alone is not
+  // proof that any reaction attached.
   // Calling the reachable hook functions therefore cannot turn a real
-  // unhandled rejection into success or replace its first diagnostic; an
-  // invalid direct call can at worst fail the caller's own invocation closed.
+  // unhandled rejection into success; an invalid direct call can at worst fail
+  // the caller's own invocation closed.
   // The host inspects the ledger after every successful eval and burns a VM
   // with any remaining rejection.
   //
@@ -244,8 +287,53 @@
   (function installRejectionLedger() {
     var OriginalPromise = g.__OriginalPromise;
     // V8/workerd owns a closure-private event ledger in handler-server.mjs.
-    // This mediated then/promise hook mechanism is Hermes-only.
-    if (!OriginalPromise) return;
+    // It still needs the same constructor-path gate: native `then` lets an own
+    // constructor supply no-op child resolve/reject capabilities, which would
+    // make a propagated rejection disappear from the event ledger.
+    if (!OriginalPromise) {
+      var workerdPromisePrototype = TrustedPromise.prototype;
+      var workerdMediatedThen = function(onFulfilled, onRejected) {
+        if (!promiseReactionPathIsCanonical(
+          this,
+          TrustedPromise,
+          workerdPromisePrototype
+        )) {
+          return failUnsafePromiseReaction();
+        }
+        return trustedReflectApply(trustedPromiseThen, this, [onFulfilled, onRejected]);
+      };
+      try {
+        trustedDefineProperty(workerdPromisePrototype, "then", {
+          value: workerdMediatedThen,
+          enumerable: false,
+          configurable: false,
+          writable: false
+        });
+      } catch (_) {
+        throw snapbackError(
+          "SNAPBACK_HANDLER_HARNESS_INIT_FAILED",
+          "Promise reaction constructor gate could not be sealed"
+        );
+      }
+      var workerdThenDescriptor = trustedGetOwnPropertyDescriptor(
+        workerdPromisePrototype,
+        "then"
+      );
+      if (
+        !workerdThenDescriptor ||
+        workerdThenDescriptor.value !== workerdMediatedThen ||
+        workerdThenDescriptor.configurable ||
+        workerdThenDescriptor.writable
+      ) {
+        throw snapbackError(
+          "SNAPBACK_HANDLER_HARNESS_INIT_FAILED",
+          "Promise reaction constructor gate was not sealed"
+        );
+      }
+      harnessPromiseThen = workerdMediatedThen;
+      return;
+    }
+    var originalPromisePrototype = OriginalPromise.prototype;
     var ledger = typeof TrustedMap === "function" ? new TrustedMap() : null;
     var handledPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
     var observedPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
@@ -277,39 +365,72 @@
     };
     var rejected = function(promise, claimedReason) {
       if (!promise || (typeof promise !== "object" && typeof promise !== "function")) return;
+      if (weakHas(handledPromises, promise) || weakHas(observedPromises, promise)) return;
+      // Record the engine callback provisionally before attempting to observe
+      // its reason. A hostile own constructor can make Hermes' native `then`
+      // return an arbitrary object without attaching either callback; in that
+      // case the provisional entry must survive. Calling the reachable hook
+      // directly can therefore only fail the caller's own invocation closed,
+      // never erase a real rejection.
+      trustedReflectApply(trustedMapSet, ledger, [promise, claimedReason]);
+      weakAdd(observedPromises, promise);
+      if (!promiseReactionPathIsCanonical(
+        promise,
+        OriginalPromise,
+        originalPromisePrototype
+      )) {
+        return;
+      }
       try {
-        if (weakHas(handledPromises, promise) || weakHas(observedPromises, promise)) return;
         // Never trust `_C`'s reason argument: handler code can call this
-        // reachable hook directly. The captured native chain yields the real
-        // rejection reason, so calls on fulfilled/non-Promise values cannot
-        // forge a ledger entry.
+        // reachable hook directly. When a real rejection reaction runs, the
+        // captured native chain replaces the provisional value with the
+        // promise's actual reason.
         trustedReflectApply(trustedPromiseThen, promise, [undefined, function(actualReason) {
           if (!weakHas(handledPromises, promise)) {
             trustedReflectApply(trustedMapSet, ledger, [promise, actualReason]);
           }
         }]);
-        weakAdd(observedPromises, promise);
       } catch (_) {
-        // A handler can give a real promise a non-configurable throwing
-        // `constructor` before it rejects, which prevents even the captured
-        // native `then` from observing it. Fail closed with the hook's reason
-        // in that exceptional case. First write wins, so a direct hook call
-        // after the engine callback cannot replace the real diagnostic.
-        trustedReflectApply(trustedMapSet, ledger, [promise, claimedReason]);
-        weakAdd(observedPromises, promise);
+        // Throwing and non-throwing constructor poisoning both leave the
+        // provisional entry in place. A later direct hook call cannot replace
+        // it because the promise is already in `observedPromises`.
       }
     };
     var mediatedThen = function(onFulfilled, onRejected) {
       var promise = this;
-      var child = trustedReflectApply(trustedPromiseThen, promise, [onFulfilled, onRejected]);
-      // Mark handled only after the real Promise method returned. A hostile
-      // receiver/constructor getter that makes it throw cannot clear a prior
-      // rejection by merely attempting `.then()`.
-      if (promise && (typeof promise === "object" || typeof promise === "function")) {
-        weakAdd(handledPromises, promise);
-        trustedReflectApply(trustedMapDelete, ledger, [promise]);
+      if (!promiseReactionPathIsCanonical(
+        promise,
+        OriginalPromise,
+        originalPromisePrototype
+      )) {
+        return failUnsafePromiseReaction();
       }
-      return child;
+      function markReactionRan() {
+        if (promise && (typeof promise === "object" || typeof promise === "function")) {
+          weakAdd(handledPromises, promise);
+          trustedReflectApply(trustedMapDelete, ledger, [promise]);
+        }
+      }
+      // Wrap both branches so only execution of a genuinely attached reaction
+      // can clear the ledger. The identity/thrower fallbacks preserve native
+      // Promise.prototype.then semantics for non-callable callbacks.
+      return trustedReflectApply(trustedPromiseThen, promise, [
+        function(value) {
+          markReactionRan();
+          if (typeof onFulfilled === "function") {
+            return trustedReflectApply(onFulfilled, undefined, [value]);
+          }
+          return value;
+        },
+        function(reason) {
+          markReactionRan();
+          if (typeof onRejected === "function") {
+            return trustedReflectApply(onRejected, undefined, [reason]);
+          }
+          throw reason;
+        }
+      ]);
     };
     try {
       // @ref LLP 0009#harness-control-plane-boundary — rejection-ledger
@@ -317,7 +438,8 @@
       // mediate real promise state; they do not accept handler assertions.
       // Ibex's captured pre-application `then` wrapper internally dispatches
       // through `originalThen.call`. Pin that single dispatch point so handler
-      // code cannot make the wrapper return without attaching its reaction.
+      // code cannot replace that dispatch. Reaction execution, rather than a
+      // normal return, is the proof that an attachment actually succeeded.
       trustedDefineProperty(trustedFunctionPrototype, "call", {
         value: trustedFunctionCall,
         enumerable: false,
@@ -330,13 +452,13 @@
       trustedDefineProperty(OriginalPromise, "_B", {
         value: handled, configurable: false, writable: false
       });
-      trustedDefineProperty(OriginalPromise.prototype, "then", {
+      trustedDefineProperty(originalPromisePrototype, "then", {
         value: mediatedThen,
         enumerable: false,
         configurable: false,
         writable: false
       });
-      trustedDefineProperty(OriginalPromise.prototype, "constructor", {
+      trustedDefineProperty(originalPromisePrototype, "constructor", {
         value: OriginalPromise,
         enumerable: false,
         configurable: false,
@@ -360,9 +482,9 @@
       trustedFunctionPrototype,
       "call"
     );
-    var thenDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise.prototype, "then");
+    var thenDescriptor = trustedGetOwnPropertyDescriptor(originalPromisePrototype, "then");
     var constructorDescriptor = trustedGetOwnPropertyDescriptor(
-      OriginalPromise.prototype,
+      originalPromisePrototype,
       "constructor"
     );
     var originalAliasDescriptor = trustedGetOwnPropertyDescriptor(g, "__OriginalPromise");
@@ -398,7 +520,7 @@
       );
     }
     // Only this closure can select the mediator for harness-owned reactions.
-    // Direct `_B` calls remain inert, while a genuine sealed `then` attachment
+    // Direct `_B` calls remain inert, while a genuine sealed `then` reaction
     // records handling before the host performs its post-drain ledger sweep.
     harnessPromiseThen = mediatedThen;
     function describeReason(reason) {
@@ -449,9 +571,14 @@
       try {
         return hostCallFn(epoch + "|" + op, trustedJsonStringify(args || {}));
       } catch (error) {
-        var code = codeFromMessage(error && error.message);
+        var code = null;
+        try { code = codeFromMessage(error && error.message); } catch (_) {}
         if (code) {
-          try { Object.defineProperty(error, "__snapbackCode", { value: code }); } catch (_) { error.__snapbackCode = code; }
+          try {
+            trustedDefineProperty(error, "__snapbackCode", { value: code });
+          } catch (_) {
+            try { error.__snapbackCode = code; } catch (_) {}
+          }
         }
         throw error;
       }
@@ -816,9 +943,11 @@
       }
       return '{"r":{"__snapbackOk":true,"value":' + encodedValue + '}}';
     } catch (error) {
-      var rawCode = error && error.__snapbackCode;
+      var rawCode = null;
+      try { rawCode = error && error.__snapbackCode; } catch (_) {}
       var code = typeof rawCode === "string" ? rawCode : null;
-      var message = __snapbackSafeString(error && error.message || error);
+      var message = "handler failure could not be safely inspected";
+      try { message = __snapbackSafeString(error && error.message || error); } catch (_) {}
       // Build the trusted outer envelope from separately encoded primitives.
       // A handler may poison Object.prototype.toJSON; serializing a plain
       // envelope object here would let that inherited hook turn a thrown

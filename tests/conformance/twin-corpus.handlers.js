@@ -240,6 +240,58 @@ globalThis.__snapbackHandlers = {
     await ctx.db.insert('items', { label: 'should-not-commit', rank: 3 });
     return {};
   },
+  async nonThrowingConstructorRejection(ctx) {
+    await ctx.db.insert('items', { label: 'should-not-commit-decoy-constructor', rank: 35 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    var NativePromise = Promise.prototype.constructor;
+    function IgnoringPromiseConstructor() {
+      return NativePromise.resolve('already-fulfilled-decoy-child');
+    }
+    Object.defineProperty(IgnoringPromiseConstructor, Symbol.species, {
+      configurable: false,
+      value: IgnoringPromiseConstructor
+    });
+    Object.defineProperty(rejected, 'constructor', {
+      configurable: false,
+      writable: false,
+      value: IgnoringPromiseConstructor
+    });
+    try { rejected.then(undefined, function() {}); } catch (_) {}
+    rejectLater(new Error('nonthrowing-constructor-must-remain-visible'));
+    return {};
+  },
+  async noOpCapabilityConstructorRejection(ctx, args) {
+    await ctx.db.insert('items', { label: 'should-not-commit-no-op-capability', rank: 36 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    function NoOpCapabilityConstructor(executor) {
+      executor(function() {}, function() {});
+      return {};
+    }
+    Object.defineProperty(NoOpCapabilityConstructor, Symbol.species, {
+      configurable: false,
+      value: NoOpCapabilityConstructor
+    });
+    if (args.path === 'inherited') {
+      var hostilePrototype = Object.create(Promise.prototype);
+      Object.defineProperty(hostilePrototype, 'constructor', {
+        configurable: false,
+        writable: false,
+        value: NoOpCapabilityConstructor
+      });
+      Object.setPrototypeOf(rejected, hostilePrototype);
+    } else {
+      Object.defineProperty(rejected, 'constructor', {
+        configurable: false,
+        writable: false,
+        value: NoOpCapabilityConstructor
+      });
+    }
+    rejectLater(new Error('no-op-child-capability-must-remain-visible'));
+    try { rejected.then(); } catch (_) {}
+    return {};
+  },
   async rejectionDrainProbe(ctx) {
     Promise.resolve().then(function () {
       throw new Error('drain-resistant detached failure');
@@ -276,6 +328,22 @@ globalThis.__snapbackHandlers = {
       return { r: { __snapbackOk: true, value: null } };
     };
     throw new Error('real handler failure');
+  },
+  async settlementHostileErrorGetterProbe(ctx, args) {
+    await ctx.db.insert('items', { label: 'should-not-commit-hostile-error-getter', rank: 34 });
+    var failure = new Error('safe settlement failure');
+    if (args.getter === 'code') {
+      Object.defineProperty(failure, '__snapbackCode', {
+        configurable: true,
+        get: function() { throw new Error('code-getter-trap'); }
+      });
+    } else {
+      Object.defineProperty(failure, 'message', {
+        configurable: true,
+        get: function() { throw new Error('message-getter-trap'); }
+      });
+    }
+    throw failure;
   },
   async settlementThenableForgeryProbe(ctx) {
     await ctx.db.insert('items', { label: 'should-not-commit-thenable-forgery', rank: 33 });

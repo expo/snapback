@@ -5,7 +5,7 @@
 **Systems:** Runtime, Security, Storage, Auth, Deployment, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (Hermes harness-owned handler and settlement promises now receive an explicit sealed mediated reaction before native `await`, preserving handled typed host failures across engine hook-order differences without trusting reachable `_B` calls; the bootstrap also pins the captured `Function.prototype.call` used inside Ibex's `then` wrapper so selective intrinsic poisoning cannot blind the detached-rejection ledger and commit buffered writes); 2026-07-13 (audit blockers: Hermes preserves native Promise constructor identity but turns every handler-reachable then/promise `_B`/`_C` path into sealed state-validating mediators; Workerd settlement and detached-call quiescence share one invocation deadline, which aborts pending HOST fetches and fails closed); 2026-07-13 (whole-codebase security follow-up: the V8 harness now consumes trusted intrinsics exactly once before application evaluation, keeps its destructive rejection drain in the server closure, uses prototype-free Promise-channel records, and pins Response thenability and Promise species; local workerd uses independent invoke/host/response capabilities, authenticates response headers before bounded body reads, and emits only bounded, path/secret-sanitized stderr tails); 2026-07-12 (ENG-24559: settlement serialization and rejection inspection now use captured, non-destructive control-plane primitives and burn rejected warm VMs; ENG-24564: the workerd transport uses private materialization, authenticated local seams, and bounded reads; ENG-24340 final review follow-up: detached action lock acquisition is deadline/abandon-aware and the independent gate spans only final SQLite commit, never handler/plan/fan-out work; ENG-24351: codegen definition modules now cross an AST-resolved, permission-denied evaluation boundary rather than relying on ambient-token rejection; canonical evaluated values join artifact identity; ENG-24339: trusted invoke/settle helpers install before application source, are sealed and lexically linked, Ibex captures its original host transport, and action DB reads are rejected at the Rust host boundary); 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
+**Revised:** 2026-07-17 (Linux Hermes portability and adversarial closure: every harness observation child is explicitly guarded; `_C` records provisionally; both engines reject non-canonical Promise constructor paths before `then`, preventing decoy and no-op child capabilities; canonical Hermes handling requires a running sealed reaction; typed host branding and settlement diagnostic access use captured and guarded primitives); 2026-07-17 (Hermes harness-owned handler and settlement promises now receive an explicit sealed mediated reaction before native `await`, preserving handled typed host failures across engine hook-order differences without trusting reachable `_B` calls; the bootstrap also pins the captured `Function.prototype.call` used inside Ibex's `then` wrapper so selective intrinsic poisoning cannot blind the detached-rejection ledger and commit buffered writes); 2026-07-13 (audit blockers: Hermes preserves native Promise constructor identity but turns every handler-reachable then/promise `_B`/`_C` path into sealed state-validating mediators; Workerd settlement and detached-call quiescence share one invocation deadline, which aborts pending HOST fetches and fails closed); 2026-07-13 (whole-codebase security follow-up: the V8 harness now consumes trusted intrinsics exactly once before application evaluation, keeps its destructive rejection drain in the server closure, uses prototype-free Promise-channel records, and pins Response thenability and Promise species; local workerd uses independent invoke/host/response capabilities, authenticates response headers before bounded body reads, and emits only bounded, path/secret-sanitized stderr tails); 2026-07-12 (ENG-24559: settlement serialization and rejection inspection now use captured, non-destructive control-plane primitives and burn rejected warm VMs; ENG-24564: the workerd transport uses private materialization, authenticated local seams, and bounded reads; ENG-24340 final review follow-up: detached action lock acquisition is deadline/abandon-aware and the independent gate spans only final SQLite commit, never handler/plan/fan-out work; ENG-24351: codegen definition modules now cross an AST-resolved, permission-denied evaluation boundary rather than relying on ambient-token rejection; canonical evaluated values join artifact identity; ENG-24339: trusted invoke/settle helpers install before application source, are sealed and lexically linked, Ibex captures its original host transport, and action DB reads are rejected at the Rust host boundary); 2026-07-07 (DK-5 re-decided — triggers 1–2 fired with LLP 0040/LLP 0047 starting the same day; build the twin now as LLP 0048's workerd-hosted runner behind the RPC-shaped handler seam, no native embed; the enduring Hermes-local engine posture recorded — device parity with Exact, capability security by construction, footprint, spinup; ratified by Charlie in-session, applied by Claude); 2026-07-07 (ENG-23361: an unhandled rejection in a detached promise chain now fails the invocation instead of committing its partial work as success — the ctx bootstrap installs a rejection ledger on the vendored then/promise hook slots and the host sweeps it after every successful eval, `SNAPBACK_HANDLER_UNHANDLED_REJECTION`, nothing committed; §Invocation Isolation Obligation 3 updated); 2026-07-07 (ENG-23324: the DK-5 busy-loop rationale records the detached-action posture — actions run off the global write mutex on a watchdogged thread with per-host-call lock reacquisition, `action_wall_clock_timeout` now reports Enforced while query/mutation `wall_clock_timeout`/`cpu_budget` stay honestly Missing); 2026-07-06 (settlement is enforced, not assumed — ENG-23430: the invoke IIFE resolves to a tagged `{"r": …}` completion envelope and an untagged eval output is a failed invocation, `SNAPBACK_HANDLER_DID_NOT_SETTLE`, with no committed writes; §runtime conformance contract and §Invocation Isolation Obligation 3 updated); 2026-07-02 (§Decision DK-5 added — V8 conformance twin deferred with four named revisit triggers, LLP 0032 X2; earlier same day: §Secrets: the product layer above this floor — declared config, store seam, wizard, acquisition — is drafted as LLP 0036, which inherits this section's rules. Same day, LLP 0032 M2/DK-4 follow-through: §Invocation Isolation gains the as-built warm-VM design — pool keyed by module source, per-invocation baseline-restore reset, fail-closed burn, honest module-state limits; then hardened after adversarial review — an invocation-epoch stale-continuation guard closes cross-invocation context injection, the reset root-set broadened to iterator/generator prototypes and all constructors, a pool generation counter closes the read-lane check-in race; the 2026-07-01 revision recorded the decision itself)
 **Related:** LLP 0000, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0036, LLP 0040, LLP 0041, LLP 0043, LLP 0047, LLP 0048, LLP 0060, https://github.com/ccheever/ibex
 
 ## Summary
@@ -536,30 +536,51 @@ and descriptor primitives before the module runs. The outer failure envelope
 is assembled from separately encoded primitives instead of passing a plain
 object through `JSON.stringify`, so replacing `JSON.stringify` or installing an
 inherited `toJSON` hook cannot turn a thrown handler failure into success
-(ENG-24559).
+(ENG-24559). Typed host-error branding likewise uses captured descriptor and
+regular-expression primitives, and reads application-controlled diagnostic
+getters only inside independent guards. A hostile `__snapbackCode` or `message`
+getter can therefore neither escape the settlement catch nor replace a typed
+host failure; an uninspectable message becomes a fixed primitive fallback.
 The Hermes rejection tracker follows the same capability rule. Native Promise
 constructor identity remains unchanged because the internal then/promise
 implementation branches on that exact identity; prototype, species, and
 retained-promise paths therefore necessarily reach its `_B`/`_C` hooks. The
 bootstrap makes those reachable hooks sealed mediators instead of trusting
-their arguments. Direct `_B` calls are inert. `_C` ignores its supplied reason
-and observes the promise through a captured pre-application `then`, recording
-only the actual rejection. A sealed `then` wrapper marks a promise handled
-only after the underlying attachment succeeds. Thus a forged hook call cannot
-erase a real rejection or replace its first diagnostic, while native
-async/await keeps its required constructor semantics. Harness-owned handler
+their arguments. Direct `_B` calls are inert. `_C` records the engine callback
+provisionally before observing the promise through a captured pre-application
+`then`; when that observer's rejection branch actually runs, it replaces the
+provisional value with the promise's real reason. A direct forged `_C` call can
+therefore fail only its caller's invocation closed, not erase a real rejection.
+Before either engine invokes handler-visible native `then`, a sealed,
+getter-free gate requires the receiver's direct prototype to be the captured
+native Promise prototype and any own `constructor` descriptor to be absent or
+the exact native constructor as a data value. Custom, inherited, accessor, and
+proxy constructor paths fail closed before they can supply child Promise
+capabilities. This is necessary even when a reaction runs: a hostile
+constructor can invoke the executor with no-op resolve/reject functions and
+swallow the rejection that a missing or throwing callback must propagate to
+the child. On Hermes, the sealed `then` wrapper then marks a canonical promise
+handled only when one of its wrapped reactions actually runs; merely returning
+from the native method is never proof. Native async/await keeps its required
+constructor semantics. Harness-owned handler
 and settlement promises are normalized with captured Promise intrinsics and
-receive that sealed mediated reaction before native `await`; immediate
-rejections are therefore recorded as handled on Hermes builds regardless of
-rejection-hook ordering, while direct `_B` calls remain inert. Ibex's captured
+receive that sealed mediated reaction before native `await`. Because that
+reaction itself creates a propagated child, the observer immediately attaches
+an independent sealed guard whose fulfillment and rejection branches both
+return `undefined`; the ignored guard child always fulfills, while the original
+propagated child still carries the exact value or failure to native `await`.
+Both harness-owned promises are therefore recorded as handled on Hermes builds
+regardless of rejection-hook ordering, while application-detached promises do
+not cross the observer and direct `_B` calls remain inert. Ibex's captured
 `then` wrapper internally uses `originalThen.call`; the Hermes bootstrap pins
 that one `Function.prototype.call` dispatch before application evaluation and
-verifies its descriptor, so handler poisoning cannot make a reaction appear to
-attach when it did not. If a hostile
-non-configurable own `constructor` prevents observation, the engine callback
-fails the invocation closed with its supplied reason; an arbitrary direct call
-can therefore at worst fail that same invocation. `__OriginalPromise` is
-separately sealed to the public ExactPromise alias.
+verifies its descriptor. If a hostile non-configurable own `constructor`
+throws, ignores its executor, or returns a decoy, the provisional engine entry
+survives because the canonical gate refuses the observer. `__OriginalPromise`
+is separately sealed to the public ExactPromise alias. The V8 leg installs the
+same constructor-path gate ahead of its closure-private event ledger, so an
+own or inherited constructor cannot convert a propagated rejection into a
+no-op child capability there either.
 On the V8 leg, ESM exports are not treated as an access-control boundary. The
 server is the first application-graph dependency and consumes the strip's
 captured intrinsic bag through a one-shot function; a later application import

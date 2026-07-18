@@ -208,8 +208,11 @@ fn functions() -> FunctionManifest {
             define("writeInQuery", FunctionKind::Query),
             define("hangForever", FunctionKind::Mutation),
             define("detachedRejection", FunctionKind::Mutation),
+            define("nonThrowingConstructorRejection", FunctionKind::Mutation),
+            define("noOpCapabilityConstructorRejection", FunctionKind::Mutation),
             define("rejectionDrainProbe", FunctionKind::Mutation),
             define("settlementForgeryProbe", FunctionKind::Mutation),
+            define("settlementHostileErrorGetterProbe", FunctionKind::Mutation),
             define("settlementThenableForgeryProbe", FunctionKind::Mutation),
             define("busyLoop", FunctionKind::Mutation),
             define("probeGlobalName", FunctionKind::Query),
@@ -436,6 +439,53 @@ fn unhandled_rejection_floor_is_engine_neutral() {
 }
 
 #[test]
+fn hostile_promise_constructor_cannot_forge_handling_on_either_engine() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        for (function, reason, path) in [
+            (
+                "nonThrowingConstructorRejection",
+                "nonthrowing-constructor-must-remain-visible",
+                "own",
+            ),
+            (
+                "noOpCapabilityConstructorRejection",
+                "no-op-child-capability-must-remain-visible",
+                "own",
+            ),
+            (
+                "noOpCapabilityConstructorRejection",
+                "no-op-child-capability-must-remain-visible",
+                "inherited",
+            ),
+        ] {
+            let mut snapback = configured();
+            let error = with_forced_backend(backend, || {
+                snapback.invoke_mutation(function, input(json!({ "path": path })))
+            })
+            .expect_err("a hostile Promise constructor must not forge a handled reaction");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_HANDLER_UNHANDLED_REJECTION",
+                "{backend:?}/{function}/{path}: the detached rejection must remain visible"
+            );
+            assert_eq!(
+                error.diagnostic.details["rejections"],
+                json!([reason]),
+                "{backend:?}/{function}/{path}: the engine must report the real rejection reason"
+            );
+            assert!(
+                snapback
+                    .invoke_query("listItems", input(json!({})))
+                    .expect("the backend must remain healthy after the rejection")
+                    .rows
+                    .is_empty(),
+                "{backend:?}/{function}/{path}: constructor poisoning must not commit buffered writes"
+            );
+        }
+    }
+}
+
+#[test]
 fn rejection_ledger_cannot_be_drained_by_handler_code_on_either_engine() {
     require_workerd!();
     for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
@@ -480,6 +530,43 @@ fn settlement_serialization_cannot_be_forged_on_either_engine() {
                 .is_empty(),
             "{backend:?}: a forged settlement attempt must commit nothing"
         );
+    }
+}
+
+#[test]
+fn settlement_diagnostic_getters_cannot_escape_the_failure_envelope() {
+    require_workerd!();
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        for (getter, expected_message) in [
+            ("code", "safe settlement failure"),
+            ("message", "handler failure could not be safely inspected"),
+        ] {
+            let mut snapback = configured();
+            let error = with_forced_backend(backend, || {
+                snapback.invoke_mutation(
+                    "settlementHostileErrorGetterProbe",
+                    input(json!({ "getter": getter })),
+                )
+            })
+            .expect_err("a hostile diagnostic getter must remain a handled failure");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
+                "{backend:?}/{getter}: hostile getters must not escape settlement"
+            );
+            assert_eq!(
+                error.diagnostic.details["message"],
+                json!(expected_message),
+                "{backend:?}/{getter}: the failure message must be safe and engine-neutral"
+            );
+            assert!(
+                snapback
+                    .invoke_query("listItems", input(json!({})))
+                    .expect("the backend must remain healthy after the rejected invocation")
+                    .rows
+                    .is_empty(),
+                "{backend:?}/{getter}: hostile getters must not commit buffered writes"
+            );
+        }
     }
 }
 

@@ -66,11 +66,33 @@ globalThis.__snapbackHandlers = {
     var value = await Promise.reject(new Error("caught")).catch(function() { return "caught"; });
     return value;
   },
+  async rejectionCaughtByNativeAwait(ctx) {
+    try {
+      await Promise.reject(new Error("caught-by-native-await"));
+    } catch (_) {}
+    return "caught";
+  },
   // This promise is already rejected when the async handler returns control.
   // It is the handler's own failure, not a detached rejection; Linux Hermes
   // can notify its rejection hook before a native await records its reaction.
   async immediateRejectedReturn(ctx) {
     throw new Error("immediate-handler-rejection");
+  },
+  // A synchronous Ibex host error thrown underneath `return await` becomes a
+  // rejected async-handler promise. Both harness-owned observation promises
+  // must be marked handled without hiding the typed host diagnostic.
+  async immediateHostCallRejection(ctx) {
+    return await ctx.db.insert('items');
+  },
+  async poisonedHostDiagnosticExtraction(ctx, args) {
+    if (args.poison === 'defineProperty') {
+      Object.defineProperty = function() {};
+    } else {
+      String.prototype.match = function() {
+        return ['', 'SNAPBACK_AUTH_POLICY_UNAVAILABLE'];
+      };
+    }
+    return await ctx.db.insert('items');
   },
   async functionCallPoisoningProbe(ctx) {
     ctx.db.insert('items', { n: 909 });
@@ -171,6 +193,64 @@ globalThis.__snapbackHandlers = {
     NativePromise._B(rejected);
     return {};
   },
+  async nonThrowingConstructorBypass(ctx) {
+    ctx.db.insert('items', { n: 919 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    var NativePromise = Promise.prototype.constructor;
+    function IgnoringPromiseConstructor() {
+      return NativePromise.resolve('already-fulfilled-decoy-child');
+    }
+    Object.defineProperty(IgnoringPromiseConstructor, Symbol.species, {
+      configurable: false,
+      value: IgnoringPromiseConstructor
+    });
+    Object.defineProperty(rejected, "constructor", {
+      configurable: false,
+      writable: false,
+      value: IgnoringPromiseConstructor
+    });
+    // A normal return from native `then` is not proof that its executor ran or
+    // that a reaction attached. The decoy is itself a genuine Promise, so a
+    // child-type check would not make that inference sound either.
+    try { rejected.then(undefined, function() {}); } catch (_) {}
+    rejectLater(new Error("nonthrowing-constructor-must-remain-visible"));
+    return {};
+  },
+  async noOpCapabilityConstructorBypass(ctx, args) {
+    ctx.db.insert('items', { n: 929 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    function NoOpCapabilityConstructor(executor) {
+      executor(function() {}, function() {});
+      return {};
+    }
+    Object.defineProperty(NoOpCapabilityConstructor, Symbol.species, {
+      configurable: false,
+      value: NoOpCapabilityConstructor
+    });
+    if (args.path === 'inherited') {
+      var hostilePrototype = Object.create(Promise.prototype);
+      Object.defineProperty(hostilePrototype, "constructor", {
+        configurable: false,
+        writable: false,
+        value: NoOpCapabilityConstructor
+      });
+      Object.setPrototypeOf(rejected, hostilePrototype);
+    } else {
+      Object.defineProperty(rejected, "constructor", {
+        configurable: false,
+        writable: false,
+        value: NoOpCapabilityConstructor
+      });
+    }
+    rejectLater(new Error("no-op-child-capability-must-remain-visible"));
+    // With no rejection callback, native semantics propagate the reason to a
+    // child. A hostile constructor must not replace that child's reject
+    // capability with a no-op and make the source look safely handled.
+    try { rejected.then(); } catch (_) {}
+    return {};
+  },
   async insertOne(ctx, args) {
     await ctx.db.insert('items', { n: args.n });
     return {};
@@ -219,13 +299,18 @@ fn functions() -> FunctionManifest {
             define("deepDetachedRejection", FunctionKind::Mutation),
             define("rejectionHandledLater", FunctionKind::Mutation),
             define("rejectionPreHandled", FunctionKind::Mutation),
+            define("rejectionCaughtByNativeAwait", FunctionKind::Mutation),
             define("immediateRejectedReturn", FunctionKind::Mutation),
+            define("immediateHostCallRejection", FunctionKind::Mutation),
+            define("poisonedHostDiagnosticExtraction", FunctionKind::Mutation),
             define("functionCallPoisoningProbe", FunctionKind::Mutation),
             define("detachedRejectionQuery", FunctionKind::Query),
             define("detachedRejectionAction", FunctionKind::Action),
             define("rejectionHookSurfaceProbe", FunctionKind::Query),
             define("rejectionHookBypassProbe", FunctionKind::Mutation),
             define("rejectionHookConstructorPoison", FunctionKind::Mutation),
+            define("nonThrowingConstructorBypass", FunctionKind::Mutation),
+            define("noOpCapabilityConstructorBypass", FunctionKind::Mutation),
             define("insertOne", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
         ],
@@ -367,6 +452,15 @@ fn rejection_with_pre_attached_handler_succeeds() {
 }
 
 #[test]
+fn rejection_caught_by_native_await_succeeds() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("rejectionCaughtByNativeAwait", input(json!({})))
+        .expect("a rejection caught by native await is handled");
+    assert_eq!(output.result, json!("caught"));
+}
+
+#[test]
 fn harness_observes_an_immediately_rejected_handler_promise() {
     let mut snapback = configured();
     let error = snapback
@@ -380,6 +474,43 @@ fn harness_observes_an_immediately_rejected_handler_promise() {
         error.diagnostic.details["message"],
         "immediate-handler-rejection"
     );
+}
+
+#[test]
+fn harness_preserves_an_immediate_typed_host_rejection() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("immediateHostCallRejection", input(json!({})))
+        .expect_err("the malformed host call must fail the invocation");
+    assert_eq!(
+        error.diagnostic.code, "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+        "the harness's propagated observation promise must not masquerade as detached work"
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "the rejected invocation must commit nothing"
+    );
+}
+
+#[test]
+fn hostile_intrinsics_cannot_erase_or_forge_a_typed_host_rejection() {
+    for poison in ["defineProperty", "stringMatch"] {
+        let mut snapback = configured();
+        let error = snapback
+            .invoke_mutation(
+                "poisonedHostDiagnosticExtraction",
+                input(json!({ "poison": poison })),
+            )
+            .expect_err("the malformed host call must fail the invocation");
+        assert_eq!(
+            error.diagnostic.code, "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+            "{poison}: application intrinsics must not control host diagnostic branding"
+        );
+        assert!(
+            items(&snapback).is_empty(),
+            "{poison}: the rejected invocation must commit nothing"
+        );
+    }
 }
 
 #[test]
@@ -485,6 +616,52 @@ fn exact_promise_rejection_hook_fails_closed_on_constructor_poisoning() {
         error.diagnostic.details["rejections"],
         json!(["constructor-poison-must-remain-visible"])
     );
+}
+
+#[test]
+fn exact_promise_rejection_hook_fails_closed_when_constructor_returns_without_attaching() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("nonThrowingConstructorBypass", input(json!({})))
+        .expect_err("a constructor that ignores its executor must not blind rejection detection");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["nonthrowing-constructor-must-remain-visible"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "constructor poisoning must not commit buffered writes"
+    );
+}
+
+#[test]
+fn exact_promise_reaction_gate_rejects_no_op_child_capabilities() {
+    for path in ["own", "inherited"] {
+        let mut snapback = configured();
+        let error = snapback
+            .invoke_mutation(
+                "noOpCapabilityConstructorBypass",
+                input(json!({ "path": path })),
+            )
+            .expect_err("a constructor must not replace the propagated child's reject capability");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        );
+        assert_eq!(
+            error.diagnostic.details["rejections"],
+            json!(["no-op-child-capability-must-remain-visible"]),
+            "{path}: the original rejection must remain visible"
+        );
+        assert!(
+            items(&snapback).is_empty(),
+            "{path}: no-op child capabilities must not commit buffered writes"
+        );
+    }
 }
 
 #[test]
