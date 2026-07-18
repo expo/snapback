@@ -9,8 +9,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Targets — what each one claims

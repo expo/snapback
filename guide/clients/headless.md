@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # The headless client
@@ -200,6 +200,12 @@ The session entry points are:
   adapter fences;
 - `registerAuthBarrierParticipant(participant)` for a state owner that must
   quiesce, blank, durably clear/quarantine, and resume with the coordinator.
+
+`authLogout()` returns `null` only for an exact empty 204. The logout request
+keeps ownership of that response while its own live terminal event blanks the
+captured predecessor; a peer-installed successor is preserved and makes the
+call stale instead of being reported as logout success. Non-transient custody
+diagnostics remain exact.
 
 `setBearerToken` and `clearAuthSession` support the uncoordinated legacy/dev
 surface. Do not use them to bypass an `AuthCoordinator`.

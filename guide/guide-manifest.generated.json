@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "9c9786772d9e590cbc37002609d0618338020569"
+    "commit": "8a6bbd1ec980a49010aa67269ee908433a257c9a"
   },
   "nav": {
     ".": [
@@ -243,8 +243,8 @@
         "packages/snapback-codegen/rbac-authoring.test.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "45598734afd9bce57e67f18afdee2e220d5a3022ae6ea1527bc7fcd566a29dd1",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "9ab39eddb0e313cc9d8c03eba1c96f6234e462adbb235d2b9d150daaddcb6741",
       "snippets": [
         {
           "lang": "js",
@@ -298,8 +298,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "2cb6150c3ac182d4570a48b4e42452e6d827dcfb8d037b01e483a70f373ff98b",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "e7cb9fa29786d63647fca483886ad629affd38e03f199c62d95e779a3e76d40c",
       "snippets": [
         {
           "lang": "js",
@@ -347,9 +347,9 @@
         "README.md"
       ],
       "examples": [],
-      "reviewed": "2026-07-15",
-      "reviewedCommit": "b0e8431ade5325b794d3f62bad2b58567215d74e",
-      "sha256": "26b3b885db70c1b694279c6af8af4d2fdea89c63f601b92d743ff9b4cc8d8d2e",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "cdfd1f2436d714b9767f06662ac4dcb601df70fa5ba4155df71c40a0473fa3b2",
       "snippets": []
     },
     "backend.actions-and-fetch": {
@@ -421,8 +421,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "6982c3876b5cc6ea94afde827d6553f24f888f26975eea0e3850e9b149ce17b7",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "a9804beeecb5c03a389de7937ff1b1f3804e098e28cbeace81a83c545efc43dc",
       "snippets": [
         {
           "lang": "js",
@@ -467,8 +467,8 @@
         "demos/todo-v2"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "25d22dc3fc896ea0d8be4f695ca71711727b80bf9d085f5eb67ca2c06430c45e",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "29cd7eea15902d6e343801329264743f8e3d350d09310eaf14173760f2e6f784",
       "snippets": [
         {
           "lang": "js",
@@ -517,8 +517,8 @@
         "demos/todo-v2"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "b70e7daa4252a65173a850d636151a46e304ebe5983052b52d5d0b4c868f9584",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "7dce0fe8388a8f6b04ed812b5ecde3d8ca798fb6db52b061a2bd8c5558ba85b7",
       "snippets": [
         {
           "lang": "js",
@@ -644,8 +644,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "1ea08bf02878b462f07de9a459e66aeb58433b765d4f48376d5fd14ddc28db16",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "605a39a037362cda231f5f0a571b3a99b1ae4a8dc9a502f48901974d06a92f5b",
       "snippets": [
         {
           "lang": "js",
@@ -680,8 +680,8 @@
         "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "714672ba36e993871e251dbc9e6bb79a4dae6e158a3a9af637c6e72a8a516555",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "1ca830f8a2554fb26db60926a668ab2cfc9cf6265117c3ff52f5f6318ec964de",
       "snippets": [
         {
           "lang": "ts",
@@ -767,9 +767,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "6cadfbe8030c2603de5ca7ca491eb6e007899c017c65c4f0c379f33c300c88c1",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "67837f03415a07a8d168b9c9bdb7471c41187be2d202b908751b7d3b3c6ace67",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -798,9 +798,9 @@
         "demos/todo/snapback",
         "demos/todo-v2/snapback"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "8322be368d3bb350e7403d2bff20a737913a81ef7950fcf0dd18864b9b2c043d",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "a98aa99ebb6cd7273eb21510bac4157de3b6edd081ee480700ce29b3a0c6d2cb",
       "snippets": [
         {
           "lang": "js",
@@ -994,9 +994,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "49626c3dfe4db1b67c1680f8778034ab7d73adabfdbfee6f88beda11f1eab25f",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "43831618191fbb3f4020146105bc620b7d5ba4dcf73449434de83861fc4a7b37",
       "snippets": [
         {
           "lang": "js",
@@ -1039,8 +1039,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "d26b10c006890e402212f8ec3f2371a4a16fd323972c318f8a8d190387806459",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "855a3f15621d1ac276eec2fdc5f0327e859cd702b807e982bc11e4e2eb5f1959",
       "snippets": [
         {
           "lang": "js",
@@ -1083,8 +1083,8 @@
         "demos/all-aboard/surfaces/react/src/main.tsx"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "a45d16fd3462007e0ef67b39445dc8cb857ffb11199cd6381f4adabab3a78bde",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "3539ead50e8f29a6bc8b1309804f17dcf083d30280ccbb154f1c17294317d1ab",
       "snippets": [
         {
           "lang": "js",
@@ -1137,8 +1137,8 @@
         "demos/card-game"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "8d4008cfb4f721e67591370ff718b94e4ad57636d1f3c6939c7f7dc5c6b56b12",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "d3f301d324481fb48d6966fa10f31c16ecb3ac0472fd38dd14fd2d757745fe22",
       "snippets": [
         {
           "lang": "js",
@@ -1189,8 +1189,8 @@
         "demos/todo-v2/snapback/schema.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "40b2579c4d173934821aa67789df1356a44971adaec9cd1d31c2105f02860c9c",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "0fa0f117a4ec35d389b7af26f51480214bffbd7cdceb79e7b32fbc3fa3822242",
       "snippets": [
         {
           "lang": "js",
@@ -1253,8 +1253,8 @@
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "c6c360e071b776c1e5a6c0f866d76d3e35f92d371f4bb60e375f883e151fbd81",
+      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
+      "sha256": "5488d546bff84a4e1f5b003136272bb4a4394b01762f3cdab060848ccd60d3bc",
       "snippets": [
         {
           "lang": "js",
@@ -1356,5 +1356,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2c780bc12a7221ef0c74772111add5afcb0e4f08bcf3dd140af36a4a0a29f864"
+  "contentHash": "654fb1848f0b7e5bd40452adc5dcdb5a9b13ec8fe1d16b4b0320b31e3e7c3b80"
 }

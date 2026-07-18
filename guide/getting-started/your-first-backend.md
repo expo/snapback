@@ -9,8 +9,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Your first backend

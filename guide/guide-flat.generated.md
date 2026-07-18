@@ -575,7 +575,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Sessions and principals
@@ -916,7 +916,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Scoped roles and memberships
@@ -1017,6 +1017,11 @@ membership semi-join, not an optimistic client expression. It records an
 ordinary captured database dependency even when no membership row exists, so
 joining can wake a previously empty live result.
 
+That dependency also means a membership-filtered query cannot declare
+`authorityIndependent: true`. Codegen rejects the combination before writing
+artifacts; public routing does not make a roster-dependent result invariant
+across principals.
+
 Membership tables are private authorization backing in v1. There is no
 application-returning `ctx.permissions.*.get()` and a normal query cannot use
 the roster as an existence oracle.
@@ -1112,8 +1117,8 @@ examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-15
-reviewed-commit: b0e8431ade5325b794d3f62bad2b58567215d74e
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Targets — what each one claims
@@ -1182,7 +1187,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Queries
@@ -1291,7 +1296,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Mutations
@@ -1538,7 +1543,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Scheduled execution with cron
@@ -1856,7 +1861,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # The headless client
@@ -2047,6 +2052,12 @@ The session entry points are:
 - `registerAuthBarrierParticipant(participant)` for a state owner that must
   quiesce, blank, durably clear/quarantine, and resume with the coordinator.
 
+`authLogout()` returns `null` only for an exact empty 204. The logout request
+keeps ownership of that response while its own live terminal event blanks the
+captured predecessor; a peer-installed successor is preserved and makes the
+call stale instead of being reported as logout success. Non-transient custody
+diagnostics remain exact.
+
 `setBearerToken` and `clearAuthSession` support the uncoordinated legacy/dev
 surface. Do not use them to bypass an `AuthCoordinator`.
 `captureAuthority` / `authorityCaptureFor` are adapter-level stale-work
@@ -2110,7 +2121,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # The React arm
@@ -2410,8 +2421,8 @@ examples: [demos/todo/snapback, demos/todo-v2/snapback]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Your first backend
@@ -2645,8 +2656,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headles
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # The authoring loop
@@ -2743,8 +2754,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Secrets and deployment config
@@ -3218,7 +3229,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Live queries
@@ -3354,7 +3365,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Ephemeral realtime state
@@ -3538,7 +3549,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Recipe: presence cursors
@@ -3668,7 +3679,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Recipe: hidden hands
@@ -3774,7 +3785,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Offline retention and mutation replay

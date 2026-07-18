@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 ---
 
 # Scoped roles and memberships
@@ -110,6 +110,11 @@ For resource scope, pass exactly one of
 membership semi-join, not an optimistic client expression. It records an
 ordinary captured database dependency even when no membership row exists, so
 joining can wake a previously empty live result.
+
+That dependency also means a membership-filtered query cannot declare
+`authorityIndependent: true`. Codegen rejects the combination before writing
+artifacts; public routing does not make a roster-dependent result invariant
+across principals.
 
 Membership tables are private authorization backing in v1. There is no
 application-returning `ctx.permissions.*.get()` and a normal query cannot use
