@@ -55,9 +55,11 @@ required-surface build reproduced identical JavaScript, source-map, and HTML
 SHA-256 digests.
 
 Follow-up on 2026-07-17: the final canonical proof also caught the dependent
-Cloudflare deployment identities after the auth/bootstrap changes to
-`coordinator.js`, `gateway.js`, and `ctx-bootstrap.js`, plus the regenerated All
-Aboard manifests. Regenerating both committed identity files changed only their
-schema, bundle, and input hashes; their format and enumerated input sets remain
-unchanged. The Cloudflare compatibility suite is the freshness backstop for
-these derived identities.
+Cloudflare deployment identities after later changes to
+`packages/snapback-harness/ctx-bootstrap.js`, plus the regenerated All Aboard
+functions and schema manifests. The earlier identity refresh had already
+captured the `coordinator.js` and `gateway.js` changes. Regenerating both
+committed identity files changed only their schema, bundle, and input hashes;
+only the All Aboard schema manifest changed a schema hash. Their format and
+enumerated input sets remain unchanged. The Cloudflare compatibility suite is
+the freshness backstop for these derived identities.
