@@ -50,12 +50,16 @@ export function createSuite(title, { expectedChecks = null } = {}) {
 // Shared acceptance-runner tail (ENG-22486). Runs `body`, then always:
 //   1. surfaces a thrown setup/teardown error with its stack (never swallowed
 //      by the exit path);
-//   2. prints the suite report plus a machine-readable JSON line;
-//   3. runs cleanups best-effort in reverse registration order;
-//   4. exits nonzero unless every declared check ran and passed:
-//      0 = pass, 1 = check failure or short/zero run, 2 = setup error.
+//   2. runs every cleanup in reverse registration order, retaining every
+//      rejection as a structured failure rather than swallowing teardown;
+//   3. prints the final suite report plus a machine-readable JSON line only
+//      after cleanup outcomes are known;
+//   4. exits nonzero unless every declared check and cleanup passed:
+//      0 = pass, 1 = check failure or short/zero run,
+//      2 = setup/teardown infrastructure error.
 // `cleanups` may be a live array (registered during body) — it is read at
-// exit time. `reportExtra` merges extra fields into the machine report.
+// exit time. `reportExtra` extends the machine report but cannot override its
+// core outcome fields.
 export async function runAcceptance(suite, body, { cleanups = [], reportExtra = null } = {}) {
   let setupError = null;
   try {
@@ -74,16 +78,83 @@ export async function runAcceptance(suite, body, { cleanups = [], reportExtra = 
     report.ok = false;
     report.setupError = String(setupError?.message ?? setupError);
   }
-  console.log('\n--- machine-readable report ---');
-  console.log(JSON.stringify(reportExtra === null ? report : { ...report, ...reportExtra }));
-  for (const cleanup of [...cleanups].reverse()) {
+  const cleanupErrors = [];
+  const registeredCleanups = [...cleanups];
+  let cleanupOrder = 0;
+  for (let registrationIndex = registeredCleanups.length - 1; registrationIndex >= 0; registrationIndex -= 1) {
+    const cleanup = registeredCleanups[registrationIndex];
     try {
       await cleanup();
-    } catch {
-      /* best-effort teardown */
+    } catch (error) {
+      const failure = cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder);
+      cleanupErrors.push(failure);
+      console.error(
+        `CLEANUP FAILURE ${report.title} [${failure.code}] ` +
+          `(registered ${registrationIndex}, reverse order ${cleanupOrder}): ${failure.stack ?? failure.message}`,
+      );
     }
+    cleanupOrder += 1;
   }
-  process.exit(setupError !== null ? 2 : report.ok ? 0 : 1);
+  report.cleanupErrors = cleanupErrors;
+  report.cleanupErrorCount = cleanupErrors.length;
+  if (cleanupErrors.length > 0) {
+    report.ok = false;
+    console.error(
+      `FAIL ${report.title} — ${cleanupErrors.length} cleanup ` +
+        `${cleanupErrors.length === 1 ? 'failure' : 'failures'} after ${report.passed}/${report.total} checks`,
+    );
+  }
+  const machineReport = reportExtra === null ? report : { ...reportExtra, ...report };
+  console.log('\n--- machine-readable report ---');
+  console.log(JSON.stringify(machineReport));
+  process.exit(setupError !== null || cleanupErrors.length > 0 ? 2 : report.ok ? 0 : 1);
+}
+
+function cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder) {
+  const diagnostic = reportProperty(error, 'diagnostic');
+  const message = reportProperty(error, 'message');
+  const stack = reportProperty(error, 'stack');
+  return {
+    registrationIndex,
+    cleanupOrder,
+    name: reportProperty(cleanup, 'name') || null,
+    code: reportString(
+      reportProperty(error, 'code') ?? reportProperty(diagnostic, 'code') ?? 'SNAPBACK_ACCEPTANCE_CLEANUP_FAILED',
+      'SNAPBACK_ACCEPTANCE_CLEANUP_FAILED',
+    ),
+    message: reportString(message ?? error, '<cleanup rejection could not be rendered>'),
+    stack: typeof stack === 'string' ? stack : null,
+    diagnostic: reportValue(diagnostic),
+    details: reportValue(reportProperty(error, 'cleanup')),
+  };
+}
+
+function reportProperty(value, key) {
+  try {
+    return value?.[key];
+  } catch {
+    return undefined;
+  }
+}
+
+function reportString(value, fallback) {
+  try {
+    return String(value);
+  } catch {
+    return fallback;
+  }
+}
+
+// Keep a cleanup's structured details useful when they are ordinary JSON, but
+// never let a circular diagnostic or BigInt turn reporting itself into a
+// second teardown failure.
+function reportValue(value) {
+  if (value === undefined) return null;
+  try {
+    return JSON.parse(JSON.stringify(value));
+  } catch {
+    return reportString(value, '<unserializable cleanup detail>');
+  }
 }
 
 // ENG-22655: the Exact-importing regression suites load the Contract runtime,

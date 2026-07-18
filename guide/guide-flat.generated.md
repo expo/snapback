@@ -4006,8 +4006,12 @@ executes zero checks (or fewer than it declared) can never report success:
 Use `createSuite(title, { expectedChecks })` and `await suite.check(name,
 fn)` per behavior; `runAcceptance(suite, body, { cleanups })` is the shared
 runner tail — it surfaces setup errors with their stacks, prints a
-machine-readable JSON report line, runs cleanups in reverse order, and
-exits `0` (pass), `1` (check failure or short run), or `2` (setup error).
+machine-readable JSON report line after running every cleanup in reverse
+order, and exits `0` (pass), `1` (check failure or short run), or `2`
+(setup/teardown infrastructure error). Cleanup rejections cannot turn a
+passing check run green: the final report has `ok: false` and retains every
+failure in `cleanupErrors`, including stable error codes and process-tree
+attestation details when supplied by the lifecycle helper.
 Assertion helpers: `assert`, `assertEqual`, and
 `assertThrows(fn, code, msg)`, which matches `error.diagnostic.code` —
 stable codes, never message text. `requireBunRuntime(label)` guards suites
@@ -4063,5 +4067,8 @@ admin-gated operations with the server-issued `server.adminToken`.
 - **Do not swallow setup errors into a green run.** Zero-check and
   short-run passes are structurally impossible under the harness; keep
   `expectedChecks` declared so they stay impossible.
+- **Do not detach or catch-and-ignore cleanup promises.** Return each cleanup
+  promise through the shared `cleanups` stack. The runner attempts all of them
+  in reverse order and fails the run if any cleanup rejects.
 - **Do not assert on diagnostic message text.** Use `assertThrows(fn,
   'SNAPBACK_...')` against the code.
