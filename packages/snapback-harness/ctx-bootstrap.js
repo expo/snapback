@@ -4,7 +4,9 @@
   // its own global object; those mutations must not be able to rewrite the
   // host's success/failure envelope or blind rejection detection.
   var TrustedError = Error;
+  var TrustedFunction = Function;
   var TrustedMap = Map;
+  var TrustedPromise = Promise;
   var TrustedWeakSet = WeakSet;
   var trustedString = String;
   var trustedJsonParse = JSON.parse;
@@ -14,11 +16,16 @@
   var trustedGetOwnPropertyDescriptor = Object.getOwnPropertyDescriptor;
   var trustedHasOwnProperty = Object.prototype.hasOwnProperty;
   var trustedFreeze = Object.freeze;
+  var trustedFunctionPrototype = TrustedFunction && TrustedFunction.prototype;
+  var trustedFunctionCall = trustedFunctionPrototype && trustedFunctionPrototype.call;
   var trustedReflectApply = Reflect.apply;
   var trustedReflectConstruct = Reflect.construct;
   var trustedMapSet = TrustedMap && TrustedMap.prototype.set;
   var trustedMapDelete = TrustedMap && TrustedMap.prototype.delete;
   var trustedMapForEach = TrustedMap && TrustedMap.prototype.forEach;
+  var trustedPromiseResolve = TrustedPromise && TrustedPromise.resolve;
+  var trustedPromiseThen = TrustedPromise && TrustedPromise.prototype.then;
+  var harnessPromiseThen = trustedPromiseThen;
   var trustedWeakSetAdd = TrustedWeakSet && TrustedWeakSet.prototype.add;
   var trustedWeakSetHas = TrustedWeakSet && TrustedWeakSet.prototype.has;
   var trustedArrayJoin = Array.prototype.join;
@@ -33,6 +40,21 @@
   function codeFromMessage(message) {
     var match = String(message || "").match(/^(?:Error:\s*)?(SNAPBACK_[A-Z0-9_]+)(?::|\b)/);
     return match ? match[1] : null;
+  }
+  // Normalize every promise the harness itself awaits through captured
+  // intrinsics, then attach a real reaction before the await. Hermes builds
+  // differ on whether an immediately rejected async result reaches the
+  // rejection hook before a native `await` records its internal reaction. The
+  // Hermes branch below swaps in the sealed mediator, making the harness-owned
+  // reaction explicit and portable without trusting the reachable `_B` hook.
+  // @ref LLP 0009#harness-control-plane-boundary — harness-owned promise
+  // observations cross the sealed mediator before native settlement awaits.
+  function observeHarnessPromise(value) {
+    var promise = trustedReflectApply(trustedPromiseResolve, TrustedPromise, [value]);
+    return trustedReflectApply(harnessPromiseThen, promise, [
+      function(resolved) { return resolved; },
+      function(error) { throw error; }
+    ]);
   }
   function literal(value) { return { Literal: value }; }
   var QUERY_MAX_LIMIT = 1024;
@@ -227,11 +249,12 @@
     var ledger = typeof TrustedMap === "function" ? new TrustedMap() : null;
     var handledPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
     var observedPromises = typeof TrustedWeakSet === "function" ? new TrustedWeakSet() : null;
-    var trustedPromiseThen = OriginalPromise.prototype.then;
     if (
       !ledger ||
       !handledPromises ||
       !observedPromises ||
+      !trustedFunctionPrototype ||
+      typeof trustedFunctionCall !== "function" ||
       typeof trustedPromiseThen !== "function"
     ) {
       throw snapbackError(
@@ -292,6 +315,15 @@
       // @ref LLP 0009#harness-control-plane-boundary — rejection-ledger
       // mutation is a host control-plane power. Reachable then/promise hooks
       // mediate real promise state; they do not accept handler assertions.
+      // Ibex's captured pre-application `then` wrapper internally dispatches
+      // through `originalThen.call`. Pin that single dispatch point so handler
+      // code cannot make the wrapper return without attaching its reaction.
+      trustedDefineProperty(trustedFunctionPrototype, "call", {
+        value: trustedFunctionCall,
+        enumerable: false,
+        configurable: false,
+        writable: false
+      });
       trustedDefineProperty(OriginalPromise, "_C", {
         value: rejected, configurable: false, writable: false
       });
@@ -324,6 +356,10 @@
     }
     var hookBDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise, "_B");
     var hookCDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise, "_C");
+    var functionCallDescriptor = trustedGetOwnPropertyDescriptor(
+      trustedFunctionPrototype,
+      "call"
+    );
     var thenDescriptor = trustedGetOwnPropertyDescriptor(OriginalPromise.prototype, "then");
     var constructorDescriptor = trustedGetOwnPropertyDescriptor(
       OriginalPromise.prototype,
@@ -339,6 +375,10 @@
       hookCDescriptor.value !== rejected ||
       hookCDescriptor.configurable ||
       hookCDescriptor.writable ||
+      !functionCallDescriptor ||
+      functionCallDescriptor.value !== trustedFunctionCall ||
+      functionCallDescriptor.configurable ||
+      functionCallDescriptor.writable ||
       !thenDescriptor ||
       thenDescriptor.value !== mediatedThen ||
       thenDescriptor.configurable ||
@@ -357,6 +397,10 @@
         "rejection hook mediators were not sealed"
       );
     }
+    // Only this closure can select the mediator for harness-owned reactions.
+    // Direct `_B` calls remain inert, while a genuine sealed `then` attachment
+    // records handling before the host performs its post-drain ledger sweep.
+    harnessPromiseThen = mediatedThen;
     function describeReason(reason) {
       try {
         if (reason && typeof reason === "object" && reason.message) { return trustedString(reason.message); }
@@ -722,7 +766,7 @@
       activeActionFetchHost = host;
     }
     try {
-      return await handler(ctx, args);
+      return await observeHarnessPromise(handler(ctx, args));
     } finally {
       activeActionFetchHost = previousActionFetchHost;
     }
@@ -761,7 +805,9 @@
   // (SNAPBACK_HANDLER_DID_NOT_SETTLE on the host side).
   var snapbackSettle = async function(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall) {
     try {
-      var value = await snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall);
+      var value = await observeHarnessPromise(
+        snapbackInvoke(name, argsJson, authJson, mode, runJson, secretsJson, epoch, hostCall)
+      );
       var encodedValue = trustedJsonStringify(value === undefined ? null : value, __snapbackJsonReplacer);
       if (encodedValue === undefined) {
         var resultError = new TrustedError("handler returned a value that is not JSON-serializable");

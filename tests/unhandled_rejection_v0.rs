@@ -66,6 +66,29 @@ globalThis.__snapbackHandlers = {
     var value = await Promise.reject(new Error("caught")).catch(function() { return "caught"; });
     return value;
   },
+  // This promise is already rejected when the async handler returns control.
+  // It is the handler's own failure, not a detached rejection; Linux Hermes
+  // can notify its rejection hook before a native await records its reaction.
+  async immediateRejectedReturn(ctx) {
+    throw new Error("immediate-handler-rejection");
+  },
+  async functionCallPoisoningProbe(ctx) {
+    ctx.db.insert('items', { n: 909 });
+    var nativeCall = Function.prototype.call;
+    var nativeApply = Reflect.apply;
+    Function.prototype.call = function(receiver, onFulfilled, onRejected) {
+      // The Ibex rejection observer used this exact dynamic call shape. Return
+      // normally without attaching its rejection callback, while forwarding
+      // every other call so handler settlement can still report success.
+      if (arguments.length === 3 && onFulfilled === undefined &&
+          typeof onRejected === "function") {
+        return {};
+      }
+      return nativeApply(nativeCall, this, arguments);
+    };
+    Promise.reject(new Error("call-poison-detached-rejection"));
+    return "must-not-succeed";
+  },
   async detachedRejectionQuery(ctx) {
     Promise.resolve().then(function() { throw new Error("query-boom"); });
     return [];
@@ -88,6 +111,7 @@ globalThis.__snapbackHandlers = {
     var hookBDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_B");
     var hookCDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_C");
     var thenDescriptor = Object.getOwnPropertyDescriptor(NativePromise.prototype, "then");
+    var functionCallDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, "call");
     var nativeConstructorPathsAgree = true;
     for (var i = 0; i < candidates.length; i++) {
       var candidate = candidates[i];
@@ -101,6 +125,9 @@ globalThis.__snapbackHandlers = {
         typeof globalThis.__OriginalPromise._C !== "function",
       nativeConstructorPathsAgree: nativeConstructorPathsAgree,
       speciesResultUsesNativeConstructor: speciesInstance.constructor === NativePromise,
+      functionCallIsSealed:
+        !!functionCallDescriptor && typeof functionCallDescriptor.value === "function" &&
+        functionCallDescriptor.configurable === false && functionCallDescriptor.writable === false,
       hookBIsSealedMediator:
         !!hookBDescriptor && typeof hookBDescriptor.value === "function" &&
         hookBDescriptor.configurable === false && hookBDescriptor.writable === false,
@@ -192,6 +219,8 @@ fn functions() -> FunctionManifest {
             define("deepDetachedRejection", FunctionKind::Mutation),
             define("rejectionHandledLater", FunctionKind::Mutation),
             define("rejectionPreHandled", FunctionKind::Mutation),
+            define("immediateRejectedReturn", FunctionKind::Mutation),
+            define("functionCallPoisoningProbe", FunctionKind::Mutation),
             define("detachedRejectionQuery", FunctionKind::Query),
             define("detachedRejectionAction", FunctionKind::Action),
             define("rejectionHookSurfaceProbe", FunctionKind::Query),
@@ -338,6 +367,46 @@ fn rejection_with_pre_attached_handler_succeeds() {
 }
 
 #[test]
+fn harness_observes_an_immediately_rejected_handler_promise() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("immediateRejectedReturn", input(json!({})))
+        .expect_err("the handler's returned rejection must fail the invocation");
+    assert_eq!(
+        error.diagnostic.code, "SNAPBACK_HANDLER_FAILED",
+        "the harness's own reaction must keep this out of the detached-rejection ledger"
+    );
+    assert_eq!(
+        error.diagnostic.details["message"],
+        "immediate-handler-rejection"
+    );
+}
+
+#[test]
+fn function_call_poisoning_cannot_blind_the_detached_rejection_ledger() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("functionCallPoisoningProbe", input(json!({})))
+        .expect_err("a detached rejection must survive Function.prototype.call poisoning");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["call-poison-detached-rejection"])
+    );
+    let rows = snapback
+        .invoke_query("listItems", input(json!({})))
+        .expect("query after poisoned invocation")
+        .rows;
+    assert!(
+        rows.is_empty(),
+        "the rejected invocation must commit nothing"
+    );
+}
+
+#[test]
 fn detached_rejection_fails_queries_too() {
     let snapback = configured();
     let error = snapback
@@ -376,6 +445,7 @@ fn exact_promise_rejection_hooks_are_sealed_mediators() {
             "publicAliasIsHookFree": true,
             "nativeConstructorPathsAgree": true,
             "speciesResultUsesNativeConstructor": true,
+            "functionCallIsSealed": true,
             "hookBIsSealedMediator": true,
             "hookCIsSealedMediator": true,
             "thenIsSealedMediator": true,
