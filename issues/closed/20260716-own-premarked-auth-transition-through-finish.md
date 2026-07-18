@@ -1,6 +1,6 @@
 # Own premarked auth transitions through durable finish
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Session auth, Authorization stream, Cancellation, Runtime
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -31,3 +31,18 @@ session or stream pending indefinitely.
   premark/drain, and prove correct settlement for revocation, rotation,
   issuance with eviction, and stream reset.
 - Focused auth/coordinator tests and the canonical proof pass.
+
+## Resolution
+
+Each drained premark is now handed synchronously to an independently owned
+Local transaction/finalizer carrier. Exact rollback remains attached until
+that transfer; after transfer, request cancellation cannot cancel the durable
+write or its coordinator finish, including ambiguous-outcome closure.
+
+Deterministic coverage is provided by
+`cancelled_revocation_waiter_leaves_owned_local_transaction_to_exact_rollback`,
+`cancelled_rotation_waiter_leaves_owned_local_transaction_to_exact_rollback`,
+`cancelled_issuance_waiter_leaves_owned_local_transaction_to_exact_rollback`,
+and
+`cancelled_stream_reset_waiter_leaves_owned_local_transaction_to_exact_rollback`.
+The full Rust library suite passed 1,102 tests.

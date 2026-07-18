@@ -1,6 +1,6 @@
 # Release provider maintenance before projection Begin
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Session auth, Auth provider, Session projection, Reset, Runtime GC
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -44,3 +44,18 @@ needs provider or Local progress.
   terminal lifecycle work.
 - Focused provider/coordinator/runtime/server tests and the canonical proof
   pass.
+
+## Resolution
+
+Session routes now drop planning admission/address guards before projection
+Begin, then independently own any exact provider transaction and drop provider
+coordination before projection finish or terminal fanout. GC premarks projected
+expiry before ordinary maintenance, and reset releases exclusive maintenance
+after the durable cut but before lifecycle and coordinator completion.
+
+Deterministic proof includes
+`periodic_gc_releases_projection_begin_before_acquiring_maintenance`,
+`periodic_gc_terminalizes_projection_before_deleting_durable_session`,
+`logout_begin_releases_provider_and_cancelled_waiter_cannot_cancel_finish`,
+and the committed-reset projection tests. Provider/coordinator/server coverage
+passed within the 1,102-test Rust library suite.

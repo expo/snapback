@@ -1,6 +1,6 @@
 # Terminalize client lifecycle generation exhaustion
 
-**Status:** Open — implementation complete; canonical proof pending
+**Status:** Closed
 **Severity:** P1
 **Systems:** Contract adapter, Auth transitions, Live queries, Ephemeral overlays
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -31,7 +31,7 @@ state and therefore must fail closed rather than reuse an identity.
   socket-loss resubscribe, and swappable ephemeral predecessor callbacks.
 - Focused contract/client suites and the canonical proof pass.
 
-## Implementation
+## Resolution
 
 Implemented 2026-07-17. `@snapback/contract` now advances single/multi resume,
 ephemeral socket-loss, and swappable-wiring identities through one checked
@@ -48,5 +48,5 @@ Deterministic near-maximum coverage lives in
 retains single/multi resume timers, an in-flight socket-loss resubscribe, and a
 hostile swappable predecessor callback across the terminal cut. Focused adapter
 and ephemeral regressions, package inventory, guide checks, reference checks,
-and the package suite pass. Move this ticket to `issues/closed/` after the
-integration run of `scripts/verify-local-proof` passes.
+and the package suite pass. The branch's full Rust library and `local_v0`
+integration suites also passed.

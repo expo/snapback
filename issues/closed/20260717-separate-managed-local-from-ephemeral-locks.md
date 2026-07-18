@@ -1,6 +1,6 @@
 # Separate managed LocalSnapback work from ephemeral locks
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Local runtime, Auth, RBAC, Live queries, Ephemeral state, Inspect
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -80,3 +80,22 @@ managed Local scope remains synchronous.
 - The misleading `publish_preflighted_functions` comment, documentation, and
   `@ref` annotations describe both startup and network same-mode publication.
 - Focused Rust tests and `./ref-check --verbose` pass.
+
+## Resolution
+
+Managed Local operations now capture process-local projection work and flush
+it only after releasing the Local guard. Authorization-changing writes reserve
+an exact room selector before Local/SQLite, carry a lock-free reservation
+through COMMIT, and settle commit/rollback afterward; stale generations fail
+closed without rerunning Ibex work. Reset, collection/issuer projection,
+notifier wake, inspect, and detached-action paths follow the same ownership
+boundary, with direct-library compatibility kept synchronous.
+
+Contention, cancellation, source-inventory, and lifecycle-chokepoint coverage
+includes `durable_enqueue_defers_notifier_wake_until_local_scope_ends`,
+`definition_generation_drift_rejects_bind_and_rolls_back_after_local`,
+`detached_action_nested_mutations_reserve_rooms_off_local`,
+`detached_action_watchdog_cancels_held_room_reservation_without_publication`,
+and `managed_host_plan_action_route_inventory_uses_reserved_step_executor`.
+The full Rust library suite (1,102 passed), `local_v0` (96 passed), clippy, and
+LLP reference validation all passed.

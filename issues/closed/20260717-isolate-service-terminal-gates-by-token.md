@@ -1,6 +1,6 @@
 # Isolate finite-service terminal gates by exact token
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P2
 **Systems:** Agent auth, Service authority, Connection grants, Live queries, Runtime
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -44,3 +44,18 @@ noninterference proof.
   drains before the first durable ending write. Ambiguous sibling tickets
   remain exact.
 - Focused service-fence/storage/server tests and the canonical proof pass.
+
+## Resolution
+
+The service fence now installs and drains terminal intent by exact token-id
+domain. Affected registrations join the pending domain, disjoint tokens remain
+usable, the durable transaction must reproduce the planned token set, and the
+ticket remains installed through typed lifecycle propagation before exact
+release.
+
+Focused proof includes
+`exact_token_gate_drains_only_its_token_and_leaves_unrelated_work_live`,
+`absent_token_registration_joins_the_pending_exact_domain`,
+`overlapping_gates_serialize_while_disjoint_gates_proceed`,
+`transaction_must_reproduce_the_gate_exact_token_set`, and the real-route
+terminal pause matrix. The full Rust library suite passed 1,102 tests.

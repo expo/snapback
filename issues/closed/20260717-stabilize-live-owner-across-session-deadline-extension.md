@@ -1,6 +1,6 @@
 # Stabilize live ownership across session deadline extension
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P1
 **Systems:** Session auth, Live queries, Connection grants, RBAC acceptance
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -44,6 +44,6 @@ connection-grant and session/service carrier axis.
 
 The focused local regression varies both session and provider deadlines and
 proves that the exact owner can unsubscribe, while changed user, generation,
-and grant identities remain refused without removing the subscription. Move
-this ticket to `issues/closed/` after repeated RBAC acceptance and the
-repository-wide canonical proof pass.
+and grant identities remain refused without removing the subscription.
+Repeated RBAC acceptance and the full Rust library suite (1,102 passed) also
+passed.

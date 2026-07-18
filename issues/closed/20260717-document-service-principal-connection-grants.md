@@ -1,6 +1,6 @@
 # Document service-principal connection grants
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P2
 **Systems:** Auth, Guide, LLP corpus, Service principals
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -27,5 +27,6 @@ authority, exact token/deadline carrier, and service publication fence.
 
 LLP 0059 now includes the third closed binding and names both bearer-free
 publication handles. The auth guide teaches the same durable-authority/token
-split without exposing bearer material. Final guide pinning and proof are
-pending.
+split without exposing bearer material. The affected page is included in the
+landing commit's intentional review pin; guide generation and LLP reference
+validation pass.

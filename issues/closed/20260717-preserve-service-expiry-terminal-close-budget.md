@@ -1,6 +1,6 @@
 # Preserve the service-expiry terminal close budget
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P1
 **Systems:** Agent auth, Service authority, Connection grants, Live sockets
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -53,4 +53,5 @@ Focused verification on 2026-07-17:
 - `cargo test --lib delayed_live_observer_grant_expiry_preserves_close_budget_and_fanout -- --nocapture` — passed.
 - `./ref-check --verbose` — 63 LLP documents, 1,347 references, 0 errors, 0 unchecked.
 
-The repository-wide canonical proof remains for the parent landing pass.
+The full Rust library suite subsequently passed 1,102 tests, and the
+`local_v0` integration suite passed 96 tests.

@@ -1,6 +1,6 @@
 # Accept the embedded Ibex runtime in the protected-room kick fixture
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P2
 **Systems:** Tests, Ibex, Auth, Ephemeral rooms
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -33,4 +33,5 @@ cannot be hidden.
 The setup assertion now admits only `SNAPBACK_IBEX_FUNCTIONS_LOADED` and the
 supported embedded-runtime capability notice `SNAPBACK_IBEX_CLI_UNAVAILABLE`,
 matching the neighboring authorization fixtures without broad severity-based
-filtering. Canonical proof is pending.
+filtering. All five protected-room kick cases passed through the embedded
+runtime as part of the 1,102-test Rust library suite.

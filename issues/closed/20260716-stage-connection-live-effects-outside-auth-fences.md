@@ -1,6 +1,6 @@
 # Stage connection live effects outside auth fences
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Auth, Live queries, Authorization invalidation, Runtime, Connection grants
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -46,3 +46,18 @@ episode.
   duplicate finalize/abandon, and no live fanout from pending stages.
 - Focused local/server tests, repeated RBAC acceptance, and the canonical proof
   pass.
+
+## Resolution
+
+Connection-bound live operations now prepare inert stages under Local, perform
+one bounded connection act to reserve the exact authority carriers, and hand a
+committed stage to an independently owned finalizer. Refusal and abandonment
+are one-shot and cannot publish, consume an acknowledgement, or disturb the
+retained predecessor.
+
+Focused proof covers `staged_subscribe_queries_after_the_exact_act_cut`,
+`staged_live_effect_binding_terminal_and_one_shot_lifecycle`,
+`prepared_connection_act_loses_to_concurrent_stream_premark`,
+`committed_live_stage_finalize_outlives_request_cancellation_and_retains_work`,
+and `refused_connection_act_abandons_staged_subscribe_without_publication`.
+Repeated RBAC acceptance and the full Rust library suite also passed.

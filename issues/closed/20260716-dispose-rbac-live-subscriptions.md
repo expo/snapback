@@ -1,6 +1,6 @@
 # Dispose RBAC live subscriptions before acceptance teardown
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** RBAC demo, Live queries, Auth clients, Acceptance tests, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -41,7 +41,7 @@ stop can still leave the owned task and acceptance process hung indefinitely.
   subscription is disposed exactly once before close.
 - Repeated RBAC acceptance runs and the canonical proof complete cleanly.
 
-## Implementation checkpoint — 2026-07-17
+## Resolution
 
 `OwnedLiveSubscriptions` now closes creation synchronously, joins every
 started creation, adopts raw subscribe success before fallible initialization,
@@ -54,8 +54,9 @@ immediately resolved abort retain that failure. The RBAC proof also drains
 Eve's live subscription after the refused raw membership write, closing the
 transient-live-leak coverage gap.
 
-The focused Node regression and syntax check pass. Keep this ticket open until
-repeated real RBAC acceptance and the canonical proof pass.
+The focused Node regression and syntax check pass. The real RBAC acceptance
+completed repeatedly during landing verification, with all late subscriptions
+joined and disposed before auth/server teardown.
 
 The final teardown audit also closed a false-success path beneath that owner:
 session cleanup had suppressed both `client.closeAuth()` and
@@ -64,3 +65,7 @@ latches one shared completion, and rejects with the one failure or an ordered
 aggregate. The acceptance `finally` records those rejections alongside server
 and scratch cleanup failures. Deterministic coverage proves both resources are
 attempted exactly once and every later caller observes the latched failure.
+
+Verification also includes the full Rust library suite (1,102 passed), the
+`local_v0` integration suite (96 passed), warning-free clippy, and LLP
+reference validation.

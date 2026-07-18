@@ -1,6 +1,6 @@
 # Refuse handler invocation and warm-pool identity exhaustion
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Code execution, Warm VM pool, Handler host calls
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -37,3 +37,17 @@ identity contract and deterministic tests can reach it.
   refusal/fresh fallback, and rejection of a stale checked-out VM.
 - LLP 0009 and focused runtime/warm-VM tests describe and prove the terminal
   behavior.
+
+## Resolution
+
+Invocation epochs now use a terminal checked allocator and return the stable
+typed exhaustion diagnostic before handler evaluation or host-context install.
+Warm-pool generation exhaustion permanently disables reuse for that lineage,
+while the bounded LRU order rebases before overflow without changing recency.
+
+`final_invocation_identity_is_unique_then_allocator_is_terminal`,
+`terminal_invocation_allocator_stays_terminal`,
+`dk4_generation_exhaustion_permanently_falls_back_to_fresh_vms`, and
+`dk4_lru_rebases_before_tick_exhaustion_without_reversing_recency` passed as
+part of the 1,102-test Rust library suite; LLP reference validation also
+passed.

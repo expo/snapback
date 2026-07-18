@@ -1,6 +1,6 @@
 # Prove RBAC live invalidation and cross-user isolation
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P2
 **Systems:** RBAC demo, Live queries, Auth invalidation, Acceptance tests
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -25,12 +25,13 @@ Alice never receives later fanout, or if later envelopes cross user scopes.
 - The proof has deterministic bounded waiting and disposes every subscription
   before auth/server teardown.
 
-## Implementation checkpoint — 2026-07-17
+## Resolution
 
 The acceptance now owns Alice, Bob, and Eve live subscriptions through
 creation and disposal; validates authorization scope identity; observes Bob's
 membership invalidation and Alice/Bob fanout; and repeatedly drains Bob/Eve at
 the forbidden cuts. It additionally drains Eve after the refused raw
 membership mutation, proving the refusal did not leak even transient live
-authority. The focused ownership/watchdog regression passes. Keep this ticket
-open until repeated real acceptance and the canonical proof pass.
+authority. The focused ownership/watchdog regression and repeated real RBAC
+acceptance runs passed; teardown joined every owned subscription before auth
+clients and the server closed.

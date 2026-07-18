@@ -1,6 +1,6 @@
 # Bind scoped-token preparation to its authorization stream
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P1
 **Systems:** Agent auth, Authorization reset, Bootstrap handshake, Connection grants
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -62,4 +62,5 @@ Focused verification on 2026-07-17:
 - `cargo test --lib connection_open -- --nocapture` — 4 passed.
 - `./ref-check --verbose` — 63 LLP documents, 1,345 references, 0 errors, 0 unchecked.
 
-The repository-wide canonical proof remains for the parent landing pass.
+The full Rust library suite subsequently passed 1,102 tests, and the
+`local_v0` integration suite passed 96 tests.

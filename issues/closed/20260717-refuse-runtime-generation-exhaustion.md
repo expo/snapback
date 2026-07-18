@@ -1,6 +1,6 @@
 # Refuse permission and ephemeral generation exhaustion
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Auth compatibility epochs, Live queries, Ephemeral state, Client overlays
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -43,3 +43,18 @@ wrap, cross that portable boundary, or report success after exhaustion.
 - Generated schemas publish the same maximum for client-visible permission,
   room, scope, and entry versions.
 - Focused Rust tests and diagnostic inventory pass.
+
+## Resolution
+
+Permission, room entry, room authority, collection, and scope generations now
+share checked portable allocation. Permission capacity is preflighted before
+every durable seam; exhausted rooms retire their exact generation, purge its
+lane, and emit only the authority-independent clearing boundary while stale
+permits remain fenced. Generated schemas publish the same JavaScript-safe
+maximum.
+
+Focused proof includes the permission precommit matrix, final-entry then
+retirement, exhausted-scope refusal, room-authority precommit refusal, and
+delete/expiry/disconnect/reauthorization retirement cases. The artifact-schema
+tests, diagnostic inventory, and full Rust library suite (1,102 passed) all
+passed.

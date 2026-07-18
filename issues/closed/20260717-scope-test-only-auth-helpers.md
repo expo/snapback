@@ -1,6 +1,6 @@
 # Scope test-only auth helpers out of production builds
 
-**Status:** Fixed — canonical proof pending
+**Status:** Closed
 **Severity:** P3
 **Systems:** Auth, Ephemeral rooms, Build hygiene, Testing
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -27,4 +27,5 @@ and keeps the exact broad-room and descriptor-before-ACK regressions intact.
 ## Resolution
 
 The two closed helpers now inherit the test-only compilation boundary already
-held by every caller. Canonical proof is pending.
+held by every caller. Their regressions passed in the full Rust library suite,
+and `cargo check --tests` plus warning-free all-target clippy passed.

@@ -1,6 +1,6 @@
 # Propagate grant expiry to every service carrier
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P1
 **Systems:** Agent auth, Service authority, Connection grants, Live queries
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -40,15 +40,14 @@ fanout entirely.
   authority preparation but before the Local handler act.
 - Focused storage/local/server tests and the canonical proof pass.
 
-## Implementation checkpoint — 2026-07-17
+## Resolution
 
 The finite HTTP deadline owner and live-stream observer now carry their exact
 planned token vector into typed lifecycle propagation. Managed Local expiry
 refuses before writing so those owned paths cannot be bypassed; the direct
 embedding seam remains synchronous. Deterministic two-token/two-socket tests
 cover both owners, including two retained live topologies and a direct bearer
-whose deadline crosses at the pre-handler pause. Focused tests and `ref-check`
-pass; keep this ticket open until the repository-wide canonical proof passes.
+whose deadline crosses at the pre-handler pause.
 
 The final ordering review found one additional cross-ending race: commit
 settlement removed the exact service-domain ticket before typed lifecycle
@@ -74,3 +73,7 @@ Deterministic planning/gate/transaction/task-panic injections prove the first
 failure is observable and fail-closed, the independent owner survives the
 socket path, consumes every later failure, and finally performs the required
 all-token durableDelete fanout and retirement.
+
+Focused grant-deadline and service-fence tests passed, followed by the full
+Rust library suite (1,102 passed), `local_v0` (96 passed), and LLP reference
+validation.
