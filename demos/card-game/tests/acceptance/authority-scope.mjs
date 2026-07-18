@@ -23,6 +23,27 @@ const retainedQueryKey = `myHand:${JSON.stringify({ gameId })}`;
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
 
+async function mutateFixture(client, name, args, clientMutationId) {
+  const authorityCapture = client.authCoordinator.capture();
+  for (let attempt = 0; ; attempt += 1) {
+    try {
+      return await client.mutate(name, {
+        args,
+        clientMutationId,
+        authorityCapture,
+      });
+    } catch (error) {
+      const code = error?.code ?? error?.diagnostic?.code;
+      if (code !== 'SNAPBACK_AUTH_RESERVATION_STALE' || attempt >= 2) throw error;
+      // Reservation staleness is known-before-transaction. Re-enter through a
+      // fresh coordinated read, but never reinterpret this fixture write under
+      // a real authority successor.
+      await client.currentAuthorizationScope();
+      if (!client.authCoordinator.isCurrent(authorityCapture)) throw error;
+    }
+  }
+}
+
 const contractRuntime = {
   createContractMockQueryBoundary(initialRows) {
     const rows = new Map(Object.entries(initialRows));
@@ -141,6 +162,7 @@ async function contractOptions({
 
 const scratch = await mkdtemp(join(tmpdir(), 'snapback-card-game-auth-'));
 let server = null;
+let acceptancePhase = 'startup';
 const surfaces = new Set();
 const sessions = [];
 const originalDateNow = Date.now;
@@ -174,7 +196,9 @@ try {
     captureImpersonationCapability: true,
   });
 
+  acceptancePhase = 'mint Ada session';
   const ada = await mintSession(server, schema.appId, 'ada@card-game.test', 'card-game-ada');
+  acceptancePhase = 'mint Grace session';
   const grace = await mintSession(server, schema.appId, 'grace@card-game.test', 'card-game-grace');
   sessions.push(ada, grace);
   assert.notEqual(ada.credential.session.id, grace.credential.session.id);
@@ -182,21 +206,20 @@ try {
 
   // Setup itself is authority-scoped: the authenticated mutation has no
   // owner argument and stamps every row from the prepared session principal.
-  await Promise.all([
-    ada.client.mutate('acceptHandCard', {
-      args: { gameId, position: 1, card: 'ace-spades' },
-    }),
-    ada.client.mutate('acceptHandCard', {
-      args: { gameId, position: 2, card: 'queen-hearts' },
-    }),
-    grace.client.mutate('acceptHandCard', {
-      args: { gameId, position: 1, card: 'king-clubs' },
-    }),
-    grace.client.mutate('acceptHandCard', {
-      args: { gameId, position: 2, card: 'ten-diamonds' },
-    }),
-  ]);
+  // The scenario proves authority isolation, not reservation contention, so
+  // install its fixture serially: concurrent protected writes may legitimately
+  // make a one-shot authorization reservation stale before SQLite begins.
+  acceptancePhase = 'install hidden-hand fixture';
+  for (const [client, clientMutationId, args] of [
+    [ada.client, 'cm_card_game_ada_1', { gameId, position: 1, card: 'ace-spades' }],
+    [ada.client, 'cm_card_game_ada_2', { gameId, position: 2, card: 'queen-hearts' }],
+    [grace.client, 'cm_card_game_grace_1', { gameId, position: 1, card: 'king-clubs' }],
+    [grace.client, 'cm_card_game_grace_2', { gameId, position: 2, card: 'ten-diamonds' }],
+  ]) {
+    await mutateFixture(client, 'acceptHandCard', args, clientMutationId);
+  }
 
+  acceptancePhase = 'query principal-isolated hands';
   const [adaResult, graceResult] = await Promise.all([
     ada.client.query('myHand', { args: { gameId } }),
     grace.client.query('myHand', { args: { gameId } }),
@@ -210,10 +233,13 @@ try {
 
   // Even beside a valid bearer, legacy body authority is rejected rather
   // than ignored or stamped over the server-derived session principal.
+  acceptancePhase = 'reject legacy body authority';
+  const adaCapture = ada.coordinator.capture();
+  const adaBearer = ada.coordinator.credentialFor(adaCapture).bearer;
   const spoofResponse = await fetch(`${server.baseUrl}/query/myHand`, {
     method: 'POST',
     headers: {
-      authorization: `Bearer ${ada.coordinator.settledView().bearer}`,
+      authorization: `Bearer ${adaBearer}`,
       'content-type': 'application/json',
       'x-snapback-auth-client-protocol': '1',
     },
@@ -229,6 +255,7 @@ try {
   const adaStore = createMemorySnapbackClientStore();
   const graceStoreState = {};
   const graceStore = createMemorySnapbackClientStore({ state: graceStoreState });
+  acceptancePhase = 'create Contract surface options';
   const adaOptions = await contractOptions({
     session: ada,
     store: adaStore,
@@ -247,6 +274,7 @@ try {
     contractManifest,
     connectionId: 'card-game-grace-live',
   });
+  acceptancePhase = 'start authenticated Contract surfaces';
   const adaSurface = await trackSurface(adaOptions);
   const graceSurface = await trackSurface(graceOptions);
   await Promise.all([adaSurface.flush(), graceSurface.flush()]);
@@ -265,9 +293,13 @@ try {
     ['king-clubs', 'ten-diamonds'],
   );
 
-  await ada.client.mutate('acceptHandCard', {
-    args: { gameId, position: 3, card: 'jack-spades' },
-  });
+  acceptancePhase = 'publish live hidden-hand mutation';
+  await mutateFixture(
+    ada.client,
+    'acceptHandCard',
+    { gameId, position: 3, card: 'jack-spades' },
+    'cm_card_game_ada_3',
+  );
   await eventually(() => {
     assert.equal(adaSurface.connection(), 'live');
     assert.equal(graceSurface.connection(), 'live');
@@ -284,6 +316,7 @@ try {
 
   // Logout crosses the shared AuthCoordinator barrier. Contract must blank
   // the live hidden-hand boundary before the credential transition returns.
+  acceptancePhase = 'logout and blank predecessor surface';
   await ada.client.authLogout();
   assert.deepEqual(adaSurface.boundary.current('hand'), []);
   assert.deepEqual(
@@ -473,7 +506,11 @@ try {
   assert.equal(expiredState.retained[retainedQueryKey], undefined);
   assert.equal(expiredState.queryAuthorization[retainedQueryKey]?.lease, null);
 
+  acceptancePhase = 'complete';
   console.log('card-game real session live/authorized-retention proof: ok');
+} catch (error) {
+  console.error(`card-game authority-scope failed during: ${acceptancePhase}`);
+  throw error;
 } finally {
   Date.now = originalDateNow;
   for (const surface of [...surfaces]) {
