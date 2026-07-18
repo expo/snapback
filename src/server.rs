@@ -1181,6 +1181,33 @@ fn action_generation_conflict(op: &str, staged: u64, current: u64) -> SnapbackEr
     }))
 }
 
+/// Linearize watchdog abandonment against the final commit gate, then cancel
+/// the exact room reservation currently owned by the detached action. Callers
+/// run this on a blocking thread because the bounded SQLite commit window may
+/// momentarily own `commit_gate`.
+///
+/// @ref LLP 0059#authorization-write-handoff — abandonment exact-unmarks an
+///   in-flight room ticket before the watchdog publishes its timeout.
+fn linearize_detached_action_abandonment(
+    commit_gate: &StdMutex<()>,
+    abandoned: &AtomicBool,
+    active_reservation: &StdMutex<
+        Option<Arc<crate::storage::AuthorizationReservationCancellation>>,
+    >,
+) {
+    let _gate = commit_gate
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner);
+    abandoned.store(true, Ordering::SeqCst);
+    if let Some(cancellation) = active_reservation
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+        .take()
+    {
+        cancellation.cancel();
+    }
+}
+
 /// Run a staged Ibex action on a detached thread under a wall-clock watchdog.
 ///
 /// The action holds no instance lock while it runs; nested Ibex handlers also
@@ -1402,17 +1429,11 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 // already-built SQLite transaction's identity write + COMMIT,
                 // never handler code, plan iteration, instance-lock waiting,
                 // or realtime fan-out.
-                let _gate = gate
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                abandoned_for_timeout.store(true, Ordering::SeqCst);
-                if let Some(cancellation) = active_reservation_for_timeout
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner)
-                    .take()
-                {
-                    cancellation.cancel();
-                }
+                linearize_detached_action_abandonment(
+                    gate.as_ref(),
+                    abandoned_for_timeout.as_ref(),
+                    active_reservation_for_timeout.as_ref(),
+                );
             })
             .await
             .map_err(|error| {
@@ -17668,10 +17689,11 @@ mod tests {
         already_terminal_session_error, app, configured_action_worker_limit,
         configured_cron_dispatch_concurrency, coordinated_app_reset, dispatch_cron_tick_background,
         finish_registered_response, install_test_finite_authority_pause,
-        parse_action_watchdog_timeout, parse_optional_json, reserve_detached_action_worker,
-        reserve_detached_action_worker_with_counters, retain_realtime_authority_in,
-        run_detached_ibex_action_with_admission_and_counters, spawn_detached_action_worker,
-        status_for_diagnostic_code, with_snapback, with_snapback_staged_authorization_write,
+        linearize_detached_action_abandonment, parse_action_watchdog_timeout, parse_optional_json,
+        reserve_detached_action_worker, reserve_detached_action_worker_with_counters,
+        retain_realtime_authority_in, run_detached_ibex_action_with_admission_and_counters,
+        spawn_detached_action_worker, status_for_diagnostic_code, with_snapback,
+        with_snapback_staged_authorization_write,
     };
     use crate::admin::{AppState, ServerContext, ServerProfile};
     use crate::admin_impersonation::{
@@ -18860,50 +18882,77 @@ globalThis.__snapbackHandlers = {
             .begin_server_authorized_room_act("protectedPresence", &scope)
             .expect("admit held watchdog room act")
             .expect("protected watchdog room returns a permit");
+        // Drive the same production watchdog transition only after causally
+        // observing the exact dependency. The former 300ms end-to-end timer
+        // raced cold Hermes startup on Linux and could expire before the host
+        // call began, which tested startup scheduling rather than reservation
+        // cancellation. Timer enforcement and VM teardown are covered by the
+        // action-watchdog integration suite; this proof isolates the room cut.
+        let mut host = held_action_host(state.snapback.clone(), &action);
+        host.deadline = Instant::now() + Duration::from_secs(30);
+        let abandoned = host.abandoned.clone();
+        let commit_gate = host.commit_gate.clone();
+        let active_reservation = host.active_reservation.clone();
         let counters = isolated_worker_counters();
         let baseline_workers = counters.active.load(Ordering::SeqCst);
-        let action_state = state.snapback.clone();
-        let action_run = tokio::spawn(async move {
-            super::run_detached_ibex_action_with_admission_counters_and_timeout(
-                &action_state,
-                action,
-                HandlerInput {
-                    args: json!({
-                        "target": "kickRoomMember",
-                        "id": MEMBER,
-                    }),
-                    ..HandlerInput::default()
-                },
-                crate::local::manual_action_metadata("test", "heldRoomAction"),
-                Arc::new(Semaphore::new(1)),
-                1,
-                counters,
-                300,
-            )
-            .await
-        });
+        let worker_permit =
+            reserve_detached_action_worker_with_counters(Arc::new(Semaphore::new(1)), 1, counters)
+                .expect("admit watchdog room-reservation worker");
+        let (result_sender, mut result_receiver) = tokio::sync::oneshot::channel();
+        spawn_detached_action_worker(
+            worker_permit,
+            counters,
+            move || {
+                host.run_mutation(
+                    "kickRoomMember",
+                    HandlerInput {
+                        args: json!({ "id": MEMBER }),
+                        ..HandlerInput::default()
+                    },
+                )
+            },
+            move |result| {
+                let _ = result_sender.send(result);
+            },
+        )
+        .expect("spawn watchdog room-reservation worker");
 
-        let pending_deadline = Instant::now() + Duration::from_secs(2);
-        loop {
-            match state
-                .ephemeral
-                .begin_server_authorized_room_act("protectedPresence", &scope)
-            {
-                Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
-                Ok(permit) => drop(permit),
-                Err(error) => panic!("unexpected watchdog room admission: {error:?}"),
+        let dependency_installed = async {
+            loop {
+                match state
+                    .ephemeral
+                    .begin_server_authorized_room_act("protectedPresence", &scope)
+                {
+                    Err(error) if error.code == EphemeralErrorCode::AuthorityPending => break,
+                    Ok(permit) => drop(permit),
+                    Err(error) => panic!("unexpected watchdog room admission: {error:?}"),
+                }
+                tokio::task::yield_now().await;
             }
-            assert!(
-                Instant::now() < pending_deadline,
-                "watchdog action did not install its exact room dependency"
-            );
-            tokio::task::yield_now().await;
+        };
+        tokio::select! {
+            result = &mut result_receiver => {
+                panic!("watchdog worker ended before installing its exact room dependency: {result:?}");
+            }
+            installed = tokio::time::timeout(Duration::from_secs(10), dependency_installed) => {
+                installed.expect("watchdog worker installs its exact room dependency");
+            }
         }
         assert!(state.snapback.try_lock().is_ok());
-        let error = tokio::time::timeout(Duration::from_secs(2), action_run)
+
+        tokio::task::spawn_blocking(move || {
+            linearize_detached_action_abandonment(
+                commit_gate.as_ref(),
+                abandoned.as_ref(),
+                active_reservation.as_ref(),
+            );
+        })
+        .await
+        .expect("watchdog abandonment transition completes");
+        let error = tokio::time::timeout(Duration::from_secs(2), result_receiver)
             .await
             .expect("watchdog cancels the room wait within its bound")
-            .expect("watchdog action task joins")
+            .expect("watchdog room-reservation worker reports")
             .expect_err("held-room action must time out");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
         assert_eq!(
