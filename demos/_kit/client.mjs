@@ -2033,7 +2033,7 @@ export class SnapbackClient {
     }
     let grant = this.__connectionGrants.get(connectionId);
     if (!grant) {
-      grant = this.#openGrant(connectionId, null);
+      grant = this.#openGrant(connectionId, connectionId, null);
       this.__connectionGrants.set(connectionId, grant);
     }
     return grant;
@@ -2042,22 +2042,29 @@ export class SnapbackClient {
   /// Re-run the handshake for a label whose grant looks stale (a rejected
   /// token, a socket that never opened — typically a restarted server whose
   /// grant registry is empty). The previous token rides along so a still-live
-  /// server returns the SAME grant idempotently; a restarted server adopts
-  /// the label afresh. Either way the connection identity survives.
+  /// server returns the SAME grant idempotently. Re-suggest the prior granted
+  /// wire id, not the readable cache label: collision and mint-only posture
+  /// can make them differ. After a restart that suggestion preserves identity
+  /// where the target permits adoption; a mint-only target returns a fresh id.
   refreshConnectionGrant(connectionId) {
     const stale = this.__connectionGrants.get(connectionId) ?? null;
     let grant;
     grant = (stale ? stale.catch(() => null) : Promise.resolve(null)).then(
-      (previous) => this.#openGrant(connectionId, previous?.token ?? null, () => grant),
+      (previous) => this.#openGrant(
+        connectionId,
+        previous?.id ?? connectionId,
+        previous?.token ?? null,
+        () => grant,
+      ),
     );
     this.__connectionGrants.set(connectionId, grant);
     return grant;
   }
 
-  #openGrant(connectionId, previousToken, storedAs = null) {
+  #openGrant(connectionLabel, suggestedConnectionId, previousToken, storedAs = null) {
     let grant;
     grant = this.#req('POST', '/connection/open', {
-      connectionId,
+      connectionId: suggestedConnectionId,
       ...(previousToken ? { previousToken } : {}),
       ...(this.authProtocols.authInvalidation != null
         ? { authInvalidationProtocol: this.authProtocols.authInvalidation }
@@ -2078,9 +2085,9 @@ export class SnapbackClient {
         // so the next operation retries the handshake. The cache may hold
         // this promise directly (first open) or a wrapper derived from it
         // (refresh) — compare against whichever the caller stored.
-        const stored = this.__connectionGrants.get(connectionId);
+        const stored = this.__connectionGrants.get(connectionLabel);
         if (stored === grant || (storedAs && stored === storedAs())) {
-          this.__connectionGrants.delete(connectionId);
+          this.__connectionGrants.delete(connectionLabel);
         }
         throw error;
       },
@@ -2886,6 +2893,10 @@ export class SnapbackClient {
         // Start buffering immediately before the request is dispatched. Grant
         // acquisition itself cannot create a server-side room registration.
         overlay ??= new EphemeralOverlay(this, ref, { connectionId, scope, userId, permissions });
+        // #withGrant may retry this closure after refreshing a rejected
+        // token. Bind the id used by THIS request attempt so the successful
+        // overlay exposes the exact connection-owned entry key.
+        overlay.grantedConnectionId = grant.id;
         return this.#req('POST', '/ephemeral/subscribe', {
           collection,
           scope,
@@ -5322,6 +5333,15 @@ export class EphemeralOverlay {
   constructor(client, ref, { connectionId, scope, userId, permissions, snapshot }) {
     this.client = client;
     this.ref = ref;
+    // The app-facing connectionId is only a readable, label-keyed registry
+    // handle. Connection-owned entry keys use the opaque id granted for the
+    // exact subscribe request; collision and mint-only containment can make
+    // those two strings diverge. subscribeEphemeral binds this before the
+    // overlay is returned, including on its one grant-refresh retry.
+    //
+    // @ref LLP 0031#connection-capability-grants — wire identity comes from
+    //   the server grant, never from the caller's readable label.
+    this.grantedConnectionId = null;
     this.connectionId = connectionId;
     this.scope = scope;
     this.userId = userId;

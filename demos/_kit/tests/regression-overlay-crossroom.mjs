@@ -63,8 +63,8 @@ try {
     const overlayB = await db.subscribeEphemeral('boardCursors', { connectionId: 'both_rooms', scope: scopeB, userId: ADA, permissions: permsB });
     try {
       // Publishers in each room (separate connections so keys differ).
-      await db.publishEphemeral('boardCursors', { connectionId: 'painter_A', scope: scopeA, userId: ADA, permissions: permsA, value: { x: 1, y: 1 } });
-      await db.publishEphemeral('boardCursors', { connectionId: 'painter_B', scope: scopeB, userId: ADA, permissions: permsB, value: { x: 2, y: 2 } });
+      const publishedA = await db.publishEphemeral('boardCursors', { connectionId: 'painter_A', scope: scopeA, userId: ADA, permissions: permsA, value: { x: 1, y: 1 } });
+      const publishedB = await db.publishEphemeral('boardCursors', { connectionId: 'painter_B', scope: scopeB, userId: ADA, permissions: permsB, value: { x: 2, y: 2 } });
       // One drain on the shared connection routes BOTH rooms' envelopes to
       // BOTH overlays; the room filter must keep each overlay clean.
       await overlayA.drain();
@@ -72,24 +72,24 @@ try {
 
       assertEqual(
         overlayA.currentEntries().map((entry) => entry.key),
-        ['painter_A'],
+        [publishedA.key],
         "overlay A holds ONLY board A's cursor",
       );
       assertEqual(
         overlayB.currentEntries().map((entry) => entry.key),
-        ['painter_B'],
+        [publishedB.key],
         "overlay B holds ONLY board B's cursor",
       );
 
       // Epoch integrity: a foreign snapshot must not clobber scopeEpoch —
       // subsequent same-room updates still apply.
-      await db.publishEphemeral('boardCursors', { connectionId: 'painter_A', scope: scopeA, userId: ADA, permissions: permsA, value: { x: 5, y: 5 } });
+      const updatedA = await db.publishEphemeral('boardCursors', { connectionId: 'painter_A', scope: scopeA, userId: ADA, permissions: permsA, value: { x: 5, y: 5 } });
       await overlayA.drain();
       await overlayB.drain();
-      const updated = overlayA.currentEntries().find((entry) => entry.key === 'painter_A');
+      const updated = overlayA.currentEntries().find((entry) => entry.key === updatedA.key);
       assertEqual(updated.value, { x: 5, y: 5 }, "board A's update applied after cross-room traffic");
       assert(
-        !overlayB.currentEntries().some((entry) => entry.key === 'painter_A'),
+        !overlayB.currentEntries().some((entry) => entry.key === updatedA.key),
         'overlay B still clean after further traffic',
       );
       return { a: overlayA.currentEntries().length, b: overlayB.currentEntries().length };

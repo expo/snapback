@@ -361,6 +361,72 @@ try {
     return { code: error.diagnostic.code };
   });
 
+  await suite.check('opaque connection refresh re-suggests wire identity and updates the successful overlay', async () => {
+    const label = 'readable_connection_label';
+    const originalGrant = { id: 'conn_opaque_original', token: 'sct_original' };
+    const successorGrant = { id: 'conn_opaque_successor', token: 'sct_successor' };
+    const openBodies = [];
+    const subscribeBodies = [];
+    const response = (status, body) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      text: async () => JSON.stringify(body),
+    });
+    globalThis.fetch = async (url, options = {}) => {
+      const path = new URL(String(url)).pathname;
+      const body = options.body ? JSON.parse(options.body) : null;
+      if (path === '/connection/open') {
+        openBodies.push(body);
+        const granted = openBodies.length === 1 ? originalGrant : successorGrant;
+        return response(200, {
+          connectionId: granted.id,
+          connectionToken: granted.token,
+        });
+      }
+      if (path === '/ephemeral/subscribe') {
+        subscribeBodies.push(body);
+        if (subscribeBodies.length === 1) {
+          return response(401, {
+            diagnostic: {
+              code: 'SNAPBACK_CONNECTION_TOKEN_INVALID',
+              message: 'force the one bounded grant refresh',
+            },
+          });
+        }
+        return response(200, snapshot(2));
+      }
+      throw new Error(`unexpected opaque-grant retry request: ${path}`);
+    };
+
+    const db = new SnapbackClient('http://stub');
+    const overlay = await db.subscribeEphemeral('presence', {
+      connectionId: label,
+      scope: { room: 'a' },
+    });
+    try {
+      assertEqual(openBodies, [
+        { connectionId: label },
+        {
+          connectionId: originalGrant.id,
+          previousToken: originalGrant.token,
+        },
+      ], 'refresh keeps the label-keyed cache but re-suggests the granted wire id');
+      assertEqual(
+        subscribeBodies.map((body) => body.connection_id),
+        [originalGrant.id, successorGrant.id],
+        'the retried subscribe uses the refreshed wire identity',
+      );
+      assertEqual(
+        overlay.grantedConnectionId,
+        successorGrant.id,
+        'the returned overlay exposes the exact successful retry identity',
+      );
+      return { opens: openBodies.length, subscribes: subscribeBodies.length };
+    } finally {
+      overlay.dispose();
+    }
+  });
+
   await suite.check('finite scoped-token carrier failures preserve durable custody', async () => {
     const authCoordinator = terminalCoordinatorSpy();
     globalThis.fetch = stubFetch(401, JSON.stringify({

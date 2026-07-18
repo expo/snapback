@@ -378,6 +378,7 @@ try {
     const scope = { boardId: 'board_live' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
     const connectionId = 'lanes_conn';
+    const connectionGrant = await db.connectionGrant(connectionId);
     const recorder = createRecorder();
 
     // Durable lane: a live query streaming over the managed socket.
@@ -404,7 +405,7 @@ try {
         request: {
           collection: 'boardCursors',
           scope,
-          connection_id: connectionId,
+          connection_id: connectionGrant.id,
           auth: SnapbackClient.auth(ADA, { permissions }),
         },
       });
@@ -415,7 +416,7 @@ try {
       // lane before the ephemeral lane within each tick — LLP 0013
       // §delivery-lanes; the kit preserves arrival order.)
       const clientB = new SnapbackClient(server.baseUrl, server.clientOptions);
-      await clientB.publishEphemeral('boardCursors', {
+      const publishedPresence = await clientB.publishEphemeral('boardCursors', {
         connectionId: 'presence_publisher',
         scope,
         userId: ADA,
@@ -429,11 +430,11 @@ try {
         'durable update on the shared socket',
       );
       await recorder.waitFor(
-        () => ephemeralFrames.some((frame) => frame.message?.Upsert?.entry?.key === 'presence_publisher'),
+        () => ephemeralFrames.some((frame) => frame.message?.Upsert?.entry?.key === publishedPresence.key),
         "client B's cursor on the shared socket",
       );
       const upsert = ephemeralFrames.find((frame) => frame.message?.Upsert)?.message.Upsert;
-      assertEqual(upsert.entry.key, 'presence_publisher', 'presence entry keyed by publishing connection');
+      assertEqual(upsert.entry.key, publishedPresence.key, 'presence entry keyed by the publishing connection grant');
       return { durableRows: handle.rows.length, ephemeralFrames: ephemeralFrames.length };
     } finally {
       offEphemeral();
@@ -602,24 +603,35 @@ try {
 
     const scope = { boardId: 'board_identity' };
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
+    const tabALabel = 'identity_tab_a';
+    const tabBLabel = 'identity_tab_b';
+    // Occupy tab A's readable suggestion through a different client. The
+    // tested client must receive a minted opaque id, proving every self/key
+    // assertion below survives label/grant divergence.
+    const collisionOwner = new SnapbackClient(server.baseUrl, server.clientOptions);
+    await collisionOwner.connectionGrant(tabALabel);
+    const grantA = await db.connectionGrant(tabALabel);
+    const grantB = await db.connectionGrant(tabBLabel);
+    assert(grantA.id !== tabALabel, 'colliding readable label receives an opaque grant id');
     const tabA = createRecorder();
     const tabB = createRecorder();
     const handleA = await db.liveQuery('listTodos', {
-      connectionId: 'tab_a', userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabA,
+      connectionId: tabALabel, userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabA,
     });
     const handleB = await db.liveQuery('listTodos', {
-      connectionId: 'tab_b', userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabB,
+      connectionId: tabBLabel, userId: ADA, transport: 'stream', stream: FAST_STREAM, ...tabB,
     });
-    const overlayA = await db.subscribeEphemeral('boardCursors', { connectionId: 'tab_a', scope, userId: ADA, permissions });
-    const overlayB = await db.subscribeEphemeral('boardCursors', { connectionId: 'tab_b', scope, userId: ADA, permissions });
+    const overlayA = await db.subscribeEphemeral('boardCursors', { connectionId: tabALabel, scope, userId: ADA, permissions });
+    const overlayB = await db.subscribeEphemeral('boardCursors', { connectionId: tabBLabel, scope, userId: ADA, permissions });
     try {
       await tabA.waitFor(() => handleA.connection === 'live', "tab A 'live'");
       await tabB.waitFor(() => handleB.connection === 'live', "tab B 'live'");
 
       // Connection-keyed identity: each tab's published cursor is keyed by
-      // ITS connection — self = "my connection", sourceClientId distinct.
-      await db.publishEphemeral('boardCursors', { connectionId: 'tab_a', scope, userId: ADA, permissions, value: { x: 1, y: 1 } });
-      await db.publishEphemeral('boardCursors', { connectionId: 'tab_b', scope, userId: ADA, permissions, value: { x: 2, y: 2 } });
+      // ITS granted wire connection — self/sourceClientId never use the
+      // readable label. Publish responses independently confirm both keys.
+      const publishedA = await db.publishEphemeral('boardCursors', { connectionId: tabALabel, scope, userId: ADA, permissions, value: { x: 1, y: 1 } });
+      const publishedB = await db.publishEphemeral('boardCursors', { connectionId: tabBLabel, scope, userId: ADA, permissions, value: { x: 2, y: 2 } });
       // Each tab's live socket owns its outbox; the lane registry routes the
       // socket-delivered ephemeral frames into the overlays (transport-
       // agnostic consumers) — wait for both cursors to arrive by push.
@@ -634,16 +646,22 @@ try {
       await waitEntries(overlayA, 'tab A');
       await waitEntries(overlayB, 'tab B');
       const keysA = overlayA.currentEntries().map((entry) => entry.key).sort();
-      assertEqual(keysA, ['tab_a', 'tab_b'], 'both cursors visible, keyed by publishing connection');
-      const selfA = overlayA.currentEntries().filter((entry) => entry.key === overlayA.connectionId);
-      const selfB = overlayB.currentEntries().filter((entry) => entry.key === overlayB.connectionId);
+      assertEqual(
+        keysA,
+        [publishedA.key, publishedB.key].sort(),
+        'both cursors visible, keyed by publishing connection grants',
+      );
+      assertEqual(overlayA.grantedConnectionId, grantA.id, 'tab A overlay exposes its exact opaque grant id');
+      assertEqual(overlayB.grantedConnectionId, grantB.id, 'tab B overlay exposes its exact grant id');
+      const selfA = overlayA.currentEntries().filter((entry) => entry.key === overlayA.grantedConnectionId);
+      const selfB = overlayB.currentEntries().filter((entry) => entry.key === overlayB.grantedConnectionId);
       assertEqual(selfA.length, 1, "tab A's self entry");
       assertEqual(selfB.length, 1, "tab B's self entry");
       assert(selfA[0].key !== selfB[0].key, 'sourceClientId distinct per connection');
 
       // Kill tab A's socket: tab B must not notice.
       const transitionsBefore = tabB.transitions.length;
-      db.liveStreamManager('tab_a').debugCloseSocket();
+      db.liveStreamManager(tabALabel).debugCloseSocket();
       await tabA.waitFor(() => tabA.transitions.some((t) => t.startsWith('live->')), "tab A's loss detected");
       const other = new SnapbackClient(server.baseUrl, server.clientOptions);
       await other.mutate('createTodo', { args: { title: 'while tab A is down' }, userId: ADA });
@@ -674,26 +692,26 @@ try {
     const permissions = [SnapbackClient.roomPermission('boardMember', scope)];
     const overlay = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_observer', scope, userId: ADA, permissions });
     try {
-      await db.publishEphemeral('boardCursors', {
+      const published = await db.publishEphemeral('boardCursors', {
         connectionId: 'ttl_publisher', scope, userId: ADA, permissions,
         value: { x: 9, y: 9 }, ttlMs: 250,
       });
       await overlay.drain();
-      assert(overlay.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'entry visible before TTL');
+      assert(overlay.currentEntries({ prune: false }).some((entry) => entry.key === published.key), 'entry visible before TTL');
 
       await new Promise((resolve) => setTimeout(resolve, 400)); // past TTL
       // Local aging: prune removes it from the overlay.
-      assert(!overlay.currentEntries().some((entry) => entry.key === 'ttl_publisher'), 'expired entry pruned locally');
+      assert(!overlay.currentEntries().some((entry) => entry.key === published.key), 'expired entry pruned locally');
 
       // Server truth: any room touch sweeps expired entries, so a FRESH
       // snapshot never re-exposes it...
       const fresh = await db.subscribeEphemeral('boardCursors', { connectionId: 'ttl_fresh', scope, userId: ADA, permissions });
-      assert(!fresh.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'expired entry absent from a fresh snapshot');
+      assert(!fresh.currentEntries({ prune: false }).some((entry) => entry.key === published.key), 'expired entry absent from a fresh snapshot');
       fresh.dispose();
       // ...and the original subscriber sees the authoritative removal, never
       // a re-appearance.
       await overlay.drain();
-      assert(!overlay.currentEntries({ prune: false }).some((entry) => entry.key === 'ttl_publisher'), 'expired entry never re-exposed');
+      assert(!overlay.currentEntries({ prune: false }).some((entry) => entry.key === published.key), 'expired entry never re-exposed');
       return { entries: overlay.currentEntries().length };
     } finally {
       overlay.dispose();

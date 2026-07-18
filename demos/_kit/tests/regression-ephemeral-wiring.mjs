@@ -121,12 +121,12 @@ try {
       assertEqual(subscribeCalls, 1, 'exactly one server subscription for the shared room');
 
       // Both observers keep receiving through the shared record.
-      await db.publishEphemeral('todoPresence', {
+      const sharedPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'viewer_shared', scope: { listId: 'shared' }, userId: ADA, value: { name: 'shared viewer' },
       });
       await waitFor(
-        () => cellsA.at(-1)?.entries.some((e) => e.key === 'viewer_shared')
-          && cellsB.at(-1)?.entries.some((e) => e.key === 'viewer_shared'),
+        () => cellsA.at(-1)?.entries.some((e) => e.key === sharedPublish.key)
+          && cellsB.at(-1)?.entries.some((e) => e.key === sharedPublish.key),
         'publish reaches both observers',
       );
       subA.dispose();
@@ -142,17 +142,17 @@ try {
     const sub = surface.provider.subscribeEphemeral('todoPresence', { listId: 'ttl_room' }, (cell) => cells.push(cell));
     try {
       await waitFor(() => cells.some((c) => c.status === 'ready'), 'ready map');
-      await db.publishEphemeral('todoPresence', {
+      const briefPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'brief_viewer', scope: { listId: 'ttl_room' }, userId: ADA,
         value: { name: 'brief' }, ttlMs: 300,
       });
       await waitFor(
-        () => cells.at(-1)?.entries.some((e) => e.key === 'brief_viewer'),
+        () => cells.at(-1)?.entries.some((e) => e.key === briefPublish.key),
         'entry visible before TTL',
       );
       // NO further activity: the expiry re-emit timer must remove it.
       await waitFor(
-        () => cells.at(-1)?.entries.every((e) => e.key !== 'brief_viewer'),
+        () => cells.at(-1)?.entries.every((e) => e.key !== briefPublish.key),
         'expired entry leaves the delivered cell without any publish/sweep',
         3_000,
       );
@@ -170,10 +170,10 @@ try {
     const sub = surface.provider.subscribeEphemeral('todoPresence', { listId: 'resync_room' }, (cell) => cells.push(cell));
     try {
       await waitFor(() => cells.some((c) => c.status === 'ready'), 'ready map');
-      await db.publishEphemeral('todoPresence', {
+      const steadyPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'steady_viewer', scope: { listId: 'resync_room' }, userId: ADA, value: { name: 'steady' },
       });
-      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === 'steady_viewer'), 'pre-resync entry');
+      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === steadyPublish.key), 'pre-resync entry');
 
       // The resync's FIRST fresh subscribe fails transiently; the bounded
       // backoff retry must recover.
@@ -211,11 +211,11 @@ try {
       }
       // Fresh entries flow after recovery (new epoch, applied — never
       // ignored_stale).
-      await db.publishEphemeral('todoPresence', {
+      const postResyncPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'post_resync_viewer', scope: { listId: 'resync_room' }, userId: ADA, value: { name: 'fresh' },
       });
       await waitFor(
-        () => cells.at(-1)?.entries.some((e) => e.key === 'post_resync_viewer'),
+        () => cells.at(-1)?.entries.some((e) => e.key === postResyncPublish.key),
         'fresh entries after recovery',
       );
       return { lastConnection: cells.at(-1).connection, entries: cells.at(-1).entries.map((e) => e.key) };
@@ -300,15 +300,15 @@ try {
 
     // The reused room is genuinely live: a publish still reaches the observer,
     // and holding it PAST the original expiry proves the timer was cancelled.
-    await db.publishEphemeral('todoPresence', {
+    const lingeringPublish = await db.publishEphemeral('todoPresence', {
       connectionId: 'linger_viewer', scope: { listId: 'linger_reuse' }, userId: ADA, value: { name: 'still here' },
     });
-    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'linger_viewer'), 'publish reaches the reused room');
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === lingeringPublish.key), 'publish reaches the reused room');
     await sleep(LINGER_MS + 150);
-    await db.publishEphemeral('todoPresence', {
+    const afterLingerPublish = await db.publishEphemeral('todoPresence', {
       connectionId: 'linger_viewer_2', scope: { listId: 'linger_reuse' }, userId: ADA, value: { name: 'after window' },
     });
-    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'linger_viewer_2'), 'room alive past the cancelled window');
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === afterLingerPublish.key), 'room alive past the cancelled window');
     assertEqual(lingerSubscribeCalls, 1, 'still the single original subscription');
     subSecond.dispose();
     return { subscribeCalls: lingerSubscribeCalls };
@@ -341,10 +341,10 @@ try {
     const subSecond = lingerSurface.provider.subscribeEphemeral('todoPresence', { listId: 'linger_expire' }, (cell) => second.push(cell));
     await waitFor(() => second.some((c) => c.status === 'ready'), 'post-expiry rebind ready');
     assertEqual(lingerSubscribeCalls, 2, 'rebind after expiry creates a fresh subscription');
-    await db.publishEphemeral('todoPresence', {
+    const freshPublish = await db.publishEphemeral('todoPresence', {
       connectionId: 'fresh_viewer', scope: { listId: 'linger_expire' }, userId: ADA, value: { name: 'fresh room' },
     });
-    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === 'fresh_viewer'), 'fresh room is live');
+    await waitFor(() => second.at(-1)?.entries.some((e) => e.key === freshPublish.key), 'fresh room is live');
     subSecond.dispose();
     return { subscribeCalls: lingerSubscribeCalls, receipt: { event: receipt.event, reason: receipt.reason, removed: receipt.removed } };
   });
@@ -376,10 +376,10 @@ try {
     const sub = surface.provider.subscribeEphemeral('todoPresence', { listId: 'restart_room' }, (cell) => cells.push(cell));
     try {
       await waitFor(() => cells.some((c) => c.status === 'ready'), 'ready map');
-      await db.publishEphemeral('todoPresence', {
+      const preRestartPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'restart_viewer_pre', scope: { listId: 'restart_room' }, userId: ADA, value: { name: 'pre-restart' },
       });
-      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === 'restart_viewer_pre'), 'pre-restart entry');
+      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === preRestartPublish.key), 'pre-restart entry');
 
       // Server restart: every subscription dies with its socket (diary 0007
       // close→disconnect) and NO in-band needs_resync ever arrives.
@@ -410,15 +410,15 @@ try {
       const staleIdx = cells.findIndex((c) => c.connection === 'stale');
       const firstLive = cells.slice(staleIdx).find((c) => c.connection === 'live');
       assert(
-        firstLive && firstLive.entries.every((e) => e.key !== 'restart_viewer_pre'),
+        firstLive && firstLive.entries.every((e) => e.key !== preRestartPublish.key),
         `first live cell after the outage must be the fresh snapshot, got: ${JSON.stringify(firstLive?.entries ?? null)}`,
       );
 
       // The probe's flip-condition check: a fresh publish reaches the room.
-      await db.publishEphemeral('todoPresence', {
+      const postRestartPublish = await db.publishEphemeral('todoPresence', {
         connectionId: 'restart_viewer_post', scope: { listId: 'restart_room' }, userId: ADA, value: { name: 'post-restart' },
       });
-      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === 'restart_viewer_post'), 'fresh publish arrives after the restart', 10_000);
+      await waitFor(() => cells.at(-1)?.entries.some((e) => e.key === postRestartPublish.key), 'fresh publish arrives after the restart', 10_000);
 
       assertEqual(maxOverlap, 1, 'no overlapping subscribes for one room (double-subscription guard)');
       return { cells: cells.length, lastConnection: cells.at(-1).connection, maxOverlap };

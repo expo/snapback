@@ -266,3 +266,49 @@ and was testing harness privilege rather than reconnection behavior. The React
 bootstrap had the same stale privileged fallback after an unknown-collection
 response, so it now uses `ensureApp({ schema })` directly, matching the
 Contract arm and keeping browser boot on the public D4 path.
+
+## 2026-07-17 — Self identity follows the opaque connection grant
+
+Local dev made a false assumption look like an invariant. The kit accepts a
+readable `connectionId` label and normally asks the local server to adopt it,
+so both client arms compared each presence entry key with that label to derive
+`self`. That works only while the suggestion is unclaimed. A collision—or the
+server's permanent mint-only containment posture—returns an opaque `conn_*`
+wire id, and connection-owned entries are keyed by that granted id. Both arms
+then rendered the publisher as a remote cursor.
+
+The shared overlay now carries `grantedConnectionId` from the exact successful
+subscribe attempt. It is set inside the grant-scoped request closure, so the
+kit's one token-refresh retry cannot leave stale identity metadata behind.
+Contract and the hand-wired React hook consume the same fact; an injected
+Contract client that omits it degrades `self` to false instead of guessing.
+The live provider conformance proof deliberately occupies tab A's readable
+suggestion first and observes two opaque `conn_*` entry keys, proving the
+previously hidden branch.
+
+The adversarial retry pass found a second version of the same assumption:
+grant refresh carried the previous token but re-suggested the readable label.
+Server idempotence indexes that token by the granted wire id, so a collided
+grant could rotate unexpectedly and leave an HTTP room registration behind on
+the predecessor connection. The grant opener now separates its label-keyed
+cache identity from its wire suggestion; refresh re-suggests the prior granted
+id, and a stubbed token-rejection proof also verifies that any legitimate
+successor replaces `grantedConnectionId` before the overlay escapes.
+
+This was a good comparison point between the arms. Contract needed one central
+adapter correction and every generated binding inherited it. React needed the
+same semantic correction in its explicit hook plus a hand-maintained ambient
+type update. The headless overlay is the useful common floor: exposing one
+authoritative transport fact there kept the two arms aligned without making
+either re-open or independently resolve a grant.
+
+The guide previously described the readable label as the lease key, which
+would have taught this bug back into new apps. The headless, Contract, React,
+ephemeral-state, and presence-recipe pages now distinguish the label from the
+granted wire id and name `overlay.grantedConnectionId` as the self key.
+
+Verification: the full `@snapback/contract` package suite passed; the React
+surface typecheck and production build passed; provider live conformance passed
+14/14 with forced label/grant divergence; and the cross-room overlay regression
+passed 1/1. The kit client error suite passed 73/73, including the opaque-grant
+refresh request and successful-overlay identity proof.

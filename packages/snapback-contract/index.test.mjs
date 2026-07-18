@@ -146,16 +146,41 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   const originalWarn = console.warn;
   let subscribeAttempts = 0;
   let overlayDisposed = 0;
+  let grantedConnectionId = 'conn_opaque_client_1';
+  let notifyOverlayChange = null;
   const overlay = {
-    currentEntries() {
-      return [{
-        key: 'client_1',
-        value: { x: 1, y: 2 },
-        receivedAtMs: Date.now(),
-        expiresAtMs: Date.now() + 10_000,
-      }];
+    // Force the authority fact to differ from the surface's readable label.
+    // Connection-keyed `self` must follow this opaque granted id.
+    get grantedConnectionId() {
+      return grantedConnectionId;
     },
-    onChange() {},
+    currentEntries() {
+      return [
+        {
+          key: 'conn_opaque_client_1',
+          value: { x: 1, y: 2 },
+          receivedAtMs: Date.now(),
+          expiresAtMs: Date.now() + 10_000,
+        },
+        {
+          key: 'readable_client_label',
+          value: { x: 3, y: 4 },
+          receivedAtMs: Date.now(),
+          expiresAtMs: Date.now() + 10_000,
+        },
+        {
+          // A malformed injected overlay must not turn absent self metadata
+          // into a self match through null === null.
+          key: null,
+          value: { x: 5, y: 6 },
+          receivedAtMs: Date.now(),
+          expiresAtMs: Date.now() + 10_000,
+        },
+      ];
+    },
+    onChange(listener) {
+      notifyOverlayChange = listener;
+    },
     dispose() {
       overlayDisposed += 1;
     },
@@ -197,6 +222,7 @@ async function waitFor(assertion, timeoutMs = 1_000) {
       }),
       queryName: 'listTodos',
       boundaryKey: 'todos',
+      connectionId: 'readable_client_label',
     });
   } finally {
     console.warn = originalWarn;
@@ -214,7 +240,26 @@ async function waitFor(assertion, timeoutMs = 1_000) {
 
   assert(cells.some((cell) => cell.status === 'error'));
   assert(subscribeAttempts >= 3);
-  assert.deepEqual(cells.at(-1).entries.map((entry) => entry.key), ['client_1']);
+  const opaqueEntry = cells.at(-1).entries.find((entry) => entry.key === 'conn_opaque_client_1');
+  const labelEntry = cells.at(-1).entries.find((entry) => entry.key === 'readable_client_label');
+  assert.deepEqual(
+    [opaqueEntry.sourceClientId, opaqueEntry.self],
+    ['conn_opaque_client_1', true],
+    'connection-keyed self and source identity follow the opaque granted id',
+  );
+  assert.deepEqual(
+    [labelEntry.sourceClientId, labelEntry.self],
+    ['readable_client_label', false],
+    'the readable label remains provenance but is not self',
+  );
+  grantedConnectionId = null;
+  const cellsBeforeMissingMetadata = cells.length;
+  notifyOverlayChange('updated');
+  await waitFor(() => assert(cells.length > cellsBeforeMissingMetadata));
+  assert(
+    cells.at(-1).entries.every((entry) => entry.self === false),
+    'missing granted identity fails closed, including for a malformed null entry key',
+  );
   disposeSource();
   surface.dispose();
   assert(overlayDisposed >= 1);

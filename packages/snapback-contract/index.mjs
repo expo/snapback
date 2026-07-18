@@ -2988,12 +2988,19 @@ function buildEphemeralWiring({
 
   const scopeKeyOf = (args) => JSON.stringify(Object.entries(args ?? {}).sort(([a], [b]) => (a < b ? -1 : 1)));
 
-  const selfKeyFor = (descriptor) => {
+  const selfKeyFor = (record, descriptor) => {
     switch (descriptor.keyMode) {
       case 'User':
         return userId ?? null;
       case 'Connection':
-        return connectionId;
+        // The surface connectionId is a readable kit label, not wire
+        // identity. The overlay captures the opaque grant id used by its
+        // successful subscribe, which is also the connection-owned lease key.
+        // Missing metadata on a non-kit injected client degrades to false.
+        //
+        // @ref LLP 0031#connection-capability-grants — labels and granted ids
+        //   may diverge after collision or mint-only containment.
+        return record?.overlay?.grantedConnectionId ?? null;
       default:
         // Session/Custom lease identity is not modeled by this kit client;
         // `self` degrades to false rather than guessing (LLP 0034 §4 / OQ6).
@@ -3016,6 +3023,7 @@ function buildEphemeralWiring({
     const connection = record.subscribed === false ? 'stale' : record.connection;
     const frozen = connection === 'stale' || connection === 'disconnected';
     const now = Date.now();
+    const selfKey = selfKeyFor(record, descriptor);
     return {
       status: 'ready',
       entries: record.overlay
@@ -3028,7 +3036,9 @@ function buildEphemeralWiring({
           expiresAt: entry.expiresAtMs,
           // The lease key IS the presence provenance (LLP 0034 §4).
           sourceClientId: entry.key,
-          self: entry.key === selfKeyFor(descriptor),
+          // Missing identity metadata on an injected/non-kit overlay is a
+          // fail-closed state, even if the injected entry key is malformed.
+          self: typeof selfKey === 'string' && entry.key === selfKey,
         }))
         .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0)),
       connection,

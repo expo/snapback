@@ -14,7 +14,8 @@
 // (toMapCell / scheduleExpiryReemit / resync re-subscribe) so the two arms
 // make the same product claims:
 // @ref LLP 0034#4 — the lease key IS the presence provenance; keyMode
-//   Connection makes `self` = (entry.key === our connectionId).
+//   Connection makes `self` compare with the opaque id granted to the
+//   successful subscribe, not the hook's readable connection label.
 // @ref LLP 0013#client-overlay-store — TTL pruning is local policy over
 //   server-stamped expiry; frozen (stale/disconnected) maps stop pruning.
 
@@ -206,7 +207,7 @@ export function useCursorRoom({ client, roomId, name, color }: RoomOptions): Cur
           updatedAt: entry.receivedAtMs,
           expiresAt: entry.expiresAtMs,
           sourceClientId: entry.key,
-          self: entry.key === connectionId,
+          self: entry.key === overlay.grantedConnectionId,
         }))
         .sort((a, b) => (a.key < b.key ? -1 : a.key > b.key ? 1 : 0));
       setStatus('ready');

@@ -16,6 +16,8 @@ declare module '*/_kit/client.mjs' {
 
   export interface EphemeralOverlay {
     entries: Map<string, unknown>;
+    /** Opaque wire id used as the key for connection-owned entries. */
+    readonly grantedConnectionId: string;
     publish(
       value: unknown,
       options?: { ttlMs?: number | null },
