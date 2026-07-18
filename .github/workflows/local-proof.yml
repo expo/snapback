@@ -30,6 +30,34 @@ jobs:
       - name: Verify checkout credentials were removed
         run: scripts/check-checkout-credentials
 
+      # The standard GitHub-hosted Linux runner exposes a 14 GiB workspace
+      # budget, while its image also preinstalls Android and .NET toolchains
+      # this Rust/JS proof never uses. The native Ibex clippy + test profiles
+      # can otherwise fill the runner before the in-proof Cargo cleanup point.
+      # These are exact image-owned paths on this fresh ephemeral VM; refuse
+      # early if reclaiming them still leaves too little room for the proof.
+      - name: Reclaim unused GitHub-hosted runner disk
+        shell: bash
+        run: |
+          set -euo pipefail
+          readonly ci_unused_paths=(
+            /usr/local/lib/android
+            /usr/share/dotnet
+            /usr/local/.ghcup
+          )
+          for ci_unused_path in "${ci_unused_paths[@]}"; do
+            if [[ -e "$ci_unused_path" ]]; then
+              sudo rm -rf --one-file-system -- "$ci_unused_path"
+            fi
+          done
+          readonly ci_available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'END { print $4 }')"
+          readonly ci_required_kib=$((20 * 1024 * 1024))
+          if (( ci_available_kib < ci_required_kib )); then
+            echo "SNAPBACK_CI_DISK_HEADROOM_LOW: ${ci_available_kib} KiB available after hosted-runner cleanup; ${ci_required_kib} KiB required" >&2
+            exit 1
+          fi
+          echo "[snapback-ci] ${ci_available_kib} KiB available for canonical proof"
+
       # ENG-24513: .node-version is the single exact Node runtime authority;
       # check-toolchain-authority asserts the active runtime matches it.
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0

@@ -99,6 +99,50 @@ assert.equal(actionCount, 14, 'the reviewed workflow action inventory changed; r
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+assert.match(
+  localProof,
+  /Reclaim unused GitHub-hosted runner disk/,
+  'canonical CI must reclaim image toolchains the native proof never uses',
+);
+const reclaimStepStart = localProof.indexOf('      - name: Reclaim unused GitHub-hosted runner disk');
+const reclaimStepEnd = localProof.indexOf('\n      - ', reclaimStepStart + 1);
+assert(reclaimStepStart >= 0 && reclaimStepEnd > reclaimStepStart, 'disk reclaim step block must be bounded');
+const reclaimStep = localProof.slice(reclaimStepStart, reclaimStepEnd);
+const reclaimPaths = /readonly ci_unused_paths=\(\n([\s\S]*?)\n\s*\)/.exec(reclaimStep)?.[1]
+  .split('\n')
+  .map((line) => line.trim())
+  .filter(Boolean);
+assert.deepEqual(
+  reclaimPaths,
+  ['/usr/local/lib/android', '/usr/share/dotnet', '/usr/local/.ghcup'],
+  'canonical CI disk reclaim must remain an exact reviewed path allowlist',
+);
+assert.match(
+  reclaimStep,
+  /sudo rm -rf --one-file-system -- "\$ci_unused_path"/,
+  'disk reclaim must remain variable-safe and filesystem-bounded',
+);
+assert.match(
+  reclaimStep,
+  /SNAPBACK_CI_DISK_HEADROOM_LOW/,
+  'canonical CI must fail early with a stable diagnostic when cleanup leaves inadequate disk',
+);
+assert.match(
+  reclaimStep,
+  /ci_required_kib=\$\(\(20 \* 1024 \* 1024\)\)/,
+  'canonical CI must retain 20 GiB of pre-proof headroom for native clippy/test artifacts',
+);
+for (const laterStep of [
+  'Cache Hermes Linux build',
+  'Cache Rust build',
+  'Install cargo-audit',
+  'Verify Snapback local proof',
+]) {
+  assert(
+    reclaimStepStart < localProof.indexOf(`- name: ${laterStep}`),
+    `disk reclaim must run before ${laterStep}`,
+  );
+}
 const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
 assert.match(
   localProofScript,
