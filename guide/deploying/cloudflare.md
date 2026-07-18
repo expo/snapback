@@ -9,8 +9,8 @@ examples: [demos/all-aboard, cloudflare/app/all-aboard.app.js]
 status: current
 targets: [cloudflare]
 maturity: partial
-reviewed: 2026-07-16
-reviewed-commit: a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8
+reviewed: 2026-07-17
+reviewed-commit: 069843fa72278a049e490233c68744a28c7fad70
 ---
 
 # Deploying the Cloudflare proof

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "1af4c69c29e4908357d64a3052ff42469b2a1f02"
+    "commit": "971860a9de4308303a77eafdee03d24e802a0fdb"
   },
   "nav": {
     ".": [
@@ -197,8 +197,8 @@
         "demos/_kit/tests/auth-invalidation-client.mjs"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "12f935d9ed0d1d10ca8cece952a20b015ceffd459873bec6fcef7cd6aea34aa9",
+      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
+      "sha256": "e0e69ca588f6c7b6ae33ac0456e83b2fbb10a0b2647d4698761e471b2a47d455",
       "snippets": [
         {
           "lang": "js",
@@ -378,8 +378,8 @@
         "demos/all-aboard"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "224801b8fa54d89063e22df0d900e4fe54cccf6c6f666295ddceb43e4d84de06",
+      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
+      "sha256": "8a69c7f7d6da15cbd894443254c4262087610600f8530ad3717db13c26c856b1",
       "snippets": [
         {
           "lang": "js",
@@ -549,8 +549,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "6790cea3a7a1a8575831c579b27e69187aa0c1aa71fd6b1030df3673c759b945",
+      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
+      "sha256": "ad84ffd329e6df1dc0a68aeb92be711f69673c8b711ef992a8ee4f2eac132914",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -733,9 +733,9 @@
         "demos/all-aboard",
         "cloudflare/app/all-aboard.app.js"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "a8bfff367ed5e203faaa78a56a39ab42f5d2cfa8",
-      "sha256": "c5488118d59b6bb2ad38dc9bb84a2dc57e6a3b62f601e49a3cc476f90220f4c0",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "069843fa72278a049e490233c68744a28c7fad70",
+      "sha256": "2021fcce1b856fd1dc867033fff69a9d86eaee72bf5054e01e0e93e7c244aae4",
       "snippets": [
         {
           "lang": "js",
@@ -962,8 +962,8 @@
         "demos/todo"
       ],
       "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "c74385dd0186e3a683dd0f0e9c0f44d3e98a6e07562913795e5820011cb69a2a",
+      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
+      "sha256": "f9a269f8957b9b6a34d061f6820dbc0527a2b15aa16a26a20e1c551045953f47",
       "snippets": [
         {
           "lang": "json",
@@ -1356,5 +1356,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2c839edae1766309145826ccf9110555443751d994f3fc4872ea51862bb6554d"
+  "contentHash": "f1bddc848c25a780b11468da16cb8b17537c45ad0ea899a7ca887d543841473b"
 }

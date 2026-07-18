@@ -1,6 +1,6 @@
 # Keep All Aboard browser modules out of the API proxy
 
-**Status:** In Progress
+**Status:** Closed
 **Severity:** P1
 **Systems:** All Aboard demo, Contract/Exact, Vite, Acceptance testing, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever
@@ -28,7 +28,7 @@ staged. The committed checkout therefore needed an independent repair.
 - A focused source-routing regression and the 34-check browser lane pass.
 - The true cold-clone workflow passes from the pushed commit.
 
-## Implemented; remote verification pending
+## Resolution
 
 Target-independent URL and client-option selection now lives in
 `target-profile.ts`. The browser entry imports a safely named `web-target.ts`
@@ -40,5 +40,8 @@ direct web-entry import whose root module name would fall under the broad
 `/snapback` proxy and execute both target adapters under local and Cloudflare
 profiles.
 
-Keep this ticket open until the replacement cold-clone workflow proves the
-committed broad-prefix configuration from a clean checkout.
+GitHub Actions run 29631948931 then proved commit
+`069843fa72278a049e490233c68744a28c7fad70` from a clean checkout: registry
+install, the production Contract build, and all 34 browser acceptance checks
+passed. The committed broad-prefix proxy configuration was in force; the
+user-owned narrower local configuration remained unstaged and untouched.

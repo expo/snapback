@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
 ---
 
 # Actions and outbound fetch
@@ -101,6 +101,10 @@ action error remains a structured diagnostic envelope. Never convert
 configuration, permission, or timeout failures into a false success merely to
 keep a UI quiet.
 
+Await or return every asynchronous branch whose outcome matters. The runtime
+treats an unhandled detached rejection as a handler failure; it cannot be
+reclassified as successful settlement by replacing reachable Promise hooks.
+
 ## Anti-patterns
 
 - **Do not fetch inside a query or mutation.** The ambient-capability gate
@@ -111,3 +115,5 @@ keep a UI quiet.
   validation, receipts, and live delivery share one commit.
 - **Do not enable egress globally as a convenience.** Turn it on only for the
   deployment that needs actions with network access.
+- **Do not launch unobserved Promise chains.** Await or return them so their
+  failure remains part of the handler's explicit result.
