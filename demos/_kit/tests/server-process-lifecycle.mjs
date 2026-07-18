@@ -3,6 +3,7 @@
 // suite; a tiny child speaks the same ready + /health identity handshake.
 
 import { strict as assert } from 'node:assert';
+import { spawn } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:http';
@@ -13,6 +14,7 @@ import { __startServerForTests, stopChild } from '../server-process.mjs';
 
 const scratch = mkdtempSync(join(tmpdir(), 'server-process-lifecycle-'));
 const fixture = join(scratch, 'fixture-server.cjs');
+const signalOwnerFixture = join(scratch, 'signal-owner-parent.mjs');
 const EXPECTED = {
   crateVersion: '7.8.9-test',
   gitCommit: '0123456789abcdef0123456789abcdef01234567',
@@ -36,6 +38,7 @@ const server = createServer((req, res) => {
     ok: true,
     target: 'local-dev-sqlite-ibex',
     binary: { ...expected, buildProfile: 'debug', startupNonce: nonce },
+    pid: process.pid,
     resistantDescendantPid: resistantDescendant?.pid ?? null,
   }));
 });
@@ -56,7 +59,14 @@ const listen = () => server.listen(bindPort, '127.0.0.1', () => {
   writeFileSync(tmp, JSON.stringify(descriptor));
   renameSync(tmp, readyFile);
 });
-if (process.env.FIXTURE_RESISTANT_DESCENDANT === '1') {
+if (process.env.FIXTURE_EXIT_WITH_LATE_TAIL === '1') {
+  writeFileSync(1, 'startup leader exited before readiness\n');
+  spawn(process.execPath, ['-e', [
+    'const { writeFileSync } = require("node:fs");',
+    'setTimeout(() => writeFileSync(2, "late inherited-stdio diagnostic tail\\n"), 250);',
+  ].join(' ')], { stdio: ['ignore', 'inherit', 'inherit'] });
+  process.exit(17);
+} else if (process.env.FIXTURE_RESISTANT_DESCENDANT === '1') {
   resistantDescendant = spawn(process.execPath, ['-e', [
     'process.on("SIGTERM", () => {});',
     'process.send("ready");',
@@ -70,6 +80,41 @@ if (process.env.FIXTURE_RESISTANT_DESCENDANT === '1') {
 const stop = () => server.close(() => process.exit(0));
 process.on('SIGTERM', stop);
 process.on('SIGINT', stop);
+`);
+
+writeFileSync(signalOwnerFixture, String.raw`
+const { __startServerForTests } = await import(process.env.SERVER_PROCESS_MODULE_URL);
+const expected = JSON.parse(process.env.FIXTURE_EXPECTED);
+const fixture = process.env.FIXTURE_SERVER_PATH;
+const server = await __startServerForTests({
+  port: 0,
+  cwd: process.env.FIXTURE_CWD,
+  startupTimeoutMs: 2_000,
+}, {
+  expectedIdentity: expected,
+  preflight: () => ({}),
+  launchSpec: ({ readyFile, cwd, env }) => ({
+    command: process.execPath,
+    args: [fixture, readyFile],
+    cwd,
+    env: {
+      ...env,
+      FIXTURE_EXPECTED: JSON.stringify(expected),
+      FIXTURE_RESISTANT_DESCENDANT: '1',
+    },
+  }),
+  stopOptions: {
+    graceMs: 25,
+    processGroupTimeoutMs: 1_000,
+    leaderCloseTimeoutMs: 1_000,
+  },
+});
+const health = await fetch(server.baseUrl + '/health').then((response) => response.json());
+process.send({
+  serverPid: health.pid,
+  descendantPid: health.resistantDescendantPid,
+});
+setInterval(() => {}, 1_000);
 `);
 
 const deps = {
@@ -108,6 +153,59 @@ function fakeChild(pid) {
   child.signalCode = null;
   child.kill = () => false;
   return child;
+}
+
+function waitForChildMessage(child, timeoutMs = 5_000) {
+  return new Promise((resolveMessage, rejectMessage) => {
+    const timer = setTimeout(() => finish(
+      rejectMessage,
+      new Error(`child did not publish its lifecycle fixture message within ${timeoutMs}ms`),
+    ), timeoutMs);
+    const onMessage = (message) => finish(resolveMessage, message);
+    const onError = (error) => finish(rejectMessage, error);
+    const onClose = (code, signal) => finish(
+      rejectMessage,
+      new Error(`child closed before its lifecycle fixture message (${code ?? signal})`),
+    );
+    const finish = (settle, value) => {
+      clearTimeout(timer);
+      child.removeListener('message', onMessage);
+      child.removeListener('error', onError);
+      child.removeListener('close', onClose);
+      settle(value);
+    };
+    child.once('message', onMessage);
+    child.once('error', onError);
+    child.once('close', onClose);
+  });
+}
+
+function waitForChildClose(child, timeoutMs = 5_000) {
+  return new Promise((resolveClose, rejectClose) => {
+    const timer = setTimeout(() => finish(
+      rejectClose,
+      new Error(`child did not close within ${timeoutMs}ms`),
+    ), timeoutMs);
+    const onClose = (code, signal) => finish(resolveClose, { code, signal });
+    const onError = (error) => finish(rejectClose, error);
+    const finish = (settle, value) => {
+      clearTimeout(timer);
+      child.removeListener('close', onClose);
+      child.removeListener('error', onError);
+      settle(value);
+    };
+    child.once('close', onClose);
+    child.once('error', onError);
+  });
+}
+
+function forceKillProcessGroup(pid) {
+  if (!Number.isInteger(pid) || process.platform === 'win32') return;
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch (error) {
+    if (error.code !== 'ESRCH') throw error;
+  }
 }
 
 const previousToken = process.env.SNAPBACK_ADMIN_TOKEN;
@@ -237,6 +335,30 @@ try {
     'immediate exit is reported before readiness',
   );
 
+  await assert.rejects(
+    __startServerForTests({ port: 0, cwd: scratch, startupTimeoutMs: 1_000 }, {
+      ...deps,
+      startupExitDrainTimeoutMs: 1_000,
+      launchSpec: ({ readyFile, cwd, env }) => ({
+        command: process.execPath,
+        args: [fixture, readyFile],
+        cwd,
+        env: {
+          ...env,
+          FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+          FIXTURE_EXIT_WITH_LATE_TAIL: '1',
+        },
+      }),
+    }),
+    (error) => {
+      assert.match(error.message, /exited before verified readiness \(17\)/);
+      assert.match(error.message, /startup leader exited before readiness/);
+      assert.match(error.message, /late inherited-stdio diagnostic tail/);
+      return true;
+    },
+    'pre-readiness exit waits boundedly for inherited stdio before snapshotting diagnostics',
+  );
+
   // Same requested port, simultaneous helpers: every child asks the OS to
   // bind port zero and proves its own nonce, so probe-to-bind races disappear.
   const parallel = await Promise.all(Array.from({ length: 4 }, () =>
@@ -277,6 +399,59 @@ try {
     // No post-stop grace sleep: the awaited stop itself must include the
     // bounded ESRCH proof for the TERM-resistant descendant's process group.
     assertPidGone(descendantPid, 'awaited stop leaves no TERM-resistant descendant');
+
+    // A test parent terminated by the runner must not strand the detached
+    // server groups it owns. Run that path in a disposable parent so this
+    // suite can observe both native signal termination and tree cleanup.
+    for (const terminationSignal of ['SIGINT', 'SIGTERM']) {
+      const signalOwner = spawn(process.execPath, [signalOwnerFixture], {
+        cwd: scratch,
+        env: {
+          ...process.env,
+          SERVER_PROCESS_MODULE_URL: new URL('../server-process.mjs', import.meta.url).href,
+          FIXTURE_SERVER_PATH: fixture,
+          FIXTURE_CWD: scratch,
+          FIXTURE_EXPECTED: JSON.stringify(EXPECTED),
+        },
+        stdio: ['ignore', 'pipe', 'pipe', 'ipc'],
+      });
+      let signalOwnerLog = '';
+      signalOwner.stdout.on('data', (chunk) => { signalOwnerLog += chunk; });
+      signalOwner.stderr.on('data', (chunk) => { signalOwnerLog += chunk; });
+      let signalOwnedPids = null;
+      try {
+        signalOwnedPids = await waitForChildMessage(signalOwner);
+        assert(Number.isInteger(signalOwnedPids.serverPid), JSON.stringify(signalOwnedPids));
+        assert(Number.isInteger(signalOwnedPids.descendantPid), JSON.stringify(signalOwnedPids));
+        process.kill(signalOwnedPids.serverPid, 0);
+        process.kill(signalOwnedPids.descendantPid, 0);
+
+        const signalOwnerClose = waitForChildClose(signalOwner);
+        assert.equal(
+          signalOwner.kill(terminationSignal),
+          true,
+          `test parent accepted ${terminationSignal}`,
+        );
+        const closed = await signalOwnerClose;
+        assert.equal(closed.code, null, `signal owner exited by code; log:\n${signalOwnerLog}`);
+        assert.equal(
+          closed.signal,
+          terminationSignal,
+          `signal owner lost ${terminationSignal} semantics; log:\n${signalOwnerLog}`,
+        );
+        assertPidGone(signalOwnedPids.serverPid, `${terminationSignal} owner leaves no server leader`);
+        assertPidGone(
+          signalOwnedPids.descendantPid,
+          `${terminationSignal} owner leaves no TERM-resistant descendant`,
+        );
+        assert.doesNotMatch(signalOwnerLog, /signal cleanup failed|cleanup not attested/);
+      } finally {
+        if (signalOwner.exitCode === null && signalOwner.signalCode === null) {
+          signalOwner.kill('SIGKILL');
+        }
+        forceKillProcessGroup(signalOwnedPids?.serverPid);
+      }
+    }
   }
 
   // Fake Windows completion: leader close alone must not resolve stop(). The

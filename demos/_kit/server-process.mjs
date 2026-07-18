@@ -207,7 +207,7 @@ async function startServerWithDeps({
   // close event is stronger than exit: it proves the leader's stdio handles
   // have drained, and retaining it here prevents stop() from missing an early
   // close that happens before teardown begins.
-  trackLeaderClose(child);
+  const closeTracker = trackLeaderClose(child);
   let log = '';
   let spawnError = null;
   const appendLog = (chunk) => {
@@ -219,6 +219,13 @@ async function startServerWithDeps({
   child.once('error', (error) => { spawnError = error; });
 
   const cleanup = () => rmSync(readyDir, { recursive: true, force: true });
+  const ownership = ownServerChild(async () => {
+    try {
+      await stopChild(child, deps.stopOptions);
+    } finally {
+      cleanup();
+    }
+  });
   const deadline = Date.now() + startupTimeoutMs; // first run may compile
   try {
     while (Date.now() < deadline) {
@@ -226,8 +233,19 @@ async function startServerWithDeps({
         throw new Error(`snapback server spawn failed: ${spawnError.message}`);
       }
       if (child.exitCode !== null || child.signalCode !== null) {
+        // ChildProcess `exit` can precede `close` while inherited stdout or
+        // stderr is still draining. Give that tail a bounded chance to land
+        // before freezing the bounded diagnostic log (ENG-24378 follow-up).
+        const drain = await waitForLeaderClose(
+          closeTracker,
+          deps.startupExitDrainTimeoutMs ?? 1_000,
+        );
+        const drainNote = drain.ok
+          ? ''
+          : `\n[startup log may be incomplete: ${drain.error}]`;
         throw new Error(
-          `snapback server exited before verified readiness (${child.exitCode ?? child.signalCode}):\n${log}`,
+          `snapback server exited before verified readiness (${child.exitCode ?? child.signalCode}):\n` +
+            `${log}${drainNote}`,
         );
       }
       const ready = readReadyDescriptor(readyFile);
@@ -251,7 +269,7 @@ async function startServerWithDeps({
             impersonationCapability,
             stop: () => {
               if (!stopPromise) {
-                stopPromise = stopChild(child, deps.stopOptions).finally(cleanup);
+                stopPromise = ownership.stop();
               }
               return stopPromise;
             },
@@ -266,15 +284,13 @@ async function startServerWithDeps({
     throw new Error(`snapback server did not publish verified readiness within ${startupTimeoutMs}ms:\n${log}`);
   } catch (error) {
     try {
-      await stopChild(child, deps.stopOptions);
+      await ownership.stop();
     } catch (cleanupError) {
       throw new AggregateError(
         [error, cleanupError],
         `${error.message}; spawned server cleanup failed: ${cleanupError.message}`,
         { cause: error },
       );
-    } finally {
-      cleanup();
     }
     throw error;
   }
@@ -324,7 +340,8 @@ function readSpawnedImpersonationCapability(ready, readyFile) {
 function resolveTestAdminToken(env) {
   // Server-backed demo tests talk through SnapbackClient, not the CLI that can
   // discover minted token files. Give the child an explicit local token and
-  // mirror it into this process so clients created after startServer can use it.
+  // return it on the server handle so clients can opt into admin operations
+  // without mutating or broadly propagating the parent process environment.
   const explicit = env?.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN;
   if (explicit && explicit.length > 0) return explicit;
   return `sbat_test_${randomUUID().replace(/-/g, '')}`;
@@ -489,6 +506,101 @@ async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl, expected
     };
   }
   return { ok: true };
+}
+
+// @ref LLP 0010#required-tool-surfaces — parent-signal shutdown retains the
+// same bounded, attested process-tree teardown as an explicit test cleanup.
+// startServer launches detached process groups so ordinary test completion can
+// await a strict tree proof. Node's default SIGINT/SIGTERM behavior would skip
+// that proof and strand those groups, so all live helpers share one signal
+// owner. Normal stop() errors still reject their caller; signal-time failures
+// are aggregated and printed before the original signal is re-delivered.
+const ownedServerChildren = new Set();
+let ownedServerSignalShutdown = null;
+let ownedServerSignalHandlersInstalled = false;
+
+const ownedServerSignalHandlers = {
+  SIGINT: () => beginOwnedServerSignalShutdown('SIGINT'),
+  SIGTERM: () => beginOwnedServerSignalShutdown('SIGTERM'),
+};
+
+function installOwnedServerSignalHandlers() {
+  if (ownedServerSignalHandlersInstalled) return;
+  ownedServerSignalHandlersInstalled = true;
+  process.on('SIGINT', ownedServerSignalHandlers.SIGINT);
+  process.on('SIGTERM', ownedServerSignalHandlers.SIGTERM);
+}
+
+function removeOwnedServerSignalHandlers() {
+  if (!ownedServerSignalHandlersInstalled) return;
+  ownedServerSignalHandlersInstalled = false;
+  process.removeListener('SIGINT', ownedServerSignalHandlers.SIGINT);
+  process.removeListener('SIGTERM', ownedServerSignalHandlers.SIGTERM);
+}
+
+function ownServerChild(stopAction) {
+  let stopPromise = null;
+  const ownership = {
+    stop() {
+      if (!stopPromise) {
+        stopPromise = Promise.resolve()
+          .then(stopAction)
+          .finally(() => {
+            ownedServerChildren.delete(ownership);
+            if (ownedServerChildren.size === 0 && !ownedServerSignalShutdown) {
+              removeOwnedServerSignalHandlers();
+            }
+          });
+      }
+      return stopPromise;
+    },
+  };
+  ownedServerChildren.add(ownership);
+  installOwnedServerSignalHandlers();
+  return ownership;
+}
+
+function beginOwnedServerSignalShutdown(signal) {
+  if (ownedServerSignalShutdown) {
+    // A second signal is the operator's force-exit request. Restore native
+    // handling before re-delivery instead of starting overlapping cleanups.
+    removeOwnedServerSignalHandlers();
+    redispatchOwnedServerSignal(signal);
+    return;
+  }
+
+  ownedServerSignalShutdown = { signal };
+  void finishOwnedServerSignalShutdown(signal);
+}
+
+async function finishOwnedServerSignalShutdown(signal) {
+  const failures = [];
+  // A child registered by an already-running startup continuation while an
+  // earlier batch settles joins the next batch; no owned tree is omitted.
+  while (ownedServerChildren.size > 0) {
+    const owned = [...ownedServerChildren];
+    const results = await Promise.allSettled(owned.map((ownership) => ownership.stop()));
+    failures.push(...results
+      .filter((result) => result.status === 'rejected')
+      .map((result) => result.reason));
+  }
+  if (failures.length > 0) {
+    console.error(new AggregateError(
+      failures,
+      `snapback signal cleanup failed for ${failures.length} owned server process tree(s)`,
+    ));
+  }
+  removeOwnedServerSignalHandlers();
+  redispatchOwnedServerSignal(signal);
+}
+
+function redispatchOwnedServerSignal(signal) {
+  try {
+    process.kill(process.pid, signal);
+  } catch (error) {
+    console.error(`snapback could not re-deliver ${signal} after server cleanup: ${error.message}`);
+    process.exitCode = 1;
+  }
 }
 
 const leaderCloseTrackers = new WeakMap();
