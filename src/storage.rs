@@ -570,6 +570,16 @@ pub struct ClientMutationIdentity {
     pub input_fingerprint: String,
 }
 
+struct RetainedClientMutationRow {
+    function: String,
+    auth_fingerprint: String,
+    authority_instance_id: Option<String>,
+    input_fingerprint: String,
+    output_json: String,
+    settled_version: SqlValue,
+    settled_version_exact: SqlValue,
+}
+
 struct BufferedCommitOptions<'a> {
     ctx_ledger: Option<CtxAnswerLedger>,
     apply: bool,
@@ -1554,15 +1564,7 @@ impl LocalDatabase {
     ) -> SnapbackResult<Option<MutationOutput>> {
         validate_client_mutation_identity(identity)?;
         with_pinned_read_snapshot(&self.conn, |conn| {
-            let row: Option<(
-                String,
-                String,
-                Option<String>,
-                String,
-                String,
-                SqlValue,
-                SqlValue,
-            )> = conn
+            let row: Option<RetainedClientMutationRow> = conn
                 .query_row(
                     "SELECT function, auth_fingerprint, authority_instance_id,
                         input_fingerprint, output_json, settled_version,
@@ -1570,27 +1572,27 @@ impl LocalDatabase {
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                     params![identity.id],
                     |row| {
-                        Ok((
-                            row.get(0)?,
-                            row.get(1)?,
-                            row.get(2)?,
-                            row.get(3)?,
-                            row.get(4)?,
-                            row.get(5)?,
-                            row.get(6)?,
-                        ))
+                        Ok(RetainedClientMutationRow {
+                            function: row.get(0)?,
+                            auth_fingerprint: row.get(1)?,
+                            authority_instance_id: row.get(2)?,
+                            input_fingerprint: row.get(3)?,
+                            output_json: row.get(4)?,
+                            settled_version: row.get(5)?,
+                            settled_version_exact: row.get(6)?,
+                        })
                     },
                 )
                 .optional()?;
-            let Some((
+            let Some(RetainedClientMutationRow {
                 function,
-                retained_auth,
-                retained_authority,
-                retained_input,
+                auth_fingerprint: retained_auth,
+                authority_instance_id: retained_authority,
+                input_fingerprint: retained_input,
                 output_json,
                 settled_version,
-                exact_settled_version,
-            )) = row
+                settled_version_exact: exact_settled_version,
+            }) = row
             else {
                 return Ok(None);
             };
