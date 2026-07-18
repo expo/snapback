@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
+**Revised:** 2026-07-17 (E2/L6 completeness and storage-ordering closure: buffered query overlays capture the exact overfetch and touched rows they consume; direct/live/in-memory query invocations pin their complete logical read view; query dependencies carry inseparable snapshot cursors; and SQLite allocates app commit versions only after its writer reservation). 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
 internal invalidation, per-subscription fan-out isolation, and receipt
 publication are distinct cuts; publication failure cannot recast a committed
 write as rejected). 2026-07-17 (L2 owned-cleanup failure closure: maintenance retains
@@ -557,7 +557,11 @@ recommended staging:
   this invocation's buffered writes over storage (`apply_buffered_to_point`,
   `merge_buffered_into_query`), reusing the live matcher's
   `row_matches_query_filters`/`sort_key`/`compare_sort_keys` (LLP 0020's one
-  extractor); test `e2_handler_reads_its_own_buffered_writes`.
+  extractor); test `e2_handler_reads_its_own_buffered_writes`. **Hardened
+  2026-07-17:** the buffered-query path captures the exact bounded overfetch
+  consumed by the merge plus a point dependency for every touched id. The
+  merge is pure over those captured rows, so no later uncaptured storage read
+  can influence the handler result.
 - **E3 — Host-plan read capture → host-plan isolation decision.** The original
   framing ("host-plan mutations capture reads server-side like Ibex handlers do,
   ending the trust-the-client asymmetry"; done-when: "a host-plan conflict test
@@ -798,7 +802,11 @@ change the concurrency architecture and should land as one reviewed arc.
   permission epochs come from `Arc<RwLock<…>>` snapshots refreshed
   post-commit under the global mutex; epochs are cloned before the pin (the
   conservative direction). In-memory instances (no WAL) fall back to the
-  serialized write lane. **Measured (M1 re-run, release, one machine):** a
+  serialized write lane. **Completed across fallback lanes 2026-07-17:** the
+  direct-library, live-subscription, and in-memory query entry point now wraps
+  the whole invocation in the same deferred snapshot, including membership
+  dependency construction; every smaller head-bound storage read also pins its
+  reported head and rows together. **Measured (M1 re-run, release, one machine):** a
   read during a busy 400 ms write drops from **~305 000 µs** (queued behind
   the mutex — the pre-arc path, measured in the same build) to
   **~4 300–4 600 µs** on the read lane (≈ the query's own fresh-VM cost,
@@ -909,9 +917,10 @@ change the concurrency architecture and should land as one reviewed arc.
     pinned at start (the first statement reads `_snapback_version`), so the
     handler's entire execution — host-plan SQL or an Ibex eval making many
     `ctx.db` host calls — observes a single WAL snapshot, and the reported
-    `version` comes from the same snapshot as the rows. This replaces the
-    mutex-serialized version-after-rows read (`LocalDatabase::query`), which
-    stays as-is on the write lane where the mutex still serializes.
+    `version` comes from the same snapshot as the rows. As of 2026-07-17 the
+    serialized live/in-memory fallback also creates one outer deferred
+    transaction for a complete query invocation; it no longer relies on the
+    mutex to make separate autocommit version/row statements appear atomic.
   - **Ordering rule:** permission epochs are snapshotted **before** the data
     snapshot pins. Recorded-epoch-older-than-data at worst conflicts/resyncs
     conservatively; the reverse order could label pre-bump data with a

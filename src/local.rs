@@ -7760,7 +7760,7 @@ impl LocalSnapback {
     pub(crate) fn authorization_reservation_snapshot(
         &self,
     ) -> SnapbackResult<(u64, crate::storage::AuthorizationVersion)> {
-        Ok((self.db.current_version()?, self.db.authorization_version()?))
+        self.db.authorization_reservation_snapshot()
     }
 
     pub(crate) fn authorization_commit_preflight_for_changes(
@@ -11305,11 +11305,6 @@ impl LocalSnapback {
             return Ok(None);
         }
 
-        let fresh_table_version = match self.db.table_change_version(&plan.table) {
-            Ok(version) => version,
-            Err(error) => return Ok(Some(DeltaFanout::Failed(error))),
-        };
-
         let wire_ops: Vec<LiveDeltaWireOp> = ops
             .iter()
             .map(|op| LiveDeltaWireOp {
@@ -11344,8 +11339,9 @@ impl LocalSnapback {
 
         // Maintain this subscription's membership by applying the ops to its
         // captured Query dependency — no re-query. Add/remove change the id
-        // set; update leaves membership unchanged. Refresh the dependency's
-        // table-change version so the matcher's next affected-check is accurate.
+        // set; update leaves membership unchanged. The exact applied commit
+        // frame is a conservative cursor inseparable from these ops; sampling a
+        // later table head could skip a sibling writer the delta never applied.
         let enqueue = {
             let _publication = admission.effect_guard("live delta publication")?;
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
@@ -11375,7 +11371,7 @@ impl LocalSnapback {
                         }
                     }
                 }
-                dependency.version = Some(fresh_table_version);
+                dependency.version = Some(frame_version);
             }
             if subscription.authorization.is_some() {
                 let authorization = self
@@ -12251,6 +12247,19 @@ fn execute_query_invocation(
     prepared: &PreparedInvocation,
     warm_vms: Option<&crate::warm_vm::WarmVmPool>,
 ) -> SnapbackResult<QueryInvocation> {
+    if let DbRead::Live(live) = db {
+        return live.with_pinned_read_view(|db| {
+            execute_query_invocation(
+                function,
+                name,
+                db,
+                permission_epochs,
+                input,
+                prepared,
+                warm_vms,
+            )
+        });
+    }
     prepared.validate_admission("query execution")?;
     let invocation = match (&function.kind, &function.runtime) {
         (
@@ -13101,6 +13110,77 @@ mod tests {
             .prepare_auth_provision(EnsureAppMode::Dev, Some(another_schema), None, None)
             .unwrap_err();
         assert_eq!(error.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
+    }
+
+    #[test]
+    fn authorization_reservation_data_and_auth_frontiers_share_one_snapshot() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("authorization-pair.sqlite3");
+        let mut reader = LocalSnapback::open(&path).expect("open reader");
+        reader
+            .apply_schema(SchemaManifest {
+                tables: vec![TableManifest {
+                    name: "permissions".to_owned(),
+                    fields: vec![FieldManifest {
+                        name: "subject".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    }],
+                    indexes: Vec::new(),
+                    syncable: true,
+                    permission_backing: true,
+                    permission_fields: None,
+                    membership: None,
+                }],
+                ..SchemaManifest::default()
+            })
+            .expect("apply permission schema");
+        let baseline = reader
+            .authorization_reservation_snapshot()
+            .expect("baseline authorization pair");
+
+        let (reached_tx, reached_rx) = std::sync::mpsc::channel();
+        let (release_tx, release_rx) = std::sync::mpsc::channel();
+        let _hook = crate::storage::set_storage_read_snapshot_debug_hook(
+            &reader.db, reached_tx, release_rx,
+        );
+        let writer_path = path.clone();
+        let writer = std::thread::spawn(move || {
+            reached_rx
+                .recv_timeout(std::time::Duration::from_secs(5))
+                .expect("reader pins the predecessor data head");
+            let mut writer = LocalSnapback::open(writer_path).expect("open sibling writer");
+            writer
+                .db
+                .seed_with_authorization(SeedData {
+                    tables: BTreeMap::from([(
+                        "permissions".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), json!("permission")),
+                            ("subject".to_owned(), json!("user")),
+                        ])],
+                    )]),
+                })
+                .expect("commit authorization-affecting sibling write");
+            let successor = writer
+                .authorization_reservation_snapshot()
+                .expect("successor authorization pair");
+            release_tx.send(()).expect("release pinned reader");
+            successor
+        });
+
+        let pinned = reader
+            .authorization_reservation_snapshot()
+            .expect("snapshot-bound authorization pair");
+        let successor = writer.join().expect("writer joins");
+        assert_eq!(pinned, baseline);
+        assert_eq!(successor.0, baseline.0 + 1);
+        assert_eq!(successor.1.incarnation, baseline.1.incarnation);
+        assert_eq!(successor.1.epoch, baseline.1.epoch + 1);
+        assert_eq!(
+            reader.authorization_reservation_snapshot().unwrap(),
+            successor
+        );
     }
 
     fn sessions_activation_pair(

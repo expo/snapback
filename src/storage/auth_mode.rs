@@ -1592,34 +1592,36 @@ fn require_manifest_mode(manifest: &SchemaManifest, mode: AuthMode) -> SnapbackR
 }
 
 fn require_fresh_seed_target(conn: &Connection, state: &AuthModeStateRecord) -> SnapbackResult<()> {
-    if state.active_deployment.is_some() {
-        return Err(mode_corrupt(
-            "transition seed is allowed only for a fresh database",
-        ));
-    }
-    let mode_meta = read_mode_meta(conn)?.unwrap_or_default();
-    if mode_meta.contains_key(META_LEGACY_SCHEMA_MANIFEST)
-        || mode_meta.contains_key(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
-    {
-        return Err(mode_corrupt(
-            "transition seed is not allowed for an adopted application",
-        ));
-    }
-    let head = current_version_on(conn)?;
-    for table in physical_user_tables(conn)? {
-        // Emptiness is a durable-state decision. Refuse corrupt/future rows
-        // before COUNT can classify the table and hide them from decoding.
-        validate_managed_table_versions_by_name(conn, &table, head)?;
-        let count: i64 = conn.query_row(
-            &format!("SELECT COUNT(*) FROM {}", super::quote_ident(&table)?),
-            [],
-            |row| row.get(0),
-        )?;
-        if count != 0 {
-            return Err(mode_corrupt("transition seed target is not empty"));
+    super::with_pinned_read_snapshot(conn, |conn| {
+        if state.active_deployment.is_some() {
+            return Err(mode_corrupt(
+                "transition seed is allowed only for a fresh database",
+            ));
         }
-    }
-    Ok(())
+        let mode_meta = read_mode_meta(conn)?.unwrap_or_default();
+        if mode_meta.contains_key(META_LEGACY_SCHEMA_MANIFEST)
+            || mode_meta.contains_key(META_CAPABILITY_AWARE_SCHEMA_MANIFEST)
+        {
+            return Err(mode_corrupt(
+                "transition seed is not allowed for an adopted application",
+            ));
+        }
+        let head = current_version_on(conn)?;
+        for table in physical_user_tables(conn)? {
+            // Emptiness is a durable-state decision. Refuse corrupt/future rows
+            // before COUNT can classify the table and hide them from decoding.
+            validate_managed_table_versions_by_name(conn, &table, head)?;
+            let count: i64 = conn.query_row(
+                &format!("SELECT COUNT(*) FROM {}", super::quote_ident(&table)?),
+                [],
+                |row| row.get(0),
+            )?;
+            if count != 0 {
+                return Err(mode_corrupt("transition seed target is not empty"));
+            }
+        }
+        Ok(())
+    })
 }
 
 fn apply_schema_tables(tx: &Transaction<'_>, manifest: &SchemaManifest) -> SnapbackResult<()> {

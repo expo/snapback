@@ -285,9 +285,8 @@ pub(crate) fn membership_read(
         .iter()
         .filter_map(|row| row.get("_id").and_then(Value::as_str).map(str::to_owned))
         .collect();
-    let table_version = db.table_change_version(table_name)?;
     let present = !ids.is_empty();
-    let dependency = membership_capture_dependency(&probe, table_version, ids)?;
+    let dependency = membership_capture_dependency(&probe, output.version, ids)?;
     Ok(MembershipReadOutcome {
         present,
         dependency,
@@ -505,6 +504,7 @@ pub(crate) fn query_membership_dependencies(
     input: &HandlerInput,
     predicate: &MembershipPredicate,
     db: &DbRead<'_>,
+    outer_snapshot_version: u64,
 ) -> SnapbackResult<Vec<CapturedReadDependency>> {
     let Some((table, membership)) = find_declaration(schema, &predicate.declaration) else {
         return Err(SnapbackError::error(
@@ -524,7 +524,6 @@ pub(crate) fn query_membership_dependencies(
     };
     let roles = effective_roles(membership, predicate.roles.as_deref());
     let table_name = table.name.as_str();
-    let table_version = db.table_change_version(table_name)?;
 
     let binding = match &predicate.resource {
         MembershipResourceRef::RowField(_) => ResourceBinding::PerRow,
@@ -548,7 +547,7 @@ pub(crate) fn query_membership_dependencies(
             );
             Ok(vec![membership_capture_dependency(
                 &probe,
-                table_version,
+                outer_snapshot_version,
                 Vec::new(),
             )?])
         }
@@ -562,7 +561,7 @@ pub(crate) fn query_membership_dependencies(
                 .collect();
             Ok(vec![membership_capture_dependency(
                 &probe,
-                table_version,
+                output.version,
                 ids,
             )?])
         }

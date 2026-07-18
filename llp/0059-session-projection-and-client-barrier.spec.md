@@ -5,7 +5,7 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (Contract durable-confirmation closure: an exposed
+**Revised:** 2026-07-17 (authorization-reservation frontier closure: the SQLite data head and durable authorization witness used by one reservation are read as one snapshot-bound pair, never synthesized across commits). 2026-07-17 (Contract durable-confirmation closure: an exposed
 local custody record remains the fail-closed blanking witness even after a
 clearing wakeup pre-pauses publication; the local cut snapshots participants
 behind completion, isolates every quiesce/blank/clear failure, preserves the
@@ -707,7 +707,8 @@ stage immutable write effects and exact changed rows
 -> classify NoAuthorizationEvent, exact AppWrites, or AllProtectedRooms
 -> outside Local and SQLite, install the matching room dependency and wait for
    already-admitted affected-room/final-send permits to drain
--> acquire Local; recheck app generation, data head, durable authorization pair,
+-> acquire Local; recheck app generation and the snapshot-bound
+   (data head, durable authorization) pair,
    protected-collection generation, and exact issuer predecessor
 -> install one thread-local reservation carrier
 -> open SQLite and bind the carrier to the transaction-derived witness without
@@ -746,8 +747,9 @@ its logical Local scope.
 Binding is valid only when the protected-collection generation is unchanged,
 the actual transaction selector is covered, and a non-rotating authorization
 witness is exactly the reserved issuer successor (same incarnation and epoch
-`+1`). The server also rechecks the app generation and both the SQLite data head
-and durable authorization version after quiescence. Drift returns the typed
+`+1`). The server also rechecks the app generation and reads the SQLite data
+head plus durable authorization version in one deferred transaction after
+quiescence. Drift returns the typed
 stale result and cancels the carrier after Local; it never widens silently or
 prepares a replacement from inside the transaction. An installed interlock has
 no transaction-time preparation fallback: reaching SQLite without a carrier

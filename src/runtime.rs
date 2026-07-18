@@ -22,7 +22,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value, json};
 use std::cell::RefCell;
 use std::cmp::Ordering;
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::env;
 use std::ffi::{CStr, CString};
 use std::path::{Path, PathBuf};
@@ -968,16 +968,10 @@ impl<'a> IbexHostContext<'a> {
                     )
                     .with_details(json!({ "error": error.to_string() }))
                 })?;
-                let output = self.db().query(&plan, &self.input)?;
-                // Capture the read dependency on the storage result the plan
-                // declared (its limit included) — the buffered overlay below is
-                // the handler's own uncommitted writes, not a storage dependency.
-                self.capture_query_read(&plan, &output)?;
                 // @ref LLP 0032#phase-2--execution-semantics-honesty — E2: layer
                 // this invocation's buffered writes over the storage result so
                 // the handler reads its own writes (read-your-writes).
                 let output = if self.has_buffered_writes_for(&plan.table) {
-                    let version = output.version;
                     // Overfetch only enough stored candidates to replace every
                     // row this bounded invocation could delete or reorder.
                     // The write ceiling makes this exact top-N merge bounded.
@@ -989,15 +983,43 @@ impl<'a> IbexHostContext<'a> {
                     let storage_limit = effective_query_limit(&plan)
                         .saturating_add(buffered)
                         .min(QUERY_INTERNAL_OVERFETCH_MAX);
-                    let base_rows = self
-                        .db()
-                        .query_with_storage_limit(&plan, &self.input, storage_limit)?
-                        .rows;
+                    let storage_output =
+                        self.db()
+                            .query_with_storage_limit(&plan, &self.input, storage_limit)?;
+                    // Capture the exact storage range the merge consumes. A
+                    // separate declared-limit query (or a later overfetch) can
+                    // observe another snapshot and leave the returned rows
+                    // without a matching OCC dependency.
+                    let mut dependency_plan = plan.clone();
+                    dependency_plan.limit = Some(storage_limit);
+                    self.capture_query_read(&dependency_plan, &storage_output)?;
+
+                    // Touched ids may sit outside the selected range but still
+                    // enter the effective view after buffered patches/inserts.
+                    // Read and capture each one before the pure overlay merge.
+                    let touched = self
+                        .writes
+                        .iter()
+                        .filter(|write| write.table() == plan.table)
+                        .map(|write| write.id().to_owned())
+                        .collect::<BTreeSet<_>>();
+                    let mut touched_storage = BTreeMap::new();
+                    for id in touched {
+                        let stored = self.db().get(&plan.table, &id)?;
+                        self.capture_point_read(&plan.table, &id, stored.as_ref())?;
+                        touched_storage.insert(id, stored);
+                    }
                     QueryOutput {
-                        version,
-                        rows: self.merge_buffered_into_query(&plan, base_rows)?,
+                        version: storage_output.version,
+                        rows: self.merge_buffered_into_query(
+                            &plan,
+                            storage_output.rows,
+                            &touched_storage,
+                        )?,
                     }
                 } else {
+                    let output = self.db().query(&plan, &self.input)?;
+                    self.capture_query_read(&plan, &output)?;
                     output
                 };
                 serde_json::to_value(output).map_err(|error| {
@@ -1493,20 +1515,21 @@ impl<'a> IbexHostContext<'a> {
     /// invocation has since deleted, recompute patched/inserted rows from their
     /// effective view, keep only those still matching the plan's filters, then
     /// re-sort and re-apply the limit with the same primitives the live matcher
-    /// uses. `base_rows` must be unlimited when the plan carries a limit.
+    /// uses. When the plan carries a limit, `base_rows` must include the
+    /// bounded replacement-candidate overfetch for every buffered row that
+    /// could displace a persisted result.
     ///
     /// @ref LLP 0032#phase-2--execution-semantics-honesty — E2.
     fn merge_buffered_into_query(
         &self,
         plan: &QueryPlan,
         base_rows: Vec<Value>,
+        touched_storage: &BTreeMap<String, Option<Value>>,
     ) -> SnapbackResult<Vec<Value>> {
-        let touched: BTreeSet<&str> = self
-            .writes
-            .iter()
-            .filter(|write| write.table() == plan.table)
-            .map(|write| write.id())
-            .collect();
+        let touched = touched_storage
+            .keys()
+            .map(String::as_str)
+            .collect::<BTreeSet<_>>();
 
         let mut merged: Vec<Value> = base_rows
             .into_iter()
@@ -1518,9 +1541,8 @@ impl<'a> IbexHostContext<'a> {
             })
             .collect();
 
-        for id in &touched {
-            let stored = self.db().get(&plan.table, id)?;
-            if let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored)
+        for (id, stored) in touched_storage {
+            if let Some(row) = self.apply_buffered_to_point(&plan.table, id, stored.clone())
                 && row_matches_query_filters(plan, &self.input, &row) == Some(true)
             {
                 merged.push(row);
@@ -1654,7 +1676,9 @@ impl<'a> IbexHostContext<'a> {
             kind: CapturedReadKind::Query,
             table: Some(plan.table.clone()),
             id: None,
-            version: Some(self.db().table_change_version(&plan.table)?),
+            // The global snapshot head is a conservative per-table cursor and,
+            // unlike a later table-version read, is inseparable from these rows.
+            version: Some(output.version),
             predicate: Some(predicate),
             rows,
             field: None,
@@ -2687,11 +2711,11 @@ fn handler_envelope_code(code: &str) -> &str {
 }
 
 #[cfg(debug_assertions)]
-#[derive(Clone)]
 struct CapturedPointReadDebugHook {
     table: String,
     id: String,
     sender: mpsc::Sender<()>,
+    release: mpsc::Receiver<()>,
 }
 
 #[cfg(debug_assertions)]
@@ -2717,6 +2741,7 @@ pub fn set_captured_point_read_debug_hook(
     table: &str,
     id: &str,
     sender: mpsc::Sender<()>,
+    release: mpsc::Receiver<()>,
 ) -> CapturedPointReadDebugHookGuard {
     *captured_point_read_debug_hook()
         .lock()
@@ -2724,6 +2749,7 @@ pub fn set_captured_point_read_debug_hook(
         table: table.to_owned(),
         id: id.to_owned(),
         sender,
+        release,
     });
     CapturedPointReadDebugHookGuard
 }
@@ -2735,14 +2761,28 @@ fn captured_point_read_debug_hook() -> &'static StdMutex<Option<CapturedPointRea
 
 #[cfg(debug_assertions)]
 fn notify_captured_point_read(table: &str, id: &str) {
-    let sender = captured_point_read_debug_hook()
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner())
-        .as_ref()
-        .filter(|hook| hook.table == table && hook.id == id)
-        .map(|hook| hook.sender.clone());
-    if let Some(sender) = sender {
-        let _ = sender.send(());
+    // @ref LLP 0003#execution-and-write-semantics — The conflict proof needs
+    // the handler's captured read to precede the competing commit. Consume the
+    // matching debug hook once, then wait without holding the global hook lock.
+    let hook = {
+        let mut hook = captured_point_read_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if hook
+            .as_ref()
+            .is_some_and(|hook| hook.table == table && hook.id == id)
+        {
+            hook.take()
+        } else {
+            None
+        }
+    };
+    if let Some(hook) = hook
+        && hook.sender.send(()).is_ok()
+    {
+        let _ = hook
+            .release
+            .recv_timeout(std::time::Duration::from_secs(10));
     }
 }
 

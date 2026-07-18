@@ -47,12 +47,30 @@ impl LocalDatabase {
     /// Read the complete durable authorization witness. Missing or partial
     /// state is never interpreted as continuity.
     pub fn authorization_version(&self) -> SnapbackResult<AuthorizationVersion> {
-        let tx = self.conn.unchecked_transaction()?;
-        let version = read_authorization_version_on(&tx)?.ok_or_else(|| {
-            authorization_version_corrupt("authorization-version metadata is missing")
-        })?;
-        tx.commit()?;
-        Ok(version)
+        super::with_pinned_read_snapshot(&self.conn, |conn| {
+            read_authorization_version_on(conn)?.ok_or_else(|| {
+                authorization_version_corrupt("authorization-version metadata is missing")
+            })
+        })
+    }
+
+    /// Read the data head and authorization witness from one durable snapshot.
+    /// Reservation/revalidation callers compare this pair as one admission
+    /// frontier; assembling it from two transactions could publish a pair that
+    /// never existed.
+    ///
+    /// @ref LLP 0059#durable-authorization-stream — data and authorization
+    /// frontiers used by a reservation are snapshot-bound.
+    pub(crate) fn authorization_reservation_snapshot(
+        &self,
+    ) -> SnapbackResult<(u64, AuthorizationVersion)> {
+        super::with_pinned_read_snapshot(&self.conn, |conn| {
+            let data_version = super::current_version_on(conn)?;
+            let authorization = read_authorization_version_on(conn)?.ok_or_else(|| {
+                authorization_version_corrupt("authorization-version metadata is missing")
+            })?;
+            Ok((data_version, authorization))
+        })
     }
 
     /// Copy all projection inputs under one deferred read transaction. The
@@ -346,10 +364,7 @@ pub(super) fn read_authorization_version_on(
 pub(super) fn read_authorization_version_snapshot(
     conn: &Connection,
 ) -> SnapbackResult<Option<AuthorizationVersion>> {
-    let tx = conn.unchecked_transaction()?;
-    let version = read_authorization_version_on(&tx)?;
-    tx.commit()?;
-    Ok(version)
+    super::with_pinned_read_snapshot(conn, read_authorization_version_on)
 }
 
 fn read_authorization_epoch_on(conn: &Connection) -> SnapbackResult<Option<u64>> {

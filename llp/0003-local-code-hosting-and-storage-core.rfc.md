@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
+**Revised:** 2026-07-17 (snapshot-bound local reads: every query invocation is pinned on WAL, direct, live-subscription, and in-memory lanes; mutation-handler composite reads pin their own head-bound facts and capture the exact storage inputs consumed by read-your-writes overlays; local commit versions are allocated only after SQLite's writer reservation). 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -276,20 +276,24 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
   commit, not across the handler's async duration;
 - if the handler throws, no writes are applied and the mutation is rejected.
 
-> **Implementation status (updated 2026-07-02, LLP 0032 Phases 2–3):** the
+> **Implementation status (updated 2026-07-17, LLP 0032 Phases 2–3):** the
 > boundary above is the ratified **target**; the shipped v0 now meets most of
 > it, as verified in
 > [LLP 0032](./0032-decision-and-implementation-hardening.plan.md).
-> **Query handlers run on the WAL reader pool with pinned snapshots (LLP 0032
-> L6, landed 2026-07-02):** each read-only invocation executes inside one
-> deferred read transaction on a pooled read-only connection — every `ctx.db`
-> read during the handler and the reported version come from one WAL snapshot
-> — and takes no lock shared with the write path (file-backed databases; the
-> in-memory dev mode has no WAL and keeps the serialized fallback). *Mutation*
-> handlers still perform bare autocommit reads on the live write connection,
-> consistent because the global instance mutex serializes writers; their
-> pinned-snapshot form remains an open concurrency-control refinement, separate
-> from DK-1's now-resolved read-set-validation semantics (E2/E3/E4). **Blocking
+> **Query handlers run on snapshot-bound views (LLP 0032 L6, landed 2026-07-02,
+> completed across fallback lanes 2026-07-17):** each read-only invocation
+> executes inside one deferred read transaction — on a pooled read-only WAL
+> connection for the file-backed read lane, or on the serialized live
+> connection for direct-library, live-subscription, and in-memory fallback
+> execution. Every `ctx.db` read, membership witness, and reported/dependency
+> version in that invocation therefore comes from one SQLite snapshot.
+> *Mutation* handlers do not freeze one snapshot across the entire async
+> invocation: each logical point/query/composite read pins its head and rows
+> together, and commit-time captured-read validation rejects any relevant
+> intervening change. Buffered query overlays capture the exact overfetch and
+> touched-id reads they consume; the merge performs no hidden storage read.
+> This is separate from DK-1's now-resolved read-set-validation semantics
+> (E2/E3/E4). **Blocking
 > work is off the
 > async workers (LLP 0032 L7):** Hermes eval and SQLite run only on blocking
 > threads (`lock_owned` + `spawn_blocking`, debug-asserted at the chokepoints),
@@ -297,7 +301,8 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
 > **Read-your-writes is implemented (LLP 0032 E2):** a handler's buffered
 > `ctx.db` writes are layered over its own later reads, so insert-then-query
 > sees the row, a `patch` after a buffered insert reports `existed: true`, and
-> delete-then-get misses. **Host-plan mutation isolation is the client-supplied
+> delete-then-get misses; the overlay's overfetch and touched rows are all
+> captured for OCC. **Host-plan mutation isolation is the client-supplied
 > read_set baseline by design (E3, decided 2026-07-02 — Option A, pending
 > Charlie's ratification):** a host-plan `MutationPlan` is an *unconditional*
 > write sequence whose reads and writes run in one commit transaction, so a
@@ -309,10 +314,10 @@ Hermes is not the limit — Ibex already pumps the microtask queue via
 > `If-Match`), **not** a trust gap: an omitted or dishonest baseline weakens only
 > that mutation's own isolation, never other writers' atomic, version-stamped
 > commits. Query-shaped read-set validation is predicate-granular (**E4**, landed
-> 2026-07-01). The one open concurrency-control refinement is that *mutation*
-> handlers still read on the live write connection rather than a pinned snapshot
-> (safe today because the global instance mutex serializes writers); DK-1's
-> isolation *semantics* are now fully resolved (E2/E3/E4). The mutation-isolation
+> 2026-07-01). Mutation handlers deliberately retain per-read snapshots plus
+> captured-read OCC rather than holding one read transaction across arbitrary
+> async work; every individual head-bound read is nevertheless snapshot-atomic.
+> DK-1's isolation *semantics* are fully resolved (E2/E3/E4). The mutation-isolation
 > capability field
 > ([LLP 0012](./0012-headless-integration-contract.spec.md)) reports the shipped
 > mode.

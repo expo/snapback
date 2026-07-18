@@ -70,7 +70,10 @@ pub(crate) fn query_dependencies_from_plan(
         kind: CapturedReadKind::Query,
         table: Some(plan.table.clone()),
         id: None,
-        version: Some(db.table_change_version(&plan.table)?),
+        // Pair the dependency with the exact row snapshot. A later table
+        // cursor could include a concurrent authorization/data change that the
+        // returned rows did not observe and make validation miss that change.
+        version: Some(output.version),
         predicate: Some(predicate),
         rows,
         field: None,
@@ -91,6 +94,7 @@ pub(crate) fn query_dependencies_from_plan(
             input,
             predicate,
             db,
+            output.version,
         )?);
     }
 

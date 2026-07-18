@@ -22,6 +22,8 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
+#[cfg(test)]
+use std::sync::{OnceLock, mpsc};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
@@ -1107,40 +1109,42 @@ fn validate_change_journal_head(conn: &Connection, head: u64) -> SnapbackResult<
 }
 
 fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<StorageOpenInspection> {
-    // LLP 0057's dormant-collision rescue starts from a brownfield database:
-    // a foreign `_auth_*` object alone is not evidence that Snapback ever
-    // installed a storage-version authority. Requiring a missing head for
-    // every non-SQLite object would make the ordinary dev/test rescue route
-    // unreachable. Conversely, any Snapback-owned schema object or managed
-    // `_version` column proves this is not a fresh adoption and must fail
-    // closed if the canonical head is absent.
-    let snapback_schema_object = conn
-        .query_row(
-            "SELECT 1 FROM sqlite_schema \
+    with_pinned_read_snapshot(conn, |conn| {
+        // LLP 0057's dormant-collision rescue starts from a brownfield database:
+        // a foreign `_auth_*` object alone is not evidence that Snapback ever
+        // installed a storage-version authority. Requiring a missing head for
+        // every non-SQLite object would make the ordinary dev/test rescue route
+        // unreachable. Conversely, any Snapback-owned schema object or managed
+        // `_version` column proves this is not a fresh adoption and must fail
+        // closed if the canonical head is absent.
+        let snapback_schema_object = conn
+            .query_row(
+                "SELECT 1 FROM sqlite_schema \
              WHERE name NOT GLOB 'sqlite_*' \
                AND lower(name) GLOB '_snapback*' \
                AND type IN ('table', 'view', 'index', 'trigger') \
              LIMIT 1",
-            [],
-            |_| Ok(()),
-        )
-        .optional()?
-        .is_some();
-    let mut managed_app_schema = false;
-    if !snapback_schema_object {
-        for table in physical_user_tables(conn)? {
-            if sqlite_table_columns(conn, &table)?.contains("_version") {
-                managed_app_schema = true;
-                break;
+                [],
+                |_| Ok(()),
+            )
+            .optional()?
+            .is_some();
+        let mut managed_app_schema = false;
+        if !snapback_schema_object {
+            for table in physical_user_tables(conn)? {
+                if sqlite_table_columns(conn, &table)?.contains("_version") {
+                    managed_app_schema = true;
+                    break;
+                }
             }
         }
-    }
-    if !snapback_schema_object && !managed_app_schema {
-        return Ok(StorageOpenInspection::Fresh);
-    }
-    let head = require_existing_version_table(conn)?;
-    validate_existing_storage_ordering(conn, head)?;
-    Ok(StorageOpenInspection::Existing { head })
+        if !snapback_schema_object && !managed_app_schema {
+            return Ok(StorageOpenInspection::Fresh);
+        }
+        let head = require_existing_version_table(conn)?;
+        validate_existing_storage_ordering(conn, head)?;
+        Ok(StorageOpenInspection::Existing { head })
+    })
 }
 
 impl LocalDatabase {
@@ -1199,15 +1203,17 @@ impl LocalDatabase {
         // database can publish a read lane or serve any request.
         // @ref LLP 0007#data-model — system versions share the exact portable
         // integer domain on every target.
-        let head = db.current_version()?;
-        if let StorageOpenInspection::Existing { head: inspected } = storage_inspection
-            && head != inspected
-        {
-            return Err(storage_version_corrupt(
-                "global storage head changed during database open",
-            ));
-        }
-        validate_existing_storage_ordering(&db.conn, head)?;
+        with_pinned_read_snapshot(&db.conn, |conn| {
+            let head = current_version_on(conn)?;
+            if let StorageOpenInspection::Existing { head: inspected } = storage_inspection
+                && head != inspected
+            {
+                return Err(storage_version_corrupt(
+                    "global storage head changed during database open",
+                ));
+            }
+            validate_existing_storage_ordering(conn, head)
+        })?;
         db.schema = stored_schema.unwrap_or_default();
         auth_mode::adopt_after_infra(&mut db, mode_inspection)?;
         // The pool is created after configure/create_infra so readers open an
@@ -1358,7 +1364,9 @@ impl LocalDatabase {
         if unique.is_empty() {
             return Ok(0);
         }
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (retained_records, retained_bytes) = client_mutation_retention_counters(&tx)?;
         let (auth_records, auth_bytes) =
             client_mutation_auth_retention_counters(&tx, auth_fingerprint)?;
@@ -1450,7 +1458,9 @@ impl LocalDatabase {
         &mut self,
         auth_fingerprint: Option<&str>,
     ) -> SnapbackResult<u64> {
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let (retained_records, retained_bytes) = client_mutation_retention_counters(&tx)?;
         let deleted = match auth_fingerprint {
             Some(auth_fingerprint) => {
@@ -1511,74 +1521,74 @@ impl LocalDatabase {
         identity: &ClientMutationIdentity,
     ) -> SnapbackResult<Option<MutationOutput>> {
         validate_client_mutation_identity(identity)?;
-        let row: Option<(String, String, Option<String>, String, String, SqlValue)> = self
-            .conn
-            .query_row(
-                "SELECT function, auth_fingerprint, authority_instance_id,
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            let row: Option<(String, String, Option<String>, String, String, SqlValue)> = conn
+                .query_row(
+                    "SELECT function, auth_fingerprint, authority_instance_id,
                         input_fingerprint, output_json, settled_version
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
-                params![identity.id],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                        row.get(3)?,
-                        row.get(4)?,
-                        row.get(5)?,
-                    ))
-                },
-            )
-            .optional()?;
-        let Some((
-            function,
-            retained_auth,
-            retained_authority,
-            retained_input,
-            output_json,
-            settled_version,
-        )) = row
-        else {
-            return Ok(None);
-        };
-        if function != identity.function {
-            return Err(SnapbackError::error(
-                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
-                "sync",
-                "client mutation id was already used for another function",
-            )
-            .with_details(json!({
-                "clientMutationId": identity.id,
-                "expectedFunction": function,
-                "actualFunction": identity.function,
-            })));
-        }
-        if retained_auth != identity.auth_fingerprint {
-            if retained_auth.starts_with("fnv1a:") {
+                    params![identity.id],
+                    |row| {
+                        Ok((
+                            row.get(0)?,
+                            row.get(1)?,
+                            row.get(2)?,
+                            row.get(3)?,
+                            row.get(4)?,
+                            row.get(5)?,
+                        ))
+                    },
+                )
+                .optional()?;
+            let Some((
+                function,
+                retained_auth,
+                retained_authority,
+                retained_input,
+                output_json,
+                settled_version,
+            )) = row
+            else {
+                return Ok(None);
+            };
+            if function != identity.function {
                 return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "sync",
+                    "client mutation id was already used for another function",
+                )
+                .with_details(json!({
+                    "clientMutationId": identity.id,
+                    "expectedFunction": function,
+                    "actualFunction": identity.function,
+                })));
+            }
+            if retained_auth != identity.auth_fingerprint {
+                if retained_auth.starts_with("fnv1a:") {
+                    return Err(SnapbackError::error(
                     "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
                     "auth",
                     "client mutation uses a legacy auth fingerprint that cannot be rebound safely; acknowledge the consumed result or use the admin purge recovery path",
                 )
                 .with_details(json!({ "clientMutationId": identity.id })));
+                }
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_STALE_RESULT",
+                    "auth",
+                    "client mutation was recorded under another auth context",
+                )
+                .with_details(json!({ "clientMutationId": identity.id })));
             }
-            return Err(SnapbackError::error(
-                "SNAPBACK_AUTH_STALE_RESULT",
-                "auth",
-                "client mutation was recorded under another auth context",
-            )
-            .with_details(json!({ "clientMutationId": identity.id })));
-        }
-        let Some(retained_authority) = retained_authority else {
-            return Err(SnapbackError::error(
+            let Some(retained_authority) = retained_authority else {
+                return Err(SnapbackError::error(
                 "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED",
                 "auth",
                 "client mutation predates authority descriptors and cannot be rebound safely; acknowledge the consumed result or use the admin purge recovery path",
             )
             .with_details(json!({ "clientMutationId": identity.id })));
-        };
-        if retained_authority != identity.authority_instance_id {
-            return Err(SnapbackError::error(
+            };
+            if retained_authority != identity.authority_instance_id {
+                return Err(SnapbackError::error(
                 "SNAPBACK_AUTH_STALE_RESULT",
                 "auth",
                 "client mutation was settled under another authority instance; discard it or explicitly re-record it under the current authority",
@@ -1589,81 +1599,82 @@ impl LocalDatabase {
                 "guidance": "discard_or_rerecord",
                 "automaticRetry": false,
             })));
-        }
-        if retained_input != identity.input_fingerprint {
-            return Err(SnapbackError::error(
-                "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
-                "sync",
-                "client mutation id was already used with another mutation payload",
+            }
+            if retained_input != identity.input_fingerprint {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_ID_REUSED",
+                    "sync",
+                    "client mutation id was already used with another mutation payload",
+                )
+                .with_details(json!({
+                    "clientMutationId": identity.id,
+                    "reason": "input_fingerprint_mismatch",
+                })));
+            }
+            let output_value = serde_json::from_str::<Value>(&output_json).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+                    "storage",
+                    "stored client mutation result could not be decoded",
+                )
+                .with_details(json!({
+                    "clientMutationId": identity.id,
+                    "error": error.to_string(),
+                }))
+            })?;
+            let head = current_version_on(conn)?;
+            let output_version = decode_json_storage_version(
+                output_value.get("version"),
+                "stored client mutation result version",
             )
-            .with_details(json!({
-                "clientMutationId": identity.id,
-                "reason": "input_fingerprint_mismatch",
-            })));
-        }
-        let output_value = serde_json::from_str::<Value>(&output_json).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
-                "storage",
-                "stored client mutation result could not be decoded",
-            )
-            .with_details(json!({
-                "clientMutationId": identity.id,
-                "error": error.to_string(),
-            }))
-        })?;
-        let head = self.current_version()?;
-        let output_version = decode_json_storage_version(
-            output_value.get("version"),
-            "stored client mutation result version",
-        )
-        .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-        let settled_version = decode_required_storage_version(
-            settled_version,
-            "stored client mutation settlement version",
-        )
-        .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-        validate_storage_version_at_most(
-            output_version,
-            head,
-            "stored client mutation result version",
-        )
-        .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-        if settled_version != 0 {
-            validate_storage_version_at_most(
+            .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
+            let settled_version = decode_required_storage_version(
                 settled_version,
-                head,
                 "stored client mutation settlement version",
             )
             .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-        }
-        // Databases upgraded from before settlement metadata use zero as the
-        // documented migration sentinel. Every newly recorded settlement
-        // carries its authoritative commit cursor and must agree with the
-        // replay payload before either may be republished.
-        if settled_version != 0 && settled_version != output_version {
-            return Err(SnapbackError::error(
-                "SNAPBACK_STORAGE_VERSION_CORRUPT",
-                "storage",
-                "stored client mutation result disagrees with its settlement version",
+            validate_storage_version_at_most(
+                output_version,
+                head,
+                "stored client mutation result version",
             )
-            .with_detail("clientMutationId", identity.id.clone())
-            .with_detail("settledVersion", settled_version)
-            .with_detail("outputVersion", output_version));
-        }
-        let output: MutationOutput = serde_json::from_value(output_value).map_err(|error| {
-            SnapbackError::error(
-                "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
-                "storage",
-                "stored client mutation result could not be decoded",
-            )
-            .with_details(json!({
-                "clientMutationId": identity.id,
-                "error": error.to_string(),
-            }))
-        })?;
-        debug_assert_eq!(output.version, output_version);
-        Ok(Some(output))
+            .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
+            if settled_version != 0 {
+                validate_storage_version_at_most(
+                    settled_version,
+                    head,
+                    "stored client mutation settlement version",
+                )
+                .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
+            }
+            // Databases upgraded from before settlement metadata use zero as the
+            // documented migration sentinel. Every newly recorded settlement
+            // carries its authoritative commit cursor and must agree with the
+            // replay payload before either may be republished.
+            if settled_version != 0 && settled_version != output_version {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                    "storage",
+                    "stored client mutation result disagrees with its settlement version",
+                )
+                .with_detail("clientMutationId", identity.id.clone())
+                .with_detail("settledVersion", settled_version)
+                .with_detail("outputVersion", output_version));
+            }
+            let output: MutationOutput = serde_json::from_value(output_value).map_err(|error| {
+                SnapbackError::error(
+                    "SNAPBACK_CLIENT_MUTATION_RESULT_INVALID",
+                    "storage",
+                    "stored client mutation result could not be decoded",
+                )
+                .with_details(json!({
+                    "clientMutationId": identity.id,
+                    "error": error.to_string(),
+                }))
+            })?;
+            debug_assert_eq!(output.version, output_version);
+            Ok(Some(output))
+        })
     }
 
     pub fn current_version(&self) -> SnapbackResult<u64> {
@@ -1697,7 +1708,7 @@ impl LocalDatabase {
         // for an ordinary window larger than the current age, but it must not
         // turn a non-portable caller value into an apparently valid floor.
         validate_portable_timestamp_millis(now_ms)?;
-        let tx = self.conn.unchecked_transaction()?;
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         let head = current_version_on(&tx)?;
         let version_floor = version_to_sql_integer(head.saturating_sub(retain_versions))?;
         let time_floor = timestamp_to_sql_millis(now_ms.saturating_sub(retain_ms))?;
@@ -1744,7 +1755,9 @@ impl LocalDatabase {
     ///
     /// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L3.
     pub fn journal_floor_version(&self) -> SnapbackResult<u64> {
-        retention_floor_at_most(&self.conn, self.current_version()?)
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            retention_floor_at_most(conn, current_version_on(conn)?)
+        })
     }
 
     pub fn change_journal_len(&self) -> SnapbackResult<u64> {
@@ -2010,10 +2023,12 @@ impl LocalDatabase {
         &mut self,
         seed: SeedData,
     ) -> SnapbackResult<Vec<ChangedRow>> {
-        let current_version = self.current_version()?;
-        let next_version = next_storage_version(current_version)?;
         let schema = self.schema.clone();
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
@@ -2024,11 +2039,15 @@ impl LocalDatabase {
     }
 
     pub fn seed_with_authorization(&mut self, seed: SeedData) -> SnapbackResult<SeedCommit> {
-        let current_version = self.current_version()?;
-        let next_version = next_storage_version(current_version)?;
         let schema = self.schema.clone();
         let authorization_interlock = self.authorization_interlock.clone();
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        // @ref LLP 0007#commit-version-graduation-dk-2-decided-2026-07-02 — SQLite's writer
+        // reservation is the local target's version-allocation fence.
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
         let touched = seed.tables.keys().cloned().collect();
         validate_touched_managed_tables(&tx, &schema, &touched, current_version)?;
         preflight_membership_activation_sources(&tx, &schema, current_version)?;
@@ -2080,6 +2099,25 @@ impl LocalDatabase {
 
     pub fn query(&self, plan: &QueryPlan, input: &HandlerInput) -> SnapbackResult<QueryOutput> {
         query_on(&self.conn, &self.schema, plan, input)
+    }
+
+    /// Run one complete query invocation against a snapshot-bound view of this
+    /// database. The file-backed read lane already supplies a transaction; this
+    /// gives direct-library, live-subscription, and in-memory fallback queries
+    /// the same rows/dependency-cursor boundary on the serialized connection.
+    ///
+    /// @ref LLP 0003#execution-and-write-semantics — every query-handler read
+    /// and its reported/dependency versions come from one snapshot.
+    pub(crate) fn with_pinned_read_view<T>(
+        &self,
+        read: impl FnOnce(DbRead<'_>) -> SnapbackResult<T>,
+    ) -> SnapbackResult<T> {
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            read(DbRead::Pinned {
+                conn,
+                schema: &self.schema,
+            })
+        })
     }
 
     pub(crate) fn room_permission_projection_granted(
@@ -2139,47 +2177,48 @@ impl LocalDatabase {
         offset: usize,
     ) -> SnapbackResult<TableScan> {
         let table_manifest = schema_table(&self.schema, table)?;
-        let snapshot_version = self.current_version()?;
-        let quoted = quote_ident(table)?;
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            let snapshot_version = current_version_on(conn)?;
+            let quoted = quote_ident(table)?;
 
-        let total: i64 =
-            self.conn
-                .query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
+            let total: i64 =
+                conn.query_row(&format!("SELECT COUNT(*) FROM {quoted}"), [], |row| {
                     row.get(0)
                 })?;
 
-        let sql = format!(
-            "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
-        );
-        let mut statement = self.conn.prepare(&sql)?;
-        let columns = statement
-            .column_names()
-            .into_iter()
-            .map(ToOwned::to_owned)
-            .collect::<Vec<_>>();
-        let mut sql_rows = statement.query(params![limit as i64, offset as i64])?;
-        let mut rows = Vec::new();
-        while let Some(row) = sql_rows.next()? {
-            let document = row_to_document(row, table_manifest, &columns)?;
-            validate_document_version_at_most(&document, snapshot_version, table)?;
-            rows.push(document);
-        }
+            let sql = format!(
+                "SELECT * FROM {quoted} ORDER BY \"_createdAt\" ASC, \"_id\" ASC LIMIT ?1 OFFSET ?2"
+            );
+            let mut statement = conn.prepare(&sql)?;
+            let columns = statement
+                .column_names()
+                .into_iter()
+                .map(ToOwned::to_owned)
+                .collect::<Vec<_>>();
+            let mut sql_rows = statement.query(params![limit as i64, offset as i64])?;
+            let mut rows = Vec::new();
+            while let Some(row) = sql_rows.next()? {
+                let document = row_to_document(row, table_manifest, &columns)?;
+                validate_document_version_at_most(&document, snapshot_version, table)?;
+                rows.push(document);
+            }
 
-        let mut display_columns = vec!["_id".to_owned()];
-        display_columns.extend(table_manifest.fields.iter().map(|field| field.name.clone()));
-        display_columns.extend([
-            "_version".to_owned(),
-            "_createdAt".to_owned(),
-            "_updatedAt".to_owned(),
-        ]);
+            let mut display_columns = vec!["_id".to_owned()];
+            display_columns.extend(table_manifest.fields.iter().map(|field| field.name.clone()));
+            display_columns.extend([
+                "_version".to_owned(),
+                "_createdAt".to_owned(),
+                "_updatedAt".to_owned(),
+            ]);
 
-        Ok(TableScan {
-            table: table.to_owned(),
-            columns: display_columns,
-            rows,
-            total: total as usize,
-            limit,
-            offset,
+            Ok(TableScan {
+                table: table.to_owned(),
+                columns: display_columns,
+                rows,
+                total: total as usize,
+                limit,
+                offset,
+            })
         })
     }
 
@@ -2305,10 +2344,14 @@ impl LocalDatabase {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
-        let current_version = self.current_version()?;
-        let next_version = next_storage_version(current_version)?;
         let authorization_interlock = self.authorization_interlock.clone();
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_version = current_version_on(&tx)?;
+        #[cfg(test)]
+        notify_commit_version_sampled(&tx);
+        let next_version = next_storage_version(current_version)?;
 
         // @ref LLP 0032#phase-2--execution-semantics-honesty — E3 (Option A),
         // ratified-and-extended by LLP 0051 D2: the client-supplied read_set
@@ -3037,10 +3080,12 @@ impl LocalDatabase {
             .map(|ledger| ledger.now)
             .unwrap_or_else(now_millis);
         validate_portable_timestamp_millis(now_ms)?;
-        let current_version = self.current_version()?;
-        let next_version = next_storage_version(current_version)?;
         let authorization_interlock = self.authorization_interlock.clone();
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        let current_version = current_version_on(&tx)?;
+        let next_version = next_storage_version(current_version)?;
 
         validate_touched_managed_tables(&tx, &schema, &touched_tables, current_version)?;
         validate_read_set(&tx, &schema, &input.read_set, current_version)?;
@@ -3437,7 +3482,9 @@ impl LocalDatabase {
             // an intermediate build may also have created the final name with
             // `< 0`. Rebuild transactionally so `IF NOT EXISTS` cannot preserve
             // an index that omits structurally impossible committed version 0.
-            let tx = self.conn.transaction()?;
+            let tx = self
+                .conn
+                .transaction_with_behavior(TransactionBehavior::Immediate)?;
             tx.execute(
                 "DROP INDEX IF EXISTS _snapback_changes_invalid_committed_version",
                 [],
@@ -3501,7 +3548,9 @@ impl LocalDatabase {
     /// @ref LLP 0043#milestone-2-queued-mutation-replay — refusal limits and
     /// acknowledgement-driven GC must preserve exactly-once settlements.
     fn ensure_client_mutation_retention_counters(&mut self) -> SnapbackResult<()> {
-        let tx = self.conn.transaction()?;
+        let tx = self
+            .conn
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let version = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_COUNTERS_VERSION)?;
         let records = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_RECORDS)?;
         let bytes = optional_meta_u64_lenient(&tx, META_CLIENT_MUTATION_BYTES)?;
@@ -3590,43 +3639,66 @@ pub(crate) fn room_permission_projection_granted_on(
     scope_fields: &[(String, String)],
     min_commit_version: u64,
 ) -> SnapbackResult<bool> {
-    let observed = current_version_on(conn)?;
-    if observed < min_commit_version {
-        return Err(SnapbackError::error(
-            "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
-            "ephemeral",
-            "durable permission snapshot has not reached the room authorization cause",
-        )
-        .with_detail("observedVersion", observed)
-        .with_detail("minCommitVersion", min_commit_version));
+    with_pinned_read_snapshot(conn, |conn| {
+        let observed = current_version_on(conn)?;
+        if observed < min_commit_version {
+            return Err(SnapbackError::error(
+                "SNAPBACK_EPHEMERAL_AUTHORITY_PENDING",
+                "ephemeral",
+                "durable permission snapshot has not reached the room authorization cause",
+            )
+            .with_detail("observedVersion", observed)
+            .with_detail("minCommitVersion", min_commit_version));
+        }
+        let table = schema_table(schema, table_name)?;
+        // The EXISTS result is authorization data. Validate the complete source
+        // relation at the pinned head before SQL selection so a corrupt/future
+        // row cannot grant authority and then disappear from result decoding.
+        validate_managed_row_versions(conn, table, observed)?;
+        ensure_field(table, subject_field)?;
+        for (field, _) in scope_fields {
+            ensure_field(table, field)?;
+        }
+        let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
+        for (index, (field, _)) in scope_fields.iter().enumerate() {
+            predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
+        }
+        let sql = format!(
+            "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
+            quote_ident(table_name)?,
+            predicates.join(" AND ")
+        );
+        let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
+            .chain(
+                scope_fields
+                    .iter()
+                    .map(|(_, value)| SqlValue::Text(value.clone())),
+            )
+            .collect::<Vec<_>>();
+        let granted: i64 =
+            conn.query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
+        Ok(granted != 0)
+    })
+}
+
+/// Execute one logical read against a single SQLite snapshot. Existing
+/// transactions (the WAL reader lane and commit-time validation) are reused;
+/// an autocommit connection receives a short deferred read transaction.
+///
+/// @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L6 requires a
+/// reported head and every head-bound row/authorization fact to share one
+/// snapshot, including direct-library and mutation-planning reads.
+fn with_pinned_read_snapshot<T>(
+    conn: &Connection,
+    read: impl FnOnce(&Connection) -> SnapbackResult<T>,
+) -> SnapbackResult<T> {
+    if !conn.is_autocommit() {
+        return read(conn);
     }
-    let table = schema_table(schema, table_name)?;
-    // The EXISTS result is authorization data. Validate the complete source
-    // relation at the pinned head before SQL selection so a corrupt/future
-    // row cannot grant authority and then disappear from result decoding.
-    validate_managed_row_versions(conn, table, observed)?;
-    ensure_field(table, subject_field)?;
-    for (field, _) in scope_fields {
-        ensure_field(table, field)?;
-    }
-    let mut predicates = vec![format!("{} = ?1", quote_ident(subject_field)?)];
-    for (index, (field, _)) in scope_fields.iter().enumerate() {
-        predicates.push(format!("{} = ?{}", quote_ident(field)?, index + 2));
-    }
-    let sql = format!(
-        "SELECT EXISTS(SELECT 1 FROM {} WHERE {} LIMIT 1)",
-        quote_ident(table_name)?,
-        predicates.join(" AND ")
-    );
-    let values = std::iter::once(SqlValue::Text(user_id.to_owned()))
-        .chain(
-            scope_fields
-                .iter()
-                .map(|(_, value)| SqlValue::Text(value.clone())),
-        )
-        .collect::<Vec<_>>();
-    let granted: i64 = conn.query_row(&sql, params_from_iter(values.iter()), |row| row.get(0))?;
-    Ok(granted != 0)
+    let tx = conn.unchecked_transaction()?;
+    let output = read(&tx)?;
+    tx.commit()?;
+    Ok(output)
 }
 
 /// Read the complete durable authorization witness from the caller's pinned
@@ -3677,81 +3749,83 @@ fn query_on_with_storage_limit_visibility(
     storage_limit: usize,
     allow_private_membership: bool,
 ) -> SnapbackResult<QueryOutput> {
-    crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
-    let snapshot_version = current_version_on(conn)?;
-    let table = schema_table(schema, &plan.table)?;
-    validate_query_plan_shape(plan)?;
-    // Membership declarations are authorization data and have no public
-    // roster-visibility preset in v1. Refuse every generic primary-table read
-    // at the storage boundary, including pinned/live/replay callers. Internal
-    // declaration-bound semi-joins are lowered below this boundary and remain
-    // deliberately non-recursive.
-    // @ref LLP 0056#declaring-a-membership-table — private by default.
-    if !allow_private_membership && let Some(membership) = &table.membership {
-        return Err(membership_error(
-            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
-            &table.name,
-            membership.effective_id(&table.name),
-            "a membership table cannot be the primary table of a generic query without an explicit visibility preset",
-        ));
-    }
-    // LLP 0056 M3: fail-closed validation of each declaration-bound membership
-    // predicate against the schema and the queried table — an unknown
-    // declaration, an out-of-vocabulary `hasRole`, or a resource row field that
-    // is not a field of the queried table is refused before the query runs.
-    for predicate in &plan.membership_filters {
-        crate::membership_rules::validate_membership_predicate(schema, table, predicate)?;
-        // Correlated membership rows influence which primary rows survive but
-        // are not themselves decoded below. Preflight the declaration table at
-        // the same pinned head so corrupt authorization data cannot become an
-        // invisible SQL-selection side channel.
-        let (membership_table, _) =
-            crate::membership_rules::find_declaration(schema, &predicate.declaration)
-                .expect("validated membership predicate resolves its declaration");
-        validate_managed_row_versions(conn, membership_table, snapshot_version)?;
-    }
-    if storage_limit > QUERY_INTERNAL_OVERFETCH_MAX {
-        return Err(SnapbackError::error(
-            "SNAPBACK_QUERY_LIMIT_INVALID",
-            "query",
-            format!(
-                "internal query overfetch {storage_limit} exceeds {QUERY_INTERNAL_OVERFETCH_MAX}"
-            ),
-        ));
-    }
-    validate_query_index(table, plan)?;
-    if query_uses_row_version_for_selection(plan) {
-        validate_managed_row_versions(conn, table, snapshot_version)?;
-    }
-    let (sql, values) = build_query_sql(
-        table,
-        schema,
-        plan,
-        input,
-        &BTreeMap::new(),
-        None,
-        now_millis(),
-        None,
-        Some(storage_limit),
-    )?;
-    let mut statement = conn.prepare(&sql)?;
-    let columns = statement
-        .column_names()
-        .into_iter()
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    let mut rows = statement.query(params_from_iter(values.iter()))?;
-    let mut output = Vec::new();
+    with_pinned_read_snapshot(conn, |conn| {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite query");
+        let snapshot_version = current_version_on(conn)?;
+        let table = schema_table(schema, &plan.table)?;
+        validate_query_plan_shape(plan)?;
+        // Membership declarations are authorization data and have no public
+        // roster-visibility preset in v1. Refuse every generic primary-table read
+        // at the storage boundary, including pinned/live/replay callers. Internal
+        // declaration-bound semi-joins are lowered below this boundary and remain
+        // deliberately non-recursive.
+        // @ref LLP 0056#declaring-a-membership-table — private by default.
+        if !allow_private_membership && let Some(membership) = &table.membership {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+                &table.name,
+                membership.effective_id(&table.name),
+                "a membership table cannot be the primary table of a generic query without an explicit visibility preset",
+            ));
+        }
+        // LLP 0056 M3: fail-closed validation of each declaration-bound membership
+        // predicate against the schema and the queried table — an unknown
+        // declaration, an out-of-vocabulary `hasRole`, or a resource row field that
+        // is not a field of the queried table is refused before the query runs.
+        for predicate in &plan.membership_filters {
+            crate::membership_rules::validate_membership_predicate(schema, table, predicate)?;
+            // Correlated membership rows influence which primary rows survive but
+            // are not themselves decoded below. Preflight the declaration table at
+            // the same pinned head so corrupt authorization data cannot become an
+            // invisible SQL-selection side channel.
+            let (membership_table, _) =
+                crate::membership_rules::find_declaration(schema, &predicate.declaration)
+                    .expect("validated membership predicate resolves its declaration");
+            validate_managed_row_versions(conn, membership_table, snapshot_version)?;
+        }
+        if storage_limit > QUERY_INTERNAL_OVERFETCH_MAX {
+            return Err(SnapbackError::error(
+                "SNAPBACK_QUERY_LIMIT_INVALID",
+                "query",
+                format!(
+                    "internal query overfetch {storage_limit} exceeds {QUERY_INTERNAL_OVERFETCH_MAX}"
+                ),
+            ));
+        }
+        validate_query_index(table, plan)?;
+        if query_uses_row_version_for_selection(plan) {
+            validate_managed_row_versions(conn, table, snapshot_version)?;
+        }
+        let (sql, values) = build_query_sql(
+            table,
+            schema,
+            plan,
+            input,
+            &BTreeMap::new(),
+            None,
+            now_millis(),
+            None,
+            Some(storage_limit),
+        )?;
+        let mut statement = conn.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params_from_iter(values.iter()))?;
+        let mut output = Vec::new();
 
-    while let Some(row) = rows.next()? {
-        let document = row_to_document(row, table, &columns)?;
-        validate_document_version_at_most(&document, snapshot_version, &table.name)?;
-        output.push(document);
-    }
+        while let Some(row) = rows.next()? {
+            let document = row_to_document(row, table, &columns)?;
+            validate_document_version_at_most(&document, snapshot_version, &table.name)?;
+            output.push(document);
+        }
 
-    Ok(QueryOutput {
-        version: snapshot_version,
-        rows: output,
+        Ok(QueryOutput {
+            version: snapshot_version,
+            rows: output,
+        })
     })
 }
 
@@ -3761,32 +3835,34 @@ pub(crate) fn get_on(
     table: &str,
     id: &str,
 ) -> SnapbackResult<Option<Value>> {
-    crate::exec_guard::debug_assert_off_async_worker("a SQLite point read");
-    let snapshot_version = current_version_on(conn)?;
-    let table = schema_table(schema, table)?;
-    if let Some(membership) = &table.membership {
-        return Err(membership_error(
-            "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
-            &table.name,
-            membership.effective_id(&table.name),
-            "a membership table cannot be read through the generic point-read surface without an explicit visibility preset",
-        ));
-    }
-    let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
-    let mut statement = conn.prepare(&sql)?;
-    let columns = statement
-        .column_names()
-        .into_iter()
-        .map(ToOwned::to_owned)
-        .collect::<Vec<_>>();
-    let mut rows = statement.query(params![id])?;
-    if let Some(row) = rows.next()? {
-        let document = row_to_document(row, table, &columns)?;
-        validate_document_version_at_most(&document, snapshot_version, &table.name)?;
-        Ok(Some(document))
-    } else {
-        Ok(None)
-    }
+    with_pinned_read_snapshot(conn, |conn| {
+        crate::exec_guard::debug_assert_off_async_worker("a SQLite point read");
+        let snapshot_version = current_version_on(conn)?;
+        let table = schema_table(schema, table)?;
+        if let Some(membership) = &table.membership {
+            return Err(membership_error(
+                "SNAPBACK_MEMBERSHIP_READ_PRIVATE",
+                &table.name,
+                membership.effective_id(&table.name),
+                "a membership table cannot be read through the generic point-read surface without an explicit visibility preset",
+            ));
+        }
+        let sql = format!("SELECT * FROM {} WHERE _id = ?1", quote_ident(&table.name)?);
+        let mut statement = conn.prepare(&sql)?;
+        let columns = statement
+            .column_names()
+            .into_iter()
+            .map(ToOwned::to_owned)
+            .collect::<Vec<_>>();
+        let mut rows = statement.query(params![id])?;
+        if let Some(row) = rows.next()? {
+            let document = row_to_document(row, table, &columns)?;
+            validate_document_version_at_most(&document, snapshot_version, &table.name)?;
+            Ok(Some(document))
+        } else {
+            Ok(None)
+        }
+    })
 }
 
 pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
@@ -3805,7 +3881,168 @@ pub(crate) fn current_version_on(conn: &Connection) -> SnapbackResult<u64> {
             "global storage version row is missing",
         ));
     };
-    decode_required_storage_version(version, "global storage version")
+    let version = decode_required_storage_version(version, "global storage version")?;
+    #[cfg(test)]
+    notify_storage_read_snapshot_pinned(conn, version);
+    Ok(version)
+}
+
+#[cfg(test)]
+struct StorageReadSnapshotDebugHook {
+    token: Uuid,
+    reached: mpsc::Sender<u64>,
+    release: mpsc::Receiver<()>,
+}
+
+#[cfg(test)]
+static STORAGE_READ_SNAPSHOT_DEBUG_HOOKS: OnceLock<
+    Mutex<BTreeMap<String, StorageReadSnapshotDebugHook>>,
+> = OnceLock::new();
+
+#[cfg(test)]
+pub(crate) struct StorageReadSnapshotDebugHookGuard {
+    path: String,
+    token: Uuid,
+}
+
+#[cfg(test)]
+impl Drop for StorageReadSnapshotDebugHookGuard {
+    fn drop(&mut self) {
+        let mut hooks = storage_read_snapshot_debug_hooks()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if hooks
+            .get(&self.path)
+            .is_some_and(|hook| hook.token == self.token)
+        {
+            hooks.remove(&self.path);
+        }
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn set_storage_read_snapshot_debug_hook(
+    db: &LocalDatabase,
+    reached: mpsc::Sender<u64>,
+    release: mpsc::Receiver<()>,
+) -> StorageReadSnapshotDebugHookGuard {
+    let path = db
+        .conn
+        .path()
+        .expect("file-backed storage snapshot hook requires a database path")
+        .to_owned();
+    let token = Uuid::now_v7();
+    let previous = storage_read_snapshot_debug_hooks()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .insert(
+            path.clone(),
+            StorageReadSnapshotDebugHook {
+                token,
+                reached,
+                release,
+            },
+        );
+    assert!(
+        previous.is_none(),
+        "storage snapshot hook path already in use"
+    );
+    StorageReadSnapshotDebugHookGuard { path, token }
+}
+
+#[cfg(test)]
+fn storage_read_snapshot_debug_hooks()
+-> &'static Mutex<BTreeMap<String, StorageReadSnapshotDebugHook>> {
+    STORAGE_READ_SNAPSHOT_DEBUG_HOOKS.get_or_init(|| Mutex::new(BTreeMap::new()))
+}
+
+#[cfg(test)]
+fn notify_storage_read_snapshot_pinned(conn: &Connection, version: u64) {
+    let hook = {
+        let mut hooks = storage_read_snapshot_debug_hooks()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        conn.path().and_then(|path| hooks.remove(path))
+    };
+    if let Some(hook) = hook
+        && hook.reached.send(version).is_ok()
+    {
+        let _ = hook
+            .release
+            .recv_timeout(std::time::Duration::from_secs(10));
+    }
+}
+
+#[cfg(test)]
+struct CommitVersionSampleDebugHook {
+    path: String,
+    reached: mpsc::Sender<()>,
+    release: mpsc::Receiver<()>,
+}
+
+#[cfg(test)]
+static COMMIT_VERSION_SAMPLE_DEBUG_HOOK: OnceLock<Mutex<Option<CommitVersionSampleDebugHook>>> =
+    OnceLock::new();
+
+#[cfg(test)]
+struct CommitVersionSampleDebugHookGuard;
+
+#[cfg(test)]
+impl Drop for CommitVersionSampleDebugHookGuard {
+    fn drop(&mut self) {
+        *commit_version_sample_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner()) = None;
+    }
+}
+
+#[cfg(test)]
+fn set_commit_version_sample_debug_hook(
+    conn: &Connection,
+    reached: mpsc::Sender<()>,
+    release: mpsc::Receiver<()>,
+) -> CommitVersionSampleDebugHookGuard {
+    let path = conn
+        .path()
+        .expect("commit-version sample hook requires a file-backed database")
+        .to_owned();
+    *commit_version_sample_debug_hook()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner()) = Some(CommitVersionSampleDebugHook {
+        path,
+        reached,
+        release,
+    });
+    CommitVersionSampleDebugHookGuard
+}
+
+#[cfg(test)]
+fn commit_version_sample_debug_hook() -> &'static Mutex<Option<CommitVersionSampleDebugHook>> {
+    COMMIT_VERSION_SAMPLE_DEBUG_HOOK.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(test)]
+fn notify_commit_version_sampled(conn: &Connection) {
+    let hook = {
+        let mut slot = commit_version_sample_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if slot
+            .as_ref()
+            .is_some_and(|hook| conn.path() == Some(hook.path.as_str()))
+        {
+            slot.take()
+        } else {
+            None
+        }
+    };
+    if let Some(hook) = hook
+        && hook.reached.send(()).is_ok()
+    {
+        let _ = hook
+            .release
+            .recv_timeout(std::time::Duration::from_secs(10));
+    }
 }
 
 /// A read-only storage view for query execution on either lane.
@@ -6430,8 +6667,10 @@ fn validate_captured_read_set(
                 })?;
                 schema_table(schema, table_name)?;
                 let current = table_change_version_from_tx(tx, table_name, maximum)?;
-                if current == expected {
-                    // Fast path: the table has not changed at all.
+                if current <= expected {
+                    // Fast path: this table has not changed after the sampled
+                    // global snapshot. A cold table's preserved high-water can
+                    // legitimately precede the global query cursor.
                     continue;
                 }
                 // @ref LLP 0032#phase-2--execution-semantics-honesty — E4:
@@ -6681,12 +6920,14 @@ fn ensure_change_journal_versions_valid(
 }
 
 fn table_change_version_from_connection(conn: &Connection, table: &str) -> SnapbackResult<u64> {
-    table_change_version_at_most(
-        conn,
-        table,
-        current_version_on(conn)?,
-        "table change version",
-    )
+    with_pinned_read_snapshot(conn, |conn| {
+        table_change_version_at_most(
+            conn,
+            table,
+            current_version_on(conn)?,
+            "table change version",
+        )
+    })
 }
 
 fn table_change_version_at_most(
@@ -7723,7 +7964,9 @@ fn read_membership_row(
     membership: &MembershipManifest,
     id: &str,
 ) -> SnapbackResult<Option<MembershipTargetRow>> {
-    read_membership_row_at_most(conn, table, membership, id, current_version_on(conn)?)
+    with_pinned_read_snapshot(conn, |conn| {
+        read_membership_row_at_most(conn, table, membership, id, current_version_on(conn)?)
+    })
 }
 
 fn read_membership_row_at_most(
@@ -7787,75 +8030,74 @@ fn read_caller_role_with_dependency(
     resource: Option<&str>,
     principal: &str,
 ) -> SnapbackResult<(Option<String>, CapturedReadDependency)> {
-    let head = current_version_on(conn)?;
-    validate_managed_row_versions(conn, table, head)?;
-    let (sql, bound): (String, Vec<String>) = match (&membership.resource, resource) {
-        (Some(resource_col), Some(resource_value)) => (
-            format!(
-                "SELECT _id, {role} FROM {table} WHERE {principal} = ?1 AND {resource} = ?2",
-                role = quote_ident(&membership.role)?,
-                table = quote_ident(&table.name)?,
-                principal = quote_ident(&membership.principal)?,
-                resource = quote_ident(resource_col)?,
+    with_pinned_read_snapshot(conn, |conn| {
+        let head = current_version_on(conn)?;
+        validate_managed_row_versions(conn, table, head)?;
+        let (sql, bound): (String, Vec<String>) = match (&membership.resource, resource) {
+            (Some(resource_col), Some(resource_value)) => (
+                format!(
+                    "SELECT _id, {role} FROM {table} WHERE {principal} = ?1 AND {resource} = ?2",
+                    role = quote_ident(&membership.role)?,
+                    table = quote_ident(&table.name)?,
+                    principal = quote_ident(&membership.principal)?,
+                    resource = quote_ident(resource_col)?,
+                ),
+                vec![principal.to_owned(), resource_value.to_owned()],
             ),
-            vec![principal.to_owned(), resource_value.to_owned()],
-        ),
-        (None, _) => (
-            format!(
-                "SELECT _id, {role} FROM {table} WHERE {principal} = ?1",
-                role = quote_ident(&membership.role)?,
-                table = quote_ident(&table.name)?,
-                principal = quote_ident(&membership.principal)?,
+            (None, _) => (
+                format!(
+                    "SELECT _id, {role} FROM {table} WHERE {principal} = ?1",
+                    role = quote_ident(&membership.role)?,
+                    table = quote_ident(&table.name)?,
+                    principal = quote_ident(&membership.principal)?,
+                ),
+                vec![principal.to_owned()],
             ),
-            vec![principal.to_owned()],
-        ),
-        (Some(_), None) => {
-            return Err(membership_refusal(
-                "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
-                "resource-scoped caller-role lookup is missing its resource",
-            ));
-        }
-    };
-    let row = conn
-        .query_row(&sql, params_from_iter(bound.iter()), |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
-        })
-        .optional()?;
-    // A present lookup must capture the exact role that produced the caller
-    // class, not merely the existence of some membership row. Otherwise a
-    // `host` plan could survive a concurrent demotion to `guest`: the same row
-    // id would still match a probe over the declaration's whole vocabulary.
-    // An absent lookup deliberately probes the whole vocabulary so any later
-    // caller membership invalidates the `none` witness.
-    let caller_role = row.as_ref().map(|(_, role)| role.clone());
-    let roles = caller_role.clone().map_or_else(
-        || membership.vocabulary().map(str::to_owned).collect(),
-        |role| vec![role],
-    );
-    let resource = match (&membership.resource, resource) {
-        (Some(_), Some(resource)) => {
-            crate::membership_rules::ResourceBinding::Fixed(Value::String(resource.to_owned()))
-        }
-        (None, _) => crate::membership_rules::ResourceBinding::AppSingleton,
-        (Some(_), None) => unreachable!("resource-scoped absence refused above"),
-    };
-    let probe = crate::membership_rules::membership_probe_plan(
-        membership,
-        &table.name,
-        principal,
-        &resource,
-        &roles,
-    );
-    let matching_ids = row
-        .as_ref()
-        .map(|(id, _)| vec![id.clone()])
-        .unwrap_or_default();
-    let dependency = crate::membership_rules::membership_capture_dependency(
-        &probe,
-        table_change_version_from_connection(conn, &table.name)?,
-        matching_ids,
-    )?;
-    Ok((caller_role, dependency))
+            (Some(_), None) => {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                    "resource-scoped caller-role lookup is missing its resource",
+                ));
+            }
+        };
+        let row = conn
+            .query_row(&sql, params_from_iter(bound.iter()), |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
+            .optional()?;
+        // A present lookup must capture the exact role that produced the caller
+        // class, not merely the existence of some membership row. Otherwise a
+        // `host` plan could survive a concurrent demotion to `guest`: the same row
+        // id would still match a probe over the declaration's whole vocabulary.
+        // An absent lookup deliberately probes the whole vocabulary so any later
+        // caller membership invalidates the `none` witness.
+        let caller_role = row.as_ref().map(|(_, role)| role.clone());
+        let roles = caller_role.clone().map_or_else(
+            || membership.vocabulary().map(str::to_owned).collect(),
+            |role| vec![role],
+        );
+        let resource = match (&membership.resource, resource) {
+            (Some(_), Some(resource)) => {
+                crate::membership_rules::ResourceBinding::Fixed(Value::String(resource.to_owned()))
+            }
+            (None, _) => crate::membership_rules::ResourceBinding::AppSingleton,
+            (Some(_), None) => unreachable!("resource-scoped absence refused above"),
+        };
+        let probe = crate::membership_rules::membership_probe_plan(
+            membership,
+            &table.name,
+            principal,
+            &resource,
+            &roles,
+        );
+        let matching_ids = row
+            .as_ref()
+            .map(|(id, _)| vec![id.clone()])
+            .unwrap_or_default();
+        let dependency =
+            crate::membership_rules::membership_capture_dependency(&probe, head, matching_ids)?;
+        Ok((caller_role, dependency))
+    })
 }
 
 fn read_resource_version(
@@ -7863,7 +8105,9 @@ fn read_resource_version(
     resource_table: &str,
     resource_id: &str,
 ) -> SnapbackResult<Option<u64>> {
-    read_resource_version_at_most(conn, resource_table, resource_id, current_version_on(conn)?)
+    with_pinned_read_snapshot(conn, |conn| {
+        read_resource_version_at_most(conn, resource_table, resource_id, current_version_on(conn)?)
+    })
 }
 
 fn read_resource_version_at_most(
@@ -7930,9 +8174,10 @@ impl LocalDatabase {
         &self,
         commands: Vec<BufferedMembershipCommand>,
     ) -> SnapbackResult<Vec<AuthorizedMembershipPlan>> {
-        commands
-            .into_iter()
-            .map(|command| {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            commands
+                .into_iter()
+                .map(|command| {
                 let plan = match command.op {
                     BufferedMembershipOp::Bootstrap {
                         resource_id,
@@ -7978,8 +8223,9 @@ impl LocalDatabase {
                     command.writer,
                     plan,
                 ))
-            })
-            .collect()
+                })
+                .collect()
+        })
     }
 
     /// Commit a pre-authorized membership effect under the `Sanctioned` gate:
@@ -8022,40 +8268,42 @@ impl LocalDatabase {
         table: &str,
         values: Map<String, Value>,
     ) -> SnapbackResult<MembershipPlan> {
-        if !writer.is_privileged_noninvocation() {
-            return Err(membership_refusal(
-                "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED",
-                "privileged membership insertion requires seed, import, or admin data-edit authority",
-            ));
-        }
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        let principal = extract_axis(&values, &membership.principal, "principal")?;
-        let role = extract_axis(&values, &membership.role, "role")?;
-        require_in_vocabulary(membership, &role)?;
-        if let (Some(resource_field), Some(resource_table)) =
-            (&membership.resource, &membership.resource_table)
-        {
-            let resource = extract_axis(&values, resource_field, "resource")?;
-            if read_resource_version(&self.conn, resource_table, &resource)?.is_none() {
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            if !writer.is_privileged_noninvocation() {
                 return Err(membership_refusal(
-                    "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
-                    format!(
-                        "privileged membership insert names resource {resource:?}, which does not exist in {resource_table}"
-                    ),
+                    "SNAPBACK_MEMBERSHIP_PRIVILEGED_WRITER_REQUIRED",
+                    "privileged membership insertion requires seed, import, or admin data-edit authority",
                 ));
             }
-        }
-        self.require_eligible_if_protected(membership, &role, &principal)?;
-        Ok(MembershipPlan {
-            writes: vec![BufferedWrite::Insert {
-                table: table_manifest.name.clone(),
-                id: new_id(),
-                values,
-            }],
-            read_dependencies: Vec::new(),
-            result: Value::Null,
-            skipped_protected: Vec::new(),
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            let principal = extract_axis(&values, &membership.principal, "principal")?;
+            let role = extract_axis(&values, &membership.role, "role")?;
+            require_in_vocabulary(membership, &role)?;
+            if let (Some(resource_field), Some(resource_table)) =
+                (&membership.resource, &membership.resource_table)
+            {
+                let resource = extract_axis(&values, resource_field, "resource")?;
+                if read_resource_version(&self.conn, resource_table, &resource)?.is_none() {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                        format!(
+                            "privileged membership insert names resource {resource:?}, which does not exist in {resource_table}"
+                        ),
+                    ));
+                }
+            }
+            self.require_eligible_if_protected(membership, &role, &principal)?;
+            Ok(MembershipPlan {
+                writes: vec![BufferedWrite::Insert {
+                    table: table_manifest.name.clone(),
+                    id: new_id(),
+                    values,
+                }],
+                read_dependencies: Vec::new(),
+                result: Value::Null,
+                skipped_protected: Vec::new(),
+            })
         })
     }
 
@@ -8094,69 +8342,48 @@ impl LocalDatabase {
         &self,
         declaration: &str,
     ) -> SnapbackResult<Vec<MembershipTransitionRecord>> {
-        let head = self.current_version()?;
-        let mut statement = self.conn.prepare(
-            "SELECT declaration_id, op, principal, resource, from_role, to_role,
+        with_pinned_read_snapshot(&self.conn, |conn| {
+            let head = current_version_on(conn)?;
+            let mut statement = conn.prepare(
+                "SELECT declaration_id, op, principal, resource, from_role, to_role,
                     actor, effective, grant_id, commit_version, writer_class
              FROM _snapback_membership_transitions
              WHERE declaration_id = ?1
              ORDER BY commit_version, id",
-        )?;
-        type RawTransition = (
-            String,
-            String,
-            String,
-            Option<String>,
-            Option<String>,
-            Option<String>,
-            String,
-            String,
-            Option<String>,
-            SqlValue,
-            String,
-        );
-        let rows = statement
-            .query_map(params![declaration], |row| {
-                Ok((
-                    row.get(0)?,
-                    row.get(1)?,
-                    row.get(2)?,
-                    row.get(3)?,
-                    row.get(4)?,
-                    row.get(5)?,
-                    row.get(6)?,
-                    row.get(7)?,
-                    row.get(8)?,
-                    row.get(9)?,
-                    row.get(10)?,
-                ))
-            })?
-            .collect::<Result<Vec<RawTransition>, _>>()?;
-        rows.into_iter()
-            .map(
-                |(
-                    declaration,
-                    op,
-                    principal,
-                    resource,
-                    from_role,
-                    to_role,
-                    actor,
-                    effective,
-                    grant,
-                    commit_version,
-                    writer_class,
-                )| {
-                    let commit_version = decode_required_committed_version(
-                        commit_version,
-                        "membership transition commit version",
-                    )?;
-                    validate_storage_version_at_most(
-                        commit_version,
-                        head,
-                        "membership transition commit version",
-                    )?;
-                    Ok(MembershipTransitionRecord {
+            )?;
+            type RawTransition = (
+                String,
+                String,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                String,
+                String,
+                Option<String>,
+                SqlValue,
+                String,
+            );
+            let rows = statement
+                .query_map(params![declaration], |row| {
+                    Ok((
+                        row.get(0)?,
+                        row.get(1)?,
+                        row.get(2)?,
+                        row.get(3)?,
+                        row.get(4)?,
+                        row.get(5)?,
+                        row.get(6)?,
+                        row.get(7)?,
+                        row.get(8)?,
+                        row.get(9)?,
+                        row.get(10)?,
+                    ))
+                })?
+                .collect::<Result<Vec<RawTransition>, _>>()?;
+            rows.into_iter()
+                .map(
+                    |(
                         declaration,
                         op,
                         principal,
@@ -8168,10 +8395,33 @@ impl LocalDatabase {
                         grant,
                         commit_version,
                         writer_class,
-                    })
-                },
-            )
-            .collect()
+                    )| {
+                        let commit_version = decode_required_committed_version(
+                            commit_version,
+                            "membership transition commit version",
+                        )?;
+                        validate_storage_version_at_most(
+                            commit_version,
+                            head,
+                            "membership transition commit version",
+                        )?;
+                        Ok(MembershipTransitionRecord {
+                            declaration,
+                            op,
+                            principal,
+                            resource,
+                            from_role,
+                            to_role,
+                            actor,
+                            effective,
+                            grant,
+                            commit_version,
+                            writer_class,
+                        })
+                    },
+                )
+                .collect()
+        })
     }
 
     /// Plan an `insert` transition (open-join, invite, ...). Reads the resource
@@ -8185,92 +8435,94 @@ impl LocalDatabase {
         table: &str,
         values: Map<String, Value>,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        // A userless authority matches no class, including `"none"`.
-        let effective = self.require_effective_principal(writer)?;
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            // A userless authority matches no class, including `"none"`.
+            let effective = self.require_effective_principal(writer)?;
 
-        let inserted_principal = extract_axis(&values, &membership.principal, "principal")?;
-        let inserted_role = extract_axis(&values, &membership.role, "role")?;
-        require_in_vocabulary(membership, &inserted_role)?;
-        let inserted_resource = match &membership.resource {
-            Some(resource_field) => Some(extract_axis(&values, resource_field, "resource")?),
-            None => None,
-        };
+            let inserted_principal = extract_axis(&values, &membership.principal, "principal")?;
+            let inserted_role = extract_axis(&values, &membership.role, "role")?;
+            require_in_vocabulary(membership, &inserted_role)?;
+            let inserted_resource = match &membership.resource {
+                Some(resource_field) => Some(extract_axis(&values, resource_field, "resource")?),
+                None => None,
+            };
 
-        let mut read_dependencies = Vec::new();
+            let mut read_dependencies = Vec::new();
 
-        // Referential integrity: the resource row must exist, and we capture it
-        // so a concurrent teardown/delete linearizes at commit.
-        if let (Some(resource_id), Some(resource_table)) = (
-            inserted_resource.as_deref(),
-            membership.resource_table.as_deref(),
-        ) {
-            let version = read_resource_version(&self.conn, resource_table, resource_id)?
-                .ok_or_else(|| {
-                    membership_refusal(
-                        "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
-                        format!(
-                            "membership insert names resource {resource_id:?}, which does not \
+            // Referential integrity: the resource row must exist, and we capture it
+            // so a concurrent teardown/delete linearizes at commit.
+            if let (Some(resource_id), Some(resource_table)) = (
+                inserted_resource.as_deref(),
+                membership.resource_table.as_deref(),
+            ) {
+                let version = read_resource_version(&self.conn, resource_table, resource_id)?
+                    .ok_or_else(|| {
+                        membership_refusal(
+                            "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                            format!(
+                                "membership insert names resource {resource_id:?}, which does not \
                              exist in {resource_table}"
-                        ),
-                    )
-                })?;
-            read_dependencies.push(resource_row_dependency(
-                resource_table,
-                resource_id,
-                version,
-            ));
-        }
+                            ),
+                        )
+                    })?;
+                read_dependencies.push(resource_row_dependency(
+                    resource_table,
+                    resource_id,
+                    version,
+                ));
+            }
 
-        // Caller class over the inserted resource, and target self/other.
-        let target = if inserted_principal == effective {
-            MembershipTarget::Own
-        } else {
-            MembershipTarget::Other
-        };
-        let (caller_role, caller_dependency) = read_caller_role_with_dependency(
-            &self.conn,
-            table_manifest,
-            membership,
-            inserted_resource.as_deref(),
-            effective,
-        )?;
-        let class = match caller_role {
-            Some(role) => MembershipCallerClass::Role(role),
-            None => MembershipCallerClass::None,
-        };
-        read_dependencies.push(caller_dependency);
+            // Caller class over the inserted resource, and target self/other.
+            let target = if inserted_principal == effective {
+                MembershipTarget::Own
+            } else {
+                MembershipTarget::Other
+            };
+            let (caller_role, caller_dependency) = read_caller_role_with_dependency(
+                &self.conn,
+                table_manifest,
+                membership,
+                inserted_resource.as_deref(),
+                effective,
+            )?;
+            let class = match caller_role {
+                Some(role) => MembershipCallerClass::Role(role),
+                None => MembershipCallerClass::None,
+            };
+            read_dependencies.push(caller_dependency);
 
-        let matched = membership
-            .transitions
-            .iter()
-            .find(|transition| {
-                transition.op == MembershipOp::Insert
-                    && transition.target == target
-                    && transition.by.iter().any(|by| by == class.token())
-                    && matches_role_lists(transition, None, Some(&inserted_role))
+            let matched = membership
+                .transitions
+                .iter()
+                .find(|transition| {
+                    transition.op == MembershipOp::Insert
+                        && transition.target == target
+                        && transition.by.iter().any(|by| by == class.token())
+                        && matches_role_lists(transition, None, Some(&inserted_role))
+                })
+                .ok_or_else(|| transition_denied(MembershipOp::Insert, class.token(), target))?;
+
+            // Field-bound insert: only the axes and the matched transition's `fields`
+            // may be written.
+            enforce_insert_fields(membership, matched, &values)?;
+
+            // Seating into a protected role requires an eligible principal — the set
+            // can never be kept full with corpses.
+            self.require_eligible_if_protected(membership, &inserted_role, &inserted_principal)?;
+
+            let id = new_id();
+            Ok(MembershipPlan {
+                writes: vec![BufferedWrite::Insert {
+                    table: table_manifest.name.clone(),
+                    id,
+                    values,
+                }],
+                read_dependencies,
+                result: Value::Null,
+                skipped_protected: Vec::new(),
             })
-            .ok_or_else(|| transition_denied(MembershipOp::Insert, class.token(), target))?;
-
-        // Field-bound insert: only the axes and the matched transition's `fields`
-        // may be written.
-        enforce_insert_fields(membership, matched, &values)?;
-
-        // Seating into a protected role requires an eligible principal — the set
-        // can never be kept full with corpses.
-        self.require_eligible_if_protected(membership, &inserted_role, &inserted_principal)?;
-
-        let id = new_id();
-        Ok(MembershipPlan {
-            writes: vec![BufferedWrite::Insert {
-                table: table_manifest.name.clone(),
-                id,
-                values,
-            }],
-            read_dependencies,
-            result: Value::Null,
-            skipped_protected: Vec::new(),
         })
     }
 
@@ -8286,60 +8538,62 @@ impl LocalDatabase {
         member_id: &str,
         to_role: &str,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        let effective = self.require_effective_principal(writer)?;
-        require_in_vocabulary(membership, to_role)?;
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            let effective = self.require_effective_principal(writer)?;
+            require_in_vocabulary(membership, to_role)?;
 
-        let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-            .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target, caller_dependency) = self.derive_class_and_target(
-            table_manifest,
-            membership,
-            row.resource.as_deref(),
-            &row.principal,
-            effective,
-        )?;
+            let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
+                .ok_or_else(|| target_row_missing(member_id))?;
+            let (class, target, caller_dependency) = self.derive_class_and_target(
+                table_manifest,
+                membership,
+                row.resource.as_deref(),
+                &row.principal,
+                effective,
+            )?;
 
-        let matched = membership
-            .transitions
-            .iter()
-            .find(|transition| {
-                transition.op == MembershipOp::SetRole
-                    && transition.target == target
-                    && transition.by.iter().any(|by| by == class.token())
-                    && matches_role_lists(transition, Some(&row.role), Some(to_role))
+            let matched = membership
+                .transitions
+                .iter()
+                .find(|transition| {
+                    transition.op == MembershipOp::SetRole
+                        && transition.target == target
+                        && transition.by.iter().any(|by| by == class.token())
+                        && matches_role_lists(transition, Some(&row.role), Some(to_role))
+                })
+                .ok_or_else(|| transition_denied(MembershipOp::SetRole, class.token(), target))?;
+            let _ = matched;
+
+            let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
+            read_dependencies.extend(caller_dependency);
+
+            // Demotion out of a protected role must leave an eligible holder; capture
+            // the survivor so two concurrent demotions of the final two cannot both
+            // commit.
+            self.guard_protected_departure(
+                table_manifest,
+                membership,
+                &row,
+                to_role != protected_role(membership),
+                &mut read_dependencies,
+            )?;
+            // Promotion into a protected role requires an eligible target principal.
+            self.require_eligible_if_protected(membership, to_role, &row.principal)?;
+
+            let mut patch = Map::new();
+            patch.insert(membership.role.clone(), Value::String(to_role.to_owned()));
+            Ok(MembershipPlan {
+                writes: vec![BufferedWrite::Patch {
+                    table: table_manifest.name.clone(),
+                    id: row.id.clone(),
+                    values: patch,
+                }],
+                read_dependencies,
+                result: Value::Null,
+                skipped_protected: Vec::new(),
             })
-            .ok_or_else(|| transition_denied(MembershipOp::SetRole, class.token(), target))?;
-        let _ = matched;
-
-        let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
-        read_dependencies.extend(caller_dependency);
-
-        // Demotion out of a protected role must leave an eligible holder; capture
-        // the survivor so two concurrent demotions of the final two cannot both
-        // commit.
-        self.guard_protected_departure(
-            table_manifest,
-            membership,
-            &row,
-            to_role != protected_role(membership),
-            &mut read_dependencies,
-        )?;
-        // Promotion into a protected role requires an eligible target principal.
-        self.require_eligible_if_protected(membership, to_role, &row.principal)?;
-
-        let mut patch = Map::new();
-        patch.insert(membership.role.clone(), Value::String(to_role.to_owned()));
-        Ok(MembershipPlan {
-            writes: vec![BufferedWrite::Patch {
-                table: table_manifest.name.clone(),
-                id: row.id.clone(),
-                values: patch,
-            }],
-            read_dependencies,
-            result: Value::Null,
-            skipped_protected: Vec::new(),
         })
     }
 
@@ -8352,49 +8606,51 @@ impl LocalDatabase {
         table: &str,
         member_id: &str,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        let effective = self.require_effective_principal(writer)?;
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            let effective = self.require_effective_principal(writer)?;
 
-        let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-            .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target, caller_dependency) = self.derive_class_and_target(
-            table_manifest,
-            membership,
-            row.resource.as_deref(),
-            &row.principal,
-            effective,
-        )?;
+            let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
+                .ok_or_else(|| target_row_missing(member_id))?;
+            let (class, target, caller_dependency) = self.derive_class_and_target(
+                table_manifest,
+                membership,
+                row.resource.as_deref(),
+                &row.principal,
+                effective,
+            )?;
 
-        membership
-            .transitions
-            .iter()
-            .find(|transition| {
-                transition.op == MembershipOp::Remove
-                    && transition.target == target
-                    && transition.by.iter().any(|by| by == class.token())
-                    && matches_role_lists(transition, Some(&row.role), None)
+            membership
+                .transitions
+                .iter()
+                .find(|transition| {
+                    transition.op == MembershipOp::Remove
+                        && transition.target == target
+                        && transition.by.iter().any(|by| by == class.token())
+                        && matches_role_lists(transition, Some(&row.role), None)
+                })
+                .ok_or_else(|| transition_denied(MembershipOp::Remove, class.token(), target))?;
+
+            let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
+            read_dependencies.extend(caller_dependency);
+            self.guard_protected_departure(
+                table_manifest,
+                membership,
+                &row,
+                true,
+                &mut read_dependencies,
+            )?;
+
+            Ok(MembershipPlan {
+                writes: vec![BufferedWrite::Delete {
+                    table: table_manifest.name.clone(),
+                    id: row.id.clone(),
+                }],
+                read_dependencies,
+                result: Value::Null,
+                skipped_protected: Vec::new(),
             })
-            .ok_or_else(|| transition_denied(MembershipOp::Remove, class.token(), target))?;
-
-        let mut read_dependencies = vec![target_row_dependency(&table_manifest.name, &row)];
-        read_dependencies.extend(caller_dependency);
-        self.guard_protected_departure(
-            table_manifest,
-            membership,
-            &row,
-            true,
-            &mut read_dependencies,
-        )?;
-
-        Ok(MembershipPlan {
-            writes: vec![BufferedWrite::Delete {
-                table: table_manifest.name.clone(),
-                id: row.id.clone(),
-            }],
-            read_dependencies,
-            result: Value::Null,
-            skipped_protected: Vec::new(),
         })
     }
 
@@ -8409,61 +8665,66 @@ impl LocalDatabase {
         member_id: &str,
         values: Map<String, Value>,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        let effective = self.require_effective_principal(writer)?;
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            let effective = self.require_effective_principal(writer)?;
 
-        let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
-            .ok_or_else(|| target_row_missing(member_id))?;
-        let (class, target, caller_dependency) = self.derive_class_and_target(
-            table_manifest,
-            membership,
-            row.resource.as_deref(),
-            &row.principal,
-            effective,
-        )?;
+            let row = read_membership_row(&self.conn, table_manifest, membership, member_id)?
+                .ok_or_else(|| target_row_missing(member_id))?;
+            let (class, target, caller_dependency) = self.derive_class_and_target(
+                table_manifest,
+                membership,
+                row.resource.as_deref(),
+                &row.principal,
+                effective,
+            )?;
 
-        // A patch never touches the axes or the role (immutability; role changes
-        // go through setRole). Refuse before op matching so the error names the
-        // real cause.
-        for key in values.keys() {
-            if key == &membership.principal
-                || key == &membership.role
-                || membership.resource.as_deref() == Some(key.as_str())
-            {
-                return Err(membership_refusal(
-                    "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
-                    format!("patch may not write membership axis/role column {key:?}"),
-                ));
+            // A patch never touches the axes or the role (immutability; role changes
+            // go through setRole). Refuse before op matching so the error names the
+            // real cause.
+            for key in values.keys() {
+                if key == &membership.principal
+                    || key == &membership.role
+                    || membership.resource.as_deref() == Some(key.as_str())
+                {
+                    return Err(membership_refusal(
+                        "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
+                        format!("patch may not write membership axis/role column {key:?}"),
+                    ));
+                }
             }
-        }
 
-        let matched = membership
-            .transitions
-            .iter()
-            .find(|transition| {
-                transition.op == MembershipOp::Patch
-                    && transition.target == target
-                    && transition.by.iter().any(|by| by == class.token())
-                    && matches_role_lists(transition, Some(&row.role), None)
-                    && values
-                        .keys()
-                        .all(|key| transition.fields.iter().flatten().any(|field| field == key))
-            })
-            .ok_or_else(|| transition_denied(MembershipOp::Patch, class.token(), target))?;
-        let _ = matched;
+            let matched = membership
+                .transitions
+                .iter()
+                .find(|transition| {
+                    transition.op == MembershipOp::Patch
+                        && transition.target == target
+                        && transition.by.iter().any(|by| by == class.token())
+                        && matches_role_lists(transition, Some(&row.role), None)
+                        && values
+                            .keys()
+                            .all(|key| transition.fields.iter().flatten().any(|field| field == key))
+                })
+                .ok_or_else(|| transition_denied(MembershipOp::Patch, class.token(), target))?;
+            let _ = matched;
 
-        Ok(MembershipPlan {
-            writes: vec![BufferedWrite::Patch {
-                table: table_manifest.name.clone(),
-                id: row.id.clone(),
-                values,
-            }],
-            read_dependencies: std::iter::once(target_row_dependency(&table_manifest.name, &row))
+            Ok(MembershipPlan {
+                writes: vec![BufferedWrite::Patch {
+                    table: table_manifest.name.clone(),
+                    id: row.id.clone(),
+                    values,
+                }],
+                read_dependencies: std::iter::once(target_row_dependency(
+                    &table_manifest.name,
+                    &row,
+                ))
                 .chain(caller_dependency)
                 .collect(),
-            result: Value::Null,
-            skipped_protected: Vec::new(),
+                result: Value::Null,
+                skipped_protected: Vec::new(),
+            })
         })
     }
 
@@ -8506,67 +8767,69 @@ impl LocalDatabase {
         resource_values: Map<String, Value>,
         membership_table: &str,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        let (member_table_manifest, membership) =
-            resolve_membership_decl(&schema, membership_table)?;
-        // The bootstrap seat is the server-derived effective principal; a userless
-        // authority cannot bootstrap.
-        let effective = self.require_effective_principal(writer)?;
-        let bootstrap_role = membership.bootstrap_role.as_deref().ok_or_else(|| {
-            membership_refusal(
-                "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE",
-                format!(
-                    "declaration {} has no bootstrapRole to seat",
-                    membership.effective_id(&member_table_manifest.name)
-                ),
-            )
-        })?;
-        if membership.resource_table.as_deref() != Some(resource_table) {
-            return Err(membership_refusal(
-                "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH",
-                format!(
-                    "declaration {} does not bind resource table {resource_table}",
-                    membership.effective_id(&member_table_manifest.name)
-                ),
-            ));
-        }
-        // The bootstrap holder must be eligible (a deactivated principal cannot
-        // invoke; this is defence in depth against a stale writer).
-        self.require_eligible_if_protected(membership, bootstrap_role, effective)?;
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            let (member_table_manifest, membership) =
+                resolve_membership_decl(&schema, membership_table)?;
+            // The bootstrap seat is the server-derived effective principal; a userless
+            // authority cannot bootstrap.
+            let effective = self.require_effective_principal(writer)?;
+            let bootstrap_role = membership.bootstrap_role.as_deref().ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_NO_BOOTSTRAP_ROLE",
+                    format!(
+                        "declaration {} has no bootstrapRole to seat",
+                        membership.effective_id(&member_table_manifest.name)
+                    ),
+                )
+            })?;
+            if membership.resource_table.as_deref() != Some(resource_table) {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_RESOURCE_MISMATCH",
+                    format!(
+                        "declaration {} does not bind resource table {resource_table}",
+                        membership.effective_id(&member_table_manifest.name)
+                    ),
+                ));
+            }
+            // The bootstrap holder must be eligible (a deactivated principal cannot
+            // invoke; this is defence in depth against a stale writer).
+            self.require_eligible_if_protected(membership, bootstrap_role, effective)?;
 
-        let resource_field = membership.resource.clone().ok_or_else(|| {
-            membership_refusal(
-                "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
-                "bootstrap is a resource-scoped operation",
-            )
-        })?;
-        let mut member_values = Map::new();
-        member_values.insert(
-            membership.principal.clone(),
-            Value::String(effective.to_owned()),
-        );
-        member_values.insert(resource_field, Value::String(resource_id.clone()));
-        member_values.insert(
-            membership.role.clone(),
-            Value::String(bootstrap_role.to_owned()),
-        );
+            let resource_field = membership.resource.clone().ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_BOOTSTRAP_APP_SCOPE",
+                    "bootstrap is a resource-scoped operation",
+                )
+            })?;
+            let mut member_values = Map::new();
+            member_values.insert(
+                membership.principal.clone(),
+                Value::String(effective.to_owned()),
+            );
+            member_values.insert(resource_field, Value::String(resource_id.clone()));
+            member_values.insert(
+                membership.role.clone(),
+                Value::String(bootstrap_role.to_owned()),
+            );
 
-        Ok(MembershipPlan {
-            writes: vec![
-                BufferedWrite::Insert {
-                    table: resource_table.to_owned(),
-                    id: resource_id.clone(),
-                    values: resource_values,
-                },
-                BufferedWrite::Insert {
-                    table: member_table_manifest.name.clone(),
-                    id: new_id(),
-                    values: member_values,
-                },
-            ],
-            read_dependencies: Vec::new(),
-            result: Value::String(resource_id),
-            skipped_protected: Vec::new(),
+            Ok(MembershipPlan {
+                writes: vec![
+                    BufferedWrite::Insert {
+                        table: resource_table.to_owned(),
+                        id: resource_id.clone(),
+                        values: resource_values,
+                    },
+                    BufferedWrite::Insert {
+                        table: member_table_manifest.name.clone(),
+                        id: new_id(),
+                        values: member_values,
+                    },
+                ],
+                read_dependencies: Vec::new(),
+                result: Value::String(resource_id),
+                skipped_protected: Vec::new(),
+            })
         })
     }
 
@@ -8584,83 +8847,85 @@ impl LocalDatabase {
         resource_table: &str,
         resource_id: &str,
     ) -> SnapbackResult<MembershipPlan> {
-        let schema = self.schema.clone();
-        // Teardown deletes the resource under app authority; a userless authority
-        // has no standing to delete it.
-        self.require_effective_principal(writer)?;
-        if read_resource_version(&self.conn, resource_table, resource_id)?.is_none() {
-            return Err(membership_refusal(
-                "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING",
-                format!("teardown names resource {resource_id:?}, which does not exist"),
-            ));
-        }
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            let schema = self.schema.clone();
+            // Teardown deletes the resource under app authority; a userless authority
+            // has no standing to delete it.
+            self.require_effective_principal(writer)?;
+            if read_resource_version(&self.conn, resource_table, resource_id)?.is_none() {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_TEARDOWN_RESOURCE_MISSING",
+                    format!("teardown names resource {resource_id:?}, which does not exist"),
+                ));
+            }
 
-        let mut writes = Vec::new();
-        let mut read_dependencies = Vec::new();
-        for table in &schema.tables {
-            let Some(membership) = &table.membership else {
-                continue;
-            };
-            if membership.scope != MembershipScope::Resource {
-                continue;
-            }
-            if membership.resource_table.as_deref() != Some(resource_table) {
-                continue;
-            }
-            let Some(resource_column) = membership.resource.as_deref() else {
-                continue;
-            };
-            let sql = format!(
-                "SELECT _id FROM {} WHERE {} = ?1",
-                quote_ident(&table.name)?,
-                quote_ident(resource_column)?
-            );
-            let mut statement = self.conn.prepare(&sql)?;
-            let ids = statement
-                .query_map(params![resource_id], |row| row.get::<_, String>(0))?
-                .collect::<Result<Vec<_>, _>>()?;
-            for id in ids {
-                writes.push(BufferedWrite::Delete {
-                    table: table.name.clone(),
-                    id,
+            let mut writes = Vec::new();
+            let mut read_dependencies = Vec::new();
+            for table in &schema.tables {
+                let Some(membership) = &table.membership else {
+                    continue;
+                };
+                if membership.scope != MembershipScope::Resource {
+                    continue;
+                }
+                if membership.resource_table.as_deref() != Some(resource_table) {
+                    continue;
+                }
+                let Some(resource_column) = membership.resource.as_deref() else {
+                    continue;
+                };
+                let sql = format!(
+                    "SELECT _id FROM {} WHERE {} = ?1",
+                    quote_ident(&table.name)?,
+                    quote_ident(resource_column)?
+                );
+                let mut statement = self.conn.prepare(&sql)?;
+                let ids = statement
+                    .query_map(params![resource_id], |row| row.get::<_, String>(0))?
+                    .collect::<Result<Vec<_>, _>>()?;
+                for id in ids {
+                    writes.push(BufferedWrite::Delete {
+                        table: table.name.clone(),
+                        id,
+                    });
+                }
+                // Capture the roster emptiness conservatively: a concurrent open-join
+                // insert that fills this resource's range after the plan snapshot
+                // bumps the table's change version and fails this dependency at
+                // commit, so an insert-then-teardown ordering yields exactly one
+                // winner (no orphan on a deleted resource). The reverse ordering is
+                // caught by the insert's captured resource row.
+                // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+                //   the roster-emptiness read is captured, the third aggregate.
+                read_dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Query,
+                    table: Some(table.name.clone()),
+                    id: None,
+                    version: Some(table_change_version_from_connection(
+                        &self.conn,
+                        &table.name,
+                    )?),
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
                 });
             }
-            // Capture the roster emptiness conservatively: a concurrent open-join
-            // insert that fills this resource's range after the plan snapshot
-            // bumps the table's change version and fails this dependency at
-            // commit, so an insert-then-teardown ordering yields exactly one
-            // winner (no orphan on a deleted resource). The reverse ordering is
-            // caught by the insert's captured resource row.
-            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
-            //   the roster-emptiness read is captured, the third aggregate.
-            read_dependencies.push(CapturedReadDependency {
-                kind: CapturedReadKind::Query,
-                table: Some(table.name.clone()),
-                id: None,
-                version: Some(table_change_version_from_connection(
-                    &self.conn,
-                    &table.name,
-                )?),
-                predicate: None,
-                rows: Vec::new(),
-                field: None,
-                value: None,
-                order: None,
-                limit: None,
-                result_count: None,
-                boundary: None,
+            writes.push(BufferedWrite::Delete {
+                table: resource_table.to_owned(),
+                id: resource_id.to_owned(),
             });
-        }
-        writes.push(BufferedWrite::Delete {
-            table: resource_table.to_owned(),
-            id: resource_id.to_owned(),
-        });
 
-        Ok(MembershipPlan {
-            writes,
-            read_dependencies,
-            result: Value::Null,
-            skipped_protected: Vec::new(),
+            Ok(MembershipPlan {
+                writes,
+                read_dependencies,
+                result: Value::Null,
+                skipped_protected: Vec::new(),
+            })
         })
     }
 
@@ -8680,130 +8945,133 @@ impl LocalDatabase {
         table: &str,
         now_ms: u64,
     ) -> SnapbackResult<MembershipPlan> {
-        if !matches!(writer, MembershipWriter::System) {
-            return Err(membership_refusal(
-                "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
-                "sweepExpired is the only system-authority membership write and requires \
+        with_pinned_read_snapshot(&self.conn, |_conn| {
+            if !matches!(writer, MembershipWriter::System) {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_SWEEP_AUTHORITY",
+                    "sweepExpired is the only system-authority membership write and requires \
                  resolved system authority",
-            ));
-        }
-        let schema = self.schema.clone();
-        let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
-        let snapshot_version = self.current_version()?;
-        validate_managed_row_versions(&self.conn, table_manifest, snapshot_version)?;
-        let expiry = membership.expiry.as_ref().ok_or_else(|| {
-            membership_refusal(
-                "SNAPBACK_MEMBERSHIP_NO_EXPIRY",
-                format!(
-                    "declaration {} declares no expiry field to sweep",
-                    membership.effective_id(&table_manifest.name)
-                ),
-            )
-        })?;
-
-        // Rows whose declared expiry field is strictly in the past. A null expiry
-        // is never swept.
-        let mut columns = vec![membership.principal.clone(), membership.role.clone()];
-        if let Some(resource) = &membership.resource {
-            columns.push(resource.clone());
-        }
-        let quoted = columns
-            .iter()
-            .map(|column| quote_ident(column))
-            .collect::<SnapbackResult<Vec<_>>>()?
-            .join(", ");
-        let sql = format!(
-            "SELECT _id, _version, {quoted} FROM {} WHERE {field} IS NOT NULL AND {field} < ?1 ORDER BY _id",
-            quote_ident(&table_manifest.name)?,
-            field = quote_ident(&expiry.field)?
-        );
-        let has_resource = membership.resource.is_some();
-        let mut statement = self.conn.prepare(&sql)?;
-        let now_ms = timestamp_to_sql_millis(now_ms)?;
-        let expired = statement
-            .query_map(params![now_ms], |row| {
-                let id: String = row.get(0)?;
-                let version: SqlValue = row.get(1)?;
-                let principal: String = row.get(2)?;
-                let role: String = row.get(3)?;
-                let resource: Option<String> = if has_resource { row.get(4)? } else { None };
-                Ok((id, version, principal, role, resource))
-            })?
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let protect = membership
-            .last_holder
-            .as_ref()
-            .map(|last| last.protect.clone());
-        let mut writes = Vec::new();
-        let mut read_dependencies = Vec::new();
-        let mut skipped_protected = Vec::new();
-        // Sequential accounting: a row already marked for removal is no longer a
-        // surviving eligible holder, so two expired protected holders cannot both
-        // be swept into a strand.
-        let mut removed: BTreeSet<String> = BTreeSet::new();
-        for (id, version, principal, role, resource) in expired {
-            let version =
-                decode_required_committed_version(version, "expired membership row version")?;
-            validate_storage_version_at_most(
-                version,
-                snapshot_version,
-                "expired membership row version",
-            )?;
-            // The sweep may delete this exact row only if its expiry/role/axes
-            // are unchanged at commit. Renewal, promotion, or any other patch
-            // bumps the row version and invalidates the stale plan.
-            // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
-            read_dependencies.push(CapturedReadDependency {
-                kind: CapturedReadKind::Row,
-                table: Some(table_manifest.name.clone()),
-                id: Some(id.clone()),
-                version: Some(version),
-                predicate: None,
-                rows: Vec::new(),
-                field: None,
-                value: None,
-                order: None,
-                limit: None,
-                result_count: None,
-                boundary: None,
-            });
-            let is_protected_final = match (&protect, &resource) {
-                (Some(protect), Some(resource)) if protect == &role => {
-                    let survivors = crate::storage::auth_agents::eligible_protected_holder_rows(
-                        &self.conn,
-                        &table_manifest.name,
-                        &membership.principal,
-                        membership.resource.as_deref().unwrap_or_default(),
-                        &membership.role,
-                        resource,
-                        protect,
-                        &principal,
-                        schema.effective_auth_mode() == AuthMode::Sessions,
-                        snapshot_version,
-                    )?;
-                    !survivors
-                        .iter()
-                        .any(|(member_id, _, _)| !removed.contains(member_id))
-                }
-                _ => false,
-            };
-            if is_protected_final {
-                skipped_protected.push(id);
-                continue;
+                ));
             }
-            removed.insert(id.clone());
-            writes.push(BufferedWrite::Delete {
-                table: table_manifest.name.clone(),
-                id,
-            });
-        }
+            let schema = self.schema.clone();
+            let (table_manifest, membership) = resolve_membership_decl(&schema, table)?;
+            let snapshot_version = self.current_version()?;
+            validate_managed_row_versions(&self.conn, table_manifest, snapshot_version)?;
+            let expiry = membership.expiry.as_ref().ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_NO_EXPIRY",
+                    format!(
+                        "declaration {} declares no expiry field to sweep",
+                        membership.effective_id(&table_manifest.name)
+                    ),
+                )
+            })?;
 
-        Ok(MembershipPlan {
-            writes,
-            read_dependencies,
-            result: Value::Null,
-            skipped_protected,
+            // Rows whose declared expiry field is strictly in the past. A null expiry
+            // is never swept.
+            let mut columns = vec![membership.principal.clone(), membership.role.clone()];
+            if let Some(resource) = &membership.resource {
+                columns.push(resource.clone());
+            }
+            let quoted = columns
+                .iter()
+                .map(|column| quote_ident(column))
+                .collect::<SnapbackResult<Vec<_>>>()?
+                .join(", ");
+            let sql = format!(
+                "SELECT _id, _version, {quoted} FROM {} WHERE {field} IS NOT NULL AND {field} < ?1 ORDER BY _id",
+                quote_ident(&table_manifest.name)?,
+                field = quote_ident(&expiry.field)?
+            );
+            let has_resource = membership.resource.is_some();
+            let mut statement = self.conn.prepare(&sql)?;
+            let now_ms = timestamp_to_sql_millis(now_ms)?;
+            let expired = statement
+                .query_map(params![now_ms], |row| {
+                    let id: String = row.get(0)?;
+                    let version: SqlValue = row.get(1)?;
+                    let principal: String = row.get(2)?;
+                    let role: String = row.get(3)?;
+                    let resource: Option<String> = if has_resource { row.get(4)? } else { None };
+                    Ok((id, version, principal, role, resource))
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+
+            let protect = membership
+                .last_holder
+                .as_ref()
+                .map(|last| last.protect.clone());
+            let mut writes = Vec::new();
+            let mut read_dependencies = Vec::new();
+            let mut skipped_protected = Vec::new();
+            // Sequential accounting: a row already marked for removal is no longer a
+            // surviving eligible holder, so two expired protected holders cannot both
+            // be swept into a strand.
+            let mut removed: BTreeSet<String> = BTreeSet::new();
+            for (id, version, principal, role, resource) in expired {
+                let version =
+                    decode_required_committed_version(version, "expired membership row version")?;
+                validate_storage_version_at_most(
+                    version,
+                    snapshot_version,
+                    "expired membership row version",
+                )?;
+                // The sweep may delete this exact row only if its expiry/role/axes
+                // are unchanged at commit. Renewal, promotion, or any other patch
+                // bumps the row version and invalidates the stale plan.
+                // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default
+                read_dependencies.push(CapturedReadDependency {
+                    kind: CapturedReadKind::Row,
+                    table: Some(table_manifest.name.clone()),
+                    id: Some(id.clone()),
+                    version: Some(version),
+                    predicate: None,
+                    rows: Vec::new(),
+                    field: None,
+                    value: None,
+                    order: None,
+                    limit: None,
+                    result_count: None,
+                    boundary: None,
+                });
+                let is_protected_final = match (&protect, &resource) {
+                    (Some(protect), Some(resource)) if protect == &role => {
+                        let survivors =
+                            crate::storage::auth_agents::eligible_protected_holder_rows(
+                                &self.conn,
+                                &table_manifest.name,
+                                &membership.principal,
+                                membership.resource.as_deref().unwrap_or_default(),
+                                &membership.role,
+                                resource,
+                                protect,
+                                &principal,
+                                schema.effective_auth_mode() == AuthMode::Sessions,
+                                snapshot_version,
+                            )?;
+                        !survivors
+                            .iter()
+                            .any(|(member_id, _, _)| !removed.contains(member_id))
+                    }
+                    _ => false,
+                };
+                if is_protected_final {
+                    skipped_protected.push(id);
+                    continue;
+                }
+                removed.insert(id.clone());
+                writes.push(BufferedWrite::Delete {
+                    table: table_manifest.name.clone(),
+                    id,
+                });
+            }
+
+            Ok(MembershipPlan {
+                writes,
+                read_dependencies,
+                result: Value::Null,
+                skipped_protected,
+            })
         })
     }
 
@@ -10589,6 +10857,232 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::open(&path).expect("file database");
         db.apply_schema(schema()).expect("apply test schema");
         (dir, path, db)
+    }
+
+    #[test]
+    fn head_bound_reads_stay_on_one_snapshot_during_a_sibling_commit() {
+        for surface in ["get", "query", "scan"] {
+            let (_dir, path, mut setup) = file_database();
+            setup
+                .seed(seed_data("item", "before"))
+                .expect("seed baseline row");
+            drop(setup);
+
+            let reader = LocalDatabase::open(&path).expect("open reader");
+            let (reached_tx, reached_rx) = mpsc::channel();
+            let (release_tx, release_rx) = mpsc::channel();
+            let _hook = set_storage_read_snapshot_debug_hook(&reader, reached_tx, release_rx);
+            let writer_path = path.clone();
+            let writer = std::thread::spawn(move || {
+                let sampled_head = reached_rx
+                    .recv_timeout(std::time::Duration::from_secs(5))
+                    .expect("reader pins the baseline head");
+                let mut writer = LocalDatabase::open(writer_path).expect("open sibling writer");
+                let committed = writer
+                    .commit_buffered_writes(
+                        &HandlerInput::default(),
+                        vec![BufferedWrite::Patch {
+                            table: "items".to_owned(),
+                            id: "item".to_owned(),
+                            values: Map::from_iter([("title".to_owned(), json!("after"))]),
+                        }],
+                        Vec::new(),
+                        Value::Null,
+                    )
+                    .expect("commit sibling patch");
+                release_tx
+                    .send(())
+                    .expect("release the pinned reader after commit");
+                (sampled_head, committed.output.version)
+            });
+
+            let (reported_version, row) = match surface {
+                "get" => (
+                    None,
+                    reader
+                        .get("items", "item")
+                        .expect("point read")
+                        .expect("baseline row"),
+                ),
+                "query" => {
+                    let output = reader
+                        .query(
+                            &QueryPlan {
+                                table: "items".to_owned(),
+                                filters: Vec::new(),
+                                membership_filters: Vec::new(),
+                                order: Vec::new(),
+                                limit: None,
+                                indexed_by: None,
+                            },
+                            &HandlerInput::default(),
+                        )
+                        .expect("query read");
+                    (Some(output.version), output.rows[0].clone())
+                }
+                "scan" => {
+                    let output = reader.scan_table("items", 10, 0).expect("scan read");
+                    (None, output.rows[0].clone())
+                }
+                _ => unreachable!(),
+            };
+            let (sampled_head, committed_version) = writer.join().expect("writer joins");
+
+            assert_eq!(
+                reported_version.unwrap_or(sampled_head),
+                sampled_head,
+                "{surface}"
+            );
+            assert_eq!(row["_version"], sampled_head, "{surface}");
+            assert_eq!(row["title"], "before", "{surface}");
+            assert_eq!(committed_version, sampled_head + 1, "{surface}");
+            assert_eq!(
+                reader.current_version().unwrap(),
+                committed_version,
+                "{surface}"
+            );
+        }
+    }
+
+    #[test]
+    fn sibling_writers_allocate_versions_after_the_sqlite_write_reservation() {
+        let (_dir, path, setup) = file_database();
+        drop(setup);
+
+        let mut first = LocalDatabase::open(&path).expect("open first writer");
+        let mut second = LocalDatabase::open(&path).expect("open second writer");
+        let (reached_tx, reached_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let _hook = set_commit_version_sample_debug_hook(&first.conn, reached_tx, release_rx);
+
+        let first_writer = std::thread::spawn(move || {
+            first
+                .execute_mutation(&insert_plan(), &HandlerInput::default())
+                .expect("first sibling commit")
+                .output
+                .version
+        });
+
+        reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("first writer samples after owning the write reservation");
+
+        second
+            .conn
+            .busy_timeout(std::time::Duration::ZERO)
+            .expect("disable busy wait for the reservation probe");
+        let blocked = second
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect_err("the sibling cannot begin while the first writer owns the reservation");
+        assert_eq!(blocked.diagnostic.code, "SNAPBACK_SQLITE_ERROR");
+        assert!(
+            blocked.diagnostic.details["error"]
+                .as_str()
+                .is_some_and(|error| error.contains("database is locked")),
+            "unexpected reservation refusal: {:?}",
+            blocked.diagnostic.details
+        );
+        release_tx.send(()).expect("release first sibling writer");
+        assert_eq!(first_writer.join().expect("first writer joins"), 1);
+        second
+            .conn
+            .busy_timeout(std::time::Duration::from_secs(5))
+            .expect("restore busy timeout");
+        let second_version = second
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect("second sibling commits after the reservation releases")
+            .output
+            .version;
+        assert_eq!(second_version, 2);
+
+        let reader = LocalDatabase::open(&path).expect("open committed database");
+        assert_eq!(reader.current_version().unwrap(), 2);
+        let rows = reader.scan_table("items", 10, 0).expect("scan commits");
+        assert_eq!(rows.total, 4);
+        assert_eq!(
+            rows.rows
+                .iter()
+                .map(|row| row["_version"].as_u64().unwrap())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([1, 2]),
+        );
+    }
+
+    #[test]
+    fn global_query_cursor_does_not_conflict_after_only_hot_table_history_is_pruned() {
+        let mut manifest = schema();
+        let mut hot_table = manifest.tables[0].clone();
+        hot_table.name = "hot_items".to_owned();
+        manifest.tables.push(hot_table);
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(manifest).expect("apply two-table schema");
+        db.seed(SeedData {
+            tables: BTreeMap::from([(
+                "hot_items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), json!("hot")),
+                    ("title".to_owned(), json!("v1")),
+                ])],
+            )]),
+        })
+        .expect("seed hot table");
+
+        let query = QueryPlan {
+            table: "items".to_owned(),
+            filters: Vec::new(),
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: None,
+            indexed_by: None,
+        };
+        let input = HandlerInput::default();
+        let output = db.query(&query, &input).expect("capture cold-table query");
+        assert_eq!(output.version, 1);
+        let dependency = crate::live_matcher::query_dependencies_from_plan(
+            &query,
+            &input,
+            &output,
+            &DbRead::Live(&db),
+        )
+        .expect("capture query dependency")
+        .into_iter()
+        .find(|dependency| dependency.kind == CapturedReadKind::Query)
+        .expect("query dependency");
+
+        for title in ["v2", "v3", "v4"] {
+            db.commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Patch {
+                    table: "hot_items".to_owned(),
+                    id: "hot".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!(title))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("advance only the hot table");
+        }
+        let future = now_millis().saturating_add(10_000);
+        assert!(
+            db.prune_change_journal(future, 0, 0)
+                .expect("prune old hot-table history")
+                > 0
+        );
+        assert!(db.journal_floor_version().unwrap() > output.version + 1);
+
+        let commit = db
+            .commit_buffered_writes(
+                &input,
+                vec![BufferedWrite::Insert {
+                    table: "hot_items".to_owned(),
+                    id: "later".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!("v5"))]),
+                }],
+                vec![dependency],
+                Value::Null,
+            )
+            .expect("cold-table dependency remains valid");
+        assert_eq!(commit.output.version, 5);
     }
 
     fn insert_plan() -> MutationPlan {

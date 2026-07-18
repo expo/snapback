@@ -1432,8 +1432,10 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
     drop(setup);
 
     let (read_tx, read_rx) = std::sync::mpsc::channel();
-    let _read_hook =
-        snapback::runtime::set_captured_point_read_debug_hook("todos", &todo_id, read_tx);
+    let (release_tx, release_rx) = std::sync::mpsc::channel();
+    let _read_hook = snapback::runtime::set_captured_point_read_debug_hook(
+        "todos", &todo_id, read_tx, release_rx,
+    );
     let thread_path = db_path.clone();
     let thread_id = todo_id.clone();
     let first = thread::spawn(move || {
@@ -1454,14 +1456,17 @@ fn captured_handler_read_conflict_rejects_without_client_read_set() {
 
     let mut concurrent = LocalSnapback::open(&db_path).expect("open concurrent snapback");
     concurrent.load_functions(todo_functions());
-    // Flip completed to a NEW value so the first handler's visibility poll
-    // observes the commit (the row starts at completed=false).
+    // Flip completed to a new value so the captured row version changes before
+    // the first handler is released (the row starts at completed=false).
     concurrent
         .invoke_mutation(
             "setCompleted",
             input(json!({ "id": todo_id, "completed": true }), "user_1"),
         )
         .expect("concurrent patch");
+    release_tx
+        .send(())
+        .expect("release first handler after concurrent commit");
 
     let diagnostic = first
         .join()
@@ -2720,15 +2725,6 @@ globalThis.__snapbackHandlers = {
   async setCompleted(ctx, args) {
     const todo = await ctx.db.get('todos', args.id);
     if (!todo) return 0;
-    // Deterministic stale window: instead of busy-waiting on the ambient
-    // clock (denied in the deterministic tier — LLP 0051 Increment 2), poll
-    // until the concurrent writer's committed flip becomes visible to fresh
-    // reads, then attempt the patch. Bounded: if nothing flips, fall through
-    // — commit-time read-set validation is what the caller asserts on.
-    for (var i = 0; i < 100000; i++) {
-      const fresh = await ctx.db.get('todos', args.id);
-      if (fresh && fresh.completed !== todo.completed) break;
-    }
     return (await ctx.db.patch('todos', args.id, {
       completed: args.completed,
     })) ? 1 : 0;
@@ -3636,6 +3632,75 @@ globalThis.__snapbackHandlers = {
     assert_eq!(rows.len(), 2);
     assert_eq!(rows[0]["title"], "two");
     assert_eq!(rows[1]["title"], "three");
+}
+
+#[test]
+fn buffered_query_captures_exact_overfetch_and_out_of_range_touched_row() {
+    const SOURCE: &str = r#"
+globalThis.__snapbackHandlers = {
+  async createTodo(ctx, args) {
+    return await ctx.db.insert('todos', { title: args.title, completed: false, userId: 'u' });
+  },
+  async insertThenTopTwo(ctx) {
+    const id = await ctx.db.insert('todos', {
+      title: 'zzzz', completed: false, userId: 'u',
+    });
+    const rows = await ctx.db.query('todos').order('title', 'asc').take(2).collect();
+    return { id, rows };
+  }
+};
+"#;
+    let mut snapback = LocalSnapback::memory().expect("memory snapback");
+    snapback.apply_schema(todo_schema()).expect("schema");
+    let mut functions = ibex_todo_functions(SOURCE);
+    let mut query_after_insert = FunctionDefinition::new(
+        "insertThenTopTwo",
+        FunctionKind::Mutation,
+        FunctionRuntime::IbexModule(IbexModule {
+            source: SOURCE.to_owned(),
+            export: "insertThenTopTwo".to_owned(),
+        }),
+    );
+    query_after_insert.required_capabilities = vec![
+        "ibex_ctx_db_host_bridge".to_owned(),
+        "mutation_read_set_validation".to_owned(),
+    ];
+    query_after_insert.write_set_summary.tables = vec!["todos".to_owned()];
+    functions.functions.push(query_after_insert);
+    snapback.load_functions(functions);
+
+    for title in ["a", "b", "c"] {
+        snapback
+            .invoke_mutation("createTodo", input(json!({ "title": title }), "u"))
+            .expect("seed todo");
+    }
+    let output = snapback.run_function("insertThenTopTwo", input(json!({}), "u"));
+    assert!(output.ok, "{output:?}");
+    let result = output.result.as_ref().expect("handler result");
+    let inserted_id = result["id"].as_str().expect("inserted id");
+    let rows = result
+        .get("rows")
+        .and_then(Value::as_array)
+        .expect("query rows");
+    assert_eq!(rows.len(), 2);
+    assert_eq!(rows[0]["title"], "a");
+    assert_eq!(rows[1]["title"], "b");
+
+    let query_dependencies = output
+        .captured_reads
+        .iter()
+        .filter(|dependency| dependency.kind == CapturedReadKind::Query)
+        .collect::<Vec<_>>();
+    assert_eq!(query_dependencies.len(), 1);
+    assert_eq!(query_dependencies[0].limit, Some(3));
+    assert_eq!(query_dependencies[0].result_count, Some(3));
+    assert!(
+        output.captured_reads.iter().any(|dependency| {
+            dependency.kind == CapturedReadKind::MissingRow
+                && dependency.id.as_deref() == Some(inserted_id)
+        }),
+        "the buffered insert outside the overfetch window must capture its storage miss"
+    );
 }
 
 #[test]
