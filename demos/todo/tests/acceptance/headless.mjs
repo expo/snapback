@@ -253,7 +253,7 @@ try {
     await overlay.drain();
     assertEqual(overlay.currentEntries().map((entry) => entry.value), [{ x: 5, y: 6 }], 'coalesced latest cursor value');
 
-    await db.publishEphemeral(cursorRef, {
+    const gonePublish = await db.publishEphemeral(cursorRef, {
       connectionId: 'cursor_gone',
       scope,
       userId: ADA,
@@ -261,10 +261,14 @@ try {
       value: { x: 30, y: 40 },
     });
     await overlay.drain();
-    assert(overlay.currentEntries().some((entry) => entry.key === 'cursor_gone'), 'disconnect cursor missing before disconnect');
+    // @ref LLP 0031#connection-capability-grants — reset/retirement containment
+    // may map the kit's readable label to an opaque wire connection id.
+    // Connection-owned entries use that granted identity, which the confirmed
+    // publish returns as its key.
+    assert(overlay.currentEntries().some((entry) => entry.key === gonePublish.key), 'disconnect cursor missing before disconnect');
     await db.disconnect('cursor_gone');
     await overlay.drain();
-    assert(!overlay.currentEntries().some((entry) => entry.key === 'cursor_gone'), 'disconnect should remove connection-owned cursor');
+    assert(!overlay.currentEntries().some((entry) => entry.key === gonePublish.key), 'disconnect should remove connection-owned cursor');
 
     const mixedOverlay = await db.subscribeEphemeral(cursorRef, {
       connectionId: 'mixed_lane',
@@ -321,13 +325,16 @@ try {
     const stream = db.openLiveStream('ws_cursor');
     try {
       await stream.ready;
+      // @ref LLP 0031#connection-capability-grants — raw wire frames assert
+      // the granted id bound to this socket, not the kit's readable label.
+      const wsCursorGrant = await db.connectionGrant('ws_cursor');
       stream.sendJson({
         type: 'ephemeral_subscribe',
         requestId: 'sub-1',
         request: {
           collection: 'boardCursors',
           scope,
-          connection_id: 'ws_cursor',
+          connection_id: wsCursorGrant.id,
           auth: SnapbackClient.auth(ADA, { permissions }),
         },
       });
@@ -340,7 +347,7 @@ try {
         request: {
           collection: 'boardCursors',
           scope,
-          connection_id: 'ws_cursor',
+          connection_id: wsCursorGrant.id,
           session_id: null,
           user_id: null,
           custom_key: null,
