@@ -31,7 +31,11 @@ use tower::ServiceExt;
 
 /// Shared watchdog budget for timeout-focused cases (ms).
 const WATCHDOG_MS: u64 = 800;
-const NON_TIMEOUT_PROOF_WATCHDOG_MS: u64 = 10_000;
+const NON_TIMEOUT_PROOF_WATCHDOG_MS: u64 = 30_000;
+/// Cold native runtime/fetch startup is deliberately outside the mutex proof.
+/// Keep this coarse bound below the non-timeout watchdog so a loaded proof host
+/// cannot turn setup scheduling into a false lock regression.
+const NATIVE_FETCH_START_BOUND: Duration = Duration::from_secs(12);
 static ACTION_TEST_LOCK: tokio::sync::Mutex<()> = tokio::sync::Mutex::const_new(());
 
 async fn serial_action_test() -> tokio::sync::MutexGuard<'static, ()> {
@@ -380,6 +384,26 @@ fn start_paused_action(
     })
 }
 
+async fn await_paused_action_fetch_start(
+    label: &str,
+    started: oneshot::Receiver<()>,
+    action: &mut tokio::task::JoinHandle<Value>,
+) {
+    let started = tokio::time::timeout(NATIVE_FETCH_START_BOUND, started);
+    tokio::pin!(started);
+    tokio::select! {
+        started = &mut started => {
+            started
+                .unwrap_or_else(|_| panic!("{label}: action reaches native fetch before the coarse setup bound"))
+                .unwrap_or_else(|_| panic!("{label}: fetch-start signal"));
+        }
+        result = action => {
+            let body = result.unwrap_or_else(|error| panic!("{label}: action task before native fetch: {error}"));
+            panic!("{label}: action returned before reaching native fetch: {body}");
+        }
+    }
+}
+
 fn start_paused_mutation_action(
     app: snapback::server::SnapbackApp,
     url: String,
@@ -524,13 +548,8 @@ async fn assert_paused_action_generation_fence(
     advance_generation: impl FnOnce(&mut LocalSnapback),
 ) {
     let (url, started, release, server) = held_http_response().await;
-    let action = start_paused_action(app, url);
-    tokio::time::timeout(Duration::from_secs(2), started)
-        .await
-        .unwrap_or_else(|_| {
-            panic!("{label}: action reaches native fetch before generation advance")
-        })
-        .unwrap_or_else(|_| panic!("{label}: fetch-start signal"));
+    let mut action = start_paused_action(app, url);
+    await_paused_action_fetch_start(label, started, &mut action).await;
     // Causal ordering, not a sleep: the fetch is proven active (its request
     // headers reached the fixture) before the generation advances.
     {
@@ -623,7 +642,11 @@ async fn paused_host_call_free_action_generation_fence_survives_settlement_race(
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
     let _serial = serial_action_test().await;
-    set_watchdog_env();
+    // Warm the process-global native fetch path outside this timeout-focused
+    // proof. On a loaded host, first-use runtime/network initialization can
+    // exceed the deliberately short watchdog before the request reaches the
+    // fixture; that setup latency says nothing about lock-wait abandonment.
+    set_watchdog_env_ms(NON_TIMEOUT_PROOF_WATCHDOG_MS);
 
     tokio::time::timeout(Duration::from_secs(5), async {
         while snapback::server::detached_action_worker_count() != 0 {
@@ -635,13 +658,22 @@ async fn permanently_held_instance_mutex_does_not_leak_action_worker() {
     let baseline = snapback::server::detached_action_worker_count();
 
     let (state, app) = watchdog_state_and_app().await;
+    let (warm_url, warm_started, release_warm, warm_server) = held_http_response().await;
+    let mut warm_action = start_paused_action(app.clone(), warm_url);
+    await_paused_action_fetch_start("held-lock warmup", warm_started, &mut warm_action).await;
+    release_warm.send(()).expect("release held-lock warmup");
+    let warm_body = tokio::time::timeout(NATIVE_FETCH_START_BOUND, warm_action)
+        .await
+        .expect("held-lock warmup settles")
+        .expect("held-lock warmup task");
+    warm_server.await.expect("held-lock warmup server");
+    assert_eq!(warm_body["ok"], true, "held-lock warmup: {warm_body}");
+
+    set_watchdog_env();
     let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
     let started = Instant::now();
-    let action = start_paused_mutation_action(app, url);
-    tokio::time::timeout(Duration::from_secs(2), fetch_started)
-        .await
-        .expect("action reaches native fetch before instance lock is held")
-        .expect("held-lock fetch-start signal");
+    let mut action = start_paused_mutation_action(app, url);
+    await_paused_action_fetch_start("held-lock proof", fetch_started, &mut action).await;
 
     let held_instance = state.clone().lock_owned().await;
     release_fetch.send(()).expect("release held-lock fetch");
@@ -835,11 +867,8 @@ async fn action_run_does_not_hold_the_write_mutex() {
     let app = watchdog_app().await;
 
     let (url, fetch_started, release_fetch, fetch_server) = held_http_response().await;
-    let action = start_paused_action(app.clone(), url);
-    tokio::time::timeout(Duration::from_secs(2), fetch_started)
-        .await
-        .expect("action reaches native fetch before concurrent requests")
-        .expect("mutex-proof fetch-start signal");
+    let mut action = start_paused_action(app.clone(), url);
+    await_paused_action_fetch_start("mutex proof", fetch_started, &mut action).await;
     assert!(
         !action.is_finished(),
         "held fetch must keep the action active"
