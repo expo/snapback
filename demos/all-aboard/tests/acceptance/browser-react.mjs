@@ -26,12 +26,14 @@
 // so the suite can run pinned away from other checkouts' demo servers squatting
 // the defaults. On the chosen ports, reuse is *verified*, never assumed
 // (ENG-22753; the Diary 0008 2026-07-01 :4420 gotcha): a running server is
-// reused only when its provenance matches this checkout, otherwise the suite
-// falls back — loudly — to a fresh server on a fresh OS-assigned port.
+// reused only when its provenance matches this checkout and the caller
+// supplied its admin token; otherwise the suite starts a fresh server on an
+// OS-assigned port.
 //
 // Run: node demos/all-aboard/tests/acceptance/browser-react.mjs
-//   (reuses an already-running API + Vite on the chosen ports only after
-//   verifying their provenance, else starts fresh ones).
+//   (reuses an already-running API only with a caller-supplied admin token and
+//   verified provenance; Vite also requires verified provenance; otherwise
+//   starts fresh processes).
 
 import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -43,10 +45,9 @@ import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
   freePort,
-  readCommittedBundleHash,
-  verifyApiProvenance,
   verifyViteProvenance,
 } from '../../../_kit/provenance.mjs';
+import { startServer } from '../../../_kit/server-process.mjs';
 import { assertFirstBoardPaintBudget } from './startup-timing.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -56,14 +57,21 @@ const artifactsJsonPath = join(repoRoot, 'demos', 'all-aboard', 'snapback', 'gen
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const API_PORT = Number(process.env.ALL_ABOARD_API_PORT ?? 4420);
 const VITE_PORT = Number(process.env.ALL_ABOARD_REACT_VITE_PORT ?? 5179);
-// Mirror browser.mjs: mint an admin token before the API server spawns (it
-// inherits process.env) so harness-side AdminWrites — the manual cron run —
-// can authenticate. The PAGE never sees or needs this token; its boot goes
-// through the profile-gated /app/ensure (ENG-23707).
-const API_ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || `sbat_browser_react_${Date.now().toString(36)}`;
-process.env.SNAPBACK_ADMIN_TOKEN = API_ADMIN_TOKEN;
+// Bundle provenance cannot prove that a reused process accepts a newly minted
+// admin capability. Default runs therefore force a fresh isolated child; API
+// reuse is an explicit opt-in made by supplying the existing server's token.
+// The PAGE never sees or needs this token; its boot goes through the
+// profile-gated /app/ensure (ENG-23707).
+const REUSED_API_ADMIN_TOKEN = process.env.SNAPBACK_ADMIN_TOKEN || null;
+let apiAdminToken = REUSED_API_ADMIN_TOKEN;
 let apiUrl = `http://127.0.0.1:${API_PORT}`;
 let viteUrl = `http://127.0.0.1:${VITE_PORT}`;
+
+const unprivilegedChildEnv = (extra = {}) => {
+  const env = { ...process.env, ...extra };
+  delete env.SNAPBACK_ADMIN_TOKEN;
+  return env;
+};
 
 // A run that performs fewer checks than the suite declares is a harness
 // failure, not a pass — a pre-check throw must never exit "PASS — 0/0". The
@@ -85,34 +93,22 @@ let cdp = null;
 let page = null;
 
 async function ensureApi() {
-  let port = API_PORT;
-  if (await urlOk(`${apiUrl}/health`)) {
-    // Something healthy answers on the port — reuse it ONLY if it is verifiably
-    // running this checkout's committed app (ENG-22753). "Healthy" alone was
-    // the Diary 0008 bug: a weeks-old server from another checkout squatting
-    // :4420 contaminated runs with code that wasn't in the reused surface.
-    const committed = readCommittedBundleHash(artifactsJsonPath);
-    const verdict = await verifyApiProvenance(apiUrl, { appId: 'all-aboard', bundleHash: committed });
-    if (verdict.ok) {
-      console.log(`REUSED API server at :${port} (bundleHash ${verdict.bundleHash})`);
-      return;
-    }
-    port = await freePort();
-    console.error(
-      `PROVENANCE MISMATCH: a server answers /health on :${API_PORT} but ${verdict.reason}. ` +
-      `NOT reusing it — starting a fresh isolated API server on :${port} (pin with ALL_ABOARD_API_PORT).`,
-    );
-    apiUrl = `http://127.0.0.1:${port}`;
-  }
-  const env = { ...process.env };
-  if (process.platform === 'darwin' && !env.DYLD_FRAMEWORK_PATH) {
-    env.DYLD_FRAMEWORK_PATH = join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks');
-  }
-  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(port), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
-  cleanups.push(() => child.kill('SIGTERM'));
-  const deadline = Date.now() + 90_000;
-  while (Date.now() < deadline) { if (await urlOk(`${apiUrl}/health`)) return; if (child.exitCode !== null) throw new Error('API server exited'); await sleep(500); }
-  throw new Error('API server did not become healthy');
+  // @ref LLP 0010#required-tool-surfaces — use the shared ready-file and
+  // process-tree lifecycle so failed startup retains a bounded output tail.
+  const server = await startServer({
+    port: REUSED_API_ADMIN_TOKEN ? API_PORT : 0,
+    db: ':memory:',
+    cwd: repoRoot,
+    env: REUSED_API_ADMIN_TOKEN
+      ? { SNAPBACK_ADMIN_TOKEN: REUSED_API_ADMIN_TOKEN }
+      : {},
+    provenance: { appId: 'all-aboard', artifactsPath: artifactsJsonPath },
+    startupTimeoutMs: 90_000,
+  });
+  apiUrl = server.baseUrl;
+  apiAdminToken = server.adminToken;
+  if (!apiAdminToken) throw new Error('Snapback API did not return an admin token');
+  cleanups.push(() => server.stop());
 }
 
 async function ensureVite() {
@@ -134,11 +130,15 @@ async function ensureVite() {
     viteUrl = `http://127.0.0.1:${port}`;
   }
   if (!existsSync(join(surfaceDir, 'node_modules', '.bin', 'vite'))) {
-    const install = spawnSync('bun', ['install'], { cwd: surfaceDir, stdio: ['ignore', 'inherit', 'inherit'] });
+    const install = spawnSync('bun', ['install'], {
+      cwd: surfaceDir,
+      env: unprivilegedChildEnv(),
+      stdio: ['ignore', 'inherit', 'inherit'],
+    });
     if (install.status !== 0) throw new Error('bun install failed for the React surface');
   }
   const child = spawn('bun', ['--bun', 'node_modules/.bin/vite', '--host', '127.0.0.1', '--port', String(port), '--strictPort'],
-    { cwd: surfaceDir, env: { ...process.env, SNAPBACK_ALL_ABOARD_API: apiUrl }, stdio: ['ignore', 'ignore', 'pipe'] });
+    { cwd: surfaceDir, env: unprivilegedChildEnv({ SNAPBACK_ALL_ABOARD_API: apiUrl }), stdio: ['ignore', 'ignore', 'pipe'] });
   cleanups.push(() => child.kill('SIGTERM'));
   const deadline = Date.now() + 60_000;
   while (Date.now() < deadline) { if (await urlOk(viteUrl)) return; if (child.exitCode !== null) throw new Error('Vite exited'); await sleep(500); }
@@ -333,7 +333,7 @@ async function main() {
       const tickCount = feedBefore.tickCount ?? 0;
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
         method: 'POST',
-        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+        headers: { 'x-snapback-admin-token': apiAdminToken },
       });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const record = await run.json();
@@ -374,7 +374,7 @@ async function main() {
       if (!stationName) throw new Error('first window lost its board after the second boot');
       const run = await fetch(`${apiUrl}/_snapback/api/cron/warmPoll/run`, {
         method: 'POST',
-        headers: { 'x-snapback-admin-token': API_ADMIN_TOKEN },
+        headers: { 'x-snapback-admin-token': apiAdminToken },
       });
       if (!run.ok) throw new Error(`cron manual run failed: HTTP ${run.status}`);
       const fresh = await page.pollText('freshness', 'Updated a few seconds ago', 6000);
@@ -459,7 +459,7 @@ async function main() {
 
 async function launchChrome() {
   const userDataDir = mkdtempSync(join(tmpdir(), 'aa-browser-react-'));
-  const child = spawn(chromeBin, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+  const child = spawn(chromeBin, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, 'about:blank'], { env: unprivilegedChildEnv(), stdio: ['ignore', 'ignore', 'pipe'] });
   // Without this handler a bad CHROME_BIN crashes the whole process as an
   // unhandled 'error' event, skipping teardown (ENG-22486).
   let spawnError = null;

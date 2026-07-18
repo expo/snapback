@@ -14,17 +14,12 @@
 #      lockfile that drifts from package.json fails, not resolves);
 #   2. production-build the surface through the installed
 #      `@exact/devtools/contract-web` preset;
-#   3. run the 14-check browser acceptance with SNAPBACK_REQUIRE_EXACT=1 and
-#      independently require >= 14 checks to have actually PASSed.
+#   3. run the 34-check browser acceptance with SNAPBACK_REQUIRE_EXACT=1 and
+#      independently require >= 34 checks to have actually PASSed.
 #
 # Usage: scripts/cold-clone-check.sh
 #
 # Environment:
-#   ALL_ABOARD_API_PORT   Snapback API port for the acceptance (default 4471 —
-#                         deliberately NOT the demo default 4420: the suite
-#                         reuses whatever answers /health on the port, and a
-#                         foreign checkout's engine squatting the default is
-#                         the Diary 0008 trap).
 #   ALL_ABOARD_VITE_PORT  Vite port for the acceptance (default 5271, not 5178).
 #   CHROME_BIN            Chrome binary (default: auto-detected).
 
@@ -33,10 +28,14 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SURFACE_DIR="$ROOT/demos/all-aboard/surfaces/contract"
 ACCEPTANCE="$ROOT/demos/all-aboard/tests/acceptance/browser.mjs"
-MIN_CHECKS=14
+MIN_CHECKS=34
 
-API_PORT="${ALL_ABOARD_API_PORT:-4471}"
 VITE_PORT="${ALL_ABOARD_VITE_PORT:-5271}"
+
+# This lane always owns a fresh isolated API and its helper-minted capability.
+# Drop any caller credential before registry scripts, production build plugins,
+# browser tooling, or other non-API children can inherit it.
+unset SNAPBACK_ADMIN_TOKEN
 
 log() {
     printf '[cold-clone] %s\n' "$*"
@@ -102,9 +101,10 @@ for tool in git node bun cargo; do
 done
 
 # --- Snapback side: submodules + engine toolchain --------------------------
-# browser.mjs's ensureApi spawns `cargo run` from this repo root; that needs
-# vendor/ibex (submodule) and its Hermes artifacts (bootstrap-ibex-runtime,
-# the documented engine prep step — see AGENTS.md and verify-local-proof).
+# browser.mjs's shared server lifecycle spawns `cargo run` from this repo root;
+# that needs vendor/ibex (submodule) and its Hermes artifacts
+# (bootstrap-ibex-runtime, the documented engine prep step — see AGENTS.md and
+# verify-local-proof).
 
 banner "Snapback engine prerequisites"
 if [ ! -f "$ROOT/vendor/ibex/Cargo.toml" ]; then
@@ -143,7 +143,7 @@ step_timer_start
 step_timer_end "surface build"
 log "step 1 OK: production build passed from registry packages"
 
-# --- Step 2: the 14-check browser acceptance --------------------------------
+# --- Step 2: the 34-check browser acceptance --------------------------------
 
 banner "Step 2: browser acceptance (${MIN_CHECKS} checks, Exact required)"
 
@@ -160,27 +160,41 @@ esac
 
 detect_chrome
 
-# The suite reuses any healthy server already on its ports — refuse to run
-# against something this script did not start.
-for port in "$API_PORT" "$VITE_PORT"; do
-    if port_busy "$port"; then
-        fail "port $port is already in use; free it or set ALL_ABOARD_API_PORT/ALL_ABOARD_VITE_PORT"
-    fi
-done
+# The API is always a fresh port-zero child in this lane. Refuse only a Vite
+# listener that the script did not start.
+if port_busy "$VITE_PORT"; then
+    fail "port $VITE_PORT is already in use; free it or set ALL_ABOARD_VITE_PORT"
+fi
 
 # BSD mktemp only substitutes trailing Xs — no suffix after the template.
 ACCEPT_LOG="$(mktemp "${TMPDIR:-/tmp}/all-aboard-cold-clone.XXXXXX")"
 log "acceptance log: $ACCEPT_LOG"
 step_timer_start
-acceptance_status=0
-env ALL_ABOARD_API_PORT="$API_PORT" ALL_ABOARD_VITE_PORT="$VITE_PORT" \
-    node "$ACCEPTANCE" 2>&1 | tee "$ACCEPT_LOG" || acceptance_status=$?
+# Capture the acceptance directly instead of streaming it through `tee`.
+# Some nonblocking PTYs reject writes with EAGAIN while no reader is attached,
+# which can make a passing suite look like a failed logging pipeline. The full
+# report stays at ACCEPT_LOG; the independently validated summary is printed
+# below. CI failures also receive a bounded human-readable tail.
+set +e
+env ALL_ABOARD_VITE_PORT="$VITE_PORT" \
+    node "$ACCEPTANCE" >"$ACCEPT_LOG" 2>&1
+acceptance_status=$?
+set -e
 step_timer_end "browser acceptance"
 
 if grep -q 'SNAPBACK_CAPABILITY_EXACT_MISSING' "$ACCEPT_LOG"; then
     fail "acceptance reported SNAPBACK_CAPABILITY_EXACT_MISSING — the cold-clone lane must never skip for missing Exact packages"
 fi
-[ "$acceptance_status" -eq 0 ] || fail "browser acceptance exited $acceptance_status"
+if [ "$acceptance_status" -ne 0 ]; then
+    if [ "${CI:-}" = "true" ]; then
+        printf '[cold-clone] bounded acceptance output tail:\n' >&2
+        sed '/^--- machine-readable report ---$/,$d' "$ACCEPT_LOG" \
+            | tail -n 40 \
+            | cut -c 1-500 >&2 \
+            || true
+    fi
+    fail "browser acceptance exited $acceptance_status; full output: $ACCEPT_LOG"
+fi
 
 # Independent count gate: trust the harness summary line
 # ("PASS <title> — <passed>/<total>", demos/_kit/harness.mjs), not just the

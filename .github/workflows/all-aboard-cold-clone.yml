@@ -4,15 +4,11 @@ name: all-aboard-cold-clone
 # Contract surface — `bun install --frozen-lockfile` in the surface resolves
 # the published Exact packages from the npm registry at exactly the versions
 # the committed bun.lock records (the lockfile replaced exact.pin.json),
-# production build, then the full 14-check browser acceptance where missing
+# production build, then the full 34-check browser acceptance where missing
 # Exact packages are a FAILURE (SNAPBACK_REQUIRE_EXACT=1), never a skip.
 # scripts/cold-clone-check.sh is the canonical check; this job runs it
 # unmodified on a runner with no sibling checkouts by construction.
 #
-# NOTE: GitHub Actions is billing-blocked for this account as of 2026-07-02,
-# so this lane is verified by local runs of the same script (fresh clone in a
-# temp dir) until CI unblocks.
-
 on:
   push:
     branches: [main]
@@ -76,7 +72,7 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
-      # Step 1 (registry install + production build) and step 2 (the 14-check
+      # Step 1 (registry install + production build) and step 2 (the 34-check
       # browser acceptance, Chrome ships on ubuntu-latest) both live in the
       # script so local runs and CI exercise one code path. No
       # continue-on-error, no fallback: if the install, the build, or any
