@@ -1,6 +1,6 @@
 import { execFileSync, spawnSync } from 'node:child_process';
 import { strict as assert } from 'node:assert';
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,56 @@ assert.deepEqual(workflowNames, [
   'required-surface-builds.yml',
 ]);
 
+const activeCheckoutUse = /^\s*-\s+uses:\s+actions\/checkout@[^\s#]+(?:\s+#.*)?$/;
+const activeCredentialCheck = /^\s*run:\s*scripts\/check-checkout-credentials\s*(?:#.*)?$/m;
+const activePersistCredentialsFalse = /^\s+persist-credentials:\s*false\s*(?:#.*)?$/m;
+
+function checkoutStepBlocks(text) {
+  const lines = text.split('\n');
+  const blocks = [];
+  for (let index = 0; index < lines.length; index += 1) {
+    if (!activeCheckoutUse.test(lines[index])) continue;
+    const indent = /^\s*/.exec(lines[index])[0].length;
+    let end = index + 1;
+    while (end < lines.length) {
+      const nextIndent = /^\s*/.exec(lines[end])[0].length;
+      if (/^\s*-\s/.test(lines[end]) && nextIndent === indent) break;
+      end += 1;
+    }
+    blocks.push(lines.slice(index, end).join('\n'));
+  }
+  return blocks;
+}
+
+function assertCheckoutCredentialPolicy(text, name) {
+  const blocks = checkoutStepBlocks(text);
+  assert(blocks.length > 0, `${name} must contain an active checkout step`);
+  for (const block of blocks) {
+    assert.match(
+      block,
+      activePersistCredentialsFalse,
+      `${name} checkout must not persist credentials`,
+    );
+  }
+}
+
+const syntheticCheckout = `  - uses: actions/checkout@${'0'.repeat(40)} # v-test\n    with:`;
+assert.throws(
+  () => assertCheckoutCredentialPolicy(`${syntheticCheckout}\n      # persist-credentials: false`, 'commented property fixture'),
+  /must not persist credentials/,
+  'a commented persist-credentials property must not satisfy checkout policy',
+);
+assert.throws(
+  () => assertCheckoutCredentialPolicy(`#${syntheticCheckout}\n      persist-credentials: false`, 'commented checkout fixture'),
+  /active checkout step/,
+  'a commented checkout step must not enter the reviewed checkout inventory',
+);
+assert.doesNotMatch(
+  '      # run: scripts/check-checkout-credentials',
+  activeCredentialCheck,
+  'a commented credential-check command must not satisfy workflow policy',
+);
+
 let actionCount = 0;
 let setupNodeCount = 0;
 for (const name of workflowNames) {
@@ -26,7 +76,7 @@ for (const name of workflowNames) {
     'contents: read',
     `${name} must grant only read-only contents permission`,
   );
-  assert.match(text, /run: scripts\/check-checkout-credentials/, `${name} must attest checkout cleanup`);
+  assert.match(text, activeCredentialCheck, `${name} must attest checkout cleanup`);
 
   const uses = [...text.matchAll(/^\s*-?\s*uses:\s+([^\s#]+)(?:\s+#\s*(\S+))?$/gm)];
   assert(uses.length > 0, `${name} must contain actions`);
@@ -38,20 +88,9 @@ for (const name of workflowNames) {
     actionCount += 1;
   }
 
-  const lines = text.split('\n');
-  for (let index = 0; index < lines.length; index += 1) {
-    if (!lines[index].includes('actions/checkout@')) continue;
-    const indent = /^\s*/.exec(lines[index])[0].length;
-    let end = index + 1;
-    while (end < lines.length) {
-      const nextIndent = /^\s*/.exec(lines[end])[0].length;
-      if (/^\s*-\s/.test(lines[end]) && nextIndent === indent) break;
-      end += 1;
-    }
-    const block = lines.slice(index, end).join('\n');
-    assert.match(block, /persist-credentials:\s*false/, `${name} checkout must not persist credentials`);
-  }
+  assertCheckoutCredentialPolicy(text, name);
 
+  const lines = text.split('\n');
   for (let index = 0; index < lines.length; index += 1) {
     if (!lines[index].includes('oven-sh/setup-bun@')) continue;
     const indent = /^\s*/.exec(lines[index])[0].length;
@@ -99,6 +138,13 @@ assert.equal(actionCount, 14, 'the reviewed workflow action inventory changed; r
 
 const localProof = readFileSync(join(workflowDir, 'local-proof.yml'), 'utf8');
 assert.match(localProof, /SNAPBACK_VERIFY_EXACT:\s*"1"/, 'canonical CI must require Exact/admin checks');
+const [localProofCheckout] = checkoutStepBlocks(localProof);
+assert(localProofCheckout, 'canonical CI must contain an active checkout step');
+assert.match(
+  localProofCheckout,
+  /^\s+fetch-depth:\s*0\s*(?:#.*)?$/m,
+  'canonical CI must fetch guide review identities so freshness is verifiable',
+);
 assert.match(
   localProof,
   /Reclaim unused GitHub-hosted runner disk/,
@@ -233,16 +279,32 @@ const accepted = spawnSync(process.execPath, [installerGuard], {
 });
 assert.equal(accepted.status, 0, accepted.stderr);
 
-  const credentialCheck = spawnSync(join(ROOT, 'scripts', 'check-checkout-credentials'), [], {
-  cwd: ROOT,
+const credentialCheckScript = join(ROOT, 'scripts', 'check-checkout-credentials');
+const runCredentialCheck = (cwd) => spawnSync(credentialCheckScript, [], {
+  cwd,
   encoding: 'utf8',
 });
+const assertCredentialRejected = (result, sentinel, label, message = /authorization header in a repository config/) => {
+  assert.equal(result.status, 1, `${label} must fail the checkout proof`);
+  assert.match(result.stderr, message);
+  assert.doesNotMatch(
+    `${result.stdout}${result.stderr}`,
+    new RegExp(sentinel),
+    `${label} credential values must never enter diagnostics`,
+  );
+};
+
+const credentialCheck = runCredentialCheck(ROOT);
 assert.equal(credentialCheck.status, 0, credentialCheck.stderr);
 
 const credentialScratch = mkdtempSync(join(tmpdir(), 'snapback-checkout-credentials-'));
 try {
   const child = join(credentialScratch, 'child');
+  const grandchild = join(credentialScratch, 'grandchild');
   const parent = join(credentialScratch, 'parent');
+  execFileSync('git', ['init', '--quiet', grandchild]);
+  execFileSync('git', ['-C', grandchild, '-c', 'user.name=Snapback Test', '-c', 'user.email=test@example.invalid',
+    'commit', '--quiet', '--allow-empty', '-m', 'seed']);
   execFileSync('git', ['init', '--quiet', child]);
   execFileSync('git', ['-C', child, '-c', 'user.name=Snapback Test', '-c', 'user.email=test@example.invalid',
     'commit', '--quiet', '--allow-empty', '-m', 'seed']);
@@ -251,31 +313,95 @@ try {
 
   execFileSync('git', ['-C', parent, 'config',
     'http.https://github.com/.extraheader', 'AUTHORIZATION: basic root-sentinel-must-not-leak']);
-  const rootCredentialCheck = spawnSync(join(ROOT, 'scripts', 'check-checkout-credentials'), [], {
-    cwd: parent,
-    encoding: 'utf8',
-  });
-  assert.equal(rootCredentialCheck.status, 1, 'root credential must fail the checkout proof');
-  assert.match(rootCredentialCheck.stderr, /authorization header in a repository config/);
-  assert.doesNotMatch(
-    `${rootCredentialCheck.stdout}${rootCredentialCheck.stderr}`,
-    /root-sentinel-must-not-leak/,
-    'root credential values must never enter diagnostics',
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'root-sentinel-must-not-leak',
+    'root credential',
   );
   execFileSync('git', ['-C', parent, 'config', '--unset-all', 'http.https://github.com/.extraheader']);
 
+  const benignCredentialsConfig = join(credentialScratch, 'git-credentials-benign.config');
+  execFileSync('git', ['config', '--file', benignCredentialsConfig, 'user.name', 'Benign Include']);
+  execFileSync('git', ['-C', parent, 'config', 'include.path', benignCredentialsConfig]);
+  const benignIncludeCheck = runCredentialCheck(parent);
+  assert.equal(
+    benignIncludeCheck.status,
+    0,
+    `an included config without an extraheader must not be a false positive: ${benignIncludeCheck.stderr}`,
+  );
+  execFileSync('git', ['-C', parent, 'config', '--local', '--no-includes',
+    '--unset-all', 'include.path']);
+
+  const rootIncludedCredentials = join(credentialScratch, 'git-credentials-root.config');
+  execFileSync('git', ['config', '--file', rootIncludedCredentials,
+    'http.https://github.com/.extraheader', 'AUTHORIZATION: basic include-sentinel-must-not-leak']);
+  execFileSync('git', ['-C', parent, 'config', 'include.path', rootIncludedCredentials]);
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'include-sentinel-must-not-leak',
+    'root include credential',
+  );
+  execFileSync('git', ['-C', parent, 'config', '--local', '--no-includes',
+    '--unset-all', 'include.path']);
+
+  const parentGitDir = execFileSync(
+    'git',
+    ['-C', parent, 'rev-parse', '--absolute-git-dir'],
+    { encoding: 'utf8' },
+  ).trim().replaceAll('\\', '/');
+  const rootIncludeIfKey = `includeIf.gitdir:${parentGitDir}.path`;
+  execFileSync('git', ['-C', parent, 'config', rootIncludeIfKey, rootIncludedCredentials]);
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'include-sentinel-must-not-leak',
+    'root includeIf credential',
+  );
+  execFileSync('git', ['-C', parent, 'config', '--unset-all', rootIncludeIfKey]);
+
+  const malformedIncludedConfig = join(credentialScratch, 'git-credentials-malformed.config');
+  writeFileSync(
+    malformedIncludedConfig,
+    '[http "https://github.com/"]\n\textraheader = malformed-sentinel-must-not-leak\n[broken\n',
+  );
+  execFileSync('git', ['-C', parent, 'config', 'include.path', malformedIncludedConfig]);
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'malformed-sentinel-must-not-leak',
+    'malformed included credential config',
+    /could not inspect the effective repository config/,
+  );
+  rmSync(malformedIncludedConfig);
+  execFileSync('git', ['-C', parent, 'config', '--local', '--no-includes',
+    '--unset-all', 'include.path']);
+
   execFileSync('git', ['-C', join(parent, 'modules/child'), 'config',
     'http.https://github.com/.extraheader', 'AUTHORIZATION: basic sentinel-must-not-leak']);
-  const recursiveCredentialCheck = spawnSync(join(ROOT, 'scripts', 'check-checkout-credentials'), [], {
-    cwd: parent,
-    encoding: 'utf8',
-  });
-  assert.equal(recursiveCredentialCheck.status, 1, 'submodule credential must fail the checkout proof');
-  assert.match(recursiveCredentialCheck.stderr, /authorization header in a repository config/);
-  assert.doesNotMatch(
-    `${recursiveCredentialCheck.stdout}${recursiveCredentialCheck.stderr}`,
-    /sentinel-must-not-leak/,
-    'credential values must never enter diagnostics',
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'sentinel-must-not-leak',
+    'submodule credential',
+  );
+  execFileSync('git', ['-C', join(parent, 'modules/child'), 'config',
+    '--unset-all', 'http.https://github.com/.extraheader']);
+
+  const childCheckout = join(parent, 'modules/child');
+  execFileSync('git', ['-C', childCheckout, '-c', 'protocol.file.allow=always',
+    'submodule', 'add', '--quiet', grandchild, 'modules/grandchild']);
+  const grandchildCheckout = join(childCheckout, 'modules/grandchild');
+  const grandchildGitDir = execFileSync(
+    'git',
+    ['-C', grandchildCheckout, 'rev-parse', '--absolute-git-dir'],
+    { encoding: 'utf8' },
+  ).trim().replaceAll('\\', '/');
+  const nestedCredentialsConfig = join(credentialScratch, 'git-credentials-nested.config');
+  execFileSync('git', ['config', '--file', nestedCredentialsConfig,
+    'http.https://github.com/.extraheader', 'AUTHORIZATION: basic nested-sentinel-must-not-leak']);
+  execFileSync('git', ['-C', grandchildCheckout, 'config',
+    `includeIf.gitdir:${grandchildGitDir}.path`, nestedCredentialsConfig]);
+  assertCredentialRejected(
+    runCredentialCheck(parent),
+    'nested-sentinel-must-not-leak',
+    'recursive submodule includeIf credential',
   );
 } finally {
   rmSync(credentialScratch, { recursive: true, force: true });

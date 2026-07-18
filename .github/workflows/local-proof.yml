@@ -22,6 +22,10 @@ jobs:
         with:
           submodules: recursive
           persist-credentials: false
+          # Guide freshness compares reviewed authority commits against HEAD;
+          # a depth-1 checkout turns every historical review identity into an
+          # unverifiable warning instead of running the intended audit.
+          fetch-depth: 0
           # vendor/ibex is a private-repo submodule; the default GITHUB_TOKEN
           # only reads this repository. Fine-grained PAT, Contents: read on
           # ccheever/snapback + ccheever/ibex.
