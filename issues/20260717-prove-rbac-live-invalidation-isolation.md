@@ -24,3 +24,13 @@ Alice never receives later fanout, or if later envelopes cross user scopes.
   envelope or retained snapshot crosses client-store/query-instance identity.
 - The proof has deterministic bounded waiting and disposes every subscription
   before auth/server teardown.
+
+## Implementation checkpoint — 2026-07-17
+
+The acceptance now owns Alice, Bob, and Eve live subscriptions through
+creation and disposal; validates authorization scope identity; observes Bob's
+membership invalidation and Alice/Bob fanout; and repeatedly drains Bob/Eve at
+the forbidden cuts. It additionally drains Eve after the refused raw
+membership mutation, proving the refusal did not leak even transient live
+authority. The focused ownership/watchdog regression passes. Keep this ticket
+open until repeated real acceptance and the canonical proof pass.

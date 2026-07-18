@@ -8,9 +8,10 @@
 // SQLite commit boundary and no guessed repair path.
 
 use super::{
-    LocalDatabase, create_index, create_or_update_table, current_version_on, physical_user_tables,
-    reject_field_retypes, reject_unsafe_required_field_changes, schema_table,
-    seed_into_transaction, set_version, validate_schema,
+    LocalDatabase, create_index, create_or_update_table, current_version_on, next_storage_version,
+    physical_user_tables, reject_field_retypes, reject_unsafe_required_field_changes, schema_table,
+    seed_into_transaction, set_version, validate_managed_row_versions,
+    validate_managed_table_versions_by_name, validate_schema,
 };
 use crate::auth::mode::{
     AUTH_MODE_FORMAT_VERSION, AppDataAvailability, AuthModeQuarantine, AuthModeStateRecord,
@@ -559,6 +560,12 @@ impl LocalDatabase {
                 if seed.is_some() {
                     require_fresh_seed_target(tx, &current.state)?;
                 }
+                let predecessor_head = current_version_on(tx)?;
+                super::preflight_membership_activation_sources(
+                    tx,
+                    &schema_manifest,
+                    predecessor_head,
+                )?;
 
                 // One final-state activation sequence on every deployment lane:
                 // tables/columns -> same-transaction seed -> membership scan ->
@@ -570,9 +577,7 @@ impl LocalDatabase {
                 transaction_step_completed(0)?;
 
                 let authorization = if let Some(seed) = seed {
-                    let next_version = current_version_on(tx)?.checked_add(1).ok_or_else(|| {
-                        mode_corrupt("app version overflowed while staging auth mode")
-                    })?;
+                    let next_version = next_storage_version(current_version_on(tx)?)?;
                     let changes = seed_into_transaction(tx, &schema_manifest, seed, next_version)?;
                     if !changes.is_empty() {
                         set_version(tx, next_version)?;
@@ -589,7 +594,11 @@ impl LocalDatabase {
                     None
                 };
                 transaction_step_completed(1)?;
-                super::validate_membership_activation(tx, &schema_manifest)?;
+                super::validate_membership_activation(
+                    tx,
+                    &schema_manifest,
+                    current_version_on(tx)?,
+                )?;
                 apply_schema_indexes(tx, &schema_manifest)?;
 
                 let generation = current.state.next_generation()?;
@@ -1010,19 +1019,19 @@ impl LocalDatabase {
         }
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest)
             || current.state.active_deployment.as_ref() != Some(&deployment);
+        let predecessor_head = current_version_on(&tx)?;
+        super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;
         apply_schema_tables(&tx, &manifest)?;
         let mut seeded_changes = Vec::new();
         if let Some(seed) = seed {
             require_fresh_seed_target(&tx, &current.state)?;
-            let next_version = current_version_on(&tx)?
-                .checked_add(1)
-                .ok_or_else(|| mode_corrupt("app version overflowed while seeding deployment"))?;
+            let next_version = next_storage_version(current_version_on(&tx)?)?;
             seeded_changes = seed_into_transaction(&tx, &manifest, seed, next_version)?;
             if !seeded_changes.is_empty() {
                 set_version(&tx, next_version)?;
             }
         }
-        super::validate_membership_activation(&tx, &manifest)?;
+        super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
         apply_schema_indexes(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
@@ -1161,6 +1170,8 @@ impl LocalDatabase {
                     ));
                 }
 
+                let predecessor_head = current_version_on(tx)?;
+                super::preflight_membership_activation_sources(tx, &manifest, predecessor_head)?;
                 apply_schema_tables(tx, &manifest)?;
                 if deployment.auth_mode == AuthMode::Sessions {
                     // @ref LLP 0055#grants — basis changes and the activation
@@ -1174,11 +1185,13 @@ impl LocalDatabase {
                     None => NetworkSeedOutcome::SkippedAbsent,
                     Some(seed) => {
                         let mut all_empty = true;
+                        let head = current_version_on(tx)?;
                         for table in seed.tables.keys() {
                             // `schema_table` validates the logical target before the
                             // quoted physical lookup. Any invalid seed rolls this
                             // transaction back, including additive DDL.
-                            schema_table(&manifest, table)?;
+                            let table_manifest = schema_table(&manifest, table)?;
+                            validate_managed_row_versions(tx, table_manifest, head)?;
                             let count: i64 = tx.query_row(
                                 &format!("SELECT COUNT(*) FROM {}", super::quote_ident(table)?),
                                 [],
@@ -1190,12 +1203,7 @@ impl LocalDatabase {
                             }
                         }
                         if all_empty {
-                            let next_version =
-                                current_version_on(tx)?.checked_add(1).ok_or_else(|| {
-                                    mode_corrupt(
-                                        "app version overflowed while provisioning deployment",
-                                    )
-                                })?;
+                            let next_version = next_storage_version(current_version_on(tx)?)?;
                             seeded_changes =
                                 seed_into_transaction(tx, &manifest, seed, next_version)?;
                             if !seeded_changes.is_empty() {
@@ -1207,7 +1215,7 @@ impl LocalDatabase {
                         }
                     }
                 };
-                super::validate_membership_activation(tx, &manifest)?;
+                super::validate_membership_activation(tx, &manifest, current_version_on(tx)?)?;
                 apply_schema_indexes(tx, &manifest)?;
 
                 let raw = serialize_json(&manifest)?;
@@ -1317,10 +1325,12 @@ impl LocalDatabase {
             identity.validate_schema_half(&manifest)?;
         }
         let activation_changed = current.active_manifest.as_ref() != Some(&manifest);
+        let predecessor_head = current_version_on(&tx)?;
+        super::preflight_membership_activation_sources(&tx, &manifest, predecessor_head)?;
         apply_schema_tables(&tx, &manifest)?;
         // Raw dev has no same-activation seed, but it uses the same post-DDL,
         // pre-index validator as staged and same-mode deployment.
-        super::validate_membership_activation(&tx, &manifest)?;
+        super::validate_membership_activation(&tx, &manifest, current_version_on(&tx)?)?;
         apply_schema_indexes(&tx, &manifest)?;
         let raw = serialize_json(&manifest)?;
         save_active_manifest_in(&tx, &current.state, &raw)?;
@@ -1595,7 +1605,11 @@ fn require_fresh_seed_target(conn: &Connection, state: &AuthModeStateRecord) -> 
             "transition seed is not allowed for an adopted application",
         ));
     }
+    let head = current_version_on(conn)?;
     for table in physical_user_tables(conn)? {
+        // Emptiness is a durable-state decision. Refuse corrupt/future rows
+        // before COUNT can classify the table and hide them from decoding.
+        validate_managed_table_versions_by_name(conn, &table, head)?;
         let count: i64 = conn.query_row(
             &format!("SELECT COUNT(*) FROM {}", super::quote_ident(&table)?),
             [],
@@ -1904,6 +1918,32 @@ mod tests {
         }
     }
 
+    fn force_exhausted_storage_head(database: &LocalDatabase) {
+        database
+            .conn
+            .execute(
+                "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+                params![crate::manifest::PORTABLE_STORAGE_VERSION_MAX as i64],
+            )
+            .unwrap();
+        assert_eq!(
+            database.current_version().unwrap(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+    }
+
+    fn assert_physical_table_absent(database: &LocalDatabase, table: &str) {
+        let count: i64 = database
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = ?1",
+                params![table],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(count, 0, "{table} DDL must roll back");
+    }
+
     struct RecordingModeInterlock {
         prepared: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         committed: std::sync::Arc<std::sync::atomic::AtomicUsize>,
@@ -1993,7 +2033,12 @@ mod tests {
         let connection = Connection::open(&path).unwrap();
         connection
             .execute_batch(
-                "CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+                "CREATE TABLE _snapback_version(
+                     id INTEGER PRIMARY KEY CHECK(id = 1),
+                     version INTEGER NOT NULL
+                 );
+                 INSERT INTO _snapback_version(id, version) VALUES(1, 0);
+                 CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
             )
             .unwrap();
         let raw = serde_json::to_string(&SchemaManifest::default()).unwrap();
@@ -2025,7 +2070,12 @@ mod tests {
         let connection = Connection::open(&path).unwrap();
         connection
             .execute_batch(
-                "CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
+                "CREATE TABLE _snapback_version(
+                     id INTEGER PRIMARY KEY CHECK(id = 1),
+                     version INTEGER NOT NULL
+                 );
+                 INSERT INTO _snapback_version(id, version) VALUES(1, 0);
+                 CREATE TABLE _snapback_meta(key TEXT PRIMARY KEY, value TEXT NOT NULL);",
             )
             .unwrap();
         let raw = serde_json::to_string(&SchemaManifest::default()).unwrap();
@@ -2055,6 +2105,92 @@ mod tests {
         assert_eq!(
             database.auth_mode_snapshot().unwrap().state,
             AuthModeStateRecord::initial_dev(None)
+        );
+    }
+
+    #[test]
+    fn seed_present_mode_lanes_refuse_an_exhausted_storage_head_atomically() {
+        let empty_seed = || SeedData {
+            tables: BTreeMap::new(),
+        };
+
+        let mut staged = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&staged);
+        let staged_before = staged.auth_mode_snapshot().unwrap();
+        let (sessions_identity, sessions_manifest) = sessions_pair(Some("staged_items"));
+        let error = staged
+            .stage_auth_mode(sessions_identity, sessions_manifest, Some(empty_seed()))
+            .expect_err("seed-present staging reserves a storage successor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_eq!(staged.auth_mode_snapshot().unwrap(), staged_before);
+        assert_physical_table_absent(&staged, "staged_items");
+
+        let mut same_mode = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&same_mode);
+        let same_mode_before = same_mode.auth_mode_snapshot().unwrap();
+        let (dev_identity, dev_manifest) = dev_pair(Some("same_mode_items"));
+        let error = same_mode
+            .apply_same_mode_deployment(dev_identity, dev_manifest, Some(empty_seed()))
+            .expect_err("seed-present same-mode apply reserves a storage successor");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_eq!(same_mode.auth_mode_snapshot().unwrap(), same_mode_before);
+        assert_physical_table_absent(&same_mode, "same_mode_items");
+
+        let mut network = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&network);
+        let network_before = network.auth_mode_snapshot().unwrap();
+        let (network_identity, network_manifest) = dev_pair(Some("network_items"));
+        let error = match network.apply_same_mode_network_deployment_classified(
+            network_identity,
+            network_manifest,
+            Some(empty_seed()),
+        ) {
+            DurableModeCommit::RolledBack(error) => error,
+            other => panic!("seed-present network apply must roll back, got {other:?}"),
+        };
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_EXHAUSTED");
+        assert_eq!(network.auth_mode_snapshot().unwrap(), network_before);
+        assert_physical_table_absent(&network, "network_items");
+    }
+
+    #[test]
+    fn seed_absent_mode_lanes_do_not_reserve_a_storage_successor() {
+        let mut staged = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&staged);
+        let (sessions_identity, sessions_manifest) = sessions_pair(Some("staged_items"));
+        staged
+            .stage_auth_mode(sessions_identity, sessions_manifest, None)
+            .expect("seed-absent staging does not advance app data");
+        assert_eq!(
+            staged.current_version().unwrap(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+
+        let mut same_mode = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&same_mode);
+        let (dev_identity, dev_manifest) = dev_pair(Some("same_mode_items"));
+        same_mode
+            .apply_same_mode_deployment(dev_identity, dev_manifest, None)
+            .expect("seed-absent same-mode apply does not advance app data");
+        assert_eq!(
+            same_mode.current_version().unwrap(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
+        );
+
+        let mut network = LocalDatabase::memory().unwrap();
+        force_exhausted_storage_head(&network);
+        let (network_identity, network_manifest) = dev_pair(Some("network_items"));
+        match network.apply_same_mode_network_deployment_classified(
+            network_identity,
+            network_manifest,
+            None,
+        ) {
+            DurableModeCommit::Committed(_) => {}
+            other => panic!("seed-absent network apply must commit, got {other:?}"),
+        }
+        assert_eq!(
+            network.current_version().unwrap(),
+            crate::manifest::PORTABLE_STORAGE_VERSION_MAX
         );
     }
 
@@ -2208,6 +2344,41 @@ mod tests {
     }
 
     #[test]
+    fn network_seed_emptiness_check_refuses_future_rows_before_counting() {
+        let mut database = LocalDatabase::memory().unwrap();
+        let (identity, manifest) = dev_pair(Some("network_items"));
+        database
+            .apply_same_mode_network_deployment(identity.clone(), manifest.clone(), None)
+            .unwrap();
+        let seed = SeedData {
+            tables: BTreeMap::from([(
+                "network_items".to_owned(),
+                vec![Map::from_iter([
+                    ("_id".to_owned(), serde_json::json!("existing")),
+                    ("value".to_owned(), serde_json::json!("existing")),
+                ])],
+            )]),
+        };
+        database.seed(seed.clone()).unwrap();
+        let head = database.current_version().unwrap();
+        database
+            .conn
+            .execute(
+                "UPDATE network_items SET _version = ?1 WHERE _id = 'existing'",
+                params![(head + 1) as i64],
+            )
+            .unwrap();
+        let before = database.auth_mode_snapshot().unwrap();
+
+        let error = database
+            .apply_same_mode_network_deployment(identity, manifest, Some(seed))
+            .expect_err("future row cannot classify a seed target as nonempty");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        assert_eq!(database.auth_mode_snapshot().unwrap(), before);
+        assert_eq!(database.current_version().unwrap(), head);
+    }
+
+    #[test]
     fn membership_activation_judges_same_transaction_seed_before_indexes() {
         let (identity, manifest) = membership_dev_pair();
         let resource = Map::from_iter([
@@ -2259,6 +2430,84 @@ mod tests {
             )
             .unwrap();
         assert_eq!(table_count, 0, "failed activation rolls DDL and seed back");
+    }
+
+    #[test]
+    fn network_unrelated_seed_cannot_legitimize_future_activation_sources() {
+        for source in ["holder", "resource"] {
+            let (identity, mut manifest) = membership_dev_pair();
+            manifest.tables.push(table("notes"));
+            let initial = SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "events".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), serde_json::json!("event-1")),
+                            ("title".to_owned(), serde_json::json!("seeded")),
+                        ])],
+                    ),
+                    (
+                        "event_members".to_owned(),
+                        vec![Map::from_iter([
+                            ("_id".to_owned(), serde_json::json!("member-1")),
+                            ("userId".to_owned(), serde_json::json!("alice")),
+                            ("eventId".to_owned(), serde_json::json!("event-1")),
+                            ("role".to_owned(), serde_json::json!("host")),
+                        ])],
+                    ),
+                ]),
+            };
+            let mut database = LocalDatabase::memory().unwrap();
+            database
+                .apply_same_mode_network_deployment(
+                    identity.clone(),
+                    manifest.clone(),
+                    Some(initial),
+                )
+                .unwrap();
+            let head = database.current_version().unwrap();
+            let (table, id) = if source == "holder" {
+                ("event_members", "member-1")
+            } else {
+                ("events", "event-1")
+            };
+            database
+                .conn
+                .execute(
+                    &format!(
+                        "UPDATE {} SET _version = ?1 WHERE _id = ?2",
+                        super::super::quote_ident(table).unwrap()
+                    ),
+                    params![(head + 1) as i64, id],
+                )
+                .unwrap();
+            let unrelated = SeedData {
+                tables: BTreeMap::from([(
+                    "notes".to_owned(),
+                    vec![Map::from_iter([
+                        (
+                            "_id".to_owned(),
+                            serde_json::json!(format!("note-{source}")),
+                        ),
+                        ("value".to_owned(), serde_json::json!("unrelated")),
+                    ])],
+                )]),
+            };
+
+            let error = database
+                .apply_same_mode_network_deployment(identity, manifest, Some(unrelated))
+                .expect_err("network seed must preflight every activation relation");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{source}"
+            );
+            assert_eq!(database.current_version().unwrap(), head);
+            let notes: i64 = database
+                .conn
+                .query_row("SELECT COUNT(*) FROM notes", [], |row| row.get(0))
+                .unwrap();
+            assert_eq!(notes, 0);
+        }
     }
 
     #[test]

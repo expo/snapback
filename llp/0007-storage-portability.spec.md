@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, and every durable ordering fact is decoded fail-closed rather than cast or defaulted). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -181,12 +181,35 @@ target.
    `SNAPBACK_STORAGE_VERSION_EXHAUSTED`. A negative or above-maximum durable
    global version is corruption and prevents read-lane publication/reopen with
    `SNAPBACK_STORAGE_VERSION_CORRUPT`. The same fail-closed decoder governs
-   every other persisted ordering fact when consumed: managed-row `_version`,
-   resource and membership witnesses, membership-transition commit versions,
-   change-journal high-water values, and its retention floor. None may be cast,
-   wrapped, rounded, or treated as an absent/zero cursor. Pruning also validates
-   its caller-supplied time floor before it can alter either the journal or
-   replay floor.
+   every other persisted ordering fact when consumed: managed-row `_version`
+   (including when it drives query filtering or ordering), resource and
+   membership witnesses, membership-transition commit versions, retained
+   mutation output and settlement versions, every change-journal row (not only
+   a table's high water), and the retention floor. SQLite values with a
+   non-integer storage class are corruption, not generic adapter errors.
+   Insert/update journal snapshots are versioned objects whose `_id` and
+   `_version` agree with the journal row; deletes carry no snapshot and unknown
+   operations are corruption. None of these facts may be cast, wrapped,
+   rounded, hidden below a cursor, or treated as an absent/zero cursor. A
+   failed durable-version read emits an explicit diagnostic and no fabricated
+   cursor. Pruning and membership expiry planning also validate caller-supplied
+   time values before converting them for SQLite. A database carrying
+   Snapback-owned schema objects or managed app `_version` columns must prove
+   one canonical head row, no retained ordering fact ahead of that head, and an
+   exact retained journal high-water equal to the head before open performs any
+   additive DDL. A brownfield database with no such evidence may take the fresh
+   adoption lane; in particular, a foreign `_auth_*` collision alone must stay
+   reachable to LLP 0057's dormant-collision rescue. Auth-table DDL alone is
+   not an ordering discriminator: LLP 0057 requires even an exact unmarked
+   catalog shape to remain a collision rather than be implicitly adopted. SQL
+   consumers whose source rows affect authorization or
+   emptiness without being returned—membership semi-joins, durable room
+   permission projections, and auth-mode seed checks—preflight the complete
+   source relation at the same pinned head before selection. Membership
+   activation and protected-holder lifecycle checks likewise validate every
+   declared membership and resource source at the transaction's pinned head;
+   an unrelated valid row or seed cannot hide a later corrupt row before a
+   declaration becomes authoritative.
 3. **Gap-free commit visibility.** When an observer has seen version `N`,
    every change numbered `≤ N` in that stream is durably committed and
    visible to it — versions order *visibility*, not *allocation*. This is

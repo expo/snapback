@@ -1643,15 +1643,14 @@ fn permission_fields_churn_and_randomized_oracle_emit_the_committed_receipt() {
     let admission = session_authority("alice", InvocationSource::HttpQuery)
         .admission_lease()
         .clone();
-    snapback
-        .fail_subscription_fanout_with_retry(
-            &denied,
-            "acceptance_trusted_denial",
-            SnapbackError::trusted_permission_denied("acceptance authority removal"),
-            None,
-            &admission,
-        )
-        .expect("escalate quarantine to terminal delete");
+    snapback.fail_subscription_fanout_with_retry(
+        &denied,
+        "acceptance_trusted_denial",
+        SnapbackError::trusted_permission_denied("acceptance authority removal"),
+        None,
+        None,
+        &admission,
+    );
     let delete = settle_query(
         &mut snapback,
         &connection,

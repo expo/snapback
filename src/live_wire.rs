@@ -83,6 +83,7 @@ pub enum LiveEnvelope {
         #[serde(default, skip_serializing_if = "Option::is_none")]
         scope: Option<String>,
         #[serde(default, skip_serializing_if = "Option::is_none")]
+        #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
         epoch: Option<u64>,
         clear_retained: bool,
     },
@@ -263,6 +264,10 @@ pub enum LiveSocketClientMessage {
     },
 }
 
+fn nullable_storage_version_schema(generator: &mut schemars::SchemaGenerator) -> schemars::Schema {
+    generator.subschema_for::<Option<u64>>()
+}
+
 /// A retention-ring receipt (LLP 0034 §3.2): connectionless facts about
 /// mutations and subscription lifecycle, served by the receipts snapshot and
 /// echoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts
@@ -273,6 +278,17 @@ pub enum LiveSocketClientMessage {
 pub enum Receipt {
     /// One mutation invocation: confirmed or rejected, with the write
     /// surface that fan-out used.
+    #[schemars(extend(
+        "allOf" = [{
+            "if": {
+                "properties": { "outcome": { "const": "confirmed" } },
+                "required": ["outcome"]
+            },
+            "then": {
+                "properties": { "snapshotVersion": { "type": "integer" } }
+            }
+        }]
+    ))]
     Mutation {
         #[serde(rename = "mutationId")]
         mutation_id: String,
@@ -286,9 +302,12 @@ pub enum Receipt {
         /// declared write set) — distinct from `[]`, no tables.
         #[serde(rename = "affectedTables")]
         affected_tables: Option<Vec<String>>,
+        /// `null` only when the rejected invocation could not safely read the
+        /// durable cursor; never fabricate zero from a storage failure.
         #[serde(rename = "snapshotVersion")]
+        #[schemars(required, schema_with = "nullable_storage_version_schema")]
         #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
-        snapshot_version: u64,
+        snapshot_version: Option<u64>,
         transport: String,
         /// Adapter-supplied opaque correlation, echoed verbatim (capped).
         correlation: Value,
@@ -540,7 +559,7 @@ mod tests {
             outcome: MutationReceiptOutcome::Confirmed,
             rollback_reason: None,
             affected_tables: Some(vec!["todos".into()]),
-            snapshot_version: 9,
+            snapshot_version: Some(9),
             transport: "http".into(),
             correlation: Value::Null,
             received_at_ms: 1,

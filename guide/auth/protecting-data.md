@@ -66,11 +66,14 @@ authorization-invalidation expectation:
 ```
 
 That grant is authority, not a bearer-shaped routing convenience. It is bound
-to one anonymous authorization stream or one exact session generation. Every
-live subscribe/resume, outbox drain, ephemeral act, and publication validates
-the grant token and binding at its final effect fence. HTTP sends the token in
-`x-snapback-connection-token`; browser WebSockets use the negotiated
-`snapback.connection-token.*` subprotocol.
+to one anonymous authorization stream, one exact session generation, or one
+scoped service-principal authority plus its exact token/deadline carrier. The
+service form keeps the durable resolved authority separate from the token and
+its service-publication fence, so ending one token cannot widen or silently
+rebind the grant. Every live subscribe/resume, outbox drain, ephemeral act, and
+publication validates the grant token and binding at its final effect fence.
+HTTP sends the token in `x-snapback-connection-token`; browser WebSockets use
+the negotiated `snapback.connection-token.*` subprotocol.
 
 An auth transition clears cached grants and reconnects under a fresh grant.
 Never persist, copy between clients, log, or manually reuse a connection

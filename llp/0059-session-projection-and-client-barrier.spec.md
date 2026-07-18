@@ -5,7 +5,36 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (Contract client lifecycle generation closure: resume, socket-loss, and swappable-ephemeral identities share one checked allocator; exhaustion synchronously blanks and terminally detaches the affected publication surface, settles pending barrier work, and never requires a disposal generation). 2026-07-17 (managed-Local/ephemeral separation and room-commit
+**Revised:** 2026-07-17 (Contract durable-confirmation closure: an exposed
+local custody record remains the fail-closed blanking witness even after a
+clearing wakeup pre-pauses publication; the local cut snapshots participants
+behind completion, isolates every quiesce/blank/clear failure, preserves the
+custody diagnostic, types missing resume custody as corruption, and both
+single-query and multi-live app-data dispatches reload and exact-compare at
+their true transport boundary; offline restore keeps participant/counter cuts
+outside non-reentrant ownership, registration-time sync phases observe invalid
+thenables, and participant self-unregistration joins fail typed instead of
+deadlocking; every destructive cut retains one exact participant snapshot and
+completion through its final blank, final phase closure catches late
+registrants or overlapping eager cuts inside the ownership fence, and
+coordinator close/reentrant staged work cannot reopen or extend resume).
+2026-07-17 (background terminal failure ownership: live service
+deadline observation surfaces classification/plan/gate/transaction/task
+failure without inferring a durable terminal, and idle connection cleanup
+retains an exact mint-only retry capture across child failure). 2026-07-17 (service-ending lifecycle serialization: a committed
+terminal publishes its disposition after Local, retains the exact domain
+ticket through connection/notifier/effect cleanup, and releases that ticket
+only as the final after-Local settlement, so an overlapping stronger ending
+cannot commit and then lose its typed lifecycle event). 2026-07-17 (grant-deadline fanout closure: both finite HTTP and
+live-stream deadline owners retain the complete read-only planned token set
+through durable settlement and typed lifecycle cleanup; a managed Local act
+fails closed instead of committing ahead of that owner, while direct embedding
+retains synchronous persistence). 2026-07-17 (scoped-token/reset ordering closure: `/auth/session`
+and connection-open capture their anonymous stream/connection authority before
+durable scoped-token resolution and witness registration; reset-before-resolve
+deletes the durable predecessor, reset-after-resolve leaves only a stale
+predecessor publication, and diagnostic handshake admission does not waive an
+installed stream fence). 2026-07-17 (Contract client lifecycle generation closure: resume, socket-loss, and swappable-ephemeral identities share one checked allocator; exhaustion synchronously blanks and terminally detaches the affected publication surface, settles pending barrier work, and never requires a disposal generation). 2026-07-17 (managed-Local/ephemeral separation and room-commit
 interlock closure: authorization writes reserve and quiesce their exact room
 selector before Local and SQLite, bind only lock-free transaction witnesses,
 revalidate durable/app/definition/issuer generations, and settle committed or
@@ -879,7 +908,11 @@ invalid before asynchronous cleanup begins, and a caller-suggested readable id
 cannot be adopted during whole-id cleanup. Maintenance retirement spawns every
 captured cleanup task before awaiting the first one, so cancellation while one
 task is blocked cannot drop the unspawned captures for the remainder of a
-batch.
+batch. The batch owner also retains a clone of each exact mint-only capture
+until its child joins. A child panic or cancellation is reported without a
+readable id and returns that capture to the next maintenance tick for
+idempotent notifier/ephemeral/Local retry; registry retirement continues to
+forbid requested-id reuse throughout the retry interval.
 
 The server supplies test/dev lock-rank assertions for projection topology →
 authorization stream → session leaf. An intentional inversion fails before the
@@ -912,11 +945,22 @@ type BoundGrantAuthorityV1 =
       generation: SafePositiveInteger
       deadlineMs: SafeIntegerTimestamp
     }
+  | {
+      kind: "servicePrincipal"
+      authorizationStreamIncarnation: CanonicalUuidV7
+      authority: ResolvedAppAuthority
+      tokenId: TokenId
+      deadlineMs: SafeIntegerTimestamp
+    }
 ```
 
-The Rust session variant additionally holds an `Arc<SessionFence>`; that handle
-is not serialized or exposed. `deadlineMs` is a mutable cached validity lease
-updated from that fence after a qualifying use; it is not grant identity. The
+Every Rust variant additionally holds its bearer-free `FencedPublication`; the
+session arm of that handle owns an `Arc<SessionFence>`. The service-principal
+variant also holds the exact `ServiceAuthorityPublication` for `tokenId`.
+Those handles are not serialized or exposed. Session `deadlineMs` is a mutable
+cached validity lease updated from its fence after a qualifying use; it is not
+session grant identity. Service authority retains the closed resolved durable
+principal/grant shape separately from the exact token/deadline carrier. The
 grant contains neither bearer digest, plaintext bearer, email address,
 `authority_instance_id`, nor admin/impersonation capability.
 
@@ -1074,6 +1118,18 @@ Nested local validation on that same thread reuses the already-sampled witness;
 it must not recursively acquire the non-reentrant mutex or take a later clock
 sample as a new linearization point.
 
+Scoped-token resolution and witness registration require Local/SQLite, while
+the stream fence is prohibited beneath that owner. The caller therefore first
+captures the current anonymous `FencedPublication` (or anonymous connection
+authority), releases every stream/topology lock, and only then resolves and
+registers the token under Local. If reset wins before the capture, preparation
+fails without consulting SQLite. If reset starts after capture but before the
+lookup, the destructive transaction deletes the predecessor token and the
+lookup fails. If reset commits after a successful lookup, the retained
+predecessor publication refuses the response or grant insertion. The
+diagnostic admission used by `/auth/session` bypasses mode availability only;
+it never bypasses an installed stream/session fence at final publication.
+
 Every durable operation that can end scoped-token authority follows this exact
 transaction order:
 
@@ -1087,7 +1143,9 @@ read-only terminal plan
 -> premark those token fences
 -> first durable write and remaining operation
 -> COMMIT
--> settle the exact process ticket
+-> publish the committed terminal disposition after releasing Local/SQLite
+-> propagate typed connection/notifier/effect lifecycle cleanup
+-> settle and release the exact process ticket
 ```
 
 A known rollback removes only that ticket. If rollback or commit cannot be
@@ -1104,10 +1162,37 @@ the other durable-family endings settle `durableDelete`.
 
 The drained process-domain gate is itself a carrier. The code synchronously
 hands that gate to an independently owned task before awaiting again; the task
-retains it through Local/SQLite work, exact ticket settlement, and connection
-lifecycle propagation. Request cancellation drops only the join waiter. This
+retains it through Local/SQLite work, terminal publication, and connection
+lifecycle propagation, then releases the exact ticket as an after-Local
+finalizer. An overlapping ending for any token in that domain cannot acquire
+its successor gate until predecessor lifecycle propagation has completed. If
+publication or lifecycle propagation panics, final settlement does not run and
+the exact domain stays closed. Request cancellation drops only the join waiter. This
 rule applies equally to explicit grant/credential/token endings, on-demand
 deadline maintenance, and connection deadline observation.
+
+Deadline propagation retains the transaction's complete planned token-id set,
+not merely the carrier that first observed time. A grant deadline therefore
+commits every grant-token ending and sends typed `expired` / `durableDelete`
+closure plus exact effect/topology cleanup to every same-grant connection.
+Managed Local execution may refuse an already-due act, but cannot persist that
+deadline before the independently owned drain/write/settle/propagate task; a
+direct library embedder with no server lifecycle graph keeps the synchronous
+persistence seam.
+
+Live deadline observation treats classification, read-only planning, exact
+gate acquisition, durable transaction, after-Local lifecycle publication, and
+owned-task join as one required result. Poison, ordinary errors, panics, and
+`JoinError` are surfaced to the socket owner; they may not be converted to an
+apparently successful observation. A failed attempt emits no inferred typed
+terminal. Its already-due publication remains `Unavailable`, closing every act
+that reaches that witness. Before the socket owner returns that first error, it
+transfers the complete observation protocol to an independently owned retry
+task. Each attempt is panic-isolated through a child task; exponential backoff
+starts at 10 ms and caps at 60 s until another ending wins or the exact durable
+protocol completes the full planned-token fanout. Ungated process logging
+contains only the stable observer code and stable cause code, never durable ids
+or provider/storage text.
 
 Both wall and monotonic deadlines are checked at every act. A bare monotonic
 observation is not yet a durable terminal fact: it first commits the exact
@@ -1805,11 +1890,52 @@ visible, focus, and before publishing a Contract boundary. A context suspended
 during a transition cannot run callbacks; on resumption it blanks before it can
 commit or expose work under the predecessor capture.
 
+Failure to acquire ownership or read/validate custody after a context has an
+exposed validated local record is itself a local fail-closed barrier. The
+record, not the current publication-pause bit, is the exposure witness: an
+ordinary clearing wakeup may already have paused new publication without yet
+blanking the predecessor materialization. The failure cut snapshots every
+registered participant behind a completion handle, observes every quiesce
+result, and attempts synchronous blank and memory-clear for every snapshot
+entry even when another participant fails. A quiesce-time unregistration
+request cannot remove its entry until those destructive phases finish.
+Participant failures remain secondary evidence; the ownership/read/corruption
+diagnostic stays primary. Null custody is compatible only with a fresh context
+that has no local record and began blank; null encountered during active resume
+or after prior exposure is `SNAPBACK_AUTH_CUSTODY_CORRUPT`.
+
+Offline restore uses the same ownership discipline. Its owned callbacks only
+read and validate durable custody; counter-exhaustion cuts, fail-closed cuts,
+and peer-adoption participant phases run after the non-reentrant owner is
+released. A peer adoption confirms the exact durable successor before its
+participant barrier and again under the final publication fence before local
+exposure. Fresh and same-authority restores likewise install only the exact
+second read. A participant registered while the coordinator is paused MUST
+complete `blank` and `clearMemory` synchronously. Any returned thenable is
+observed, rejected as `SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE`, and retained
+as a registration failure; a fresh offline restore cannot expose custody over
+that failed blank.
+
+The same registration-failure check governs fresh anonymous establishment and
+every other first exposure. No bootstrap/adoption path may expose while a
+registered participant retains a synchronous blank/clear failure. An owned
+read or terminal-marker write returns only deferred terminal metadata; the
+coordinator latches exhaustion, invokes participants, publishes the wakeup,
+and waits for the terminal cut only after the storage owner has released.
+Terminal and eager-wakeup cuts install their completion before invoking the
+exact participant snapshot, synchronously blank once, await best-effort
+quiescence, then blank and clear that same snapshot again. Unregistration joins
+all active barrier and destructive-cut completions before removal.
+
 An `exhausted` wakeup is additionally an immediate local terminal cut: the
 receiver pauses publication and runs best-effort quiesce/blank/clear phases
 before any asynchronous durable reload. The reload remains authoritative and
 converges missed wakeups; the eager cut exists so an already-rendered peer does
-not retain predecessor materialization while ownership is pending.
+not retain predecessor materialization while ownership is pending. Its cut
+generation remains an exposure veto until the final blank completes. If it
+overlaps owner/peer resume, the barrier discards staged publication, repeats
+the participant phases erased by the cut, and reconfirms durable custody before
+reopening.
 
 The transition owner does not wait for acknowledgements from unknown, crashed,
 or suspended contexts. The durable clearing epoch makes every predecessor
@@ -1850,6 +1976,25 @@ fail-closed; participant state is reblanked after a callback failure. The
 changed record may be adopted only by a later clean synchronization. The same
 rule applies whether delivery occurs during the barrier, after it has
 completed, or after a same-authority revision rotation.
+
+Final confirmation also closes the participant set under the ownership fence.
+Immediately before staged publication/exposure, every nonremoved participant
+must have completed quiesce, blank, clearMemory, commitDurable, and (for online
+adoption) resume for that exact barrier. A participant that registered after a
+prior loop observed no remaining work causes an internal retry: ownership is
+released, missing phases run, and the exact durable row is reconfirmed. Offline
+peer adoption applies the same rule without resume. A requested successor that
+a peer already settled is a no-op only when the local record is already that
+exact successor; a missed-wakeup predecessor runs the full peer barrier.
+
+Any barrier failure retains its completion and exact participant snapshot
+until an isolation-safe quiesce/final blank/clear cut runs after ownership is
+released. The original transition diagnostic remains primary. Closing a
+coordinator is an exposure veto: `isCurrent` becomes false, dynamic resume
+selection stops before invoking another participant, final phase closure runs
+before staged callbacks, and each staged callback rechecks closure before the
+next callback. Participant registration during a staged commit is rejected as
+`SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT`.
 
 Where Web Locks is unavailable, the storage adapter must provide an atomic
 compare-and-swap lease in the same transactional domain as custody:
@@ -1968,6 +2113,11 @@ phase exception. Unregistration waits for an executing local barrier method to
 finish. Barrier calls have deterministic registration order and reverse-order
 resume, and a participant exception is classified as a transition failure
 rather than skipped.
+
+The final locked publication callback rechecks this per-registration phase set
+even when the ordinary resume/commit loop already observed no work. That fence
+turns a late registration into catch-up and reconfirmation, never successor
+exposure over an entry that received only registration-time blank/clear.
 
 The custody transition behavior at item 5 is:
 
@@ -2223,11 +2373,13 @@ resume capture. Staged callbacks are synchronous and non-reentrant, use the
 same callback restrictions as `compareAndCommit`, and execute only at the final
 locked confirmation. A participant MUST NOT publish directly during resume.
 Awaited `commitDurable`, `commitTerminalDurable`, and `resume` callbacks MUST
-NOT call `synchronize()` or await their own unregistration. The Agent fence
-rejects those joins promptly with
+NOT call `synchronize()`. No awaited participant callback, including
+`quiesce`, may await its own unregistration. Any participant callback may
+request its own unregistration without awaiting it; removal remains deferred
+behind the active barrier. The coordinator fence rejects a self-join promptly with
 `SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT`; it never leaves a silently
-self-dependent barrier Promise. Synchronous `quiesce`/`blank`/`clearMemory`
-callbacks may request unregistration; settlement selection is deferred until
+self-dependent barrier Promise. Synchronous `blank`/`clearMemory` callbacks
+may likewise request unregistration; settlement selection is deferred until
 the transition publishes its terminal handle, and that unregistration cannot
 resolve before every callback already snapshotted for the participant has
 finished or failed. After any unregistration resolves, no future participant
@@ -2269,6 +2421,17 @@ Before changing boundary or durable state they call coordinator
 `compareAndCommit`. A delayed completion under A may free its private temporary
 buffer, but it cannot alter B, reapply A's optimistic layer, clear B's error,
 or publish an A result.
+
+Before invoking app-data transport, both the single-query and multi-live
+Contract adapters run the mandatory durable synchronization and exact capture
+comparison. Query, live-query, ephemeral subscribe/publish, standalone
+mutation acknowledgement, first-send mutation, and queued replay dispatches
+place that check after the last awaited local-store operation and immediately
+before calling a generic client. The single-query mutation adapter additionally
+performs the gate before optimistic publication. Thus a peer transition during
+pending-ACK loading or queue CAS cannot reach generic transport under the
+predecessor capture. The production Snapback transport retains the stronger
+rule below and repeats the comparison around the actual request start.
 
 The transport begins each finite request inside the final exact custody
 comparison rather than checking and releasing custody before network start.

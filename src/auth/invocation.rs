@@ -854,6 +854,14 @@ pub struct PreparedAuthority {
 pub(crate) struct RetainedLiveAuthority {
     active_mode: AuthMode,
     profile: ServerProfile,
+    /// Stable bearer-free owner identity. The complete resolved authority is
+    /// retained separately for reruns, but mutable deadline facts are not part
+    /// of live ownership.
+    ///
+    /// @ref LLP 0058#live-owner-and-replacement-predicate — resume,
+    /// unsubscribe, and supersession compare the resolved authority key plus
+    /// the exact connection grant, not the full resolution snapshot.
+    owner_key: AuthorityKey,
     resolved: ResolvedAppAuthority,
     /// The one immutable grant entry that authorized this live function.
     /// Carrier validity remains grant-wide, but a sibling entry is not part of
@@ -1029,9 +1037,14 @@ impl PreparedAuthority {
             Some(publication) => publication.try_publish(epoch_now_ms, monotonic_now, publish),
             None => publish().map(Some),
         };
-        if self.admission.is_diagnostic() {
-            return publish_service();
-        }
+        // Diagnostic admission lets the bootstrap handshake remain observable
+        // while mode admission is pending; it does not waive an installed
+        // authorization-stream/session fence. In particular, reset must not
+        // let a predecessor handshake publish its captured authority under the
+        // successor stream.
+        //
+        // @ref LLP 0059#handshake-and-readiness — the handshake incarnation
+        //   and authority are one counted, final-fenced capture.
         match &self.publication {
             Some(publication) => {
                 let nested =
@@ -1058,6 +1071,7 @@ impl PreparedAuthority {
         Ok(RetainedLiveAuthority {
             active_mode: self.active_mode,
             profile: self.profile,
+            owner_key: self.resolved.key(),
             resolved: self.resolved.clone(),
             matched_grant_scope: None,
             service_publication: self.service_publication.clone(),
@@ -1109,7 +1123,7 @@ impl RetainedLiveAuthority {
     pub(crate) fn matches(&self, authority: &PreparedAuthority) -> bool {
         self.active_mode == authority.active_mode
             && self.profile == authority.profile
-            && self.resolved == authority.resolved
+            && self.owner_key == authority.resolved.key()
     }
 
     pub(crate) fn matched_grant_scope(&self) -> Option<&ResolvedGrantScope> {

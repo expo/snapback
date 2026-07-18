@@ -5,7 +5,13 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Auth, API, Client integration, Contract/Exact, Cron, Ephemeral state, Tooling, Packaging, Testing, Developer experience
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-12 (ENG-24357: unknown/internal diagnostics now default 500 with explicit client-code allow-list; earlier: 2026-07-03 Phase 5 re-landed adapted to the post-sync main — ENG-22680: P1–P8 done-whens closed on this line, Milestone C reached, docket + acceptance status records restored; per-phase adaptation notes in §Phase 5). 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
+**Revised:** 2026-07-17 (S5.D4 post-COMMIT closure: durable mutation truth,
+internal invalidation, per-subscription fan-out isolation, and receipt
+publication are distinct cuts; publication failure cannot recast a committed
+write as rejected). 2026-07-17 (L2 owned-cleanup failure closure: maintenance retains
+the exact mint-only terminal capture across a child panic/cancellation, emits
+an identifier-free stable failure, and retries idempotent whole-ID cleanup
+without reopening readable-id minting). 2026-07-12 (ENG-24357: unknown/internal diagnostics now default 500 with explicit client-code allow-list; earlier: 2026-07-03 Phase 5 re-landed adapted to the post-sync main — ENG-22680: P1–P8 done-whens closed on this line, Milestone C reached, docket + acceptance status records restored; per-phase adaptation notes in §Phase 5). 2026-07-03 (§Phase 5 stranding note: Phase 5 was executed end to
 end on 2026-07-02 on a pre-origin-sync line now preserved as
 `backup/main-before-origin-sync-20260702`; its doc-only decision records —
 X1/DK-2, X2/DK-5, X4/DK-9, DK-10, the LLP 0011 and LLP 0036 ratifications,
@@ -418,6 +424,19 @@ Each fix lands with a failing-then-passing test named for the step id.
   `live_delivery.total_failed`, and enqueue a `resync_required` signal, then
   continue. LLP 0003 §Realtime Pipeline gained the contract; test
   `s5_d4_fanout_failure_does_not_fail_mutation_or_starve_others`.
+  **Revised 2026-07-17:** the commit version is now the immutable publication
+  frame. Internal permission-epoch invalidation derived from the durable write
+  advances before any external guard; a failed head-coherence/admission check
+  records a diagnostic and suppresses unsafe output without changing commit
+  truth. Authorization preprojection, permission refresh, ordinary live rerun,
+  and recovery guards are isolated per subscription, so only successfully
+  projected ids are suppressed from the ordinary pass and one failure cannot
+  starve later ids. Receipt publication uses the same boundary: a failed guard
+  retains nothing and exposes no handler result, but an existing commit still
+  yields `Confirmed` at its exact version, never `Rejected`. Tests
+  `postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth`
+  and
+  `postcommit_publication_guard_failure_confirms_without_retaining_sensitive_output`.
 - **S5.D5 — WS drain-then-send loses messages on send failure** [analysis].
   Messages are drained from the outbox under the lock, then written to the
   socket; a send error discards the failing message and everything drained
@@ -696,6 +715,12 @@ change the concurrency architecture and should land as one reviewed arc.
   containment, then runs owned notifier/ephemeral cleanup before entering
   Local for topology removal and counter publication. No ephemeral shard lock
   overlaps the Local writer, and the old bearer is invalid throughout cleanup.
+  **Revised 2026-07-17:** each spawned child has an owner-retained copy of its
+  exact mint-only capture until join. A panic/cancellation emits stable
+  identifier-free failure output and requeues that capture for an idempotent
+  next-tick cleanup; requested readable-id reuse remains disabled while retry
+  is pending. Test
+  `maintenance_cleanup_join_failure_retains_exact_retry_capture`.
   `LocalSnapback::reap_stale_connections` remains only as a direct-library
   compatibility orchestrator outside the managed Local write scope.
 - **L3 — Change-journal retention.** `_snapback_changes` grows without bound

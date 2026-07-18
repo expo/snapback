@@ -16,6 +16,8 @@ const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f
 const AUTHORITY_KEY = /^sha256:[0-9a-f]{64}$/;
 const PHASES = new Set(['settled', 'clearing', 'exhausted']);
 const AUTH_MODES = new Set(['dev', 'sessions']);
+const DEFERRED_COUNTER_TERMINAL = Symbol('snapback.auth.deferred-counter-terminal');
+const BARRIER_PHASE_CLOSURE_RETRY = 'SNAPBACK_AUTH_BARRIER_PHASE_CLOSURE_RETRY';
 
 const clone = (value) => value === undefined ? undefined : JSON.parse(JSON.stringify(value));
 
@@ -81,6 +83,20 @@ function isCounterExhaustion(error) {
   return error?.code === 'SNAPBACK_AUTH_CUSTODY_COUNTER_EXHAUSTED'
     || error?.code === 'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED'
     || error?.code === 'SNAPBACK_AUTH_AUTHORITY_EPOCH_EXHAUSTED';
+}
+
+function deferredCounterTerminal(terminal) {
+  const signal = new Error('deferred auth custody counter terminal');
+  signal[DEFERRED_COUNTER_TERMINAL] = terminal;
+  return signal;
+}
+
+function deferredCounterTerminalValue(error) {
+  return error?.[DEFERRED_COUNTER_TERMINAL] ?? null;
+}
+
+function isBarrierPhaseClosureRetry(error) {
+  return error?.code === BARRIER_PHASE_CLOSURE_RETRY;
 }
 
 function nextAuthorityEpoch(epoch) {
@@ -692,6 +708,8 @@ export class AuthCoordinator {
   #counterExhaustionError = null;
   #counterExhaustionSettlement = null;
   #exhaustedWakeupCut = null;
+  #activeCutCompletions = new Set();
+  #destructiveCutGeneration = 0;
 
   constructor({
     appId,
@@ -744,7 +762,8 @@ export class AuthCoordinator {
   }
 
   isCurrent(capture) {
-    return this.#counterExhaustionError === null
+    return !this.#closed
+      && this.#counterExhaustionError === null
       && !this.#publicationPaused
       && captureMatches(this.#appId, this.#record, capture);
   }
@@ -793,7 +812,8 @@ export class AuthCoordinator {
         'fresh custody may be established only from an anonymous server handshake',
       );
     }
-    const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
+    this.#assertParticipantRegistrationsReady();
+    const owned = await this.#withOwnership(async (owner) => {
       const existing = await this.#readOwned(owner);
       if (existing !== null) {
         // @ref LLP 0059#transition-barrier — establishAnonymous is creation,
@@ -823,6 +843,7 @@ export class AuthCoordinator {
           'local custody changed while anonymous bootstrap was being created',
         );
       }
+      this.#assertParticipantRegistrationsReady();
       this.#adoptSettled(record);
       return captureFor(this.#appId, record);
     });
@@ -851,63 +872,93 @@ export class AuthCoordinator {
       // synchronization.
       // @ref LLP 0059#cross-context-ownership — reentrant resume checks share
       // no in-memory authority assumption and cannot start a nested barrier.
-      return this.#storage.withOwnership(this.#appId, async (owner) => {
-        const durable = await this.#readOwned(owner);
-        const exact = durable.phase === 'settled'
-          && durable.revision === this.#record.revision
-          && durable.authorityEpoch === this.#record.authorityEpoch
-          && canonicalAuthorityKey(this.#appId, durable.authority)
-            === canonicalAuthorityKey(this.#appId, this.#record.authority);
-        if (!exact) {
-          throw coordinatorError(
-            'SNAPBACK_CLIENT_AUTHORITY_STALE',
-            'durable authority changed during local barrier resume',
-          );
-        }
-        return captureFor(this.#appId, durable);
-      });
+      try {
+        return await this.#withOwnership(async (owner) => {
+          const durable = await this.#readOwned(owner);
+          if (durable === null) {
+            throw corrupt('durable custody disappeared during local barrier resume');
+          }
+          const exact = durable.phase === 'settled'
+            && durable.revision === this.#record.revision
+            && durable.authorityEpoch === this.#record.authorityEpoch
+            && canonicalAuthorityKey(this.#appId, durable.authority)
+              === canonicalAuthorityKey(this.#appId, this.#record.authority);
+          if (!exact) {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_STALE',
+              'durable authority changed during local barrier resume',
+            );
+          }
+          return captureFor(this.#appId, durable);
+        });
+      } catch (error) {
+        // The active owner/peer barrier is already blank. Keep its publication
+        // gate closed and let the surrounding resume path perform the complete
+        // reblank/settlement choreography.
+        await this.#failClosedAfterConfirmation('resume_synchronization_read_failed', error);
+        throw error;
+      }
     }
     if (this.#synchronizing) return this.#synchronizing;
     const work = (async () => {
-      const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
-      const record = await this.#readOwned(owner);
-      if (record === null) {
-        this.#publicationPaused = true;
-        this.#record = null;
-        return null;
+      let owned;
+      try {
+        owned = await this.#withOwnership(async (owner) => {
+          const record = await this.#readOwned(owner);
+          if (record === null) {
+            if (this.#record !== null) {
+              throw corrupt('durable custody disappeared during synchronization');
+            }
+            this.#publicationPaused = true;
+            return null;
+          }
+          const validated = record;
+          if (validated.phase === 'clearing') {
+            return this.#recoverOwned(owner, validated, 'peer_recovery');
+          }
+          if (
+            this.#record === null
+            || this.#record.revision !== validated.revision
+            || this.#record.authorityEpoch !== validated.authorityEpoch
+            || this.#publicationPaused
+          ) {
+            const localAtRead = this.#record === null
+              ? null
+              : Object.freeze({
+                phase: this.#record.phase,
+                revision: this.#record.revision,
+                authorityEpoch: this.#record.authorityEpoch,
+                authorityKey: canonicalAuthorityKey(
+                  this.#appId,
+                  this.#record.phase === 'settled'
+                    ? this.#record.authority
+                    : this.#record.pendingAuthority,
+                ),
+              });
+            return {
+              adoptPeerAfterOwnership: true,
+              record: validated,
+              localAtRead,
+              publicationPausedAtRead: this.#publicationPaused,
+            };
+          }
+          return captureFor(this.#appId, validated);
+        });
+      } catch (error) {
+        // Ownership acquisition and its first durable read are mandatory
+        // publication gates. If either fails after a capture was exposed,
+        // close the gate immediately, then quiesce and blank local participants.
+        // A clearing wakeup may already have paused publication before this
+        // read begins; that pause is not evidence that predecessor surfaces
+        // were blanked. The retained local record is the exposure witness.
+        if (this.#counterExhaustionError === null && this.#record !== null) {
+          await this.#failClosedAfterConfirmation(
+            'synchronization_custody_read_failed',
+            error,
+          );
+        }
+        throw error;
       }
-      const validated = record;
-      if (validated.phase === 'clearing') {
-        return this.#recoverOwned(owner, validated, 'peer_recovery');
-      }
-      if (
-        this.#record === null
-        || this.#record.revision !== validated.revision
-        || this.#record.authorityEpoch !== validated.authorityEpoch
-        || this.#publicationPaused
-      ) {
-        const localAtRead = this.#record === null
-          ? null
-          : Object.freeze({
-            phase: this.#record.phase,
-            revision: this.#record.revision,
-            authorityEpoch: this.#record.authorityEpoch,
-            authorityKey: canonicalAuthorityKey(
-              this.#appId,
-              this.#record.phase === 'settled'
-                ? this.#record.authority
-                : this.#record.pendingAuthority,
-            ),
-          });
-        return {
-          adoptPeerAfterOwnership: true,
-          record: validated,
-          localAtRead,
-          publicationPausedAtRead: this.#publicationPaused,
-        };
-      }
-      return captureFor(this.#appId, validated);
-      });
       return this.#resumeAfterOwnership(owned);
     })();
     const tracked = work.finally(() => {
@@ -928,90 +979,149 @@ export class AuthCoordinator {
    */
   async restoreOffline() {
     this.#assertOperationAllowed();
+    let ownershipEntered = false;
+    let inspected;
     try {
-      return await this.#storage.withOwnership(this.#appId, async (owner) => {
-        let record;
-        try {
-          record = await this.#readOwned(owner);
-        } catch (error) {
-          // A mandatory durable read that cannot establish the current authority
-          // invalidates every previously exposed local capture. In particular,
-          // an offline caller must never fall back to the last in-memory record.
-          await this.#failClosedOfflineExposure('offline_custody_read_failed');
-          throw error;
-        }
-        if (record === null) {
-          if (this.#record === null) return null;
-          await this.#failClosedOfflineExposure('offline_custody_missing');
-          throw corrupt('durable custody disappeared during offline restore');
-        }
-        let validated;
-        try {
-          validated = record;
-        } catch (error) {
-          // Validation is part of the mandatory gate. Pause and blank the
-          // predecessor before surfacing malformed durable bytes to the caller.
-          await this.#failClosedOfflineExposure('offline_custody_malformed');
-          throw error;
-        }
-        if (validated.phase !== 'settled') {
-          await this.#failClosedOfflineExposure('offline_custody_clearing');
-          throw coordinatorError(
-            'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
-            'offline authority requires settled durable custody',
-            { authorityEpoch: validated.authorityEpoch },
-          );
-        }
-        if (this.#record !== null) {
-          if (this.#publicationPaused || this.#record.phase !== 'settled') {
-            throw coordinatorError(
-              'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
-              'offline authority cannot be restored over an in-progress local barrier',
-            );
-          }
-          const current = validateAuthCustody(this.#record, this.#appId);
-          if (
-            validated.revision < current.revision
-            || validated.authorityEpoch < current.authorityEpoch
-          ) {
-            await this.#failClosedOfflineExposure('offline_custody_regressed');
-            throw corrupt('durable custody regressed during offline restore');
-          }
-          const sameAuthority = validated.authorityEpoch === current.authorityEpoch
-            && canonicalAuthorityKey(this.#appId, validated.authority)
-              === canonicalAuthorityKey(this.#appId, current.authority);
-          if (sameAuthority) {
-            // A bearer rotation may advance only the custody revision. It does
-            // not change the offline authorization identity, but adopting the
-            // durable record prevents a missed wakeup from retaining stale
-            // credential custody for the next online boundary.
-            this.#adoptSettled(validated);
-            return captureFor(this.#appId, validated);
-          }
-          return this.#adoptPeerOfflineSettled(validated);
-        }
-        // A fresh context has no predecessor app-visible state to clear. Its
-        // participants were registered while publication was paused and are
-        // already blank; exposing this capture grants no online transport.
-        this.#adoptSettled(validated);
-        return captureFor(this.#appId, validated);
+      inspected = await this.#storage.withOwnership(this.#appId, async (owner) => {
+        ownershipEntered = true;
+        // @ref LLP 0059#cross-context-ownership — offline restore ownership is
+        // read/validation only. Counter cuts and every participant callback
+        // are deferred until this callback has released the non-reentrant
+        // custody owner.
+        return this.#inspectOwnedWithoutCut(owner);
       });
     } catch (error) {
-      // withOwnership can fail before it invokes the callback (for example,
-      // when the browser cannot acquire durable custody). That is also a
-      // mandatory-gate failure, so a formerly exposed predecessor must stop.
-      if (!this.#publicationPaused) {
-        await this.#failClosedOfflineExposure('offline_custody_ownership_failed');
+      if (this.#counterExhaustionError === null && this.#record !== null) {
+        await this.#failClosedAfterConfirmation(
+          ownershipEntered
+            ? 'offline_custody_read_failed'
+            : 'offline_custody_ownership_failed',
+          error,
+        );
       }
       throw error;
     }
+
+    if (inspected.terminal !== null) {
+      throw await this.#applyDeferredCounterTerminal(inspected.terminal);
+    }
+    const record = inspected.record;
+    if (record === null) {
+      if (this.#record !== null) {
+        const error = corrupt('durable custody disappeared during offline restore');
+        await this.#failClosedAfterConfirmation('offline_custody_missing', error);
+        throw error;
+      }
+      const confirmed = await this.#confirmOfflineDurableExact(
+        null,
+        'offline_fresh_null_confirm_failed',
+      );
+      return confirmed.durable;
+    }
+    if (record.phase !== 'settled') {
+      const error = coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'offline authority requires settled durable custody',
+        { authorityEpoch: record.authorityEpoch },
+      );
+      await this.#failClosedAfterConfirmation('offline_custody_clearing', error);
+      throw error;
+    }
+
+    const expected = captureFor(this.#appId, record);
+    if (this.#record === null) {
+      // A fresh context has no predecessor app-visible state to clear. Its
+      // participants were registered while publication was paused and are
+      // already blank. The exact second read and local adoption share one
+      // ownership-fenced synchronous turn.
+      const confirmed = await this.#confirmOfflineDurableExact(
+        expected,
+        'offline_fresh_custody_confirm_failed',
+        (durable) => {
+          this.#assertParticipantRegistrationsReady();
+          if (this.#record !== null || this.#activeBarrier !== null) {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_STALE',
+              'local custody changed before fresh offline restore could publish',
+            );
+          }
+          this.#adoptSettled(durable);
+          return captureFor(this.#appId, durable);
+        },
+      );
+      return confirmed.value;
+    }
+
+    if (this.#publicationPaused || this.#record.phase !== 'settled') {
+      const error = coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'offline authority cannot be restored over an in-progress local barrier',
+      );
+      await this.#failClosedAfterConfirmation('offline_custody_local_barrier', error);
+      throw error;
+    }
+    const current = validateAuthCustody(this.#record, this.#appId);
+    const currentCapture = captureFor(this.#appId, current);
+    if (
+      record.revision < current.revision
+      || record.authorityEpoch < current.authorityEpoch
+    ) {
+      const error = corrupt('durable custody regressed during offline restore');
+      await this.#failClosedAfterConfirmation('offline_custody_regressed', error);
+      throw error;
+    }
+    const sameAuthority = record.authorityEpoch === current.authorityEpoch
+      && canonicalAuthorityKey(this.#appId, record.authority)
+        === canonicalAuthorityKey(this.#appId, current.authority);
+    if (sameAuthority) {
+      // A bearer rotation may advance only the custody revision. It does not
+      // change the offline authorization identity. Recheck local continuity
+      // and install the exact durable revision under the final owner fence.
+      const confirmed = await this.#confirmOfflineDurableExact(
+        expected,
+        'offline_same_authority_confirm_failed',
+        (durable) => {
+          if (
+            this.#publicationPaused
+            || this.#activeBarrier !== null
+            || !captureMatches(this.#appId, this.#record, currentCapture, { revision: true })
+          ) {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_STALE',
+              'local custody changed before offline revision adoption',
+            );
+          }
+          this.#adoptSettled(durable);
+          return captureFor(this.#appId, durable);
+        },
+      );
+      return confirmed.value;
+    }
+
+    const preconfirmed = await this.#confirmOfflineDurableExact(
+      expected,
+      'offline_peer_adoption_preconfirm_failed',
+    );
+    if (
+      this.#publicationPaused
+      || this.#activeBarrier !== null
+      || !captureMatches(this.#appId, this.#record, currentCapture, { revision: true })
+    ) {
+      const error = coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'local custody changed before offline peer adoption',
+      );
+      await this.#failClosedAfterConfirmation('offline_peer_adoption_local_mismatch', error);
+      throw error;
+    }
+    return this.#adoptPeerOfflineSettled(preconfirmed.durable, currentCapture);
   }
 
   async compareAndCommit(capture, commit) {
     this.#assertOperationAllowed();
     if (typeof commit !== 'function') throw new TypeError('compareAndCommit requires a commit callback');
     if (this.#publicationPaused) return { committed: false };
-    return this.#storage.withOwnership(this.#appId, async (owner) => {
+    return this.#withOwnership(async (owner) => {
       const record = await this.#readOwned(owner);
       if (this.#publicationPaused || !captureMatches(this.#appId, record, capture)) {
         return { committed: false };
@@ -1061,7 +1171,7 @@ export class AuthCoordinator {
     }
     validateRefreshTime(refreshAfterMs, 'refreshAfterMs');
     if (refreshAfterMs === null) throw new TypeError('compareAndRotateBearer requires refreshAfterMs');
-    return this.#storage.withOwnership(this.#appId, async (owner) => {
+    return this.#withOwnership(async (owner) => {
       const record = await this.#readOwned(owner);
       if (!captureMatches(this.#appId, record, capture, { revision: true })) {
         return { rotated: false };
@@ -1100,7 +1210,7 @@ export class AuthCoordinator {
   async withCredentialRotation(capture, rotate) {
     this.#assertOperationAllowed();
     if (typeof rotate !== 'function') throw new TypeError('withCredentialRotation requires a callback');
-    const prepared = await this.#storage.withOwnership(this.#appId, async (owner) => {
+    const prepared = await this.#withOwnership(async (owner) => {
       const record = await this.#readOwned(owner);
       if (!captureMatches(this.#appId, record, capture, { revision: true })) {
         return null;
@@ -1199,17 +1309,44 @@ export class AuthCoordinator {
   async transition(expected, successor, reason = 'authority_change') {
     this.#assertOperationAllowed();
     const normalized = normalizeSuccessor(successor);
-    const owned = await this.#storage.withOwnership(this.#appId, async (owner) => {
+    const owned = await this.#withOwnership(async (owner) => {
       let current = await this.#readOwned(owner);
       if (current === null) {
         throw coordinatorError('SNAPBACK_CLIENT_AUTHORITY_STALE', 'no durable predecessor custody exists');
       }
       const successorKey = canonicalAuthorityKey(this.#appId, normalized.authority);
       if (current.phase === 'settled' && canonicalAuthorityKey(this.#appId, current.authority) === successorKey) {
-        // An idempotent transition may run from inside successor resume. Exact
-        // durable confirmation is useful there, but cannot reopen the barrier.
-        this.#adoptSettled(current, { expose: !this.#publicationPaused });
-        return captureFor(this.#appId, current);
+        const currentCapture = captureFor(this.#appId, current);
+        const localAlreadyExact = this.#record?.phase === 'settled'
+          && captureMatches(this.#appId, this.#record, currentCapture, { revision: true });
+        if (localAlreadyExact) {
+          // A reentrant transition from successor resume is confirmation only.
+          // It cannot replace or reopen the active local barrier.
+          return currentCapture;
+        }
+        // A missed wakeup may leave this context on predecessor A while a peer
+        // has already settled requested successor B. Treat that as peer
+        // adoption after ownership; blindly installing B here would skip every
+        // local quiesce/blank/commit/resume callback.
+        const localAtRead = this.#record === null
+          ? null
+          : Object.freeze({
+            phase: this.#record.phase,
+            revision: this.#record.revision,
+            authorityEpoch: this.#record.authorityEpoch,
+            authorityKey: canonicalAuthorityKey(
+              this.#appId,
+              this.#record.phase === 'settled'
+                ? this.#record.authority
+                : this.#record.pendingAuthority,
+            ),
+          });
+        return {
+          adoptPeerAfterOwnership: true,
+          record: current,
+          localAtRead,
+          publicationPausedAtRead: this.#publicationPaused,
+        };
       }
       if (current.phase === 'clearing') {
         if (canonicalAuthorityKey(this.#appId, current.pendingAuthority) !== successorKey) {
@@ -1274,13 +1411,15 @@ export class AuthCoordinator {
   }
 
   registerParticipant(participant, { before = null } = {}) {
-    this.#assertUsable();
+    this.#assertOperationAllowed();
     if (!participant || typeof participant !== 'object') throw new TypeError('participant must be an object');
     const entry = {
       participant,
       order: this.#participantSequence += 1,
       removed: false,
       active: Promise.resolve(),
+      callbackDepth: 0,
+      removalTask: null,
     };
     const beforeIndex = before === null
       ? -1
@@ -1291,9 +1430,15 @@ export class AuthCoordinator {
       // Registration while blank/clearing must not briefly expose predecessor
       // state. Synchronous phases run before registration returns; awaited
       // quiescence joins the active transition before its next phase.
-      try {
-        participantMethod(participant, 'blank', this.#barrierContext());
-        participantMethod(participant, 'clearMemory', this.#barrierContext());
+      const context = this.#barrierContext();
+      for (const method of ['blank', 'clearMemory']) {
+        try {
+          this.#invokeSyncParticipant(entry, method, context);
+        } catch (error) {
+          entry.registrationError ??= error;
+        }
+      }
+      if (!entry.registrationError) {
         if (this.#activeBarrier) {
           // @ref LLP 0059#transition-barrier — a participant registering
           // mid-barrier joins paused and blank, so these phases are satisfied
@@ -1303,16 +1448,54 @@ export class AuthCoordinator {
           this.#markPhaseDone(this.#activeBarrier, entry, 'blank');
           this.#markPhaseDone(this.#activeBarrier, entry, 'clearMemory');
         }
-      } catch (error) {
-        entry.registrationError = error;
       }
     }
-    return async () => {
-      const completion = this.#activeBarrier?.completion?.promise ?? null;
-      if (completion) await completion;
-      entry.removed = true;
-      await entry.active;
-      this.#participants = this.#participants.filter((candidate) => candidate !== entry);
+    return () => {
+      if (entry.removalTask === null) {
+        entry.removalTask = Promise.resolve().then(async () => {
+          // A destructive cut may begin after removal was requested but before
+          // this task gets its turn. Keep joining active barrier/cut
+          // completions until one synchronous check observes none; marking the
+          // entry removed then excludes it from every later snapshot.
+          for (;;) {
+            const completions = new Set(this.#activeCutCompletions);
+            const barrierCompletionPromise = this.#activeBarrier?.completion?.promise;
+            if (barrierCompletionPromise) completions.add(barrierCompletionPromise);
+            if (completions.size === 0) break;
+            await Promise.all([...completions]);
+          }
+          entry.removed = true;
+          await entry.active;
+          this.#participants = this.#participants.filter((candidate) => candidate !== entry);
+        });
+      }
+      const observe = () => {
+        if (entry.callbackDepth > 0) {
+          return Promise.reject(coordinatorError(
+            'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT',
+            'a participant callback cannot await its own unregistration',
+            { participant: entry.participant.name ?? entry.order },
+          ));
+        }
+        return entry.removalTask;
+      };
+      // Requesting removal is safe from inside a callback, but joining that
+      // removal from the same callback is a cycle: removal waits for the
+      // callback, while the callback would wait for removal. A lazy thenable
+      // distinguishes the supported fire-and-join-later form from a forbidden
+      // self-join without manufacturing an ignored rejected Promise.
+      return Object.freeze({
+        then(onFulfilled, onRejected) {
+          return observe().then(onFulfilled, onRejected);
+        },
+        catch(onRejected) {
+          return observe().catch(onRejected);
+        },
+        finally(onFinally) {
+          return observe().finally(onFinally);
+        },
+        [Symbol.toStringTag]: 'Promise',
+      });
     };
   }
 
@@ -1371,6 +1554,7 @@ export class AuthCoordinator {
       context,
       completion,
       stagedPublications: [],
+      cutGeneration: this.#destructiveCutGeneration,
       // @ref LLP 0059#transition-barrier — barrier phase completion is tracked
       // per registration; a participant that registers after commitDurable has
       // completed globally catches up through these phases (with this exact
@@ -1407,20 +1591,48 @@ export class AuthCoordinator {
     } catch (error) {
       this.#publicationPaused = true;
       const failedPhase = this.#activeBarrier?.phase ?? 'unknown';
-      this.#activeBarrier?.completion?.resolve();
-      this.#activeBarrier = null;
-      if (isCounterExhaustion(error) || this.#counterExhaustionError) {
-        throw this.#counterExhaustionError ?? error;
+      if (
+        deferredCounterTerminalValue(error) !== null
+        || isCounterExhaustion(error)
+        || this.#counterExhaustionError
+      ) {
+        throw error;
       }
-      throw coordinatorError(
+      const primaryError = coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition barrier did not settle',
         { phase: failedPhase, causeCode: error?.code ?? null },
       );
+      return {
+        barrierFailureAfterOwnership: true,
+        barrierState: this.#activeBarrier,
+        context: barrier,
+        snapshot: this.#participants.filter((entry) => !entry.removed),
+        primaryError,
+      };
     }
   }
 
   async #resumeAfterOwnership(result) {
+    if (result?.barrierFailureAfterOwnership) {
+      const {
+        barrierState,
+        context,
+        snapshot,
+        primaryError,
+      } = result;
+      try {
+        const failures = await this.#runSnapshottedDestructiveCut(
+          context,
+          { snapshot, barrier: barrierState },
+        );
+        this.#attachParticipantFailures(primaryError, failures);
+      } finally {
+        barrierState?.completion?.resolve();
+        if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
+      }
+      throw primaryError;
+    }
     if (result?.adoptPeerAfterOwnership) {
       // Ownership used to obtain result.record has ended. Reacquire it for a
       // short exact read before participant work; a peer may have advanced the
@@ -1502,48 +1714,78 @@ export class AuthCoordinator {
       return durable === null ? null : captureFor(this.#appId, durable);
     }
     const { settled, barrier } = result;
+    const barrierState = this.#activeBarrier;
     try {
       const confirmed = await this.#confirmDurableExact(
         captureFor(this.#appId, settled),
         'owner_transition_preconfirm_failed',
       );
-      await this.#runAwaitedPhase('resume', Object.freeze({
+      const resumeContext = Object.freeze({
         ...barrier,
         capture: captureFor(this.#appId, confirmed),
         authority: clone(confirmed.authority),
         stagePublication: (capture, commit) => this.#stagePublication(
-          this.#activeBarrier,
+          barrierState,
           capture,
           commit,
         ),
-      }), { reverse: true });
-      const final = await this.#confirmDurableExact(
-        captureFor(this.#appId, confirmed),
-        'owner_transition_postconfirm_failed',
-        () => this.#flushStagedPublications(this.#activeBarrier, confirmed),
-      );
-      this.#exposePublication();
-      return captureFor(this.#appId, final);
+      });
+      for (;;) {
+        await this.#runAwaitedPhase('resume', resumeContext, { reverse: true });
+        try {
+          const final = await this.#confirmDurableExact(
+            captureFor(this.#appId, confirmed),
+            'owner_transition_postconfirm_failed',
+            () => {
+              this.#assertBarrierPhaseClosure(
+                barrierState,
+                ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
+              );
+              this.#flushStagedPublications(barrierState, confirmed);
+              this.#assertBarrierPhaseClosure(
+                barrierState,
+                ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
+              );
+              this.#exposePublication();
+            },
+          );
+          return captureFor(this.#appId, final);
+        } catch (error) {
+          if (!isBarrierPhaseClosureRetry(error)) throw error;
+          await this.#prepareBarrierPhaseClosureRetry(barrierState, error);
+        }
+      }
     } catch (error) {
       this.#publicationPaused = true;
-      this.#discardStagedPublications(this.#activeBarrier);
-      await this.#reblankAfterResumeFailure(barrier);
+      this.#discardStagedPublications(barrierState);
+      const failures = await this.#runSnapshottedDestructiveCut(
+        barrier,
+        { snapshot: this.#participants.filter((entry) => !entry.removed) },
+      );
       if (isCounterExhaustion(error) || this.#counterExhaustionError) {
         throw this.#counterExhaustionError ?? error;
       }
-      throw coordinatorError(
+      const primaryError = coordinatorError(
         'SNAPBACK_AUTH_TRANSITION_FAILED',
         'authority transition resume did not complete',
-        { phase: this.#activeBarrier?.phase ?? 'resume', causeCode: error?.code ?? null },
+        { phase: barrierState?.phase ?? 'resume', causeCode: error?.code ?? null },
       );
+      this.#attachParticipantFailures(primaryError, failures);
+      throw primaryError;
     } finally {
-      this.#activeBarrier?.completion?.resolve();
-      this.#activeBarrier = null;
+      barrierState?.completion?.resolve();
+      if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
     }
   }
 
-  async #adoptPeerOfflineSettled(record) {
+  async #adoptPeerOfflineSettled(record, expectedLocalCapture) {
     const previous = validateAuthCustody(this.#record, this.#appId);
+    if (!captureMatches(this.#appId, previous, expectedLocalCapture, { revision: true })) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'local custody changed before offline peer barrier started',
+      );
+    }
     this.#publicationPaused = true;
     const context = Object.freeze({
       appId: this.#appId,
@@ -1557,90 +1799,218 @@ export class AuthCoordinator {
       previousAuthority: clone(previous.authority),
       nextAuthority: clone(record.authority),
     });
-    this.#activeBarrier = { phase: 'offline_durable_reload', context };
+    const completion = barrierCompletion();
+    const barrier = {
+      phase: 'offline_durable_reload',
+      context,
+      completion,
+      cutGeneration: this.#destructiveCutGeneration,
+    };
+    this.#activeBarrier = barrier;
     try {
-      await this.#runAwaitedPhase('quiesce', context);
-      this.#runSyncPhase('blank', context);
-      this.#runSyncPhase('clearMemory', context);
-      await this.#runAwaitedPhase('commitDurable', context);
-      this.#adoptSettled(record, { expose: false });
-      // No participant resume runs here: a durable offline authority can
-      // validate retained leases, but it cannot establish an online transport.
-      this.#exposePublication();
-      return captureFor(this.#appId, record);
+      for (;;) {
+        await this.#runAwaitedPhase('quiesce', context);
+        this.#runSyncPhase('blank', context);
+        this.#runSyncPhase('clearMemory', context);
+        await this.#runAwaitedPhase('commitDurable', context);
+        try {
+          const confirmed = await this.#confirmOfflineDurableExact(
+            captureFor(this.#appId, record),
+            'offline_peer_adoption_postconfirm_failed',
+            (durable) => {
+              this.#assertBarrierPhaseClosure(
+                barrier,
+                ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
+              );
+              if (
+                !this.#publicationPaused
+                || !captureMatches(
+                  this.#appId,
+                  this.#record,
+                  expectedLocalCapture,
+                  { revision: true },
+                )
+              ) {
+                throw coordinatorError(
+                  'SNAPBACK_CLIENT_AUTHORITY_STALE',
+                  'local custody changed during offline peer barrier',
+                );
+              }
+              this.#adoptSettled(durable, { expose: false });
+              // No participant resume runs here: a durable offline authority
+              // can validate retained leases, but it cannot establish online
+              // transport.
+              this.#exposePublication();
+              return captureFor(this.#appId, durable);
+            },
+          );
+          return confirmed.value;
+        } catch (error) {
+          if (!isBarrierPhaseClosureRetry(error)) throw error;
+          await this.#prepareBarrierPhaseClosureRetry(barrier, error);
+        }
+      }
+    } catch (error) {
+      this.#publicationPaused = true;
+      await this.#runSnapshottedDestructiveCut(
+        context,
+        { snapshot: this.#participants.filter((entry) => !entry.removed) },
+      );
+      throw error;
     } finally {
-      this.#activeBarrier = null;
+      completion.resolve();
+      if (this.#activeBarrier === barrier) this.#activeBarrier = null;
     }
   }
 
   async #failClosedOfflineExposure(reason) {
     this.#publicationPaused = true;
-    if (this.#record === null) return;
+    if (this.#record === null) return [];
     const context = Object.freeze({
       ...this.#barrierContext(),
       reason,
       disposition: 'delete',
     });
-    this.#activeBarrier = { phase: reason, context };
+    const completion = barrierCompletion();
+    const barrier = {
+      phase: reason,
+      context,
+      completion,
+    };
+    const snapshot = this.#participants.filter((entry) => !entry.removed);
+    this.#activeBarrier = barrier;
     try {
-      await this.#runAwaitedPhase('quiesce', context);
-      this.#runSyncPhase('blank', context);
-      this.#runSyncPhase('clearMemory', context);
+      // @ref LLP 0059#cross-context-ownership — a mandatory custody-read
+      // failure is a complete local cut. One faulty participant cannot retain
+      // another participant's predecessor materialization, and a participant
+      // requesting unregistration from quiesce remains snapshotted until the
+      // destructive phases finish.
+      return await this.#runSnapshottedDestructiveCut(
+        context,
+        { snapshot, barrier },
+      );
     } finally {
-      this.#activeBarrier = null;
+      completion.resolve();
+      if (this.#activeBarrier === barrier) this.#activeBarrier = null;
     }
   }
 
-  async #failClosedAfterConfirmation(reason) {
+  async #failClosedAfterConfirmation(reason, primaryError = null) {
     this.#publicationPaused = true;
     if (this.#activeBarrier === null) {
-      await this.#failClosedOfflineExposure(reason);
+      const failures = await this.#failClosedOfflineExposure(reason);
+      this.#attachParticipantFailures(primaryError, failures);
     }
   }
 
-  async #readOwned(owner) {
+  #attachParticipantFailures(primaryError, failures) {
+    if (
+      failures.length === 0
+      || !primaryError
+      || (typeof primaryError !== 'object' && typeof primaryError !== 'function')
+    ) return;
+    // Preserve the mandatory custody/transition diagnostic as the operation's
+    // primary error. Participant failures are secondary evidence and never a
+    // reason to skip later destructive callbacks.
+    try {
+      Object.defineProperty(primaryError, 'failClosedParticipantFailures', {
+        configurable: true,
+        enumerable: false,
+        value: Object.freeze(failures.map(({ entry, method, error }) => Object.freeze({
+          participant: entry.participant.name ?? entry.order,
+          method,
+          code: error?.code ?? error?.diagnostic?.code ?? null,
+        }))),
+      });
+    } catch {
+      // Some host errors are non-extensible. The primary error still wins.
+    }
+  }
+
+  async #inspectOwnedWithoutCut(owner) {
     let raw = null;
     try {
       raw = await owner.read();
-      if (raw === null) return null;
+      if (raw === null) return { record: null, terminal: null };
       const record = validateAuthCustody(raw, this.#appId);
       if (record.phase === 'exhausted') {
-        const error = durableCounterExhausted(record);
-        this.#latchCounterExhaustion(error, record);
-        throw error;
+        return {
+          record: null,
+          terminal: {
+            error: durableCounterExhausted(record),
+            durable: record,
+            poisonHint: null,
+          },
+        };
       }
-      return record;
+      return { record, terminal: null };
     } catch (error) {
-      if (isCounterExhaustion(error)) {
-        this.#latchCounterExhaustion(error);
-        // A legacy/non-coordinator writer may already have consumed the final
-        // revision without a terminal marker. That durable record is itself
-        // permanent poison; wake peers so they stop publication immediately
-        // and discover the same error through ownership.
-        if (
-          raw?.phase !== 'exhausted'
-          && raw?.revision === MAX_SAFE
-          && Number.isSafeInteger(raw?.authorityEpoch)
-          && raw.authorityEpoch >= 0
-        ) {
-          this.#publish({
+      if (!isCounterExhaustion(error)) throw error;
+      const poisonHint = (
+        raw?.phase !== 'exhausted'
+        && raw?.revision === MAX_SAFE
+        && Number.isSafeInteger(raw?.authorityEpoch)
+        && raw.authorityEpoch >= 0
+      )
+        ? {
             authorityEpoch: raw.authorityEpoch,
             revision: raw.revision,
             phase: 'exhausted',
-          });
-        }
-      }
-      throw error;
+          }
+        : null;
+      return {
+        record: null,
+        terminal: {
+          error,
+          durable: null,
+          poisonHint,
+        },
+      };
     }
   }
 
-  async #terminalizeOwned(owner, current, error) {
-    this.#latchCounterExhaustion(error);
-    if (current.phase === 'exhausted') {
-      this.#record = current;
-      return current;
+  async #withOwnership(operation) {
+    // @ref LLP 0059#cross-context-ownership — an owned callback may report a
+    // terminal durable fact, but participant cuts begin only after release.
+    try {
+      return await this.#storage.withOwnership(this.#appId, operation);
+    } catch (error) {
+      const terminal = deferredCounterTerminalValue(error);
+      if (terminal === null) throw error;
+      throw await this.#applyDeferredCounterTerminal(terminal);
     }
-    if (current.revision >= MAX_SAFE) return null;
+  }
+
+  async #applyDeferredCounterTerminal({ error, durable, poisonHint }) {
+    this.#latchCounterExhaustion(error, durable);
+    if (poisonHint !== null) this.#publish(poisonHint);
+    await this.#counterExhaustionSettlement;
+    return this.#counterExhaustionError ?? error;
+  }
+
+  async #readOwned(owner) {
+    const inspected = await this.#inspectOwnedWithoutCut(owner);
+    if (inspected.terminal !== null) {
+      throw deferredCounterTerminal(inspected.terminal);
+    }
+    return inspected.record;
+  }
+
+  async #terminalizeOwned(owner, current, error) {
+    if (current.phase === 'exhausted') {
+      throw deferredCounterTerminal({ error, durable: current, poisonHint: null });
+    }
+    if (current.revision >= MAX_SAFE) {
+      throw deferredCounterTerminal({
+        error,
+        durable: null,
+        poisonHint: {
+          authorityEpoch: current.authorityEpoch,
+          revision: current.revision,
+          phase: 'exhausted',
+        },
+      });
+    }
     const marker = await owner.replace(current.revision, {
       formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
       appId: this.#appId,
@@ -1654,9 +2024,7 @@ export class AuthCoordinator {
       refreshAfterMs: null,
       transitionIntent: null,
     });
-    this.#record = marker;
-    this.#publish(marker);
-    return marker;
+    throw deferredCounterTerminal({ error, durable: marker, poisonHint: marker });
   }
 
   #latchCounterExhaustion(error, durable = null) {
@@ -1686,52 +2054,150 @@ export class AuthCoordinator {
       previousAuthority,
       nextAuthority: null,
     });
-    const quiescence = [];
-    for (const entry of this.#participants) {
-      if (entry.removed) continue;
-      try {
-        quiescence.push(Promise.resolve(participantMethod(entry.participant, 'quiesce', context)));
-      } catch (participantError) {
-        quiescence.push(Promise.reject(participantError));
-      }
-    }
-    // Publication closes before any asynchronous quiescence can yield. Invoke
-    // every destructive local phase even if another participant is faulty.
-    this.#terminalBlankParticipants(context);
-    this.#counterExhaustionSettlement = Promise.allSettled(quiescence).then(() => {
-      // Quiescence callbacks must not be able to repopulate predecessor state
-      // after the first synchronous cut.
-      this.#terminalBlankParticipants(context);
-    });
+    const snapshot = this.#participants.filter((entry) => !entry.removed);
+    // Publication closes before any asynchronous quiescence can yield. The
+    // exact participant snapshot is held behind a completion so a participant
+    // cannot unregister, repopulate from quiesce, and escape the final cut.
+    this.#counterExhaustionSettlement = this.#runSnapshottedDestructiveCut(
+      context,
+      { snapshot, initialBlank: true },
+    ).then(() => {});
     return this.#counterExhaustionError;
   }
 
-  #terminalBlankParticipants(context) {
-    for (const entry of this.#participants) {
-      if (entry.removed) continue;
+  #runSnapshottedDestructiveCut(context, {
+    snapshot = this.#participants.filter((entry) => !entry.removed),
+    initialBlank = false,
+    barrier = null,
+  } = {}) {
+    // @ref LLP 0059#cross-context-ownership — removal cannot shorten an exact
+    // destructive snapshot between quiescence and its final blank/clear pass.
+    const exactSnapshot = [...snapshot];
+    const completion = barrierCompletion();
+    this.#activeCutCompletions.add(completion.promise);
+    this.#destructiveCutGeneration += 1;
+    const failures = [];
+    const runSyncPass = () => {
       for (const method of ['blank', 'clearMemory']) {
-        try {
-          const result = participantMethod(entry.participant, method, context);
-          if (result && typeof result.then === 'function') void result.catch(() => {});
-        } catch {
-          // Exhaustion is permanent. One faulty participant cannot prevent the
-          // remaining participants from receiving the destructive cut.
+        if (barrier !== null) barrier.phase = method;
+        for (const entry of exactSnapshot) {
+          try {
+            this.#invokeSyncParticipant(entry, method, context);
+          } catch (error) {
+            failures.push({ entry, method, error });
+          } finally {
+            if (barrier !== null) this.#markPhaseDone(barrier, entry, method);
+          }
         }
       }
-    }
+    };
+    const task = (async () => {
+      try {
+        if (initialBlank) runSyncPass();
+        if (barrier !== null) barrier.phase = 'quiesce';
+        await Promise.all(exactSnapshot.map(async (entry) => {
+          try {
+            await this.#startAwaitedParticipant(entry, 'quiesce', context);
+          } catch (error) {
+            failures.push({ entry, method: 'quiesce', error });
+          } finally {
+            if (barrier !== null) this.#markPhaseDone(barrier, entry, 'quiesce');
+          }
+        }));
+        // A quiescence callback may repopulate predecessor state. The final
+        // destructive pass therefore targets the original snapshot even when
+        // one of its entries requested removal during the callback.
+        runSyncPass();
+        return failures;
+      } finally {
+        completion.resolve();
+        this.#activeCutCompletions.delete(completion.promise);
+      }
+    })();
+    return task;
   }
 
   #exposePublication() {
+    if (this.#closed) {
+      this.#publicationPaused = true;
+      throw coordinatorError(
+        'SNAPBACK_AUTH_COORDINATOR_CLOSED',
+        'a closed auth coordinator cannot expose authority',
+      );
+    }
     if (this.#counterExhaustionError) {
       this.#publicationPaused = true;
       throw this.#counterExhaustionError;
     }
+    this.#assertParticipantRegistrationsReady();
+    if (this.#exhaustedWakeupCut !== null || this.#activeCutCompletions.size > 0) {
+      this.#publicationPaused = true;
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+        'authority publication is blocked by an active destructive cut',
+      );
+    }
     this.#publicationPaused = false;
+  }
+
+  async #confirmOfflineDurableExact(expected, reason, onConfirmed = null) {
+    try {
+      const outcome = await this.#storage.withOwnership(this.#appId, async (owner) => {
+        const inspected = await this.#inspectOwnedWithoutCut(owner);
+        if (inspected.terminal !== null) {
+          return { terminal: inspected.terminal, durable: null, value: undefined };
+        }
+        const raw = inspected.record;
+        let durable;
+        if (expected === null) {
+          if (raw === null) durable = null;
+        } else if (captureMatches(this.#appId, raw, expected, { revision: true })) {
+          durable = raw;
+        }
+        if (durable === undefined) {
+          throw coordinatorError(
+            'SNAPBACK_CLIENT_AUTHORITY_STALE',
+            'durable authority changed before offline custody confirmation',
+          );
+        }
+        let value;
+        if (onConfirmed !== null) {
+          const publish = () => {
+            value = onConfirmed(durable);
+            if (value && typeof value.then === 'function') {
+              throw coordinatorError(
+                'SNAPBACK_CLIENT_AUTH_COMMIT_ASYNC',
+                'offline custody confirmation callback must be synchronous and non-reentrant',
+              );
+            }
+          };
+          if (typeof owner.fencePublication === 'function') {
+            await owner.fencePublication(publish);
+          } else {
+            publish();
+          }
+        }
+        return { terminal: null, durable, value };
+      });
+      if (outcome.terminal !== null) {
+        throw await this.#applyDeferredCounterTerminal(outcome.terminal);
+      }
+      return outcome;
+    } catch (error) {
+      if (
+        !isBarrierPhaseClosureRetry(error)
+        && !isCounterExhaustion(error)
+        && this.#counterExhaustionError === null
+      ) {
+        await this.#failClosedAfterConfirmation(reason, error);
+      }
+      throw error;
+    }
   }
 
   async #confirmDurableExact(expected, reason, onConfirmed = null) {
     try {
-      return await this.#storage.withOwnership(this.#appId, async (owner) => {
+      return await this.#withOwnership(async (owner) => {
         const raw = await this.#readOwned(owner);
         let durable;
         if (expected === null) {
@@ -1756,7 +2222,13 @@ export class AuthCoordinator {
         return durable;
       });
     } catch (error) {
-      await this.#failClosedAfterConfirmation(reason);
+      if (
+        !isBarrierPhaseClosureRetry(error)
+        && !isCounterExhaustion(error)
+        && this.#counterExhaustionError === null
+      ) {
+        await this.#failClosedAfterConfirmation(reason, error);
+      }
       throw error;
     }
   }
@@ -1790,6 +2262,10 @@ export class AuthCoordinator {
     }
     const staged = barrier.stagedPublications.splice(0);
     for (const entry of staged) {
+      // A prior staged callback may synchronously close the coordinator or
+      // start an eager terminal cut. Recheck lifecycle authority before every
+      // callback so later queued publications cannot escape that closure.
+      this.#assertOperationAllowed();
       if (!captureMatches(this.#appId, durable, entry.capture, { revision: true })) {
         throw coordinatorError(
           'SNAPBACK_CLIENT_AUTHORITY_STALE',
@@ -1821,18 +2297,6 @@ export class AuthCoordinator {
     if (barrier?.stagedPublications) barrier.stagedPublications.length = 0;
   }
 
-  async #reblankAfterResumeFailure(context) {
-    for (const entry of this.#participants) {
-      if (entry.removed) continue;
-      try { await participantMethod(entry.participant, 'quiesce', context); } catch { /* remain closed */ }
-    }
-    for (const entry of this.#participants) {
-      if (entry.removed) continue;
-      try { participantMethod(entry.participant, 'blank', context); } catch { /* remain closed */ }
-      try { participantMethod(entry.participant, 'clearMemory', context); } catch { /* remain closed */ }
-    }
-  }
-
   async #adoptPeerSettled(record) {
     const previous = this.#record;
     const authorityChanged = previous === null
@@ -1840,13 +2304,30 @@ export class AuthCoordinator {
       || previous.authorityEpoch !== record.authorityEpoch
       || canonicalAuthorityKey(this.#appId, previous.authority) !== canonicalAuthorityKey(this.#appId, record.authority);
     if (!authorityChanged && !this.#publicationPaused) {
-      this.#publicationPaused = true;
-      this.#adoptSettled(record, { expose: false });
+      const previousCapture = captureFor(this.#appId, previous);
       await this.#confirmDurableExact(
         captureFor(this.#appId, record),
         'peer_same_authority_postconfirm_failed',
+        (durable) => {
+          if (
+            this.#publicationPaused
+            || this.#activeBarrier !== null
+            || !captureMatches(
+              this.#appId,
+              this.#record,
+              previousCapture,
+              { revision: true },
+            )
+          ) {
+            throw coordinatorError(
+              'SNAPBACK_CLIENT_AUTHORITY_STALE',
+              'local custody changed during same-authority peer confirmation',
+            );
+          }
+          this.#adoptSettled(durable, { expose: false });
+          this.#exposePublication();
+        },
       );
-      this.#exposePublication();
       return;
     }
     this.#publicationPaused = true;
@@ -1869,47 +2350,178 @@ export class AuthCoordinator {
       previousAuthority: clone(previous?.authority ?? null),
       nextAuthority: clone(record.authority),
     });
+    const completion = barrierCompletion();
     this.#activeBarrier = {
       phase: 'peer_transition',
       context,
+      completion,
       stagedPublications: [],
+      cutGeneration: this.#destructiveCutGeneration,
       catchUp: {
         phases: ['quiesce', 'blank', 'clearMemory', 'commitDurable'],
         context,
       },
     };
+    const barrierState = this.#activeBarrier;
     try {
       await this.#runAwaitedPhase('quiesce', context);
       this.#runSyncPhase('blank', context);
       this.#runSyncPhase('clearMemory', context);
       await this.#runAwaitedPhase('commitDurable', context);
       this.#adoptSettled(record, { expose: false });
-      await this.#runAwaitedPhase('resume', Object.freeze({
+      const resumeContext = Object.freeze({
         ...context,
         capture: captureFor(this.#appId, record),
         authority: clone(record.authority),
         stagePublication: (capture, commit) => this.#stagePublication(
-          this.#activeBarrier,
+          barrierState,
           capture,
           commit,
         ),
-      }), { reverse: true });
-      await this.#confirmDurableExact(
-        captureFor(this.#appId, record),
-        'peer_adoption_postconfirm_failed',
-        () => this.#flushStagedPublications(this.#activeBarrier, record),
-      );
-      this.#exposePublication();
+      });
+      for (;;) {
+        await this.#runAwaitedPhase('resume', resumeContext, { reverse: true });
+        try {
+          await this.#confirmDurableExact(
+            captureFor(this.#appId, record),
+            'peer_adoption_postconfirm_failed',
+            () => {
+              this.#assertBarrierPhaseClosure(
+                barrierState,
+                ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
+              );
+              this.#flushStagedPublications(barrierState, record);
+              this.#assertBarrierPhaseClosure(
+                barrierState,
+                ['quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume'],
+              );
+              this.#exposePublication();
+            },
+          );
+          break;
+        } catch (error) {
+          if (!isBarrierPhaseClosureRetry(error)) throw error;
+          await this.#prepareBarrierPhaseClosureRetry(barrierState, error);
+        }
+      }
     } catch (error) {
       this.#publicationPaused = true;
-      this.#discardStagedPublications(this.#activeBarrier);
-      await this.#reblankAfterResumeFailure(context);
+      this.#discardStagedPublications(barrierState);
+      await this.#runSnapshottedDestructiveCut(
+        context,
+        { snapshot: this.#participants.filter((entry) => !entry.removed) },
+      );
       if (isCounterExhaustion(error) || this.#counterExhaustionError) {
         throw this.#counterExhaustionError ?? error;
       }
       throw error;
     } finally {
-      this.#activeBarrier = null;
+      completion.resolve();
+      if (this.#activeBarrier === barrierState) this.#activeBarrier = null;
+    }
+  }
+
+  #invokeSyncParticipant(entry, method, context) {
+    entry.callbackDepth += 1;
+    let result;
+    try {
+      result = participantMethod(entry.participant, method, context);
+    } finally {
+      entry.callbackDepth -= 1;
+    }
+    if (result && typeof result.then === 'function') {
+      // Observe an invalid async return before rejecting the declared sync
+      // phase. Otherwise a participant's rejected Promise becomes an
+      // unrelated unhandled rejection after the barrier already failed.
+      void Promise.resolve(result).catch(() => {});
+      throw coordinatorError(
+        'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE',
+        `participant ${entry.participant.name ?? entry.order} returned a promise from ${method}`,
+      );
+    }
+    return result;
+  }
+
+  async #invokeAwaitedParticipant(entry, method, context) {
+    entry.callbackDepth += 1;
+    try {
+      return await participantMethod(entry.participant, method, context);
+    } finally {
+      entry.callbackDepth -= 1;
+    }
+  }
+
+  #startAwaitedParticipant(entry, method, context) {
+    const call = Promise.resolve().then(() => (
+      this.#invokeAwaitedParticipant(entry, method, context)
+    ));
+    entry.active = call.catch(() => {});
+    return call;
+  }
+
+  #assertParticipantRegistrationsReady() {
+    const failed = this.#participants.find((entry) => (
+      !entry.removed && entry.registrationError
+    ));
+    if (failed) throw failed.registrationError;
+  }
+
+  #assertBarrierPhaseClosure(barrier, requiredPhases) {
+    // @ref LLP 0059#transition-barrier — the final ownership fence closes both
+    // durable custody and the per-registration phase set before exposure.
+    if (this.#closed) {
+      throw coordinatorError(
+        'SNAPBACK_AUTH_COORDINATOR_CLOSED',
+        'a closed auth coordinator cannot complete authority phase closure',
+      );
+    }
+    if (barrier === null || this.#activeBarrier !== barrier) {
+      throw coordinatorError(
+        'SNAPBACK_CLIENT_AUTHORITY_STALE',
+        'authority barrier changed before final phase closure',
+      );
+    }
+    this.#assertParticipantRegistrationsReady();
+    const cutChanged = barrier.cutGeneration !== this.#destructiveCutGeneration;
+    if (
+      cutChanged
+      || this.#exhaustedWakeupCut !== null
+      || this.#activeCutCompletions.size > 0
+    ) {
+      throw coordinatorError(
+        BARRIER_PHASE_CLOSURE_RETRY,
+        'a destructive cut overlapped final authority phase closure',
+        { cutChanged: true },
+      );
+    }
+    const missing = this.#participants.find((entry) => (
+      !entry.removed
+      && requiredPhases.some((phase) => !this.#phaseDone(barrier, entry, phase))
+    ));
+    if (missing) {
+      throw coordinatorError(
+        BARRIER_PHASE_CLOSURE_RETRY,
+        'a participant registered before final authority phase closure',
+        { cutChanged: false, participant: missing.participant.name ?? missing.order },
+      );
+    }
+  }
+
+  async #prepareBarrierPhaseClosureRetry(barrier, error) {
+    if (!isBarrierPhaseClosureRetry(error)) throw error;
+    for (;;) {
+      const waits = new Set(this.#activeCutCompletions);
+      if (this.#exhaustedWakeupCut !== null) waits.add(this.#exhaustedWakeupCut);
+      if (waits.size === 0) break;
+      await Promise.all([...waits]);
+    }
+    if (this.#counterExhaustionError) throw this.#counterExhaustionError;
+    if (barrier.cutGeneration !== this.#destructiveCutGeneration) {
+      this.#discardStagedPublications(barrier);
+      for (const entry of this.#participants) {
+        if (entry.barrier === barrier) entry.donePhases.clear();
+      }
+      barrier.cutGeneration = this.#destructiveCutGeneration;
     }
   }
 
@@ -1936,23 +2548,19 @@ export class AuthCoordinator {
     for (const entry of this.#participants) {
       if (entry.removed || this.#phaseDone(barrier, entry, method)) continue;
       if (entry.registrationError) throw entry.registrationError;
-      const result = participantMethod(entry.participant, method, context);
-      if (result && typeof result.then === 'function') {
-        throw coordinatorError(
-          'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE',
-          `participant ${entry.participant.name ?? entry.order} returned a promise from ${method}`,
-        );
-      }
+      this.#invokeSyncParticipant(entry, method, context);
       this.#markPhaseDone(barrier, entry, method);
     }
   }
 
   async #runAwaitedPhase(method, context, { reverse = false } = {}) {
     if (this.#counterExhaustionError) throw this.#counterExhaustionError;
+    if (this.#closed && method !== 'quiesce') this.#assertUsable();
     const barrier = this.#activeBarrier;
     barrier.phase = method;
     for (;;) {
       if (this.#counterExhaustionError) throw this.#counterExhaustionError;
+      if (this.#closed && method !== 'quiesce') this.#assertUsable();
       const ordered = reverse ? [...this.#participants].reverse() : [...this.#participants];
       const entry = ordered
         .find((candidate) => !candidate.removed && !this.#phaseDone(barrier, candidate, method));
@@ -1965,8 +2573,8 @@ export class AuthCoordinator {
         // particular) receives it here first, with the barrier's CAS context.
         await this.#catchUpBeforeResume(barrier, entry);
       }
-      const call = Promise.resolve().then(() => participantMethod(entry.participant, method, context));
-      entry.active = call.catch(() => {});
+      if (this.#closed && method !== 'quiesce') this.#assertUsable();
+      const call = this.#startAwaitedParticipant(entry, method, context);
       await call;
       this.#markPhaseDone(barrier, entry, method);
     }
@@ -1977,18 +2585,14 @@ export class AuthCoordinator {
     const { phases, context } = barrier.catchUp;
     for (const method of phases) {
       if (this.#phaseDone(barrier, entry, method)) continue;
+      if (this.#closed && method !== 'quiesce' && method !== 'blank' && method !== 'clearMemory') {
+        this.#assertUsable();
+      }
       barrier.phase = method;
       if (method === 'blank' || method === 'clearMemory') {
-        const result = participantMethod(entry.participant, method, context);
-        if (result && typeof result.then === 'function') {
-          throw coordinatorError(
-            'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE',
-            `participant ${entry.participant.name ?? entry.order} returned a promise from ${method}`,
-          );
-        }
+        this.#invokeSyncParticipant(entry, method, context);
       } else {
-        const call = Promise.resolve().then(() => participantMethod(entry.participant, method, context));
-        entry.active = call.catch(() => {});
+        const call = this.#startAwaitedParticipant(entry, method, context);
         await call;
       }
       this.#markPhaseDone(barrier, entry, method);
@@ -2099,19 +2703,11 @@ export class AuthCoordinator {
       previousAuthority,
       nextAuthority: null,
     });
-    const quiescence = [];
-    for (const entry of this.#participants) {
-      if (entry.removed) continue;
-      try {
-        quiescence.push(Promise.resolve(participantMethod(entry.participant, 'quiesce', context)));
-      } catch (error) {
-        quiescence.push(Promise.reject(error));
-      }
-    }
-    this.#terminalBlankParticipants(context);
-    void Promise.allSettled(quiescence).then(() => {
-      this.#terminalBlankParticipants(context);
-    }).finally(() => {
+    const snapshot = this.#participants.filter((entry) => !entry.removed);
+    void this.#runSnapshottedDestructiveCut(
+      context,
+      { snapshot, initialBlank: true },
+    ).finally(() => {
       if (this.#exhaustedWakeupCut === gate) this.#exhaustedWakeupCut = null;
       finish();
     });

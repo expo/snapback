@@ -19,7 +19,7 @@ use super::auth::ServiceAuthTransactionAttempt;
 use super::auth_agent_credentials::{require_agent_clock_on, token_ids_for_user};
 use crate::diagnostic::{SnapbackError, SnapbackResult};
 use crate::manifest::{AuthMode, MembershipScope, SchemaManifest};
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, OptionalExtension, params, types::Value as SqlValue};
 use serde_json::json;
 
 #[derive(Clone, Copy)]
@@ -157,7 +157,8 @@ impl LocalDatabase {
                     return Ok(());
                 }
 
-                let stranded = stranded_protected_resources(tx, user_id, manifest)?;
+                let maximum = super::current_version_on(tx)?;
+                let stranded = stranded_protected_resources(tx, user_id, manifest, maximum)?;
                 if !stranded.is_empty() {
                     return Err(deactivation_would_strand(&stranded));
                 }
@@ -168,7 +169,7 @@ impl LocalDatabase {
                  WHERE id = ?2 AND kind = 'agent' AND deactivated_at_ms IS NULL",
                     params![now_ms as i64, user_id],
                 )?;
-                validate_protected_membership_final_state(tx, manifest)?;
+                validate_protected_membership_final_state(tx, manifest, maximum)?;
                 Ok(())
             },
         );
@@ -337,7 +338,9 @@ pub(crate) fn eligible_protected_holder_rows(
     protect: &str,
     excluding_principal: &str,
     require_catalog_principal: bool,
+    maximum: u64,
 ) -> SnapbackResult<Vec<(String, u64, String)>> {
+    super::validate_managed_table_versions_by_name(conn, table, maximum)?;
     let sql = format!(
         "SELECT m._id, m._version, m.{principal} FROM {table} AS m
          WHERE m.{resource} = ?1 AND m.{role} = ?2 AND m.{principal} <> ?3
@@ -351,15 +354,24 @@ pub(crate) fn eligible_protected_holder_rows(
     let rows = statement.query_map(params![resource, protect, excluding_principal], |row| {
         Ok((
             row.get::<_, String>(0)?,
-            row.get::<_, i64>(1)? as u64,
+            row.get::<_, SqlValue>(1)?,
             row.get::<_, String>(2)?,
         ))
     })?;
     let candidates = rows.collect::<Result<Vec<_>, _>>()?;
     let mut eligible = Vec::new();
-    for candidate in candidates {
-        if principal_is_eligible_on(conn, &candidate.2, require_catalog_principal)? {
-            eligible.push(candidate);
+    for (id, version, principal) in candidates {
+        let version = super::decode_required_committed_version(
+            version,
+            "protected holder membership row version",
+        )?;
+        super::validate_storage_version_at_most(
+            version,
+            maximum,
+            "protected holder membership row version",
+        )?;
+        if principal_is_eligible_on(conn, &principal, require_catalog_principal)? {
+            eligible.push((id, version, principal));
         }
     }
     Ok(eligible)
@@ -374,6 +386,7 @@ fn stranded_protected_resources(
     conn: &Connection,
     principal: &str,
     manifest: &SchemaManifest,
+    maximum: u64,
 ) -> SnapbackResult<Vec<String>> {
     let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
     let mut stranded = Vec::new();
@@ -395,6 +408,20 @@ fn stranded_protected_resources(
         if !table_exists(conn, &table.name)? {
             continue;
         }
+        super::validate_managed_row_versions(conn, table, maximum)?;
+        let resource_table = membership.resource_table.as_deref().ok_or_else(|| {
+            protected_membership_final_state_invalid(
+                &table.name,
+                "lastHolder requires a resourceTable binding",
+            )
+        })?;
+        if !table_exists(conn, resource_table)? {
+            return Err(protected_membership_final_state_invalid(
+                &table.name,
+                "resource table is absent at the lifecycle check",
+            ));
+        }
+        super::validate_managed_table_versions_by_name(conn, resource_table, maximum)?;
         let protect = last_holder.protect.as_str();
         let columns = ProtectedMembershipColumns {
             table: &table.name,
@@ -402,7 +429,7 @@ fn stranded_protected_resources(
             resource: resource_column,
             role: &membership.role,
         };
-        let held = resources_held_by(conn, columns, principal, protect)?;
+        let held = resources_held_by(conn, columns, principal, protect, maximum)?;
         for resource in held {
             if !has_other_eligible_holder(
                 conn,
@@ -411,6 +438,7 @@ fn stranded_protected_resources(
                 &resource,
                 protect,
                 require_catalog_principal,
+                maximum,
             )? {
                 stranded.push(format!("{}:{resource}", table.name));
             }
@@ -437,9 +465,10 @@ fn resources_held_by(
     columns: ProtectedMembershipColumns<'_>,
     principal: &str,
     protect: &str,
+    maximum: u64,
 ) -> SnapbackResult<Vec<String>> {
     let sql = format!(
-        "SELECT DISTINCT {resource} FROM {table}
+        "SELECT {resource}, _version FROM {table}
          WHERE {principal} = ?1 AND {role} = ?2",
         resource = quote_ident(columns.resource),
         table = quote_ident(columns.table),
@@ -447,8 +476,18 @@ fn resources_held_by(
         role = quote_ident(columns.role),
     );
     let mut statement = conn.prepare(&sql)?;
-    let rows = statement.query_map(params![principal, protect], |row| row.get::<_, String>(0))?;
-    Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    let rows = statement.query_map(params![principal, protect], |row| {
+        Ok((row.get::<_, String>(0)?, row.get::<_, SqlValue>(1)?))
+    })?;
+    let mut resources = Vec::new();
+    for row in rows {
+        let (resource, version) = row?;
+        validate_managed_version(version, maximum, "protected membership row version")?;
+        resources.push(resource);
+    }
+    resources.sort();
+    resources.dedup();
+    Ok(resources)
 }
 
 /// Whether `resource` still has a holder of the protected role other than
@@ -462,9 +501,13 @@ fn has_other_eligible_holder(
     resource: &str,
     protect: &str,
     require_catalog_principal: bool,
+    maximum: u64,
 ) -> SnapbackResult<bool> {
+    // Validate the complete relation before candidate ordering/eligibility can
+    // return early on one healthy row and hide a later corrupt holder.
+    super::validate_managed_table_versions_by_name(conn, columns.table, maximum)?;
     let sql = format!(
-        "SELECT m.{principal} FROM {table} AS m
+        "SELECT m.{principal}, m._version FROM {table} AS m
          WHERE m.{resource} = ?1 AND m.{role} = ?2 AND m.{principal} <> ?3
          ORDER BY m.{principal}",
         table = quote_ident(columns.table),
@@ -475,10 +518,11 @@ fn has_other_eligible_holder(
     let mut statement = conn.prepare(&sql)?;
     let candidates = statement
         .query_map(params![resource, protect, principal], |row| {
-            row.get::<_, String>(0)
+            Ok((row.get::<_, String>(0)?, row.get::<_, SqlValue>(1)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
-    for candidate in candidates {
+    for (candidate, version) in candidates {
+        validate_managed_version(version, maximum, "protected holder membership row version")?;
         if principal_is_eligible_on(conn, &candidate, require_catalog_principal)? {
             return Ok(true);
         }
@@ -496,6 +540,7 @@ fn has_other_eligible_holder(
 pub(crate) fn validate_protected_membership_final_state(
     conn: &Connection,
     manifest: &SchemaManifest,
+    maximum: u64,
 ) -> SnapbackResult<()> {
     let require_catalog_principal = manifest.effective_auth_mode() == AuthMode::Sessions;
     let mut stranded = Vec::new();
@@ -530,15 +575,22 @@ pub(crate) fn validate_protected_membership_final_state(
                 "resource table is absent at the final-state check",
             ));
         }
+        // Both relations are authorization inputs. Prove their complete
+        // version domain before per-resource/per-holder loops can stop at an
+        // eligible row or otherwise omit a corrupt row from SQL results.
+        super::validate_managed_row_versions(conn, table, maximum)?;
+        super::validate_managed_table_versions_by_name(conn, resource_table, maximum)?;
         let mut resources_statement = conn.prepare(&format!(
-            "SELECT _id FROM {} ORDER BY _id",
+            "SELECT _id, _version FROM {} ORDER BY _id",
             quote_ident(resource_table)
         ))?;
         let resources = resources_statement
-            .query_map([], |row| row.get::<_, String>(0))?
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, SqlValue>(1)?))
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         let holder_sql = format!(
-            "SELECT {principal} FROM {table}
+            "SELECT {principal}, _version FROM {table}
              WHERE {resource} = ?1 AND {role} = ?2
              ORDER BY {principal}",
             principal = quote_ident(&membership.principal),
@@ -546,15 +598,21 @@ pub(crate) fn validate_protected_membership_final_state(
             resource = quote_ident(resource_column),
             role = quote_ident(&membership.role),
         );
-        for resource in resources {
+        for (resource, resource_version) in resources {
+            validate_managed_version(resource_version, maximum, "protected resource row version")?;
             let mut holder_statement = conn.prepare(&holder_sql)?;
             let principals = holder_statement
                 .query_map(params![resource, last_holder.protect], |row| {
-                    row.get::<_, String>(0)
+                    Ok((row.get::<_, String>(0)?, row.get::<_, SqlValue>(1)?))
                 })?
                 .collect::<Result<Vec<_>, _>>()?;
             let mut eligible = false;
-            for principal in principals {
+            for (principal, version) in principals {
+                validate_managed_version(
+                    version,
+                    maximum,
+                    "protected holder membership row version",
+                )?;
                 if principal_is_eligible_on(conn, &principal, require_catalog_principal)? {
                     eligible = true;
                     break;
@@ -574,6 +632,12 @@ pub(crate) fn validate_protected_membership_final_state(
         "the transaction would leave a protected resource with no durably recoverable holder",
     )
     .with_details(json!({ "resources": stranded })))
+}
+
+fn validate_managed_version(value: SqlValue, maximum: u64, context: &str) -> SnapbackResult<u64> {
+    let version = super::decode_required_committed_version(value, context)?;
+    super::validate_storage_version_at_most(version, maximum, context)?;
+    Ok(version)
 }
 
 fn protected_membership_final_state_invalid(table: &str, message: &str) -> SnapbackError {
@@ -668,14 +732,28 @@ mod tests {
     /// physical app table the eligibility scan reads.
     fn host_membership(db: &LocalDatabase) -> SchemaManifest {
         db.conn
-            .execute("CREATE TABLE events (_id TEXT PRIMARY KEY)", [])
+            .execute(
+                "CREATE TABLE events (
+                   _id TEXT PRIMARY KEY,
+                   _version INTEGER NOT NULL DEFAULT 1
+                 )",
+                [],
+            )
             .expect("create resource table");
         db.conn
             .execute(
-                "CREATE TABLE eventMembers (principal TEXT, resource TEXT, role TEXT)",
+                "CREATE TABLE eventMembers (
+                   principal TEXT,
+                   resource TEXT,
+                   role TEXT,
+                   _version INTEGER NOT NULL DEFAULT 1
+                 )",
                 [],
             )
             .expect("create membership table");
+        db.conn
+            .execute("UPDATE _snapback_version SET version = 1 WHERE id = 1", [])
+            .expect("advance fixture storage head");
         serde_json::from_value(json!({
             "tables": [{
                 "name": "eventMembers",

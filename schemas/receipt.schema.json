@@ -20,6 +20,27 @@
   "description": "A retention-ring receipt (LLP 0034 §3.2): connectionless facts about\nmutations and subscription lifecycle, served by the receipts snapshot and\nechoed in live-subscribe/unsubscribe outputs. Privacy (§3.3): receipts\ncarry opaque ids, versions, table names, and reasons — never row data or\nargument values.",
   "oneOf": [
     {
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "outcome": {
+                "const": "confirmed"
+              }
+            },
+            "required": [
+              "outcome"
+            ]
+          },
+          "then": {
+            "properties": {
+              "snapshotVersion": {
+                "type": "integer"
+              }
+            }
+          }
+        }
+      ],
       "description": "One mutation invocation: confirmed or rejected, with the write\nsurface that fan-out used.",
       "properties": {
         "affectedTables": {
@@ -61,10 +82,14 @@
           ]
         },
         "snapshotVersion": {
+          "description": "`null` only when the rejected invocation could not safely read the\ndurable cursor; never fabricate zero from a storage failure.",
           "format": "uint64",
           "maximum": 9007199254740991,
           "minimum": 0,
-          "type": "integer"
+          "type": [
+            "integer",
+            "null"
+          ]
         },
         "transport": {
           "type": "string"

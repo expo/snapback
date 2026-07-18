@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "471fe338e71220f12537d8d384cbc44927007ae9"
+    "commit": "9365aa708f1925a5cdbd2ca4dc38fc37cc36783b"
   },
   "nav": {
     ".": [
@@ -196,7 +196,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "fcd12ea756ce97a39065bff2f2eeb7b4983e2ff3",
-      "sha256": "6568e065602a8d6aa333d6cd0003d46abd09a7b38a4af3ebee125126587723cb",
+      "sha256": "208d632afe9847d85ea78c60a71203fecca7d0bdb0dfeeeae1075f288f640f89",
       "snippets": [
         {
           "lang": "js",
@@ -628,7 +628,10 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "demos/_kit/client.mjs",
+        "demos/_kit/agent-authority.mjs",
         "demos/_kit/agent-authority-filesystem.mjs",
+        "packages/snapback-contract/index.mjs",
+        "packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
@@ -638,9 +641,9 @@
         "demos/graffiti",
         "demos/card-game"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "HEAD",
-      "sha256": "4ffd0d0f6ec3400b4b4d3b1b79c923580d1bbc10960955c2da2410a1a62118ac",
+      "reviewed": "2026-07-17",
+      "reviewedCommit": "9365aa708f1925a5cdbd2ca4dc38fc37cc36783b",
+      "sha256": "555caf7e19ea20194177dfa040643c7cd947afb529fd96484b2cc55981e60241",
       "snippets": [
         {
           "lang": "js",
@@ -1351,5 +1354,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "0388eaddbdc23d52010a0fdcfb6e87afc9b5aae79d473323a41c16ae3ff75085"
+  "contentHash": "2c31a3f6160e1c400af7b814dd1c7d777e7bef41691e33d869a4237a55aea8eb"
 }

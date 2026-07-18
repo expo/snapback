@@ -78,7 +78,8 @@ impl LocalDatabase {
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
         let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
-        let loaded = load_retry_episode(&tx, key)?;
+        let head = super::current_version_on(&tx)?;
+        let loaded = load_retry_episode(&tx, key, head)?;
         // Creation is possible only while the key has no durable episode; in
         // that case both caps are enforced from exact table-derived counts.
         // With the episode loaded, `reserve` can only attach or replace, so
@@ -106,6 +107,9 @@ impl LocalDatabase {
             store_records.saturating_sub(loaded_records),
         )?;
         let output = operation(&mut registry)?;
+        if let Some(episode) = registry.episodes().get(key) {
+            validate_retry_episode_data_head(episode, head)?;
+        }
         persist_scoped_retry_episode(&tx, key, loaded.as_ref(), clock_high_water_ms, &registry)?;
         tx.commit()?;
         Ok(output)
@@ -122,7 +126,8 @@ impl LocalDatabase {
         let tx = self
             .conn
             .transaction_with_behavior(TransactionBehavior::Immediate)?;
-        let episodes = load_retry_episodes(&tx)?;
+        let head = super::current_version_on(&tx)?;
+        let episodes = load_retry_episodes(&tx, head)?;
         let clock_high_water_ms = strict_meta_u64(&tx, AUTH_CLOCK_META_KEY)?.unwrap_or(0);
         let registry = RetryEpisodeRegistry::from_persisted(episodes, clock_high_water_ms)?;
         let output = operation(&registry)?;
@@ -193,6 +198,7 @@ impl LocalDatabase {
 fn load_retry_episode(
     tx: &Transaction<'_>,
     key: &RetryEpisodeKey,
+    maximum: u64,
 ) -> SnapbackResult<Option<RetryEpisode>> {
     let row: Option<(String, String)> = tx
         .query_row(
@@ -221,7 +227,19 @@ fn load_retry_episode(
     if canonical != encoded {
         return Err(corrupt("retry episode JSON is not canonically encoded"));
     }
+    validate_retry_episode_data_head(&episode, maximum)?;
     Ok(Some(episode))
+}
+
+fn validate_retry_episode_data_head(episode: &RetryEpisode, maximum: u64) -> SnapbackResult<()> {
+    if let Some(data) = &episode.witness_floor.data {
+        super::validate_storage_version_at_most(
+            data.min_commit_version,
+            maximum,
+            "authorization retry data witness version",
+        )?;
+    }
+    Ok(())
 }
 
 fn count_global_episodes(tx: &Transaction<'_>) -> SnapbackResult<u64> {
@@ -380,6 +398,7 @@ fn update_global_count(tx: &Transaction<'_>, created: bool, deleted: bool) -> Sn
 #[cfg(test)]
 fn load_retry_episodes(
     tx: &Transaction<'_>,
+    maximum: u64,
 ) -> SnapbackResult<BTreeMap<RetryEpisodeKey, RetryEpisode>> {
     let mut statement = tx.prepare(
         "SELECT authority_subject, client_store_id, query_key, episode_json
@@ -411,6 +430,7 @@ fn load_retry_episodes(
         if canonical != encoded {
             return Err(corrupt("retry episode JSON is not canonically encoded"));
         }
+        validate_retry_episode_data_head(&episode, maximum)?;
         if episodes.insert(key, episode).is_some() {
             return Err(corrupt("retry episode key is duplicated"));
         }
@@ -600,7 +620,7 @@ mod tests {
         first
             .with_invalidation_retry_episode(&key(), |registry| {
                 assert!(matches!(
-                    registry.reserve(key(), witness(10), 1_000, RetryReservationKind::Initial)?,
+                    registry.reserve(key(), witness(0), 1_000, RetryReservationKind::Initial)?,
                     RetryReservation::Reserved(_)
                 ));
                 registry.record_failure(&key(), 1_100)
@@ -626,7 +646,7 @@ mod tests {
                 assert_eq!(episode.attempts_reserved, 1);
                 assert_eq!(episode.deadline_ms, Some(16_100));
                 assert!(matches!(
-                    registry.reserve(key(), witness(12), 1_200, RetryReservationKind::Initial)?,
+                    registry.reserve(key(), witness(0), 1_200, RetryReservationKind::Initial)?,
                     RetryReservation::Attached(_)
                 ));
                 Ok(())
@@ -645,11 +665,57 @@ mod tests {
         assert_eq!(counter, 1);
     }
 
+    #[test]
+    fn future_retry_witnesses_fail_closed_on_write_and_load() {
+        let mut db = LocalDatabase::memory().unwrap();
+        let error = db
+            .with_invalidation_retry_episode(&key(), |registry| {
+                registry.reserve(key(), witness(1), 1_000, RetryReservationKind::Initial)
+            })
+            .expect_err("future witness cannot be persisted at head zero");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT");
+        assert_eq!(db.invalidation_retry_episode_count().unwrap(), 0);
+
+        let episode = RetryEpisode {
+            episode_id: "future-episode".to_owned(),
+            key: key(),
+            witness_floor: witness(1),
+            first_attempt_reserved_at_ms: 1_000,
+            first_failure_at_ms: None,
+            attempts_reserved: 1,
+            deadline_ms: None,
+            manual_retry_id: None,
+            last_reservation_at_ms: 1_000,
+        };
+        db.seed_invalidation_retry_episodes_for_test(&BTreeMap::from([(key(), episode)]), 1_000)
+            .unwrap();
+
+        let key_error = db
+            .with_invalidation_retry_episode(&key(), |_| Ok(()))
+            .expect_err("key-local load must reject future witness");
+        assert_eq!(
+            key_error.diagnostic.code,
+            "SNAPBACK_STORAGE_VERSION_CORRUPT"
+        );
+        let bulk_error = db
+            .read_invalidation_retry_registry(|_| Ok(()))
+            .expect_err("bulk load must reject future witness");
+        assert_eq!(
+            bulk_error.diagnostic.code,
+            "SNAPBACK_STORAGE_VERSION_CORRUPT"
+        );
+        assert_eq!(
+            db.invalidation_retry_episode_count().unwrap(),
+            1,
+            "failed reads must not rewrite durable retry state"
+        );
+    }
+
     fn exhausted_episode(key: &RetryEpisodeKey, label: String) -> RetryEpisode {
         RetryEpisode {
             episode_id: label,
             key: key.clone(),
-            witness_floor: witness(10),
+            witness_floor: witness(0),
             first_attempt_reserved_at_ms: 1_000,
             first_failure_at_ms: Some(1_000),
             attempts_reserved: AUTH_ERROR_ATTEMPTS_TOTAL,
@@ -719,7 +785,7 @@ mod tests {
                 .with_invalidation_retry_episode(&target, |registry| {
                     registry.reserve(
                         target.clone(),
-                        witness(10),
+                        witness(0),
                         now,
                         RetryReservationKind::Initial,
                     )
@@ -731,7 +797,7 @@ mod tests {
                 .with_invalidation_retry_episode(&target, |registry| {
                     registry.reserve(
                         target.clone(),
-                        witness(10),
+                        witness(0),
                         now,
                         RetryReservationKind::Automatic,
                     )
@@ -779,7 +845,7 @@ mod tests {
             .with_invalidation_retry_episode(&fresh, |registry| {
                 registry.reserve(
                     fresh.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_001,
                     RetryReservationKind::Initial,
                 )
@@ -795,7 +861,7 @@ mod tests {
         // counter share in one bounded transaction.
         let changes_before = db.total_row_changes_for_test().unwrap();
         db.with_invalidation_retry_episode(&target, |registry| {
-            assert!(registry.resolve(&target, &witness(10)));
+            assert!(registry.resolve(&target, &witness(0)));
             Ok(())
         })
         .unwrap();
@@ -809,7 +875,7 @@ mod tests {
             .with_invalidation_retry_episode(&fresh, |registry| {
                 registry.reserve(
                     fresh.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_002,
                     RetryReservationKind::Initial,
                 )
@@ -850,7 +916,7 @@ mod tests {
             .with_invalidation_retry_episode(&full_store, |registry| {
                 registry.reserve(
                     full_store.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_001,
                     RetryReservationKind::Initial,
                 )
@@ -870,7 +936,7 @@ mod tests {
             .with_invalidation_retry_episode(&other_store, |registry| {
                 registry.reserve(
                     other_store.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_002,
                     RetryReservationKind::Initial,
                 )
@@ -919,7 +985,7 @@ mod tests {
             .with_invalidation_retry_episode(&key_a, |registry| {
                 registry.reserve(
                     key_a.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_001,
                     RetryReservationKind::Initial,
                 )
@@ -931,7 +997,7 @@ mod tests {
             .with_invalidation_retry_episode(&key_b, |registry| {
                 registry.reserve(
                     key_b.clone(),
-                    witness(10),
+                    witness(0),
                     1_000_002,
                     RetryReservationKind::Initial,
                 )

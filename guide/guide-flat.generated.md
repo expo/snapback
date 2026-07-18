@@ -768,11 +768,14 @@ authorization-invalidation expectation:
 ```
 
 That grant is authority, not a bearer-shaped routing convenience. It is bound
-to one anonymous authorization stream or one exact session generation. Every
-live subscribe/resume, outbox drain, ephemeral act, and publication validates
-the grant token and binding at its final effect fence. HTTP sends the token in
-`x-snapback-connection-token`; browser WebSockets use the negotiated
-`snapback.connection-token.*` subprotocol.
+to one anonymous authorization stream, one exact session generation, or one
+scoped service-principal authority plus its exact token/deadline carrier. The
+service form keeps the durable resolved authority separate from the token and
+its service-publication fence, so ending one token cannot widen or silently
+rebind the grant. Every live subscribe/resume, outbox drain, ephemeral act, and
+publication validates the grant token and binding at its final effect fence.
+HTTP sends the token in `x-snapback-connection-token`; browser WebSockets use
+the negotiated `snapback.connection-token.*` subprotocol.
 
 An auth transition clears cached grants and reconnects under a fresh grant.
 Never persist, copy between clients, log, or manually reuse a connection
@@ -1818,13 +1821,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority-filesystem.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: HEAD
+reviewed: 2026-07-17
+reviewed-commit: 9365aa708f1925a5cdbd2ca4dc38fc37cc36783b
 ---
 
 # The headless client

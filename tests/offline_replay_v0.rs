@@ -214,7 +214,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
         .0
         .expect("duplicate result");
     assert_eq!(duplicate, first);
-    assert_eq!(snapback.durable_version(), Some(version));
+    assert_eq!(snapback.durable_version().unwrap(), version);
     assert_eq!(epoch(&mut snapback, "epoch_after_duplicate"), 1);
     drop(snapback);
 
@@ -231,7 +231,7 @@ fn duplicate_client_identity_is_exactly_once_and_survives_reopen() {
         .0
         .expect("reopened duplicate result");
     assert_eq!(duplicate_after_reopen, first);
-    assert_eq!(reopened.durable_version(), Some(version));
+    assert_eq!(reopened.durable_version().unwrap(), version);
     let rows = reopened
         .invoke_query("listTodos", input_for(USER, json!({})))
         .expect("query")
@@ -572,7 +572,7 @@ fn host_plan_record_and_replay_consume_the_ledger_exactly() {
         .invoke_mutation("createTodo", exhausted_input)
         .expect_err("short ledger must fail");
     assert_eq!(error.diagnostic.code, "SNAPBACK_CTX_LEDGER_EXHAUSTED");
-    assert_eq!(exhausted.durable_version(), Some(0));
+    assert_eq!(exhausted.durable_version().unwrap(), 0);
 
     let mut unused = memory();
     let mut extra_ledger = ledger;
@@ -583,7 +583,7 @@ fn host_plan_record_and_replay_consume_the_ledger_exactly() {
         .invoke_mutation("createTodo", unused_input)
         .expect_err("unused ledger answers must fail");
     assert_eq!(error.diagnostic.code, "SNAPBACK_CTX_LEDGER_UNUSED_IDS");
-    assert_eq!(unused.durable_version(), Some(0));
+    assert_eq!(unused.durable_version().unwrap(), 0);
 
     let mut invalid = memory();
     let mut invalid_ledger = recorded.ctx_ledger.expect("recorded ledger");
@@ -594,7 +594,7 @@ fn host_plan_record_and_replay_consume_the_ledger_exactly() {
         .invoke_mutation("createTodo", invalid_input)
         .expect_err("invalid ledger ids must fail before execution");
     assert_eq!(error.diagnostic.code, "SNAPBACK_CTX_LEDGER_ID_INVALID");
-    assert_eq!(invalid.durable_version(), Some(0));
+    assert_eq!(invalid.durable_version().unwrap(), 0);
 }
 
 #[test]
@@ -632,5 +632,5 @@ fn host_plan_replay_timestamp_is_portable_and_persisted_exactly() {
         .invoke_mutation("createTodo", rejected_input)
         .expect_err("timestamp beyond the portable bound");
     assert_eq!(error.diagnostic.code, "SNAPBACK_TIMESTAMP_OUT_OF_RANGE");
-    assert_eq!(rejected.durable_version(), Some(0));
+    assert_eq!(rejected.durable_version().unwrap(), 0);
 }

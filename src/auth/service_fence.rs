@@ -146,6 +146,10 @@ pub(crate) struct ServiceAuthorityDeadlineTerminal {
     pub(crate) grant_id: String,
     pub(crate) deadline_ms: u64,
     pub(crate) disposition: ServiceAuthorityDisposition,
+    /// Hard socket-close deadline selected when expiry is first observed.
+    /// Monotonic expiry spends the grace budget from the projected deadline;
+    /// a forward wall-clock jump starts that budget at its observation cut.
+    pub(crate) close_by: Instant,
 }
 
 #[derive(Debug)]
@@ -384,11 +388,34 @@ impl ServiceAuthorityPublication {
                 ServiceAuthorityDisposition::Carrier,
             )
         };
+        // A delayed expiry observer must not receive a fresh close grace. When
+        // either projected monotonic deadline proves expiry, scheduling,
+        // planning, drain, and durable-commit latency all consume the original
+        // budget. Only an epoch deadline which moved ahead of every projected
+        // monotonic deadline (a forward wall-clock jump) starts grace at the
+        // observation cut.
+        //
+        // @ref LLP 0059#typed-terminal-auth-error — expiry-worker scheduling
+        //   latency consumes the one terminal close budget.
+        let monotonic_proof_deadline = [
+            (monotonic_now >= state.monotonic_deadline).then_some(state.monotonic_deadline),
+            state
+                .grant_monotonic_deadline
+                .filter(|deadline| monotonic_now >= *deadline),
+        ]
+        .into_iter()
+        .flatten()
+        .min();
+        let close_basis = monotonic_proof_deadline.unwrap_or(monotonic_now);
+        let close_by = close_basis
+            .checked_add(crate::auth::session_projection::TERMINAL_CLOSE_GRACE)
+            .unwrap_or(close_basis);
         Ok(Some(ServiceAuthorityDeadlineTerminal {
             token_id: state.witness.token_id.clone(),
             grant_id: state.witness.grant_id.clone(),
             deadline_ms,
             disposition,
+            close_by,
         }))
     }
 
@@ -925,7 +952,32 @@ struct PremarkedServiceAuthorityTerminal {
 }
 
 impl PremarkedServiceAuthorityTerminal {
-    fn settle(&mut self, committed: bool) {
+    /// Publish the committed terminal disposition without reopening the exact
+    /// token domain. The ticket is released only by the after-Local finalizer,
+    /// after every lifecycle/notifier effect queued by the transaction.
+    fn publish_terminal(&mut self) {
+        let registry = self
+            .registry
+            .state
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        for (token_id, _) in &self.domains {
+            if let Some(fence) = registry.by_token.get(token_id).and_then(Weak::upgrade) {
+                let mut state = fence
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                state.terminal = Some(match (state.terminal, self.disposition) {
+                    (Some(ServiceAuthorityDisposition::DurableDelete), _)
+                    | (_, ServiceAuthorityDisposition::DurableDelete) => {
+                        ServiceAuthorityDisposition::DurableDelete
+                    }
+                    _ => ServiceAuthorityDisposition::Carrier,
+                });
+            }
+        }
+    }
+
+    fn release_ticket(&mut self) {
         let mut registry = self
             .registry
             .state
@@ -936,20 +988,6 @@ impl PremarkedServiceAuthorityTerminal {
                 .state
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if committed {
-                if let Some(fence) = registry.by_token.get(token_id).and_then(Weak::upgrade) {
-                    let mut state = fence
-                        .lock()
-                        .unwrap_or_else(std::sync::PoisonError::into_inner);
-                    state.terminal = Some(match (state.terminal, self.disposition) {
-                        (Some(ServiceAuthorityDisposition::DurableDelete), _)
-                        | (_, ServiceAuthorityDisposition::DurableDelete) => {
-                            ServiceAuthorityDisposition::DurableDelete
-                        }
-                        _ => ServiceAuthorityDisposition::Carrier,
-                    });
-                }
-            }
             domain_state.pending_tickets.remove(&self.ticket);
             if domain_state.pending_tickets.is_empty()
                 && registry
@@ -965,6 +1003,13 @@ impl PremarkedServiceAuthorityTerminal {
         self.settled = true;
         drop(registry);
         self.registry.changed.notify_waiters();
+    }
+
+    fn settle(&mut self, committed: bool) {
+        if committed {
+            self.publish_terminal();
+        }
+        self.release_ticket();
     }
 }
 
@@ -1043,13 +1088,44 @@ impl Drop for PremarkedServiceAuthorityTerminal {
 }
 
 impl PreparedServiceAuthorityTerminal for PremarkedServiceAuthorityTerminal {
-    fn committed(mut self: Box<Self>) -> SnapbackResult<()> {
-        self.settle(true);
+    fn committed(self: Box<Self>) -> SnapbackResult<()> {
+        // Commit hooks run while managed callers still own Local/SQLite. Move
+        // both service-fence publication and exact-ticket settlement across
+        // that boundary. The publication is an ordinary effect, so the
+        // handler can queue lifecycle fanout behind it; settlement is a
+        // finalizer, so no overlapping service ending can pass until that
+        // fanout has completed.
+        let mut prepared = *self;
+        prepared.ambiguous = true;
+        let prepared = Arc::new(Mutex::new(Some(prepared)));
+        let publication = Arc::clone(&prepared);
+        crate::exec_guard::run_or_defer_after_local(move || {
+            if let Some(prepared) = publication
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .as_mut()
+            {
+                prepared.publish_terminal();
+            }
+        });
+        crate::exec_guard::run_or_defer_after_local_finalizer(move || {
+            if let Some(mut prepared) = prepared
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .take()
+            {
+                prepared.release_ticket();
+            }
+        });
         Ok(())
     }
 
-    fn rolled_back(mut self: Box<Self>) {
-        self.settle(false);
+    fn rolled_back(self: Box<Self>) {
+        let mut prepared = *self;
+        prepared.ambiguous = true;
+        crate::exec_guard::run_or_defer_after_local_finalizer(move || {
+            prepared.release_ticket();
+        });
     }
 
     fn mark_ambiguous(&mut self) {
@@ -1138,7 +1214,7 @@ mod tests {
     use crate::auth::crypto::OsRandom;
     use crate::auth::keyring::AuthKeyringStore;
     use crate::auth::provider::{AuthClock, AuthProviderProfile};
-    use std::sync::atomic::{AtomicU64, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 
     struct ManualClock {
         epoch_ms: AtomicU64,
@@ -1478,6 +1554,41 @@ mod tests {
                 .expect("token deadline is due")
                 .disposition,
             ServiceAuthorityDisposition::Carrier
+        );
+    }
+
+    #[test]
+    fn delayed_monotonic_observer_spends_the_original_terminal_close_budget() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let grace = crate::auth::session_projection::TERMINAL_CLOSE_GRACE;
+        let projected_deadline = monotonic + Duration::from_millis(10);
+        let delayed_observation = projected_deadline + grace + Duration::from_millis(25);
+        let publication = registry
+            .register(witness("token-delayed", 110), 100, monotonic)
+            .expect("register delayed-observer witness");
+
+        let terminal = publication
+            .expired_deadline_terminal(100, delayed_observation)
+            .expect("classify delayed monotonic expiry")
+            .expect("projected monotonic deadline is due");
+        assert_eq!(terminal.close_by, projected_deadline + grace);
+        assert!(
+            terminal.close_by < delayed_observation,
+            "observer latency must consume, not restart, terminal close grace"
+        );
+
+        let wall_observation = monotonic + Duration::from_millis(1);
+        let wall_jump = registry
+            .register(witness("token-wall-jump", 110), 100, monotonic)
+            .expect("register wall-jump witness")
+            .expired_deadline_terminal(110, wall_observation)
+            .expect("classify forward wall jump")
+            .expect("epoch deadline is due before its monotonic projection");
+        assert_eq!(
+            wall_jump.close_by,
+            wall_observation + grace,
+            "a forward wall-clock proof starts grace at its observation cut"
         );
     }
 
@@ -1896,6 +2007,71 @@ mod tests {
             .expect("overlapping gate proceeds after predecessor settles")
             .expect("overlapping task");
         drop(successor);
+    }
+
+    #[test]
+    fn committed_gate_stays_exactly_pending_through_after_local_lifecycle() {
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let publication = registry
+            .register(witness("token-lifecycle", 1_000), 100, monotonic)
+            .expect("register lifecycle witness");
+        let prepared = registry
+            .prepare_terminal(
+                &["token-lifecycle".to_owned()],
+                ServiceAuthorityDisposition::Carrier,
+            )
+            .expect("prepare predecessor terminal");
+
+        let mut local_scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+        prepared
+            .committed()
+            .expect("queue committed service publication");
+        let lifecycle_ran = Arc::new(AtomicBool::new(false));
+        let lifecycle_flag = Arc::clone(&lifecycle_ran);
+        let lifecycle_registry = registry.clone();
+        let lifecycle_publication = publication.clone();
+        crate::exec_guard::run_or_defer_after_local(move || {
+            assert_eq!(
+                lifecycle_publication
+                    .resolve_act(101, monotonic)
+                    .expect("resolve published predecessor terminal"),
+                ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::Carrier),
+                "terminal publication must precede lifecycle fanout"
+            );
+            assert!(
+                lifecycle_registry
+                    .prepare_terminal(
+                        &["token-lifecycle".to_owned()],
+                        ServiceAuthorityDisposition::DurableDelete,
+                    )
+                    .is_err(),
+                "an overlapping stronger ending must remain serialized during lifecycle fanout"
+            );
+            lifecycle_flag.store(true, Ordering::SeqCst);
+        });
+        let batch = local_scope.take_after_local_batch();
+        drop(local_scope);
+        assert!(
+            !lifecycle_ran.load(Ordering::SeqCst),
+            "lifecycle fanout must not run while Local is held"
+        );
+
+        crate::exec_guard::run_after_local_batch(batch);
+        assert!(lifecycle_ran.load(Ordering::SeqCst));
+
+        registry
+            .prepare_terminal(
+                &["token-lifecycle".to_owned()],
+                ServiceAuthorityDisposition::DurableDelete,
+            )
+            .expect("successor proceeds only after predecessor lifecycle settlement")
+            .committed()
+            .expect("commit stronger successor");
+        assert_eq!(
+            publication.resolve_act(101, monotonic).unwrap(),
+            ServiceAuthorityActResolution::Terminal(ServiceAuthorityDisposition::DurableDelete)
+        );
     }
 
     #[tokio::test]

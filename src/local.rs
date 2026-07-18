@@ -1287,6 +1287,39 @@ pub(crate) struct StagedRecordedMutationCommit {
     execution: StagedMutationExecution,
 }
 
+struct MutationReceiptPublication<'a> {
+    name: &'a str,
+    transport: &'a str,
+    correlation: Option<Value>,
+    mutation_id: String,
+    admission: &'a AdmissionLease,
+    effect: &'static str,
+}
+
+impl<'a> MutationReceiptPublication<'a> {
+    fn new(
+        name: &'a str,
+        transport: &'a str,
+        correlation: Option<Value>,
+        mutation_id: String,
+        admission: &'a AdmissionLease,
+    ) -> Self {
+        Self {
+            name,
+            transport,
+            correlation,
+            mutation_id,
+            admission,
+            effect: "mutation receipt publication",
+        }
+    }
+
+    fn with_effect(mut self, effect: &'static str) -> Self {
+        self.effect = effect;
+        self
+    }
+}
+
 enum StagedMutationExecution {
     HostPlan(crate::manifest::MutationPlan),
     Buffered(BufferedCommitPayload),
@@ -2929,6 +2962,24 @@ impl LocalSnapback {
         if let Some(deadline) =
             authority.expired_service_deadline_terminal(now_ms, monotonic_now)?
         {
+            // A managed server caller cannot terminalize while it owns Local:
+            // the exact async gate must close/drain every affected token before
+            // the write, and the independently owned server task must retain the
+            // complete token set through lifecycle propagation. Fail this act
+            // closed; the registered HTTP middleware or live observer performs
+            // that owned terminal transaction after Local is released. Direct
+            // embedders have no retained server lifecycle graph and preserve the
+            // synchronous persistence seam below.
+            //
+            // @ref LLP 0059#finite-service-authority-fence — process premark,
+            // drain, durable write, and propagation are one owned choreography.
+            if crate::exec_guard::local_write_scope_active() {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority expiry requires the owned terminal path",
+                ));
+            }
             self.db.terminalize_expired_service_authority(&deadline)?;
         }
         Ok(())
@@ -3943,8 +3994,17 @@ impl LocalSnapback {
                     BTreeSet::new()
                 };
                 if seed_outcome == NetworkSeedOutcome::Seeded {
-                    self.notify_live_subscriptions_in_frame(&[], &already_resynced, admission)
+                    let frame_version = self
+                        .db
+                        .current_version()
                         .map_err(ModeCommitFailure::Uncertain)?;
+                    self.notify_live_subscriptions_in_frame(
+                        &[],
+                        &already_resynced,
+                        frame_version,
+                        admission,
+                    )
+                    .map_err(ModeCommitFailure::Uncertain)?;
                 }
             }
             (seed_outcome.as_str(), state, diagnostics)
@@ -4177,8 +4237,8 @@ impl LocalSnapback {
         self.functions.bundle_hash.clone()
     }
 
-    pub fn durable_version(&self) -> Option<u64> {
-        self.db.info().ok().map(|info| info.version)
+    pub fn durable_version(&self) -> SnapbackResult<u64> {
+        self.db.current_version()
     }
 
     pub fn acknowledge_client_mutations(
@@ -4773,24 +4833,16 @@ impl LocalSnapback {
         let (preflight, staged) = match staged {
             Ok(staged) => staged,
             Err(error) => {
-                return match admission.effect_guard("mutation receipt publication") {
-                    Ok(_publication) => self.record_mutation_commit(
+                return self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
                         name,
                         transport,
                         correlation,
                         receipt_mutation_id,
-                        Err(error),
-                        true,
+                        &admission,
                     ),
-                    Err(error) => self.record_mutation_commit(
-                        name,
-                        transport,
-                        correlation,
-                        receipt_mutation_id,
-                        Err(error),
-                        false,
-                    ),
-                };
+                    Err(error),
+                );
             }
         };
         let committed = self.try_with_direct_authorization_write(preflight, move |snapback| {
@@ -4798,26 +4850,16 @@ impl LocalSnapback {
         });
         match committed {
             Ok(Ok(recorded)) => recorded,
-            Ok(Err(error)) | Err(error) => {
-                match admission.effect_guard("mutation receipt publication") {
-                    Ok(_publication) => self.record_mutation_commit(
-                        name,
-                        transport,
-                        correlation,
-                        receipt_mutation_id,
-                        Err(error),
-                        true,
-                    ),
-                    Err(error) => self.record_mutation_commit(
-                        name,
-                        transport,
-                        correlation,
-                        receipt_mutation_id,
-                        Err(error),
-                        false,
-                    ),
-                }
-            }
+            Ok(Err(error)) | Err(error) => self.record_mutation_commit_after_publication_guard(
+                MutationReceiptPublication::new(
+                    name,
+                    transport,
+                    correlation,
+                    receipt_mutation_id,
+                    &admission,
+                ),
+                Err(error),
+            ),
         }
     }
 
@@ -4846,24 +4888,16 @@ impl LocalSnapback {
             authority_descriptor,
             authority,
         );
-        match admission.effect_guard("mutation receipt publication") {
-            Ok(_publication) => self.record_mutation_commit(
+        self.record_mutation_commit_after_publication_guard(
+            MutationReceiptPublication::new(
                 name,
                 transport,
                 correlation,
                 receipt_mutation_id,
-                result,
-                true,
+                &admission,
             ),
-            Err(error) => self.record_mutation_commit(
-                name,
-                transport,
-                correlation,
-                receipt_mutation_id,
-                Err(error),
-                false,
-            ),
-        }
+            result,
+        )
     }
 
     /// HTTP queued-delivery entry point with receipt-proven piggyback ACKs.
@@ -4876,6 +4910,7 @@ impl LocalSnapback {
     // These fields are deliberately independent wire/effect axes. Collapsing
     // them into an opaque options bag would weaken the queued replay seam for
     // the sake of Clippy's one-argument-over default.
+    #[cfg(test)]
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
         &mut self,
@@ -4991,24 +5026,16 @@ impl LocalSnapback {
                     write_dependencies: Vec::new(),
                     authorization: None,
                 };
-                let recorded = match admission.effect_guard("mutation receipt publication") {
-                    Ok(_publication) => self.record_mutation_commit(
+                let recorded = self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
                         name,
                         transport,
                         correlation.clone(),
                         receipt_mutation_id.clone(),
-                        Ok(commit),
-                        true,
+                        &admission,
                     ),
-                    Err(error) => self.record_mutation_commit(
-                        name,
-                        transport,
-                        correlation.clone(),
-                        receipt_mutation_id.clone(),
-                        Err(error),
-                        false,
-                    ),
-                };
+                    Ok(commit),
+                );
                 return Ok((
                     self.authorization_commit_preflight_for_changes(Vec::new()),
                     StagedRecordedMutation::Done(Box::new(recorded)),
@@ -5088,24 +5115,16 @@ impl LocalSnapback {
         match staged {
             Ok(staged) => Ok(staged),
             Err(error) => {
-                let recorded = match admission.effect_guard("mutation receipt publication") {
-                    Ok(_publication) => self.record_mutation_commit(
+                let recorded = self.record_mutation_commit_after_publication_guard(
+                    MutationReceiptPublication::new(
                         name,
                         transport,
                         error_correlation,
                         error_receipt_mutation_id,
-                        Err(error),
-                        true,
+                        &admission,
                     ),
-                    Err(error) => self.record_mutation_commit(
-                        name,
-                        transport,
-                        error_correlation,
-                        error_receipt_mutation_id,
-                        Err(error),
-                        false,
-                    ),
-                };
+                    Err(error),
+                );
                 Ok((
                     self.authorization_commit_preflight_for_changes(Vec::new()),
                     StagedRecordedMutation::Done(Box::new(recorded)),
@@ -5161,24 +5180,16 @@ impl LocalSnapback {
             }
         }
         .and_then(|commit| self.finish_mutation_commit(epoch_scopes, commit, &admission));
-        let recorded = match admission.effect_guard("mutation receipt publication") {
-            Ok(_publication) => self.record_mutation_commit(
+        let recorded = self.record_mutation_commit_after_publication_guard(
+            MutationReceiptPublication::new(
                 &name,
                 &transport,
                 correlation,
                 receipt_mutation_id,
-                result,
-                true,
+                &admission,
             ),
-            Err(error) => self.record_mutation_commit(
-                &name,
-                &transport,
-                correlation,
-                receipt_mutation_id,
-                Err(error),
-                false,
-            ),
-        };
+            result,
+        );
         Ok(recorded)
     }
 
@@ -5199,19 +5210,29 @@ impl LocalSnapback {
             .function(name)
             .map(|function| function.write_set_summary.tables.clone())
             .filter(|tables| !tables.is_empty());
-        let (outcome, rollback_reason, snapshot_version) = match &result {
+        let (outcome, rollback_reason, snapshot_version, result) = match result {
             Ok(commit) => (
                 MutationReceiptOutcome::Confirmed,
                 None,
-                commit.output.version,
+                Some(commit.output.version),
+                Ok(commit),
             ),
-            Err(error) => (
-                MutationReceiptOutcome::Rejected,
-                // The diagnostic CODE only — messages may embed argument
-                // values (§3.3 privacy).
-                Some(error.diagnostic.code.clone()),
-                self.db.current_version().unwrap_or(0),
-            ),
+            Err(error) => match self.db.current_version() {
+                Ok(version) => (
+                    MutationReceiptOutcome::Rejected,
+                    // The diagnostic CODE only — messages may embed argument
+                    // values (§3.3 privacy).
+                    Some(error.diagnostic.code.clone()),
+                    Some(version),
+                    Err(error),
+                ),
+                Err(version_error) => (
+                    MutationReceiptOutcome::Rejected,
+                    Some(version_error.diagnostic.code.clone()),
+                    None,
+                    Err(version_error),
+                ),
+            },
         };
         let receipt = Receipt::Mutation {
             mutation_id: receipt_mutation_id,
@@ -5228,6 +5249,54 @@ impl LocalSnapback {
             self.receipts.push_global(receipt.clone().into_value());
         }
         (result.map(|commit| commit.output), receipt)
+    }
+
+    /// Publish a mutation receipt without allowing a post-COMMIT admission
+    /// failure to rewrite durable truth. A failed publication guard suppresses
+    /// retention and caller-visible output, but an existing commit still
+    /// produces a Confirmed receipt at its exact version.
+    fn record_mutation_commit_after_publication_guard(
+        &mut self,
+        publication: MutationReceiptPublication<'_>,
+        result: SnapbackResult<MutationCommit>,
+    ) -> (SnapbackResult<MutationOutput>, Receipt) {
+        let MutationReceiptPublication {
+            name,
+            transport,
+            correlation,
+            mutation_id,
+            admission,
+            effect,
+        } = publication;
+        match admission.effect_guard(effect) {
+            Ok(_publication) => {
+                self.record_mutation_commit(name, transport, correlation, mutation_id, result, true)
+            }
+            Err(publication_error) => {
+                self.record_diagnostics(vec![publication_error.diagnostic.clone()]);
+                match result {
+                    Ok(commit) => {
+                        let (_, receipt) = self.record_mutation_commit(
+                            name,
+                            transport,
+                            correlation,
+                            mutation_id,
+                            Ok(commit),
+                            false,
+                        );
+                        (Err(publication_error), receipt)
+                    }
+                    Err(_) => self.record_mutation_commit(
+                        name,
+                        transport,
+                        correlation,
+                        mutation_id,
+                        Err(publication_error),
+                        false,
+                    ),
+                }
+            }
+        }
     }
 
     /// Host-plan mutation invoked from a detached action. Plan/data iteration
@@ -5257,30 +5326,18 @@ impl LocalSnapback {
             check_live,
             before_commit,
         );
-        match admission.effect_guard("nested mutation receipt publication") {
-            Ok(_publication) => {
-                self.record_mutation_commit(
-                    name,
-                    "local",
-                    correlation,
-                    receipt_mutation_id,
-                    result,
-                    true,
-                )
-                .0
-            }
-            Err(error) => {
-                self.record_mutation_commit(
-                    name,
-                    "local",
-                    correlation,
-                    receipt_mutation_id,
-                    Err(error),
-                    false,
-                )
-                .0
-            }
-        }
+        self.record_mutation_commit_after_publication_guard(
+            MutationReceiptPublication::new(
+                name,
+                "local",
+                correlation,
+                receipt_mutation_id,
+                &admission,
+            )
+            .with_effect("nested mutation receipt publication"),
+            result,
+        )
+        .0
     }
 
     /// Receipt retention surface (LLP 0034 §3 / ENG-22478): the bounded rings,
@@ -5438,39 +5495,70 @@ impl LocalSnapback {
                 hook();
             }
         });
-        let permission_changes = {
-            let _effect = admission.effect_guard("permission epoch publication")?;
-            let changes = if commit.output.changed_count > 0 {
-                self.advance_permission_epochs(&epoch_scopes)
-            } else {
-                Vec::new()
-            };
-            if !changes.is_empty() {
-                self.refresh_read_epochs();
-            }
-            changes
+        let frame_version = commit.output.version;
+        // This is internal invalidation truth derived from the already-durable
+        // commit, not an app-visible publication. Capacity was proved before
+        // execution, so it must advance even if the caller's admission lease
+        // ends immediately after COMMIT.
+        let permission_changes = if commit.output.changed_count > 0 {
+            self.advance_permission_epochs(&epoch_scopes)
+        } else {
+            Vec::new()
         };
-        let authorization_event = commit
-            .authorization
-            .as_ref()
-            .filter(|authorization| authorization.event && self.auth_invalidation.is_some());
-        if !permission_changes.is_empty()
-            || !commit.changes.is_empty()
-            || authorization_event.is_some()
-        {
-            self.begin_live_delivery_frame(self.subscriptions.len());
-            let mut resynced =
-                self.notify_permission_resyncs_in_frame(&permission_changes, admission)?;
-            if let Some(authorization) = authorization_event {
-                resynced.extend(self.notify_authorization_event_in_frame(
-                    authorization,
-                    commit.output.version,
+        if !permission_changes.is_empty() {
+            self.refresh_read_epochs();
+        }
+        let postcommit = (|| -> SnapbackResult<()> {
+            // The transaction already committed. Re-read only to prove that
+            // the durable head still names this exact frame; corruption or an
+            // impossible mismatch suppresses publication but cannot turn the
+            // confirmed mutation into a rejection.
+            let observed = self.db.current_version()?;
+            if observed != frame_version {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                    "storage",
+                    "post-commit storage head does not match the committed mutation version",
+                )
+                .with_details(json!({
+                    "committedVersion": frame_version,
+                    "observedVersion": observed,
+                })));
+            }
+            let authorization_event = commit
+                .authorization
+                .as_ref()
+                .filter(|authorization| authorization.event && self.auth_invalidation.is_some());
+            if !permission_changes.is_empty()
+                || !commit.changes.is_empty()
+                || authorization_event.is_some()
+            {
+                self.begin_live_delivery_frame(self.subscriptions.len());
+                let mut resynced = self.notify_permission_resyncs_in_frame(
+                    &permission_changes,
+                    frame_version,
                     admission,
-                )?);
+                )?;
+                if let Some(authorization) = authorization_event {
+                    resynced.extend(self.notify_authorization_event_in_frame(
+                        authorization,
+                        frame_version,
+                        admission,
+                    )?);
+                }
+                if !commit.changes.is_empty() || authorization_event.is_some() {
+                    self.notify_live_subscriptions_in_frame(
+                        &commit.changes,
+                        &resynced,
+                        frame_version,
+                        admission,
+                    )?;
+                }
             }
-            if !commit.changes.is_empty() {
-                self.notify_live_subscriptions_in_frame(&commit.changes, &resynced, admission)?;
-            }
+            Ok(())
+        })();
+        if let Err(error) = postcommit {
+            self.record_diagnostics(vec![error.diagnostic]);
         }
         Ok(commit)
     }
@@ -5568,7 +5656,7 @@ impl LocalSnapback {
         let function = self.function(name)?.clone();
         let prepared = InvocationGate::prepare_function(authority, &function)?;
         let input = prepared.canonicalize_input(input);
-        let snapshot_version = self.db.current_version().unwrap_or(0);
+        let snapshot_version = self.db.current_version()?;
         let read_set_checked = !input.read_set.is_empty();
         let tier = match &function.runtime {
             FunctionRuntime::HostPlan(HandlerPlan::Mutation(_)) => "hostPlan",
@@ -5973,40 +6061,37 @@ impl LocalSnapback {
             .map(|(stage_id, _)| stage_id.clone())
             .collect::<Vec<_>>();
         for stage_id in terminal_stage_ids {
-            if let Some(registration) = self.pending_local_live_effects.remove(&stage_id) {
-                if let Some(control) = registration.control.upgrade() {
-                    loop {
-                        let observed = control.state.load(Ordering::Acquire);
-                        if matches!(
+            if let Some(registration) = self.pending_local_live_effects.remove(&stage_id)
+                && let Some(control) = registration.control.upgrade()
+            {
+                loop {
+                    let observed = control.state.load(Ordering::Acquire);
+                    if matches!(
+                        observed,
+                        LOCAL_LIVE_STAGE_ABANDONED
+                            | LOCAL_LIVE_STAGE_TERMINAL
+                            | LOCAL_LIVE_STAGE_FINALIZED
+                    ) {
+                        break;
+                    }
+                    if observed == LOCAL_LIVE_STAGE_FINALIZING {
+                        // Finalization and topology purge both require
+                        // `&mut LocalSnapback`, so this state cannot be
+                        // observed by another local owner.
+                        debug_assert!(false, "live stage finalization overlapped terminal purge");
+                        break;
+                    }
+                    if control
+                        .state
+                        .compare_exchange(
                             observed,
-                            LOCAL_LIVE_STAGE_ABANDONED
-                                | LOCAL_LIVE_STAGE_TERMINAL
-                                | LOCAL_LIVE_STAGE_FINALIZED
-                        ) {
-                            break;
-                        }
-                        if observed == LOCAL_LIVE_STAGE_FINALIZING {
-                            // Finalization and topology purge both require
-                            // `&mut LocalSnapback`, so this state cannot be
-                            // observed by another local owner.
-                            debug_assert!(
-                                false,
-                                "live stage finalization overlapped terminal purge"
-                            );
-                            break;
-                        }
-                        if control
-                            .state
-                            .compare_exchange(
-                                observed,
-                                LOCAL_LIVE_STAGE_TERMINAL,
-                                Ordering::AcqRel,
-                                Ordering::Acquire,
-                            )
-                            .is_ok()
-                        {
-                            break;
-                        }
+                            LOCAL_LIVE_STAGE_TERMINAL,
+                            Ordering::AcqRel,
+                            Ordering::Acquire,
+                        )
+                        .is_ok()
+                    {
+                        break;
                     }
                 }
             }
@@ -6535,6 +6620,7 @@ impl LocalSnapback {
             return Err(live_owner_mismatch(&subscription.id));
         }
 
+        let snapshot_version = self.db.current_version()?;
         let _publication = authority.effect_guard("live unsubscribe publication")?;
         let prepared_retirement = match (
             self.auth_invalidation.as_ref(),
@@ -6570,7 +6656,7 @@ impl LocalSnapback {
             collection: None,
             removed: None,
             scope: subscription.input.args.clone(),
-            snapshot_version: Some(self.db.current_version().unwrap_or(0)),
+            snapshot_version: Some(snapshot_version),
             correlation: None,
             received_at_ms: now_millis(),
         }
@@ -6839,8 +6925,9 @@ impl LocalSnapback {
                     },
                     failure.error,
                     failure.retry_episode_id.clone(),
+                    None,
                     authority.admission_lease(),
-                )?;
+                );
                 Ok(AuthorizationInvalidationManualRetryOutput {
                     outcome: if terminal { "denied" } else { "exhausted" }.to_owned(),
                     retry_episode_id: failure.retry_episode_id,
@@ -7149,8 +7236,9 @@ impl LocalSnapback {
                         "authorization_resume_failed",
                         failure.error,
                         failure.retry_episode_id,
+                        None,
                         authority.admission_lease(),
-                    )?;
+                    );
                     return Err(error);
                 }
             };
@@ -7681,7 +7769,7 @@ impl LocalSnapback {
     ) -> crate::storage::AuthorizationCommitPreflight {
         if crate::storage::app_writes_are_authorization_event(self.db.schema(), &changes) {
             crate::storage::AuthorizationCommitPreflight::AppWrites {
-                schema: self.db.schema().clone(),
+                schema: Box::new(self.db.schema().clone()),
                 changes,
             }
         } else {
@@ -9922,9 +10010,23 @@ impl LocalSnapback {
         let Ok(admission) = self.admission.admit() else {
             return;
         };
+        let frame_version = match self.db.current_version() {
+            Ok(version) => version,
+            Err(error) => {
+                self.record_diagnostics(vec![error.diagnostic]);
+                return;
+            }
+        };
 
         self.begin_live_delivery_frame(self.subscriptions.len());
-        let _ = self.notify_live_subscriptions_in_frame(changes, &BTreeSet::new(), &admission);
+        if let Err(error) = self.notify_live_subscriptions_in_frame(
+            changes,
+            &BTreeSet::new(),
+            frame_version,
+            &admission,
+        ) {
+            self.record_diagnostics(vec![error.diagnostic]);
+        }
     }
 
     fn begin_live_delivery_frame(&mut self, subscriptions: usize) {
@@ -10542,8 +10644,9 @@ impl LocalSnapback {
                             "authorization_terminal_denial",
                             failure.error,
                             failure.retry_episode_id,
+                            None,
                             admission,
-                        )?;
+                        );
                         let _publication =
                             admission.effect_guard("authorization denial drain publication")?;
                         if let Some(projection) = self
@@ -10677,8 +10780,9 @@ impl LocalSnapback {
             return Ok(BTreeSet::new());
         }
 
-        let preprojected =
-            (|| -> SnapbackResult<Vec<(LiveSubscription, AuthorizationInvalidationProjection)>> {
+        let mut preprojected = Vec::with_capacity(subscriptions.len());
+        for subscription in &subscriptions {
+            let projected = (|| -> SnapbackResult<AuthorizationInvalidationProjection> {
                 let state = self.auth_invalidation.as_mut().ok_or_else(|| {
                     SnapbackError::error(
                         "SNAPBACK_AUTH_INVALIDATION_UNAVAILABLE",
@@ -10686,56 +10790,62 @@ impl LocalSnapback {
                         "authorization event cannot project without invalidation state",
                     )
                 })?;
-                let mut projections = Vec::with_capacity(subscriptions.len());
-                for subscription in &subscriptions {
-                    let scope = &subscription
-                        .authorization
-                        .as_ref()
-                        .expect("filtered auth-scoped subscription")
-                        .scope_id;
-                    let cause = state.reserve_cause_sequence()?;
-                    let witness = state.witness(min_commit_version);
-                    state.obligations.raise(
-                        scope.clone(),
-                        cause,
-                        format!("authorization:{cause}"),
-                        InvalidationDisposition::Quarantine,
-                        witness,
-                        None,
-                    )?;
-                    projections.push((
-                        subscription.clone(),
-                        state
-                            .obligations
-                            .projection(scope)
-                            .expect("a just-raised obligation has a projection"),
-                    ));
-                }
-                Ok(projections)
+                let scope = &subscription
+                    .authorization
+                    .as_ref()
+                    .expect("filtered auth-scoped subscription")
+                    .scope_id;
+                let cause = state.reserve_cause_sequence()?;
+                let witness = state.witness(min_commit_version);
+                state.obligations.raise(
+                    scope.clone(),
+                    cause,
+                    format!("authorization:{cause}"),
+                    InvalidationDisposition::Quarantine,
+                    witness,
+                    None,
+                )?;
+                Ok(state
+                    .obligations
+                    .projection(scope)
+                    .expect("a just-raised obligation has a projection"))
             })();
-        let preprojected = match preprojected {
-            Ok(projections) => projections,
-            Err(error) if fail_closed_on_preprojection_error => return Err(error),
-            Err(error) => {
-                self.record_diagnostics(vec![error.diagnostic]);
-                return Ok(subscriptions
-                    .into_iter()
-                    .map(|subscription| subscription.id)
-                    .collect());
+            match projected {
+                Ok(projection) => preprojected.push((subscription.clone(), projection)),
+                Err(error) if fail_closed_on_preprojection_error => return Err(error),
+                Err(error) => self.record_diagnostics(vec![error.diagnostic]),
             }
-        };
+        }
         self.live_delivery.authorization_blast_radius.for_event(
             &authorization.membership_declarations,
             |counters| {
                 counters.quarantined_subscriptions += preprojected.len() as u64;
             },
         );
+        let handled = preprojected
+            .iter()
+            .map(|(subscription, _)| subscription.id.clone())
+            .collect::<BTreeSet<_>>();
         for (subscription, projection) in preprojected {
             if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
                 projection.obligation,
                 projection.resolution,
                 None,
             )) {
+                let _publication =
+                    match admission.effect_guard("authorization obligation publication") {
+                        Ok(publication) => publication,
+                        Err(error) => {
+                            self.fail_subscription_fanout(
+                                &subscription,
+                                "authorization_obligation_publication_failed",
+                                error,
+                                Some(min_commit_version),
+                                admission,
+                            );
+                            continue;
+                        }
+                    };
                 let enqueue = self.enqueue_subscription_durable(&subscription, payload);
                 if enqueue.overflowed_now {
                     let _ = self
@@ -10744,9 +10854,10 @@ impl LocalSnapback {
             }
         }
 
-        let mut handled = BTreeSet::new();
         for subscription in subscriptions {
-            handled.insert(subscription.id.clone());
+            if !handled.contains(&subscription.id) {
+                continue;
+            }
             let floor = self
                 .auth_invalidation
                 .as_ref()
@@ -10774,16 +10885,18 @@ impl LocalSnapback {
                         &subscription,
                         "authorization_invalidation_failed",
                         error,
+                        Some(min_commit_version),
                         admission,
-                    )?,
+                    ),
                 },
                 Err(failure) => self.fail_subscription_fanout_with_retry(
                     &subscription,
                     "authorization_refresh_failed",
                     failure.error,
                     failure.retry_episode_id,
+                    Some(min_commit_version),
                     admission,
-                )?,
+                ),
             }
         }
         Ok(handled)
@@ -10832,8 +10945,8 @@ impl LocalSnapback {
             })
             .collect::<SnapbackResult<Vec<_>>>()?;
 
+        let snapshot_version = Some(self.db.current_version()?);
         let _publication = admission.effect_guard("activation live resync publication")?;
-        let snapshot_version = self.db.current_version().ok();
         let received_at_ms = now_millis();
         let overflowed_effects = subscriptions
             .iter()
@@ -10889,6 +11002,7 @@ impl LocalSnapback {
         &mut self,
         changes: &[ChangedRow],
         already_resynced: &BTreeSet<String>,
+        frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<()> {
         // Cheap affected prefilter over borrowed subscriptions: only the
@@ -10957,12 +11071,32 @@ impl LocalSnapback {
                     &subscription,
                     "live_authority_ended",
                     error,
+                    Some(frame_version),
                     admission,
-                )?;
+                );
                 continue;
             }
             if let Some(plan) = &delta_plan {
-                match self.try_live_delta_fanout(&subscription, plan, changes, admission)? {
+                let delta = match self.try_live_delta_fanout(
+                    &subscription,
+                    plan,
+                    changes,
+                    frame_version,
+                    admission,
+                ) {
+                    Ok(delta) => delta,
+                    Err(error) => {
+                        self.fail_subscription_fanout(
+                            &subscription,
+                            "live_delta_publication_failed",
+                            error,
+                            Some(frame_version),
+                            admission,
+                        );
+                        continue;
+                    }
+                };
+                match delta {
                     Some(DeltaFanout::Delivered) => {
                         self.live_delivery.total_deliveries += 1;
                         self.live_delivery.last_deliveries += 1;
@@ -10978,8 +11112,9 @@ impl LocalSnapback {
                             &subscription,
                             "live_delta_failed",
                             error,
+                            Some(frame_version),
                             admission,
-                        )?;
+                        );
                         continue;
                     }
                     None => {}
@@ -10990,7 +11125,7 @@ impl LocalSnapback {
                 let floor = self
                     .auth_invalidation
                     .as_ref()
-                    .map(|state| state.witness(self.db.current_version().unwrap_or(0)))
+                    .map(|state| state.witness(frame_version))
                     .expect("auth-scoped subscription requires installed state");
                 match self.invoke_authorization_resolution(&subscription, floor, admission) {
                     Ok(query) => query,
@@ -11000,8 +11135,9 @@ impl LocalSnapback {
                             "live_refresh_failed",
                             failure.error,
                             failure.retry_episode_id,
+                            Some(frame_version),
                             admission,
-                        )?;
+                        );
                         continue;
                     }
                 }
@@ -11021,8 +11157,9 @@ impl LocalSnapback {
                             &subscription,
                             "live_refresh_failed",
                             error,
+                            Some(frame_version),
                             admission,
-                        )?;
+                        );
                         continue;
                     }
                 }
@@ -11043,8 +11180,9 @@ impl LocalSnapback {
                         &subscription,
                         "authorization_invalidation_failed",
                         error,
+                        Some(frame_version),
                         admission,
-                    )?,
+                    ),
                 }
                 continue;
             }
@@ -11065,13 +11203,26 @@ impl LocalSnapback {
                             "live query update could not be serialized",
                         )
                         .with_details(json!({ "error": error.to_string() })),
+                        Some(frame_version),
                         admission,
-                    )?;
+                    );
+                    continue;
+                }
+            };
+            let _publication = match admission.effect_guard("live replacement publication") {
+                Ok(publication) => publication,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        &subscription,
+                        "live_replacement_publication_failed",
+                        error,
+                        Some(frame_version),
+                        admission,
+                    );
                     continue;
                 }
             };
             let enqueue = {
-                let _publication = admission.effect_guard("live replacement publication")?;
                 if let Some(stored) = self.subscriptions.get_mut(&subscription.id) {
                     stored.read_dependencies = query.read_dependencies;
                 }
@@ -11085,8 +11236,9 @@ impl LocalSnapback {
                     &subscription,
                     "authorization_overflow_projection_failed",
                     error,
+                    Some(frame_version),
                     admission,
-                )?;
+                );
                 continue;
             }
             self.live_delivery.total_deliveries += 1;
@@ -11112,6 +11264,7 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         plan: &QueryPlan,
         changes: &[ChangedRow],
+        frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<Option<DeltaFanout>> {
         // The subscription must carry a captured Query dependency (its current
@@ -11152,12 +11305,9 @@ impl LocalSnapback {
             return Ok(None);
         }
 
-        // The commit version: read once on the write lane (this runs under the
-        // global mutex right after commit, so it is exactly the commit's
-        // version). If the read fails, fall back to the re-query path, which
-        // carries its own version.
-        let Some(version) = self.db.current_version().ok() else {
-            return Ok(None);
+        let fresh_table_version = match self.db.table_change_version(&plan.table) {
+            Ok(version) => version,
+            Err(error) => return Ok(Some(DeltaFanout::Failed(error))),
         };
 
         let wire_ops: Vec<LiveDeltaWireOp> = ops
@@ -11176,7 +11326,7 @@ impl LocalSnapback {
         let payload = match serde_json::to_vec(&LiveEnvelope::LiveDelta {
             subscription_id: subscription.id.clone(),
             function: subscription.function.clone(),
-            version,
+            version: frame_version,
             ops: wire_ops,
         }) {
             Ok(payload) => payload,
@@ -11198,7 +11348,6 @@ impl LocalSnapback {
         // table-change version so the matcher's next affected-check is accurate.
         let enqueue = {
             let _publication = admission.effect_guard("live delta publication")?;
-            let fresh_table_version = self.db.table_change_version(&plan.table).ok();
             if let Some(stored) = self.subscriptions.get_mut(&subscription.id)
                 && let Some(dependency) = stored.read_dependencies.get_mut(query_dep_index)
             {
@@ -11226,9 +11375,7 @@ impl LocalSnapback {
                         }
                     }
                 }
-                if let Some(fresh) = fresh_table_version {
-                    dependency.version = Some(fresh);
-                }
+                dependency.version = Some(fresh_table_version);
             }
             if subscription.authorization.is_some() {
                 let authorization = self
@@ -11253,7 +11400,8 @@ impl LocalSnapback {
         self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
 
         if enqueue.overflowed_now
-            && let Err(error) = self.raise_connection_overflow(&subscription.connection_id, version)
+            && let Err(error) =
+                self.raise_connection_overflow(&subscription.connection_id, frame_version)
         {
             return Ok(Some(DeltaFanout::Failed(error)));
         }
@@ -11312,9 +11460,17 @@ impl LocalSnapback {
         subscription: &LiveSubscription,
         reason: &str,
         error: SnapbackError,
+        min_commit_version: Option<u64>,
         admission: &AdmissionLease,
-    ) -> SnapbackResult<()> {
-        self.fail_subscription_fanout_with_retry(subscription, reason, error, None, admission)
+    ) {
+        self.fail_subscription_fanout_with_retry(
+            subscription,
+            reason,
+            error,
+            None,
+            min_commit_version,
+            admission,
+        );
     }
 
     fn fail_subscription_fanout_with_retry(
@@ -11323,9 +11479,9 @@ impl LocalSnapback {
         reason: &str,
         error: SnapbackError,
         retry_episode_id: Option<String>,
+        min_commit_version: Option<u64>,
         admission: &AdmissionLease,
-    ) -> SnapbackResult<()> {
-        let _publication = admission.effect_guard("live failure/resync publication")?;
+    ) {
         self.live_delivery.total_failed += 1;
         self.live_delivery.last_failed += 1;
         let terminal_denial = error.is_trusted_permission_denial();
@@ -11337,85 +11493,100 @@ impl LocalSnapback {
             "error": diagnostic.details,
         });
         self.record_diagnostics(vec![diagnostic]);
-        if let Some(authorization) = subscription.authorization.as_ref() {
-            let min_commit_version = self.db.current_version().unwrap_or(0);
-            let projected = self.auth_invalidation.as_mut().and_then(|state| {
-                let cause = state.reserve_cause_sequence().ok()?;
-                let witness = state.witness(min_commit_version);
-                state
-                    .obligations
-                    .raise(
-                        authorization.scope_id.clone(),
-                        cause,
-                        format!("error:{cause}"),
-                        if terminal_denial {
-                            InvalidationDisposition::Delete
-                        } else {
-                            InvalidationDisposition::Quarantine
-                        },
-                        witness.clone(),
-                        retry_episode_id,
-                    )
-                    .ok()?;
-                if terminal_denial {
+        let recovery = (|| -> SnapbackResult<()> {
+            // A caller at a known committed frame must not re-read a damaged
+            // head and then turn an already-confirmed mutation into an error.
+            // Non-postcommit callers still fail closed on a missing cursor;
+            // the wrapper records that recovery failure without propagating.
+            let min_commit_version = match min_commit_version {
+                Some(version) => version,
+                None => self.db.current_version()?,
+            };
+            let _publication = admission.effect_guard("live failure/resync publication")?;
+            if let Some(authorization) = subscription.authorization.as_ref() {
+                let projected = self.auth_invalidation.as_mut().and_then(|state| {
+                    let cause = state.reserve_cause_sequence().ok()?;
+                    let witness = state.witness(min_commit_version);
                     state
                         .obligations
-                        .issue_resolution(
-                            &authorization.scope_id,
-                            ResolutionKind::TerminalDelete,
+                        .raise(
+                            authorization.scope_id.clone(),
+                            cause,
+                            format!("error:{cause}"),
+                            if terminal_denial {
+                                InvalidationDisposition::Delete
+                            } else {
+                                InvalidationDisposition::Quarantine
+                            },
                             witness.clone(),
+                            retry_episode_id,
                         )
                         .ok()?;
-                }
-                Some((
-                    state.obligations.projection(&authorization.scope_id)?,
-                    witness,
-                ))
-            });
-            if let Some((projection, witness)) = projected {
-                // A terminal denial closes the durable retry episode only
-                // after the delete proof has transferred to an exact-ACK
-                // ticket. Sending remains level-triggered and best effort.
-                if terminal_denial
-                    && let Err(error) = self.resolve_authorization_retry_episode(
-                        subscription,
-                        &witness,
-                        &_publication,
-                    )
-                {
-                    self.record_diagnostics(vec![error.diagnostic]);
-                }
-                if let Ok(payload) = serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
-                    projection.obligation,
-                    projection.resolution,
-                    None,
-                )) {
-                    let enqueue = self.enqueue_subscription_durable(subscription, payload);
-                    if enqueue.overflowed_now {
-                        let _ = self.raise_connection_overflow(
-                            &subscription.connection_id,
-                            min_commit_version,
-                        );
+                    if terminal_denial {
+                        state
+                            .obligations
+                            .issue_resolution(
+                                &authorization.scope_id,
+                                ResolutionKind::TerminalDelete,
+                                witness.clone(),
+                            )
+                            .ok()?;
+                    }
+                    Some((
+                        state.obligations.projection(&authorization.scope_id)?,
+                        witness,
+                    ))
+                });
+                if let Some((projection, witness)) = projected {
+                    // A terminal denial closes the durable retry episode only
+                    // after the delete proof has transferred to an exact-ACK
+                    // ticket. Sending remains level-triggered and best effort.
+                    if terminal_denial
+                        && let Err(error) = self.resolve_authorization_retry_episode(
+                            subscription,
+                            &witness,
+                            &_publication,
+                        )
+                    {
+                        self.record_diagnostics(vec![error.diagnostic]);
+                    }
+                    if let Ok(payload) =
+                        serde_json::to_vec(&LiveEnvelope::authorization_invalidation(
+                            projection.obligation,
+                            projection.resolution,
+                            None,
+                        ))
+                    {
+                        let enqueue = self.enqueue_subscription_durable(subscription, payload);
+                        if enqueue.overflowed_now {
+                            let _ = self.raise_connection_overflow(
+                                &subscription.connection_id,
+                                min_commit_version,
+                            );
+                        }
                     }
                 }
             }
-        }
-        if subscription.authorization.is_none()
-            && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
-                reason: reason.to_owned(),
-                subscription_id: Some(subscription.id.clone()),
-                scope: Some(String::new()),
-                epoch: Some(0),
-                clear_retained: true,
-            })
-        {
-            let enqueue = self.enqueue_subscription_durable(subscription, payload);
-            if enqueue.overflowed_now {
-                let floor = self.db.current_version().unwrap_or(0);
-                let _ = self.raise_connection_overflow(&subscription.connection_id, floor);
+            if subscription.authorization.is_none()
+                && let Ok(payload) = serde_json::to_vec(&LiveEnvelope::ResyncRequired {
+                    reason: reason.to_owned(),
+                    subscription_id: Some(subscription.id.clone()),
+                    scope: Some(String::new()),
+                    epoch: Some(0),
+                    clear_retained: true,
+                })
+            {
+                let enqueue = self.enqueue_subscription_durable(subscription, payload);
+                if enqueue.overflowed_now {
+                    let _ = self
+                        .raise_connection_overflow(&subscription.connection_id, min_commit_version);
+                }
             }
+            Ok(())
+        })();
+        if let Err(error) = recovery {
+            self.record_diagnostics(vec![error.diagnostic]);
         }
-        Ok(())
     }
 
     fn permission_epoch(&self, scope: &str) -> u64 {
@@ -11470,6 +11641,7 @@ impl LocalSnapback {
     fn notify_permission_resyncs_in_frame(
         &mut self,
         changes: &[(String, u64)],
+        frame_version: u64,
         admission: &AdmissionLease,
     ) -> SnapbackResult<BTreeSet<String>> {
         let mut resynced = BTreeSet::new();
@@ -11511,18 +11683,28 @@ impl LocalSnapback {
                             "live resync message could not be serialized",
                         )
                         .with_details(json!({ "error": error.to_string() })),
+                        Some(frame_version),
                         admission,
-                    )?;
+                    );
                     continue;
                 }
             };
-            let enqueue = {
-                let _publication = admission.effect_guard("permission resync publication")?;
-                self.enqueue_subscription_durable(&subscription, payload)
+            let _publication = match admission.effect_guard("permission resync publication") {
+                Ok(publication) => publication,
+                Err(error) => {
+                    self.fail_subscription_fanout(
+                        &subscription,
+                        "permission_resync_publication_failed",
+                        error,
+                        Some(frame_version),
+                        admission,
+                    );
+                    continue;
+                }
             };
+            let enqueue = self.enqueue_subscription_durable(&subscription, payload);
             if enqueue.overflowed_now {
-                let floor = self.db.current_version().unwrap_or(0);
-                let _ = self.raise_connection_overflow(&subscription.connection_id, floor);
+                let _ = self.raise_connection_overflow(&subscription.connection_id, frame_version);
             }
             self.live_delivery.total_deliveries += 1;
             self.live_delivery.last_deliveries += 1;
@@ -14676,7 +14858,7 @@ globalThis.__snapbackHandlers = {
                 result.expect_err("stale first delivery").diagnostic.code,
                 "SNAPBACK_AUTH_STALE_RESULT"
             );
-            assert_eq!(snapback.durable_version(), Some(0));
+            assert_eq!(snapback.durable_version().unwrap(), 0);
             assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 0);
         }
 
@@ -14691,7 +14873,7 @@ globalThis.__snapbackHandlers = {
             )
             .0
             .expect("matching first delivery");
-        assert_eq!(snapback.durable_version(), Some(1));
+        assert_eq!(snapback.durable_version().unwrap(), 1);
 
         let stale_with_ack = snapback
             .invoke_mutation_recording_with_authority_descriptor_and_acknowledgements(
@@ -14738,7 +14920,7 @@ globalThis.__snapbackHandlers = {
             duplicate.diagnostic.details["reason"],
             "authority_instance_mismatch"
         );
-        assert_eq!(snapback.durable_version(), Some(1));
+        assert_eq!(snapback.durable_version().unwrap(), 1);
         assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
     }
 
@@ -14990,6 +15172,33 @@ globalThis.__snapbackHandlers = {
             ResolvedAppAuthority::Anonymous,
         )
         .expect("prepare exact test session authority")
+    }
+
+    fn test_live_session_authority(
+        source: InvocationSource,
+        user_id: &str,
+        generation: u64,
+        session_not_after_ms: u64,
+        provider_not_after_ms: Option<u64>,
+    ) -> PreparedAuthority {
+        InvocationGate::prepare_authority(
+            source,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            0,
+            0,
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::Session {
+                user_id: user_id.to_owned(),
+                session_id: "live-owner-session".to_owned(),
+                provider: "email-code".to_owned(),
+                generation,
+                authority_instance_id: "live-owner-authority".to_owned(),
+                session_not_after_ms,
+                provider_not_after_ms,
+            },
+        )
+        .expect("prepare retained live session authority")
     }
 
     fn test_dev_authority(source: InvocationSource) -> PreparedAuthority {
@@ -16143,7 +16352,7 @@ globalThis.__snapbackHandlers = {
             },
             data: Some(crate::auth::invalidation::DataWitness {
                 version_stream: "stream-A".to_owned(),
-                min_commit_version: 10,
+                min_commit_version: 0,
             }),
         };
         for store in 0..10_u32 {
@@ -16279,15 +16488,14 @@ globalThis.__snapbackHandlers = {
             .get(&terminal.subscription_id)
             .expect("stored terminal subscription")
             .clone();
-        snapback
-            .fail_subscription_fanout_with_retry(
-                &terminal_subscription,
-                "test_terminal_denial",
-                SnapbackError::trusted_permission_denied("trusted policy denied"),
-                None,
-                &admission,
-            )
-            .expect("publish trusted terminal denial");
+        snapback.fail_subscription_fanout_with_retry(
+            &terminal_subscription,
+            "test_terminal_denial",
+            SnapbackError::trusted_permission_denied("trusted policy denied"),
+            None,
+            None,
+            &admission,
+        );
         let terminal_scope = terminal.authorization_scope.expect("terminal scope");
         let projection = snapback
             .auth_invalidation
@@ -16322,19 +16530,18 @@ globalThis.__snapbackHandlers = {
             .get(&forged.subscription_id)
             .expect("stored forged subscription")
             .clone();
-        snapback
-            .fail_subscription_fanout_with_retry(
-                &forged_subscription,
-                "test_forged_denial",
-                SnapbackError::error(
-                    "SNAPBACK_AUTH_PERMISSION_DENIED",
-                    "auth",
-                    "application supplied the public code",
-                ),
-                None,
-                &admission,
-            )
-            .expect("publish forged-code quarantine");
+        snapback.fail_subscription_fanout_with_retry(
+            &forged_subscription,
+            "test_forged_denial",
+            SnapbackError::error(
+                "SNAPBACK_AUTH_PERMISSION_DENIED",
+                "auth",
+                "application supplied the public code",
+            ),
+            None,
+            None,
+            &admission,
+        );
         let forged_projection = snapback
             .auth_invalidation
             .as_ref()
@@ -16728,7 +16935,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("precommit cancellation must reject the host plan");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
-        assert_eq!(cancelled_snapback.durable_version(), Some(0));
+        assert_eq!(cancelled_snapback.durable_version().unwrap(), 0);
         assert_eq!(
             cancelled_snapback
                 .db
@@ -16765,7 +16972,142 @@ globalThis.__snapbackHandlers = {
             .expect("guarded host-plan commit");
         assert!(observed.load(Ordering::SeqCst));
         assert!(!active.load(Ordering::SeqCst));
-        assert_eq!(committed.durable_version(), Some(1));
+        assert_eq!(committed.durable_version().unwrap(), 1);
+    }
+
+    #[test]
+    fn postcommit_head_corruption_preserves_confirmed_receipt_and_durable_truth() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("postcommit-head.sqlite3");
+        let mut snapback = LocalSnapback::open(&path).expect("file-backed snapback");
+        snapback
+            .apply_schema(reload_schema("postcommit-head", false))
+            .unwrap();
+        snapback.load_functions(guarded_functions());
+
+        let corrupt_path = path.clone();
+        BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                rusqlite::Connection::open(corrupt_path)
+                    .unwrap()
+                    .execute("UPDATE _snapback_version SET version = 0 WHERE id = 1", [])
+                    .unwrap();
+            }));
+        });
+        let authority = InvocationGate::prepare_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+        )
+        .unwrap();
+        let (result, receipt) = snapback.invoke_mutation_recording_with_authority_descriptor(
+            "hostInsert",
+            input(),
+            None,
+            None,
+            "test",
+            authority,
+        );
+        let output = result.expect("the committed mutation remains durable truth");
+        assert_eq!(output.version, 1);
+        match receipt {
+            crate::live_wire::Receipt::Mutation {
+                outcome,
+                snapshot_version,
+                rollback_reason,
+                ..
+            } => {
+                assert_eq!(outcome, crate::live_wire::MutationReceiptOutcome::Confirmed);
+                assert_eq!(snapshot_version, Some(1));
+                assert_eq!(rollback_reason, None);
+            }
+            _ => panic!("expected mutation receipt"),
+        }
+        assert!(
+            snapback
+                .recent_diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic.code == "SNAPBACK_STORAGE_VERSION_CORRUPT" })
+        );
+
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        let row_count: i64 = raw
+            .query_row("SELECT COUNT(*) FROM items", [], |row| row.get(0))
+            .unwrap();
+        let journal_count: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM _snapback_changes WHERE version = 1",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(row_count, 1);
+        assert_eq!(journal_count, 1);
+    }
+
+    #[test]
+    fn postcommit_publication_guard_failure_confirms_without_retaining_sensitive_output() {
+        let mut snapback = permission_epoch_guarded_snapback();
+        let controller = AdmissionController::new(0, true).unwrap();
+        let lease = controller.admit_dev().unwrap();
+        let authority = InvocationGate::prepare_admitted_dev_input(
+            InvocationSource::LocalMutation,
+            ServerProfile::Test,
+            &input(),
+            lease,
+        )
+        .unwrap();
+        let controller_for_hook = controller.clone();
+        BEFORE_MUTATION_POSTCOMMIT_HOOK.with(|slot| {
+            *slot.borrow_mut() = Some(Box::new(move || {
+                let error = controller_for_hook
+                    .retire_current_epoch_for_test()
+                    .expect_err("the in-flight mutation forces retirement timeout");
+                assert_eq!(
+                    error.diagnostic.code,
+                    "SNAPBACK_AUTH_MODE_QUIESCENCE_TIMEOUT"
+                );
+            }));
+        });
+
+        let (result, receipt) = snapback.invoke_mutation_recording_with_authority_descriptor(
+            "hostInsert",
+            input(),
+            None,
+            None,
+            "test",
+            authority,
+        );
+        assert!(
+            result.is_err(),
+            "caller-visible mutation output is suppressed after the authority cut"
+        );
+        match receipt {
+            crate::live_wire::Receipt::Mutation {
+                outcome,
+                snapshot_version,
+                rollback_reason,
+                ..
+            } => {
+                assert_eq!(outcome, crate::live_wire::MutationReceiptOutcome::Confirmed);
+                assert_eq!(snapshot_version, Some(1));
+                assert_eq!(rollback_reason, None);
+            }
+            _ => panic!("expected mutation receipt"),
+        }
+        assert_eq!(snapback.durable_version().unwrap(), 1);
+        assert_eq!(snapback.db.scan_table("items", 10, 0).unwrap().total, 1);
+        assert_eq!(snapback.permission_epoch("permission:test"), 1);
+        assert!(
+            snapback.receipts_snapshot(None)["global"]
+                .as_array()
+                .is_some_and(Vec::is_empty),
+            "a failed publication guard must not retain the receipt or handler output"
+        );
+        assert!(snapback.recent_diagnostics.iter().any(|diagnostic| {
+            diagnostic.code == "SNAPBACK_AUTH_MODE_CHANGED"
+                || diagnostic.code == "SNAPBACK_AUTH_MODE_PENDING"
+        }));
     }
 
     #[test]
@@ -16786,7 +17128,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("precommit cancellation must reject buffered writes");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
-        assert_eq!(cancelled_snapback.durable_version(), Some(0));
+        assert_eq!(cancelled_snapback.durable_version().unwrap(), 0);
         assert_eq!(
             cancelled_snapback
                 .db
@@ -16822,7 +17164,7 @@ globalThis.__snapbackHandlers = {
             .expect("guarded buffered commit");
         assert!(observed.load(Ordering::SeqCst));
         assert!(!active.load(Ordering::SeqCst));
-        assert_eq!(committed.durable_version(), Some(1));
+        assert_eq!(committed.durable_version().unwrap(), 1);
     }
 
     #[test]
@@ -16840,7 +17182,7 @@ globalThis.__snapbackHandlers = {
             snapback.permission_epoch("permission:test"),
             crate::manifest::PORTABLE_STORAGE_VERSION_MAX
         );
-        let committed_version = snapback.durable_version();
+        let committed_version = snapback.durable_version().unwrap();
         let committed_rows = snapback
             .db
             .scan_table("items", 10, 0)
@@ -16851,7 +17193,7 @@ globalThis.__snapbackHandlers = {
             .invoke_mutation("hostInsert", input())
             .expect_err("an exhausted permission epoch refuses the transaction");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
-        assert_eq!(snapback.durable_version(), committed_version);
+        assert_eq!(snapback.durable_version().unwrap(), committed_version);
         assert_eq!(
             snapback
                 .db
@@ -16883,7 +17225,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("guarded HostPlan refuses before SQLite");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
-        assert_eq!(host.durable_version(), Some(0));
+        assert_eq!(host.durable_version().unwrap(), 0);
         assert_eq!(host.db.scan_table("items", 10, 0).unwrap().total, 0);
 
         let mut buffered = permission_epoch_guarded_snapback();
@@ -16906,7 +17248,7 @@ globalThis.__snapbackHandlers = {
             )
             .expect_err("detached buffered commit refuses before SQLite");
         assert_eq!(error.diagnostic.code, "SNAPBACK_PERMISSION_EPOCH_EXHAUSTED");
-        assert_eq!(buffered.durable_version(), Some(0));
+        assert_eq!(buffered.durable_version().unwrap(), 0);
         assert_eq!(buffered.db.scan_table("items", 10, 0).unwrap().total, 0);
     }
 
@@ -17639,6 +17981,120 @@ globalThis.__snapbackHandlers = {
                 Some(&owner_fence),
             )
             .expect("the exact owner grant may unsubscribe");
+        assert!(disposed.disposed);
+        assert!(
+            !snapback
+                .subscriptions
+                .contains_key(&subscribed.subscription_id)
+        );
+    }
+
+    #[test]
+    fn live_unsubscribe_owner_survives_session_deadline_extension() {
+        let mut snapback = live_limit_snapback();
+        let connection = install_test_invalidation(&mut snapback);
+        let owner_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "live-owner-incarnation",
+            "deadline-owner-grant",
+            "live-owner-session",
+            7,
+        );
+        let other_fence = crate::ephemeral::ConnectionEffectFence::session(
+            "live-owner-incarnation",
+            "deadline-other-grant",
+            "live-owner-session",
+            7,
+        );
+        let subscribed = snapback
+            .subscribe_live_prepared_with_invalidation(
+                "listItems",
+                LiveSubscribeInput {
+                    connection_id: "deadline-owner".to_owned(),
+                    input: HandlerInput::default(),
+                    authorization_namespace: Some(test_authorization_namespace(202)),
+                    supersedes: None,
+                },
+                test_live_session_authority(
+                    InvocationSource::LiveInitialQuery,
+                    "live-owner-user",
+                    7,
+                    10_000,
+                    Some(9_000),
+                ),
+                LiveInvalidationAdmission {
+                    connection: Some(connection),
+                    effect_fence: Some(owner_fence.clone()),
+                    session_mode: true,
+                },
+            )
+            .expect("subscribe under the predecessor deadline snapshot");
+        let unsubscribe = || LiveUnsubscribeInput {
+            subscription_id: subscribed.subscription_id.clone(),
+            connection_id: "deadline-owner".to_owned(),
+            auth: AuthInput::default(),
+        };
+
+        for (label, authority, fence) in [
+            (
+                "generation",
+                test_live_session_authority(
+                    InvocationSource::LiveUnsubscribe,
+                    "live-owner-user",
+                    8,
+                    20_000,
+                    Some(19_000),
+                ),
+                &owner_fence,
+            ),
+            (
+                "user",
+                test_live_session_authority(
+                    InvocationSource::LiveUnsubscribe,
+                    "other-live-owner-user",
+                    7,
+                    20_000,
+                    Some(19_000),
+                ),
+                &owner_fence,
+            ),
+            (
+                "connection grant",
+                test_live_session_authority(
+                    InvocationSource::LiveUnsubscribe,
+                    "live-owner-user",
+                    7,
+                    20_000,
+                    Some(19_000),
+                ),
+                &other_fence,
+            ),
+        ] {
+            let error = snapback
+                .unsubscribe_live_prepared("listItems", unsubscribe(), authority, Some(fence))
+                .expect_err(&format!("a changed {label} cannot unsubscribe"));
+            assert_eq!(error.diagnostic.code, "SNAPBACK_LIVE_RESUME_OWNERSHIP");
+            assert!(
+                snapback
+                    .subscriptions
+                    .contains_key(&subscribed.subscription_id),
+                "a refused {label} owner must preserve the subscription",
+            );
+        }
+
+        let disposed = snapback
+            .unsubscribe_live_prepared(
+                "listItems",
+                unsubscribe(),
+                test_live_session_authority(
+                    InvocationSource::LiveUnsubscribe,
+                    "live-owner-user",
+                    7,
+                    20_000,
+                    Some(19_000),
+                ),
+                Some(&owner_fence),
+            )
+            .expect("the stable session key and exact grant survive deadline extension");
         assert!(disposed.disposed);
         assert!(
             !snapback

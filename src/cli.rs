@@ -217,29 +217,34 @@ async fn compose_auth_mode_startup(
                 if requested_mode == AuthMode::Dev {
                     let publication_generation =
                         snapback.reserve_function_publication_generation()?;
+                    let state = startup_blocking(|| {
+                        snapback
+                            .auth_database_mut()
+                            .apply_same_mode_dev_deployment_with_functions(
+                                deployment,
+                                carrier.schema.clone(),
+                                &carrier.functions,
+                                carrier.seed.clone(),
+                            )?;
+                        snapback.auth_database_mut().auth_mode_snapshot()
+                    })?;
+                    snapback.publish_preflighted_functions(
+                        carrier.functions.clone(),
+                        publication_generation,
+                    );
+                    return Ok(state.state);
+                }
+                snapshot = startup_blocking(|| {
                     snapback
                         .auth_database_mut()
-                        .apply_same_mode_dev_deployment_with_functions(
+                        .stage_auth_mode_with_functions(
                             deployment,
                             carrier.schema.clone(),
                             &carrier.functions,
                             carrier.seed.clone(),
                         )?;
-                    snapback.publish_preflighted_functions(
-                        carrier.functions.clone(),
-                        publication_generation,
-                    );
-                    return Ok(snapback.auth_database_mut().auth_mode_snapshot()?.state);
-                }
-                snapback
-                    .auth_database_mut()
-                    .stage_auth_mode_with_functions(
-                        deployment,
-                        carrier.schema.clone(),
-                        &carrier.functions,
-                        carrier.seed.clone(),
-                    )?;
-                snapshot = snapback.auth_database_mut().auth_mode_snapshot()?;
+                    snapback.auth_database_mut().auth_mode_snapshot()
+                })?;
             }
         }
     }

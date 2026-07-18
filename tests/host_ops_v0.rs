@@ -162,7 +162,7 @@ fn host_ops_reset_fails_closed_before_seed_validation() {
     assert_eq!(created["ok"], true, "create fixture: {created}");
     let before = snapback.scan_table("todos", 100, 0).unwrap();
     assert_eq!(before.rows.len(), 1);
-    let version_before = snapback.durable_version();
+    let version_before = snapback.durable_version().unwrap();
 
     let rejected = envelope(
         &mut snapback,
@@ -175,7 +175,7 @@ fn host_ops_reset_fails_closed_before_seed_validation() {
         }),
     );
     assert_reset_projection_unavailable(&rejected);
-    assert_eq!(snapback.durable_version(), version_before);
+    assert_eq!(snapback.durable_version().unwrap(), version_before);
     assert_eq!(
         snapback.scan_table("todos", 100, 0).unwrap().rows,
         before.rows,

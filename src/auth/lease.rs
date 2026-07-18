@@ -144,6 +144,7 @@ pub fn authorized_lease_activation_hash(deployment: &DeploymentIdentity) -> Stri
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct AuthorizedLeaseData {
     pub version_stream: String,
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub snapshot_commit_version: u64,
 }
 
@@ -156,6 +157,7 @@ pub struct AuthorizedLeaseRequestIdentity {
     pub lease_request_id: String,
     pub client_store_id: String,
     pub query_key: String,
+    #[schemars(range(min = 1, max = MAX_SAFE_INTEGER))]
     pub query_instance_id: u64,
 }
 
@@ -179,6 +181,7 @@ pub struct AuthorizedLease {
     pub issuer_id: IssuerId,
     pub client_store_id: String,
     pub query_key: String,
+    #[schemars(range(min = 1, max = MAX_SAFE_INTEGER))]
     pub query_instance_id: u64,
     pub principal_id: String,
     pub session_id_at_issue: Option<String>,

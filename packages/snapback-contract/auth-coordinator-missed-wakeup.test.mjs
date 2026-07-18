@@ -173,7 +173,9 @@ const manifest = {
       reads: ['todos'],
     },
   },
-  mutations: {},
+  mutations: {
+    changeTodo: { name: 'changeTodo' },
+  },
 };
 
 const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
@@ -200,7 +202,12 @@ const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
     if (value && typeof value === 'object') tagged.set(value, capture);
     return value;
   };
-  const controls = { nextLive: null, liveCallbacks: [], liveSequence: 0 };
+  const controls = {
+    nextLive: null,
+    liveCallbacks: [],
+    liveSequence: 0,
+    mutationCalls: [],
+  };
   const makeHandle = (capture, label) => {
     const rows = tag([{ _id: label, title: label }], capture);
     return tag({
@@ -231,6 +238,11 @@ const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
     query() {
       const capture = coordinator.capture();
       return Promise.resolve(tag({ rows: [{ _id: `query-${capture.authorityEpoch}` }] }, capture));
+    },
+    mutate(name, request) {
+      const capture = coordinator.capture();
+      controls.mutationCalls.push({ name, request, capture });
+      return Promise.resolve(tag({ ok: true }, capture));
     },
   };
 
@@ -272,11 +284,19 @@ const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
   const captureB = await writer.transition(captureA, anonymous(INC_B), 'test-missed-a-to-b');
   assert.equal(coordinator.isCurrent(captureA), true, 'in-memory hint is stale by design here');
 
-  // Delayed public callback delivery: a late A live update reloads durable
-  // custody, is refused, and forces this context through its blank barrier.
-  oldLive.onUpdate(tag([{ _id: 'late-live-a' }], oldLive.capture), { version: 99 });
+  // Mutation start is a mandatory durable gate too. The missed wakeup is
+  // discovered before generic-client transport dispatch, and the predecessor
+  // surface is blanked while successor resume remains held below.
+  await assert.rejects(
+    surface.links.changeTodo({ id: 'must-not-dispatch-under-a' }),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' },
+  );
+  assert.equal(controls.mutationCalls.length, 0);
   await waitFor(() => surface.boundary.current('todos').length === 0);
-  assert.equal(coordinator.isCurrent(captureA), false, 'durable reload adopted the successor');
+  assert.equal(coordinator.isCurrent(captureA), false, 'durable mutation preflight adopted the successor');
+
+  // Delayed public callback delivery after the cut remains harmless.
+  oldLive.onUpdate(tag([{ _id: 'late-live-a' }], oldLive.capture), { version: 99 });
   const todoWrites = runtime.writesByKey.get('todos') ?? [];
   assert.equal(
     todoWrites.some((rows) => rowIds(rows).includes('late-live-a')),
@@ -366,6 +386,81 @@ const buildFixture = async ({ broadcastChannelFactory, firstIncarnation }) => {
   assert.equal(captureB.authorityEpoch, 1);
 
   lateSubscription.dispose();
+  await surface.dispose();
+  await coordinator.close();
+  await writer.close();
+}
+
+// --- Multi-live mutation parity: unlike the single-query path, this mode has
+// no optimistic publication comparison before transport. Its explicit durable
+// preflight must still discover a lost wakeup and refuse generic-client
+// dispatch under the predecessor capture. ---
+{
+  const state = { custody: {} };
+  const appId = `${APP}/multi-mutation-preflight`;
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const captureA = await coordinator.establishAnonymous(anonymous(INC_A));
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await writer.synchronize();
+
+  const tagged = new WeakMap();
+  const tag = (value, capture) => {
+    if (value && typeof value === 'object') tagged.set(value, capture);
+    return value;
+  };
+  let mutationCalls = 0;
+  const client = {
+    authCoordinator: coordinator,
+    captureAuthority: () => coordinator.capture(),
+    authorityCaptureFor: (value) => tagged.get(value) ?? null,
+    query() {
+      const capture = coordinator.capture();
+      return Promise.resolve(tag({
+        rows: [{ _id: `multi-${capture.authorityEpoch}` }],
+      }, capture));
+    },
+    mutate() {
+      mutationCalls += 1;
+      const capture = coordinator.capture();
+      return Promise.resolve(tag({ ok: true }, capture));
+    },
+  };
+  const runtime = makeRuntime();
+  const surface = await createSnapbackContractSurface({
+    runtime,
+    client,
+    userId: null,
+    manifest,
+    livePush: false,
+    liveQueries: ['listTodos'],
+    artifactIndex: { appId },
+  });
+
+  await writer.transition(captureA, anonymous(INC_B), 'multi-mutation-missed-wakeup');
+  assert.equal(coordinator.isCurrent(captureA), true);
+  await assert.rejects(
+    surface.links.changeTodo({ id: 'multi-must-not-dispatch-under-a' }),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' },
+  );
+  assert.equal(mutationCalls, 0);
+  assert.equal(coordinator.isCurrent(captureA), false);
+  assert.equal(
+    (runtime.writesByKey.get('listTodos') ?? []).some((rows) => rows.length === 0),
+    true,
+    'multi-live predecessor boundary was blanked by the mandatory reload',
+  );
+
+  await surface.flush();
   await surface.dispose();
   await coordinator.close();
   await writer.close();

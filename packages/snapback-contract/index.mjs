@@ -408,8 +408,9 @@ async function compareContractCommit(client, coordinator, capture, commit) {
 // ownership at every publication/lifecycle gate. This confirmer runs the
 // coordinator's mandatory synchronize gate: when a peer durably settled a
 // successor, the reload runs the local quiesce/blank barrier before any
-// observer or mount can receive predecessor data. Failure is fail-closed —
-// publication stays paused and the surface gates refuse.
+// observer or mount can receive predecessor data. Failure is fail-closed and
+// stays rejected so an awaited lifecycle gate cannot continue into dispatch;
+// intentionally non-blocking hints attach their own rejection handler.
 function createDurableAuthorityConfirmer(coordinator) {
   if (!coordinator || typeof coordinator.synchronize !== 'function') {
     return () => Promise.resolve();
@@ -419,11 +420,6 @@ function createDurableAuthorityConfirmer(coordinator) {
     if (inFlight) return inFlight;
     inFlight = Promise.resolve()
       .then(() => coordinator.synchronize())
-      .catch(() => {
-        // A failed durable reload leaves the coordinator paused; the surface
-        // refuses via its barrier/isCurrent gates rather than exposing stale
-        // predecessor state.
-      })
       .finally(() => { inFlight = null; });
     return inFlight;
   };
@@ -694,7 +690,7 @@ export async function createSnapbackContractSurface({
       void compareContractCommit(client, coordinator, capture, () => onReceipt(enriched))
         .then((outcome) => {
           if (!outcome.committed) {
-            void confirmDurableAuthority();
+            void confirmDurableAuthority().catch(() => {});
           }
         })
         .catch(() => {});
@@ -1090,6 +1086,9 @@ export async function createSnapbackContractSurface({
       commitAuthorityPublication: coordinator
         ? (capture, commit) => compareContractCommit(client, coordinator, capture, commit)
         : null,
+      preflightAuthorityDispatch: coordinator
+        ? (capture) => preflightDurable(capture)
+        : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
       },
@@ -1194,11 +1193,20 @@ export async function createSnapbackContractSurface({
     };
     const commitCurrent = async (capture, commit) => {
       const outcome = await compareContractCommit(client, coordinator, capture, commit);
-      if (!outcome.committed) throw staleContractAuthorityError();
+      if (!outcome.committed) {
+        await confirmDurableAuthority();
+        throw staleContractAuthorityError();
+      }
       return outcome.value;
     };
     const preflightDurable = async (capture) => {
       if (!coordinator) return;
+      // @ref LLP 0059#cross-context-ownership — generic app-data dispatch
+      // cannot use a process-local authority hint after a missed peer wakeup.
+      // A compare failure proves only that this capture cannot commit. Reload
+      // first so a missed cross-context wakeup also drives the local
+      // quiesce/blank barrier before any transport is allowed to start.
+      await confirmDurableAuthority();
       const outcome = await compareContractCommit(client, coordinator, capture, () => undefined);
       if (!outcome.committed) throw staleContractAuthorityError();
     };
@@ -1216,6 +1224,7 @@ export async function createSnapbackContractSurface({
     const ensureAuthorizedQueryOnline = async (capture = authorityCapture) => {
       if (!coordinatedSessionsMode || !retainedReadsEnabled) return null;
       const predecessorNamespace = authorizedQueryNamespace;
+      if (coordinator) await preflightDurable(capture);
       const grant = await client.connectionGrant(surfaceConnectionId);
       const grantCapture = captureForTransportValue(client, capture, grant);
       await preflightDurable(grantCapture);
@@ -1268,6 +1277,7 @@ export async function createSnapbackContractSurface({
         authorityExpectation(capture),
       );
       authorizedQueryFence = reservation.fence;
+      if (coordinator) await preflightDurable(capture);
       const response = await client.authorizedLeaseQuery(queryName, {
         args: queryArgs,
         userId: activeUserId,
@@ -1442,7 +1452,7 @@ export async function createSnapbackContractSurface({
         // this context has not adopted yet (missed/lost wakeup): run the
         // mandatory reload so the surface blanks instead of retaining the
         // predecessor boundary.
-        void confirmDurableAuthority();
+        void confirmDurableAuthority().catch(() => {});
         return null;
       }
       retainRows(rows, resolvedVersion, capture);
@@ -1456,6 +1466,7 @@ export async function createSnapbackContractSurface({
     );
 
     const openLive = async (capture = operationCapture()) => {
+      if (coordinator) await preflightDurable(capture);
       const handle = await client.liveQuery(queryName, {
         connectionId: surfaceConnectionId,
         args: queryArgs,
@@ -1524,7 +1535,7 @@ export async function createSnapbackContractSurface({
             try { onConnectionChange?.(connection, detail); } catch { /* isolate */ }
           }).then((outcome) => {
             if (!outcome.committed) {
-              void confirmDurableAuthority();
+              void confirmDurableAuthority().catch(() => {});
             }
           }).catch(() => {});
         },
@@ -1536,7 +1547,7 @@ export async function createSnapbackContractSurface({
               })
                 .then((outcome) => {
                   if (!outcome.committed) {
-                    void confirmDurableAuthority();
+                    void confirmDurableAuthority().catch(() => {});
                   }
                 })
                 .catch(() => {});
@@ -1604,10 +1615,11 @@ export async function createSnapbackContractSurface({
         lastServerVersion = handle.version ?? maxServerRowVersion(initial);
       } else {
         const initialCapture = authorityCapture ?? operationCapture();
+        if (coordinator) await preflightDurable(initialCapture);
         const snapshot = await client.query(queryName, {
           args: queryArgs,
           userId: activeUserId,
-          authorityCapture,
+          authorityCapture: initialCapture,
         });
         const resultCapture = captureForTransportValue(client, initialCapture, snapshot);
         const current = await compareContractCommit(client, coordinator, resultCapture, () => undefined);
@@ -1690,6 +1702,7 @@ export async function createSnapbackContractSurface({
     // optimistic overlay applied (other mutations may still be in flight);
     // returns the rows as written.
     const reconcile = async (capture = operationCapture()) => {
+      if (coordinator) await preflightDurable(capture);
       const snapshot = await client.query(queryName, {
         args: queryArgs,
         userId: activeUserId,
@@ -1761,7 +1774,10 @@ export async function createSnapbackContractSurface({
         expectation,
       );
       if (ids.length === 0) return true;
+      let deliveryStarted = false;
       try {
+        if (coordinator) await preflightDurable(capture);
+        deliveryStarted = true;
         await client.acknowledgeMutations({
           userId: activeUserId,
           clientMutationIds: ids,
@@ -1770,6 +1786,9 @@ export async function createSnapbackContractSurface({
         await confirmSentAcknowledgements(ids, capture);
         return true;
       } catch (error) {
+        // Mandatory custody confirmation is not a best-effort ACK failure.
+        // Only a failure after dispatch started may leave ids for retry.
+        if (!deliveryStarted) throw error;
         if (!coordinator || coordinator.isCurrent(capture)) {
           publishDiagnostic(
             'SNAPBACK_CLIENT_MUTATION_ACK_DEFERRED',
@@ -1843,6 +1862,10 @@ export async function createSnapbackContractSurface({
             authorityExpectation(capture),
           );
         }
+        // Store reads/CAS checks above may yield long enough for another
+        // context to settle A -> B. The true transport boundary gets its own
+        // exact durable predecessor confirmation.
+        if (coordinator) await preflightDurable(capture);
         mutationDeliveryStarted = true;
         // TODO(Exact LLP 0231/0278): thread actionInvocationId/optimisticWaveId
         // into this correlation when the runtime supplies them.
@@ -2120,7 +2143,11 @@ export async function createSnapbackContractSurface({
         if (!coordinator) {
           return track(persistPrepared(publishOptimistic()));
         }
-        return track(commitCurrent(capture, publishOptimistic).then(persistPrepared));
+        return track(
+          preflightDurable(capture)
+            .then(() => commitCurrent(capture, publishOptimistic))
+            .then(persistPrepared),
+        );
       };
     }
 
@@ -2146,6 +2173,7 @@ export async function createSnapbackContractSurface({
       ephemerals: ephemeralWiring.sources,
       rowSyncState: async (_table, rowId) => {
         const capture = operationCapture();
+        if (coordinator) await preflightDurable(capture);
         const result = await client.query(queryName, {
           args: queryArgs,
           userId: activeUserId,
@@ -2421,6 +2449,7 @@ export async function createSnapbackContractSurface({
         rows = handle.rows;
         version = handle.version ?? maxServerRowVersion(rows);
       } else {
+        if (coordinator) await preflightDurable(capture);
         const snapshot = await client.query(queryName, {
           args: queryArgs,
           userId: activeUserId,
@@ -2455,6 +2484,7 @@ export async function createSnapbackContractSurface({
           commitAuthorityPublication: (candidate, commit) => (
             compareContractCommit(client, coordinator, candidate, commit)
           ),
+          preflightAuthorityDispatch: (candidate) => preflightDurable(candidate),
           onAuthorityRefused: () => {
             void confirmDurableAuthority().catch(() => {});
           },
@@ -2560,6 +2590,7 @@ export async function createSnapbackContractSurface({
       if (!offlineReplayEnabled) return { replayed: 0, failed: 0 };
       const capture = operationCapture();
 
+      if (coordinator) await preflightDurable(capture);
       const initialResync = await client.query(queryName, {
         args: queryArgs,
         userId: activeUserId,
@@ -2592,6 +2623,7 @@ export async function createSnapbackContractSurface({
             replayQueueCapture,
             authorityExpectation(resyncCapture),
           );
+          if (coordinator) await preflightDurable(resyncCapture);
           const output = await client.mutate(record.function, {
             args: record.args,
             userId: activeUserId,
@@ -2782,7 +2814,7 @@ export async function createSnapbackContractSurface({
         // the synchronous fast hint. The mounted component's query bindings
         // subscribe through the gated provider above, so no cell reaches it
         // before the reload confirms (or blanks) this authority.
-        void confirmDurableAuthority();
+        void confirmDurableAuthority().catch(() => {});
         assertActive();
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },
@@ -2908,6 +2940,7 @@ function buildEphemeralWiring({
   ephemeralIdleLingerMs = EPHEMERAL_IDLE_LINGER_MS,
   authorityCapture = null,
   commitAuthorityPublication = null,
+  preflightAuthorityDispatch = null,
   onAuthorityRefused = null,
   socketLossGenerationSeed = 0,
   onLifecycleTerminal = null,
@@ -3035,6 +3068,9 @@ function buildEphemeralWiring({
     // gap before record.offState exists); a subscribe that raced one is
     // dead-on-arrival — the record starts unsubscribed and re-enters through
     // attemptResync at the bottom of this function.
+    if (typeof preflightAuthorityDispatch === 'function') {
+      await preflightAuthorityDispatch(authorityCapture);
+    }
     const manager = client.liveStreamManager(connectionId);
     let subscribeLosses = 0;
     // This temporary listener also holds shared-socket demand — detaching a
@@ -3124,8 +3160,14 @@ function buildEphemeralWiring({
       }
       record.resyncInFlight = true;
       const epochAtDispatch = record.socketLossEpoch;
-      void client
-        .subscribeEphemeral(name, { connectionId, scope: { ...args }, userId, permissions })
+      const subscribe = () => client.subscribeEphemeral(
+        name,
+        { connectionId, scope: { ...args }, userId, permissions },
+      );
+      const resubscribe = typeof preflightAuthorityDispatch === 'function'
+        ? Promise.resolve(preflightAuthorityDispatch(captureForRecord(record))).then(subscribe)
+        : subscribe();
+      void Promise.resolve(resubscribe)
         .then((fresh) => {
           record.resyncInFlight = false;
           if (disposed || record.tornDown) {
@@ -3504,7 +3546,7 @@ function buildEphemeralWiring({
           // Presence publishes are not durable mutations: no optimistic
           // layer, no pending/flush participation; the socket's latest-state
           // coalescing owns delivery (LLP 0013).
-          return client.publishEphemeral(name, {
+          const dispatch = () => client.publishEphemeral(name, {
             connectionId,
             scope,
             value,
@@ -3512,6 +3554,9 @@ function buildEphemeralWiring({
             userId,
             permissions,
           });
+          return typeof preflightAuthorityDispatch === 'function'
+            ? Promise.resolve(preflightAuthorityDispatch(authorityCapture)).then(dispatch)
+            : dispatch();
         };
       }
       return links;
@@ -3839,6 +3884,9 @@ async function createMultiLiveContractSurface({
       commitAuthorityPublication: coordinator
         ? (capture, commit) => compareContractCommit(client, coordinator, capture, commit)
         : null,
+      preflightAuthorityDispatch: coordinator
+        ? (capture) => preflightDurable(capture)
+        : null,
       onAuthorityRefused: () => {
         void confirmDurableAuthority().catch(() => {});
       },
@@ -3868,8 +3916,24 @@ async function createMultiLiveContractSurface({
     };
     const commitCurrent = async (capture, commit) => {
       const outcome = await compareContractCommit(client, coordinator, capture, commit);
-      if (!outcome.committed) throw staleContractAuthorityError();
+      if (!outcome.committed) {
+        await confirmDurableAuthority();
+        throw staleContractAuthorityError();
+      }
       return outcome.value;
+    };
+    const preflightDurable = async (capture) => {
+      if (!coordinator) return;
+      // @ref LLP 0059#cross-context-ownership — multi-live app-data transport
+      // has the same mandatory durable predecessor gate as single-query mode.
+      await confirmDurableAuthority();
+      const outcome = await compareContractCommit(
+        client,
+        coordinator,
+        capture,
+        () => undefined,
+      );
+      if (!outcome.committed) throw staleContractAuthorityError();
     };
 
     const publishDiagnostic = (code, message, details = {}) => {
@@ -3925,13 +3989,14 @@ async function createMultiLiveContractSurface({
         // A failed commit's durable reload observed an unadopted successor
         // (missed/lost wakeup): run the mandatory reload so this surface
         // blanks instead of retaining the predecessor boundary.
-        void confirmDurableAuthority();
+        void confirmDurableAuthority().catch(() => {});
         return null;
       }
       return outcome.value;
     };
 
     const openMultiLiveHandle = async ({ name, args }, capture) => {
+      if (coordinator) await preflightDurable(capture);
       const handle = await client.liveQuery(name, {
         connectionId: sharedConnectionId,
         args,
@@ -3977,7 +4042,7 @@ async function createMultiLiveContractSurface({
           })
             .then((outcome) => {
               if (!outcome.committed) {
-                void confirmDurableAuthority();
+                void confirmDurableAuthority().catch(() => {});
               }
             }).catch(() => {});
         },
@@ -3989,7 +4054,7 @@ async function createMultiLiveContractSurface({
               })
                 .then((outcome) => {
                   if (!outcome.committed) {
-                    void confirmDurableAuthority();
+                    void confirmDurableAuthority().catch(() => {});
                   }
                 })
                 .catch(() => {});
@@ -4042,6 +4107,7 @@ async function createMultiLiveContractSurface({
       // silently committed server-side (ENG-23386).
       for (const { name, args } of liveQueryEntries) {
         const capture = currentCapture ?? operationCapture();
+        if (coordinator) await preflightDurable(capture);
         const snapshot = await client.query(name, {
           args,
           userId: activeUserId,
@@ -4082,6 +4148,7 @@ async function createMultiLiveContractSurface({
     // onUpdate fan-out owns the boundary.
     const reconcileLiveQueries = async (capture = operationCapture()) => {
       for (const { name, args } of liveQueryEntries) {
+        if (coordinator) await preflightDurable(capture);
         const snapshot = await client.query(name, {
           args,
           userId: activeUserId,
@@ -4094,6 +4161,10 @@ async function createMultiLiveContractSurface({
     };
 
     const persistMutation = async (name, args, capture = operationCapture()) => {
+      // Multi-live mutations have no optimistic publication turn to provide an
+      // earlier fence. Perform the same mandatory durable reload/preflight as
+      // single-query mutations before the transport sees predecessor args.
+      await preflightDurable(capture);
       try {
         const output = await client.mutate(name, {
           args,
@@ -4362,6 +4433,7 @@ async function createMultiLiveContractSurface({
             }
           } else {
             for (const { name, args } of liveQueryEntries) {
+              if (coordinator) await preflightDurable(context.capture);
               const snapshot = await client.query(name, {
                 args,
                 userId: activeUserId,
@@ -4394,6 +4466,7 @@ async function createMultiLiveContractSurface({
             commitAuthorityPublication: (capture, commit) => (
               compareContractCommit(client, coordinator, capture, commit)
             ),
+            preflightAuthorityDispatch: (capture) => preflightDurable(capture),
             onAuthorityRefused: () => {
               void confirmDurableAuthority().catch(() => {});
             },
@@ -4533,7 +4606,7 @@ async function createMultiLiveContractSurface({
         // the synchronous fast hint. The mounted component's query bindings
         // subscribe through the gated provider above, so no cell reaches it
         // before the reload confirms (or blanks) this authority.
-        void confirmDurableAuthority();
+        void confirmDurableAuthority().catch(() => {});
         assertActive();
         return rememberMountHandle(mountedHandles, mountSnapbackContractHeadless(runtime, component, options));
       },

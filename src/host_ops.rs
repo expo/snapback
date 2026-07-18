@@ -153,6 +153,7 @@ pub struct HostOpsArtifacts {
     #[serde(rename = "bundleHash")]
     pub bundle_hash: Option<String>,
     #[serde(rename = "databaseVersion")]
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub database_version: Option<u64>,
 }
 
@@ -482,11 +483,19 @@ fn host_ops_result(
     operation: String,
     server_url: Option<String>,
     profile: crate::admin::ServerProfile,
-    ok: bool,
+    mut ok: bool,
     authority: Option<HostOpsAuthority>,
     data: Value,
-    diagnostics: Vec<Diagnostic>,
+    mut diagnostics: Vec<Diagnostic>,
 ) -> HostOpsResult {
+    let database_version = match snapback.durable_version() {
+        Ok(version) => Some(version),
+        Err(error) => {
+            ok = false;
+            diagnostics.push(error.diagnostic);
+            None
+        }
+    };
     HostOpsResult {
         schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
         result_kind: HOST_OPS_RESULT_KIND.to_owned(),
@@ -506,7 +515,7 @@ fn host_ops_result(
         artifacts: HostOpsArtifacts {
             schema_hash: snapback.loaded_schema_hash(),
             bundle_hash: snapback.loaded_bundle_hash(),
-            database_version: snapback.durable_version(),
+            database_version,
         },
         data,
         diagnostics,
@@ -646,10 +655,9 @@ pub(crate) fn coordinated_reset_result(
                     serde_json::to_value(output).unwrap_or_default(),
                 );
             }
-            data.insert(
-                "databaseVersion".to_owned(),
-                json!(snapback.durable_version()),
-            );
+            if let Ok(database_version) = snapback.durable_version() {
+                data.insert("databaseVersion".to_owned(), json!(database_version));
+            }
             host_ops_result(
                 snapback,
                 request_id,
@@ -1328,6 +1336,7 @@ pub struct DryRunRead {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(range(max = crate::manifest::PORTABLE_STORAGE_VERSION_MAX))]
     pub version: Option<u64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub predicate: Option<Value>,
@@ -1585,6 +1594,40 @@ fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn host_ops_envelope_reports_a_corrupt_durable_version_without_a_cursor() {
+        let dir = tempfile::tempdir().expect("host-ops tempdir");
+        let path = dir.path().join("corrupt-version.sqlite3");
+        let snapback = LocalSnapback::open(&path).expect("file-backed host-op fixture");
+        let raw = rusqlite::Connection::open(&path).expect("open corruption fixture");
+        raw.execute(
+            "UPDATE _snapback_version SET version = ?1 WHERE id = 1",
+            rusqlite::params![rusqlite::types::Value::Real(1.5)],
+        )
+        .expect("install malformed durable version");
+        drop(raw);
+
+        let result = host_ops_result(
+            &snapback,
+            "corrupt-version".to_owned(),
+            "app.inspect".to_owned(),
+            None,
+            ServerProfile::Test,
+            true,
+            authority_none(),
+            Value::Object(Default::default()),
+            Vec::new(),
+        );
+        assert!(!result.ok);
+        assert_eq!(result.artifacts.database_version, None);
+        assert!(
+            result
+                .diagnostics
+                .iter()
+                .any(|diagnostic| { diagnostic.code == "SNAPBACK_STORAGE_VERSION_CORRUPT" })
+        );
+    }
 
     #[test]
     fn host_op_rejects_managed_authority_from_a_different_source_before_lookup() {

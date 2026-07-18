@@ -3582,6 +3582,7 @@ impl RoomAuthorityRegistry {
         }))
     }
 
+    #[cfg(test)]
     fn prepare(
         &self,
         expected_authorization: AuthorizationVersion,
@@ -4580,7 +4581,7 @@ impl LocalEphemeralBackend {
                 room_dependency_selector_for_collections(
                     &collections,
                     AuthorizationCommitImpact::AppWrites {
-                        schema: &schema,
+                        schema: schema.as_ref(),
                         changes: &changes,
                     },
                 )

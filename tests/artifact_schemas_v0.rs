@@ -240,6 +240,34 @@ fn dk7_committed_public_instances_match_rust_types() {
     }
 }
 
+#[test]
+fn dry_run_read_versions_stay_in_the_portable_storage_domain() {
+    let mut report = json!({
+        "kind": "mutationDryRun",
+        "function": "updateTodo",
+        "tier": "hostPlan",
+        "wouldCommit": true,
+        "denied": false,
+        "predictedWrites": [],
+        "readSet": [{
+            "kind": "row",
+            "table": "todos",
+            "id": "todo_1",
+            "version": snapback::manifest::PORTABLE_STORAGE_VERSION_MAX
+        }],
+        "writeSet": [],
+        "readSetValidation": "valid",
+        "sideEffects": [],
+        "result": null,
+        "snapshotVersion": snapback::manifest::PORTABLE_STORAGE_VERSION_MAX,
+        "diagnostics": []
+    });
+    assert_validates("dry-run.report.schema.json", &report);
+
+    report["readSet"][0]["version"] = json!(snapback::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+    assert_rejects("dry-run.report.schema.json", &report);
+}
+
 /// @ref LLP 0057#routes-operations-and-dtos — provider and operator objects are closed wire contracts. Keep a
 /// consumer-side fixture for every schema, not only the Rust schemars drift
 /// check, so camelCase or `additionalProperties` drift is caught here too.
@@ -247,6 +275,7 @@ fn dk7_committed_public_instances_match_rust_types() {
 /// closed, generated response rather than an ad hoc server object.
 #[test]
 fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
+    let max_protocol_counter = snapback::auth::invalidation::MAX_PROTOCOL_COUNTER;
     let authorized_lease = json!({
         "protocolVersion": 1,
         "leaseId": "lease_1",
@@ -258,7 +287,7 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         },
         "clientStoreId": "store_1",
         "queryKey": "todos:{owner=me}",
-        "queryInstanceId": 9,
+        "queryInstanceId": max_protocol_counter,
         "principalId": "user_1",
         "sessionIdAtIssue": "session_1",
         "providerKey": "email-code",
@@ -282,6 +311,32 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         "keyId": "sbak_AQEBAQEBAQEBAQEBAQEBAQ",
         "mac": "MTExMTExMTExMTExMTExMTExMTExMTExMTExMTExMTE"
     });
+    let mut oversized_authorized_lease = authorized_lease.clone();
+    oversized_authorized_lease["data"]["snapshotCommitVersion"] =
+        json!(snapback::manifest::PORTABLE_STORAGE_VERSION_MAX + 1);
+    assert_rejects("authorized-lease.schema.json", &oversized_authorized_lease);
+    assert_rejects(
+        "authorized-lease.query.output.schema.json",
+        &json!({
+            "version": 19,
+            "rows": [],
+            "authorizedLease": oversized_authorized_lease
+        }),
+    );
+    let mut oversized_lease_query_instance = authorized_lease.clone();
+    oversized_lease_query_instance["queryInstanceId"] = json!(max_protocol_counter + 1);
+    assert_rejects(
+        "authorized-lease.schema.json",
+        &oversized_lease_query_instance,
+    );
+    assert_rejects(
+        "authorized-lease.query.output.schema.json",
+        &json!({
+            "version": 19,
+            "rows": [],
+            "authorizedLease": oversized_lease_query_instance
+        }),
+    );
     let cases = [
         (
             "auth.request-code.input.schema.json",
@@ -421,13 +476,13 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         "leaseRequestId": "request_1",
         "clientStoreId": "store_1",
         "queryKey": "todos:{owner=me}",
-        "queryInstanceId": 9
+        "queryInstanceId": max_protocol_counter
     });
     assert_validates(
         "authorized-lease.query.input.schema.json",
         &authorized_lease_input,
     );
-    let mut extended_authorized_lease_input = authorized_lease_input;
+    let mut extended_authorized_lease_input = authorized_lease_input.clone();
     extended_authorized_lease_input
         .as_object_mut()
         .expect("authorized lease input is an object")
@@ -435,6 +490,12 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
     assert_rejects(
         "authorized-lease.query.input.schema.json",
         &extended_authorized_lease_input,
+    );
+    let mut oversized_authorized_lease_input = authorized_lease_input;
+    oversized_authorized_lease_input["queryInstanceId"] = json!(max_protocol_counter + 1);
+    assert_rejects(
+        "authorized-lease.query.input.schema.json",
+        &oversized_authorized_lease_input,
     );
 
     use snapback::auth::wire::{
@@ -466,6 +527,135 @@ fn auth_v1_wire_schemas_accept_exact_objects_and_reject_extensions() {
         )
         .is_err()
     );
+}
+
+#[test]
+fn auth_invalidation_counter_schemas_match_the_portable_runtime_domain() {
+    let max = snapback::auth::invalidation::MAX_PROTOCOL_COUNTER;
+    let issuer_id = json!({
+        "authorizationIncarnation": "01890f3c-9d5b-7000-8000-000000000001",
+        "bootSequence": max,
+        "bootNonce": "AQEBAQEBAQEBAQEBAQEBAQ"
+    });
+    let namespace = json!({
+        "clientStoreId": "store_1",
+        "queryKey": "todos:{owner=me}",
+        "queryInstanceId": max
+    });
+    let subscription_scope = json!({
+        "kind": "subscription",
+        "issuerId": issuer_id.clone(),
+        "namespace": namespace.clone(),
+        "scopeSequence": max,
+        "connectionGeneration": max,
+        "subscriptionId": "sub_1"
+    });
+    let witness = json!({
+        "authorization": {
+            "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+            "epoch": max
+        },
+        "data": {
+            "versionStream": "01890f3c-9d5b-7000-8000-000000000002",
+            "minCommitVersion": max
+        }
+    });
+    let live_output = json!({
+        "subscription_id": "sub_1",
+        "snapshot": { "version": max, "rows": [] },
+        "permission_epochs": {},
+        "authorizationScope": {
+            "kind": "connection",
+            "issuerId": issuer_id.clone(),
+            "connectionGeneration": max
+        },
+        "authorizationInvalidation": {
+            "obligation": {
+                "protocolVersion": 1,
+                "scopeId": subscription_scope.clone(),
+                "revision": max,
+                "maxDisposition": "delete",
+                "witness": witness.clone()
+            },
+            "resolution": {
+                "protocolVersion": 1,
+                "kind": "snapshot",
+                "scopeId": subscription_scope,
+                "revision": max,
+                "witness": witness,
+                "maxDisposition": "delete",
+                "ackToken": "ack_1"
+            }
+        },
+        "scopeRetirements": [{
+            "issuerId": issuer_id.clone(),
+            "namespace": namespace,
+            "retireThroughScopeSequence": max,
+            "authorizationExpectation": {
+                "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+                "epoch": max
+            },
+            "mac": "retirement_mac"
+        }]
+    });
+    assert_validates("live.subscribe.output.schema.json", &live_output);
+    for pointer in [
+        "/authorizationScope/connectionGeneration",
+        "/authorizationInvalidation/obligation/scopeId/issuerId/bootSequence",
+        "/authorizationInvalidation/obligation/scopeId/namespace/queryInstanceId",
+        "/authorizationInvalidation/obligation/scopeId/scopeSequence",
+        "/authorizationInvalidation/obligation/scopeId/connectionGeneration",
+        "/authorizationInvalidation/obligation/revision",
+        "/authorizationInvalidation/resolution/revision",
+        "/scopeRetirements/0/retireThroughScopeSequence",
+    ] {
+        let mut oversized = live_output.clone();
+        *oversized
+            .pointer_mut(pointer)
+            .unwrap_or_else(|| panic!("counter fixture path {pointer} exists")) = json!(max + 1);
+        assert_rejects("live.subscribe.output.schema.json", &oversized);
+    }
+
+    let connection_grant = json!({
+        "connectionId": "conn_1",
+        "connectionToken": "token_1",
+        "authorizationInvalidation": {
+            "protocolVersion": 1,
+            "issuerId": issuer_id.clone(),
+            "connectionGeneration": max,
+            "authorization": {
+                "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+                "epoch": max
+            },
+            "versionStream": "01890f3c-9d5b-7000-8000-000000000002",
+            "issuerRetirement": {
+                "currentIssuer": {
+                    "issuerId": issuer_id,
+                    "keyId": "key_1",
+                    "mac": "issuer_mac"
+                },
+                "retireThroughBootSequence": max,
+                "authorizationExpectation": {
+                    "incarnation": "01890f3c-9d5b-7000-8000-000000000001",
+                    "epoch": max
+                },
+                "mac": "retirement_mac"
+            }
+        }
+    });
+    assert_validates("connection.grant.schema.json", &connection_grant);
+    for pointer in [
+        "/authorizationInvalidation/issuerId/bootSequence",
+        "/authorizationInvalidation/connectionGeneration",
+        "/authorizationInvalidation/issuerRetirement/currentIssuer/issuerId/bootSequence",
+        "/authorizationInvalidation/issuerRetirement/retireThroughBootSequence",
+    ] {
+        let mut oversized = connection_grant.clone();
+        *oversized
+            .pointer_mut(pointer)
+            .unwrap_or_else(|| panic!("counter fixture path {pointer} exists")) = json!(max + 1);
+        assert_rejects("connection.grant.schema.json", &oversized);
+    }
 }
 
 /// ENG-24991: the committed auth.session schema and the executable kit
@@ -1443,6 +1633,17 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             &serde_json::to_value(&envelope).unwrap(),
         );
     }
+    assert_rejects(
+        "live.envelope.schema.json",
+        &serde_json::to_value(LiveEnvelope::ResyncRequired {
+            reason: "permission_epoch_changed".to_owned(),
+            subscription_id: Some("sub_1".to_owned()),
+            scope: Some("user:alice".to_owned()),
+            epoch: Some(snapback::manifest::PORTABLE_STORAGE_VERSION_MAX + 1),
+            clear_retained: true,
+        })
+        .unwrap(),
+    );
 
     for frame in [
         LiveSocketServerFrame::Pong {
@@ -1520,7 +1721,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             outcome: MutationReceiptOutcome::Confirmed,
             rollback_reason: None,
             affected_tables: Some(vec!["todos".to_owned()]),
-            snapshot_version: 9,
+            snapshot_version: Some(9),
             transport: "http".to_owned(),
             correlation: Value::Null,
             received_at_ms: 1,
@@ -1556,6 +1757,29 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
     ] {
         assert_validates("receipt.schema.json", &receipt.into_value());
     }
+    let nullable_mutation_snapshot = Receipt::Mutation {
+        mutation_id: "mut_cursor_unavailable".to_owned(),
+        mutation: "addTodo".to_owned(),
+        outcome: MutationReceiptOutcome::Rejected,
+        rollback_reason: Some("SNAPBACK_STORAGE_VERSION_CORRUPT".to_owned()),
+        affected_tables: Some(vec!["todos".to_owned()]),
+        snapshot_version: None,
+        transport: "http".to_owned(),
+        correlation: Value::Null,
+        received_at_ms: 4,
+    }
+    .into_value();
+    assert_validates("receipt.schema.json", &nullable_mutation_snapshot);
+    let mut impossible_confirmed_snapshot = nullable_mutation_snapshot.clone();
+    impossible_confirmed_snapshot["outcome"] = json!("confirmed");
+    impossible_confirmed_snapshot["rollbackReason"] = Value::Null;
+    assert_rejects("receipt.schema.json", &impossible_confirmed_snapshot);
+    let mut missing_mutation_snapshot = nullable_mutation_snapshot;
+    missing_mutation_snapshot
+        .as_object_mut()
+        .unwrap()
+        .remove("snapshotVersion");
+    assert_rejects("receipt.schema.json", &missing_mutation_snapshot);
 
     for envelope in [
         RealtimeEnvelope::Durable(DurableMessage::new(b"{\"kind\":\"live_replace\"}".to_vec())),
@@ -1612,7 +1836,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
             outcome: MutationReceiptOutcome::Confirmed,
             rollback_reason: None,
             affected_tables: Some(vec!["todos".to_owned()]),
-            snapshot_version: 9,
+            snapshot_version: Some(9),
             transport: "http".to_owned(),
             correlation: json!({ "actionInvocationId": "act_1" }),
             received_at_ms: 1,
@@ -1648,7 +1872,7 @@ fn dk7_live_wire_values_validate_against_committed_schemas() {
                 outcome: MutationReceiptOutcome::Rejected,
                 rollback_reason: Some("SNAPBACK_REJECTED".to_owned()),
                 affected_tables: Some(vec!["todos".to_owned()]),
-                snapshot_version: 9,
+                snapshot_version: Some(9),
                 transport: "http".to_owned(),
                 correlation: Value::Null,
                 received_at_ms: 2,

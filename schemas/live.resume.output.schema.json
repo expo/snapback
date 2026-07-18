@@ -103,7 +103,8 @@
         },
         "bootSequence": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         }
       },
@@ -122,7 +123,8 @@
         },
         "queryInstanceId": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         },
         "queryKey": {
@@ -187,7 +189,8 @@
         },
         "revision": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         },
         "scopeId": {
@@ -234,7 +237,8 @@
         },
         "revision": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         },
         "scopeId": {
@@ -260,7 +264,8 @@
           "properties": {
             "connectionGeneration": {
               "format": "uint64",
-              "minimum": 0,
+              "maximum": 9007199254740991,
+              "minimum": 1,
               "type": "integer"
             },
             "issuerId": {
@@ -275,7 +280,8 @@
             },
             "scopeSequence": {
               "format": "uint64",
-              "minimum": 0,
+              "maximum": 9007199254740991,
+              "minimum": 1,
               "type": "integer"
             },
             "subscriptionId": {
@@ -297,7 +303,8 @@
           "properties": {
             "connectionGeneration": {
               "format": "uint64",
-              "minimum": 0,
+              "maximum": 9007199254740991,
+              "minimum": 1,
               "type": "integer"
             },
             "issuerId": {
@@ -352,7 +359,8 @@
         },
         "retireThroughScopeSequence": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         }
       },

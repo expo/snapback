@@ -46,3 +46,16 @@ Covered by
 `terminal_retired_whole_id_cleanup_preserves_typed_event_and_minted_successor`,
 `unpolled_http_batch_is_suppressed_and_whole_id_cleaned_after_pressure_eviction`,
 and `maintenance_bulk_retirement_spawns_all_cleanup_before_first_await`.
+
+## Final-audit follow-up — 2026-07-17
+
+Maintenance previously discarded each owned cleanup task's `JoinError` after
+the registry had consumed its terminal capture. The batch owner now retains a
+clone of that exact mint-only capture before spawn. A panic or cancellation is
+reported with stable identifier-free `SNAPBACK_CONNECTION_CLEANUP_FAILED`
+output and returns the capture to the next maintenance tick for idempotent
+retry; normal maintenance cancellation still leaves every already-spawned
+child independently owned. The deterministic
+`maintenance_cleanup_join_failure_retains_exact_retry_capture` regression
+forces a child panic, proves the requested readable id cannot be reminted,
+then proves retry removes the residue with consistent registry indexes.

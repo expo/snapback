@@ -53,6 +53,10 @@ tarball, git dependency, or hand-edited `dist/` would violate LLP 0015's
 lock-owned published-package and frozen-install constraints; the existing
 pre-portability allowlist must therefore remain until the release exists.
 
+Reverified on 2026-07-17: the public registry still reports `0.1.4` as the
+newest version for all five required `@ccheever/exact-*` packages listed above.
+The blocker and safe-resume sequence are unchanged.
+
 ## Safe resume steps
 
 1. Publish one coherent Exact suite version `0.1.5` or newer containing both

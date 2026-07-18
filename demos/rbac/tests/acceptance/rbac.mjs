@@ -10,15 +10,157 @@ import {
   AuthCoordinator,
   createMemoryAuthCustodyStorage,
 } from '../../../../packages/snapback-contract/index.mjs';
+import {
+  closeAcceptanceSession,
+  OwnedLiveSubscriptions,
+  TerminalAcceptanceWatchdog,
+} from './owned-live-subscriptions.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = join(here, '..', '..', '..', '..');
 const generatedRoot = join(here, '..', '..', 'snapback', 'generated');
 const scratch = await mkdtemp(join(tmpdir(), 'snapback-rbac-demo-'));
 const sessions = [];
+const liveSubscriptions = new OwnedLiveSubscriptions();
 let server = null;
 
 const readJson = async (path) => JSON.parse(await readFile(path, 'utf8'));
+const OPERATION_TIMEOUT_MS = 30_000;
+const ACCEPTANCE_WATCHDOG_MS = 120_000;
+const ACCEPTANCE_TERMINAL_GRACE_MS = 10_000;
+let acceptanceWatchdog = null;
+let serverStopPromise = null;
+let primaryFailure = null;
+
+const stopServer = () => {
+  if (server === null) return Promise.resolve();
+  serverStopPromise ??= server.stop();
+  return serverStopPromise;
+};
+
+const namespaceFor = (clientStoreId) => Object.freeze({
+  clientStoreId,
+  queryKey: 'listAnnouncements:{}',
+  queryInstanceId: 1,
+});
+
+const decodeDurableFrames = (envelopes) => envelopes.flatMap((envelope) => {
+  const payload = envelope?.Durable?.payload;
+  if (payload === undefined) return [];
+  const text = typeof payload === 'string'
+    ? payload
+    : new TextDecoder().decode(Uint8Array.from(payload ?? []));
+  return [JSON.parse(text)];
+});
+
+const assertSubscriptionScope = (live, scope, label) => {
+  assert.equal(scope?.kind, 'subscription', `${label} must target a subscription scope`);
+  assert.deepEqual(scope?.namespace, live.authorizationNamespace, `${label} crossed query namespace`);
+  assert.equal(scope?.subscriptionId, live.subscriptionId, `${label} crossed subscription identity`);
+};
+
+async function applyAuthorizationProjection(live, projection, fallbackSnapshot = null) {
+  const { obligation, resolution = null } = projection;
+  assertSubscriptionScope(live, obligation?.scopeId, 'authorization obligation');
+  if (resolution !== null) {
+    assertSubscriptionScope(live, resolution.scopeId, 'authorization resolution');
+    assert.equal(resolution.revision, obligation.revision);
+  }
+  if (['quarantine', 'delete'].includes(obligation.maxDisposition)) live.rows = [];
+  const snapshot = projection.snapshot ?? fallbackSnapshot;
+  if (snapshot !== null) {
+    const subscriptionId = snapshot.subscriptionId ?? live.subscriptionId;
+    assert.equal(subscriptionId, live.subscriptionId, 'authorization snapshot crossed subscription');
+    assert.equal(snapshot.function ?? 'listAnnouncements', 'listAnnouncements');
+    if (live.forbidVisibleRows && snapshot.rows.length > 0) {
+      assert.fail(`isolated live owner received protected authorization rows: ${JSON.stringify(snapshot.rows)}`);
+    }
+    live.rows = structuredClone(snapshot.rows);
+    live.version = snapshot.version;
+  }
+  live.authorizationInvalidations += 1;
+  if (resolution !== null) {
+    const acknowledged = await live.session.client.acknowledgeAuthorizationInvalidation(
+      live.connectionId,
+      resolution.ackToken,
+    );
+    // @ref LLP 0053#invalidation-is-an-obligation-not-a-message — a later
+    // merged revision can legitimately make this frame's acknowledgement
+    // stale. The level-triggered successor frame remains in the drain and must
+    // provide the current snapshot before the bounded wait can succeed.
+    assert(
+      ['discharged', 'duplicate', 'stale'].includes(acknowledged.outcome),
+      `authorization ACK returned an unknown outcome: ${JSON.stringify(acknowledged)}`,
+    );
+  }
+}
+
+async function applyLiveFrame(live, frame) {
+  live.frames.push(structuredClone(frame));
+  if (frame.kind === 'authorization_invalidation') {
+    await applyAuthorizationProjection(live, frame);
+    return;
+  }
+  if (frame.kind === 'live_replace') {
+    assert.equal(frame.subscription_id, live.subscriptionId, 'live replace crossed subscription');
+    assert.equal(frame.function, 'listAnnouncements');
+    if (live.forbidVisibleRows && frame.rows.length > 0) {
+      assert.fail(`isolated live owner received a protected replace: ${JSON.stringify(frame)}`);
+    }
+    live.rows = structuredClone(frame.rows);
+    live.version = frame.version;
+    return;
+  }
+  if (frame.kind === 'live_delta') {
+    assert.equal(frame.subscription_id, live.subscriptionId, 'live delta crossed subscription');
+    assert.equal(frame.function, 'listAnnouncements');
+    if (live.forbidVisibleRows && frame.ops.some(({ op }) => op !== 'remove')) {
+      assert.fail(`isolated live owner received a protected add/update delta: ${JSON.stringify(frame)}`);
+    }
+    const byId = new Map(live.rows.map((row) => [row._id, row]));
+    for (const operation of frame.ops) {
+      if (operation.op === 'remove') byId.delete(operation.id);
+      else byId.set(operation.id, operation.row);
+    }
+    live.rows = [...byId.values()];
+    live.version = frame.version;
+    return;
+  }
+  assert.notEqual(frame.kind, 'resync_required', `unexpected RBAC live resync: ${JSON.stringify(frame)}`);
+  assert.fail(`unexpected RBAC live frame: ${JSON.stringify(frame)}`);
+}
+
+async function drainLive(live) {
+  const envelopes = await live.session.client.drainEnvelopes(live.connectionId);
+  const frames = decodeDurableFrames(envelopes);
+  for (const frame of frames) await applyLiveFrame(live, frame);
+  return frames;
+}
+
+const messages = (live) => live.rows.map(({ message }) => message);
+
+async function waitForMessages(live, expected, label) {
+  const deadline = Date.now() + OPERATION_TIMEOUT_MS;
+  for (;;) {
+    await drainLive(live);
+    if (JSON.stringify(messages(live)) === JSON.stringify(expected)) return;
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `SNAPBACK_RBAC_LIVE_TIMEOUT: ${label}: ${JSON.stringify(messages(live))}`,
+      );
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+}
+
+async function assertRemainsEmpty(live, quietMs, label) {
+  const deadline = Date.now() + quietMs;
+  do {
+    await drainLive(live);
+    assert.deepEqual(live.rows, [], label);
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  } while (Date.now() < deadline);
+}
 
 async function mintSession(appId, email, clientStoreId) {
   const coordinator = new AuthCoordinator({
@@ -33,6 +175,10 @@ async function mintSession(appId, email, clientStoreId) {
     authorityDescriptorProtocol: 1,
     clientStoreId,
   });
+  const session = { client, coordinator, closePromise: null };
+  // Own the local resources before starting any request. If minting fails or
+  // the outer watchdog cuts a non-settling server, finally still closes both.
+  sessions.push(session);
   const requested = await client.authRequestCode(email);
   const mailboxResponse = await fetch(
     `${server.baseUrl}/_snapback/api/auth/mailbox?challengeId=${encodeURIComponent(requested.challengeId)}`,
@@ -46,9 +192,25 @@ async function mintSession(appId, email, clientStoreId) {
   const mailbox = await mailboxResponse.json();
   assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
   await client.authExchange({ challengeId: requested.challengeId, code: mailbox.code });
-  const session = { client, coordinator };
-  sessions.push(session);
   return session;
+}
+
+async function disposeLiveSubscription(session, connectionId, subscriptionId) {
+  let disposed;
+  try {
+    disposed = await session.client.unsubscribeLive('listAnnouncements', {
+      connectionId,
+      subscriptionId,
+    });
+  } catch (cause) {
+    const diagnostic = cause?.diagnostic;
+    throw new Error(
+      `RBAC live disposal failed for ${connectionId}/${subscriptionId}: ${diagnostic?.code ?? cause?.code ?? cause?.message ?? 'unknown error'}${diagnostic?.message ? `: ${diagnostic.message}` : ''}`,
+      { cause },
+    );
+  }
+  assert.equal(disposed.subscription_id, subscriptionId);
+  assert.equal(disposed.disposed, true);
 }
 
 try {
@@ -64,6 +226,28 @@ try {
     startupArtifacts: carrier,
     captureImpersonationCapability: true,
   });
+  // Expiry aborts every tracked client request and stops the isolated server.
+  // Joining continues normally; a second live timer terminates the acceptance
+  // process if either shutdown or joined work still refuses to settle.
+  acceptanceWatchdog = new TerminalAcceptanceWatchdog({
+    deadlineMs: ACCEPTANCE_WATCHDOG_MS,
+    terminalGraceMs: ACCEPTANCE_TERMINAL_GRACE_MS,
+    onDeadline(error) {
+      process.stderr.write(
+        `${error.code}: aborting clients and stopping a non-settling acceptance server\n`,
+      );
+      return Promise.allSettled([
+        ...sessions.map((session) => closeAcceptanceSession(session)),
+        stopServer(),
+      ]);
+    },
+    onTerminal(error) {
+      process.stderr.write(
+        `${error.code}: forced terminal exit after ${ACCEPTANCE_TERMINAL_GRACE_MS}ms teardown grace\n`,
+      );
+      process.exit(124);
+    },
+  });
 
   const alice = await mintSession(schema.appId, 'alice@rbac.test', 'rbac-alice');
   const bob = await mintSession(schema.appId, 'bob@rbac.test', 'rbac-bob');
@@ -72,32 +256,100 @@ try {
   await alice.client.mutate('joinApp', { args: {} });
   await alice.client.mutate('postAnnouncement', { args: { message: 'members only' } });
 
-  const [aliceLive, bobLive] = await Promise.all([
-    alice.client.subscribeLive('listAnnouncements', {
-      connectionId: 'rbac-alice-live',
-      authorizationNamespace: {
-        clientStoreId: 'rbac-alice',
-        queryKey: 'listAnnouncements:{}',
-        queryInstanceId: 1,
+  const subscribe = async (
+    session,
+    connectionId,
+    clientStoreId,
+    { forbidVisibleRows = false } = {},
+  ) => {
+    return liveSubscriptions.start({
+      label: `${clientStoreId} live subscription creation`,
+      settlementDeadlineMs: OPERATION_TIMEOUT_MS,
+      create: async (adopt) => {
+        await session.client.connectionGrant(connectionId);
+        const authorizationNamespace = namespaceFor(clientStoreId);
+        const subscription = await session.client.subscribeLive('listAnnouncements', {
+          connectionId,
+          authorizationNamespace,
+        });
+        const live = {
+          session,
+          connectionId,
+          authorizationNamespace,
+          subscriptionId: subscription.subscription_id,
+          rows: [],
+          version: null,
+          authorizationInvalidations: 0,
+          frames: [],
+          forbidVisibleRows,
+        };
+        // Own the raw server-side success before any scope validation,
+        // snapshot clone, or initial invalidation acknowledgement can fail.
+        adopt(live);
+        live.rows = structuredClone(subscription.snapshot.rows);
+        live.version = subscription.snapshot.version;
+        if (live.forbidVisibleRows && live.rows.length > 0) {
+          assert.fail(`isolated live owner started with protected rows: ${JSON.stringify(live.rows)}`);
+        }
+        assertSubscriptionScope(live, subscription.authorizationScope, 'subscribe response');
+        if (subscription.authorizationInvalidation) {
+          await applyAuthorizationProjection(
+            live,
+            subscription.authorizationInvalidation,
+            subscription.snapshot,
+          );
+        }
+        return live;
       },
-    }),
-    bob.client.subscribeLive('listAnnouncements', {
-      connectionId: 'rbac-bob-live',
-      authorizationNamespace: {
-        clientStoreId: 'rbac-bob',
-        queryKey: 'listAnnouncements:{}',
-        queryInstanceId: 1,
+      dispose: async (live) => {
+        // Disposal is owned just like creation: do not race and abandon a
+        // possibly successful unsubscribe. The terminal watchdog aborts the
+        // transport and process if it cannot settle.
+        await disposeLiveSubscription(session, connectionId, live.subscriptionId);
       },
-    }),
+    });
+  };
+  const liveResults = await Promise.allSettled([
+    subscribe(alice, 'rbac-alice-live', 'rbac-alice'),
+    subscribe(bob, 'rbac-bob-live', 'rbac-bob', { forbidVisibleRows: true }),
+    subscribe(eve, 'rbac-eve-live', 'rbac-eve', { forbidVisibleRows: true }),
   ]);
-  assert.deepEqual(aliceLive.snapshot.rows.map(({ message }) => message), ['members only']);
-  assert.deepEqual(bobLive.snapshot.rows, [], 'a non-member live subscription starts empty');
+  const rejectedLive = liveResults.find((result) => result.status === 'rejected');
+  if (rejectedLive) throw rejectedLive.reason;
+  const [aliceLive, bobLive, eveLive] = liveResults.map((result) => result.value);
+  assert.deepEqual(messages(aliceLive), ['members only']);
+  assert.deepEqual(bobLive.rows, [], 'a non-member live subscription starts empty');
+  assert.deepEqual(eveLive.rows, [], 'an unrelated non-member live subscription starts empty');
+
+  await alice.client.mutate('postAnnouncement', {
+    args: { message: 'still members only' },
+  });
+  await waitForMessages(
+    aliceLive,
+    ['members only', 'still members only'],
+    'Alice did not receive pre-grant member fanout',
+  );
+  await Promise.all([
+    assertRemainsEmpty(
+      bobLive,
+      100,
+      'pre-grant member fanout crossed into Bob live state',
+    ),
+    assertRemainsEmpty(
+      eveLive,
+      100,
+      'pre-grant member fanout crossed into Eve live state',
+    ),
+  ]);
 
   const [aliceRows, bobRows] = await Promise.all([
     alice.client.query('listAnnouncements', { args: {} }),
     bob.client.query('listAnnouncements', { args: {} }),
   ]);
-  assert.deepEqual(aliceRows.rows.map(({ message }) => message), ['members only']);
+  assert.deepEqual(
+    aliceRows.rows.map(({ message }) => message),
+    ['members only', 'still members only'],
+  );
   assert.deepEqual(bobRows.rows, [], 'a non-member cannot see existing rows');
 
   await assert.rejects(
@@ -106,11 +358,45 @@ try {
     'ctx.permissions must deny a non-member with the invariant role diagnostic',
   );
 
+  const bobInvalidationsBeforeJoin = bobLive.authorizationInvalidations;
   await bob.client.mutate('joinApp', { args: {} });
+  // The committed join response is the exact boundary after which Bob may
+  // become visible; every frame drained before it was checked as empty.
+  bobLive.forbidVisibleRows = false;
+  await waitForMessages(
+    bobLive,
+    ['members only', 'still members only'],
+    'Bob membership invalidation did not refresh his live query',
+  );
+  assert(
+    bobLive.authorizationInvalidations > bobInvalidationsBeforeJoin,
+    'Bob membership grant must arrive as an authorization invalidation',
+  );
+  await drainLive(eveLive);
+  assert.deepEqual(eveLive.rows, [], 'Bob membership invalidation crossed into Eve live state');
+
   await bob.client.mutate('postAnnouncement', { args: { message: 'hello from bob' } });
+  await Promise.all([
+    waitForMessages(
+      aliceLive,
+      ['members only', 'still members only', 'hello from bob'],
+      'Alice did not observe Bob announcement fanout',
+    ),
+    waitForMessages(
+      bobLive,
+      ['members only', 'still members only', 'hello from bob'],
+      'Bob did not observe his announcement fanout',
+    ),
+  ]);
+  await assertRemainsEmpty(
+    eveLive,
+    250,
+    'member-only fanout crossed into Eve live state',
+  );
   assert.deepEqual(
-    (await bob.client.query('listAnnouncements', { args: {} })).rows.map(({ message }) => message),
-    ['members only', 'hello from bob'],
+    (await bob.client.query('listAnnouncements', { args: {} })).rows
+      .map(({ message }) => message),
+    ['members only', 'still members only', 'hello from bob'],
   );
 
   await assert.rejects(
@@ -123,13 +409,55 @@ try {
     [],
     'a refused raw write grants no authority',
   );
+  await assertRemainsEmpty(
+    eveLive,
+    250,
+    'a refused raw write leaked transient authority into Eve live state',
+  );
+
+  // Keep the auth-scoped producers alive across the membership grant and
+  // refused raw write so this acceptance proof still exercises invalidation
+  // and live fanout. The finally block remains the best-effort failure path.
+  await liveSubscriptions.closeAndDispose({ strict: true });
 
   console.log('rbac generated authoring and enforcement proof: ok');
+} catch (error) {
+  primaryFailure = error;
+  throw error;
 } finally {
-  for (const { client, coordinator } of sessions) {
-    try { await client.closeAuth(); } catch { /* preserve the primary failure */ }
-    try { await coordinator.close(); } catch { /* preserve the primary failure */ }
+  const cleanupFailures = [];
+  try { await liveSubscriptions.closeAndDispose({ strict: false }); } catch (error) {
+    cleanupFailures.push(error);
   }
-  await server?.stop();
-  await rm(scratch, { recursive: true, force: true });
+  for (const session of sessions) {
+    try { await closeAcceptanceSession(session); } catch (error) {
+      cleanupFailures.push(error);
+    }
+  }
+  try { await stopServer(); } catch (error) { cleanupFailures.push(error); }
+  try { await rm(scratch, { recursive: true, force: true }); } catch (error) {
+    cleanupFailures.push(error);
+  }
+  if (cleanupFailures.length > 0) {
+    const terminalFailure = new AggregateError(
+      primaryFailure === null ? cleanupFailures : [primaryFailure, ...cleanupFailures],
+      'RBAC acceptance teardown did not reach a clean terminal state',
+    );
+    // Keep the terminal backstop armed even when graceful stop has already
+    // rejected. Throwing terminates the ordinary CLI path immediately; the
+    // watchdog remains the bound if a harness intercepts that rejection.
+    acceptanceWatchdog?.trigger(terminalFailure);
+    throw terminalFailure;
+  }
+  try {
+    await acceptanceWatchdog?.close();
+  } catch (watchdogFailure) {
+    if (primaryFailure !== null && watchdogFailure !== primaryFailure) {
+      throw new AggregateError(
+        [primaryFailure, watchdogFailure],
+        'RBAC acceptance failed before its terminal watchdog was joined',
+      );
+    }
+    throw watchdogFailure;
+  }
 }

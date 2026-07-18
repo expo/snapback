@@ -4,7 +4,9 @@
 import assert from 'node:assert/strict';
 
 import {
+  AuthCoordinator,
   createLocalStorageSnapbackClientStore,
+  createMemoryAuthCustodyStorage,
   createMemorySnapbackClientStore,
   createSnapbackContractSurface,
   snapbackAuthFingerprint,
@@ -127,6 +129,13 @@ const retainedSurfaceIdentity = {
   retainedIdentity: { databaseId: 'offline-test-db', versionStreamId: 'offline-test-stream-1' },
 };
 
+const deferred = () => {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
+};
+
 // Deterministic same-origin Web Locks stand-in. Operations for one lock name
 // are FIFO, and a rejected/crashed holder releases the queue for its successor.
 function createTestLockManager() {
@@ -153,6 +162,9 @@ function makeClient() {
     acknowledged: [],
     applied: [],
     deliveries: [],
+    queryCalls: 0,
+    mutationCalls: 0,
+    acknowledgementCalls: 0,
     loseAfterCommit: null,
     failBeforeOrigin: null,
     rejectWithReceipt: null,
@@ -182,6 +194,7 @@ function makeClient() {
       };
     },
     async query() {
+      state.queryCalls += 1;
       if (!state.online) offline();
       return snapshot();
     },
@@ -198,6 +211,7 @@ function makeClient() {
       };
     },
     async mutate(name, request) {
+      state.mutationCalls += 1;
       if (!state.online) offline();
       if (state.failBeforeOrigin === name) {
         state.failBeforeOrigin = null;
@@ -266,6 +280,7 @@ function makeClient() {
       return output;
     },
     async acknowledgeMutations({ clientMutationIds }) {
+      state.acknowledgementCalls += 1;
       if (!state.online) offline();
       let acknowledged = 0;
       for (const id of clientMutationIds) {
@@ -291,6 +306,66 @@ const makeSurface = (store) => createSnapbackContractSurface({
   boundaryKey: 'todos',
   ...retainedSurfaceIdentity,
 });
+
+const successorAnonymous = {
+  kind: 'anonymous',
+  authMode: 'dev',
+  authorizationStreamIncarnation: '018f0d90-7b22-7a22-8c33-445566778899',
+};
+
+const makeCoordinatedRaceSurface = async (suffix, wrapStore) => {
+  const appId = `offline-race-${suffix}`;
+  const custodyState = { custody: {} };
+  const custodyStorage = createMemoryAuthCustodyStorage({ state: custodyState });
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: custodyStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const captureA = await coordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode: 'dev',
+    authorizationStreamIncarnation: AUTH_STREAM,
+  });
+  const writer = new AuthCoordinator({
+    appId,
+    storage: custodyStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await writer.synchronize();
+  const baseStore = createMemorySnapbackClientStore();
+  const store = wrapStore(baseStore);
+  const raceClient = makeClient();
+  raceClient.authCoordinator = coordinator;
+  raceClient.captureAuthority = () => coordinator.capture();
+  const surface = await createSnapbackContractSurface({
+    runtime,
+    client: raceClient,
+    clientStore: store,
+    userId: USER,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    livePush: false,
+    artifactIndex: { appId },
+    schemaManifest: retainedSurfaceIdentity.schemaManifest,
+    retainedIdentity: {
+      databaseId: `offline-race-db-${suffix}`,
+      versionStreamId: `offline-race-stream-${suffix}`,
+    },
+  });
+  return {
+    coordinator,
+    writer,
+    captureA,
+    surface,
+    store,
+    baseStore,
+    client: raceClient,
+  };
+};
 
 // Online boot publishes an authorized retained snapshot.
 const firstStore = createMemorySnapbackClientStore({ state: sharedState });
@@ -348,6 +423,198 @@ assert.equal(client.state.deliveries.filter((entry) => entry.name === 'createTod
 assert.equal(client.state.settlements.size, 0, 'final results are ACKed without a later mutation');
 assert.equal(client.state.acknowledged.length, 3);
 second.dispose();
+
+// A foreground reconnect must not turn a failed durable custody read into a
+// best-effort hint. The mandatory synchronize gate blanks the surface, rejects
+// reconnect, and stops before either the authoritative query or queued
+// mutation dispatch can run.
+{
+  const baseCustodyStorage = createMemoryAuthCustodyStorage();
+  let failNextCustodyRead = false;
+  const failingCustodyStorage = {
+    ...baseCustodyStorage,
+    withOwnership(appId, operation) {
+      return baseCustodyStorage.withOwnership(appId, (owner) => operation({
+        ...owner,
+        async read() {
+          if (failNextCustodyRead) {
+            failNextCustodyRead = false;
+            throw Object.assign(
+              new Error('deterministic custody read failure'),
+              { code: 'TEST_CUSTODY_READ_FAILED' },
+            );
+          }
+          return owner.read();
+        },
+      }));
+    },
+  };
+  const failingCoordinator = new AuthCoordinator({
+    appId: retainedSurfaceIdentity.artifactIndex.appId,
+    storage: failingCustodyStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await failingCoordinator.establishAnonymous({
+    kind: 'anonymous',
+    authMode: 'dev',
+    authorizationStreamIncarnation: AUTH_STREAM,
+  });
+  const failingClient = makeClient();
+  failingClient.authCoordinator = failingCoordinator;
+  failingClient.captureAuthority = () => failingCoordinator.capture();
+  const failingStore = createMemorySnapbackClientStore();
+  const failingSurface = await createSnapbackContractSurface({
+    runtime,
+    client: failingClient,
+    clientStore: failingStore,
+    userId: USER,
+    manifest,
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    ...retainedSurfaceIdentity,
+  });
+
+  failingClient.state.online = false;
+  const queued = await failingSurface.links.createTodo({ title: 'must stay queued' });
+  assert.equal(queued.queued, true);
+  assert.equal(failingSurface.pendingCount(), 1);
+  failingClient.state.online = true;
+  const queryCallsBefore = failingClient.state.queryCalls;
+  const mutationCallsBefore = failingClient.state.mutationCalls;
+
+  failNextCustodyRead = true;
+  await assert.rejects(failingSurface.reconnect(), { code: 'TEST_CUSTODY_READ_FAILED' });
+  assert.equal(failingClient.state.queryCalls, queryCallsBefore);
+  assert.equal(failingClient.state.mutationCalls, mutationCallsBefore);
+  assert.equal(failingSurface.pendingCount(), 0, 'the blank surface hides queued predecessor work');
+  assert.equal(
+    (await failingStore.snapshot()).pending.length,
+    1,
+    'the read failure does not settle or discard the durable queue',
+  );
+  assert.deepEqual(failingSurface.boundary.current('todos'), []);
+  assert.throws(
+    () => failingCoordinator.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+  );
+
+  await failingSurface.dispose();
+  await failingCoordinator.close();
+}
+
+// The optimistic publication preflight is not the transport preflight. A
+// peer can settle A -> B while the single-surface path awaits its final queue
+// CAS; the generic mutation client must still receive zero predecessor calls.
+{
+  const assertEntered = deferred();
+  const releaseAssert = deferred();
+  let blockNextAssert = false;
+  const fixture = await makeCoordinatedRaceSurface('first-send', (baseStore) => ({
+    ...baseStore,
+    async assertMutationQueueCapture(...args) {
+      if (blockNextAssert) {
+        blockNextAssert = false;
+        assertEntered.resolve();
+        await releaseAssert.promise;
+      }
+      return baseStore.assertMutationQueueCapture(...args);
+    },
+  }));
+  blockNextAssert = true;
+  const pendingMutation = fixture.surface.links.createTodo({ title: 'must not dispatch from A' });
+  await assertEntered.promise;
+  await fixture.writer.transition(
+    fixture.captureA,
+    successorAnonymous,
+    'first_send_final_store_await',
+  );
+  releaseAssert.resolve();
+  await assert.rejects(pendingMutation, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
+  assert.equal(fixture.client.state.mutationCalls, 0);
+  assert.deepEqual(fixture.surface.boundary.current('todos'), []);
+  await fixture.surface.dispose();
+  await fixture.coordinator.close();
+  await fixture.writer.close();
+}
+
+// Replay has the same last-mile race: pending-ACK and queue-CAS reads occur
+// after reconnect's initial authority check. Reconfirm immediately before
+// redelivery so a transition during that final store await cannot send A.
+{
+  const assertEntered = deferred();
+  const releaseAssert = deferred();
+  let blockNextAssert = false;
+  const fixture = await makeCoordinatedRaceSurface('replay-send', (baseStore) => ({
+    ...baseStore,
+    async assertMutationQueueCapture(...args) {
+      if (blockNextAssert) {
+        blockNextAssert = false;
+        assertEntered.resolve();
+        await releaseAssert.promise;
+      }
+      return baseStore.assertMutationQueueCapture(...args);
+    },
+  }));
+  fixture.client.state.online = false;
+  const queuedResult = await fixture.surface.links.createTodo({ title: 'queued under A' });
+  assert.equal(queuedResult.queued, true);
+  fixture.client.state.online = true;
+  blockNextAssert = true;
+  const mutationCallsBeforeReplay = fixture.client.state.mutationCalls;
+  const pendingReplay = fixture.surface.reconnect();
+  await assertEntered.promise;
+  await fixture.writer.transition(
+    fixture.captureA,
+    successorAnonymous,
+    'replay_final_store_await',
+  );
+  releaseAssert.resolve();
+  await assert.rejects(pendingReplay, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
+  assert.equal(fixture.client.state.mutationCalls, mutationCallsBeforeReplay);
+  assert.deepEqual(fixture.surface.boundary.current('todos'), []);
+  await fixture.surface.dispose();
+  await fixture.coordinator.close();
+  await fixture.writer.close();
+}
+
+// Standalone mutation acknowledgements are authenticated app-data dispatches
+// too. A transition while loading the durable ACK ids must strand those ids
+// locally and leave the generic acknowledgement transport untouched.
+{
+  const acknowledgementsEntered = deferred();
+  const releaseAcknowledgements = deferred();
+  let blockNonEmptyAcknowledgements = false;
+  const fixture = await makeCoordinatedRaceSurface('ack-send', (baseStore) => ({
+    ...baseStore,
+    async pendingMutationAcknowledgements(...args) {
+      const ids = await baseStore.pendingMutationAcknowledgements(...args);
+      if (blockNonEmptyAcknowledgements && ids.length > 0) {
+        blockNonEmptyAcknowledgements = false;
+        acknowledgementsEntered.resolve();
+        await releaseAcknowledgements.promise;
+      }
+      return ids;
+    },
+  }));
+  blockNonEmptyAcknowledgements = true;
+  const pendingMutation = fixture.surface.links.createTodo({ title: 'commit before ACK race' });
+  await acknowledgementsEntered.promise;
+  assert.equal(fixture.client.state.mutationCalls, 1);
+  assert.equal(fixture.client.state.acknowledgementCalls, 0);
+  await fixture.writer.transition(
+    fixture.captureA,
+    successorAnonymous,
+    'ack_final_store_await',
+  );
+  releaseAcknowledgements.resolve();
+  await assert.rejects(pendingMutation, { code: 'SNAPBACK_CLIENT_AUTHORITY_STALE' });
+  assert.equal(fixture.client.state.acknowledgementCalls, 0);
+  assert.equal(fixture.client.state.settlements.size, 1);
+  await fixture.surface.dispose();
+  await fixture.coordinator.close();
+  await fixture.writer.close();
+}
 
 // A receipt-less proxy 502 is not proof that the origin saw either the
 // piggyback ACKs or the current mutation. Keep both durable records, then let

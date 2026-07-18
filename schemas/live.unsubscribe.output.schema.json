@@ -31,7 +31,8 @@
         },
         "bootSequence": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         }
       },
@@ -50,7 +51,8 @@
         },
         "queryInstanceId": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         },
         "queryKey": {
@@ -82,7 +84,8 @@
         },
         "retireThroughScopeSequence": {
           "format": "uint64",
-          "minimum": 0,
+          "maximum": 9007199254740991,
+          "minimum": 1,
           "type": "integer"
         }
       },

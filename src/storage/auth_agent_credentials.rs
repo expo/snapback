@@ -383,7 +383,11 @@ impl LocalDatabase {
                 // explicit emergency transfer/quarantine surface) first.
                 // @ref LLP 0055#principal-kinds — durable recoverability is shared
                 //   with LLP 0056's transaction-final lastHolder invariant.
-                super::auth_agents::validate_protected_membership_final_state(tx, &manifest)?;
+                super::auth_agents::validate_protected_membership_final_state(
+                    tx,
+                    &manifest,
+                    super::current_version_on(tx)?,
+                )?;
                 body_outcome = Some(AgentFamilyRevocation {
                     user_id: Some(row.user_id),
                     credential_ids,
@@ -2709,13 +2713,27 @@ mod tests {
             .issue_initial_agent_credential("agent-a", 1_000, &random)
             .unwrap();
         db.conn
-            .execute("CREATE TABLE events (_id TEXT PRIMARY KEY)", [])
+            .execute(
+                "CREATE TABLE events (
+                   _id TEXT PRIMARY KEY,
+                   _version INTEGER NOT NULL DEFAULT 1
+                 )",
+                [],
+            )
             .unwrap();
         db.conn
             .execute(
-                "CREATE TABLE event_members (userId TEXT, eventId TEXT, role TEXT)",
+                "CREATE TABLE event_members (
+                   userId TEXT,
+                   eventId TEXT,
+                   role TEXT,
+                   _version INTEGER NOT NULL DEFAULT 1
+                 )",
                 [],
             )
+            .unwrap();
+        db.conn
+            .execute("UPDATE _snapback_version SET version = 1 WHERE id = 1", [])
             .unwrap();
         db.conn
             .execute("INSERT INTO events(_id) VALUES('event-1')", [])

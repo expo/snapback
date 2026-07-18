@@ -1680,7 +1680,7 @@ mod tests {
             .await;
             assert!(finished_tx.send(finish(attempt)).is_ok());
         });
-        let waiter = tokio::spawn(async move { transaction.await });
+        let waiter = tokio::spawn(transaction);
         queued_rx.await.expect("owned transaction reaches Local");
         tokio::task::yield_now().await;
         assert!(

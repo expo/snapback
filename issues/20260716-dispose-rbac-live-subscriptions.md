@@ -40,3 +40,27 @@ stop can still leave the owned task and acceptance process hung indefinitely.
   plus concurrent close and forced-abort races, and proves each successful
   subscription is disposed exactly once before close.
 - Repeated RBAC acceptance runs and the canonical proof complete cleanly.
+
+## Implementation checkpoint — 2026-07-17
+
+`OwnedLiveSubscriptions` now closes creation synchronously, joins every
+started creation, adopts raw subscribe success before fallible initialization,
+and runs one idempotent disposal pass. `TerminalAcceptanceWatchdog` owns real
+client/server cancellation plus a forced-exit backstop. Its deadline is now a
+latched failure: `close()` joins graceful teardown and still rejects with the
+original watchdog error, so a late clean stop cannot turn an expired run
+green. Deterministic fake-clock coverage proves both a pending abort and an
+immediately resolved abort retain that failure. The RBAC proof also drains
+Eve's live subscription after the refused raw membership write, closing the
+transient-live-leak coverage gap.
+
+The focused Node regression and syntax check pass. Keep this ticket open until
+repeated real RBAC acceptance and the canonical proof pass.
+
+The final teardown audit also closed a false-success path beneath that owner:
+session cleanup had suppressed both `client.closeAuth()` and
+`coordinator.close()` failures. `closeAcceptanceSession` now attempts both,
+latches one shared completion, and rejects with the one failure or an ordered
+aggregate. The acceptance `finally` records those rejections alongside server
+and scratch cleanup failures. Deterministic coverage proves both resources are
+attempted exactly once and every later caller observes the latched failure.

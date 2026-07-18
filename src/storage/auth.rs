@@ -1349,7 +1349,11 @@ impl LocalDatabase {
         // caller must first seat a durably recoverable replacement (or use a
         // future explicit emergency transfer/quarantine carrier).
         // @ref LLP 0055#ending-authority-revocation-expiry-deactivation
-        super::auth_agents::validate_protected_membership_final_state(&tx, &schema)?;
+        super::auth_agents::validate_protected_membership_final_state(
+            &tx,
+            &schema,
+            super::current_version_on(&tx)?,
+        )?;
         restore_transaction_step_completed(1)?;
 
         // Capture the exact durable predecessor before the destructive hook

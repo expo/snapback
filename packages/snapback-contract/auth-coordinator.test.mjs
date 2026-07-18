@@ -284,7 +284,8 @@ const hintStorage = {
 }
 
 // A peer rejects a structurally valid retained intent whose successor differs
-// from the containing settled authority, before any physical-store phase runs.
+// from the containing settled authority. The mandatory durable-read failure
+// blanks local exposure without trusting the intent for durable commit/resume.
 {
   const state = { custody: {} };
   const writer = new AuthCoordinator({
@@ -301,7 +302,6 @@ const hintStorage = {
   });
   const anonymousCapture = await writer.establishAnonymous(anonymous());
   await peer.synchronize();
-  const peerCapture = peer.capture();
   await writer.transition(
     anonymousCapture,
     successor(session(), 'peer-fixture-bearer', 10_000),
@@ -328,10 +328,328 @@ const hintStorage = {
     await errorCode(() => peer.synchronize()),
     'SNAPBACK_AUTH_CUSTODY_CORRUPT',
   );
-  assert.deepEqual(peer.capture(), peerCapture, 'the peer did not adopt the corrupt successor');
-  assert.deepEqual(phases, [], 'no peer barrier phase trusted the corrupt intent');
+  assert.equal(
+    await errorCode(() => Promise.resolve(peer.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  assert.deepEqual(
+    phases,
+    ['quiesce', 'blank', 'clearMemory'],
+    'the peer blanks locally without trusting the corrupt intent for durable work',
+  );
   await peer.close();
   await writer.close();
+}
+
+// A missing durable record is valid only for a fresh, already-blank context.
+// Once local custody was exposed, disappearance is corruption and must blank
+// the predecessor rather than relabeling the context as fresh custody.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/missing-after-exposure`;
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await coordinator.establishAnonymous(anonymous());
+  const phases = [];
+  coordinator.registerParticipant({
+    name: 'blank-missing-custody',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+  });
+  delete state.custody[appId];
+
+  assert.equal(
+    await errorCode(() => coordinator.synchronize()),
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  assert.equal(
+    await errorCode(() => Promise.resolve(coordinator.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  assert.deepEqual(phases, ['quiesce', 'blank', 'clearMemory']);
+  await coordinator.close();
+}
+
+// A clearing wakeup closes publication before its asynchronous durable read.
+// If that read fails, the pre-existing pause must not be mistaken for proof
+// that predecessor surfaces were already quiesced and blanked.
+{
+  const state = { custody: {} };
+  const appId = `${APP}/prepaused-wakeup-read-failure`;
+  const wakeups = new BroadcastHub();
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: wakeups.factory,
+    hintStorage: null,
+  });
+  const before = await writer.establishAnonymous(anonymous());
+  const baseStorage = createMemoryAuthCustodyStorage({ state });
+  let failNextRead = false;
+  let failedReadResolve;
+  const failedRead = new Promise((resolve) => { failedReadResolve = resolve; });
+  const receiverStorage = {
+    ...baseStorage,
+    withOwnership(ownedAppId, operation) {
+      return baseStorage.withOwnership(ownedAppId, (owner) => operation({
+        ...owner,
+        async read() {
+          if (failNextRead) {
+            failNextRead = false;
+            failedReadResolve();
+            throw Object.assign(new Error('wakeup custody read failed'), {
+              code: 'TEST_WAKEUP_CUSTODY_READ_FAILED',
+            });
+          }
+          return owner.read();
+        },
+      }));
+    },
+  };
+  const receiver = new AuthCoordinator({
+    appId,
+    storage: receiverStorage,
+    broadcastChannelFactory: wakeups.factory,
+    hintStorage: null,
+  });
+  await receiver.synchronize();
+  const phases = [];
+  receiver.registerParticipant({
+    name: 'prepaused-wakeup-surface',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+  });
+
+  failNextRead = true;
+  await writer.transition(
+    before,
+    successor(session(), 'prepaused-wakeup-bearer', 10_000),
+    'prepaused_wakeup_read_failure',
+  );
+  await failedRead;
+  await new Promise((resolve) => setImmediate(resolve));
+
+  assert.deepEqual(phases, ['quiesce', 'blank', 'clearMemory']);
+  assert.equal(
+    await errorCode(() => Promise.resolve(receiver.capture())),
+    'SNAPBACK_CLIENT_AUTHORITY_CLEARING',
+  );
+  await receiver.close();
+  await writer.close();
+}
+
+// Fail-closed participant cleanup is isolation-safe. A rejecting participant
+// cannot mask the custody failure or prevent later participants from blanking,
+// and a quiesce-time unregister request cannot escape the snapshotted cut.
+{
+  const baseStorage = createMemoryAuthCustodyStorage();
+  let failNextRead = false;
+  const failingStorage = {
+    ...baseStorage,
+    withOwnership(appId, operation) {
+      return baseStorage.withOwnership(appId, (owner) => operation({
+        ...owner,
+        async read() {
+          if (failNextRead) {
+            failNextRead = false;
+            throw Object.assign(new Error('primary custody read failed'), {
+              code: 'TEST_PRIMARY_CUSTODY_READ_FAILED',
+            });
+          }
+          return owner.read();
+        },
+      }));
+    },
+  };
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/isolated-fail-closed-participants`,
+    storage: failingStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  await coordinator.establishAnonymous(anonymous());
+  const phases = [];
+  coordinator.registerParticipant({
+    name: 'faulty-fail-closed-participant',
+    async quiesce() {
+      phases.push('faulty:quiesce');
+      throw Object.assign(new Error('quiesce failed'), { code: 'TEST_QUIESCE_FAILED' });
+    },
+    blank() {
+      phases.push('faulty:blank');
+      throw Object.assign(new Error('blank failed'), { code: 'TEST_BLANK_FAILED' });
+    },
+    clearMemory() { phases.push('faulty:clearMemory'); },
+  });
+  let selfUnregister;
+  let selfUnregisterTask = Promise.resolve();
+  selfUnregister = coordinator.registerParticipant({
+    name: 'self-unregistering-fail-closed-participant',
+    quiesce() {
+      phases.push('self:quiesce');
+      selfUnregisterTask = selfUnregister();
+    },
+    blank() { phases.push('self:blank'); },
+    clearMemory() { phases.push('self:clearMemory'); },
+  });
+  coordinator.registerParticipant({
+    name: 'later-fail-closed-participant',
+    async quiesce() { phases.push('later:quiesce'); },
+    blank() { phases.push('later:blank'); },
+    clearMemory() { phases.push('later:clearMemory'); },
+  });
+
+  failNextRead = true;
+  let primaryError = null;
+  try {
+    await coordinator.synchronize();
+  } catch (error) {
+    primaryError = error;
+  }
+  await selfUnregisterTask;
+
+  assert.equal(primaryError?.code, 'TEST_PRIMARY_CUSTODY_READ_FAILED');
+  assert.deepEqual(phases, [
+    'faulty:quiesce',
+    'self:quiesce',
+    'later:quiesce',
+    'faulty:blank',
+    'self:blank',
+    'later:blank',
+    'faulty:clearMemory',
+    'self:clearMemory',
+    'later:clearMemory',
+  ]);
+  assert.deepEqual(
+    primaryError.failClosedParticipantFailures.map(({ participant, method, code }) => ({
+      participant,
+      method,
+      code,
+    })),
+    [
+      {
+        participant: 'faulty-fail-closed-participant',
+        method: 'quiesce',
+        code: 'TEST_QUIESCE_FAILED',
+      },
+      {
+        participant: 'faulty-fail-closed-participant',
+        method: 'blank',
+        code: 'TEST_BLANK_FAILED',
+      },
+    ],
+  );
+  await coordinator.close();
+}
+
+// A participant may request removal from its own callback, but joining that
+// removal before the callback returns is a dependency cycle. Reject the join
+// promptly and keep the participant snapshotted through the active barrier.
+{
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/self-unregister-join`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  const phases = [];
+  let selfJoinCode = null;
+  let unregister;
+  unregister = coordinator.registerParticipant({
+    name: 'self-unregister-join',
+    async quiesce() {
+      phases.push('quiesce');
+      selfJoinCode = await errorCode(() => unregister());
+    },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  await coordinator.transition(
+    before,
+    successor(session(), 'self-unregister-join-successor', 10_000),
+    'self_unregister_join',
+  );
+  assert.equal(selfJoinCode, 'SNAPBACK_AUTH_CUSTODY_PARTICIPANT_REENTRANT');
+  assert.deepEqual(phases, [
+    'quiesce',
+    'blank',
+    'clearMemory',
+    'commitDurable',
+    'resume',
+  ]);
+  await unregister();
+  await coordinator.close();
+}
+
+// A missing read during reentrant participant resume is typed custody
+// corruption, not a host TypeError from dereferencing the absent record.
+{
+  const baseStorage = createMemoryAuthCustodyStorage();
+  let returnNullFromNextRead = false;
+  const storage = {
+    ...baseStorage,
+    withOwnership(appId, operation) {
+      return baseStorage.withOwnership(appId, (owner) => operation({
+        ...owner,
+        async read() {
+          if (returnNullFromNextRead) {
+            returnNullFromNextRead = false;
+            return null;
+          }
+          return owner.read();
+        },
+      }));
+    },
+  };
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/missing-during-resume`,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  let resumeError = null;
+  const unregister = coordinator.registerParticipant({
+    name: 'missing-during-resume',
+    async resume() {
+      returnNullFromNextRead = true;
+      try {
+        await coordinator.synchronize();
+      } catch (error) {
+        resumeError = error;
+        throw error;
+      }
+    },
+  });
+  let transitionError = null;
+  try {
+    await coordinator.transition(
+      before,
+      successor(session(), 'missing-during-resume-bearer', 10_000),
+      'missing_during_resume',
+    );
+  } catch (error) {
+    transitionError = error;
+  }
+
+  assert.equal(resumeError?.code, 'SNAPBACK_AUTH_CUSTODY_CORRUPT');
+  assert.equal(transitionError?.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
+  assert.equal(
+    transitionError?.diagnostic?.details?.causeCode,
+    'SNAPBACK_AUTH_CUSTODY_CORRUPT',
+  );
+  await unregister();
+  assert.equal((await coordinator.synchronize()).authorityEpoch, before.authorityEpoch + 1);
+  await coordinator.close();
 }
 
 const shared = { custody: {} };
@@ -919,6 +1237,53 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await writer.close();
 }
 
+// A requested successor that is already durable is idempotent only when this
+// context has already installed that exact record (for example, reentrant
+// successor resume). A missed-wakeup predecessor must run the full peer
+// adoption barrier before it can expose the durable successor.
+{
+  const appId = `${APP}/same-successor-missed-wakeup`;
+  const state = { custody: {} };
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const local = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const captureA = await writer.establishAnonymous(anonymous());
+  await local.synchronize();
+  const phases = [];
+  local.registerParticipant({
+    name: 'same-successor-peer-adoption',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  const requested = successor(session(), 'same-successor-durable-bearer', 10_000);
+  const captureB = await writer.transition(captureA, requested, 'peer_settles_requested_successor');
+  const adopted = await local.transition(captureA, requested, 'missed_wakeup_same_successor');
+  assert.deepEqual(adopted, captureB);
+  assert.deepEqual(phases, [
+    'quiesce',
+    'blank',
+    'clearMemory',
+    'commitDurable',
+    'resume',
+  ]);
+  assert.equal(local.isCurrent(captureA), false);
+  assert.equal(local.isCurrent(captureB), true);
+  await local.close();
+  await writer.close();
+}
+
 // Failed local clearing retains a phase-aware fingerprint. After a peer
 // recovers durable custody, the original context can synchronize normally
 // instead of canonicalizing clearing.authority (which is necessarily null).
@@ -965,6 +1330,56 @@ assert.deepEqual(coordinator.capture(), anonymousCapture);
   await unregister();
   await peer.close();
   await owner.close();
+}
+
+// A failure before the normal blank phase still performs a snapshotted,
+// isolation-safe destructive cut after storage ownership releases. The
+// transition diagnostic remains primary while every participant ends blank.
+{
+  const appId = `${APP}/throwing-quiesce-final-cut`;
+  const state = { custody: {} };
+  const subject = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await subject.establishAnonymous(anonymous());
+  const surfaces = { faulty: 'predecessor', later: 'predecessor' };
+  subject.registerParticipant({
+    name: 'throwing-quiesce-visible-predecessor',
+    async quiesce() {
+      surfaces.faulty = 'repopulated';
+      throw Object.assign(new Error('quiesce failed'), { code: 'TEST_QUIESCE_FAILED' });
+    },
+    blank() { surfaces.faulty = 'blank'; },
+    clearMemory() { surfaces.faulty = 'blank'; },
+  });
+  subject.registerParticipant({
+    name: 'later-must-still-blank',
+    async quiesce() {},
+    blank() { surfaces.later = 'blank'; },
+    clearMemory() { surfaces.later = 'blank'; },
+  });
+  let transitionError = null;
+  try {
+    await subject.transition(
+      before,
+      successor(session(), 'throwing-quiesce-successor', 10_000),
+      'throwing_quiesce_final_cut',
+    );
+  } catch (error) {
+    transitionError = error;
+  }
+  assert.equal(transitionError?.code, 'SNAPBACK_AUTH_TRANSITION_FAILED');
+  assert.equal(transitionError?.diagnostic?.details?.causeCode, 'TEST_QUIESCE_FAILED');
+  assert.equal(state.custody[appId].phase, 'clearing');
+  assert.deepEqual(surfaces, { faulty: 'blank', later: 'blank' });
+  assert.throws(
+    () => subject.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+  );
+  await subject.close();
 }
 
 // Failure of the final durable read is itself a mandatory-gate failure: the
@@ -1121,6 +1536,194 @@ for (const mode of ['owner', 'peer']) {
   );
   await unregister();
   await coordinator.close();
+}
+
+// Staged publication rechecks lifecycle authority before every callback. A
+// first callback may synchronously close the coordinator, but no later queued
+// callback can run and the transition failure cut leaves participants blank.
+{
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/staged-callback-closes-coordinator`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  const events = [];
+  let visible = true;
+  const unregister = coordinator.registerParticipant({
+    name: 'staged-callback-closes-coordinator',
+    blank() { visible = false; },
+    clearMemory() { visible = false; },
+    async resume(context) {
+      context.stagePublication(context.capture, () => {
+        events.push('first');
+        void coordinator.close();
+      });
+      context.stagePublication(context.capture, () => events.push('must-not-run'));
+    },
+  });
+  assert.equal(
+    await errorCode(() => coordinator.transition(
+      before,
+      successor(session(), 'staged-close-successor', 10_000),
+      'staged_callback_closes_coordinator',
+    )),
+    'SNAPBACK_AUTH_TRANSITION_FAILED',
+  );
+  assert.deepEqual(events, ['first']);
+  assert.equal(visible, false);
+  assert.equal(coordinator.isCurrent(before), false);
+  await unregister();
+}
+
+// Participant registration is forbidden inside a staged commit. Otherwise a
+// callback could insert an entry after phase closure and expose it without
+// commitDurable/resume.
+{
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/staged-callback-registers-participant`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  let registrationCode = null;
+  let lateParticipantCalls = 0;
+  const unregister = coordinator.registerParticipant({
+    name: 'staged-register-attempt',
+    async resume(context) {
+      context.stagePublication(context.capture, () => {
+        try {
+          coordinator.registerParticipant({
+            name: 'must-not-register-from-staged-commit',
+            async commitDurable() { lateParticipantCalls += 1; },
+            async resume() { lateParticipantCalls += 1; },
+          });
+        } catch (error) {
+          registrationCode = error.code;
+        }
+      });
+    },
+  });
+  const settled = await coordinator.transition(
+    before,
+    successor(session(), 'staged-register-successor', 10_000),
+    'staged_callback_registers_participant',
+  );
+  assert.equal(registrationCode, 'SNAPBACK_CLIENT_AUTH_COMMIT_REENTRANT');
+  assert.equal(lateParticipantCalls, 0);
+  assert.equal(coordinator.isCurrent(settled), true);
+  await unregister();
+  await coordinator.close();
+}
+
+// Closing while one resume callback is pending aborts the dynamic resume loop
+// before it selects another participant, and staged work never reaches final
+// publication.
+{
+  const coordinator = new AuthCoordinator({
+    appId: `${APP}/close-during-pending-resume`,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  let laterResumeCalls = 0;
+  let stagedCalls = 0;
+  const unregisterLater = coordinator.registerParticipant({
+    name: 'later-resume-must-not-run',
+    async resume() { laterResumeCalls += 1; },
+  });
+  const unregisterGated = coordinator.registerParticipant({
+    name: 'gated-resume-before-close',
+    async resume(context) {
+      context.stagePublication(context.capture, () => { stagedCalls += 1; });
+      enteredResolve();
+      await release;
+    },
+  });
+  const pending = coordinator.transition(
+    before,
+    successor(session(), 'close-pending-resume-successor', 10_000),
+    'close_during_pending_resume',
+  );
+  await entered;
+  await coordinator.close();
+  releaseResolve();
+  assert.equal(await errorCode(() => pending), 'SNAPBACK_AUTH_TRANSITION_FAILED');
+  assert.equal(laterResumeCalls, 0);
+  assert.equal(stagedCalls, 0);
+  assert.equal(coordinator.isCurrent(before), false);
+  await unregisterGated();
+  await unregisterLater();
+}
+
+// Close may also happen while the final exact read is in flight. The fenced
+// closure check runs before staged flush, so no callback publishes after close.
+{
+  const appId = `${APP}/close-during-final-confirm`;
+  const inner = createMemoryAuthCustodyStorage();
+  let armed = false;
+  let reads = 0;
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const coordinator = new AuthCoordinator({
+    appId,
+    storage: {
+      ...inner,
+      withOwnership: (requestedAppId, operation) => inner.withOwnership(
+        requestedAppId,
+        (owner) => operation({
+          ...owner,
+          async read() {
+            const record = await owner.read();
+            if (armed) {
+              reads += 1;
+              if (reads === 3) {
+                enteredResolve();
+                await release;
+              }
+            }
+            return record;
+          },
+        }),
+      ),
+    },
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await coordinator.establishAnonymous(anonymous());
+  let stagedCalls = 0;
+  let visible = true;
+  const unregister = coordinator.registerParticipant({
+    name: 'close-during-final-confirm',
+    blank() { visible = false; },
+    clearMemory() { visible = false; },
+    async resume(context) {
+      context.stagePublication(context.capture, () => { stagedCalls += 1; });
+    },
+  });
+  armed = true;
+  const pending = coordinator.transition(
+    before,
+    successor(session(), 'close-final-confirm-successor', 10_000),
+    'close_during_final_confirm',
+  );
+  await entered;
+  await coordinator.close();
+  releaseResolve();
+  assert.equal(await errorCode(() => pending), 'SNAPBACK_AUTH_TRANSITION_FAILED');
+  assert.equal(stagedCalls, 0);
+  assert.equal(visible, false);
+  assert.equal(coordinator.isCurrent(before), false);
+  await unregister();
 }
 
 // Revision is part of exact confirmation even when authority is unchanged.
@@ -1285,6 +1888,7 @@ for (const mode of ['owner', 'peer']) {
   assert.equal(storage.snapshot(APP).phase, 'settled');
   assert.deepEqual(phases, [
     'quiesce', 'blank', 'clearMemory', 'commitDurable',
+    'quiesce', 'blank', 'clearMemory',
     'quiesce', 'blank', 'clearMemory', 'commitDurable', 'resume',
   ]);
   await unregister();
@@ -1443,6 +2047,83 @@ for (const bytes of hintBytes.values()) {
     { visible: true, memory: true, resumes: 1 },
     'unchanged settled durable custody recovers from a forged exhausted hint',
   );
+  await subject.close();
+}
+
+// An eager exhausted wakeup that overlaps successor resume is a real exposure
+// cut until its quiescence and final blank finish. The active transition may
+// not reopen from its already-completed resume; it replays the full local
+// barrier after the cut and reconfirms the durable successor.
+{
+  const appId = `${APP}/eager-exhausted-cut-overlaps-resume`;
+  const hub = new BroadcastHub();
+  const subject = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage(),
+    broadcastChannelFactory: hub.factory,
+    hintStorage: null,
+  });
+  const before = await subject.establishAnonymous(anonymous());
+  let visible = true;
+  let resumeCalls = 0;
+  let resumeEnteredResolve;
+  let releaseResumeResolve;
+  let eagerQuiesceEnteredResolve;
+  let releaseEagerQuiesceResolve;
+  const resumeEntered = new Promise((resolve) => { resumeEnteredResolve = resolve; });
+  const releaseResume = new Promise((resolve) => { releaseResumeResolve = resolve; });
+  const eagerQuiesceEntered = new Promise((resolve) => { eagerQuiesceEnteredResolve = resolve; });
+  const releaseEagerQuiesce = new Promise((resolve) => { releaseEagerQuiesceResolve = resolve; });
+  subject.registerParticipant({
+    name: 'eager-cut-overlapping-resume',
+    async quiesce(context) {
+      if (context.reason === 'auth_counter_exhausted_wakeup') {
+        eagerQuiesceEnteredResolve();
+        await releaseEagerQuiesce;
+      }
+    },
+    blank() { visible = false; },
+    clearMemory() { visible = false; },
+    async commitDurable() {},
+    async resume() {
+      resumeCalls += 1;
+      if (resumeCalls === 1) {
+        resumeEnteredResolve();
+        await releaseResume;
+      }
+      visible = true;
+    },
+  });
+  let transitionSettled = false;
+  const pending = subject.transition(
+    before,
+    successor(session(), 'eager-overlap-successor', 10_000),
+    'eager_overlap_transition',
+  ).finally(() => { transitionSettled = true; });
+  await resumeEntered;
+  const channelSet = [...hub.channels.values()][0];
+  const channel = channelSet.values().next().value;
+  channel.onmessage({ data: {
+    formatVersion: SNAPBACK_AUTH_CUSTODY_FORMAT_VERSION,
+    appIdHash: authAppIdHash(appId),
+    authorityEpoch: before.authorityEpoch + 1,
+    revision: before.custodyRevision + 100,
+    phase: 'exhausted',
+  } });
+  await eagerQuiesceEntered;
+  assert.equal(visible, false, 'the eager cut blanks synchronously');
+  releaseResumeResolve();
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(transitionSettled, false, 'final exposure waits for the eager cut');
+  assert.throws(
+    () => subject.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+  );
+  releaseEagerQuiesceResolve();
+  const settled = await pending;
+  assert.equal(resumeCalls, 2, 'resume is replayed after the destructive cut');
+  assert.equal(visible, true);
+  assert.equal(subject.isCurrent(settled), true);
   await subject.close();
 }
 
@@ -1644,6 +2325,176 @@ for (const bytes of hintBytes.values()) {
   await peer.close();
 }
 
+// A legacy MAX_SAFE record starts its permanent local cut only after storage
+// ownership releases. The cut holds an exact participant snapshot behind a
+// completion: quiesce may repopulate state and request unregistration, but the
+// unregister join settles only after the final blank/clear pass.
+{
+  const appId = `${APP}/legacy-max-snapshotted-terminal-cut`;
+  const state = { custody: {} };
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let owned = false;
+  const strictStorage = {
+    ...inner,
+    async withOwnership(requestedAppId, operation) {
+      if (owned) {
+        throw Object.assign(new Error('nested custody ownership'), {
+          code: 'TEST_REENTRANT_CUSTODY_OWNER',
+        });
+      }
+      owned = true;
+      try {
+        return await inner.withOwnership(requestedAppId, operation);
+      } finally {
+        owned = false;
+      }
+    },
+  };
+  const subject = new AuthCoordinator({
+    appId,
+    storage: strictStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const exposed = await subject.establishAnonymous(anonymous());
+  let visible = 'predecessor';
+  let unregister;
+  let unregisterTask = null;
+  let quiesceEnteredResolve;
+  let releaseQuiesceResolve;
+  const quiesceEntered = new Promise((resolve) => { quiesceEnteredResolve = resolve; });
+  const releaseQuiesce = new Promise((resolve) => { releaseQuiesceResolve = resolve; });
+  unregister = subject.registerParticipant({
+    name: 'legacy-max-self-unregister',
+    async quiesce() {
+      await strictStorage.withOwnership(appId, async (owner) => owner.read());
+      visible = 'repopulated-during-quiesce';
+      unregisterTask = unregister();
+      quiesceEnteredResolve();
+      await releaseQuiesce;
+      visible = 'repopulated-after-quiesce';
+    },
+    blank() { visible = 'blank'; },
+    clearMemory() { visible = 'blank'; },
+  });
+  state.custody[appId].revision = Number.MAX_SAFE_INTEGER;
+  const terminal = subject.compareAndCommit(
+    exposed,
+    () => assert.fail('legacy MAX_SAFE custody cannot publish'),
+  );
+  await quiesceEntered;
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(visible, 'repopulated-during-quiesce');
+  releaseQuiesceResolve();
+  assert.equal(
+    await errorCode(() => terminal),
+    'SNAPBACK_AUTH_CUSTODY_REVISION_EXHAUSTED',
+  );
+  await unregisterTask;
+  assert.equal(visible, 'blank');
+  assert.equal(subject.isCurrent(exposed), false);
+  await subject.close();
+}
+
+// A participant registered while a fresh coordinator is blank must complete
+// blank/clear synchronously. An async blank is observed and typed immediately;
+// a later offline restore cannot expose custody over that failed registration.
+{
+  const appId = `${APP}/offline-async-registration-blank`;
+  const state = { custody: {} };
+  const storage = createMemoryAuthCustodyStorage({ state });
+  const writer = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const durable = await writer.establishAnonymous(anonymous());
+  const fresh = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  let thenObserved = false;
+  let clearMemoryCalled = false;
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    fresh.registerParticipant({
+      name: 'async-registration-blank',
+      blank() {
+        return {
+          then(_resolve, reject) {
+            thenObserved = true;
+            queueMicrotask(() => reject(new Error('async blank rejected')));
+          },
+        };
+      },
+      clearMemory() { clearMemoryCalled = true; },
+    });
+    await assert.rejects(
+      fresh.restoreOffline(),
+      { code: 'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE' },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  assert.equal(thenObserved, true, 'the invalid async return is observed');
+  assert.equal(clearMemoryCalled, true, 'later destructive registration phases still run');
+  assert.deepEqual(unhandled, []);
+  assert.equal(fresh.isCurrent(durable), false);
+  assert.throws(
+    () => fresh.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+  );
+  await fresh.close();
+  await writer.close();
+}
+
+// Fresh anonymous establishment is the other first-exposure path. It must
+// reject a participant whose registration-time blank returned a thenable,
+// observe that thenable, and leave the coordinator closed without creating a
+// durable row.
+{
+  const appId = `${APP}/establish-async-registration-blank`;
+  const state = { custody: {} };
+  const fresh = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  let clearMemoryCalled = false;
+  const unhandled = [];
+  const onUnhandled = (error) => unhandled.push(error);
+  process.on('unhandledRejection', onUnhandled);
+  try {
+    fresh.registerParticipant({
+      name: 'establish-async-registration-blank',
+      blank() { return Promise.resolve(); },
+      clearMemory() { clearMemoryCalled = true; },
+    });
+    await assert.rejects(
+      fresh.establishAnonymous(anonymous()),
+      { code: 'SNAPBACK_AUTH_PARTICIPANT_ASYNC_SYNC_PHASE' },
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+  } finally {
+    process.off('unhandledRejection', onUnhandled);
+  }
+  assert.equal(clearMemoryCalled, true);
+  assert.deepEqual(unhandled, []);
+  assert.equal(Object.hasOwn(state.custody, appId), false);
+  assert.throws(
+    () => fresh.capture(),
+    { code: 'SNAPBACK_CLIENT_AUTHORITY_CLEARING' },
+  );
+  await fresh.close();
+}
+
 // Offline restore is a durable reload, not an in-memory cache lookup. A
 // context that misses every wakeup cannot keep exposing predecessor A after
 // another owner has durably transitioned the shared custody to B.
@@ -1684,6 +2535,76 @@ for (const bytes of hintBytes.values()) {
   assert.notEqual(reloaded.authorityKey, captureA.authorityKey);
   assert.deepEqual(offlinePhases, ['quiesce', 'blank', 'clearMemory', 'commitDurable']);
   await missedWakeup.close();
+  await writer.close();
+}
+
+// Offline peer adoption must release the non-reentrant custody owner before
+// every participant phase. Participants are allowed to perform their own
+// short custody operation while quiescing or committing durable cleanup.
+{
+  const appId = `${APP}/offline-non-reentrant-owner`;
+  const state = { custody: {} };
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let owned = false;
+  const storage = {
+    ...inner,
+    async withOwnership(requestedAppId, operation) {
+      if (owned) {
+        throw Object.assign(new Error('nested custody ownership'), {
+          code: 'TEST_REENTRANT_CUSTODY_OWNER',
+        });
+      }
+      owned = true;
+      try {
+        return await inner.withOwnership(requestedAppId, operation);
+      } finally {
+        owned = false;
+      }
+    },
+  };
+  const writer = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const local = new AuthCoordinator({
+    appId,
+    storage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  const captureA = await writer.transition(
+    anonymousCapture,
+    successor(session(SESSION_A, USER_A), 'strict-owner-a', 80_000),
+  );
+  assert.equal((await local.restoreOffline()).authorityKey, captureA.authorityKey);
+  const participantOwnershipReads = [];
+  local.registerParticipant({
+    async quiesce() {
+      participantOwnershipReads.push(await storage.withOwnership(
+        appId,
+        async (owner) => (await owner.read()).revision,
+      ));
+    },
+    blank() {},
+    clearMemory() {},
+    async commitDurable() {
+      participantOwnershipReads.push(await storage.withOwnership(
+        appId,
+        async (owner) => (await owner.read()).revision,
+      ));
+    },
+  });
+  const captureB = await writer.transition(
+    captureA,
+    successor(session(SESSION_B, USER_B), 'strict-owner-b', 90_000),
+  );
+  const restored = await local.restoreOffline();
+  assert.equal(restored.authorityKey, captureB.authorityKey);
+  assert.deepEqual(participantOwnershipReads, [captureB.custodyRevision, captureB.custodyRevision]);
+  await local.close();
   await writer.close();
 }
 
@@ -1793,21 +2714,182 @@ for (const bytes of hintBytes.values()) {
   await delayed.close();
 }
 
+// Registration can also race the final exact owned read after resume has seen
+// no remaining participants. Phase closure is checked inside that final fence;
+// the late participant is caught up outside ownership and the record is then
+// reconfirmed before exposure.
+{
+  const appId = `${APP}/late-registration-final-online-confirm`;
+  const state = { custody: {} };
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let armed = false;
+  let reads = 0;
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const gatedStorage = {
+    ...inner,
+    withOwnership: (requestedAppId, operation) => inner.withOwnership(
+      requestedAppId,
+      (owner) => operation({
+        ...owner,
+        async read() {
+          const record = await owner.read();
+          if (armed) {
+            reads += 1;
+            if (reads === 3) {
+              enteredResolve();
+              await release;
+            }
+          }
+          return record;
+        },
+      }),
+    ),
+  };
+  const subject = new AuthCoordinator({
+    appId,
+    storage: gatedStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const before = await subject.establishAnonymous(anonymous());
+  armed = true;
+  const pending = subject.transition(
+    before,
+    successor(session(), 'late-final-online-bearer', 10_000),
+    'late_registration_final_online_confirm',
+  );
+  await entered;
+  const phases = [];
+  subject.registerParticipant({
+    name: 'late-final-online-participant',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  assert.deepEqual(phases, ['blank', 'clearMemory']);
+  releaseResolve();
+  const settled = await pending;
+  assert.deepEqual(phases, ['blank', 'clearMemory', 'commitDurable', 'resume']);
+  assert.equal(subject.isCurrent(settled), true);
+  await subject.close();
+}
+
+// Offline peer adoption has the same final-confirm registration window but no
+// transport resume. The late participant must still receive durable cleanup
+// before the successor becomes available for retained offline reads.
+{
+  const appId = `${APP}/late-registration-final-offline-confirm`;
+  const state = { custody: {} };
+  const writer = new AuthCoordinator({
+    appId,
+    storage: createMemoryAuthCustodyStorage({ state }),
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let armed = false;
+  let reads = 0;
+  let enteredResolve;
+  let releaseResolve;
+  const entered = new Promise((resolve) => { enteredResolve = resolve; });
+  const release = new Promise((resolve) => { releaseResolve = resolve; });
+  const local = new AuthCoordinator({
+    appId,
+    storage: {
+      ...inner,
+      withOwnership: (requestedAppId, operation) => inner.withOwnership(
+        requestedAppId,
+        (owner) => operation({
+          ...owner,
+          async read() {
+            const record = await owner.read();
+            if (armed) {
+              reads += 1;
+              if (reads === 3) {
+                enteredResolve();
+                await release;
+              }
+            }
+            return record;
+          },
+        }),
+      ),
+    },
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const anonymousCapture = await writer.establishAnonymous(anonymous());
+  const captureA = await writer.transition(
+    anonymousCapture,
+    successor(session(SESSION_A, USER_A), 'late-final-offline-a', 10_000),
+  );
+  await local.restoreOffline();
+  const captureB = await writer.transition(
+    captureA,
+    successor(session(SESSION_B, USER_B), 'late-final-offline-b', 20_000),
+  );
+  armed = true;
+  const pending = local.restoreOffline();
+  await entered;
+  const phases = [];
+  local.registerParticipant({
+    name: 'late-final-offline-participant',
+    async quiesce() { phases.push('quiesce'); },
+    blank() { phases.push('blank'); },
+    clearMemory() { phases.push('clearMemory'); },
+    async commitDurable() { phases.push('commitDurable'); },
+    async resume() { phases.push('resume'); },
+  });
+  assert.deepEqual(phases, ['blank', 'clearMemory']);
+  releaseResolve();
+  assert.deepEqual(await pending, captureB);
+  assert.deepEqual(phases, ['blank', 'clearMemory', 'commitDurable']);
+  assert.equal(local.isCurrent(captureB), true);
+  await local.close();
+  await writer.close();
+}
+
 // Malformed durable custody is a mandatory-gate failure. It must blank an
 // already exposed predecessor before returning the corruption diagnostic;
 // callers cannot keep using the old capture as an offline fallback.
 {
   const state = { custody: {} };
+  const inner = createMemoryAuthCustodyStorage({ state });
+  let owned = false;
+  const storage = {
+    ...inner,
+    async withOwnership(appId, operation) {
+      if (owned) {
+        throw Object.assign(new Error('nested custody ownership'), {
+          code: 'TEST_REENTRANT_CUSTODY_OWNER',
+        });
+      }
+      owned = true;
+      try {
+        return await inner.withOwnership(appId, operation);
+      } finally {
+        owned = false;
+      }
+    },
+  };
   const malformed = new AuthCoordinator({
     appId: APP,
-    storage: createMemoryAuthCustodyStorage({ state }),
+    storage,
     broadcastChannelFactory: null,
     hintStorage: null,
   });
   const exposed = await malformed.establishAnonymous(anonymous());
   const phases = [];
   malformed.registerParticipant({
-    async quiesce() { phases.push('quiesce'); },
+    async quiesce() {
+      await storage.withOwnership(APP, async (owner) => owner.read());
+      phases.push('quiesce');
+    },
     blank() { phases.push('blank'); },
     clearMemory() { phases.push('clearMemory'); },
   });

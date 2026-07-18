@@ -88,6 +88,7 @@ fn put_string(mac: &mut HmacSha256, value: &str) {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IssuerId {
     pub authorization_incarnation: String,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub boot_sequence: u64,
     pub boot_nonce: String,
 }
@@ -151,6 +152,7 @@ pub struct AuthenticatedBootIssuer {
 pub struct AuthorizationInvalidationConnection {
     pub protocol_version: u32,
     pub issuer_id: IssuerId,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub connection_generation: u64,
     /// Closed initial client expectation. A clean subscription with no
     /// pending projection must never invent epoch zero.
@@ -169,6 +171,7 @@ pub struct AuthorizationInvalidationConnection {
 pub struct ScopeRetirement {
     pub issuer_id: IssuerId,
     pub namespace: QueryNamespace,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub retire_through_scope_sequence: u64,
     pub authorization_expectation: AuthorizationVersion,
     pub mac: String,
@@ -181,6 +184,7 @@ pub struct ScopeRetirement {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 pub struct IssuerRetirement {
     pub current_issuer: AuthenticatedBootIssuer,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub retire_through_boot_sequence: u64,
     pub authorization_expectation: AuthorizationVersion,
     pub mac: String,
@@ -776,6 +780,7 @@ fn put_authorization(mac: &mut HmacSha256, authorization: &AuthorizationVersion)
 pub struct QueryNamespace {
     pub client_store_id: String,
     pub query_key: String,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub query_instance_id: u64,
 }
 
@@ -802,12 +807,15 @@ pub enum ScopeId {
     Subscription {
         issuer_id: IssuerId,
         namespace: QueryNamespace,
+        #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
         scope_sequence: u64,
+        #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
         connection_generation: u64,
         subscription_id: String,
     },
     Connection {
         issuer_id: IssuerId,
+        #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
         connection_generation: u64,
     },
     ClientQuery {
@@ -925,6 +933,7 @@ pub enum InvalidationDisposition {
 pub struct ResyncObligation {
     pub protocol_version: u32,
     pub scope_id: ScopeId,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub revision: u64,
     pub max_disposition: InvalidationDisposition,
     pub witness: CompositeWitness,
@@ -983,6 +992,7 @@ pub struct ResolutionTicket {
     pub protocol_version: u32,
     pub kind: ResolutionKind,
     pub scope_id: ScopeId,
+    #[schemars(range(min = 1, max = MAX_PROTOCOL_COUNTER))]
     pub revision: u64,
     pub witness: CompositeWitness,
     pub max_disposition: InvalidationDisposition,
