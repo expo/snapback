@@ -5,7 +5,9 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (post-commit carrier closure: an independently owned
+**Revised:** 2026-07-17 (authority-independent authoring validation now treats
+membership predicates and `authScopeField` as authority dependencies before
+artifacts are written). 2026-07-17 (post-commit carrier closure: an independently owned
 transition task receives a fail-closed carrier from Local projection, performs
 terminal lifecycle and runtime-mode publication off the committing Local
 scope, then explicitly opens the successor). 2026-07-15 (author ratification: Charlie Cheever explicitly
@@ -223,7 +225,7 @@ At the item-4 boundary, before LLP 0053 item 6 installed the complete
 protected-query profile and oracle, item 4 accepted `true` only for a HostPlan
 whose closed IR:
 
-- contains no auth expression or `authScopeField`;
+- contains no auth expression, membership predicate, or `authScopeField`;
 - has `authRequirement: "public"`;
 - contains no opaque Ibex code, action, config/provider read, runtime clock/id,
   or nested call; and

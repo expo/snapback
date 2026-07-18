@@ -2905,13 +2905,18 @@ function validateFunctionAuthDefinition(name, def, err) {
   const queryKind = def.__kind === 'Query' || def.__kind === 'LiveQuery';
   const hostPlanQuery = queryKind && def.plan && !def.js;
   const publicRequirement = def.auth === 'public';
+  // @ref LLP 0058#authority-independent-live-declaration — membership and
+  // auth-scope declarations are authority dependencies even when the ordinary
+  // filter expressions themselves contain no explicit auth value.
+  const authorizationFree = hostPlanQuery
+    && hostPlanAuthorizationDependence(def).length === 0;
   const ambientFree = hostPlanQuery
     && (def.plan.filters ?? []).every((filter) => !authoredExprUsesAuthorityOrAmbientInput(filter.value));
-  if (!(queryKind && hostPlanQuery && publicRequirement && ambientFree)) {
+  if (!(queryKind && hostPlanQuery && publicRequirement && authorizationFree && ambientFree)) {
     err(
       'FUNCTION_AUTHORITY_INDEPENDENT_INVALID',
       'auth',
-      `${name}: authorityIndependent requires a public HostPlan query with no auth, runtime-clock, or runtime-id expression`,
+      `${name}: authorityIndependent requires a public HostPlan query with no auth, membership, auth-scope, runtime-clock, or runtime-id dependency`,
       { function: name, kind: def.__kind, authRequirement: def.auth ?? 'optional-user' },
     );
   }

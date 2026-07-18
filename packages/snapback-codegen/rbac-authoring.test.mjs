@@ -343,6 +343,27 @@ export const bootstrapEvent = defineJsMutation({
     );
   }
 
+  {
+    const authorityIndependentMembership = `
+import { eventMembers } from './schema.mjs';
+import { defineLiveQuery, membershipResource, v } from '${defineUrl}';
+
+export const eventById = defineLiveQuery({
+  auth: 'public',
+  authorityIndependent: true,
+  table: 'events',
+  args: { eventId: v.id('events') },
+  membership: [eventMembers.hasRole(membershipResource.arg('eventId'), 'host')],
+});
+`;
+    const { result } = await run(authorityIndependentMembership);
+    assert.equal(result.ok, false, 'membership-dependent query claimed authority independence');
+    assert(
+      result.diagnostics.some(({ code }) => code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'),
+      `authority-independent membership query omitted its diagnostic: ${JSON.stringify(result.diagnostics)}`,
+    );
+  }
+
   for (const [label, inputFunctions] of [
     ['argument', functions({ mismatchedArg: true })],
     ['row field', functions({ mismatchedRow: true })],

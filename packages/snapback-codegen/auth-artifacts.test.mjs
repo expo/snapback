@@ -198,5 +198,21 @@ export const listTodos = defineLiveQuery({
   assert(result.diagnostics.some((diagnostic) => diagnostic.code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'));
 }
 
+{
+  const invalidScopedIndependent = `
+import { defineLiveQuery } from '${defineUrl}';
+export const listTodos = defineLiveQuery({
+  table: 'todos',
+  authScopeField: 'title',
+  auth: 'public',
+  authorityIndependent: true,
+});
+`;
+  const dir = backend(sessionsSchema, invalidScopedIndependent);
+  const result = await generate(dir);
+  assert.equal(result.ok, false);
+  assert(result.diagnostics.some((diagnostic) => diagnostic.code === 'FUNCTION_AUTHORITY_INDEPENDENT_INVALID'));
+}
+
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });
 console.log(`auth-artifacts.test.mjs: ${basename(packageDir)} cases passed`);
