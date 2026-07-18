@@ -818,12 +818,6 @@ fn reset_and_seed_transaction(
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-enum StorageOpenInspection {
-    Fresh,
-    Existing { head: u64 },
-}
-
 fn storage_version_corrupt(message: impl Into<String>) -> SnapbackError {
     SnapbackError::error(
         "SNAPBACK_STORAGE_VERSION_CORRUPT",
@@ -937,17 +931,30 @@ fn validate_retained_mutation_versions(conn: &Connection, head: u64) -> Snapback
         ));
     }
     let has_settled_version = columns.contains("settled_version");
-    let sql = if has_settled_version {
-        "SELECT output_json, settled_version FROM _snapback_client_mutations"
+    let has_exact_settled_version = columns.contains("settled_version_exact");
+    if has_exact_settled_version && !has_settled_version {
+        return Err(storage_version_corrupt(
+            "retained mutation table has exact settlement metadata without its predecessor column",
+        ));
+    }
+    let sql = if has_settled_version && has_exact_settled_version {
+        "SELECT output_json, settled_version, settled_version_exact \
+         FROM _snapback_client_mutations"
+    } else if has_settled_version {
+        "SELECT output_json, settled_version, NULL FROM _snapback_client_mutations"
     } else {
-        "SELECT output_json, NULL FROM _snapback_client_mutations"
+        "SELECT output_json, NULL, NULL FROM _snapback_client_mutations"
     };
     let mut statement = conn.prepare(sql)?;
     let rows = statement.query_map([], |row| {
-        Ok((row.get::<_, SqlValue>(0)?, row.get::<_, SqlValue>(1)?))
+        Ok((
+            row.get::<_, SqlValue>(0)?,
+            row.get::<_, SqlValue>(1)?,
+            row.get::<_, SqlValue>(2)?,
+        ))
     })?;
     for row in rows {
-        let (output_json, settled_version) = row?;
+        let (output_json, settled_version, exact_settled_version) = row?;
         let output_json =
             decode_required_storage_text(output_json, "retained mutation output JSON")?;
         let output: Value = serde_json::from_str(&output_json)
@@ -973,7 +980,30 @@ fn validate_retained_mutation_versions(conn: &Connection, head: u64) -> Snapback
                 .with_detail("headVersion", head)
                 .with_detail("settledVersion", settled_version));
             }
-            if settled_version != 0 && settled_version != output_version {
+            let exact_settled_version = if has_exact_settled_version {
+                decode_optional_storage_version(
+                    exact_settled_version,
+                    "retained mutation exact settlement version",
+                )?
+            } else {
+                None
+            };
+            if let Some(exact_settled_version) = exact_settled_version {
+                if exact_settled_version > head {
+                    return Err(storage_version_corrupt(
+                        "retained mutation exact settlement version is ahead of the global storage head",
+                    )
+                    .with_detail("headVersion", head)
+                    .with_detail("exactSettledVersion", exact_settled_version));
+                }
+                if exact_settled_version != settled_version
+                    || exact_settled_version != output_version
+                {
+                    return Err(storage_version_corrupt(
+                        "retained mutation output and authoritative settlement versions disagree",
+                    ));
+                }
+            } else if settled_version != 0 && settled_version != output_version {
                 return Err(storage_version_corrupt(
                     "retained mutation output and settlement versions disagree",
                 ));
@@ -1108,7 +1138,7 @@ fn validate_change_journal_head(conn: &Connection, head: u64) -> SnapbackResult<
     }
 }
 
-fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<StorageOpenInspection> {
+fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<()> {
     with_pinned_read_snapshot(conn, |conn| {
         // LLP 0057's dormant-collision rescue starts from a brownfield database:
         // a foreign `_auth_*` object alone is not evidence that Snapback ever
@@ -1139,11 +1169,13 @@ fn inspect_storage_for_open(conn: &Connection) -> SnapbackResult<StorageOpenInsp
             }
         }
         if !snapback_schema_object && !managed_app_schema {
-            return Ok(StorageOpenInspection::Fresh);
+            return Ok(());
         }
         let head = require_existing_version_table(conn)?;
+        #[cfg(test)]
+        notify_storage_read_snapshot_pinned(conn, head);
         validate_existing_storage_ordering(conn, head)?;
-        Ok(StorageOpenInspection::Existing { head })
+        Ok(())
     })
 }
 
@@ -1173,7 +1205,7 @@ impl LocalDatabase {
         // Distinguish a genuinely empty database from an existing database
         // before any additive DDL/default write. Recreating a missing head at
         // zero would make retained rows and journal entries appear uncommitted.
-        let storage_inspection = inspect_storage_for_open(&conn)?;
+        inspect_storage_for_open(&conn)?;
         // @ref LLP 0058#corrupt-state-boundary — inspect and cross-validate all
         // four mode keys before WAL configuration or any additive infra write.
         let mode_inspection = auth_mode::inspect_for_open(&conn)?;
@@ -1205,13 +1237,13 @@ impl LocalDatabase {
         // integer domain on every target.
         with_pinned_read_snapshot(&db.conn, |conn| {
             let head = current_version_on(conn)?;
-            if let StorageOpenInspection::Existing { head: inspected } = storage_inspection
-                && head != inspected
-            {
-                return Err(storage_version_corrupt(
-                    "global storage head changed during database open",
-                ));
-            }
+            // A sibling writer may legitimately advance the head after the
+            // mutation-free preflight and before this final snapshot. Validate
+            // the complete current cut instead of misclassifying that commit as
+            // corruption; malformed predecessor state was already refused
+            // before any additive migration ran.
+            // @ref LLP 0003#database-model — open validates both sides of
+            // additive migration without requiring ordinary writers to stop.
             validate_existing_storage_ordering(conn, head)
         })?;
         db.schema = stored_schema.unwrap_or_default();
@@ -1522,10 +1554,19 @@ impl LocalDatabase {
     ) -> SnapbackResult<Option<MutationOutput>> {
         validate_client_mutation_identity(identity)?;
         with_pinned_read_snapshot(&self.conn, |conn| {
-            let row: Option<(String, String, Option<String>, String, String, SqlValue)> = conn
+            let row: Option<(
+                String,
+                String,
+                Option<String>,
+                String,
+                String,
+                SqlValue,
+                SqlValue,
+            )> = conn
                 .query_row(
                     "SELECT function, auth_fingerprint, authority_instance_id,
-                        input_fingerprint, output_json, settled_version
+                        input_fingerprint, output_json, settled_version,
+                        settled_version_exact
                  FROM _snapback_client_mutations WHERE client_mutation_id = ?1",
                     params![identity.id],
                     |row| {
@@ -1536,6 +1577,7 @@ impl LocalDatabase {
                             row.get(3)?,
                             row.get(4)?,
                             row.get(5)?,
+                            row.get(6)?,
                         ))
                     },
                 )
@@ -1547,6 +1589,7 @@ impl LocalDatabase {
                 retained_input,
                 output_json,
                 settled_version,
+                exact_settled_version,
             )) = row
             else {
                 return Ok(None);
@@ -1633,25 +1676,48 @@ impl LocalDatabase {
                 "stored client mutation settlement version",
             )
             .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
+            let exact_settled_version = decode_optional_storage_version(
+                exact_settled_version,
+                "stored client mutation exact settlement version",
+            )
+            .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
             validate_storage_version_at_most(
                 output_version,
                 head,
                 "stored client mutation result version",
             )
             .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-            if settled_version != 0 {
+            validate_storage_version_at_most(
+                settled_version,
+                head,
+                "stored client mutation settlement version",
+            )
+            .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
+            if let Some(exact_settled_version) = exact_settled_version {
                 validate_storage_version_at_most(
-                    settled_version,
+                    exact_settled_version,
                     head,
-                    "stored client mutation settlement version",
+                    "stored client mutation exact settlement version",
                 )
                 .map_err(|error| error.with_detail("clientMutationId", identity.id.clone()))?;
-            }
-            // Databases upgraded from before settlement metadata use zero as the
-            // documented migration sentinel. Every newly recorded settlement
-            // carries its authoritative commit cursor and must agree with the
-            // replay payload before either may be republished.
-            if settled_version != 0 && settled_version != output_version {
+                if exact_settled_version != settled_version
+                    || exact_settled_version != output_version
+                {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                        "storage",
+                        "stored client mutation result disagrees with its authoritative settlement version",
+                    )
+                    .with_detail("clientMutationId", identity.id.clone())
+                    .with_detail("settledVersion", settled_version)
+                    .with_detail("exactSettledVersion", exact_settled_version)
+                    .with_detail("outputVersion", output_version));
+                }
+            } else if settled_version != 0 && settled_version != output_version {
+                // Rows written before exact settlement metadata use zero as the
+                // migration sentinel. A nullable authoritative column preserves
+                // those rows without letting a newly written version-zero result
+                // inherit the same ambiguity.
                 return Err(SnapbackError::error(
                     "SNAPBACK_STORAGE_VERSION_CORRUPT",
                     "storage",
@@ -3409,7 +3475,8 @@ impl LocalDatabase {
               input_fingerprint TEXT NOT NULL,
               output_json TEXT NOT NULL,
               settled_at_ms INTEGER NOT NULL,
-              settled_version INTEGER NOT NULL DEFAULT 0
+              settled_version INTEGER NOT NULL DEFAULT 0,
+              settled_version_exact INTEGER
             );
             CREATE TABLE IF NOT EXISTS _snapback_client_mutation_auth_retention (
               auth_fingerprint TEXT PRIMARY KEY,
@@ -3502,40 +3569,57 @@ impl LocalDatabase {
             )?;
             tx.commit()?;
         }
-        // Older databases predate settlement-version metadata. SQLite cannot
-        // express ADD COLUMN IF NOT EXISTS, so inspect before applying the
-        // additive internal migration.
-        let mut columns = self
+        // Older databases predate settlement and authority metadata. SQLite
+        // cannot express ADD COLUMN IF NOT EXISTS, so reserve the writer before
+        // inspecting and applying these additive ledger migrations. A sibling
+        // opener then re-reads the post-commit schema instead of acting on a
+        // stale PRAGMA result and failing with a duplicate-column error.
+        //
+        // @ref LLP 0003#database-model — infrastructure migration inspection
+        // and its additive DDL share one serialized SQLite writer boundary.
+        #[cfg(test)]
+        notify_infra_migration_attempt(&self.conn);
+        let tx = self
             .conn
-            .prepare("PRAGMA table_info(_snapback_client_mutations)")?;
-        let names = columns
-            .query_map([], |row| row.get::<_, String>(1))?
-            .collect::<Result<BTreeSet<_>, _>>()?;
-        drop(columns);
+            .transaction_with_behavior(TransactionBehavior::Immediate)?;
+        #[cfg(test)]
+        notify_infra_migration_acquired(&tx);
+        let names = sqlite_table_columns(&tx, "_snapback_client_mutations")?;
         if !names.contains("settled_version") {
-            self.conn.execute(
+            tx.execute(
                 "ALTER TABLE _snapback_client_mutations
                  ADD COLUMN settled_version INTEGER NOT NULL DEFAULT 0",
                 [],
             )?;
         }
         if !names.contains("authority_instance_id") {
-            self.conn.execute(
+            tx.execute(
                 "ALTER TABLE _snapback_client_mutations
                  ADD COLUMN authority_instance_id TEXT",
                 [],
             )?;
         }
-        self.conn.execute(
+        if !names.contains("settled_version_exact") {
+            // @ref LLP 0043#milestone-2-queued-mutation-replay — NULL marks a
+            // pre-migration row; every new row carries an authoritative exact
+            // cursor, including the legitimate version-zero settlement.
+            tx.execute(
+                "ALTER TABLE _snapback_client_mutations
+                 ADD COLUMN settled_version_exact INTEGER",
+                [],
+            )?;
+        }
+        tx.execute(
             "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_settlement
              ON _snapback_client_mutations(settled_version, settled_at_ms)",
             [],
         )?;
-        self.conn.execute(
+        tx.execute(
             "CREATE INDEX IF NOT EXISTS _snapback_client_mutations_by_auth
              ON _snapback_client_mutations(auth_fingerprint)",
             [],
         )?;
+        tx.commit()?;
         self.ensure_client_mutation_retention_counters()?;
         Ok(())
     }
@@ -4042,6 +4126,123 @@ fn notify_commit_version_sampled(conn: &Connection) {
         let _ = hook
             .release
             .recv_timeout(std::time::Duration::from_secs(10));
+    }
+}
+
+#[cfg(test)]
+struct InfraMigrationDebugHook {
+    token: Uuid,
+    path: String,
+    attempts: mpsc::Sender<()>,
+    attempt_proceeded: mpsc::Sender<()>,
+    attempt_permits: Vec<mpsc::Receiver<()>>,
+    acquired: mpsc::Sender<()>,
+    release: Option<mpsc::Receiver<()>>,
+}
+
+#[cfg(test)]
+static INFRA_MIGRATION_DEBUG_HOOK: OnceLock<Mutex<Option<InfraMigrationDebugHook>>> =
+    OnceLock::new();
+
+#[cfg(test)]
+struct InfraMigrationDebugHookGuard {
+    token: Uuid,
+}
+
+#[cfg(test)]
+impl Drop for InfraMigrationDebugHookGuard {
+    fn drop(&mut self) {
+        let mut slot = infra_migration_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if slot.as_ref().is_some_and(|hook| hook.token == self.token) {
+            *slot = None;
+        }
+    }
+}
+
+#[cfg(test)]
+fn set_infra_migration_debug_hook(
+    conn: &Connection,
+    attempts: mpsc::Sender<()>,
+    attempt_proceeded: mpsc::Sender<()>,
+    attempt_permits: Vec<mpsc::Receiver<()>>,
+    acquired: mpsc::Sender<()>,
+    release: mpsc::Receiver<()>,
+) -> InfraMigrationDebugHookGuard {
+    let token = Uuid::now_v7();
+    let hook = InfraMigrationDebugHook {
+        token,
+        path: conn
+            .path()
+            .expect("infrastructure migration hook requires a file-backed database")
+            .to_owned(),
+        attempts,
+        attempt_proceeded,
+        attempt_permits,
+        acquired,
+        release: Some(release),
+    };
+    let previous = infra_migration_debug_hook()
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+        .replace(hook);
+    assert!(
+        previous.is_none(),
+        "infrastructure migration hook already installed"
+    );
+    InfraMigrationDebugHookGuard { token }
+}
+
+#[cfg(test)]
+fn infra_migration_debug_hook() -> &'static Mutex<Option<InfraMigrationDebugHook>> {
+    INFRA_MIGRATION_DEBUG_HOOK.get_or_init(|| Mutex::new(None))
+}
+
+#[cfg(test)]
+fn notify_infra_migration_attempt(conn: &Connection) {
+    let rendezvous = {
+        let mut slot = infra_migration_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        slot.as_mut()
+            .filter(|hook| conn.path() == Some(hook.path.as_str()))
+            .and_then(|hook| {
+                if hook.attempt_permits.is_empty() {
+                    return None;
+                }
+                Some((
+                    hook.attempts.clone(),
+                    hook.attempt_proceeded.clone(),
+                    hook.attempt_permits.remove(0),
+                ))
+            })
+    };
+    if let Some((attempts, proceeded, permit)) = rendezvous
+        && attempts.send(()).is_ok()
+        && permit
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .is_ok()
+    {
+        let _ = proceeded.send(());
+    }
+}
+
+#[cfg(test)]
+fn notify_infra_migration_acquired(conn: &Connection) {
+    let rendezvous = {
+        let mut slot = infra_migration_debug_hook()
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        slot.as_mut()
+            .filter(|hook| conn.path() == Some(hook.path.as_str()))
+            .map(|hook| (hook.acquired.clone(), hook.release.take()))
+    };
+    if let Some((acquired, release)) = rendezvous
+        && acquired.send(()).is_ok()
+        && let Some(release) = release
+    {
+        let _ = release.recv_timeout(std::time::Duration::from_secs(10));
     }
 }
 
@@ -10567,11 +10768,15 @@ fn record_client_mutation_result(
             "scope": scope,
         })));
     }
+    // @ref LLP 0043#milestone-2-queued-mutation-replay — the nullable exact
+    // cursor distinguishes a newly authoritative version-zero settlement from
+    // predecessor rows whose legacy migration sentinel is also zero.
     tx.execute(
         "INSERT INTO _snapback_client_mutations(
            client_mutation_id, function, auth_fingerprint, authority_instance_id,
-           input_fingerprint, output_json, settled_at_ms, settled_version
-         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+           input_fingerprint, output_json, settled_at_ms, settled_version,
+           settled_version_exact
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             identity.id,
             identity.function,
@@ -10580,6 +10785,7 @@ fn record_client_mutation_result(
             identity.input_fingerprint,
             output_json,
             timestamp_to_sql_millis(now_millis())?,
+            version_to_sql_integer(output.version)?,
             version_to_sql_integer(output.version)?,
         ],
     )?;
@@ -11005,6 +11211,176 @@ mod guarded_commit_tests {
                 .map(|row| row["_version"].as_u64().unwrap())
                 .collect::<BTreeSet<_>>(),
             BTreeSet::from([1, 2]),
+        );
+    }
+
+    #[test]
+    fn reopen_accepts_a_valid_sibling_commit_after_its_initial_preflight() {
+        let (_dir, path, mut writer) = file_database();
+        let baseline = writer
+            .seed(seed_data("baseline", "before-open"))
+            .expect("seed the initial open cut");
+        let (reached_tx, reached_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let _hook = set_storage_read_snapshot_debug_hook(&writer, reached_tx, release_rx);
+
+        let open_path = path.clone();
+        let opener = std::thread::spawn(move || LocalDatabase::open(open_path));
+        let inspected = reached_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("opener pins its mutation-free preflight snapshot");
+        assert_eq!(inspected, baseline.version);
+
+        let sibling = writer
+            .seed(seed_data("sibling", "during-open"))
+            .expect("a sibling writer may commit while the opener validates its old snapshot");
+        assert_eq!(sibling.version, baseline.version + 1);
+        release_tx.send(()).expect("release the opening snapshot");
+
+        let reopened = opener
+            .join()
+            .expect("opener thread joins")
+            .expect("a valid sibling commit is not storage corruption");
+        assert_eq!(reopened.current_version().unwrap(), sibling.version);
+        let rows = reopened.scan_table("items", 10, 0).unwrap();
+        assert_eq!(rows.total, 2);
+        assert_eq!(
+            rows.rows
+                .iter()
+                .map(|row| row["_version"].as_u64().unwrap())
+                .collect::<BTreeSet<_>>(),
+            BTreeSet::from([baseline.version, sibling.version])
+        );
+    }
+
+    #[test]
+    fn concurrent_reopen_serializes_additive_infrastructure_migration() {
+        let (_dir, path, mut legacy) = file_database();
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_legacy_exact_column", "hostPlan", &input);
+        legacy
+            .execute_mutation_plan_with_lifecycle(
+                &insert_plan(),
+                &input,
+                true,
+                Some(&identity),
+                &|| Ok(()),
+                || Ok(()),
+            )
+            .expect("seed a populated predecessor ledger");
+        legacy
+            .conn
+            .execute(
+                "ALTER TABLE _snapback_client_mutations DROP COLUMN settled_version_exact",
+                [],
+            )
+            .expect("simulate the predecessor infrastructure schema");
+        assert!(
+            !sqlite_table_columns(&legacy.conn, "_snapback_client_mutations")
+                .unwrap()
+                .contains("settled_version_exact")
+        );
+
+        let (attempt_tx, attempt_rx) = mpsc::channel();
+        let (attempt_proceeded_tx, attempt_proceeded_rx) = mpsc::channel();
+        let (first_attempt_permit_tx, first_attempt_permit_rx) = mpsc::channel();
+        let (second_attempt_permit_tx, second_attempt_permit_rx) = mpsc::channel();
+        let (acquired_tx, acquired_rx) = mpsc::channel();
+        let (release_tx, release_rx) = mpsc::channel();
+        let _hook = set_infra_migration_debug_hook(
+            &legacy.conn,
+            attempt_tx,
+            attempt_proceeded_tx,
+            vec![first_attempt_permit_rx, second_attempt_permit_rx],
+            acquired_tx,
+            release_rx,
+        );
+
+        let first_path = path.clone();
+        let first = std::thread::spawn(move || LocalDatabase::open(first_path));
+        attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("first opener reaches the writer-acquisition boundary");
+
+        let second_path = path.clone();
+        let second = std::thread::spawn(move || LocalDatabase::open(second_path));
+        attempt_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("second opener reaches the writer-acquisition boundary");
+
+        // Both openers have completed every pre-reservation step. Advance A
+        // alone, then keep its acquired transaction paused before column
+        // discovery while B remains at the exact BEGIN IMMEDIATE boundary.
+        first_attempt_permit_tx
+            .send(())
+            .expect("let the first opener attempt its reservation");
+        attempt_proceeded_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("first opener leaves the acquisition gate");
+        acquired_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("first opener reserves the writer before inspecting columns");
+        second_attempt_permit_tx
+            .send(())
+            .expect("let the second opener contend for the reservation");
+        attempt_proceeded_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("second opener leaves the acquisition gate while A owns it");
+        let probe = Connection::open(&path).expect("open raw reservation probe");
+        probe
+            .busy_timeout(std::time::Duration::ZERO)
+            .expect("disable waiting for the reservation probe");
+        let blocked = probe
+            .execute_batch("BEGIN IMMEDIATE")
+            .expect_err("the first opener must still own SQLite's writer reservation");
+        assert!(
+            blocked.to_string().contains("database is locked"),
+            "unexpected migration reservation refusal: {blocked}"
+        );
+        drop(probe);
+        release_tx
+            .send(())
+            .expect("release the first serialized migration");
+        acquired_rx
+            .recv_timeout(std::time::Duration::from_secs(5))
+            .expect("second opener acquires only after the first releases");
+
+        let first = first
+            .join()
+            .expect("first opener joins")
+            .expect("first additive migration succeeds");
+        let second = second
+            .join()
+            .expect("second opener joins")
+            .expect("second opener re-reads the migrated schema");
+        for reopened in [&first, &second] {
+            assert!(
+                sqlite_table_columns(&reopened.conn, "_snapback_client_mutations")
+                    .unwrap()
+                    .contains("settled_version_exact")
+            );
+            assert_eq!(
+                reopened
+                    .client_mutation_result(&identity)
+                    .expect("read the predecessor settlement")
+                    .expect("legacy settlement remains retained")
+                    .version,
+                1
+            );
+        }
+        let exact: SqlValue = first
+            .conn
+            .query_row(
+                "SELECT settled_version_exact FROM _snapback_client_mutations
+                 WHERE client_mutation_id = ?1",
+                params![identity.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            exact,
+            SqlValue::Null,
+            "migration never fabricates provenance"
         );
     }
 
@@ -12625,13 +13001,54 @@ mod guarded_commit_tests {
             );
         }
 
+        for (name, exact_settled_version) in [
+            ("negative", SqlValue::Integer(-1)),
+            (
+                "past-portable-max",
+                SqlValue::Integer((PORTABLE_STORAGE_VERSION_MAX + 1) as i64),
+            ),
+            ("non-integer-real", SqlValue::Real(1.5)),
+            (
+                "non-integer-text",
+                SqlValue::Text("not-a-version".to_owned()),
+            ),
+            ("non-integer-blob", SqlValue::Blob(vec![0x01, 0x02])),
+        ] {
+            db.conn
+                .execute(
+                    "UPDATE _snapback_client_mutations
+                     SET output_json = ?1,
+                         settled_version = ?2,
+                         settled_version_exact = ?3
+                     WHERE client_mutation_id = ?4",
+                    params![
+                        valid_output,
+                        version_to_sql_integer(committed.commit.output.version).unwrap(),
+                        exact_settled_version,
+                        identity.id
+                    ],
+                )
+                .expect("corrupt retained exact settlement version");
+            let error = db
+                .client_mutation_result(&identity)
+                .expect_err("a corrupt exact settlement cursor must not be ignored");
+            assert_eq!(
+                error.diagnostic.code, "SNAPBACK_STORAGE_VERSION_CORRUPT",
+                "{name}"
+            );
+        }
+
         db.conn
             .execute(
-                "UPDATE _snapback_client_mutations SET output_json = ?1, settled_version = ?2 \
-                 WHERE client_mutation_id = ?3",
+                "UPDATE _snapback_client_mutations
+                 SET output_json = ?1,
+                     settled_version = ?2,
+                     settled_version_exact = ?3 \
+                 WHERE client_mutation_id = ?4",
                 params![
                     valid_output,
                     version_to_sql_integer(committed.commit.output.version + 1).unwrap(),
+                    version_to_sql_integer(committed.commit.output.version).unwrap(),
                     identity.id
                 ],
             )
@@ -12643,7 +13060,8 @@ mod guarded_commit_tests {
 
         db.conn
             .execute(
-                "UPDATE _snapback_client_mutations SET settled_version = 0 \
+                "UPDATE _snapback_client_mutations
+                 SET settled_version = 0, settled_version_exact = NULL \
                  WHERE client_mutation_id = ?1",
                 params![identity.id],
             )
@@ -12654,6 +13072,70 @@ mod guarded_commit_tests {
                 .expect("retained result")
                 .version,
             committed.commit.output.version
+        );
+    }
+
+    #[test]
+    fn exact_zero_settlement_rejects_output_version_drift_live_and_on_reopen() {
+        let (_dir, path, mut db) = file_database();
+        let input = HandlerInput::default();
+        let identity = ClientMutationIdentity::new("cm_exact_zero", "hostPlan", &input);
+        let no_op = MutationPlan {
+            steps: Vec::new(),
+            return_value: Some(ReturnValue::ChangedCount),
+        };
+        let settled = db
+            .execute_mutation_plan_with_lifecycle(
+                &no_op,
+                &input,
+                true,
+                Some(&identity),
+                &|| Ok(()),
+                || Ok(()),
+            )
+            .expect("settle a no-op at the fresh database head");
+        assert_eq!(settled.commit.output.version, 0);
+        let exact: SqlValue = db
+            .conn
+            .query_row(
+                "SELECT settled_version_exact FROM _snapback_client_mutations
+                 WHERE client_mutation_id = ?1",
+                params![identity.id],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(exact, SqlValue::Integer(0));
+
+        let advanced = db
+            .execute_mutation(&insert_plan(), &HandlerInput::default())
+            .expect("advance the global head after settlement");
+        assert_eq!(advanced.output.version, 1);
+        let mut corrupt_output = serde_json::to_value(&settled.commit.output).unwrap();
+        corrupt_output["version"] = json!(1);
+        db.conn
+            .execute(
+                "UPDATE _snapback_client_mutations SET output_json = ?1
+                 WHERE client_mutation_id = ?2",
+                params![corrupt_output.to_string(), identity.id],
+            )
+            .expect("drift only the replay payload version");
+
+        let live_error = db
+            .client_mutation_result(&identity)
+            .expect_err("authoritative zero metadata detects live replay drift");
+        assert_eq!(
+            live_error.diagnostic.code,
+            "SNAPBACK_STORAGE_VERSION_CORRUPT"
+        );
+        drop(db);
+
+        let reopen_error = match LocalDatabase::open(&path) {
+            Ok(_) => panic!("corrupt exact-zero settlement unexpectedly reopened"),
+            Err(error) => error,
+        };
+        assert_eq!(
+            reopen_error.diagnostic.code,
+            "SNAPBACK_STORAGE_VERSION_CORRUPT"
         );
     }
 

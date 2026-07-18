@@ -5,7 +5,7 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (snapshot-bound local reads: every query invocation is pinned on WAL, direct, live-subscription, and in-memory lanes; mutation-handler composite reads pin their own head-bound facts and capture the exact storage inputs consumed by read-your-writes overlays; local commit versions are allocated only after SQLite's writer reservation). 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
+**Revised:** 2026-07-17 (internal additive migrations reserve the SQLite writer before inspecting predecessor columns, and database open validates the complete pre-migration and post-migration cuts without treating a valid intervening sibling commit as corruption). 2026-07-17 (snapshot-bound local reads: every query invocation is pinned on WAL, direct, live-subscription, and in-memory lanes; mutation-handler composite reads pin their own head-bound facts and capture the exact storage inputs consumed by read-your-writes overlays; local commit versions are allocated only after SQLite's writer reservation). 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
@@ -178,6 +178,17 @@ The first schema migrator should be conservative:
 
 This is enough to validate the local core without pretending to settle the full
 SQLite-to-Postgres portability contract.
+
+Snapback's own additive infrastructure migrations follow the same conservative
+rule and add one concurrency requirement: column discovery and the dependent
+`ALTER TABLE`/index work share an `IMMEDIATE` writer transaction. Two sibling
+openers therefore serialize before either acts on `PRAGMA table_info`; neither
+can apply a stale missing-column decision. File open performs a mutation-free
+ordering preflight before any additive work and validates the complete current
+ordering cut again afterward. A normal sibling commit may advance the head
+between those two snapshots; it is accepted only when the final head, rows,
+journal, and retained ordering facts validate together, rather than being
+misreported as corruption merely because the numeric head changed.
 
 ## Realtime Pipeline
 
