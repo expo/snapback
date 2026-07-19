@@ -62,9 +62,11 @@ jobs:
             ~/.cache/exact/hermes-linux
             vendor/ibex/linux
             vendor/ibex/tools/hermes
-          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-hermes-
+          # Match the canonical local-proof identity exactly. The cold-clone
+          # browser exercises action runtimes too, so restoring Hermes from a
+          # different pin or patch stack can make its JS/Rust checkout disagree
+          # with the native engine under test.
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
 
       # Cargo registry + target cache: without it every run cold-compiles the
       # full dependency tree (and the ibex-runtime C++ glue) on a 2-core
