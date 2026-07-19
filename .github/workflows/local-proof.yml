@@ -100,6 +100,12 @@ jobs:
       - name: Cache Rust build
         uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
 
+      # An exact-identity cache miss is expected whenever the pin, patch stack,
+      # or build logic changes. Materialize and launch-test that runtime before
+      # verify-local-proof reaches its read-only ibex-doctor preflight.
+      - name: Prepare exact Hermes runtime
+        run: scripts/bootstrap-ibex-runtime
+
       # ENG-24383: verify-local-proof denies both vulnerabilities and
       # unmaintained runtime dependencies. Pin the auditing tool so the gate's
       # own CLI/lock resolution cannot drift under an otherwise unchanged PR.

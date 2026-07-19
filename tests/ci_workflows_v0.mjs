@@ -189,34 +189,53 @@ for (const laterStep of [
     `disk reclaim must run before ${laterStep}`,
   );
 }
-const hermesCacheStepStart = localProof.indexOf('      - name: Cache Hermes Linux build');
-const hermesCacheStepEnd = localProof.indexOf('\n      - ', hermesCacheStepStart + 1);
-assert(
-  hermesCacheStepStart >= 0 && hermesCacheStepEnd > hermesCacheStepStart,
-  'Hermes cache step block must be bounded',
-);
-const hermesCacheStep = localProof.slice(hermesCacheStepStart, hermesCacheStepEnd);
-for (const identityInput of [
+const hermesIdentityInputs = [
   'vendor/ibex/scripts/hermes-version.sh',
   'vendor/ibex/scripts/apply-hermes-patches.sh',
   'vendor/ibex/scripts/build-hermes-linux.sh',
   'vendor/ibex/patches/hermes/*.patch',
   'vendor/ibex/Cargo.toml',
-]) {
+];
+function assertExactHermesCache(workflow, workflowName) {
+  const stepStart = workflow.indexOf('      - name: Cache Hermes Linux build');
+  const stepEnd = workflow.indexOf('\n      - ', stepStart + 1);
   assert(
-    hermesCacheStep.includes(`'${identityInput}'`),
-    `Hermes cache identity must include ${identityInput}`,
+    stepStart >= 0 && stepEnd > stepStart,
+    `${workflowName} Hermes cache step block must be bounded`,
+  );
+  const step = workflow.slice(stepStart, stepEnd);
+  for (const identityInput of hermesIdentityInputs) {
+    assert(
+      step.includes(`'${identityInput}'`),
+      `${workflowName} Hermes cache identity must include ${identityInput}`,
+    );
+  }
+  assert.match(
+    step,
+    /key:\s*\$\{\{ runner\.os \}\}-hermes-\$\{\{ hashFiles\(/,
+    `${workflowName} Hermes cache must derive its exact key from the reviewed identity inputs`,
+  );
+  assert.doesNotMatch(
+    step,
+    /restore-keys:/,
+    `${workflowName} Hermes cache must not restore an artifact built for a different runtime identity`,
   );
 }
-assert.match(
-  hermesCacheStep,
-  /key:\s*\$\{\{ runner\.os \}\}-hermes-\$\{\{ hashFiles\(/,
-  'Hermes cache must derive its exact key from the reviewed identity inputs',
+assertExactHermesCache(localProof, 'local-proof');
+const coldClone = readFileSync(join(workflowDir, 'all-aboard-cold-clone.yml'), 'utf8');
+assertExactHermesCache(coldClone, 'all-aboard-cold-clone');
+const prepareHermesStart = localProof.indexOf('      - name: Prepare exact Hermes runtime');
+const verifyProofStart = localProof.indexOf('      - name: Verify Snapback local proof');
+assert(
+  prepareHermesStart > localProof.indexOf('      - name: Cache Hermes Linux build')
+    && prepareHermesStart < verifyProofStart,
+  'canonical CI must prepare an exact cache miss before the local-proof preflight',
 );
-assert.doesNotMatch(
-  hermesCacheStep,
-  /restore-keys:/,
-  'Hermes cache must not restore an artifact built for a different runtime identity',
+const prepareHermesEnd = localProof.indexOf('\n      - ', prepareHermesStart + 1);
+assert.match(
+  localProof.slice(prepareHermesStart, prepareHermesEnd),
+  /run:\s*scripts\/bootstrap-ibex-runtime/,
+  'canonical CI must use the repository bootstrap to materialize and launch-test Hermes',
 );
 const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
 assert.match(
