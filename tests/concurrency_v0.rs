@@ -157,8 +157,13 @@ fn l6_version_and_rows_come_from_one_snapshot_under_concurrent_writes() {
     // Two reader profiles: the host-plan path in a tight loop (narrow windows,
     // many samples) and the Ibex path (the whole eval pinned to one snapshot).
     let mut checked = 0usize;
+    const MIN_READER_SAMPLES: usize = 8;
     let reader_deadline = Instant::now() + Duration::from_millis(1_200);
-    while Instant::now() < reader_deadline {
+    // Run for a sustained window and complete at least four rounds across both
+    // reader profiles. A heavily loaded debug CI runner can otherwise finish
+    // only three valid rounds before the clock expires, turning this sampling
+    // guard into a timing flake even though every observed snapshot is sound.
+    while checked < MIN_READER_SAMPLES || Instant::now() < reader_deadline {
         for function in ["listTodos", "listTodosIbex"] {
             let output = lane
                 .invoke_query(function, input(json!({}), "user_1"))
@@ -189,7 +194,10 @@ fn l6_version_and_rows_come_from_one_snapshot_under_concurrent_writes() {
         commits >= 5,
         "the writer must have churned commits under the readers (got {commits})"
     );
-    assert!(checked >= 8, "readers must have sampled (got {checked})");
+    assert!(
+        checked >= MIN_READER_SAMPLES,
+        "readers must have sampled (got {checked})"
+    );
 }
 
 /// LLP 0032 L7 (requires L6) — a busy-loop handler occupies the write lane and
