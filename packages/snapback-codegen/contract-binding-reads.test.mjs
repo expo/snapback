@@ -56,6 +56,25 @@ for (const [label, meta] of [['js', jsMeta], ['plan', planMeta]]) {
   assert.ok(meta.includes("cacheKey: 'todos'"), `${label} meta cacheKey must derive from the table, got:\n${meta}`);
 }
 
+// A point-read handler whose direct return is visibly an object can be
+// rejected before the runtime ever creates an error-shaped query cell. The
+// runtime rows-array guard remains authoritative for dynamic return shapes.
+writeFileSync(
+  join(dir, 'handlers.mjs'),
+  'globalThis.__snapbackHandlers = { async listTodos(ctx) { return { _id: "one", title: "wrong shape" }; } };\n',
+);
+const invalidPointRead = await generate(dir);
+assert.equal(invalidPointRead.ok, false);
+const resultShapeDiagnostic = invalidPointRead.diagnostics.find(
+  (diagnostic) => diagnostic.code === 'FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS',
+);
+assert.ok(resultShapeDiagnostic, JSON.stringify(invalidPointRead.diagnostics));
+assert.equal(resultShapeDiagnostic.function, 'listTodos');
+assert.equal(resultShapeDiagnostic.handler, 'listTodos');
+assert.equal(resultShapeDiagnostic.source, 'handlers.mjs');
+assert.equal(resultShapeDiagnostic.sourceSpan.line, 1);
+assert.match(resultShapeDiagnostic.message, /Wrap a point read as \[row\]/);
+
 rmSync(dir, { recursive: true, force: true });
 
 console.log('contract-binding-reads.test.mjs: all cases passed');

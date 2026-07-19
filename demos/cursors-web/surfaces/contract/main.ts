@@ -77,6 +77,7 @@ async function boot() {
     artifactIndex,
     schemaManifest,
     liveQueries: [],
+    requiredQueries: [],
   });
   activeSurface = surface;
   // Subscribe the room before mount so the binding's first snapshot is ready.

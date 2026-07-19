@@ -85,6 +85,7 @@ await runAcceptance(suite, async () => {
       schemaManifest: gen('schema.manifest.json'),
       functionManifest: gen('functions.manifest.json'),
       liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
+      requiredQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
     });
     assert(surface.livePush === true, 'live push owned by the adapter');
     await waitFor(() => surface.connection('liveTrainStatus') === 'live', "liveTrainStatus 'live'");

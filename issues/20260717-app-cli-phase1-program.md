@@ -1,6 +1,6 @@
 # App CLI phase-1 program (LLP 0062) — index
 
-**Status:** Open
+**Status:** Rescoped (2026-07-19 checkpoint shipped; advanced program deferred)
 **Severity:** P2
 **Systems:** Client integration, Tooling, API, Auth, Codegen, Docs
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -8,15 +8,20 @@
 **Related:** LLP 0062 (authority for every ticket below), LLP 0012, 0024, 0031, 0043, 0055, 0058, 0061; ibex LLP 0028/0029
 **Marker:** program-index, app-cli
 
-Umbrella index for implementing LLP 0062 phase 1 (the generated per-app
-CLI and code mode). LLP 0062 is at **Status: Review** (revision
-`14f54843…` after the ten-round /llp-super-refine loop, 2026-07-17);
-tickets cite the final-revision contracts, and the residue ticket
-carries the round-10 review items that feed the amendments.
-The RFC decomposes phase 1 into three sub-stages, each independently
-useful (stage (a) independently releasable, version-marked
-incomplete); the tickets follow that order. Implementation starts
-when the author advances the RFC per LLP 0005.
+Umbrella index for the original LLP 0062 generated per-app CLI and code-mode
+program. On 2026-07-19 this index was explicitly **rescoped**: the shipped
+phase-1 checkpoint is the versioned `@snapback/client` package, the
+artifact-as-data `@snapback/app-cli` package, guide coverage, and the executable
+discover → pair → scoped principal → mutate → subscribe → verify acceptance
+journey. That checkpoint is independently useful and closes the agent-facing
+surface outcome without pretending the reviewed RFC's larger wire, custody,
+and sandbox design has landed.
+
+Everything listed below that is not part of that checkpoint is deferred to an
+advanced phase. The ticket files remain the design/dependency index for that
+future work; they are not open blockers for the checkpoint and do not imply a
+shipped command. LLP 0062 remains **Review**, with an implementation-checkpoint
+note that records this narrower boundary.
 
 Contract prerequisites — land before sub-stage (a) freezes a public
 result or artifact contract:
@@ -79,14 +84,22 @@ Cross-cutting:
   required ibex LLP 0028/0029 corrections without making them a phase-1
   runtime dependency
 
-Ticket-program authoring is complete only when every normative phase-1
-deliverable and every carried review item has an explicit owning ticket,
-dependency order, and executable completion evidence. A concern mentioned
-only in prose here or in a review artifact is not considered tracked.
+The advanced-program decomposition remains complete only when every normative
+deliverable and carried review item has an explicit owning ticket, dependency
+order, and executable completion evidence. A concern mentioned only in prose
+here or in a review artifact is not considered tracked.
 
-**Done when:**
+**Checkpoint done when (satisfied 2026-07-19):**
 
-- Every ticket above is closed (moved to `closed/` with resolution).
-- LLP 0062 is marked Active per LLP 0005 (implementation complete and
-  merged), and `./ref-check --verbose` passes with the new `@ref`
-  annotations the implementation carries.
+- `@snapback/client` is the versioned source of the framework-neutral client;
+  demo-kit imports remain compatibility re-exports.
+- `@snapback/app-cli` discovers inert local artifacts and exports pairing,
+  scoped invocation, and live-subscription operations.
+- An executable acceptance test proves discover → pair → fenced scoped
+  principal → mutate → subscribe → verify and proves bearer non-return.
+- `clients.app-cli` and `auth.agent-principals` have guide pages and capability
+  witnesses; the CLI page names the deferred boundary.
+- The package inventory, guide checker, and `./ref-check --verbose` pass.
+
+**Advanced phase done when:** every deferred ticket is resolved, the required
+LLP amendments land, and the author advances LLP 0062 to Active under LLP 0005.

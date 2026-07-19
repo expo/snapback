@@ -1,0 +1,19 @@
+{
+  "name": "@snapback/app-cli",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Artifact-driven local Snapback application CLI for agent journeys.",
+  "bin": {
+    "snapback-app": "./cli.mjs"
+  },
+  "exports": {
+    ".": "./index.mjs"
+  },
+  "dependencies": {
+    "@snapback/client": "workspace:*"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

@@ -91,6 +91,33 @@ const makeRuntime = () => ({
   }),
 });
 
+// --- compiler-known bindings refuse an incomplete multi-live config at boot ---
+{
+  const client = makeClient({ withLiveQuery: true });
+  let caught = null;
+  try {
+    await createSnapbackContractSurface({
+      runtime: makeRuntime(),
+      client,
+      userId: 'u1',
+      manifest: makeManifest(),
+      livePush: false,
+      liveQueries: ['alpha'],
+      requiredQueries: ['alpha', 'gamma'],
+    });
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught, 'an omitted required binding must refuse construction');
+  assert.equal(caught.code, 'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED');
+  assert.equal(caught.diagnostic?.code, 'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED');
+  assert.deepEqual(caught.diagnostic?.details?.queries, ['gamma']);
+  assert.equal(caught.diagnostic?.details?.configurationSurface, 'liveQueries');
+  assert.match(caught.message, /Add each query.*liveQueries/);
+  assert.equal(client.state.queryCalls.length, 0, 'boot refusal happens before a snapshot query runs');
+  assert.equal(client.state.liveQueryCalls, 0, 'boot refusal happens before a subscription opens');
+}
+
 // --- livePush: false seeds snapshots (configured args) and reconciles on mutate ---
 {
   const client = makeClient({ withLiveQuery: true });

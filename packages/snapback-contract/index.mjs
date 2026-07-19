@@ -590,6 +590,11 @@ export async function createSnapbackContractSurface({
   // listCells). Legacy single-query options (queryName/boundaryKey/queryArgs/
   // optimisticReducers) do not apply.
   liveQueries = null,
+  // Compiler/bootstrap-known bindings for the component being mounted. This
+  // is separate from manifest.queries because one generated manifest can
+  // serve multiple component entrypoints (for example Shindig feed/detail).
+  // Every required binding must be configured before construction succeeds.
+  requiredQueries = null,
 }) {
   const lifecycleGenerationSeeds = normalizeTestLifecycleGenerationSeeds(
     testLifecycleGenerationSeeds,
@@ -761,6 +766,7 @@ export async function createSnapbackContractSurface({
         manifest,
         clientStore,
         liveQueries,
+        requiredQueries,
         livePush,
         connectionId,
         liveStreamOptions,
@@ -3795,6 +3801,7 @@ async function createMultiLiveContractSurface({
   manifest,
   clientStore = null,
   liveQueries,
+  requiredQueries = null,
   livePush,
   connectionId,
   liveStreamOptions,
@@ -3857,6 +3864,46 @@ async function createMultiLiveContractSurface({
       const error = new Error(diagnostic.message);
       error.diagnostic = diagnostic;
       throw error;
+    }
+    if (requiredQueries !== null) {
+      if (!Array.isArray(requiredQueries)) {
+        throw new TypeError('createSnapbackContractSurface requiredQueries must be an array when provided.');
+      }
+      const requiredQueryNames = requiredQueries.map((entry) =>
+        typeof entry === 'string' ? entry : entry?.name
+      );
+      const unknownRequired = requiredQueryNames.filter((name) =>
+        typeof name !== 'string' || !manifest?.queries?.[name]
+      );
+      if (unknownRequired.length > 0) {
+        const diagnostic = contractDiagnostic(
+          'SNAPBACK_CONTRACT_REQUIRED_QUERY_UNKNOWN',
+          `requiredQueries names unknown manifest queries: ${unknownRequired.join(', ')}. Regenerate the Contract data manifest or correct the component binding list.`,
+          { queries: unknownRequired, configurationSurface: 'requiredQueries' },
+        );
+        const error = new Error(diagnostic.message);
+        error.code = diagnostic.code;
+        error.diagnostic = diagnostic;
+        throw error;
+      }
+      const missingRequired = requiredQueryNames.filter((name) =>
+        !configuredQueryNames.has(name)
+      );
+      if (missingRequired.length > 0) {
+        const diagnostic = contractDiagnostic(
+          'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
+          `Contract query bindings are required by the mounted component but omitted from liveQueries: ${missingRequired.join(', ')}. Add each query (and its scoped args) to liveQueries before mounting the surface.`,
+          {
+            queries: missingRequired,
+            configuredQueries: [...liveQueryNames],
+            configurationSurface: 'liveQueries',
+          },
+        );
+        const error = new Error(diagnostic.message);
+        error.code = diagnostic.code;
+        error.diagnostic = diagnostic;
+        throw error;
+      }
     }
 
     let disposed = false;

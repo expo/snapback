@@ -53,6 +53,12 @@ run node scripts/check-package-test-inventory.mjs
 # LLP 0061: guide corpus — snippet transclusion-match, capability-index joins,
 # manifest staleness. Docs-only fast path: node scripts/check-guide.mjs.
 run node scripts/check-guide.mjs
+# ENG-25268: hand-authored Contract helper sidecars are checked against their
+# exported TypeScript parameter lists; structural result regression catches
+# the All Aboard `headsgn` typo at compile time.
+run node scripts/check-contract-meta.mjs
+run node scripts/check-contract-meta.test.mjs
+run bun test demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts
 # LLP 0032 P7: the bring-up doctor's green path (read-only; red paths are
 # proven by hand in fresh worktrees).
 run scripts/ibex-doctor
@@ -156,6 +162,8 @@ run node demos/_kit/tests/live-delta-e2e.mjs
 # Package-owned test commands are the inventory authority. The preceding
 # inventory gate proves every maintained test file is declared, so this cannot
 # silently regress to a hand-picked subset (ENG-24502).
+run bun run --cwd packages/snapback-client test
+run bun run --cwd packages/snapback-app-cli test
 run bun run --cwd packages/snapback-contract test
 run bun run --cwd packages/snapback-codegen test
 # LLP 0040/0049: run the explicit inventory of every non-remote Cloudflare

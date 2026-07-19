@@ -5,7 +5,7 @@
 **Systems:** Client integration, Developer experience, Tooling, API, Auth, Docs
 **Author:** Charlie Cheever / Claude Fable 5
 **Date:** 2026-07-17
-**Revised:** 2026-07-17 (Draft → Review after round 10 of the /llp-super-refine loop; per-round provenance in §Revision history; amendment-phase residue in `issues/20260717-app-cli-review-residue.md`)
+**Revised:** 2026-07-19 (implementation checkpoint: the packaged client, local artifact loader, fenced agent journey, acceptance witness, and guide pages shipped as a deliberately narrower phase; served envelopes, generation binding, human custody, code mode, and the remaining 19-ticket program are explicitly deferred; status remains Review). 2026-07-17 (Draft → Review after round 10 of the /llp-super-refine loop; per-round provenance in §Revision history; amendment-phase residue in `issues/20260717-app-cli-review-residue.md`)
 **Related:** LLP 0004 (codegen rules; owns the `{appId}:{exportedName}` id spelling), LLP 0012 (headless integration contract; manifest identity, adapter invariants, the shared diagnostic dialect, and the closed provision DTO this RFC must amend), LLP 0019 and LLP 0024 (one core, thin projections, one shared result envelope across CLI/HTTP/MCP; LLP 0024 also owns the host-ops plane and the generated app-data MCP catalog this RFC must reconcile with), LLP 0031 (route registry; app-data/system planes, `PublicNoStore`, and the D3 source-stripped public manifest this RFC's envelope reuses; dev-mode `AppAuth` client assertion), LLP 0037 (Rust types as schema source of truth; governs the envelope's nested projection), LLP 0042 (agent MCP surface; the `devUser` posture this RFC mirrors), LLP 0055 (agent principals, registration, pairing, scoped grants, rotation semantics, response attribution), LLP 0056 (scoped roles and memberships), LLP 0058 (shared invocation authority; owns the `AuthRequirement` vocabulary, the tuple pairs, and the invocation gate this CLI projects and never redefines), LLP 0060 (deployment posture; future first hosted-auth profile's `/_snapback/*` refusal; the capability-manifest registry the target-eligibility capability lands in), LLP 0061 (served guide; the server-advertised distribution and identity pattern), LLP 0010 (agent-facing diagnostics discipline; exact-tested-version vs. supported-range distinction), ibex LLPs 0013/0014 (compartments and generated policy; the supply-chain-integrity framing §3 cites), ibex LLP 0022 (REPL semantics; why `repl` is deferred), ibex LLP 0028 (Oxc-only transform; note: its current citation of this RFC predates §6's scoping — this RFC creates no phase-1 embedded-Ibex or computed-import requirement, and that ibex-side citation needs its own amendment) and ibex LLP 0029 (single-file executable packaging) in the ibex repo
 
 ## Summary
@@ -1345,6 +1345,30 @@ Phase 1 is done when the following hold, all CI-run:
   reaching the audit lane** (on success, refusal, and caught-error
   paths), and a proof that a large intermediate value (the 500-row
   case) appears in **neither stdout nor stderr**.
+
+## 2026-07-19 implementation checkpoint and rescope
+
+The first landed outcome is intentionally narrower than this reviewed RFC:
+
+- the framework-neutral client and agent fence are versioned in
+  `packages/snapback-client` rather than owned by `demos/_kit`;
+- `packages/snapback-app-cli` loads the local artifact index and function
+  manifest as inert JSON, exposes introspection plus programmatic call/live and
+  pairing operations, and never imports generated program source;
+- its acceptance test proves one packaged discover → pair → scoped-principal
+  fence → mutate → subscribe → verify journey and proves the bearer does not
+  enter the returned result;
+- `guide/clients/app-cli.md` and `guide/auth/agent-principals.md` make the
+  reachable local surface discoverable.
+
+This is the rescoped phase-1 checkpoint recorded by
+`issues/20260717-app-cli-phase1-program.md`. It does **not** advance this RFC to
+Active and it does not imply served envelopes, generation binding, human
+session custody, frozen multi-projection result/exit semantics, code mode,
+per-app shims, or hosted support. The existing ticket index remains the
+dependency program for that advanced phase. A future implementation must land
+the named amendments and satisfy the original contracts before the author can
+advance this RFC under LLP 0005.
 
 ## Future work (explicitly out of v1)
 

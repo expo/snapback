@@ -152,7 +152,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
    its closed shape/bindings and atomically commits rows, witness, exact lease
    bytes/hash, and derived deadline before render.
 
-```js source=demos/_kit/client.mjs
+```js source=packages/snapback-client/index.mjs
     return this.#req('POST', `/query/${encodeURIComponent(name)}/authorized-lease`, {
       args,
       auth: SnapbackClient.auth(userId),

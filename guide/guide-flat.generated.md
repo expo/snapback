@@ -54,9 +54,10 @@ with the Snapback label and `guide-gap` in the title.
 | auth.invalidation-barrier | Authorization invalidation; logout blanking | logout, revoke, invalidation | local | shipped | route /live/authorization-invalidation/acknowledge | llp/0053 | auth/protecting-data.md |
 | auth.authorized-leases | Lease-bounded offline retention of authorized reads | offline auth, lease, retained | local | shipped | route /query/{name}/authorized-lease | llp/0059 | auth/protecting-data.md |
 | auth.target-honesty | Per-target auth claims and non-claims; readiness reporting | hosted auth, production auth | all | shipped | `AuthProgramReadiness` in src/auth/mode.rs | llp/0060 | auth/targets.md |
-| auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | partial | route /auth/agents/pair | llp/0055 | GAP (owner: ccheever, review: 2026-08-15) |
+| auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
 | auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
-| clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in demos/_kit/client.mjs | llp/0012 | clients/headless.md |
+| clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
+| clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | React arm: hand-wired client, connection axis | react, hooks, dataprovider | local | shipped | demos/all-aboard/surfaces/react/src/main.tsx | llp/0005 | clients/react.md |
@@ -258,12 +259,16 @@ you never build around a feature because you didn't know it existed.
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
   per-resource roles; gate queries; check and change membership safely.
+- [Agent principals](./auth/agent-principals.md) — register, pair, mint scoped
+  tokens, fence custody, revoke, and verify an agent journey.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 
 ### Clients
 - [The headless client](./clients/headless.md) — the complete
   `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
+- [The app CLI](./clients/app-cli.md) — discover generated operations and run
+  the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React arm](./clients/react.md) — hand-wired client, live queries in
@@ -854,7 +859,7 @@ Lease acquisition is one full revalidation, not a heartbeat:
    its closed shape/bindings and atomically commits rows, witness, exact lease
    bytes/hash, and derived deadline before render.
 
-```js source=demos/_kit/client.mjs
+```js source=packages/snapback-client/index.mjs
     return this.#req('POST', `/query/${encodeURIComponent(name)}/authorized-lease`, {
       args,
       auth: SnapbackClient.auth(userId),
@@ -933,6 +938,32 @@ provenance. Roles are not copied into session claims.
 The shipped v1 lane is for online queries, live queries, and mutations. It does
 not yet make membership-gated results retainable offline, emit incremental
 semi-join deltas, or support hosted targets.
+
+## Privacy posture and reachable operations
+
+Membership backing rows are fully private in v1: application code cannot list
+them, ask whether one exists, or obtain their row ids, and `insert` returns
+`null`. That posture deliberately forecloses administrator-driven
+id-addressed `setRole`, `remove`, and `patch` in ordinary app handlers. The
+methods exist for trusted migration/import contexts that already possess a
+row id; the private app surface does not mint one. Do not source-dive for an
+escape hatch—the absence is the security contract.
+
+| Operation under the private v1 posture | Reachable app path |
+| --- | --- |
+| create a resource plus its first holder | `bootstrap(...)` (resource scope) |
+| add self or another principal | declared `insert` transition; returns no row id |
+| accept/decline/change/remove the caller's own seat | `setSelfRole`, `removeSelf`, or `patchSelf` |
+| administrator changes/removes/patches another existing seat | foreclosed: requires a private row id |
+| read/list/sync the roster or test another seat's existence | foreclosed: use `memberOf`/`hasRole` semi-joins or `requireRole` |
+
+For invitations, keep the pending invitation in an ordinary app-data table
+whose privacy policy fits the product. The invitee consumes that record and
+performs a declaration-authorized self `insert` into the final membership
+role. Alternatively, use a membership `pendingRole` only when the invitee can
+finish through a self-addressed transition, as the app-wide example below
+does. Do not imply that the inviter can promote the private row later: it
+cannot obtain that row's id.
 
 ## Declare an app-wide role set
 
@@ -1088,8 +1119,9 @@ id:
 The host resolves only the effective principal's row, returns no id, and then
 runs the same declared transition matrix. A missing own row is
 `SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; no helper reveals whether anyone else has
-a row. Use the id-addressed forms only when the application already has a
-trusted row id for an authorized other-target operation.
+a row. The id-addressed forms are not an administrator authoring path for the
+private v1 roster; only a trusted migration/import context outside the normal
+app surface can already hold such an id.
 
 Generic `ctx.db` and HostPlan writes to a membership table fail with
 `SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
@@ -1116,6 +1148,26 @@ The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
 
+## Keep the authorization composition seams aligned
+
+An authorized live effect is valid only while all of these captured facts
+still describe the same operation:
+
+- **coordinator epoch** — which authenticated authority generation owns the client;
+- **queue generation** — which durable outbox generation may replay;
+- **artifact identity** — the schema/function bundle whose declarations were checked;
+- **principal scope** — effective user or scoped service-principal tuple;
+- **descriptor** — the exact query/mutation plus args and authorization dependence;
+- **query lease** — the live subscription generation allowed to receive rows.
+
+Treat the set as one composition boundary. A principal/token/grant transition
+must close or blank the old query lease before a successor publishes; queued
+work must compare both its authority capture and store generation; generated
+descriptors must match the active artifact hashes. The Contract adapter and
+packaged client perform these comparisons. App code should not cache a roster
+answer, splice a new bearer into an old client, or reuse a live handle across a
+coordinator transition.
+
 ## Anti-patterns
 
 - **Do not store roles in session claims.** Membership rows are the current
@@ -1124,6 +1176,10 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not design administrator promotion/removal around private membership
+  row ids.** V1 intentionally does not make those ids reachable; use app-data
+  invitations plus a self transition, or choose a product flow that does not
+  require administrator mutation of an existing private seat.
 - **Do not create an app-data roster-id mirror just to leave or accept.** Use
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
@@ -1201,6 +1257,107 @@ disagree, the server is right and the page has drifted — file a guide gap
 - **Do not ship a browser bearer credential to real users on the local
   target and call it auth.** That configuration exists for local
   development; LLP 0060 documents why it must not be marketed as more.
+
+---
+
+<!-- snapback-guide-source: guide/auth/agent-principals.md -->
+---
+title: Agent principals and scoped grants
+id: auth.agent-principals
+order: 4
+audience: agent-first
+capabilities: [auth.agent-principals]
+authorities: [llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-client/agent-authority.mjs, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/package.test.mjs, src/server.rs]
+examples: [packages/snapback-app-cli/package.test.mjs, demos/_kit/tests/auth-handshake.mjs]
+status: current
+targets: [local]
+maturity: shipped
+reviewed: 2026-07-19
+reviewed-commit: HEAD
+---
+
+# Agent principals and scoped grants
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](./targets.md).
+
+An agent is a service principal with its own credential. It does not borrow a
+human session bearer. A grant gives that principal a closed set of function
+scopes, and each short-lived scoped token names the agent credential,
+credential generation, grant, and token carrier. The server still applies
+ordinary auth requirements, row scoping, and
+[roles](./scoped-roles.md); a token never bypasses those gates.
+
+## Pair an already registered agent
+
+Registration is an owner or invitation flow that creates the agent and returns
+its one-time credential. Keep that credential outside source, logs, generated
+artifacts, and model output. Pairing then delegates a user's authority without
+letting the agent name or enumerate users:
+
+1. A signed-in user calls `POST /auth/pairing-codes` and conveys the short-lived
+   code out of band.
+2. The agent calls `POST /auth/agents/pair` with `credential`,
+   `pairingRequestId`, `pairingCode`, and the exact `requestedScopes`.
+3. The user inspects `GET /auth/grant-requests` and approves or denies the
+   pending request. Approval displays the agent, provenance, scopes, expiry,
+   and owner-assumption disclosure.
+4. The agent polls `POST /auth/agents/token` with its credential and
+   `pairingRequestId`. `SNAPBACK_AUTH_GRANT_PENDING` means wait; the
+   non-enumerating `SNAPBACK_AUTH_GRANT_INVALID` means stop.
+
+The token response contains `tokenId`, `grantId`, `credentialId`,
+`credentialGeneration`, expiry, canonical scopes, and the bearer. Re-polling an
+approved request rotates the first token; it does not retrieve old plaintext.
+
+## Choose scopes deliberately
+
+An explicit function scope binds a stable function id, kind, manifest basis,
+and whether the function can create authority. A tier scope such as
+`{ tier: "query" }` follows the current manifest and therefore includes later
+queries. Prefer explicit function scopes when deployment must not silently
+expand reach. `authorityCreating` operations never join a tier implicitly.
+
+Delegated grants expire, at most 90 days. Renewal is a new consent. Autonomous
+grants come only from the app's registration template on production-like
+postures; the local operator mint exists for development and testing, not as a
+production escape hatch.
+
+## Fence token custody before doing work
+
+Construct `AgentAuthorityFence` from the token response plus the registered
+agent actor id, then pass it to `SnapbackClient` as `agentAuthority`. The client
+probes `/auth/session`, verifies the exact service-principal descriptor, and
+only publishes results while the captured credential-generation/grant/token
+carrier is still current. Use filesystem custody for a long-running Node agent;
+use the volatile fence only for a bounded process.
+
+Never return or serialize the bearer as an operation result. Rotation uses
+`replaceAgentCredential(...)`; revocation or terminal auth loss synchronously
+cuts publication and either retires the carrier or deletes the durable grant
+tuple according to the server's classified disposition.
+
+## Revoke and verify
+
+An agent can use `/auth/agents/revoke-self` and `/auth/agents/rotate` for its own
+credential lifecycle. A signed-in grantor manages grants through
+`/auth/grants`; operator-only lifecycle actions stay on the host-operations
+plane. After a mutation, verify through a query or live snapshot under the same
+fenced authority. The packaged acceptance witness in
+`packages/snapback-app-cli/package.test.mjs` exercises discovery, pairing,
+scoped custody, mutation, subscription, and verification without exposing the
+token in its returned result.
+
+## Anti-patterns
+
+- Do not put an admin token into an app agent; host operations and app data are
+  separate authority planes.
+- Do not let an agent choose an effective user id in a request body.
+- Do not treat a tier grant as deployment-pinned.
+- Do not persist bearer plaintext in the durable custody ledger or print it in
+  diagnostics.
+- Do not retry `SNAPBACK_AUTH_GRANT_INVALID` as if it were pending.
 
 ---
 
@@ -1896,9 +2053,12 @@ What the surface does for you:
   `liveQueries: [...]` (each entry a name or `{ name, args }`) bound over
   one shared stream. `onConnectionChange` carries the
   [connection axis](../realtime/live-queries.md). A multi-live surface
-  serves **configured live queries only**: a binding to a query missing
-  from `liveQueries` gets a `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` error
-  cell (plus a console error), and configuring a snapshot query in
+  serves **configured live queries only**. Pass the mounted component's
+  compiler-known binding list as `requiredQueries`; if any required binding
+  is absent from `liveQueries`, construction fails before queries or
+  subscriptions start with `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED`, naming
+  the missing query and the `liveQueries` repair. The runtime error cell is
+  retained only as defense in depth for dynamic/untyped callers. Configuring a snapshot query in
   live-push mode is refused at construction with
   `SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE`. Author UI-facing reads as live
   queries; membership-gated live queries deny by *emptiness* (the
@@ -1920,6 +2080,28 @@ What the surface does for you:
   containment remain correct. See the
   [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Checked helper metadata and result shapes
+
+Project-owned TypeScript helpers cross into Contract through a
+`.contract-meta.ts` sidecar. `node scripts/check-contract-meta.mjs` compares
+every `pure({ params: [...] })` list with the actual exported TypeScript
+function signature; drift fails the local proof with
+`SNAPBACK_CONTRACT_META_PARAMS_DRIFT`. Run Exact's metadata generator when
+introducing a sidecar, then keep the drift gate green rather than hand-copying
+signature changes blindly.
+
+Declare structural helper results with `shape(...)`, and reference that shape
+from `pure({ result: 'ShapeName' })`. The compiler then validates every member:
+All Aboard's `board.hero.headsgn` regression fails with
+`shape_unknown_member` and suggests `headsign`. A result left as `object` or an
+undeclared nominal string remains opaque and cannot provide that protection.
+
+Function-valued declarations have one deliberate residue in the currently
+pinned Exact suite: `action(name: Type)` props are arity/type checked, while a
+raw decorative function spelling such as `(id) => void` is not a complete
+checked signature. Use action-typed props for Contract events; reserve raw
+function props for legacy capability glue until Exact promotes that spelling.
 
 ## Anti-patterns
 
@@ -1944,7 +2126,7 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
 status: current
 targets: [local]
@@ -1959,14 +2141,15 @@ reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`SnapbackClient` in `demos/_kit/client.mjs` is the framework-neutral
-reference arm. Demos, acceptance suites, the React arm, and
+`SnapbackClient` from the versioned `@snapback/client` package is the
+framework-neutral reference arm. The old `demos/_kit/client.mjs` path is a
+compatibility re-export only. Demos, acceptance suites, the React arm, and
 `@snapback/contract` build on the same transport, live-stream, ephemeral,
 receipt, and auth behavior rather than reimplementing HTTP.
 
 ## Construct one client per backend and custody context
 
-```js source=demos/_kit/client.mjs
+```js source=packages/snapback-client/index.mjs
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,
@@ -2194,6 +2377,92 @@ lifecycle; they are not additional client methods.
 - **Do not reuse a connection id across unrelated custody/lifecycle owners.**
 - **Do not forget `dispose()` / `closeAuth()`.** Handles, overlays, and
   coordinator participants own resources.
+
+---
+
+<!-- snapback-guide-source: guide/clients/app-cli.md -->
+---
+title: The artifact-driven app CLI
+id: clients.app-cli
+order: 2
+audience: agent-first
+capabilities: [clients.app-cli]
+authorities: [llp/0062-generated-app-cli-and-code-mode.rfc.md, packages/snapback-app-cli/index.mjs, packages/snapback-app-cli/cli.mjs, packages/snapback-app-cli/package.test.mjs, packages/snapback-client/index.mjs]
+examples: [packages/snapback-app-cli/package.test.mjs, demos/todo/snapback/generated]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-19
+reviewed-commit: HEAD
+---
+
+# The artifact-driven app CLI
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+`@snapback/app-cli` packages the first complete agent-facing application
+journey on top of `@snapback/client`. It reads generated JSON artifacts as data,
+never imports generated `api.mjs` or handler source, and exposes the generic
+`snapback-app` command.
+
+This page is intentionally **partial**: the shipped checkpoint covers explicit
+local artifacts, JSON introspection, library calls/subscriptions, and the
+fenced agent journey. Served envelopes, generation-bound calls, interactive
+human session custody, frozen result/exit envelopes, code mode, and per-app
+shims remain in LLP 0062's deferred program. Do not infer those surfaces from
+the package name.
+
+## Discover the app surface
+
+Generate the app first, then point the CLI at the generated directory:
+
+```sh
+snapback-app --artifacts demos/todo/snapback/generated introspect
+```
+
+The loader joins `artifacts.json` to `functions.manifest.json`, requires one
+`appId`, and reports each stable id, name, kind, auth requirement, and argument
+schema path. A mismatch refuses with
+`SNAPBACK_APP_CLI_ARTIFACT_IDENTITY_MISMATCH`; an unknown function reports the
+available manifest names. Discovery does not execute application code.
+
+## Run the packaged agent journey
+
+`runPackagedAgentJourney(...)` is the phase checkpoint and acceptance seam:
+
+1. discover the generated function manifest;
+2. present a user-minted pairing code and exact requested scopes;
+3. mint a scoped token after approval;
+4. put that token in `AgentAuthorityFence` and verify the service-principal
+   handshake;
+5. invoke a mutation;
+6. establish a connection grant and live subscription;
+7. query to verify the committed state.
+
+The returned result includes redacted grant/scope facts and operation results,
+never credential or token plaintext. Use the lower-level `pairAgent`,
+`mintAgentToken`, `invokeAppFunction`, and `subscribeAppFunction` exports when a
+coordinator owns the approval pause or needs multiple calls. For agent auth
+semantics and durable daemon custody, read
+[Agent principals](../auth/agent-principals.md).
+
+## Know the current command boundary
+
+The executable currently exposes `introspect`; the package exports the call,
+subscribe, pairing, and journey operations for programmatic agent runners. The
+older 19-ticket program is explicitly rescoped around this useful checkpoint.
+Those deferred tickets remain design work, not implied CLI commands.
+
+## Anti-patterns
+
+- Do not import generated `api.mjs` merely to discover functions.
+- Do not guess a checkout or artifact directory.
+- Do not pass admin credentials to the app CLI.
+- Do not return a scoped bearer in JSON, logs, or diagnostic details.
+- Do not claim served-envelope or code-mode guarantees from this local
+  artifact checkpoint.
 
 ---
 
@@ -3082,6 +3351,13 @@ Snapback failures carry stable machine identity. Assert and branch on the
 `SNAPBACK_*` code; display the message to a human; inspect `details` only
 for code-specific facts.
 
+The same contract applies before runtime. Compiler, codegen, dev-server, and
+surface-construction failures must carry a stable code, point at the authored
+offender (file plus span when known), preserve the first actionable cause, and
+report once per source/artifact generation—not once per reactive evaluation.
+An authoring failure that can be known during codegen or boot must not be
+deferred into an error-shaped data cell.
+
 ## Consume the diagnostic shape
 
 The full diagnostic is:
@@ -3164,7 +3440,15 @@ rerun from the earliest stable code rather than patching later symptoms.
 - **Do not rebuild Hermes first.** Doctor, then bootstrap from prepared sibling
   artifacts when available.
 - **Do not accept a zero-check or timeout-only test result.** Require the
-  intended diagnostic and non-vacuous witnesses.
+intended diagnostic and non-vacuous witnesses.
+
+Two early data-seam examples are intentionally blocking:
+
+- `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` rejects a JavaScript query whose
+  handler visibly returns an object literal; return `[row]` or `[]`. Dynamic
+  result shapes still meet the runtime rows-array guard.
+- `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` rejects a mounted component's
+  `requiredQueries` before the multi-live surface opens any subscription.
 
 ---
 

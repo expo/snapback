@@ -79,12 +79,16 @@ you never build around a feature because you didn't know it existed.
   connection grants, invalidation obligations, recovery, and authorized leases.
 - [Scoped roles and memberships](./auth/scoped-roles.md) — declare app-wide or
   per-resource roles; gate queries; check and change membership safely.
+- [Agent principals](./auth/agent-principals.md) — register, pair, mint scoped
+  tokens, fence custody, revoke, and verify an agent journey.
 - [Targets — what each one claims](./auth/targets.md) — local vs hosted
   honesty; how to check the server instead of trusting prose.
 
 ### Clients
 - [The headless client](./clients/headless.md) — the complete
   `SnapbackClient` surface: calls, live/ephemeral state, receipts, and auth.
+- [The app CLI](./clients/app-cli.md) — discover generated operations and run
+  the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
 - [The React arm](./clients/react.md) — hand-wired client, live queries in

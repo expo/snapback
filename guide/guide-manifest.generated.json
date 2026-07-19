@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "a5ed6ebd05766b10607937a1c010352d79eea4b0"
+    "commit": "157a3cc3f919736ef557dcc7024835b7b5de08e6"
   },
   "nav": {
     ".": [
@@ -47,6 +47,11 @@
         "id": "auth.targets",
         "order": 3,
         "title": "Targets — what each one claims"
+      },
+      {
+        "id": "auth.agent-principals",
+        "order": 4,
+        "title": "Agent principals and scoped grants"
       }
     ],
     "backend": [
@@ -81,6 +86,11 @@
         "id": "clients.headless",
         "order": 1,
         "title": "The headless client"
+      },
+      {
+        "id": "clients.app-cli",
+        "order": 2,
+        "title": "The artifact-driven app CLI"
       },
       {
         "id": "clients.react",
@@ -169,6 +179,34 @@
     ]
   },
   "pages": {
+    "auth.agent-principals": {
+      "path": "guide/auth/agent-principals.md",
+      "title": "Agent principals and scoped grants",
+      "order": 4,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "shipped",
+      "capabilities": [
+        "auth.agent-principals"
+      ],
+      "authorities": [
+        "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "packages/snapback-client/agent-authority.mjs",
+        "packages/snapback-app-cli/index.mjs",
+        "packages/snapback-app-cli/package.test.mjs",
+        "src/server.rs"
+      ],
+      "examples": [
+        "packages/snapback-app-cli/package.test.mjs",
+        "demos/_kit/tests/auth-handshake.mjs"
+      ],
+      "reviewed": "2026-07-19",
+      "reviewedCommit": "HEAD",
+      "sha256": "e0c6c0c1aa2eb2b30cda76aa23af446cb9890078e439cbf94bd54cb2fcc7b7ad",
+      "snippets": []
+    },
     "auth.protecting-data": {
       "path": "guide/auth/protecting-data.md",
       "title": "Protecting live and retained data",
@@ -198,7 +236,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "e0e69ca588f6c7b6ae33ac0456e83b2fbb10a0b2647d4698761e471b2a47d455",
+      "sha256": "959a3324360ca36ce2c6791d1769e98007a4bcaff259daf2a3ac14d24dfa008d",
       "snippets": [
         {
           "lang": "js",
@@ -213,7 +251,7 @@
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/_kit/client.mjs"
+          "source": "packages/snapback-client/index.mjs"
         }
       ]
     },
@@ -244,7 +282,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "a0185b7a8608011445ebab2585cff57e99917865de8d71aed7e78669ba219c49",
+      "sha256": "7d877da91b64d8b02e60109437317c57937219cc16a3443cfbdcf0866c6b83be",
       "snippets": [
         {
           "lang": "js",
@@ -560,7 +598,35 @@
       "examples": [],
       "reviewed": "2026-07-17",
       "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "ad84ffd329e6df1dc0a68aeb92be711f69673c8b711ef992a8ee4f2eac132914",
+      "sha256": "7407a9f9c36159f04c1d6aa8c53459af7c1374767f6abed256db4316802afa98",
+      "snippets": []
+    },
+    "clients.app-cli": {
+      "path": "guide/clients/app-cli.md",
+      "title": "The artifact-driven app CLI",
+      "order": 2,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "clients.app-cli"
+      ],
+      "authorities": [
+        "llp/0062-generated-app-cli-and-code-mode.rfc.md",
+        "packages/snapback-app-cli/index.mjs",
+        "packages/snapback-app-cli/cli.mjs",
+        "packages/snapback-app-cli/package.test.mjs",
+        "packages/snapback-client/index.mjs"
+      ],
+      "examples": [
+        "packages/snapback-app-cli/package.test.mjs",
+        "demos/todo/snapback/generated"
+      ],
+      "reviewed": "2026-07-19",
+      "reviewedCommit": "HEAD",
+      "sha256": "64bfedd0246483c1ca51a6f0a35acfaa6d35fedd2e35d57baf2f8e0c79e4176f",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -591,7 +657,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "ac822fd01848d8a714a299b3ceae13b76bdba53ebd4a25d651b5cfb4ba83b570",
+      "sha256": "320b2ffe47bd8a7a02e663176f1c3ecf2cf1ef53307bec907e393b3c037ca225",
       "snippets": [
         {
           "lang": "contract",
@@ -639,8 +705,8 @@
       ],
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
-        "demos/_kit/client.mjs",
-        "demos/_kit/agent-authority.mjs",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-client/agent-authority.mjs",
         "demos/_kit/agent-authority-filesystem.mjs",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs",
@@ -655,12 +721,12 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "605a39a037362cda231f5f0a571b3a99b1ae4a8dc9a502f48901974d06a92f5b",
+      "sha256": "8506bee4b8e324cf027e12c4c1e31058e87d3f0c737a90c5cfe40e9351caf707",
       "snippets": [
         {
           "lang": "js",
           "class": "transcluded",
-          "source": "demos/_kit/client.mjs"
+          "source": "packages/snapback-client/index.mjs"
         },
         {
           "lang": "js",
@@ -879,7 +945,7 @@
       ],
       "reviewed": "2026-07-16",
       "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "95466369c86edcd2bfddf4f09a1303f607a0317fc13ac8f151e3effff00e12a0",
+      "sha256": "11ed7f3b3995425aca93dad729fbc4fba81f0bd90e758ed194fc201ab79889db",
       "snippets": []
     },
     "operating.admin-console": {
@@ -941,7 +1007,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
-      "sha256": "f52e1c57059f27efaca16662cd3f921a30082357bf858c6b58374e1fa927b2a2",
+      "sha256": "de8409a6f2ba8a11dbffb19adb1e81c9c47c694fb071ad9d3be1391720e40e88",
       "snippets": [
         {
           "lang": "js",
@@ -1325,6 +1391,7 @@
   },
   "capabilities": {
     "covered": [
+      "auth.agent-principals",
       "auth.authorized-leases",
       "auth.invalidation-barrier",
       "auth.scoped-queries",
@@ -1339,6 +1406,7 @@
       "backend.query-semantics",
       "backend.schema",
       "backend.seed",
+      "clients.app-cli",
       "clients.contract",
       "clients.headless",
       "clients.optimistic-overlays",
@@ -1358,13 +1426,11 @@
       "sync.offline",
       "testing.acceptance"
     ],
-    "gaps": [
-      "auth.agent-principals"
-    ]
+    "gaps": []
   },
   "surfaces": {
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "82693624bd46e4258dc3ac13a97bd73654be3c83b216012e14855378d9c3c868"
+  "contentHash": "d75b488a963914595c3de1f5d8afa98e828931ec9656d3a6de2ba26305d9adf4"
 }

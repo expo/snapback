@@ -166,9 +166,12 @@ What the surface does for you:
   `liveQueries: [...]` (each entry a name or `{ name, args }`) bound over
   one shared stream. `onConnectionChange` carries the
   [connection axis](../realtime/live-queries.md). A multi-live surface
-  serves **configured live queries only**: a binding to a query missing
-  from `liveQueries` gets a `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` error
-  cell (plus a console error), and configuring a snapshot query in
+  serves **configured live queries only**. Pass the mounted component's
+  compiler-known binding list as `requiredQueries`; if any required binding
+  is absent from `liveQueries`, construction fails before queries or
+  subscriptions start with `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED`, naming
+  the missing query and the `liveQueries` repair. The runtime error cell is
+  retained only as defense in depth for dynamic/untyped callers. Configuring a snapshot query in
   live-push mode is refused at construction with
   `SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE`. Author UI-facing reads as live
   queries; membership-gated live queries deny by *emptiness* (the
@@ -190,6 +193,28 @@ What the surface does for you:
   containment remain correct. See the
   [presence recipe](../recipes/presence-cursors.md) and
   [ephemeral-state reference](../realtime/ephemeral-state.md).
+
+## Checked helper metadata and result shapes
+
+Project-owned TypeScript helpers cross into Contract through a
+`.contract-meta.ts` sidecar. `node scripts/check-contract-meta.mjs` compares
+every `pure({ params: [...] })` list with the actual exported TypeScript
+function signature; drift fails the local proof with
+`SNAPBACK_CONTRACT_META_PARAMS_DRIFT`. Run Exact's metadata generator when
+introducing a sidecar, then keep the drift gate green rather than hand-copying
+signature changes blindly.
+
+Declare structural helper results with `shape(...)`, and reference that shape
+from `pure({ result: 'ShapeName' })`. The compiler then validates every member:
+All Aboard's `board.hero.headsgn` regression fails with
+`shape_unknown_member` and suggests `headsign`. A result left as `object` or an
+undeclared nominal string remains opaque and cannot provide that protection.
+
+Function-valued declarations have one deliberate residue in the currently
+pinned Exact suite: `action(name: Type)` props are arity/type checked, while a
+raw decorative function spelling such as `(id) => void` is not a complete
+checked signature. Use action-typed props for Contract events; reserve raw
+function props for legacy capability glue until Exact promotes that spelling.
 
 ## Anti-patterns
 

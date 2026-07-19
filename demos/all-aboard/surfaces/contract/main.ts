@@ -314,6 +314,7 @@ const renderFirst = createRenderFirstSnapbackContractSurface({
   schemaManifest,
   functionManifest: functionsManifest,
   liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
+  requiredQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
   connect: async () => {
     // Render-first means backend work itself starts after the useful board
     // paint—not merely that `ready` records its timestamp later.

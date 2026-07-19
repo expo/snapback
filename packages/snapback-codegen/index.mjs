@@ -1025,6 +1025,30 @@ export async function generateInProcess(backendDir, options = {}) {
         }
       }
       const handlerSource = loadHandlerSource(def.js.source, name);
+      if (handlerSource) {
+        for (const problem of scanStaticallyInvalidJsQueryResults(
+          handlerSource,
+          def.js.exportName,
+        )) {
+          err(
+            'FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS',
+            'function',
+            `${name}: JavaScript query handler ${def.js.exportName} returns an object literal, but query handlers must return a rows array. Wrap a point read as [row] (or return [] when absent).`,
+            {
+              function: name,
+              handler: def.js.exportName,
+              source: def.js.source,
+              line: problem.line,
+              column: problem.column,
+              sourceSpan: {
+                file: def.js.source,
+                line: problem.line,
+                column: problem.column,
+              },
+            },
+          );
+        }
+      }
       if (handlerSource && isProtectedQueryDefinition(def)) {
         for (const problem of scanProtectedHandlerSource(handlerSource)) {
           err(problem.code, 'auth', `${name}: ${problem.message}`, {
@@ -3615,6 +3639,77 @@ function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
   return issues
     .sort((left, right) => left.offset - right.offset || left.code.localeCompare(right.code))
     .map(({ offset: _offset, ...issue }) => issue);
+}
+
+function scanStaticallyInvalidJsQueryResults(source, exportName) {
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'module',
+      locations: true,
+    });
+  } catch {
+    // The handler bundle's existing syntax/evaluation path owns parse errors.
+    return [];
+  }
+
+  const functions = [];
+  const visitDeclarations = (node) => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      (node.type === 'FunctionDeclaration' && node.id?.name === exportName) ||
+      (node.type === 'VariableDeclarator'
+        && node.id?.name === exportName
+        && ['FunctionExpression', 'ArrowFunctionExpression'].includes(node.init?.type))
+    ) {
+      functions.push(node.type === 'FunctionDeclaration' ? node : node.init);
+      return;
+    }
+    if (
+      node.type === 'Property'
+      && !node.computed
+      && (node.key?.name === exportName || node.key?.value === exportName)
+      && ['FunctionExpression', 'ArrowFunctionExpression'].includes(node.value?.type)
+    ) {
+      functions.push(node.value);
+      return;
+    }
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) value.forEach(visitDeclarations);
+      else if (value && typeof value === 'object') visitDeclarations(value);
+    }
+  };
+  visitDeclarations(program);
+
+  const problems = [];
+  const inspectBody = (node, rootFunction) => {
+    if (!node || typeof node !== 'object') return;
+    if (
+      node !== rootFunction
+      && ['FunctionDeclaration', 'FunctionExpression', 'ArrowFunctionExpression'].includes(node.type)
+    ) return;
+    if (node.type === 'ReturnStatement' && node.argument?.type === 'ObjectExpression') {
+      problems.push({
+        line: node.argument.loc?.start.line ?? node.loc?.start.line ?? 1,
+        column: (node.argument.loc?.start.column ?? node.loc?.start.column ?? 0) + 1,
+      });
+      return;
+    }
+    if (node === rootFunction && node.type === 'ArrowFunctionExpression' && node.body?.type === 'ObjectExpression') {
+      problems.push({
+        line: node.body.loc?.start.line ?? 1,
+        column: (node.body.loc?.start.column ?? 0) + 1,
+      });
+      return;
+    }
+    for (const value of Object.values(node)) {
+      if (Array.isArray(value)) value.forEach((child) => inspectBody(child, rootFunction));
+      else if (value && typeof value === 'object') inspectBody(value, rootFunction);
+    }
+  };
+  functions.forEach((fn) => inspectBody(fn, fn));
+  return problems;
 }
 
 function scanProtectedHandlerSource(source) {

@@ -54,6 +54,13 @@ async function boot(): Promise<void> {
 
   status('Mounting Contract surface…');
   installContractWebHost();
+  const mountedQueries = eventId === null
+    ? ['myFeed']
+    : [
+        { name: 'eventDetails', args: { eventId } },
+        { name: 'guestList', args: { eventId } },
+        { name: 'eventWall', args: { eventId } },
+      ];
   const surface = await createSnapbackContractSurface({
     runtime: await import('@exact/contract/runtime'),
     client,
@@ -62,13 +69,8 @@ async function boot(): Promise<void> {
     artifactIndex,
     schemaManifest,
     functionManifest: functionsManifest,
-    liveQueries: eventId === null
-      ? ['myFeed']
-      : [
-          { name: 'eventDetails', args: { eventId } },
-          { name: 'guestList', args: { eventId } },
-          { name: 'eventWall', args: { eventId } },
-        ],
+    liveQueries: mountedQueries,
+    requiredQueries: mountedQueries,
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links);

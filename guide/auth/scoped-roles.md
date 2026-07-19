@@ -28,6 +28,32 @@ The shipped v1 lane is for online queries, live queries, and mutations. It does
 not yet make membership-gated results retainable offline, emit incremental
 semi-join deltas, or support hosted targets.
 
+## Privacy posture and reachable operations
+
+Membership backing rows are fully private in v1: application code cannot list
+them, ask whether one exists, or obtain their row ids, and `insert` returns
+`null`. That posture deliberately forecloses administrator-driven
+id-addressed `setRole`, `remove`, and `patch` in ordinary app handlers. The
+methods exist for trusted migration/import contexts that already possess a
+row id; the private app surface does not mint one. Do not source-dive for an
+escape hatch—the absence is the security contract.
+
+| Operation under the private v1 posture | Reachable app path |
+| --- | --- |
+| create a resource plus its first holder | `bootstrap(...)` (resource scope) |
+| add self or another principal | declared `insert` transition; returns no row id |
+| accept/decline/change/remove the caller's own seat | `setSelfRole`, `removeSelf`, or `patchSelf` |
+| administrator changes/removes/patches another existing seat | foreclosed: requires a private row id |
+| read/list/sync the roster or test another seat's existence | foreclosed: use `memberOf`/`hasRole` semi-joins or `requireRole` |
+
+For invitations, keep the pending invitation in an ordinary app-data table
+whose privacy policy fits the product. The invitee consumes that record and
+performs a declaration-authorized self `insert` into the final membership
+role. Alternatively, use a membership `pendingRole` only when the invitee can
+finish through a self-addressed transition, as the app-wide example below
+does. Do not imply that the inviter can promote the private row later: it
+cannot obtain that row's id.
+
 ## Declare an app-wide role set
 
 An app-scoped declaration omits the resource axis. This demo supports open
@@ -182,8 +208,9 @@ id:
 The host resolves only the effective principal's row, returns no id, and then
 runs the same declared transition matrix. A missing own row is
 `SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; no helper reveals whether anyone else has
-a row. Use the id-addressed forms only when the application already has a
-trusted row id for an authorized other-target operation.
+a row. The id-addressed forms are not an administrator authoring path for the
+private v1 roster; only a trusted migration/import context outside the normal
+app surface can already hold such an id.
 
 Generic `ctx.db` and HostPlan writes to a membership table fail with
 `SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
@@ -210,6 +237,26 @@ The generated TypeScript surface brands principals and resource ids, emits
 closed role unions and insert/patch values, exposes `GeneratedPermissions` to
 queries and mutations, and exposes `GeneratedMembership` only to mutations.
 
+## Keep the authorization composition seams aligned
+
+An authorized live effect is valid only while all of these captured facts
+still describe the same operation:
+
+- **coordinator epoch** — which authenticated authority generation owns the client;
+- **queue generation** — which durable outbox generation may replay;
+- **artifact identity** — the schema/function bundle whose declarations were checked;
+- **principal scope** — effective user or scoped service-principal tuple;
+- **descriptor** — the exact query/mutation plus args and authorization dependence;
+- **query lease** — the live subscription generation allowed to receive rows.
+
+Treat the set as one composition boundary. A principal/token/grant transition
+must close or blank the old query lease before a successor publishes; queued
+work must compare both its authority capture and store generation; generated
+descriptors must match the active artifact hashes. The Contract adapter and
+packaged client perform these comparisons. App code should not cache a roster
+answer, splice a new bearer into an old client, or reuse a live handle across a
+coordinator transition.
+
 ## Anti-patterns
 
 - **Do not store roles in session claims.** Membership rows are the current
@@ -218,6 +265,10 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not design administrator promotion/removal around private membership
+  row ids.** V1 intentionally does not make those ids reachable; use app-data
+  invitations plus a self transition, or choose a product flow that does not
+  require administrator mutation of an existing private seat.
 - **Do not create an app-data roster-id mirror just to leave or accept.** Use
   the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use

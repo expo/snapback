@@ -70,6 +70,7 @@ async function boot(): Promise<void> {
     schemaManifest,
     functionManifest: functionsManifest,
     liveQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
+    requiredQueries: ['liveTrainStatus', 'liveDepartures', 'feedState'],
   });
   activeSurface = surface;
   configureSnapbackContractLinks(surface.links as never);

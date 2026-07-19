@@ -5,7 +5,7 @@
 // preference, sensor retry, URL opening, and route transport are named
 // capabilities instead of hidden module reads.
 
-import { capability, defineContractModule, pure } from '@exact/contract/exports';
+import { capability, defineContractModule, pure, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./data.ts', {
   getSelectedStation: pure({ params: ['stationId', 'location'], result: 'Station', depends: 'args' }),
@@ -25,36 +25,67 @@ export default defineContractModule('./data.ts', {
   getDirectionBoard: pure({ params: ['stationId', 'direction', 'nowMs', 'limit', 'delayRows', 'departureRows', 'feedRows'], result: 'DirectionBoard', depends: 'args' }),
   boardTrains: pure({ params: ['stationId', 'direction', 'nowMs', 'heroOffset', 'delayRows', 'departureRows', 'feedRows'], result: 'HeroBoard', depends: 'args' }),
   terminalHint: pure({ params: ['stationId', 'direction', 'nowMs', 'delayRows', 'departureRows', 'feedRows', 'timezoneGeneration'], result: 'string', depends: 'args' }),
-  delayLabel: pure({ params: ['departure'], result: 'string', depends: 'args' }),
-  delayColor: pure({ params: ['departure', 'scheme'], result: 'string', depends: 'args' }),
-  shortHeadsign: pure({ params: ['departure'], result: 'string', depends: 'args' }),
+  delayLabel: pure({ params: ['dep'], result: 'string', depends: 'args' }),
+  delayColor: pure({ params: ['dep', 'scheme'], result: 'string', depends: 'args' }),
+  shortHeadsign: pure({ params: ['dep'], result: 'string', depends: 'args' }),
   getTrainRun: pure({ params: ['runId', 'nowMs', 'delayRows', 'departureRows'], result: 'TrainRun', depends: 'args' }),
   boardingCall: pure({ params: ['trip', 'stationId', 'nowMs'], result: 'BoardingCall', depends: 'args' }),
   boardingCallDeadline: pure({ params: ['trip', 'stationId'], result: 'number', depends: 'args' }),
   heroStops: pure({ params: ['runId', 'stationId', 'nowMs', 'delayRows', 'departureRows', 'timezoneGeneration'], result: 'HeroStopChip[]', depends: 'args' }),
   stopClockLabel: pure({ params: ['stop', 'timezoneGeneration'], result: 'string', depends: 'args' }),
-  formatClockTime: pure({ params: ['timestamp', 'timezoneGeneration'], result: 'string', depends: 'args' }),
-  countdownTemporal: pure({ params: ['target', 'nowMs'], result: 'TemporalText', depends: 'args' }),
+  formatClockTime: pure({ params: ['timestampMs', 'timezoneGeneration'], result: 'string', depends: 'args' }),
+  countdownTemporal: pure({ params: ['targetMs', 'nowMs'], result: 'TemporalText', depends: 'args' }),
   serviceColor: pure({ params: ['service'], result: 'string', depends: 'args' }),
   serviceTint: pure({ params: ['service', 'scheme'], result: 'string', depends: 'args' }),
   etaModeLabel: pure({ params: ['mode'], result: 'string', depends: 'args' }),
-  effectiveEtaMode: pure({ params: ['station', 'mode', 'location'], result: 'string', depends: 'args' }),
-  walkBikeLine: pure({ params: ['station', 'mode', 'location', 'routeEstimate'], result: 'string', depends: 'args' }),
+  effectiveEtaMode: pure({ params: ['station', 'mode', 'hostLocation'], result: 'string', depends: 'args' }),
+  walkBikeLine: pure({ params: ['station', 'mode', 'location', 'resource'], result: 'string', depends: 'args' }),
   routeEstimateRefreshDeadline: pure({ params: ['nowMs'], result: 'number', depends: 'args' }),
   directionsLabel: pure({ params: ['station', 'mode', 'location'], result: 'string', depends: 'args' }),
   stationAddress: pure({ params: ['stationId'], result: 'string', depends: 'args' }),
-  distanceLabel: pure({ params: ['station', 'mode', 'location'], result: 'string', depends: 'args' }),
+  distanceLabel: pure({ params: ['station', 'mode', 'hostLocation'], result: 'string', depends: 'args' }),
   feedFreshnessTemporal: pure({ params: ['feedRows', 'backend', 'nowMs'], result: 'TemporalText', depends: 'args' }),
   feedProblem: pure({ params: ['feedRows'], result: 'string', depends: 'args' }),
   feedSourceBadge: pure({ params: ['feedRows', 'nowMs', 'scheme'], result: 'FeedSourceBadge', depends: 'args' }),
   feedStaleDeadline: pure({ params: ['feedRows', 'nowMs'], result: 'number', depends: 'args' }),
   backendStatusNote: pure({ params: ['backend'], result: 'string', depends: 'args' }),
   emptyDelayRows: pure({ params: [], result: 'DelayRow[]', depends: 'args' }),
-  nextDepartureExpiry: pure({ params: ['screen', 'stationId', 'stations', 'direction', 'nowMs', 'delayRows', 'departureRows', 'feedRows'], result: 'number', depends: 'args' }),
+  nextDepartureExpiry: pure({ params: ['screen', 'selectedStationId', 'stations', 'direction', 'nowMs', 'delayRows', 'departureRows', 'feedRows'], result: 'number', depends: 'args' }),
   nextUtcDayDeadline: pure({ params: ['nowMs'], result: 'number', depends: 'args' }),
   positionFraction: pure({ params: ['trip'], result: 'number', depends: 'args' }),
   positionLabel: pure({ params: ['trip'], result: 'string', depends: 'args' }),
   fractionPercent: pure({ params: ['fraction'], result: 'string', depends: 'args' }),
+
+  // Structural result types make member access compiler-owned. In particular,
+  // `board.hero.headsgn` is now an unknown-member diagnostic with `headsign`
+  // as the nearest declared field instead of a runtime undefined value.
+  BoardDeparture: shape({
+    fields: {
+      id: 'string',
+      direction: 'string',
+      service: 'string',
+      trainNumber: 'string',
+      headsign: 'string',
+      stationId: 'string',
+      predictedDepartureMs: 'number',
+      delaySeconds: 'number',
+      offset: { type: 'number', optional: true },
+      fade: { type: 'number', optional: true },
+      testId: { type: 'string', optional: true },
+    },
+  }),
+  HeroBoard: shape({
+    fields: {
+      hero: 'BoardDeparture',
+      heroPrev: 'BoardDeparture',
+      heroNext: 'BoardDeparture',
+      before: 'BoardDeparture[]',
+      rest: 'BoardDeparture[]',
+      hasPrev: 'boolean',
+      hasNext: 'boolean',
+      offset: 'number',
+    },
+  }),
 
   requestGeolocationRefresh: capability({ params: {}, effects: ['device.location.request'] }),
   openDirectionsLink: capability({

@@ -17,6 +17,20 @@
     "packages/snapback-admin-client": {
       "name": "@snapback/admin-client",
     },
+    "packages/snapback-app-cli": {
+      "name": "@snapback/app-cli",
+      "version": "0.1.0",
+      "bin": {
+        "snapback-app": "./cli.mjs",
+      },
+      "dependencies": {
+        "@snapback/client": "workspace:*",
+      },
+    },
+    "packages/snapback-client": {
+      "name": "@snapback/client",
+      "version": "0.1.0",
+    },
     "packages/snapback-codegen": {
       "name": "@snapback/codegen",
       "dependencies": {
@@ -165,6 +179,10 @@
     "@sindresorhus/is": ["@sindresorhus/is@7.2.0", "", {}, "sha512-P1Cz1dWaFfR4IR+U13mqqiGsLFf1KbayybWwdd2vfctdV6hDpUkgCY0nKOLLTMSoRd/jJNjtbqzf13K8DCCXQw=="],
 
     "@snapback/admin-client": ["@snapback/admin-client@workspace:packages/snapback-admin-client"],
+
+    "@snapback/app-cli": ["@snapback/app-cli@workspace:packages/snapback-app-cli"],
+
+    "@snapback/client": ["@snapback/client@workspace:packages/snapback-client"],
 
     "@snapback/codegen": ["@snapback/codegen@workspace:packages/snapback-codegen"],
 

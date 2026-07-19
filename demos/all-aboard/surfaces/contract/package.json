@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "bun --bun node_modules/.bin/vite --config vite.config.ts --host 127.0.0.1 --port 5178",
     "build": "bun --bun node_modules/.bin/vite build --config vite.config.ts",
+    "test:types": "bun test headsign-typecheck.test.ts",
     "test:url-open": "bun test external-url.test.ts"
   },
   "dependencies": {

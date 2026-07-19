@@ -19,6 +19,13 @@ Snapback failures carry stable machine identity. Assert and branch on the
 `SNAPBACK_*` code; display the message to a human; inspect `details` only
 for code-specific facts.
 
+The same contract applies before runtime. Compiler, codegen, dev-server, and
+surface-construction failures must carry a stable code, point at the authored
+offender (file plus span when known), preserve the first actionable cause, and
+report once per source/artifact generation—not once per reactive evaluation.
+An authoring failure that can be known during codegen or boot must not be
+deferred into an error-shaped data cell.
+
 ## Consume the diagnostic shape
 
 The full diagnostic is:
@@ -101,4 +108,12 @@ rerun from the earliest stable code rather than patching later symptoms.
 - **Do not rebuild Hermes first.** Doctor, then bootstrap from prepared sibling
   artifacts when available.
 - **Do not accept a zero-check or timeout-only test result.** Require the
-  intended diagnostic and non-vacuous witnesses.
+intended diagnostic and non-vacuous witnesses.
+
+Two early data-seam examples are intentionally blocking:
+
+- `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` rejects a JavaScript query whose
+  handler visibly returns an object literal; return `[row]` or `[]`. Dynamic
+  result shapes still meet the runtime rows-array guard.
+- `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` rejects a mounted component's
+  `requiredQueries` before the multi-live surface opens any subscription.

@@ -4,7 +4,7 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, demos/_kit/client.mjs, demos/_kit/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
 status: current
 targets: [local]
@@ -19,14 +19,15 @@ reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-`SnapbackClient` in `demos/_kit/client.mjs` is the framework-neutral
-reference arm. Demos, acceptance suites, the React arm, and
+`SnapbackClient` from the versioned `@snapback/client` package is the
+framework-neutral reference arm. The old `demos/_kit/client.mjs` path is a
+compatibility re-export only. Demos, acceptance suites, the React arm, and
 `@snapback/contract` build on the same transport, live-stream, ephemeral,
 receipt, and auth behavior rather than reimplementing HTTP.
 
 ## Construct one client per backend and custody context
 
-```js source=demos/_kit/client.mjs
+```js source=packages/snapback-client/index.mjs
   constructor(baseUrl, {
     adminToken = (typeof process !== 'undefined' && process.env ? process.env.SNAPBACK_ADMIN_TOKEN : null) ?? null,
     bearerToken = null,

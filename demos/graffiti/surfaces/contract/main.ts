@@ -126,6 +126,7 @@ async function boot(): Promise<void> {
     functionManifest: functionsManifest,
     // The board-scoped live query binds with its args over the shared stream.
     liveQueries: [{ name: 'listCells', args: { boardId: BOARD_ID } }],
+    requiredQueries: ['listCells'],
     // SECURITY — DEMO ONLY, DO NOT COPY THIS AUTH PATTERN INTO A REAL APP.
     // boardCursors publish/subscribe require the board's `boardMember` room
     // permission (schema.mjs enforces it server-side via
