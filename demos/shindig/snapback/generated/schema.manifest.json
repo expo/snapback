@@ -1,0 +1,225 @@
+{
+  "app": {
+    "description": "A React events app over resource-scoped membership: bootstrap-created events seat their host atomically, invites are displayable app data while the roster stays private, a first RSVP seats a guest through the declared self-insert transition, and the members-only event page / live guest list / wall are gated by the membership boundary rather than handler convention.",
+    "name": "Shindig — Partiful-style events and RSVPs"
+  },
+  "appId": "shindig",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "364d7a4be528099cbd17068c9f4c2aed4c8d4f1db87ab10a84384c1e85959431",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:b51c12de8feff51a",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "emoji",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "description",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "location",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "startsAt",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "hostName",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "events",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "membership": {
+        "bootstrapRole": "host",
+        "id": "eventMembers",
+        "lastHolder": {
+          "protect": "host"
+        },
+        "principal": "userId",
+        "provenance": "full",
+        "resource": "eventId",
+        "resourceTable": "events",
+        "role": "role",
+        "roles": [
+          "host",
+          "guest"
+        ],
+        "scope": "resource",
+        "transitions": [
+          {
+            "by": [
+              "none"
+            ],
+            "op": "insert",
+            "target": "self",
+            "to": [
+              "guest"
+            ]
+          }
+        ]
+      },
+      "name": "eventMembers",
+      "syncable": false
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "guestName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "note",
+          "optional": true
+        },
+        {
+          "field_type": "String",
+          "name": "eventTitle",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "eventEmoji",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "eventStartsAt",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "hostName",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "userId"
+          ],
+          "name": "by_user"
+        },
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        },
+        {
+          "fields": [
+            "eventId",
+            "userId"
+          ],
+          "name": "by_event_user",
+          "unique": true
+        }
+      ],
+      "name": "invites",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "message",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "posts",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

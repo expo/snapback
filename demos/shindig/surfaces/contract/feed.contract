@@ -1,0 +1,118 @@
+// Shindig — feed screen (Contract arm). The same product claims as the React
+// arm's Feed view: your invites/seats as live cards, RSVP straight from the
+// card, "RSVP to see the details" while invited, and party creation. Event
+// selection is a navigation capability (openEvent) because the Snapback
+// surface binds live-query args at boot — see main.ts.
+
+use myFeed from "../../snapback/generated/contract/myFeed.query.ts"
+use rsvp from "../../snapback/generated/contract/rsvp.mutation.ts"
+use createEvent from "../../snapback/generated/contract/createEvent.mutation.ts"
+use fmtWhen from "./data.ts"
+use statusLabel from "./data.ts"
+use startsFor from "./data.ts"
+use whenChipLabel from "./data.ts"
+use openEvent from "./data.ts"
+
+component ShindigFeed
+  props
+    userName: string = "Someone"
+
+  state creating = false
+  state draftTitle = ""
+  state draftEmoji = "🪩"
+  state draftWhere = ""
+  state draftDetails = ""
+  state draftWhen = "tonight"
+
+  query feed = myFeed({})
+  mutation respondMut = rsvp
+  mutation createMut = createEvent
+
+  derive nowMs = now()
+  derive canCreate = draftTitle.trim() != "" && draftWhere.trim() != ""
+
+  action toggleCreate writes creating
+    creating = !creating
+  action setTitle(value) writes draftTitle
+    draftTitle = value
+  action setEmoji(value) writes draftEmoji
+    draftEmoji = value
+  action setWhere(value) writes draftWhere
+    draftWhere = value
+  action setDetails(value) writes draftDetails
+    draftDetails = value
+  action setWhen(value) writes draftWhen
+    draftWhen = value
+  action submitCreate writes creating, draftTitle, draftWhere, draftDetails mutates createMut
+    createMut({ title: draftTitle.trim(), emoji: draftEmoji, description: draftDetails, location: draftWhere.trim(), startsAt: startsFor(draftWhen, nowMs), hostName: userName })
+    creating = false
+    draftTitle = ""
+    draftWhere = ""
+    draftDetails = ""
+  action respond(eventId, status) mutates respondMut
+    respondMut({ eventId: eventId, status: status })
+  action open(eventId)
+    openEvent(eventId)
+
+  contract
+    has node testId="feed"
+    press button "+ Throw a party" -> toggleCreate
+    derive canCreate depends only on draftTitle, draftWhere
+
+  view
+    column align="center" padding=24 gap=20 width="100%" minHeight="100vh"
+      column gap=18 width="100%" maxWidth=880 testId="feed"
+        row gap=14 align="baseline"
+          text "Your shindigs" size=28 weight=800 color="#f3ecfb" flex=1
+          button press=toggleCreate testId="new-event" paddingTop=9 paddingBottom=9 paddingLeft=18 paddingRight=18 radius=999 background="#8b3df0"
+            text creating ? "Never mind" : "+ Throw a party" size=14 weight=700 color="#ffffff"
+
+        when creating
+          column gap=12 padding=22 radius=18 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" maxWidth=560
+            row gap=10 align="center"
+              input value=draftEmoji change=setEmoji testId="create-emoji" width=64 paddingTop=9 paddingBottom=9 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=22
+              input label="What's the occasion?" value=draftTitle change=setTitle testId="create-title" flex=1 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=14
+            input label="Where?" value=draftWhere change=setWhere testId="create-location" paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=14
+            input label="Tell people what to expect…" value=draftDetails change=setDetails testId="create-description" paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=14
+            row gap=8 align="center"
+              button press=setWhen("tonight") testId="when-tonight" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=draftWhen == "tonight" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=draftWhen == "tonight" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                text whenChipLabel("tonight") size=13 color="#ffffff"
+              button press=setWhen("weekend") testId="when-weekend" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=draftWhen == "weekend" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=draftWhen == "weekend" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                text whenChipLabel("weekend") size=13 color="#ffffff"
+              button press=setWhen("nextweek") testId="when-nextweek" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=draftWhen == "nextweek" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=draftWhen == "nextweek" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                text whenChipLabel("nextweek") size=13 color="#ffffff"
+            button press=submitCreate testId="create-submit" disabled=!canCreate opacity=canCreate ? 1 : 0.45 paddingTop=10 paddingBottom=10 paddingLeft=20 paddingRight=20 radius=999 background="#d3388f"
+              text "Send it 🎈" size=14 weight=700 color="#ffffff"
+
+        async feed
+          loading
+            text "Loading…" size=14 color="#b7a8cc" testId="feed-loading"
+          error err
+            text err.message size=14 color="#ff9d9d" testId="feed-error"
+          empty
+            text "Nothing yet. Throw a party, or get yourself invited to one." size=14 color="#b7a8cc" testId="feed-empty"
+          ready rows
+            column gap=16
+              each invite in rows key=invite._id
+                column gap=8 padding=18 radius=18 background="rgba(255,255,255,0.06)" borderWidth=1 borderColor="rgba(255,255,255,0.12)" testId=`feed-card-${invite.eventId}`
+                  text invite.eventEmoji size=44
+                  text invite.eventTitle size=19 weight=700 color="#f3ecfb"
+                  text `${fmtWhen(invite.eventStartsAt)} · hosted by ${invite.hostName}` size=12 color="#c5b6da"
+                  text statusLabel(invite.status) testId="card-status" size=11 weight=700 color="#f3ecfb"
+                  when invite.status == "host"
+                    button press=open(invite.eventId) testId=`manage-${invite.eventId}` paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=999 background="rgba(255,255,255,0.1)" borderWidth=1 borderColor="rgba(255,255,255,0.25)"
+                      text "Manage party →" size=13 weight=600 color="#ffffff"
+                  else
+                    column gap=8
+                      row gap=8
+                        button press=respond(invite.eventId, "going") testId="rsvp-going" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=invite.status == "going" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=invite.status == "going" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                          text "🎉 Going" size=13 color="#ffffff"
+                        button press=respond(invite.eventId, "maybe") testId="rsvp-maybe" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=invite.status == "maybe" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=invite.status == "maybe" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                          text "🤔 Maybe" size=13 color="#ffffff"
+                        button press=respond(invite.eventId, "cant") testId="rsvp-cant" paddingTop=6 paddingBottom=6 paddingLeft=12 paddingRight=12 radius=999 background=invite.status == "cant" ? "rgba(255,255,255,0.22)" : "rgba(255,255,255,0.08)" borderWidth=1 borderColor=invite.status == "cant" ? "#ffffff" : "rgba(255,255,255,0.25)"
+                          text "😢 Can't" size=13 color="#ffffff"
+                      when invite.status == "invited"
+                        text "RSVP to see the details 🔒" size=12 color="#b7a8cc"
+                      else
+                        button press=open(invite.eventId) testId=`open-${invite.eventId}` paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=999 background="rgba(255,255,255,0.1)" borderWidth=1 borderColor="rgba(255,255,255,0.25)"
+                          text "Open →" size=13 weight=600 color="#ffffff"

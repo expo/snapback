@@ -8,8 +8,9 @@ use crate::live_matcher::{
     compare_sort_keys, query_dependency_metadata, row_matches_query_filters, sort_key,
 };
 use crate::manifest::{
-    CtxAnswerLedger, HandlerInput, IbexModule, MutationOutput, QUERY_INTERNAL_OVERFETCH_MAX,
-    QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan, effective_query_limit,
+    CtxAnswerLedger, FunctionKind, HandlerInput, IbexModule, MutationOutput,
+    QUERY_INTERNAL_OVERFETCH_MAX, QUERY_MAX_BUFFERED_WRITES, QueryOutput, QueryPlan,
+    effective_query_limit,
 };
 use crate::storage::{
     BufferedCommitPayload, BufferedMembershipCommand, BufferedWrite, CapturedReadDependency,
@@ -343,10 +344,18 @@ pub(crate) fn run_ibex_query_with_reads_prepared(
     // @ref LLP 0032#phase-1--safety-floor-and-confirmed-defects — S5.D9: a
     // query handler that returns a non-array fails closed.
     let rows = value.as_array().cloned().ok_or_else(|| {
+        let function_kind = match prepared.function_kind() {
+            FunctionKind::Query => "query",
+            FunctionKind::LiveQuery => "live query",
+            _ => "query-shaped",
+        };
         SnapbackError::error(
             "SNAPBACK_HANDLER_RESULT_INVALID",
             "runtime",
-            "live query handler must return an array of rows",
+            format!(
+                "{function_kind} handler {:?} must return an array of rows",
+                prepared.function_id()
+            ),
         )
     })?;
     prepared.validate_admission("ibex query completion")?;
@@ -365,7 +374,7 @@ pub(crate) struct HermesRuntimeOpaque {
 }
 
 unsafe extern "C" {
-    fn ex_hermes_create() -> *mut HermesRuntimeOpaque;
+    fn ex_hermes_create_no_eval() -> *mut HermesRuntimeOpaque;
     fn ex_hermes_destroy(runtime: *mut HermesRuntimeOpaque);
     fn ex_hermes_eval(
         runtime: *mut HermesRuntimeOpaque,
@@ -435,7 +444,11 @@ fn ensure_host_installed() {
 impl RuntimeGuard {
     pub(crate) fn create() -> SnapbackResult<Self> {
         ensure_host_installed();
-        let runtime = unsafe { ex_hermes_create() };
+        // @ref LLP 0009#supply-chain-and-generated-bundles — application code
+        // is exactly the selected manifest bundle; fetched or constructed
+        // strings must not become additional code with the handler's ambient
+        // ctx/secrets authority.
+        let runtime = unsafe { ex_hermes_create_no_eval() };
         if runtime.is_null() {
             return Err(SnapbackError::error(
                 "SNAPBACK_RUNTIME_CREATE_FAILED",
@@ -1176,6 +1189,32 @@ impl<'a> IbexHostContext<'a> {
                             writer,
                             table,
                             required_string(&args, "memberId")?,
+                            required_object(&args, "values")?,
+                        ),
+                        Value::Null,
+                    ),
+                    "setSelfRole" => (
+                        BufferedMembershipCommand::set_self_role(
+                            writer,
+                            table,
+                            optional_nullable_string(&args, "resource")?,
+                            required_string(&args, "role")?,
+                        ),
+                        Value::Null,
+                    ),
+                    "removeSelf" => (
+                        BufferedMembershipCommand::remove_self(
+                            writer,
+                            table,
+                            optional_nullable_string(&args, "resource")?,
+                        ),
+                        Value::Null,
+                    ),
+                    "patchSelf" => (
+                        BufferedMembershipCommand::patch_self(
+                            writer,
+                            table,
+                            optional_nullable_string(&args, "resource")?,
                             required_object(&args, "values")?,
                         ),
                         Value::Null,
@@ -2398,11 +2437,14 @@ fn outbound_actions_enabled() -> bool {
 /// all-aboard 511.org poller uses fetch/URL/Headers/AbortController/crypto):
 /// the LLP 0048 data-driven denial applies only to queries and mutations,
 /// while egress actions restore the pre-0048 posture — deny exactly the
-/// process/require introspection pair and WebSocket. In particular, `fetch`
+/// process/require introspection pair, WebSocket, dynamic evaluation, and
+/// WebAssembly. Egress changes which services an action may call; it does not
+/// let fetched bytes become code outside the authenticated bundle identity.
+/// In particular, `fetch`
 /// must never be pre-shadowed here: Ibex installs it lazily as a
 /// *configurable* property, and a non-configurable deny stub in its slot
 /// makes the installer itself throw.
-const EGRESS_DENIED_AMBIENT: [&str; 3] = ["process", "require", "WebSocket"];
+const EGRESS_DENIED_AMBIENT: [&str; 5] = ["process", "require", "WebSocket", "eval", "WebAssembly"];
 
 /// Banned names shadowed as plain `undefined` rather than a denier function:
 /// host/introspection objects where "absent" is the truthful surface (and the
@@ -2561,11 +2603,29 @@ fn ambient_restriction_source(mode: IbexInvocationMode, outbound_enabled: bool) 
         .map(|name| format!("\"{name}\""))
         .collect::<Vec<_>>()
         .join(", ");
+    // Hermes RuntimeConfig is the real dynamic-code boundary. Probe every
+    // constructor route before application source evaluates so a stale engine
+    // artifact, including the historical `Function("return this")` fast path,
+    // fails invocation setup rather than exposing a compiler to the handler.
+    // Direct/indirect eval is covered by the ordinary denied-global probe.
+    let dynamic_code_probe = r#"  [
+    ["Function", function() { return g.Function("return 1"); }],
+    ["Function(return this)", function() { return g.Function("return this"); }],
+    ["Function(return this whitespace)", function() { return g.Function("  return this;  "); }],
+    ["Object.constructor.constructor", function() { return g.Object.prototype.constructor.constructor("return this"); }],
+    ["Reflect.apply(Function)", function() { return g.Reflect.apply(g.Function, undefined, ["return this"]); }],
+    ["Reflect.construct(Function)", function() { return g.Reflect.construct(g.Function, ["return this"]); }],
+    ["AsyncFunction", function() { return (async function() {}).constructor("return 1"); }],
+    ["GeneratorFunction", function() { return (function*() {}).constructor("return 1"); }]
+  ].forEach(function(entry) {
+    try { entry[1](); __snapbackDenySurvivors.push(entry[0]); } catch (_) {}
+  });
+"#;
     let probe = format!(
-        "  var __snapbackDenySurvivors = [];\n  [{probe_list}].forEach(function(name) {{\n    var value;\n    try {{ value = g[name]; }} catch (_) {{ return; }}\n    if (value === undefined || value === null) {{ return; }}\n    if (typeof value === \"function\") {{\n      try {{ value(); }} catch (error) {{\n        if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") === 0) {{ return; }}\n      }}\n    }}\n    __snapbackDenySurvivors.push(name);\n  }});\n{member_probe}  if (__snapbackDenySurvivors.length > 0) {{\n    throw snapbackError(\"SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE\", \"banned globals survived the ambient denial: \" + __snapbackDenySurvivors.join(\", \"));\n  }}\n"
+        "  var __snapbackDenySurvivors = [];\n  [{probe_list}].forEach(function(name) {{\n    var value;\n    try {{ value = g[name]; }} catch (_) {{ return; }}\n    if (value === undefined || value === null) {{ return; }}\n    if (typeof value === \"function\") {{\n      try {{ value(); }} catch (error) {{\n        if (String((error && error.message) || \"\").indexOf(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\") === 0) {{ return; }}\n      }}\n    }}\n    __snapbackDenySurvivors.push(name);\n  }});\n{member_probe}{dynamic_code_probe}  if (__snapbackDenySurvivors.length > 0) {{\n    throw snapbackError(\"SNAPBACK_IBEX_GLOBAL_DENY_INCOMPLETE\", \"banned globals or dynamic-code paths survived the ambient denial: \" + __snapbackDenySurvivors.join(\", \"));\n  }}\n"
     );
     format!(
-        "(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}{member_denials}{probe}}})(globalThis);\n"
+        "\"use strict\";\n(function(g) {{\n  function snapbackError(code, message) {{\n    var error = new Error(code + \": \" + message);\n    try {{ Object.defineProperty(error, \"__snapbackCode\", {{ value: code }}); }} catch (_) {{ error.__snapbackCode = code; }}\n    return error;\n  }}\n  function deny(name) {{\n    return function() {{ throw snapbackError(\"SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED\", name); }};\n  }}\n{denials}{member_denials}{probe}}})(globalThis);\n"
     )
 }
 
@@ -2587,6 +2647,18 @@ fn required_string(args: &Value, key: &str) -> SnapbackResult<String> {
                 format!("handler host call missing string field {key}"),
             )
         })
+}
+
+fn optional_nullable_string(args: &Value, key: &str) -> SnapbackResult<Option<String>> {
+    match args.get(key) {
+        None | Some(Value::Null) => Ok(None),
+        Some(Value::String(value)) => Ok(Some(value.clone())),
+        Some(_) => Err(SnapbackError::error(
+            "SNAPBACK_HANDLER_HOST_CALL_INVALID",
+            "runtime",
+            format!("handler host call field {key} must be a string or null"),
+        )),
+    }
 }
 
 fn required_object(args: &Value, key: &str) -> SnapbackResult<Map<String, Value>> {

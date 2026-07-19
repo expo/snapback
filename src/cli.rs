@@ -1964,8 +1964,11 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
             );
             impersonation_capability_file_display = Some(path.display().to_string());
         } else {
-            emit_impersonation_capability_to_controlling_terminal(operator)
-                .context("failed to emit impersonation capability to the controlling terminal")?;
+            emit_impersonation_capability_to_controlling_terminal(operator).context(
+                "failed to emit impersonation capability to the controlling terminal; \
+                 when starting without a terminal, pass --ready-file <path> so the \
+                 capability can be published to its owner-only sidecar",
+            )?;
         }
     }
 

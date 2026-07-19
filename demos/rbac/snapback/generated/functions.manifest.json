@@ -1,10 +1,80 @@
 {
   "appId": "rbac",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:0345950e567b04c81819ce48a40a68b4e3590ff0c42be53b80cad76a0c5cf11b",
+  "bundleHash": "snapback.v1:sessions:function:sha256:8c8dccbd4b15f77d9da1e0e8f7440e7ae7d2145c3290bc23962549b26995474c",
   "config": [],
   "cronJobs": [],
   "functions": [
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "acceptInvite",
+      "exportedName": "acceptInvite",
+      "id": "rbac:acceptInvite",
+      "kind": "Mutation",
+      "name": "acceptInvite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "acceptInvite",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "inviteApp",
+      "exportedName": "inviteApp",
+      "id": "rbac:inviteApp",
+      "kind": "Mutation",
+      "name": "inviteApp",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "inviteApp",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
     {
       "authRequirement": "authenticated",
       "authorityCreating": true,
@@ -26,7 +96,42 @@
       "runtime": {
         "IbexModule": {
           "export": "joinApp",
-          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "appMembers",
+        "tables": [
+          "appMembers"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorityCreating": true,
+      "bundleEntrypoint": "leaveApp",
+      "exportedName": "leaveApp",
+      "id": "rbac:leaveApp",
+      "kind": "Mutation",
+      "name": "leaveApp",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "leaveApp",
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
         }
       },
       "sourceSpan": null,
@@ -121,7 +226,7 @@
       "runtime": {
         "IbexModule": {
           "export": "postAnnouncement",
-          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
         }
       },
       "sourceSpan": null,
@@ -156,7 +261,7 @@
       "runtime": {
         "IbexModule": {
           "export": "rawJoin",
-          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
+          "source": "globalThis.__snapbackHandlers = {\n  async joinApp(ctx) {\n    await ctx.membership.appMembers.insert({\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n    return null;\n  },\n\n  async inviteApp(ctx, args) {\n    await ctx.membership.appMembers.insert({\n      userId: args.userId,\n      role: 'invited',\n    });\n    return null;\n  },\n\n  async acceptInvite(ctx) {\n    await ctx.membership.appMembers.setSelfRole('member');\n    return null;\n  },\n\n  async leaveApp(ctx) {\n    await ctx.membership.appMembers.removeSelf();\n    return null;\n  },\n\n  async postAnnouncement(ctx, args) {\n    await ctx.permissions.appMembers.requireRole(null, 'member', 'admin');\n    return await ctx.db.insert('announcements', {\n      authorId: ctx.auth.userId,\n      message: args.message,\n    });\n  },\n\n  async rawJoin(ctx) {\n    return await ctx.db.insert('appMembers', {\n      userId: ctx.auth.userId,\n      role: 'member',\n    });\n  },\n};\n"
         }
       },
       "sourceSpan": null,
@@ -172,7 +277,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:57c996324fe296bb154b19fa6d34f8d7194994e53c43e9dae85fb1e2e0b9c92b",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }

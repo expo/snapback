@@ -936,8 +936,9 @@ semi-join deltas, or support hosted targets.
 
 ## Declare an app-wide role set
 
-An app-scoped declaration omits the resource axis. This demo lets an
-authenticated non-member seat only themselves as `member`:
+An app-scoped declaration omits the resource axis. This demo supports open
+self-join plus member-issued invitations that only the invited principal can
+accept or decline:
 
 ```js source=demos/rbac/snapback/schema.mjs
 export const appMembers = defineTable({
@@ -947,10 +948,14 @@ export const appMembers = defineTable({
   principal: 'userId',
   role: 'role',
   roles: ['member', 'admin'],
+  pendingRoles: ['invited'],
   scope: 'app',
   provenance: 'full',
   transitions: [
     { op: 'insert', by: ['none'], target: 'self', to: ['member'] },
+    { op: 'insert', by: ['member'], target: 'other', to: ['invited'] },
+    { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'member'] },
   ],
 });
 ```
@@ -1049,9 +1054,10 @@ so `ctx.permissions` is deliberately unavailable there.
 
 ## Change membership through generated methods
 
-Only mutation handlers receive `ctx.membership`. Its `insert`, `setRole`,
-`remove`, and `patch` methods submit a host-owned command evaluated against the
-declaration:
+Only mutation handlers receive `ctx.membership`. Its `insert`, id-addressed
+`setRole`/`remove`/`patch`, and self-addressed
+`setSelfRole`/`removeSelf`/`patchSelf` methods submit a host-owned command
+evaluated against the declaration:
 
 ```js source=demos/rbac/snapback/handlers.mjs
   async joinApp(ctx) {
@@ -1062,6 +1068,28 @@ declaration:
     return null;
   },
 ```
+
+App code does not need the private roster row id for its own transitions. App
+scope omits the resource argument; resource scope passes its branded resource
+id:
+
+```js source=demos/rbac/snapback/handlers.mjs
+  async acceptInvite(ctx) {
+    await ctx.membership.appMembers.setSelfRole('member');
+    return null;
+  },
+
+  async leaveApp(ctx) {
+    await ctx.membership.appMembers.removeSelf();
+    return null;
+  },
+```
+
+The host resolves only the effective principal's row, returns no id, and then
+runs the same declared transition matrix. A missing own row is
+`SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; no helper reveals whether anyone else has
+a row. Use the id-addressed forms only when the application already has a
+trusted row id for an authorized other-target operation.
 
 Generic `ctx.db` and HostPlan writes to a membership table fail with
 `SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
@@ -1096,6 +1124,8 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not create an app-data roster-id mirror just to leave or accept.** Use
+  the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
 - **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use
@@ -1235,6 +1265,11 @@ Use the declarative form when the plan vocabulary expresses the query. Use a
 JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
+
+Every JS query handler returns an **array of rows**, including point reads:
+return `[]` for missing or `[row]` for present. Returning a single object fails
+with `SNAPBACK_HANDLER_RESULT_INVALID`; the diagnostic names whether the
+declaration is a `query` or `live query` and includes its function id.
 
 ## Read one snapshot
 
@@ -1390,6 +1425,26 @@ to force a last-writer-wins commit. Predicate-shaped captured reads are
 validated at predicate granularity, so unrelated writes do not spuriously
 conflict.
 
+## Declare structural uniqueness
+
+For one-row-per-key application invariants, declare a true unique index instead
+of scanning in the handler:
+
+```js source=demos/shindig/snapback/schema.mjs
+    .index('by_user', ['userId'])
+    .index('by_event', ['eventId'])
+    .index('by_event_user', ['eventId', 'userId'], { unique: true })
+    .sync(),
+```
+
+Unique indexes may be compound. Every key field must be required in v1 so the
+constraint is total across SQLite and Postgres. Duplicate inserts that reach
+the serialized write boundary race at the constraint: exactly one wins, every
+loser commits nothing and receives `SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`. A
+larger mutation may still fail earlier at an authorization or stale-reservation
+boundary, also without committing. Snapback does not currently ship `upsert`;
+keep duplicate-as-error flows as inserts and handle the unique diagnostic.
+
 ## One commit, one version
 
 All affected rows share the mutation's `version`; no-op writes do not advance
@@ -1404,6 +1459,8 @@ that needs its successor fails before writing with
 
 - **Do not implement read-then-write invariants as two unrelated requests.**
   Read inside the JS mutation or carry the explicit host-plan baseline.
+- **Do not scan to emulate a unique compound key.** Declare a unique index;
+  read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**
@@ -1425,8 +1482,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: ca367280505fdeff40f2cec741eb0c5151e39ca9
+reviewed: 2026-07-18
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -1509,6 +1566,21 @@ egress. Queries and mutations remain denied even in that runtime:
 Action wall-clock limits and the detached watchdog still apply. A timed-out
 action cannot commit late, and a later invocation gets an isolated worker.
 
+## Treat fetched text as data
+
+Egress does not make an action a general-purpose code loader. Direct or
+indirect `eval`, every Function-family string constructor (including
+constructor walks and reflective calls), and WebAssembly are unavailable at
+the runtime boundary. The same rule applies on the local Ibex engine and the
+Workerd target. Codegen reports the obvious source forms early, but the engine
+policy is what prevents aliases from bypassing the rule.
+
+Do not fetch JavaScript, templates intended for evaluation, or remote policy
+code. Parse a response as validated data and pass only typed values to a named
+mutation. This keeps the manifest's bundle hash truthful: an action may use its
+declared secret and egress authority, but fetched bytes never inherit its
+`ctx.runMutation` authority as executable code.
+
 ## Handle failure as data only when the product means it
 
 An action may return a structured fallback result when fallback is an explicit
@@ -1531,6 +1603,8 @@ reclassified as successful settlement by replacing reachable Promise hooks.
   validation, receipts, and live delivery share one commit.
 - **Do not enable egress globally as a convenience.** Turn it on only for the
   deployment that needs actions with network access.
+- **Do not evaluate fetched text.** Parse and validate it as data; dynamic
+  source compilation is denied even for egress-enabled actions.
 - **Do not launch unobserved Promise chains.** Await or return them so their
   failure remains part of the handler's explicit result.
 
@@ -1821,7 +1895,16 @@ What the surface does for you:
 - **Live push** — `livePush: true` by default; multi-query apps pass
   `liveQueries: [...]` (each entry a name or `{ name, args }`) bound over
   one shared stream. `onConnectionChange` carries the
-  [connection axis](../realtime/live-queries.md).
+  [connection axis](../realtime/live-queries.md). A multi-live surface
+  serves **configured live queries only**: a binding to a query missing
+  from `liveQueries` gets a `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` error
+  cell (plus a console error), and configuring a snapshot query in
+  live-push mode is refused at construction with
+  `SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE`. Author UI-facing reads as live
+  queries; membership-gated live queries deny by *emptiness* (the
+  semi-join delivers no rows to non-members) while gated JS point reads
+  deny by *diagnostic* — pick the locked-state branch accordingly
+  (`empty` vs `error`).
 - **Offline/Parity** — with a `clientStore`
   (`createLocalStorageSnapbackClientStore` /
   `createMemorySnapbackClientStore`) the surface persists retained queries
@@ -2142,7 +2225,11 @@ binding layer today. That is the deliberate difference between the arms:
 the [Contract adapter](./contract-adapter.md) generates the wiring; React
 writes ~20 explicit lines per surface. The wiring is small enough to audit,
 and this page is the paved version of it — the exact material diary 0010
-had to read source to reconstruct.
+had to read source to reconstruct. The client ships maintained TypeScript
+declarations beside the module as `demos/_kit/client.d.mts`; do not create an
+ambient copy or cast the client to `never`. The declaration covers structured
+calls/errors, live handles and connection callbacks, ephemeral overlays, and
+constructor/auth options.
 
 Boot is identical to the Contract arm: `client.health()`, then the
 idempotent `client.ensureApp({ schema, functions, seed })` — never a
@@ -2154,22 +2241,21 @@ Bind each live query once, pushing rows and connection state into React
 state; keep the handles for disposal:
 
 ```ts source=demos/all-aboard/surfaces/react/src/main.tsx
-      const liveQuery = client.liveQuery.bind(client) as unknown as LiveQueryFn;
-      const delaysLive = await liveQuery('liveTrainStatus', {
+      const delaysLive = await client.liveQuery<DelayRow>('liveTrainStatus', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setDelayRows(rows as never),
-        onConnectionChange: (value) => setConnection('liveTrainStatus', value as never),
+        onUpdate: (rows) => setDelayRows(rows),
+        onConnectionChange: (value) => setConnection('liveTrainStatus', value),
       });
-      const feedLive = await liveQuery('feedState', {
+      const feedLive = await client.liveQuery<FeedRow>('feedState', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setFeedRows(rows as never),
-        onConnectionChange: (value) => setConnection('feedState', value as never),
+        onUpdate: (rows) => setFeedRows(rows),
+        onConnectionChange: (value) => setConnection('feedState', value),
       });
       liveHandles = [delaysLive, feedLive];
-      setDelayRows(delaysLive.rows as never);
-      setFeedRows(feedLive.rows as never);
+      setDelayRows(delaysLive.rows);
+      setFeedRows(feedLive.rows);
 ```
 
 Notes that keep this correct:
@@ -2206,6 +2292,8 @@ opaque id that the server granted and used as the entry lease key.
 
 - **Do not build a polling loop where a subscription exists** — wire
   `liveQuery` with `onUpdate` into state.
+- **Do not hand-declare the kit client.** Import its exported types from
+  `client.mjs`; TypeScript resolves the adjacent `client.d.mts`.
 - **Do not treat `stale` as `live`.** The axis exists so the UI can tell
   the truth; collapsing it to a boolean re-creates the all-aboard red-team
   finding.
@@ -4049,6 +4137,11 @@ What it guarantees:
   group exit). Nothing else is ever killed.
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
+
+If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
+it must pass a fresh `--ready-file <path>`. The process-bound impersonation
+capability is published only to that owner-only sidecar; it is never written to
+captured stdout/stderr. Prefer `startServer`, which already owns this handshake.
 
 Then load and drive the app exactly as production clients do — see
 [your first backend](../getting-started/your-first-backend.md) for

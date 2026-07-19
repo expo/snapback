@@ -3876,6 +3876,29 @@ async function createMultiLiveContractSurface({
     const sharedConnectionId = connectionId ?? defaultContractConnectionId();
     const liveCellObservers = new Map(); // query name -> Set<record>
     const wantLivePush = livePush && typeof client.liveQuery === 'function';
+    // A configured entry that will be subscribed live must be a live query in
+    // the manifest. A snapshot query configured here could only fail later, at
+    // subscribe time, with a transport diagnostic — refuse at construction
+    // with the offenders named instead
+    // (issues/20260718-refuse-non-live-query-bindings-in-multi-live-contract-surfaces.md).
+    if (wantLivePush) {
+      const notLive = liveQueryEntries
+        .map((entry) => entry.name)
+        .filter((name) => {
+          const descriptor = manifest?.queries?.[name] ?? {};
+          return descriptor.livePush === false || descriptor.mode === 'snapshot';
+        });
+      if (notLive.length > 0) {
+        const diagnostic = contractDiagnostic(
+          'SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE',
+          `liveQueries configures non-live manifest queries: ${notLive.join(', ')}. Author UI-facing reads as live queries, or pass livePush: false for a poll/reconcile surface.`,
+          { queries: notLive },
+        );
+        const error = new Error(diagnostic.message);
+        error.diagnostic = diagnostic;
+        throw error;
+      }
+    }
     const confirmDurableAuthority = createDurableAuthorityConfirmer(coordinator);
     const recordLifecycleDiagnostic = (error) => {
       if (!diagnostics.some((entry) => (
@@ -3958,6 +3981,7 @@ async function createMultiLiveContractSurface({
     // the configured scope's rows (LLP 0034 §10.4). Diagnosed once per
     // (query, distinct binding args).
     const argsMismatchSeen = new Set();
+    const unconfiguredSeen = new Set();
     const stableArgsKey = (value) => JSON.stringify(sortValueDeep(value ?? {}));
     const warnOnBindingArgsMismatch = (name, bindingArgs) => {
       const configured = configuredLiveArgs.get(name);
@@ -4242,9 +4266,16 @@ async function createMultiLiveContractSurface({
         if (!configuredQueryNames.has(subscribedQuery)) {
           const diagnostic = publishDiagnostic(
             'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
-            `query binding "${subscribedQuery}" is present in the manifest but omitted from this surface's liveQueries configuration.`,
+            `query binding "${subscribedQuery}" is present in the manifest but omitted from this surface's liveQueries configuration — add { name: '${subscribedQuery}', args } to liveQueries (multi-live surfaces serve configured live queries only; author UI-facing snapshot reads as live queries).`,
             { query: subscribedQuery, configuredQueries: [...liveQueryNames] },
           );
+          // The error cell renders through the binding's error branch, which a
+          // designed view can make look like ordinary product state — say it
+          // loudly once per query where the author is actually looking.
+          if (!unconfiguredSeen.has(subscribedQuery)) {
+            unconfiguredSeen.add(subscribedQuery);
+            console.error(`[snapback-contract] ${diagnostic.message}`);
+          }
           observer({
             status: 'error',
             rows: [],

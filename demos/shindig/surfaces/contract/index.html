@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#14061f" />
+    <title>Shindig 🎈 — Contract</title>
+    <style>
+      *, *::before, *::after { box-sizing: border-box; }
+      html, body, #exact-root { min-height: 100%; margin: 0; }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Inter", system-ui, sans-serif;
+        background: radial-gradient(120% 90% at 20% 0%, #2a0e45 0%, #14061f 55%, #0b0313 100%);
+        background-attachment: fixed;
+        color: #f3ecfb;
+      }
+      #boot-status {
+        position: fixed;
+        left: 16px;
+        bottom: 16px;
+        max-width: min(520px, calc(100vw - 32px));
+        padding: 10px 12px;
+        border: 1px solid rgba(255,255,255,0.25);
+        border-radius: 6px;
+        background: rgba(20, 6, 31, 0.92);
+        color: #e4d9f4;
+        font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      #boot-status[data-state="ready"] { display: none; }
+      #boot-status[data-state="error"] { border-color: #d05555; color: #ff9d9d; }
+    </style>
+  </head>
+  <body>
+    <div id="exact-root"></div>
+    <div id="boot-status">Booting Shindig (Contract)…</div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

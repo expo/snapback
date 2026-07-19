@@ -5,6 +5,7 @@
 **Systems:** Runtime, Security, Testing, Developer experience, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-07
+**Revised:** 2026-07-18 (dynamic source compilation is now a convergent runtime denial: Workerd proves its platform policy before handler evaluation, Snapback opts Ibex into no-eval Hermes plus patch 0010, the twin covers constructor and reflective aliases, and AST codegen diagnostics remain defense in depth)
 **Revised:** 2026-07-13 (audit blocker: the Workerd settlement and detached-host-call drain consume one shared invocation deadline; expiry aborts HOST fetches and reports the quiescence phase before the outer kill deadline); 2026-07-13 (whole-codebase security follow-up: trusted strip state is one-shot and consumed before handler evaluation; the rejection ledger/drain is closure-private rather than importable; Promise-channel records, Response thenability, and Promise species resist inherited-then forgery; independent invoke/host/response capabilities close the worker-port bind race; readiness/invoke response bodies and sanitized stderr tails are bounded); 2026-07-12 (ENG-24559/ENG-24564: rejection collection is lexical rather than handler-drainable; response serialization is captured/prototype-free; local invoke and callback transports authenticate before bounded reads; per-invocation files use an atomically created 0700 UUID directory and exclusive 0600 files); 2026-07-12 (ENG-24375: encoding boundary coverage now pins
 forgiving-base64 padding validation, the complete UTF-8 label table with exact
 ASCII-whitespace/Web-IDL conversion, and streaming UTF-8 decoder state;
@@ -86,9 +87,9 @@ an **engine-neutral handler-semantics contract** — the runtime analogue of
 contract: portable by default, engine-specific behavior a declared fact,
 never a silent divergence.
 
-Expectations are calibrated: LLP 0009's codegen bans already remove the
-divergence-prone surface ("`import`/`process`/`fetch`/timers/`Date.now`/
-`Math.random`"; the `ctx` surface is the only power), so the twin should
+Expectations are calibrated: LLP 0009's runtime gates and codegen diagnostics
+remove the divergence-prone surface ("`import`/`process`/`fetch`/timers/
+`Date.now`/`Math.random`/dynamic source compilation"; the `ctx` surface is the only power), so the twin should
 mostly *confirm* convergence. Its value is the standing gate, the limits
 testbed, and de-risking 0040's hardest new seam — more than immediate bug
 yield.
@@ -141,8 +142,8 @@ Snapback-invented global. Three layers:
 1. **ECMAScript intrinsics** (`JSON`, `Math`, `Array`, …) — both engines
    provide them; the conformance diff covers their agreement.
 2. **Ambient authority** (`fetch`, bindings, env, timers, dynamic code) —
-   stripped by the harness on V8, absent by construction on Ibex, banned by
-   codegen either way (LLP 0009).
+   stripped or disabled by the harness/platform on V8, disabled by the
+   embedder runtime on Ibex, and diagnosed by codegen either way (LLP 0009).
 3. **Compute-only platform APIs** — the deliberate middle: candidates like
    `TextEncoder`/`TextDecoder`, `URL`/`URLSearchParams`, `atob`/`btoa`,
    `structuredClone`, `crypto.subtle.digest`, and `console` routed to
@@ -163,9 +164,15 @@ Snapback-owned wrapper or proves those members are unreachable. The generated
 allowlist also emits the negative probes: after the V8 global-strip and after
 Ibex additive installation, tests inspect `globalThis`/`self` descriptors and
 try off-list names through obvious aliases, prototype paths, constructor
-escape hatches, and host-object serialization. Codegen bans dynamic-code paths
-(`eval`, `new Function`, dynamic import) on both legs, so the runtime-surface
-test is not bypassable by asking the engine for another evaluator.
+escape hatches, and host-object serialization. Each leg proves direct/indirect
+eval and every reachable Function-family constructor unavailable before the
+handler module evaluates. The V8 strip seals the global Function constructor
+and each Function-family prototype constructor to one Snapback denier while
+retaining the ordinary shared Function prototype shape, and its startup probe
+requires that exact denial rather than relying on Workerd's current V8 default;
+codegen also diagnoses dynamic-code paths (`eval`,
+Function constructors, `with`, and dynamic import). The runtime-surface test is
+therefore not bypassable through aliases or reflective constructor calls.
 
 The work is therefore asymmetric by design: on the V8 leg the surface is
 **subtractive** (workerd has everything; remove authority and
@@ -388,8 +395,9 @@ The twin is built and its minimum gate is green. What landed:
   diffs normalized outcomes, host-call traces, and committed storage. Current
   gate: **14 convergent, 2 declared engine facts, 0 contract violations**. The
   two declared facts are the V8 busy-loop wall-clock kill (enforceable only at
-  the service boundary) and the `Date.now`/`Math.random` denial asymmetry (V8
-  strip denies; Ibex leaves them codegen-banned in v1). `tests/workerd_twin_v0.rs`
+  the service boundary) and Ibex's non-configurable `HermesInternal` global.
+  `Date.now`/`Math.random`, zero-argument Date construction, and dynamic source
+  compilation are now convergent runtime denials. `tests/workerd_twin_v0.rs`
   pins the LLP 0009 floor (settlement, unhandled rejection) engine-neutral,
   the two-direction ambient denial on both engines, the allowlist-slice
   agreement, and the busy-loop kill with no commit and no collateral.

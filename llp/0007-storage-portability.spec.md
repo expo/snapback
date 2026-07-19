@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
 
 ## Summary
@@ -391,6 +391,24 @@ prefer `withIndex` for unbounded queries. Agents need diagnostics for:
 - index declared but not applied;
 - query could use an index but does not;
 - index uses a non-portable field type or predicate.
+
+The shipped v1 spelling is
+`.index('by_event_user', ['eventId', 'userId'], { unique: true })`. It creates a
+true database unique index inside schema activation; inserts and patches race
+at the serialized commit, so exactly one duplicate key wins and every loser is
+`SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`. Every v1 unique-key field must be
+required/non-null. This makes the invariant total on both SQLite and Postgres,
+whose ordinary unique indexes otherwise admit multiple NULL-bearing rows;
+optional keys fail schema validation with
+`SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD`. Adding uniqueness to brownfield
+data is an unsafe migration unless existing rows already satisfy it; activation
+uses the same stable unique-conflict diagnostic rather than leaking raw SQLite.
+
+An `upsert` helper is explicitly out of scope for this slice. A unique index is
+the invariant; insert-vs-update selection, returned-row semantics, authorization
+of the update arm, and retry behavior need a separate portable API decision.
+Applications that want duplicate creation to be an error should insert and
+handle the typed conflict, as Shindig does.
 
 ## Transactions and Atomicity
 

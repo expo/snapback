@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/rbac/inviteApp.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "userId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "userId"
+  ],
+  "title": "rbac:inviteApp arguments",
+  "type": "object"
+}

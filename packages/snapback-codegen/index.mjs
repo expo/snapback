@@ -26,7 +26,9 @@ import {
 } from 'node:fs';
 import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { parse as parseJavaScript } from 'acorn';
 import { build as esbuild } from 'esbuild';
+import ts from 'typescript';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS } from './define.mjs';
 import {
   decodeUtf8Source,
@@ -580,9 +582,11 @@ export async function generateInProcess(backendDir, options = {}) {
       for (const f of index.fields) {
         if (!seenFields.has(f)) {
           err('SCHEMA_UNKNOWN_FIELD', 'schema', `index ${name}.${index.name} references unknown field ${f}`, { table: name, index: index.name, field: f });
+        } else if (index.unique && table.fields[f].optional) {
+          err('SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD', 'schema', `unique index ${name}.${index.name} field ${f} must be required so uniqueness is total`, { table: name, index: index.name, field: f });
         }
       }
-      indexes.push({ name: index.name, fields: index.fields });
+      indexes.push({ name: index.name, fields: index.fields, ...(index.unique ? { unique: true } : {}) });
     }
 
     if (table.permissionFields !== undefined && !table.permissionBackingDeclared) {
@@ -1737,7 +1741,7 @@ export async function generateInProcess(backendDir, options = {}) {
         });
         return null;
       }
-      const blocked = scanUnsupportedHandlerSource(source);
+      const blocked = scanUnsupportedHandlerSource(source, capability.identity);
       if (blocked.length > 0) {
         for (const issue of blocked) {
           err(issue.code, 'bundle', `${functionName}: ${issue.message}`, {
@@ -3027,26 +3031,590 @@ function egressAllowedAtCodegen() {
   return /^(1|true)$/i.test(process.env.SNAPBACK_OUTBOUND_ACTIONS || '');
 }
 
-function scanUnsupportedHandlerSource(source) {
-  const searchable = maskCommentsAndStrings(source);
+function scanUnsupportedHandlerSource(source, sourcePath = 'handler.mjs') {
+  if (/\.(?:ts|mts)$/iu.test(sourcePath)) {
+    return scanUnsupportedTypeScriptHandlerSource(source, sourcePath);
+  }
   const allowEgress = egressAllowedAtCodegen();
-  const checks = [
-    ['BUNDLE_UNSUPPORTED_IMPORT', /\bimport\s*(?:\(|[\w*{])/u, 'import'],
-    ['BUNDLE_UNSUPPORTED_EXPORT', /\bexport\s+/u, 'export'],
-    ['BUNDLE_UNSUPPORTED_REQUIRE', /\brequire\s*\(/u, 'require'],
-    ['BUNDLE_UNSUPPORTED_PROCESS', /\bprocess\b/u, 'process'],
-    ...(allowEgress ? [] : [['BUNDLE_UNSUPPORTED_FETCH', /\bfetch\s*\(/u, 'fetch']]),
-    ...(allowEgress ? [] : [['BUNDLE_UNSUPPORTED_TIMER', /\bset(?:Timeout|Interval)\s*\(/u, 'timer']]),
-    ['BUNDLE_UNSUPPORTED_RANDOM', /\bMath\.random\s*\(/u, 'Math.random'],
-    ['BUNDLE_UNSUPPORTED_TIME', /\b(?:Date\.now|new\s+Date)\b/u, 'Date'],
-  ];
-  return checks
-    .map(([code, pattern, token]) => {
-      const match = pattern.exec(searchable);
-      if (!match) return null;
-      return { code, token, message: `unsupported ambient dependency ${token}`, ...sourcePosition(source, match.index) };
-    })
-    .filter(Boolean);
+  let program;
+  try {
+    // Handler files are closed single-file scripts, not modules. Permit
+    // import/export syntax only so the walker can return the stable authored
+    // diagnostic instead of degrading it into a parser exception. Runtime
+    // execution remains strict and rejects those forms independently.
+    //
+    // @ref LLP 0009#capability-model — authoring checks are AST-based
+    // defense-in-depth; aliases and reflective constructor walks remain the
+    // runtime boundary's responsibility.
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+      locations: true,
+    });
+  } catch (error) {
+    const line = Number.isInteger(error?.loc?.line) ? error.loc.line : 1;
+    const column = Number.isInteger(error?.loc?.column) ? error.loc.column + 1 : 1;
+    const message = String(error?.message ?? error).replace(/\s*\(\d+:\d+\)\s*$/u, '');
+    return [{
+      code: 'BUNDLE_HANDLER_PARSE_FAILED',
+      token: 'syntax',
+      message: `handler source is not valid JavaScript: ${message}`,
+      line,
+      column,
+    }];
+  }
+
+  const issues = [];
+  const seen = new Set();
+  const functionConstructors = new Set([
+    'Function',
+    'AsyncFunction',
+    'GeneratorFunction',
+    'AsyncGeneratorFunction',
+  ]);
+  const timerFunctions = new Set([
+    'setTimeout',
+    'setInterval',
+    'clearTimeout',
+    'clearInterval',
+    'requestAnimationFrame',
+  ]);
+
+  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+    const key = `${code}\0${token}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    issues.push({
+      code,
+      token,
+      message,
+      line: node?.loc?.start?.line ?? 1,
+      column: (node?.loc?.start?.column ?? 0) + 1,
+      offset: node?.start ?? 0,
+    });
+  }
+
+  function staticMemberName(node) {
+    if (!node || node.type !== 'MemberExpression') return null;
+    if (!node.computed && node.property?.type === 'Identifier') return node.property.name;
+    if (node.computed && node.property?.type === 'Literal' && typeof node.property.value === 'string') {
+      return node.property.value;
+    }
+    if (
+      node.computed
+      && node.property?.type === 'TemplateLiteral'
+      && node.property.expressions.length === 0
+    ) {
+      return node.property.quasis[0]?.value?.cooked ?? null;
+    }
+    return null;
+  }
+
+  function unwrapCallable(node) {
+    let current = node;
+    while (current?.type === 'ChainExpression') current = current.expression;
+    if (current?.type === 'SequenceExpression' && current.expressions.length > 0) {
+      return unwrapCallable(current.expressions.at(-1));
+    }
+    return current;
+  }
+
+  // Resolve only an explicit global spelling. This deliberately does not try
+  // to follow variables: runtime denial owns aliases and constructor walks.
+  function explicitGlobalName(node) {
+    const target = unwrapCallable(node);
+    if (target?.type === 'Identifier') return target.name;
+    if (
+      target?.type === 'MemberExpression'
+      && unwrapCallable(target.object)?.type === 'Identifier'
+      && unwrapCallable(target.object).name === 'globalThis'
+    ) {
+      return staticMemberName(target);
+    }
+    return null;
+  }
+
+  function explicitGlobalNode(node) {
+    const target = unwrapCallable(node);
+    if (target?.type === 'MemberExpression') return target.property;
+    return target;
+  }
+
+  function invokedGlobal(node) {
+    const target = unwrapCallable(node);
+    const direct = explicitGlobalName(target);
+    if (direct) return { name: direct, node: explicitGlobalNode(target) };
+    if (target?.type === 'MemberExpression') {
+      const method = staticMemberName(target);
+      if (method === 'call' || method === 'apply' || method === 'bind') {
+        const name = explicitGlobalName(target.object);
+        if (name) return { name, node: explicitGlobalNode(target.object) };
+      }
+    }
+    return null;
+  }
+
+  function matchesGlobalMember(node, holder, member) {
+    const target = unwrapCallable(node);
+    return target?.type === 'MemberExpression'
+      && staticMemberName(target) === member
+      && explicitGlobalName(target.object) === holder;
+  }
+
+  function isNonReferenceIdentifier(node, parent, key) {
+    if (!parent) return false;
+    if (parent.type === 'MemberExpression' && key === 'property' && !parent.computed) return true;
+    if (
+      (parent.type === 'Property' || parent.type === 'MethodDefinition' || parent.type === 'PropertyDefinition')
+      && key === 'key'
+      && !parent.computed
+    ) return true;
+    if (parent.type === 'VariableDeclarator' && key === 'id') return true;
+    if (
+      (parent.type === 'FunctionDeclaration'
+        || parent.type === 'FunctionExpression'
+        || parent.type === 'ArrowFunctionExpression')
+      && (key === 'id' || key === 'params')
+    ) return true;
+    if ((parent.type === 'ClassDeclaration' || parent.type === 'ClassExpression') && key === 'id') return true;
+    if (parent.type === 'CatchClause' && key === 'param') return true;
+    if (
+      (parent.type === 'LabeledStatement' || parent.type === 'BreakStatement' || parent.type === 'ContinueStatement')
+      && key === 'label'
+    ) return true;
+    if (parent.type.startsWith('Import') || parent.type === 'ExportSpecifier') return true;
+    if (parent.type === 'MetaProperty') return true;
+    return false;
+  }
+
+  function visit(node, parent, key) {
+    switch (node.type) {
+      case 'ImportDeclaration':
+      case 'ImportExpression':
+        addIssue('BUNDLE_UNSUPPORTED_IMPORT', 'import', node);
+        break;
+      case 'MetaProperty':
+        if (node.meta?.name === 'import') {
+          addIssue('BUNDLE_UNSUPPORTED_IMPORT', 'import', node);
+        }
+        break;
+      case 'ExportAllDeclaration':
+      case 'ExportDefaultDeclaration':
+      case 'ExportNamedDeclaration':
+        addIssue('BUNDLE_UNSUPPORTED_EXPORT', 'export', node);
+        break;
+      case 'WithStatement':
+        addIssue(
+          'BUNDLE_UNSUPPORTED_WITH',
+          'with',
+          node,
+          'unsupported dynamic scope statement with',
+        );
+        break;
+      case 'Identifier':
+        if (!isNonReferenceIdentifier(node, parent, key)) {
+          if (node.name === 'process') {
+            addIssue('BUNDLE_UNSUPPORTED_PROCESS', 'process', node);
+          } else if (node.name === 'WebAssembly') {
+            addIssue('BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', node);
+          }
+        }
+        break;
+      case 'MemberExpression': {
+        if (unwrapCallable(node.object)?.type === 'Identifier' && unwrapCallable(node.object).name === 'globalThis') {
+          const name = staticMemberName(node);
+          if (name === 'process') {
+            addIssue('BUNDLE_UNSUPPORTED_PROCESS', 'process', node.property);
+          } else if (name === 'WebAssembly') {
+            addIssue('BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', node.property);
+          }
+        }
+        break;
+      }
+      case 'CallExpression': {
+        const invoked = invokedGlobal(node.callee);
+        if (invoked?.name === 'eval') {
+          addIssue(
+            'BUNDLE_UNSUPPORTED_EVAL',
+            'eval',
+            invoked.node,
+            'unsupported dynamic code evaluation eval',
+          );
+        } else if (functionConstructors.has(invoked?.name)) {
+          addIssue(
+            'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR',
+            invoked.name,
+            invoked.node,
+            `unsupported dynamic code constructor ${invoked.name}`,
+          );
+        } else if (invoked?.name === 'require') {
+          addIssue('BUNDLE_UNSUPPORTED_REQUIRE', 'require', invoked.node);
+        } else if (!allowEgress && invoked?.name === 'fetch') {
+          addIssue('BUNDLE_UNSUPPORTED_FETCH', 'fetch', invoked.node);
+        } else if (!allowEgress && timerFunctions.has(invoked?.name)) {
+          addIssue('BUNDLE_UNSUPPORTED_TIMER', 'timer', invoked.node);
+        }
+
+        // Obvious reflective spellings are still authored direct uses. More
+        // complex aliases intentionally fall through to the runtime boundary.
+        if (
+          matchesGlobalMember(node.callee, 'Reflect', 'apply')
+          || matchesGlobalMember(node.callee, 'Reflect', 'construct')
+        ) {
+          const reflected = explicitGlobalName(node.arguments[0]);
+          const reflectedNode = explicitGlobalNode(node.arguments[0]);
+          if (reflected === 'eval') {
+            addIssue(
+              'BUNDLE_UNSUPPORTED_EVAL',
+              'eval',
+              reflectedNode,
+              'unsupported dynamic code evaluation eval',
+            );
+          } else if (functionConstructors.has(reflected)) {
+            addIssue(
+              'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR',
+              reflected,
+              reflectedNode,
+              `unsupported dynamic code constructor ${reflected}`,
+            );
+          }
+        }
+
+        if (matchesGlobalMember(node.callee, 'Math', 'random')) {
+          addIssue('BUNDLE_UNSUPPORTED_RANDOM', 'Math.random', unwrapCallable(node.callee));
+        }
+        if (matchesGlobalMember(node.callee, 'Date', 'now')) {
+          addIssue('BUNDLE_UNSUPPORTED_TIME', 'Date', unwrapCallable(node.callee));
+        }
+        break;
+      }
+      case 'NewExpression': {
+        const invoked = invokedGlobal(node.callee);
+        if (functionConstructors.has(invoked?.name)) {
+          addIssue(
+            'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR',
+            invoked.name,
+            invoked.node,
+            `unsupported dynamic code constructor ${invoked.name}`,
+          );
+        }
+        if (invoked?.name === 'Date') {
+          addIssue('BUNDLE_UNSUPPORTED_TIME', 'Date', invoked.node);
+        }
+        break;
+      }
+      case 'TaggedTemplateExpression': {
+        const invoked = invokedGlobal(node.tag);
+        if (functionConstructors.has(invoked?.name)) {
+          addIssue(
+            'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR',
+            invoked.name,
+            invoked.node,
+            `unsupported dynamic code constructor ${invoked.name}`,
+          );
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
+
+  function walk(node, parent = null, key = null) {
+    if (!node || typeof node !== 'object' || typeof node.type !== 'string') return;
+    visit(node, parent, key);
+    for (const [childKey, child] of Object.entries(node)) {
+      if (childKey === 'loc' || childKey === 'start' || childKey === 'end') continue;
+      if (Array.isArray(child)) {
+        for (const item of child) walk(item, node, childKey);
+      } else {
+        walk(child, node, childKey);
+      }
+    }
+  }
+
+  walk(program);
+  return issues
+    .sort((left, right) => left.offset - right.offset || left.code.localeCompare(right.code))
+    .map(({ offset: _offset, ...issue }) => issue);
+}
+
+// TypeScript handler files are a declared authoring surface. Parse them with
+// the pinned TypeScript AST so type syntax is accepted without losing authored
+// source locations; the emitted JavaScript is still produced by esbuild later.
+function scanUnsupportedTypeScriptHandlerSource(source, sourcePath) {
+  const allowEgress = egressAllowedAtCodegen();
+  const sourceFile = ts.createSourceFile(
+    sourcePath,
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const parseDiagnostic = sourceFile.parseDiagnostics?.[0];
+  if (parseDiagnostic) {
+    const start = Number.isInteger(parseDiagnostic.start) ? parseDiagnostic.start : 0;
+    const location = sourceFile.getLineAndCharacterOfPosition(start);
+    return [{
+      code: 'BUNDLE_HANDLER_PARSE_FAILED',
+      token: 'syntax',
+      message: `handler source is not valid TypeScript: ${ts.flattenDiagnosticMessageText(parseDiagnostic.messageText, '\n')}`,
+      line: location.line + 1,
+      column: location.character + 1,
+    }];
+  }
+
+  const issues = [];
+  const seen = new Set();
+  const functionConstructors = new Set([
+    'Function',
+    'AsyncFunction',
+    'GeneratorFunction',
+    'AsyncGeneratorFunction',
+  ]);
+  const timerFunctions = new Set([
+    'setTimeout',
+    'setInterval',
+    'clearTimeout',
+    'clearInterval',
+    'requestAnimationFrame',
+  ]);
+
+  function addIssue(code, token, node, message = `unsupported ambient dependency ${token}`) {
+    const key = `${code}\0${token}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    const offset = node?.getStart?.(sourceFile) ?? 0;
+    const location = sourceFile.getLineAndCharacterOfPosition(offset);
+    issues.push({
+      code,
+      token,
+      message,
+      line: location.line + 1,
+      column: location.character + 1,
+      offset,
+    });
+  }
+
+  function isMember(node) {
+    return Boolean(node)
+      && (ts.isPropertyAccessExpression(node) || ts.isElementAccessExpression(node));
+  }
+
+  function memberObject(node) {
+    return isMember(node) ? node.expression : null;
+  }
+
+  function memberNameNode(node) {
+    if (ts.isPropertyAccessExpression(node)) return node.name;
+    return ts.isElementAccessExpression(node) ? node.argumentExpression : null;
+  }
+
+  function staticMemberName(node) {
+    if (ts.isPropertyAccessExpression(node)) return node.name.text;
+    if (!ts.isElementAccessExpression(node)) return null;
+    const argument = node.argumentExpression;
+    if (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument)) {
+      return argument.text;
+    }
+    return null;
+  }
+
+  function unwrapCallable(node) {
+    let current = node;
+    while (
+      current
+      && (ts.isParenthesizedExpression(current)
+        || ts.isAsExpression(current)
+        || ts.isTypeAssertionExpression(current)
+        || ts.isNonNullExpression(current)
+        || ts.isSatisfiesExpression(current))
+    ) {
+      current = current.expression;
+    }
+    if (current && ts.isCommaListExpression?.(current) && current.elements.length > 0) {
+      return unwrapCallable(current.elements.at(-1));
+    }
+    if (current && ts.isBinaryExpression(current) && current.operatorToken.kind === ts.SyntaxKind.CommaToken) {
+      return unwrapCallable(current.right);
+    }
+    return current;
+  }
+
+  function explicitGlobalName(node) {
+    const target = unwrapCallable(node);
+    if (!target) return null;
+    if (ts.isIdentifier(target)) return target.text;
+    if (
+      isMember(target)
+      && ts.isIdentifier(unwrapCallable(memberObject(target)))
+      && unwrapCallable(memberObject(target)).text === 'globalThis'
+    ) {
+      return staticMemberName(target);
+    }
+    return null;
+  }
+
+  function explicitGlobalNode(node) {
+    const target = unwrapCallable(node);
+    return isMember(target) ? memberNameNode(target) : target;
+  }
+
+  function invokedGlobal(node) {
+    const target = unwrapCallable(node);
+    const direct = explicitGlobalName(target);
+    if (direct) return { name: direct, node: explicitGlobalNode(target) };
+    if (isMember(target)) {
+      const method = staticMemberName(target);
+      if (method === 'call' || method === 'apply' || method === 'bind') {
+        const name = explicitGlobalName(memberObject(target));
+        if (name) return { name, node: explicitGlobalNode(memberObject(target)) };
+      }
+    }
+    return null;
+  }
+
+  function matchesGlobalMember(node, holder, member) {
+    const target = unwrapCallable(node);
+    return isMember(target)
+      && staticMemberName(target) === member
+      && explicitGlobalName(memberObject(target)) === holder;
+  }
+
+  function isNamedDeclarationIdentifier(node, parent) {
+    if (parent?.name !== node) return false;
+    return ts.isVariableDeclaration(parent)
+      || ts.isParameter(parent)
+      || ts.isBindingElement(parent)
+      || ts.isFunctionDeclaration(parent)
+      || ts.isFunctionExpression(parent)
+      || ts.isClassDeclaration(parent)
+      || ts.isClassExpression(parent)
+      || ts.isInterfaceDeclaration(parent)
+      || ts.isTypeAliasDeclaration(parent)
+      || ts.isEnumDeclaration(parent)
+      || ts.isModuleDeclaration(parent)
+      || ts.isImportClause(parent)
+      || ts.isImportSpecifier(parent)
+      || ts.isNamespaceImport(parent)
+      || ts.isPropertyDeclaration(parent)
+      || ts.isPropertySignature(parent)
+      || ts.isMethodDeclaration(parent)
+      || ts.isMethodSignature(parent)
+      || ts.isGetAccessorDeclaration(parent)
+      || ts.isSetAccessorDeclaration(parent);
+  }
+
+  function isNonReferenceIdentifier(node, parent) {
+    if (!parent) return false;
+    if (ts.isTypeNode(parent) || isNamedDeclarationIdentifier(node, parent)) return true;
+    if (ts.isPropertyAccessExpression(parent) && parent.name === node) return true;
+    if (
+      (ts.isPropertyAssignment(parent) || ts.isMethodDeclaration(parent))
+      && parent.name === node
+    ) return true;
+    if (ts.isLabeledStatement(parent) && parent.label === node) return true;
+    if ((ts.isBreakStatement(parent) || ts.isContinueStatement(parent)) && parent.label === node) return true;
+    if (ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) return true;
+    if (ts.isMetaProperty(parent)) return true;
+    return false;
+  }
+
+  function exportModifier(node) {
+    if (!ts.canHaveModifiers(node)) return null;
+    return ts.getModifiers(node)?.find((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword) ?? null;
+  }
+
+  function visit(node) {
+    const parent = node.parent;
+    if (ts.isImportDeclaration(node) || ts.isImportEqualsDeclaration(node)) {
+      addIssue('BUNDLE_UNSUPPORTED_IMPORT', 'import', node);
+    } else if (
+      ts.isExportDeclaration(node)
+      || ts.isExportAssignment(node)
+      || exportModifier(node)
+    ) {
+      addIssue('BUNDLE_UNSUPPORTED_EXPORT', 'export', exportModifier(node) ?? node);
+    } else if (ts.isWithStatement(node)) {
+      addIssue('BUNDLE_UNSUPPORTED_WITH', 'with', node, 'unsupported dynamic scope statement with');
+    } else if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) {
+      addIssue('BUNDLE_UNSUPPORTED_IMPORT', 'import', node);
+    } else if (ts.isIdentifier(node) && !isNonReferenceIdentifier(node, parent)) {
+      if (node.text === 'process') {
+        addIssue('BUNDLE_UNSUPPORTED_PROCESS', 'process', node);
+      } else if (node.text === 'WebAssembly') {
+        addIssue('BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', node);
+      }
+    }
+
+    if (isMember(node)) {
+      const holder = unwrapCallable(memberObject(node));
+      if (ts.isIdentifier(holder) && holder.text === 'globalThis') {
+        const name = staticMemberName(node);
+        if (name === 'process') {
+          addIssue('BUNDLE_UNSUPPORTED_PROCESS', 'process', memberNameNode(node));
+        } else if (name === 'WebAssembly') {
+          addIssue('BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', memberNameNode(node));
+        }
+      }
+    }
+
+    if (ts.isCallExpression(node)) {
+      if (node.expression.kind === ts.SyntaxKind.ImportKeyword) {
+        addIssue('BUNDLE_UNSUPPORTED_IMPORT', 'import', node.expression);
+      }
+      const invoked = invokedGlobal(node.expression);
+      if (invoked?.name === 'eval') {
+        addIssue('BUNDLE_UNSUPPORTED_EVAL', 'eval', invoked.node, 'unsupported dynamic code evaluation eval');
+      } else if (functionConstructors.has(invoked?.name)) {
+        addIssue('BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', invoked.name, invoked.node, `unsupported dynamic code constructor ${invoked.name}`);
+      } else if (invoked?.name === 'require') {
+        addIssue('BUNDLE_UNSUPPORTED_REQUIRE', 'require', invoked.node);
+      } else if (!allowEgress && invoked?.name === 'fetch') {
+        addIssue('BUNDLE_UNSUPPORTED_FETCH', 'fetch', invoked.node);
+      } else if (!allowEgress && timerFunctions.has(invoked?.name)) {
+        addIssue('BUNDLE_UNSUPPORTED_TIMER', 'timer', invoked.node);
+      }
+
+      if (matchesGlobalMember(node.expression, 'Reflect', 'apply')
+        || matchesGlobalMember(node.expression, 'Reflect', 'construct')) {
+        const reflected = explicitGlobalName(node.arguments[0]);
+        const reflectedNode = explicitGlobalNode(node.arguments[0]);
+        if (reflected === 'eval') {
+          addIssue('BUNDLE_UNSUPPORTED_EVAL', 'eval', reflectedNode, 'unsupported dynamic code evaluation eval');
+        } else if (functionConstructors.has(reflected)) {
+          addIssue('BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', reflected, reflectedNode, `unsupported dynamic code constructor ${reflected}`);
+        }
+      }
+      if (matchesGlobalMember(node.expression, 'Math', 'random')) {
+        addIssue('BUNDLE_UNSUPPORTED_RANDOM', 'Math.random', unwrapCallable(node.expression));
+      }
+      if (matchesGlobalMember(node.expression, 'Date', 'now')) {
+        addIssue('BUNDLE_UNSUPPORTED_TIME', 'Date', unwrapCallable(node.expression));
+      }
+    } else if (ts.isNewExpression(node)) {
+      const invoked = invokedGlobal(node.expression);
+      if (functionConstructors.has(invoked?.name)) {
+        addIssue('BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', invoked.name, invoked.node, `unsupported dynamic code constructor ${invoked.name}`);
+      }
+      if (invoked?.name === 'Date') addIssue('BUNDLE_UNSUPPORTED_TIME', 'Date', invoked.node);
+    } else if (ts.isTaggedTemplateExpression(node)) {
+      const invoked = invokedGlobal(node.tag);
+      if (functionConstructors.has(invoked?.name)) {
+        addIssue('BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', invoked.name, invoked.node, `unsupported dynamic code constructor ${invoked.name}`);
+      }
+    }
+
+    ts.forEachChild(node, visit);
+  }
+
+  visit(sourceFile);
+  return issues
+    .sort((left, right) => left.offset - right.offset || left.code.localeCompare(right.code))
+    .map(({ offset: _offset, ...issue }) => issue);
 }
 
 function scanProtectedHandlerSource(source) {
@@ -3346,7 +3914,17 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
         bootstrapMethod = `bootstrap(values: ${typeName}Bootstrap): Promise<Id<'${resourceTable}'>>; `;
       }
     }
-    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
+    // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+    // generated self variants expose the host-private resolver without
+    // weakening the transition matrix or revealing a roster row id.
+    const selfMethods = membership.scope === 'app'
+      ? `setSelfRole(role: ${typeName}Role): Promise<unknown>; removeSelf(): Promise<unknown>; patchSelf(values: ${typeName}Patch): Promise<unknown>; `
+      : (() => {
+          const resourceTable = idFieldTypeTable(table.fields?.[membership.resource]?.fieldType);
+          const resourceType = resourceTable ? `Id<'${resourceTable}'>` : 'string';
+          return `setSelfRole(resource: ${resourceType}, role: ${typeName}Role): Promise<unknown>; removeSelf(resource: ${resourceType}): Promise<unknown>; patchSelf(resource: ${resourceType}, values: ${typeName}Patch): Promise<unknown>; `;
+        })();
+    membershipMembers.push(`  ${declaration}: { ${bootstrapMethod}insert(values: ${typeName}Insert): Promise<unknown>; ${selfMethods}setRole(memberId: Id<'${tableName}'>, role: ${typeName}Role): Promise<unknown>; remove(memberId: Id<'${tableName}'>): Promise<unknown>; patch(memberId: Id<'${tableName}'>, values: ${typeName}Patch): Promise<unknown> };`);
   }
   lines.push(...membershipAliases);
   lines.push('export interface GeneratedMembership {');

@@ -13,11 +13,15 @@ import { defineSchema, defineTable, v } from '${defineUrl}';
 export default defineSchema({ todos: defineTable({ title: v.string() }).sync() });
 `;
 
-async function invalidCase({ schema = validSchema, functions }) {
+async function invalidCase({ schema = validSchema, functions, handlers = {} }) {
   const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-authoring-'));
   dirs.push(dir);
   writeFileSync(join(dir, 'schema.mjs'), schema);
   writeFileSync(join(dir, 'functions.mjs'), functions);
+  for (const [path, source] of Object.entries(handlers)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), source);
+  }
   mkdirSync(join(dir, 'generated'));
   writeFileSync(join(dir, 'generated', 'sentinel.txt'), 'pre-existing output\n');
   const result = await generate(dir);
@@ -25,6 +29,40 @@ async function invalidCase({ schema = validSchema, functions }) {
   assert.equal(readFileSync(join(dir, 'generated', 'sentinel.txt'), 'utf8'), 'pre-existing output\n');
   assert.equal(existsSync(join(dir, 'generated', 'artifacts.json')), false, 'failure must not partially replace output');
   return result.diagnostics;
+}
+
+async function validCase({ schema = validSchema, functions, handlers = {} }) {
+  const dir = mkdtempSync(join(tmpdir(), 'snapback-codegen-authoring-'));
+  dirs.push(dir);
+  writeFileSync(join(dir, 'schema.mjs'), schema);
+  writeFileSync(join(dir, 'functions.mjs'), functions);
+  for (const [path, source] of Object.entries(handlers)) {
+    mkdirSync(dirname(join(dir, path)), { recursive: true });
+    writeFileSync(join(dir, path), source);
+  }
+  const result = await generate(dir);
+  assert.equal(result.ok, true, `expected success, got ${JSON.stringify(result.diagnostics)}`);
+  return result;
+}
+
+const jsActionFunctions = `
+import { defineAction } from '${defineUrl}';
+export const probe = defineAction({
+  args: {},
+  js: { source: 'handler.mjs', exportName: 'probe' },
+});
+`;
+
+const tsActionFunctions = `
+import { defineAction } from '${defineUrl}';
+export const probe = defineAction({
+  args: {},
+  js: { source: 'handler.ts', exportName: 'probe' },
+});
+`;
+
+function handlerWith(statement) {
+  return `// scanner location prelude\n${statement}\nglobalThis.__snapbackHandlers = { async probe() { return {}; } };\n`;
 }
 
 {
@@ -59,6 +97,29 @@ export default defineSchema({ todos: defineTable({ title: v.string() }).index('b
     functions: 'export const nothing = 0;\n',
   });
   assert(diagnostics.some((d) => d.code === 'SCHEMA_INVALID_IDENTIFIER' && d.index === 'bad-name'));
+}
+
+{
+  const result = await validCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.principal() }).index('by_event_user', ['eventId', 'userId'], { unique: true }) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  const manifest = JSON.parse(readFileSync(join(result.outDir, 'schema.manifest.json'), 'utf8'));
+  assert.deepEqual(manifest.tables[0].indexes, [{ name: 'by_event_user', fields: ['eventId', 'userId'], unique: true }]);
+}
+
+{
+  const diagnostics = await invalidCase({
+    schema: `
+import { defineSchema, defineTable, v } from '${defineUrl}';
+export default defineSchema({ rsvps: defineTable({ eventId: v.string(), userId: v.optional(v.principal()) }).index('by_event_user', ['eventId', 'userId'], { unique: true }) });
+`,
+    functions: 'export const nothing = 0;\n',
+  });
+  assert(diagnostics.some((d) => d.code === 'SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD' && d.field === 'userId'));
 }
 
 {
@@ -295,6 +356,164 @@ export default defineSchema({}, { ephemeral: defineEphemeral({
     && d.operation === 'publish'
     && d.prefix === 'room:admin'
   )));
+}
+
+// Handler admission is an AST walk, not a token blacklist. Every direct
+// dynamic-code/ambient spelling receives a stable code and authored span.
+// Reflective aliases and constructor walks are still denied by the runtime;
+// this authoring pass deliberately diagnoses only explicit global spellings.
+const unsupportedHandlerCases = [
+  ["eval('1')", 'BUNDLE_UNSUPPORTED_EVAL', 'eval', 1],
+  ["(0, eval)('1')", 'BUNDLE_UNSUPPORTED_EVAL', 'eval', 5],
+  ["Function('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'Function', 1],
+  ["new Function('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'Function', 5],
+  ["AsyncFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'AsyncFunction', 1],
+  ["new AsyncFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'AsyncFunction', 5],
+  ["GeneratorFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'GeneratorFunction', 1],
+  ["new GeneratorFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'GeneratorFunction', 5],
+  ["AsyncGeneratorFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'AsyncGeneratorFunction', 1],
+  ["new AsyncGeneratorFunction('return 1')", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'AsyncGeneratorFunction', 5],
+  ["Reflect.construct(Function, ['return 1'])", 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR', 'Function', 19],
+  ['with ({ allowed: false }) {}', 'BUNDLE_UNSUPPORTED_WITH', 'with', 1],
+  ["import './forbidden.mjs'", 'BUNDLE_UNSUPPORTED_IMPORT', 'import', 1],
+  ["import('./forbidden.mjs')", 'BUNDLE_UNSUPPORTED_IMPORT', 'import', 1],
+  ['export const forbidden = true', 'BUNDLE_UNSUPPORTED_EXPORT', 'export', 1],
+  ["require('forbidden')", 'BUNDLE_UNSUPPORTED_REQUIRE', 'require', 1],
+  ['process.env.FORBIDDEN', 'BUNDLE_UNSUPPORTED_PROCESS', 'process', 1],
+  ["fetch('https://example.com')", 'BUNDLE_UNSUPPORTED_FETCH', 'fetch', 1],
+  ['setTimeout(function () {}, 1)', 'BUNDLE_UNSUPPORTED_TIMER', 'timer', 1],
+  ['setInterval(function () {}, 1)', 'BUNDLE_UNSUPPORTED_TIMER', 'timer', 1],
+  ['clearTimeout(1)', 'BUNDLE_UNSUPPORTED_TIMER', 'timer', 1],
+  ['clearInterval(1)', 'BUNDLE_UNSUPPORTED_TIMER', 'timer', 1],
+  ['requestAnimationFrame(function () {})', 'BUNDLE_UNSUPPORTED_TIMER', 'timer', 1],
+  ['Math.random()', 'BUNDLE_UNSUPPORTED_RANDOM', 'Math.random', 1],
+  ['Date.now()', 'BUNDLE_UNSUPPORTED_TIME', 'Date', 1],
+  ['new Date()', 'BUNDLE_UNSUPPORTED_TIME', 'Date', 5],
+  ['WebAssembly.compile(new Uint8Array())', 'BUNDLE_UNSUPPORTED_WEBASSEMBLY', 'WebAssembly', 1],
+];
+
+for (const [statement, code, token, column] of unsupportedHandlerCases) {
+  const diagnostics = await invalidCase({
+    functions: jsActionFunctions,
+    handlers: { 'handler.mjs': handlerWith(statement) },
+  });
+  const hit = diagnostics.find((diagnostic) => diagnostic.code === code && diagnostic.token === token);
+  assert.ok(hit, `${statement}: expected ${code}/${token}, got ${JSON.stringify(diagnostics)}`);
+  assert.deepEqual(
+    hit.sourceSpan,
+    { file: 'handler.mjs', line: 2, column },
+    `${statement}: authored source span drifted`,
+  );
+}
+
+// `.ts`/`.mts` are first-class handler extensions. Type-only syntax is parsed
+// structurally, while runtime ambient uses retain exact authored locations.
+await validCase({
+  functions: tsActionFunctions,
+  handlers: {
+    'handler.ts': `
+type Result = { ok: boolean };
+const initial: Result = { ok: true };
+globalThis.__snapbackHandlers = {
+  async probe(): Promise<Result> { return initial; },
+};
+`,
+  },
+});
+
+{
+  const diagnostics = await invalidCase({
+    functions: tsActionFunctions,
+    handlers: {
+      'handler.ts': `type Result = { value: string };\nconst value: Result = { value: 'x' };\nFunction('return 1');\nglobalThis.__snapbackHandlers = { async probe(): Promise<Result> { return value; } };\n`,
+    },
+  });
+  const hit = diagnostics.find((diagnostic) => (
+    diagnostic.code === 'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR'
+    && diagnostic.token === 'Function'
+  ));
+  assert.deepEqual(hit?.sourceSpan, { file: 'handler.ts', line: 3, column: 1 });
+}
+
+// Strings, comments, regex literals, template raw text, object keys, and
+// non-global member names are data/member access rather than ambient globals.
+await validCase({
+  functions: jsActionFunctions,
+  handlers: {
+    'handler.mjs': `
+// eval('x'); new Function(''); process fetch setTimeout Math.random Date.now WebAssembly
+const tokens = "eval Function AsyncFunction GeneratorFunction AsyncGeneratorFunction require process fetch timers Math.random Date.now WebAssembly import export with";
+const template = \`eval('x') new Function('') process.env fetch() WebAssembly\`;
+const pattern = /eval|Function|require|process|fetch|setTimeout|WebAssembly/;
+const local = {
+  eval() {}, Function() {}, AsyncFunction() {}, GeneratorFunction() {}, AsyncGeneratorFunction() {},
+  require() {}, process: { env: {} }, fetch() {}, setTimeout() {},
+  Math: { random() {} }, Date: { now() {} }, WebAssembly: { compile() {} },
+  import: 'member', export: 'member', with: 'member',
+};
+local.eval(); local['Function'](); local.AsyncFunction(); local.GeneratorFunction();
+local.AsyncGeneratorFunction(); local.require(); local.process.env; local.fetch();
+local.setTimeout(); local.Math.random(); local.Date.now(); local.WebAssembly.compile();
+globalThis.__snapbackHandlers = { async probe() { return { tokens, template, pattern: String(pattern) }; } };
+`,
+  },
+});
+
+// The outbound-actions switch relaxes only fetch/timer authoring diagnostics.
+// It never reopens dynamic evaluation, Wasm, process/module access, entropy,
+// or wall-clock reads.
+const previousOutboundActions = process.env.SNAPBACK_OUTBOUND_ACTIONS;
+process.env.SNAPBACK_OUTBOUND_ACTIONS = '1';
+try {
+  await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe() {
+    var timer = setTimeout(function () {}, 1);
+    clearTimeout(timer);
+    return { fetchType: typeof fetch };
+  }
+};
+`,
+    },
+  });
+
+  const diagnostics = await invalidCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+eval('1');
+Function('return 1');
+WebAssembly.compile(new Uint8Array());
+process.env.FORBIDDEN;
+require('forbidden');
+Math.random();
+Date.now();
+fetch('https://example.com');
+setTimeout(function () {}, 1);
+globalThis.__snapbackHandlers = { async probe() { return {}; } };
+`,
+    },
+  });
+  const codes = new Set(diagnostics.map((diagnostic) => diagnostic.code));
+  for (const code of [
+    'BUNDLE_UNSUPPORTED_EVAL',
+    'BUNDLE_UNSUPPORTED_FUNCTION_CONSTRUCTOR',
+    'BUNDLE_UNSUPPORTED_WEBASSEMBLY',
+    'BUNDLE_UNSUPPORTED_PROCESS',
+    'BUNDLE_UNSUPPORTED_REQUIRE',
+    'BUNDLE_UNSUPPORTED_RANDOM',
+    'BUNDLE_UNSUPPORTED_TIME',
+  ]) {
+    assert(codes.has(code), `egress must retain ${code}: ${JSON.stringify(diagnostics)}`);
+  }
+  assert.equal(codes.has('BUNDLE_UNSUPPORTED_FETCH'), false, 'egress should allow fetch authoring');
+  assert.equal(codes.has('BUNDLE_UNSUPPORTED_TIMER'), false, 'egress should allow timer authoring');
+} finally {
+  if (previousOutboundActions === undefined) delete process.env.SNAPBACK_OUTBOUND_ACTIONS;
+  else process.env.SNAPBACK_OUTBOUND_ACTIONS = previousOutboundActions;
 }
 
 for (const dir of dirs) rmSync(dir, { recursive: true, force: true });

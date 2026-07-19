@@ -219,7 +219,7 @@ async function startServerWithDeps({
   child.once('error', (error) => { spawnError = error; });
 
   const cleanup = () => rmSync(readyDir, { recursive: true, force: true });
-  const ownership = ownServerChild(async () => {
+  const ownership = ownProcessTree(child, async () => {
     try {
       await stopChild(child, deps.stopOptions);
     } finally {
@@ -510,12 +510,12 @@ async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl, expected
 
 // @ref LLP 0010#required-tool-surfaces — parent-signal shutdown retains the
 // same bounded, attested process-tree teardown as an explicit test cleanup.
-// startServer launches detached process groups so ordinary test completion can
+// Owned helpers launch detached process groups so ordinary test completion can
 // await a strict tree proof. Node's default SIGINT/SIGTERM behavior would skip
 // that proof and strand those groups, so all live helpers share one signal
 // owner. Normal stop() errors still reject their caller; signal-time failures
 // are aggregated and printed before the original signal is re-delivered.
-const ownedServerChildren = new Set();
+const ownedProcessTrees = new Set();
 let ownedServerSignalShutdown = null;
 let ownedServerSignalHandlersInstalled = false;
 
@@ -538,7 +538,19 @@ function removeOwnedServerSignalHandlers() {
   process.removeListener('SIGTERM', ownedServerSignalHandlers.SIGTERM);
 }
 
-function ownServerChild(stopAction) {
+// Register ownership as soon as a process is spawned, before readiness or any
+// other asynchronous work can observe an early exit. The immediate close
+// tracker makes later stopChild() calls safe even when `close` fired before
+// teardown began; the memoized stop action also joins explicit cleanup and
+// parent-signal cleanup onto one process-tree proof.
+//
+// @ref LLP 0015#acceptance-rules — acceptance cleanup owns the complete detached
+// subprocess tree and cannot publish completion before native exit attestation.
+export function ownProcessTree(child, stopAction) {
+  if (typeof stopAction !== 'function') {
+    throw new TypeError('owned process-tree stop action must be a function');
+  }
+  trackLeaderClose(child);
   let stopPromise = null;
   const ownership = {
     stop() {
@@ -546,8 +558,8 @@ function ownServerChild(stopAction) {
         stopPromise = Promise.resolve()
           .then(stopAction)
           .finally(() => {
-            ownedServerChildren.delete(ownership);
-            if (ownedServerChildren.size === 0 && !ownedServerSignalShutdown) {
+            ownedProcessTrees.delete(ownership);
+            if (ownedProcessTrees.size === 0 && !ownedServerSignalShutdown) {
               removeOwnedServerSignalHandlers();
             }
           });
@@ -555,7 +567,7 @@ function ownServerChild(stopAction) {
       return stopPromise;
     },
   };
-  ownedServerChildren.add(ownership);
+  ownedProcessTrees.add(ownership);
   installOwnedServerSignalHandlers();
   return ownership;
 }
@@ -581,8 +593,8 @@ async function finishOwnedServerSignalShutdown(shutdown) {
   const failures = [];
   // A child registered by an already-running startup continuation while an
   // earlier batch settles joins the next batch; no owned tree is omitted.
-  while (ownedServerChildren.size > 0) {
-    const owned = [...ownedServerChildren];
+  while (ownedProcessTrees.size > 0) {
+    const owned = [...ownedProcessTrees];
     const results = await Promise.allSettled(owned.map((ownership) => ownership.stop()));
     failures.push(...results
       .filter((result) => result.status === 'rejected')
@@ -591,7 +603,7 @@ async function finishOwnedServerSignalShutdown(shutdown) {
   if (failures.length > 0) {
     console.error(new AggregateError(
       failures,
-      `snapback signal cleanup failed for ${failures.length} owned server process tree(s)`,
+      `snapback signal cleanup failed for ${failures.length} owned process tree(s)`,
     ));
   }
   releaseOwnedServerSignalShutdown(shutdown, signal);
@@ -669,7 +681,7 @@ function cleanupFailure(child, { term, graceful = null, kill = null, leader = nu
   if (leader && !leader.ok) failures.push(leader.error ?? 'leader close not attested');
   if (failures.length === 0) failures.push('unknown cleanup failure');
   const error = new Error(
-    `snapback server process-tree cleanup not attested for pid ${child?.pid ?? '<unknown>'}: ` +
+    `snapback subprocess-tree cleanup not attested for pid ${child?.pid ?? '<unknown>'}: ` +
       failures.join('; '),
   );
   error.code = 'SNAPBACK_PROCESS_TREE_CLEANUP_FAILED';

@@ -5,7 +5,10 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (strengthened shipped-demo acceptance: separate Alice,
+**Revised:** 2026-07-18 (the generated write surface gains host-resolved
+`setSelfRole`/`removeSelf`/`patchSelf`: app code can accept, leave, or patch its
+own private roster row without learning its id; the unchanged transition
+matrix remains the sole authorizer). 2026-07-17 (strengthened shipped-demo acceptance: separate Alice,
 Bob, and Eve live namespaces now drain real durable frames, validate exact
 scope/subscription identity, ACK Bob's hidden-to-visible membership
 invalidation, prove Alice/Bob announcement fanout, and keep Eve empty).
@@ -513,10 +516,23 @@ The generated methods are therefore thin and unforgeable:
 ```ts
 const eventId = await eventMembers.bootstrap({ title: "Launch" }) // resource + host seat
 await eventMembers.insert({ eventId, userId, role: "invited" })  // policy decides
-await eventMembers.setRole(memberId, "guest")                    // accept, if declared
-await eventMembers.remove(memberId)                              // leave / kick, if declared
-await eventMembers.patch(memberId, { expiresAt: t })             // non-authorization columns
+await eventMembers.setSelfRole(eventId, "guest")                // accept own invite
+await eventMembers.removeSelf(eventId)                           // leave / decline
+await eventMembers.patchSelf(eventId, { notifyPrefs })           // own columns
+await eventMembers.setRole(memberId, "cohost")                  // other-target promote
+await eventMembers.remove(memberId)                              // other-target kick
+await eventMembers.patch(memberId, { expiresAt: t })             // other-target renewal
 ```
+
+The three `*Self` forms are declaration-bound private resolvers. For resource
+scope they take the resource id; for app scope they omit it. The host combines
+that resource with the effective principal, resolves the unique membership row
+without returning its id or an existence oracle about anyone else, and feeds
+the result into the exact same `setRole`/`remove`/`patch` planner. A missing own
+row is `SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; a matching transition is still
+required. The id-addressed forms remain for host/admin and application flows
+that already possess a row id; this RFC does not add a general private-roster
+resolver.
 
 **Non-authorization columns need a write path too, and an earlier draft left
 them unwritable** — with raw writes refused and only insert/setRole/remove

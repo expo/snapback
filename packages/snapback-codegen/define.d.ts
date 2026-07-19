@@ -333,7 +333,7 @@ type RolesOf<Spec extends MembershipSpec> =
 type ScopeOf<Spec extends MembershipSpec> = Spec extends { scope: 'app' } ? 'app' : 'resource';
 
 export interface TableBuilder<Fields extends Record<string, Validator> = Record<string, Validator>> {
-  index(name: string, fields: Array<keyof Fields & string>): TableBuilder<Fields>;
+  index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): TableBuilder<Fields>;
   sync(): TableBuilder<Fields>;
   permissionBacking(fields?: Array<keyof Fields & string>): TableBuilder<Fields>;
   membership<const Spec extends MembershipSpec>(spec: Spec): MembershipTableBuilder<Fields, RolesOf<Spec>, ScopeOf<Spec>>;
@@ -344,7 +344,7 @@ export interface MembershipTableBuilder<
   Role extends string = string,
   Scope extends 'resource' | 'app' = 'resource',
 > extends TableBuilder<Fields> {
-  index(name: string, fields: Array<keyof Fields & string>): MembershipTableBuilder<Fields, Role, Scope>;
+  index(name: string, fields: Array<keyof Fields & string>, options?: { unique?: boolean }): MembershipTableBuilder<Fields, Role, Scope>;
   sync(): MembershipTableBuilder<Fields, Role, Scope>;
   memberOf(...args: Scope extends 'app'
     ? [] | [resource: MembershipResourceRef<'app'>]

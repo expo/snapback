@@ -154,6 +154,45 @@ function deny(name) {
   };
 }
 
+// Workerd's local runtime may permit V8 string compilation even when no
+// UnsafeEval binding is present. Close every reachable Function-family route
+// ourselves before any application module evaluates. Keep Function.prototype
+// as the ordinary shared intrinsic so reflection and function methods retain
+// their normal shape, but make both the global constructor and each
+// prototype's `.constructor` resolve to one sealed denier.
+const NativeFunction = globalThis.Function;
+const NativeAsyncFunction = (async function () {}).constructor;
+const NativeGeneratorFunction = (function* () {}).constructor;
+const NativeAsyncGeneratorFunction = (async function* () {}).constructor;
+const dynamicCodeDeny = deny("dynamic source compilation");
+try {
+  Object.defineProperty(dynamicCodeDeny, "prototype", {
+    value: NativeFunction.prototype,
+    configurable: false,
+    writable: false,
+  });
+  for (const constructor of [
+    NativeFunction,
+    NativeAsyncFunction,
+    NativeGeneratorFunction,
+    NativeAsyncGeneratorFunction,
+  ]) {
+    Object.defineProperty(constructor.prototype, "constructor", {
+      value: dynamicCodeDeny,
+      configurable: false,
+      writable: false,
+    });
+  }
+  Object.defineProperty(globalThis, "Function", {
+    value: dynamicCodeDeny,
+    configurable: false,
+    writable: false,
+  });
+} catch (_) {
+  // The startup attestation below exercises every route and fails closed if
+  // any constructor could not be replaced and sealed.
+}
+
 const KEEP = new Set([
   ...allowlist.ecmascriptIntrinsics,
   ...allowlist.computeOnlyAllowlist.map((entry) => entry.name),
@@ -357,6 +396,24 @@ const denied = (probe) => {
     );
   }
 };
+
+// Function remains an ECMAScript intrinsic by shape, but every code-generating
+// route must reach Snapback's exact sealed denier. A platform TypeError alone
+// is not sufficient attestation because its policy can change independently.
+for (const [name, probe] of [
+  ["Function", () => globalThis.Function("return 1")],
+  ["new Function", () => new globalThis.Function("return 1")],
+  ["Function(return this)", () => globalThis.Function("return this")],
+  ["Function(return this whitespace)", () => globalThis.Function("  return this;  ")],
+  ["Object.constructor.constructor", () => ({}).constructor.constructor("return this")],
+  ["Reflect.apply(Function)", () => Reflect.apply(globalThis.Function, undefined, ["return this"])],
+  ["Reflect.construct(Function)", () => Reflect.construct(globalThis.Function, ["return this"])],
+  ["AsyncFunction", () => (async function () {}).constructor("return 1")],
+  ["GeneratorFunction", () => (function* () {}).constructor("return 1")],
+  ["AsyncGeneratorFunction", () => (async function* () {}).constructor("return 1")],
+]) {
+  if (!denied(probe)) survivors.push(name);
+}
 if (!denied(() => new globalThis.Date())) survivors.push("new Date()");
 if (typeof Intl !== "undefined" && Intl.DateTimeFormat) {
   if (!denied(() => new Intl.DateTimeFormat("en").format())) {

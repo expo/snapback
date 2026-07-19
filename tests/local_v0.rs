@@ -3148,12 +3148,11 @@ fn s2_resume_live_fails_closed_for_a_different_principal() {
     assert_eq!(owner.subscription_id, subscription.subscription_id);
 }
 
-/// LLP 0032 S5.D9 — a live query handler that returns a non-array fails
-/// closed with a structured diagnostic, never a silently-empty result set.
+/// LLP 0032 S5.D9 — query-shaped handlers that return a non-array fail closed
+/// with diagnostics that identify the declared function kind.
 #[test]
 fn s5_d9_non_array_query_result_fails_closed() {
-    let snapback = configured_ibex_snapback(
-        r#"
+    const SOURCE: &str = r#"
 globalThis.__snapbackHandlers = {
   async listTodos(ctx) {
     return { not: 'an array' };
@@ -3164,12 +3163,30 @@ globalThis.__snapbackHandlers = {
     });
   }
 };
-"#,
-    );
-    let error = snapback
+"#;
+    let live = configured_ibex_snapback(SOURCE);
+    let error = live
         .invoke_query("listTodos", input(json!({}), "user_1"))
         .expect_err("non-array query result must fail closed");
     assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_RESULT_INVALID");
+    assert!(error.diagnostic.message.contains("live query handler"));
+    assert!(error.diagnostic.message.contains("listTodos"));
+
+    let mut ordinary = LocalSnapback::memory().expect("memory snapback");
+    ordinary.apply_schema(todo_schema()).expect("todo schema");
+    let mut functions = ibex_todo_functions(SOURCE);
+    functions.functions[0].kind = FunctionKind::Query;
+    functions.functions[0]
+        .required_capabilities
+        .retain(|capability| capability != "live_subscriptions");
+    ordinary.load_functions(functions);
+    let error = ordinary
+        .invoke_query("listTodos", input(json!({}), "user_1"))
+        .expect_err("ordinary non-array query result must fail closed");
+    assert_eq!(error.diagnostic.code, "SNAPBACK_HANDLER_RESULT_INVALID");
+    assert!(error.diagnostic.message.contains("query handler"));
+    assert!(!error.diagnostic.message.contains("live query handler"));
+    assert!(error.diagnostic.message.contains("listTodos"));
 }
 
 /// LLP 0032 S5.D8 — cron run duration is measured from real wall-clock, not

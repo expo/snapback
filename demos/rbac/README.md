@@ -3,7 +3,9 @@
 This deliberately small sessions app exercises Snapback's public RBAC
 authoring path. `appMembers` is the app-singleton form of a membership
 declaration: a signed-in non-member may join as themselves, members may read
-and post announcements, and raw `ctx.db` writes to the roster remain refused.
+and post announcements, a member can invite another principal, and that
+principal can accept and later leave without learning the private roster row
+id. Raw `ctx.db` writes to the roster remain refused.
 
 Run the generated, real-server proof:
 

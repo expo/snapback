@@ -11,15 +11,17 @@ import { spawn, spawnSync } from 'node:child_process';
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
   readFileSync,
-  rmSync,
   writeFileSync,
 } from 'node:fs';
-import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  launchChromeCdp,
+  NO_PRIMARY_FAILURE,
+  throwRunAndCleanupFailures,
+} from '../../../_kit/chrome-process.mjs';
 import { freePort } from '../../../_kit/provenance.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 
@@ -187,49 +189,6 @@ async function startMeasurementServer(port) {
     reused: false,
     stop: () => stopChild(child),
   };
-}
-
-async function launchChrome() {
-  const userDataDir = mkdtempSync(join(tmpdir(), 'aa-update-economy-'));
-  const child = spawn(
-    chromeBin,
-    [
-      '--headless=new',
-      '--disable-gpu',
-      '--no-first-run',
-      '--no-default-browser-check',
-      '--remote-debugging-port=0',
-      `--user-data-dir=${userDataDir}`,
-      `--window-size=${viewport.width},${viewport.height}`,
-      'about:blank',
-    ],
-    { stdio: ['ignore', 'ignore', 'pipe'] },
-  );
-  let spawnError = null;
-  child.on('error', (error) => { spawnError = error; });
-  const portFile = join(userDataDir, 'DevToolsActivePort');
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    if (spawnError) {
-      throw new Error(`Chrome failed to launch (${chromeBin}): ${spawnError.message}`);
-    }
-    try {
-      const [port] = readFileSync(portFile, 'utf8').trim().split('\n');
-      const version = await fetch(`http://127.0.0.1:${port}/json/version`)
-        .then((response) => response.json());
-      return {
-        ws: version.webSocketDebuggerUrl,
-        version,
-        stop: async () => {
-          await stopChild(child);
-          rmSync(userDataDir, { recursive: true, force: true });
-        },
-      };
-    } catch {
-      await sleep(100);
-    }
-  }
-  throw new Error('Chrome did not expose DevToolsActivePort');
 }
 
 async function connectCdp(url) {
@@ -1056,7 +1015,11 @@ async function main() {
     throw new Error(`${error.message}\n${viteLog}`);
   }
 
-  const chrome = await launchChrome();
+  const chrome = await launchChromeCdp({
+    chromeBin,
+    userDataPrefix: 'aa-update-economy-',
+    extraArgs: [`--window-size=${viewport.width},${viewport.height}`],
+  });
   cleanups.push(() => chrome.stop());
   const page = await connectCdp(chrome.ws);
   cleanups.push(() => page.close());
@@ -1097,20 +1060,31 @@ async function main() {
 }
 
 async function cleanup() {
+  const errors = [];
   while (cleanups.length > 0) {
     try {
       await cleanups.pop()();
-    } catch {
-      // Continue cleaning the processes this run owns.
+    } catch (error) {
+      // Continue cleaning every process this run owns, but retain every
+      // failure so an unattested browser tree can never become exit 0.
+      errors.push(error);
     }
   }
+  return errors;
 }
 
+let primaryError = NO_PRIMARY_FAILURE;
 try {
   await main();
-} finally {
-  await cleanup();
+} catch (error) {
+  primaryError = error;
 }
+const cleanupErrors = await cleanup();
+throwRunAndCleanupFailures({
+  label: 'All Aboard update-economy measurement',
+  primaryError,
+  cleanupErrors,
+});
 
 // Node's built-in WebSocket can retain an already-closed DevTools handle on
 // successful runs. Every owned child has been awaited above; terminate the

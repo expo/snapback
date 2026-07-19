@@ -86,6 +86,11 @@ What it guarantees:
 - `--memory` for `db: ':memory:'`; file-backed servers take an exclusive
   sidecar lock so two servers can't mutate one database.
 
+If a suite hand-spawns `snapback`/`cargo run` without a controlling terminal,
+it must pass a fresh `--ready-file <path>`. The process-bound impersonation
+capability is published only to that owner-only sidecar; it is never written to
+captured stdout/stderr. Prefer `startServer`, which already owns this handshake.
+
 Then load and drive the app exactly as production clients do — see
 [your first backend](../getting-started/your-first-backend.md) for
 `loadSchema`/`loadFunctions`/`reset`/`seed` and the query/mutation calls,

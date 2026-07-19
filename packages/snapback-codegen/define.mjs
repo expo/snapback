@@ -304,9 +304,14 @@ class TableBuilder {
     this.syncable = false;
   }
 
-  index(name, fields) {
+  /** @ref LLP 0007#index-contract — uniqueness is part of the portable index
+   *  declaration, not a handler convention. */
+  index(name, fields, options = {}) {
     assert(Array.isArray(fields) && fields.length > 0, `index ${name} needs fields`);
-    this.indexes.push({ name, fields });
+    assertKnownSpecFields(options, `index ${name} options`, new Set(['unique']));
+    const unique = options.unique ?? false;
+    assert(typeof unique === 'boolean', `index ${name} unique must be boolean`);
+    this.indexes.push({ name, fields: REFLECT_APPLY(ARRAY_SLICE, fields, []), unique });
     return this;
   }
 

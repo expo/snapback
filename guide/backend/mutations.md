@@ -104,6 +104,26 @@ to force a last-writer-wins commit. Predicate-shaped captured reads are
 validated at predicate granularity, so unrelated writes do not spuriously
 conflict.
 
+## Declare structural uniqueness
+
+For one-row-per-key application invariants, declare a true unique index instead
+of scanning in the handler:
+
+```js source=demos/shindig/snapback/schema.mjs
+    .index('by_user', ['userId'])
+    .index('by_event', ['eventId'])
+    .index('by_event_user', ['eventId', 'userId'], { unique: true })
+    .sync(),
+```
+
+Unique indexes may be compound. Every key field must be required in v1 so the
+constraint is total across SQLite and Postgres. Duplicate inserts that reach
+the serialized write boundary race at the constraint: exactly one wins, every
+loser commits nothing and receives `SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION`. A
+larger mutation may still fail earlier at an authorization or stale-reservation
+boundary, also without committing. Snapback does not currently ship `upsert`;
+keep duplicate-as-error flows as inserts and handle the unique diagnostic.
+
 ## One commit, one version
 
 All affected rows share the mutation's `version`; no-op writes do not advance
@@ -118,6 +138,8 @@ that needs its successor fails before writing with
 
 - **Do not implement read-then-write invariants as two unrelated requests.**
   Read inside the JS mutation or carry the explicit host-plan baseline.
+- **Do not scan to emulate a unique compound key.** Declare a unique index;
+  read sets are conflict detection, not a substitute for structural uniqueness.
 - **Do not swallow `SNAPBACK_MUTATION_CONFLICT`.** Reconcile or ask the user;
   blind retry may violate the invariant that caused the read.
 - **Do not set `_id`, `_version`, `_createdAt`, or `_updatedAt`.**

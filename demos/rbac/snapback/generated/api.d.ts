@@ -36,17 +36,20 @@ export interface GeneratedDataModel {
 export interface GeneratedPermissions {
   appMembers: { requireRole(resource: null, role: AppMembersRole, ...roles: AppMembersRole[]): Promise<void> };
 }
-export type AppMembersRole = "member" | "admin";
+export type AppMembersRole = "member" | "admin" | "invited";
 export type AppMembersInsert = { userId: Principal; role: AppMembersRole };
 export type AppMembersPatch = Record<string, never>;
 export interface GeneratedMembership {
-  appMembers: { insert(values: AppMembersInsert): Promise<unknown>; setRole(memberId: Id<'appMembers'>, role: AppMembersRole): Promise<unknown>; remove(memberId: Id<'appMembers'>): Promise<unknown>; patch(memberId: Id<'appMembers'>, values: AppMembersPatch): Promise<unknown> };
+  appMembers: { insert(values: AppMembersInsert): Promise<unknown>; setSelfRole(role: AppMembersRole): Promise<unknown>; removeSelf(): Promise<unknown>; patchSelf(values: AppMembersPatch): Promise<unknown>; setRole(memberId: Id<'appMembers'>, role: AppMembersRole): Promise<unknown>; remove(memberId: Id<'appMembers'>): Promise<unknown>; patch(memberId: Id<'appMembers'>, values: AppMembersPatch): Promise<unknown> };
 }
 export interface GeneratedQueryContext { readonly permissions: GeneratedPermissions }
 export interface GeneratedMutationContext extends GeneratedQueryContext { readonly membership: GeneratedMembership }
 export interface GeneratedActionContext {}
 export interface GeneratedFunctionContexts {
+  acceptInvite: GeneratedMutationContext;
+  inviteApp: GeneratedMutationContext;
   joinApp: GeneratedMutationContext;
+  leaveApp: GeneratedMutationContext;
   listAnnouncements: GeneratedQueryContext;
   postAnnouncement: GeneratedMutationContext;
   rawJoin: GeneratedMutationContext;
@@ -54,7 +57,10 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
+  acceptInvite: FunctionReference<'acceptInvite', 'Mutation', Record<string, never>>;
+  inviteApp: FunctionReference<'inviteApp', 'Mutation', { userId: Principal }>;
   joinApp: FunctionReference<'joinApp', 'Mutation', Record<string, never>>;
+  leaveApp: FunctionReference<'leaveApp', 'Mutation', Record<string, never>>;
   listAnnouncements: FunctionReference<'listAnnouncements', 'LiveQuery', Record<string, never>>;
   postAnnouncement: FunctionReference<'postAnnouncement', 'Mutation', { message: string }>;
   rawJoin: FunctionReference<'rawJoin', 'Mutation', Record<string, never>>;

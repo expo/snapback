@@ -191,7 +191,10 @@ async function mintSession(appId, email, clientStoreId) {
   );
   const mailbox = await mailboxResponse.json();
   assert.equal(mailboxResponse.status, 200, JSON.stringify(mailbox));
-  await client.authExchange({ challengeId: requested.challengeId, code: mailbox.code });
+  session.credential = await client.authExchange({
+    challengeId: requested.challengeId,
+    code: mailbox.code,
+  });
   return session;
 }
 
@@ -359,8 +362,11 @@ try {
   );
 
   const bobInvalidationsBeforeJoin = bobLive.authorizationInvalidations;
-  await bob.client.mutate('joinApp', { args: {} });
-  // The committed join response is the exact boundary after which Bob may
+  const bobUserId = bob.credential?.session?.userId;
+  assert.equal(typeof bobUserId, 'string', 'Bob exchange returns the authenticated user id');
+  await alice.client.mutate('inviteApp', { args: { userId: bobUserId } });
+  await bob.client.mutate('acceptInvite', { args: {} });
+  // The committed self-accept response is the exact boundary after which Bob may
   // become visible; every frame drained before it was checked as empty.
   bobLive.forbidVisibleRows = false;
   await waitForMessages(
@@ -397,6 +403,20 @@ try {
     (await bob.client.query('listAnnouncements', { args: {} })).rows
       .map(({ message }) => message),
     ['members only', 'still members only', 'hello from bob'],
+  );
+
+  const bobInvalidationsBeforeLeave = bobLive.authorizationInvalidations;
+  await bob.client.mutate('leaveApp', { args: {} });
+  bobLive.forbidVisibleRows = true;
+  await waitForMessages(bobLive, [], 'Bob self-leave did not revoke his live rows');
+  assert(
+    bobLive.authorizationInvalidations > bobInvalidationsBeforeLeave,
+    'Bob self-leave must arrive as an authorization invalidation',
+  );
+  await assert.rejects(
+    () => bob.client.mutate('postAnnouncement', { args: { message: 'after leaving' } }),
+    (error) => error?.diagnostic?.code === 'SNAPBACK_AUTH_PERMISSION_DENIED',
+    'a self-leave must revoke subsequent role checks',
   );
 
   await assert.rejects(

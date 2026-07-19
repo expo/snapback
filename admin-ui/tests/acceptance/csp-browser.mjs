@@ -9,11 +9,17 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+import {
+  launchChromeCdp,
+  NO_PRIMARY_FAILURE,
+  throwRunAndCleanupFailures,
+} from '../../../demos/_kit/chrome-process.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..');
@@ -58,6 +64,8 @@ server.stderr.on('data', (chunk) => {
 
 let chrome = null;
 let cdp = null;
+let primaryError = NO_PRIMARY_FAILURE;
+let successReport = null;
 try {
   await waitForHttp(`${origin}/health`, server, 30_000, () => serverStderr);
 
@@ -66,7 +74,10 @@ try {
     setup: await proveResponseCsp(`${origin}/_snapback/admin/setup`, 1),
   };
 
-  chrome = await launchChrome();
+  chrome = await launchChromeCdp({
+    chromeBin,
+    userDataPrefix: 'snapback-admin-csp-',
+  });
   cdp = await connectCdp(chrome.ws);
 
   const admin = await cdp.newPage();
@@ -185,9 +196,9 @@ try {
   assertCleanBoot('setup', setupEvents);
   const setupTrustedTypes = await proveTrustedTypesEnforcement(setup);
 
-  console.log(JSON.stringify({
+  successReport = {
     ok: true,
-    chrome: chrome.version,
+    chrome: chrome.version.Browser,
     headerProof,
     admin: {
       prompt: adminPrompt,
@@ -207,13 +218,21 @@ try {
       securityPolicyViolations: setupEvents.dom.violations.length,
       trustedTypes: setupTrustedTypes,
     },
-  }, null, 2));
-} finally {
-  try { cdp?.close(); } catch {}
-  try { chrome?.stop(); } catch {}
-  if (server.exitCode === null) server.kill('SIGTERM');
-  rmSync(serverStateDir, { recursive: true, force: true });
+  };
+} catch (error) {
+  primaryError = error;
 }
+const cleanupErrors = [];
+try { cdp?.close(); } catch (error) { cleanupErrors.push(error); }
+try { if (chrome) await chrome.stop(); } catch (error) { cleanupErrors.push(error); }
+try { if (server.exitCode === null) server.kill('SIGTERM'); } catch (error) { cleanupErrors.push(error); }
+try { rmSync(serverStateDir, { recursive: true, force: true }); } catch (error) { cleanupErrors.push(error); }
+throwRunAndCleanupFailures({
+  label: 'admin CSP browser acceptance',
+  primaryError,
+  cleanupErrors,
+});
+console.log(JSON.stringify(successReport, null, 2));
 
 async function browserCustodyProjection(page) {
   return page.eval(`(() => {
@@ -287,41 +306,6 @@ async function proveResponseCsp(url, expectedInlineScripts) {
   assert.ok(csp.includes('trusted-types snapback'));
   assert.equal(/script-src[^;]*unsafe-inline/.test(csp), false);
   return { inlineScripts: bodies.length, exactHashesAdmitted: hashes.length };
-}
-
-async function launchChrome() {
-  const userDataDir = mkdtempSync(join(tmpdir(), 'snapback-admin-csp-'));
-  const child = spawn(chromeBin, [
-    '--headless=new',
-    '--disable-gpu',
-    '--no-first-run',
-    '--no-default-browser-check',
-    '--remote-debugging-port=0',
-    `--user-data-dir=${userDataDir}`,
-    'about:blank',
-  ], { stdio: ['ignore', 'ignore', 'pipe'] });
-  const portFile = join(userDataDir, 'DevToolsActivePort');
-  let stderr = '';
-  child.stderr.on('data', (chunk) => { stderr += chunk; });
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    if (child.exitCode !== null) throw new Error(`Chrome exited before CDP startup: ${stderr}`);
-    try {
-      const [debugPort] = readFileSync(portFile, 'utf8').trim().split('\n');
-      const version = await fetch(`http://127.0.0.1:${debugPort}/json/version`).then((res) => res.json());
-      return {
-        ws: version.webSocketDebuggerUrl,
-        version: version.Browser,
-        stop() {
-          try { child.kill('SIGKILL'); } catch {}
-          rmSync(userDataDir, { recursive: true, force: true });
-        },
-      };
-    } catch {
-      await sleep(100);
-    }
-  }
-  throw new Error(`Chrome did not expose DevToolsActivePort: ${stderr}`);
 }
 
 async function connectCdp(url) {

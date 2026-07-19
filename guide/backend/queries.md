@@ -59,6 +59,11 @@ JS handler for bounded logic the plan cannot express. Both styles return the
 same public query envelope and must use declared indexes for author-facing
 lookup paths.
 
+Every JS query handler returns an **array of rows**, including point reads:
+return `[]` for missing or `[row]` for present. Returning a single object fails
+with `SNAPBACK_HANDLER_RESULT_INVALID`; the diagnostic names whether the
+declaration is a `query` or `live query` and includes its function id.
+
 ## Read one snapshot
 
 The local target pins one transaction for the whole query invocation. The

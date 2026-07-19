@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ca367280505fdeff40f2cec741eb0c5151e39ca9"
+    "commit": "ef374fb63756f213e4262bd18356d61cbc6f90aa"
   },
   "nav": {
     ".": [
@@ -244,7 +244,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "9ab39eddb0e313cc9d8c03eba1c96f6234e462adbb235d2b9d150daaddcb6741",
+      "sha256": "a0185b7a8608011445ebab2585cff57e99917865de8d71aed7e78669ba219c49",
       "snippets": [
         {
           "lang": "js",
@@ -260,6 +260,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/rbac/snapback/functions.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/rbac/snapback/handlers.mjs"
         },
         {
           "lang": "js",
@@ -377,9 +382,9 @@
       "examples": [
         "demos/all-aboard"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "ca367280505fdeff40f2cec741eb0c5151e39ca9",
-      "sha256": "78e544e971d009648805635128ef6f9a0cee590afe6d43bcdd9a87fa7ce3cfab",
+      "reviewed": "2026-07-18",
+      "reviewedCommit": "HEAD",
+      "sha256": "c5d8276844eb79b83aa71d2c08ea18c631c46a7dbae68ebb8b0a3453434fbbe2",
       "snippets": [
         {
           "lang": "js",
@@ -468,7 +473,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "29cd7eea15902d6e343801329264743f8e3d350d09310eaf14173760f2e6f784",
+      "sha256": "d80751abf4c13cb89fee7459c1d5ca6374fe0e96e6aa1de85325ab1f8d3fe85f",
       "snippets": [
         {
           "lang": "js",
@@ -489,6 +494,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/todo/tests/acceptance/headless.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/shindig/snapback/schema.mjs"
         }
       ]
     },
@@ -518,7 +528,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "7dce0fe8388a8f6b04ed812b5ecde3d8ca798fb6db52b061a2bd8c5558ba85b7",
+      "sha256": "dca30ce7fcd1fa1bb835f174188fbacfbe263d931309bfd448f52f972cc702ea",
       "snippets": [
         {
           "lang": "js",
@@ -581,7 +591,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "a2b4c5ecdb748d264a02e32bc33eb359affc52009e759272266a28b9e54efbc7",
+      "sha256": "ac822fd01848d8a714a299b3ceae13b76bdba53ebd4a25d651b5cfb4ba83b570",
       "snippets": [
         {
           "lang": "contract",
@@ -681,7 +691,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "1ca830f8a2554fb26db60926a668ab2cfc9cf6265117c3ff52f5f6318ec964de",
+      "sha256": "880b16bba2841829cf40715bd1c09b53ed8575907194203d1e25926b72844452",
       "snippets": [
         {
           "lang": "ts",
@@ -1298,7 +1308,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "1af4c69c29e4908357d64a3052ff42469b2a1f02",
-      "sha256": "9799fa07430bf404af00bf1bc7ee51f3f7cc602b8ecc88a8d58c31b8edc854ca",
+      "sha256": "6f4d42d3d31823f1f4b74d4505a7a2284412feea002d688c2064266e23a26ec5",
       "snippets": [
         {
           "lang": "js",
@@ -1356,5 +1366,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "b2c0219e2ee8d3994bb3d592e5293c7784caffa221fc298d8193339a94f2187c"
+  "contentHash": "ee84968b2187fb94141c1a3ee9bfef500d3faba1e3722ceeab82e4f82fa4b794"
 }

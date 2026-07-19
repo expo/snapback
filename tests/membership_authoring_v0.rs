@@ -18,13 +18,13 @@ globalThis.__snapbackHandlers = {
     return await ctx.db.insert('app_members', { userId: ctx.auth.userId, role: 'member' });
   },
   async patchMember(ctx, args) {
-    return await ctx.membership.app_members.patch(args.memberId, { note: 'updated' });
+    return await ctx.membership.app_members.patchSelf({ note: 'updated' });
   },
   async promote(ctx, args) {
-    return await ctx.membership.app_members.setRole(args.memberId, 'admin');
+    return await ctx.membership.app_members.setSelfRole('admin');
   },
   async leave(ctx, args) {
-    return await ctx.membership.app_members.remove(args.memberId);
+    return await ctx.membership.app_members.removeSelf();
   },
   async nestedJoin(ctx) {
     return await ctx.runMutation('join', {});
@@ -160,13 +160,6 @@ fn input(user: &str) -> HandlerInput {
     }
 }
 
-fn input_with_args(user: &str, args: Value) -> HandlerInput {
-    HandlerInput {
-        args,
-        ..input(user)
-    }
-}
-
 #[test]
 fn generated_helper_runs_direct_nested_dry_run_and_replay_while_raw_stays_closed() {
     let mut direct = configured();
@@ -178,21 +171,11 @@ fn generated_helper_runs_direct_nested_dry_run_and_replay_while_raw_stays_closed
         .expect("direct rows");
     assert_eq!(rows.total, 1);
     assert_eq!(rows.rows[0]["userId"], "alice");
-    let member_id = rows.rows[0]["_id"]
-        .as_str()
-        .expect("direct member id")
-        .to_owned();
     direct
-        .invoke_mutation(
-            "patchMember",
-            input_with_args("alice", serde_json::json!({ "memberId": member_id })),
-        )
+        .invoke_mutation("patchMember", input("alice"))
         .expect("declaration-bound patch");
     direct
-        .invoke_mutation(
-            "promote",
-            input_with_args("alice", serde_json::json!({ "memberId": member_id })),
-        )
+        .invoke_mutation("promote", input("alice"))
         .expect("declaration-bound setRole");
     let rows = direct
         .scan_table("app_members", 10, 0)
@@ -200,10 +183,7 @@ fn generated_helper_runs_direct_nested_dry_run_and_replay_while_raw_stays_closed
     assert_eq!(rows.rows[0]["note"], "updated");
     assert_eq!(rows.rows[0]["role"], "admin");
     direct
-        .invoke_mutation(
-            "leave",
-            input_with_args("alice", serde_json::json!({ "memberId": member_id })),
-        )
+        .invoke_mutation("leave", input("alice"))
         .expect("declaration-bound remove");
     assert_eq!(
         direct

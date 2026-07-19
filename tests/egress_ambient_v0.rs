@@ -3,9 +3,10 @@
 //! Egress actions (`SNAPBACK_OUTBOUND_ACTIONS=1`, kind=Action) keep the wide
 //! compute-plus-fetch surface the all-aboard 511.org poller depends on. The
 //! LLP 0048 data-driven denial applies to queries and mutations only; the
-//! egress posture denies exactly process/require/WebSocket. This suite runs
-//! in `cargo test` so a denial-list change that breaks the egress surface
-//! fails CI instead of only the demo acceptance suite nobody runs.
+//! egress posture denies process/require/WebSocket, dynamic string compilation,
+//! and WebAssembly. This suite runs in `cargo test` so a denial-list change
+//! that breaks the egress surface fails CI instead of only the demo acceptance
+//! suite nobody runs.
 //!
 //! The load-bearing subtlety this pins: Ibex installs `fetch`/`Headers`/
 //! `Response` lazily as *configurable* properties, so the denial layer must
@@ -33,6 +34,14 @@ globalThis.__snapbackHandlers = {
         return 'error: ' + message;
       }
     }
+    function dynamicState(fn) {
+      try {
+        fn();
+        return 'available';
+      } catch (_) {
+        return 'blocked';
+      }
+    }
     return {
       fetchState: state(function () { return typeof fetch === 'function'; }),
       urlState: state(function () { return new URL('https://example.com/x').host === 'example.com'; }),
@@ -41,6 +50,18 @@ globalThis.__snapbackHandlers = {
       abortState: state(function () { return typeof AbortController === 'function' && new AbortController().signal != null; }),
       timerState: state(function () { return typeof setTimeout === 'function'; }),
       webSocketState: state(function () { WebSocket; return typeof WebSocket === 'function' && new WebSocket('wss://x') != null; }),
+      webAssemblyState: state(function () { WebAssembly(); return true; }),
+      directEvalState: dynamicState(function () { return eval('1'); }),
+      indirectEvalState: dynamicState(function () { return (0, eval)('1'); }),
+      functionState: dynamicState(function () { return Function('return 1')(); }),
+      functionReturnThisState: dynamicState(function () { return Function('return this')(); }),
+      functionWhitespaceState: dynamicState(function () { return Function('  return this;  ')(); }),
+      constructorWalkState: dynamicState(function () { return ({}).constructor.constructor('return this')(); }),
+      reflectApplyState: dynamicState(function () { return Reflect.apply(Function, undefined, ['return this'])(); }),
+      reflectConstructState: dynamicState(function () { return Reflect.construct(Function, ['return this'])(); }),
+      asyncFunctionState: dynamicState(function () { return (async function () {}).constructor('return 1'); }),
+      generatorFunctionState: dynamicState(function () { return (function* () {}).constructor('return 1'); }),
+      authorityConstructorState: dynamicState(function () { return Function('ctx', 'return ctx.runMutation')(ctx); }),
       processState: typeof process === 'undefined' ? 'absent' : 'present',
       requireState: typeof require === 'undefined' ? 'absent' : 'present'
     };
@@ -142,6 +163,18 @@ fn egress_action_keeps_the_wide_ambient_surface() {
         ("abortState", "available"),
         ("timerState", "available"),
         ("webSocketState", "denied"),
+        ("webAssemblyState", "denied"),
+        ("directEvalState", "blocked"),
+        ("indirectEvalState", "blocked"),
+        ("functionState", "blocked"),
+        ("functionReturnThisState", "blocked"),
+        ("functionWhitespaceState", "blocked"),
+        ("constructorWalkState", "blocked"),
+        ("reflectApplyState", "blocked"),
+        ("reflectConstructState", "blocked"),
+        ("asyncFunctionState", "blocked"),
+        ("generatorFunctionState", "blocked"),
+        ("authorityConstructorState", "blocked"),
         ("processState", "absent"),
         ("requireState", "absent"),
     ] {

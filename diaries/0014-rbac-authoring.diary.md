@@ -95,3 +95,18 @@ intentionally about Snapback's headless authoring and enforcement boundary.
 - The guide previously listed scoped roles as an explicit GAP. The new
   `auth/scoped-roles` page absorbs it with snippets exercised by this demo and
   the package test, so no separate guide-gap ticket is necessary.
+
+## 2026-07-18 — Self-service transitions without roster ids
+
+The first version proved self-join, but it accidentally hid a reachability
+cliff: `setRole`, `remove`, and `patch` required the private membership row id.
+I extended the demo to invite Bob, let Bob accept with `setSelfRole`, and let
+him leave with `removeSelf`. The host resolves only Bob's own row and then runs
+the unchanged transition matrix, so the app gains no roster existence oracle.
+
+This feels closer to RLS-backed products such as Supabase: routine self-service
+flows are short, while the policy remains structural. Compared with a
+React/Convex helper that first queries a membership document, Snapback avoids
+shipping the authority row to the client or trusting a handler-side equality
+check. The remaining other-target helpers still need an id; this change is
+deliberately the self-service subset, not a general private-roster resolver.

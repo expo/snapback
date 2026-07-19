@@ -75,6 +75,7 @@ run node scripts/check-artifact-path-hygiene.mjs
 run node tests/required_surface_builds_v0.mjs
 run node tests/artifact_path_hygiene_v0.mjs
 run node demos/_kit/tests/server-process-lifecycle.mjs
+run node demos/_kit/tests/chrome-process-lifecycle.mjs
 run node demos/_kit/tests/harness-cleanup-failures.mjs
 # @ref LLP 0010#native-runtime-bootstrap — prepare native artifacts here, then
 # stamp every subsequent Snapback Cargo unit with the checkout identity that

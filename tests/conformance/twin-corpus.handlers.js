@@ -413,6 +413,28 @@ globalThis.__snapbackHandlers = {
     }
     return [{ name: name, reachable: true, how: 'value' }];
   },
+  async probeDynamicCode(ctx) {
+    function unavailable(probe) {
+      try {
+        probe();
+        return false;
+      } catch (_) {
+        return true;
+      }
+    }
+    return [{
+      directEval: unavailable(function () { return eval('1'); }),
+      indirectEval: unavailable(function () { return (0, eval)('1'); }),
+      functionBody: unavailable(function () { return Function('return 1')(); }),
+      functionReturnThis: unavailable(function () { return Function('return this')(); }),
+      functionWhitespace: unavailable(function () { return Function('  return this;  ')(); }),
+      constructorWalk: unavailable(function () { return ({}).constructor.constructor('return this')(); }),
+      reflectApply: unavailable(function () { return Reflect.apply(Function, undefined, ['return this'])(); }),
+      reflectConstruct: unavailable(function () { return Reflect.construct(Function, ['return this'])(); }),
+      asyncFunction: unavailable(function () { return (async function () {}).constructor('return 1'); }),
+      generatorFunction: unavailable(function () { return (function* () {}).constructor('return 1'); })
+    }];
+  },
   async probeMember(ctx, args) {
     var parts = args.name.split('.');
     var holder = globalThis[parts[0]];

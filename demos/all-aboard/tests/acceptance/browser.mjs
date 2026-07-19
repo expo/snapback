@@ -25,11 +25,11 @@
 //   provenance; otherwise starts fresh processes — ENG-22753).
 
 import { spawn } from 'node:child_process';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
@@ -178,7 +178,11 @@ async function main() {
         detail: 'static platform-manifest discovery must only be injected by production builds',
       };
     });
-    const chrome = await launchChrome();
+    const chrome = await launchChromeCdp({
+      chromeBin,
+      userDataPrefix: 'aa-browser-',
+      env: unprivilegedChildEnv(),
+    });
     cleanups.push(() => chrome.stop());
     cdp = await connectCdp(chrome.ws);
     cleanups.push(() => cdp.close());
@@ -946,28 +950,6 @@ async function main() {
       }
     });
   }, { cleanups });
-}
-
-// --- Minimal CDP harness (adapted from demos/cursors-web/tests/acceptance) ---
-
-async function launchChrome() {
-  const userDataDir = mkdtempSync(join(tmpdir(), 'aa-browser-'));
-  const child = spawn(chromeBin, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, 'about:blank'], { env: unprivilegedChildEnv(), stdio: ['ignore', 'ignore', 'pipe'] });
-  // Without this handler a bad CHROME_BIN crashes the whole process as an
-  // unhandled 'error' event, skipping teardown (ENG-22486).
-  let spawnError = null;
-  child.on('error', (error) => { spawnError = error; });
-  const portFile = join(userDataDir, 'DevToolsActivePort');
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    if (spawnError) throw new Error(`Chrome failed to launch (${chromeBin}): ${spawnError.message}`);
-    try {
-      const [port] = readFileSync(portFile, 'utf8').trim().split('\n');
-      const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
-      return { ws: version.webSocketDebuggerUrl, stop: () => { try { child.kill('SIGKILL'); } catch {} rmSync(userDataDir, { recursive: true, force: true }); } };
-    } catch { await sleep(100); }
-  }
-  throw new Error('Chrome did not expose DevToolsActivePort');
 }
 
 async function connectCdp(url) {

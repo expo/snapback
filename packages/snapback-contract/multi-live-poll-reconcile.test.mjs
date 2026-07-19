@@ -192,4 +192,41 @@ const makeRuntime = () => ({
   surface.dispose();
 }
 
+// --- a live-push surface refuses configured snapshot queries at construction ---
+{
+  const client = makeClient({ withLiveQuery: true });
+  let caught = null;
+  try {
+    await createSnapbackContractSurface({
+      runtime: makeRuntime(),
+      client,
+      userId: 'u1',
+      manifest: makeManifest(),
+      liveQueries: ['alpha', 'gamma'],
+    });
+  } catch (error) {
+    caught = error;
+  }
+  assert.ok(caught, 'configuring a snapshot query in live-push mode must refuse construction');
+  assert.equal(caught.diagnostic?.code, 'SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE');
+  assert.deepEqual(caught.diagnostic?.details?.queries, ['gamma']);
+  assert.equal(client.state.liveQueryCalls, 0, 'refusal happens before any subscription is opened');
+}
+
+// --- livePush: false still serves configured snapshot queries (poll/reconcile) ---
+{
+  const client = makeClient({ withLiveQuery: true });
+  client.store.gamma = [{ _id: 'g1', _version: 1 }];
+  const surface = await createSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    livePush: false,
+    liveQueries: ['alpha', 'gamma'],
+  });
+  assert.deepEqual(surface.boundary.cells.get('gamma'), [{ _id: 'g1', _version: 1 }]);
+  surface.dispose();
+}
+
 console.log('multi-live-poll-reconcile.test.mjs: all assertions passed');

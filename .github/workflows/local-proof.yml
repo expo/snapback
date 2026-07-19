@@ -89,9 +89,10 @@ jobs:
             ~/.cache/exact/hermes-linux
             vendor/ibex/linux
             vendor/ibex/tools/hermes
-          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/Cargo.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-hermes-
+          # Reuse only an artifact built from this exact pin, patch stack, and
+          # application/build logic. A prefix fallback can silently restore a
+          # stale runtime after any of those inputs change.
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
 
       # Cargo registry + target cache: without it every run cold-compiles the
       # full dependency tree (and the ibex-runtime C++ glue) on a 2-core

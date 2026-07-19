@@ -216,6 +216,7 @@ fn functions() -> FunctionManifest {
             define("settlementThenableForgeryProbe", FunctionKind::Mutation),
             define("busyLoop", FunctionKind::Mutation),
             define("probeGlobalName", FunctionKind::Query),
+            define("probeDynamicCode", FunctionKind::Query),
             define("probeMember", FunctionKind::Query),
             define("allowlistSlice", FunctionKind::Query),
             define("atobRejectsGarbage", FunctionKind::Query),
@@ -265,7 +266,12 @@ fn probe(snapback: &LocalSnapback, backend: HandlerBackend, handler: &str, name:
     let output = with_forced_backend(backend, || {
         snapback.invoke_query(handler, input(json!({ "name": name })))
     })
-    .unwrap_or_else(|error| panic!("{backend:?} probe {name} errored: {error}"));
+    .unwrap_or_else(|error| {
+        panic!(
+            "{backend:?} probe {name} errored: {error}; details={}",
+            error.diagnostic.details
+        )
+    });
     output.rows[0].clone()
 }
 
@@ -781,6 +787,32 @@ fn ambient_powers_are_unreachable_on_both_engines() {
                 "{backend:?}: {name} must be unreachable, got {result}"
             );
         }
+    }
+}
+
+/// Dynamic source compilation is denied by each engine configuration, not
+/// merely by the codegen scanner. This includes Hermes's historical cached
+/// `Function("return this")` fast path and aliases that never mention the
+/// global constructor directly.
+#[test]
+fn dynamic_code_is_unreachable_on_both_engines() {
+    require_workerd!();
+    let snapback = configured();
+    let expected = json!({
+        "directEval": true,
+        "indirectEval": true,
+        "functionBody": true,
+        "functionReturnThis": true,
+        "functionWhitespace": true,
+        "constructorWalk": true,
+        "reflectApply": true,
+        "reflectConstruct": true,
+        "asyncFunction": true,
+        "generatorFunction": true,
+    });
+    for backend in [HandlerBackend::Ibex, HandlerBackend::WorkerdV8] {
+        let actual = probe(&snapback, backend, "probeDynamicCode", "");
+        assert_eq!(actual, expected, "{backend:?}: dynamic code escaped");
     }
 }
 

@@ -2,7 +2,10 @@
 // @ref LLP 0021#phase-1-specify-contractdatamanifest - Contract runtime links are projected from Snapback generated artifacts.
 
 export interface SnapbackContractLinks {
+  acceptInvite(args: Record<string, never>): unknown;
+  inviteApp(args: { userId: string }): unknown;
   joinApp(args: Record<string, never>): unknown;
+  leaveApp(args: Record<string, never>): unknown;
   listAnnouncements(args: Record<string, never>): unknown;
   postAnnouncement(args: { message: string }): unknown;
   rawJoin(args: Record<string, never>): unknown;

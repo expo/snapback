@@ -1,0 +1,122 @@
+// Shindig — event screen (Contract arm). Bound for exactly one event: the
+// Snapback multi-live surface subscribes eventDetails/guestList/eventWall
+// with this event's args at boot (main.ts), and the bindings here must name
+// the same scope. eventDetails is membership-gated with no existence leak —
+// a non-member's subscription is simply empty, so the `empty` branch IS the
+// locked page.
+
+use eventDetails from "../../snapback/generated/contract/eventDetails.query.ts"
+use guestList from "../../snapback/generated/contract/guestList.query.ts"
+use eventWall from "../../snapback/generated/contract/eventWall.query.ts"
+use invite from "../../snapback/generated/contract/invite.mutation.ts"
+use postToWall from "../../snapback/generated/contract/postToWall.mutation.ts"
+use fmtWhen from "./data.ts"
+use guestLine from "./data.ts"
+use sortGuests from "./data.ts"
+use goingCount from "./data.ts"
+use isHost from "./data.ts"
+use inviteCandidates from "./data.ts"
+use openFeed from "./data.ts"
+
+component ShindigEvent
+  props
+    eventId: string
+    userId: string
+    userName: string = "Someone"
+
+  state draft = ""
+
+  query event = eventDetails({ eventId: eventId })
+  query guests = guestList({ eventId: eventId })
+  query wall = eventWall({ eventId: eventId })
+  mutation inviteMut = invite
+  mutation postMut = postToWall
+
+  derive canPost = draft.trim() != ""
+
+  action setDraft(value) writes draft
+    draft = value
+  action post writes draft mutates postMut
+    postMut({ eventId: eventId, message: draft.trim(), authorName: userName })
+    draft = ""
+  action doInvite(guestUserId, guestName) mutates inviteMut
+    inviteMut({ eventId: eventId, userId: guestUserId, guestName: guestName })
+  action back
+    openFeed()
+
+  contract
+    has node testId="event-screen"
+    press button "← All shindigs" -> back
+    action post writes draft
+    derive canPost depends only on draft
+
+  view
+    column align="center" padding=24 gap=16 width="100%" minHeight="100vh"
+      column gap=14 width="100%" maxWidth=880 testId="event-screen"
+        button press=back testId="back" background="transparent" paddingBottom=4
+          text "← All shindigs" size=14 color="#c5b6da"
+        async event
+          loading
+            text "Loading…" size=14 color="#b7a8cc" testId="event-loading"
+          error err
+            text err.message size=14 color="#ff9d9d" testId="event-error"
+          empty
+            column gap=12 padding=22 radius=18 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" maxWidth=560 testId="event-locked"
+              text "🔒 Members only" size=24 weight=800 color="#f3ecfb"
+              text "RSVP from your feed to unlock the details, the guest list, and the wall." size=14 color="#b7a8cc"
+          ready rows
+            each ev in rows key=ev._id
+              column gap=14 testId="event-page"
+                row gap=18 align="center"
+                  text ev.emoji size=56
+                  column gap=4 flex=1
+                    text ev.title size=28 weight=800 color="#f3ecfb"
+                    text `${fmtWhen(ev.startsAt)} · ${ev.location} · hosted by ${ev.hostName}` size=12 color="#c5b6da"
+                when ev.description != ""
+                  text ev.description size=14 color="#e4d9f4"
+
+        async guests
+          loading
+            text "" size=1
+          error gerr
+            text "" size=1
+          empty
+            text "" size=1
+          ready guestRows
+            column gap=16
+              column gap=8 padding=16 radius=16 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" testId="guest-list"
+                text `GUEST LIST · ${goingCount(guestRows)} GOING` size=12 weight=700 color="#cbb9e4"
+                each guest in sortGuests(guestRows) key=guest._id
+                  row gap=12 align="center" testId=`guest-${guest.userId}`
+                    text guest.guestName size=14 color="#f3ecfb" flex=1
+                    text guestLine(guest) size=12 color="#b7a8cc"
+              when isHost(guestRows, userId)
+                column gap=8 padding=16 radius=16 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" testId="invite-form"
+                  text "INVITE SOMEONE" size=12 weight=700 color="#cbb9e4"
+                  row gap=8
+                    each candidate in inviteCandidates(guestRows) key=candidate.id
+                      button press=doInvite(candidate.userId, candidate.name) testId=`invite-${candidate.id}` paddingTop=7 paddingBottom=7 paddingLeft=14 paddingRight=14 radius=999 background="rgba(255,255,255,0.1)" borderWidth=1 borderColor="rgba(255,255,255,0.25)"
+                        text `+ ${candidate.name}` size=13 weight=600 color="#ffffff"
+
+        async wall
+          loading
+            text "" size=1
+          error werr
+            text "" size=1
+          empty
+            column gap=10 padding=16 radius=16 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" testId="wall"
+              text "THE WALL" size=12 weight=700 color="#cbb9e4"
+              text "Quiet so far. Say something." size=14 color="#b7a8cc"
+              row gap=10 align="center"
+                input label="Post to the wall…" value=draft change=setDraft submit=post testId="wall-input" flex=1 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=14
+                button press=post testId="wall-send" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=999 background="#8b3df0"
+                  text "Send" size=14 weight=700 color="#ffffff"
+          ready postRows
+            column gap=10 padding=16 radius=16 background="rgba(255,255,255,0.05)" borderWidth=1 borderColor="rgba(255,255,255,0.1)" testId="wall"
+              text "THE WALL" size=12 weight=700 color="#cbb9e4"
+              each post in postRows key=post._id
+                text `${post.authorName}  ${post.message}` size=14 color="#f3ecfb"
+              row gap=10 align="center"
+                input label="Post to the wall…" value=draft change=setDraft submit=post testId="wall-input" flex=1 paddingTop=9 paddingBottom=9 paddingLeft=12 paddingRight=12 radius=10 borderWidth=1 borderColor="rgba(255,255,255,0.2)" background="rgba(0,0,0,0.3)" color="#ffffff" size=14
+                button press=post testId="wall-send" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=9 paddingBottom=9 paddingLeft=16 paddingRight=16 radius=999 background="#8b3df0"
+                  text "Send" size=14 weight=700 color="#ffffff"

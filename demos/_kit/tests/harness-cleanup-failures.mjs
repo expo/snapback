@@ -49,6 +49,11 @@ if (process.argv[2] === '--cleanup-fixture') {
       },
     },
   );
+} else if (process.argv[2] === '--null-setup-fixture') {
+  const suite = createSuite('harness null setup failure fixture', { expectedChecks: 1 });
+  await runAcceptance(suite, async () => {
+    throw null;
+  });
 } else {
   const result = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--cleanup-fixture'], {
     cwd: process.cwd(),
@@ -110,6 +115,28 @@ if (process.argv[2] === '--cleanup-fixture') {
   assert.match(result.stderr, /CLEANUP FAILURE harness cleanup rejection fixture \[SNAPBACK_ACCEPTANCE_CLEANUP_FAILED\]/);
   assert.match(result.stderr, /CLEANUP FAILURE harness cleanup rejection fixture \[SNAPBACK_PROCESS_TREE_CLEANUP_FAILED\]/);
   assert.match(result.stderr, /FAIL harness cleanup rejection fixture — 2 cleanup failures after 1\/1 checks/);
+
+  const nullResult = spawnSync(
+    process.execPath,
+    [fileURLToPath(import.meta.url), '--null-setup-fixture'],
+    {
+      cwd: process.cwd(),
+      env: process.env,
+      encoding: 'utf8',
+      timeout: 10_000,
+      maxBuffer: 1024 * 1024,
+    },
+  );
+  assert.equal(nullResult.error, undefined, `null fixture failed to launch: ${nullResult.error?.stack ?? nullResult.error}`);
+  assert.equal(nullResult.signal, null, `null fixture was killed by ${nullResult.signal}: ${nullResult.stderr}`);
+  assert.equal(nullResult.status, 2, `throw null must use the setup/teardown failure exit: ${nullResult.stderr}`);
+  const nullLines = nullResult.stdout.trimEnd().split('\n');
+  const nullReportMarker = nullLines.lastIndexOf('--- machine-readable report ---');
+  assert.equal(nullReportMarker, nullLines.length - 2, 'null fixture machine report must be final');
+  const nullReport = JSON.parse(nullLines[nullReportMarker + 1]);
+  assert.equal(nullReport.ok, false);
+  assert.equal(nullReport.setupError, 'null');
+  assert.match(nullResult.stderr, /SETUP FAILURE before checks completed: null/);
 
   console.log('PASS harness cleanup rejection regression');
 }

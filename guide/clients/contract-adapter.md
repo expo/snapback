@@ -165,7 +165,16 @@ What the surface does for you:
 - **Live push** — `livePush: true` by default; multi-query apps pass
   `liveQueries: [...]` (each entry a name or `{ name, args }`) bound over
   one shared stream. `onConnectionChange` carries the
-  [connection axis](../realtime/live-queries.md).
+  [connection axis](../realtime/live-queries.md). A multi-live surface
+  serves **configured live queries only**: a binding to a query missing
+  from `liveQueries` gets a `SNAPBACK_CONTRACT_QUERY_UNCONFIGURED` error
+  cell (plus a console error), and configuring a snapshot query in
+  live-push mode is refused at construction with
+  `SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE`. Author UI-facing reads as live
+  queries; membership-gated live queries deny by *emptiness* (the
+  semi-join delivers no rows to non-members) while gated JS point reads
+  deny by *diagnostic* — pick the locked-state branch accordingly
+  (`empty` vs `error`).
 - **Offline/Parity** — with a `clientStore`
   (`createLocalStorageSnapbackClientStore` /
   `createMemorySnapbackClientStore`) the surface persists retained queries

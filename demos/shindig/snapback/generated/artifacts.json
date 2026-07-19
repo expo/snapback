@@ -1,0 +1,102 @@
+{
+  "appId": "shindig",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/createEvent.args.schema.json",
+    "operations/eventDetails.args.schema.json",
+    "operations/eventWall.args.schema.json",
+    "operations/getEvent.args.schema.json",
+    "operations/guestList.args.schema.json",
+    "operations/invite.args.schema.json",
+    "operations/myFeed.args.schema.json",
+    "operations/postToWall.args.schema.json",
+    "operations/rsvp.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/createEvent.mutation.ts",
+    "contract/createEvent.mutation.contract-meta.ts",
+    "contract/eventDetails.query.ts",
+    "contract/eventDetails.query.contract-meta.ts",
+    "contract/eventWall.query.ts",
+    "contract/eventWall.query.contract-meta.ts",
+    "contract/getEvent.query.ts",
+    "contract/getEvent.query.contract-meta.ts",
+    "contract/guestList.query.ts",
+    "contract/guestList.query.contract-meta.ts",
+    "contract/invite.mutation.ts",
+    "contract/invite.mutation.contract-meta.ts",
+    "contract/myFeed.query.ts",
+    "contract/myFeed.query.contract-meta.ts",
+    "contract/postToWall.mutation.ts",
+    "contract/postToWall.mutation.contract-meta.ts",
+    "contract/rsvp.mutation.ts",
+    "contract/rsvp.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:83f078d190720790",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "shindig:createEvent",
+      "kind": "Mutation",
+      "name": "createEvent"
+    },
+    {
+      "id": "shindig:eventDetails",
+      "kind": "LiveQuery",
+      "name": "eventDetails"
+    },
+    {
+      "id": "shindig:eventWall",
+      "kind": "LiveQuery",
+      "name": "eventWall"
+    },
+    {
+      "id": "shindig:getEvent",
+      "kind": "Query",
+      "name": "getEvent"
+    },
+    {
+      "id": "shindig:guestList",
+      "kind": "LiveQuery",
+      "name": "guestList"
+    },
+    {
+      "id": "shindig:invite",
+      "kind": "Mutation",
+      "name": "invite"
+    },
+    {
+      "id": "shindig:myFeed",
+      "kind": "LiveQuery",
+      "name": "myFeed"
+    },
+    {
+      "id": "shindig:postToWall",
+      "kind": "Mutation",
+      "name": "postToWall"
+    },
+    {
+      "id": "shindig:rsvp",
+      "kind": "Mutation",
+      "name": "rsvp"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "364d7a4be528099cbd17068c9f4c2aed4c8d4f1db87ab10a84384c1e85959431",
+  "schemaHash": "sha256:b51c12de8feff51a",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "events",
+    "eventMembers",
+    "invites",
+    "posts"
+  ]
+}

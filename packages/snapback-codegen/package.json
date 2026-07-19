@@ -12,7 +12,9 @@
     "./contract-emitter": "./contract-emitter.mjs"
   },
   "dependencies": {
-    "esbuild": "^0.28.1"
+    "acorn": "^8.17.0",
+    "esbuild": "^0.28.1",
+    "typescript": "5.9.3"
   },
   "engines": {
     "node": ">=24.0.0"

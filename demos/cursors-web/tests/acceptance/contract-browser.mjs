@@ -25,6 +25,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { launchChromeCdp } from '../../../_kit/chrome-process.mjs';
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import {
   freePort,
@@ -74,7 +75,13 @@ async function spawnApi() {
   if (process.platform === 'darwin' && !env.DYLD_FRAMEWORK_PATH) {
     env.DYLD_FRAMEWORK_PATH = join(repoRoot, 'vendor', 'ibex', 'ios', 'Frameworks');
   }
-  const child = spawn('cargo', ['run', '--quiet', '--', '--port', String(apiPort), '--memory'], { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] });
+  const readyDir = mkdtempSync(join(tmpdir(), 'cursors-contract-api-'));
+  cleanups.push(() => rmSync(readyDir, { recursive: true, force: true }));
+  const child = spawn(
+    'cargo',
+    ['run', '--quiet', '--', '--port', String(apiPort), '--memory', '--ready-file', join(readyDir, 'ready.json')],
+    { cwd: repoRoot, env, stdio: ['ignore', 'ignore', 'pipe'] },
+  );
   apiChild = child;
   const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) { if (await urlOk(`${apiUrl}/health`)) return; if (child.exitCode !== null) throw new Error('API server exited'); await sleep(500); }
@@ -184,7 +191,10 @@ if (!existsSync(exactPackage) || !existsSync(viteBinary)) {
 await runAcceptance(suite, async () => {
   await ensureApi();
   await ensureVite();
-  const chrome = await launchChrome();
+  const chrome = await launchChromeCdp({
+    chromeBin,
+    userDataPrefix: 'cursors-contract-',
+  });
   cleanups.push(() => chrome.stop());
   cdp = await connectCdp(chrome.ws);
   cleanups.push(() => cdp.close());
@@ -457,23 +467,6 @@ await runAcceptance(suite, async () => {
     return { baseline, staleBanner, left };
   });
 }, { cleanups, reportExtra: { demo: 'cursors-web', surface: 'contract', issue: 'ENG-22524' } });
-
-// --- Minimal CDP harness (shared shape with all-aboard/tests/acceptance) ---
-
-async function launchChrome() {
-  const userDataDir = mkdtempSync(join(tmpdir(), 'cursors-contract-'));
-  const child = spawn(chromeBin, ['--headless=new', '--disable-gpu', '--no-first-run', '--no-default-browser-check', '--remote-debugging-port=0', `--user-data-dir=${userDataDir}`, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
-  const portFile = join(userDataDir, 'DevToolsActivePort');
-  const deadline = Date.now() + 15_000;
-  while (Date.now() < deadline) {
-    try {
-      const [port] = readFileSync(portFile, 'utf8').trim().split('\n');
-      const version = await fetch(`http://127.0.0.1:${port}/json/version`).then((r) => r.json());
-      return { ws: version.webSocketDebuggerUrl, stop: () => { try { child.kill('SIGKILL'); } catch {} rmSync(userDataDir, { recursive: true, force: true }); } };
-    } catch { await sleep(100); }
-  }
-  throw new Error('Chrome did not expose DevToolsActivePort');
-}
 
 async function connectCdp(url) {
   const socket = new WebSocket(url);

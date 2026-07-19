@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/shindig/eventDetails.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "eventId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId"
+  ],
+  "title": "shindig:eventDetails arguments",
+  "type": "object"
+}

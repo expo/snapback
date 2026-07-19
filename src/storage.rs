@@ -5637,7 +5637,20 @@ fn validate_schema(manifest: &SchemaManifest) -> SnapbackResult<()> {
                 ));
             }
             for field in &index.fields {
-                ensure_field(table, field)?;
+                let field_manifest = ensure_field(table, field)?;
+                if index.unique && field_manifest.optional {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD",
+                        "schema",
+                        format!(
+                            "unique index {}.{} field {} must be required so uniqueness is total",
+                            table.name, index.name, field
+                        ),
+                    )
+                    .with_detail("table", table.name.clone())
+                    .with_detail("index", index.name.clone())
+                    .with_detail("field", field.clone()));
+                }
             }
         }
 
@@ -5887,7 +5900,8 @@ fn create_or_update_table(tx: &Transaction<'_>, table: &TableManifest) -> Snapba
             columns.join(", ")
         ),
         [],
-    )?;
+    )
+    .map_err(map_unique_constraint_error)?;
 
     let existing = physical_columns(tx, &table.name)?;
     for column in existing.values() {
@@ -6207,8 +6221,10 @@ fn create_index(
     // make the whole key trivially unique and silently defeat the declared
     // uniqueness invariant (LLP 0056 relies on true `(principal, resource)`
     // uniqueness). The declared columns must be non-null for it to be total —
-    // enforced at the declaration by `validate_membership_declaration`.
-    // @ref LLP 0056#declaring-a-membership-table — true-unique, total index.
+    // enforced by schema validation for both ordinary and membership indexes.
+    // @ref LLP 0007#index-contract — ordinary unique indexes are true and total.
+    // @ref LLP 0056#declaring-a-membership-table — membership pair uniqueness
+    //   uses the same physical invariant.
     if !unique {
         columns.push(quote_ident("_id")?);
     }
@@ -8048,6 +8064,17 @@ enum BufferedMembershipOp {
         member_id: String,
         values: Map<String, Value>,
     },
+    SetSelfRole {
+        resource: Option<String>,
+        role: String,
+    },
+    RemoveSelf {
+        resource: Option<String>,
+    },
+    PatchSelf {
+        resource: Option<String>,
+        values: Map<String, Value>,
+    },
 }
 
 impl BufferedMembershipCommand {
@@ -8110,6 +8137,44 @@ impl BufferedMembershipCommand {
             writer,
             table,
             op: BufferedMembershipOp::Patch { member_id, values },
+        }
+    }
+
+    pub(crate) fn set_self_role(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        role: String,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::SetSelfRole { resource, role },
+        }
+    }
+
+    pub(crate) fn remove_self(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::RemoveSelf { resource },
+        }
+    }
+
+    pub(crate) fn patch_self(
+        writer: MembershipWriter,
+        table: String,
+        resource: Option<String>,
+        values: Map<String, Value>,
+    ) -> Self {
+        Self {
+            writer,
+            table,
+            op: BufferedMembershipOp::PatchSelf { resource, values },
         }
     }
 }
@@ -8373,6 +8438,64 @@ fn matches_role_lists(
 /// one row; the referential-integrity and closed-vocabulary refusals are
 /// enforced here on the live path for every writer, not only at activation.
 impl LocalDatabase {
+    /// Resolve only the effective principal's row inside one declaration. This
+    /// is deliberately not an application-visible roster read: the returned id
+    /// stays inside the host and immediately enters the same target-row planner
+    /// used by the id-addressed helpers.
+    ///
+    /// @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+    ///   self/other is host-derived and the transition matrix remains the sole
+    ///   authorizer for self-service writes.
+    fn resolve_self_membership_id(
+        &self,
+        writer: &MembershipWriter,
+        table: &str,
+        resource: Option<&str>,
+    ) -> SnapbackResult<String> {
+        let effective = self.require_effective_principal(writer)?;
+        let (table, membership) = resolve_membership_decl(&self.schema, table)?;
+        let (sql, bound): (String, Vec<String>) = match (&membership.resource, resource) {
+            (Some(resource_field), Some(resource)) => (
+                format!(
+                    "SELECT _id FROM {} WHERE {} = ?1 AND {} = ?2",
+                    quote_ident(&table.name)?,
+                    quote_ident(&membership.principal)?,
+                    quote_ident(resource_field)?,
+                ),
+                vec![effective.to_owned(), resource.to_owned()],
+            ),
+            (Some(_), None) => {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+                    "resource-scoped self membership operation requires a resource id",
+                ));
+            }
+            (None, None) => (
+                format!(
+                    "SELECT _id FROM {} WHERE {} = ?1",
+                    quote_ident(&table.name)?,
+                    quote_ident(&membership.principal)?,
+                ),
+                vec![effective.to_owned()],
+            ),
+            (None, Some(_)) => {
+                return Err(membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
+                    "app-scoped self membership operation does not accept a resource id",
+                ));
+            }
+        };
+        self.conn
+            .query_row(&sql, params_from_iter(bound.iter()), |row| row.get(0))
+            .optional()?
+            .ok_or_else(|| {
+                membership_refusal(
+                    "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
+                    "the effective principal has no membership row for this declaration and resource",
+                )
+            })
+    }
+
     pub(crate) fn authorize_membership_commands(
         &self,
         commands: Vec<BufferedMembershipCommand>,
@@ -8421,6 +8544,44 @@ impl LocalDatabase {
                             &member_id,
                             values,
                         )?,
+                    BufferedMembershipOp::SetSelfRole { resource, role } => {
+                        let member_id = self.resolve_self_membership_id(
+                            &command.writer,
+                            &command.table,
+                            resource.as_deref(),
+                        )?;
+                        self.plan_membership_set_role(
+                            &command.writer,
+                            &command.table,
+                            &member_id,
+                            &role,
+                        )?
+                    }
+                    BufferedMembershipOp::RemoveSelf { resource } => {
+                        let member_id = self.resolve_self_membership_id(
+                            &command.writer,
+                            &command.table,
+                            resource.as_deref(),
+                        )?;
+                        self.plan_membership_remove(
+                            &command.writer,
+                            &command.table,
+                            &member_id,
+                        )?
+                    }
+                    BufferedMembershipOp::PatchSelf { resource, values } => {
+                        let member_id = self.resolve_self_membership_id(
+                            &command.writer,
+                            &command.table,
+                            resource.as_deref(),
+                        )?;
+                        self.plan_membership_patch(
+                            &command.writer,
+                            &command.table,
+                            &member_id,
+                            values,
+                        )?
+                    }
                 };
                 Ok(AuthorizedMembershipPlan::user_transition(
                     command.writer,
@@ -10006,10 +10167,12 @@ fn insert_document(
 /// Reclassify a SQLite UNIQUE-constraint failure into a stable, typed
 /// conflict. This is error *typing*, not write authorization: it does not
 /// change who may write, only how the exactly-one-wins outcome of a true-unique
-/// index surfaces. LLP 0056's generated `(principal, resource)` index is the
-/// only user-facing unique index today, so a second insert of an existing pair
-/// yields exactly one row and this one typed conflict.
+/// index surfaces. Both an ordinary declared key (LLP 0007) and LLP 0056's
+/// generated `(principal, resource)` key therefore yield exactly one row and
+/// this one typed conflict when duplicate inserts race.
 ///
+/// @ref LLP 0007#index-contract — ordinary declared uniqueness uses the same
+///   stable conflict at activation and commit.
 /// @ref LLP 0056#declaring-a-membership-table — exactly-one-wins on concurrent
 ///   same-pair inserts is delivered by the unique index at serialized commit.
 fn map_unique_constraint_error(error: rusqlite::Error) -> SnapbackError {
@@ -10858,6 +11021,62 @@ mod guarded_commit_tests {
         let mut db = LocalDatabase::memory().expect("memory database");
         db.apply_schema(schema()).expect("apply test schema");
         db
+    }
+
+    #[test]
+    fn ordinary_unique_index_is_total_and_reports_a_stable_conflict() {
+        let mut unique_schema = schema();
+        unique_schema.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_title".to_owned(),
+            fields: vec!["title".to_owned()],
+            unique: true,
+        }];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(unique_schema).expect("apply unique index");
+
+        let insert = |id: &str| BufferedWrite::Insert {
+            table: "items".to_owned(),
+            id: id.to_owned(),
+            values: Map::from_iter([("title".to_owned(), json!("same"))]),
+        };
+        db.commit_buffered_writes(
+            &HandlerInput::default(),
+            vec![insert("first")],
+            Vec::new(),
+            Value::Null,
+        )
+        .expect("first unique insert");
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![insert("second")],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("duplicate unique key must lose at commit");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
+        );
+        assert_eq!(db.scan_table("items", 10, 0).unwrap().total, 1);
+    }
+
+    #[test]
+    fn ordinary_unique_index_rejects_optional_key_fields() {
+        let mut unsafe_schema = schema();
+        unsafe_schema.tables[0].indexes = vec![crate::manifest::IndexManifest {
+            name: "by_rank".to_owned(),
+            fields: vec!["rank".to_owned()],
+            unique: true,
+        }];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        let error = db
+            .apply_schema(unsafe_schema)
+            .expect_err("nullable unique key would not be total");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD"
+        );
     }
 
     #[test]

@@ -1,0 +1,448 @@
+{
+  "appId": "shindig",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:83f078d190720790",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "authorityCreating": true,
+      "bundleEntrypoint": "createEvent",
+      "exportedName": "createEvent",
+      "id": "shindig:createEvent",
+      "kind": "Mutation",
+      "name": "createEvent",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "createEvent",
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  // Members-only event detail. requireRole is the boundary: the denial is\n  // invariant and reveals neither event existence nor roster contents.\n  async getEvent(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    // Query handlers return row arrays, even for a point read.\n    return [event];\n  },\n\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('event title is required');\n    const eventId = await ctx.membership.eventMembers.bootstrap({\n      title,\n      emoji: args.emoji,\n      description: args.description,\n      location: args.location,\n      startsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    await ctx.db.insert('invites', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n      eventTitle: title,\n      eventEmoji: args.emoji,\n      eventStartsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    return eventId;\n  },\n\n  async invite(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    return await ctx.db.insert('invites', {\n      eventId: args.eventId,\n      userId: args.userId,\n      guestName: args.guestName,\n      status: 'invited',\n      eventTitle: event.title,\n      eventEmoji: event.emoji,\n      eventStartsAt: event.startsAt,\n      hostName: event.hostName,\n    });\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('rsvp status must be going, maybe, or cant');\n    }\n    const mine = (await ctx.db\n      .query('invites')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .collect())\n      .find((row) => row.eventId === args.eventId);\n    // Product policy: only invited people can respond. The membership matrix\n    // below additionally enforces that the seat is a self-insert as 'guest'.\n    if (mine === undefined) throw new Error('you are not invited to this event');\n    if (mine.status === 'host') throw new Error('the host is already going');\n    if (mine.status === 'invited') {\n      await ctx.membership.eventMembers.insert({\n        eventId: args.eventId,\n        userId: ctx.auth.userId,\n        role: 'guest',\n      });\n    }\n    await ctx.db.patch('invites', mine._id, {\n      status: args.status,\n      ...(args.note === undefined ? {} : { note: args.note }),\n    });\n    return mine._id;\n  },\n\n  async postToWall(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events",
+          "eventMembers",
+          "invites"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "eventDetails",
+      "exportedName": "eventDetails",
+      "id": "shindig:eventDetails",
+      "kind": "LiveQuery",
+      "name": "eventDetails",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "events",
+        "tables": [
+          "events",
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "eventId"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "eventMembers",
+                "resource": {
+                  "arg": {
+                    "path": "eventId",
+                    "resourceTable": "events"
+                  }
+                }
+              }
+            ],
+            "order": [],
+            "table": "events"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "eventWall",
+      "exportedName": "eventWall",
+      "id": "shindig:eventWall",
+      "kind": "LiveQuery",
+      "name": "eventWall",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "posts",
+        "tables": [
+          "posts",
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "eventId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "eventId"
+                }
+              }
+            ],
+            "indexed_by": "by_event",
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "eventMembers",
+                "resource": {
+                  "arg": {
+                    "path": "eventId",
+                    "resourceTable": "events"
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "posts"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "opaque"
+      ],
+      "bundleEntrypoint": "getEvent",
+      "exportedName": "getEvent",
+      "id": "shindig:getEvent",
+      "kind": "Query",
+      "name": "getEvent",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events",
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "getEvent",
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  // Members-only event detail. requireRole is the boundary: the denial is\n  // invariant and reveals neither event existence nor roster contents.\n  async getEvent(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    // Query handlers return row arrays, even for a point read.\n    return [event];\n  },\n\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('event title is required');\n    const eventId = await ctx.membership.eventMembers.bootstrap({\n      title,\n      emoji: args.emoji,\n      description: args.description,\n      location: args.location,\n      startsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    await ctx.db.insert('invites', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n      eventTitle: title,\n      eventEmoji: args.emoji,\n      eventStartsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    return eventId;\n  },\n\n  async invite(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    return await ctx.db.insert('invites', {\n      eventId: args.eventId,\n      userId: args.userId,\n      guestName: args.guestName,\n      status: 'invited',\n      eventTitle: event.title,\n      eventEmoji: event.emoji,\n      eventStartsAt: event.startsAt,\n      hostName: event.hostName,\n    });\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('rsvp status must be going, maybe, or cant');\n    }\n    const mine = (await ctx.db\n      .query('invites')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .collect())\n      .find((row) => row.eventId === args.eventId);\n    // Product policy: only invited people can respond. The membership matrix\n    // below additionally enforces that the seat is a self-insert as 'guest'.\n    if (mine === undefined) throw new Error('you are not invited to this event');\n    if (mine.status === 'host') throw new Error('the host is already going');\n    if (mine.status === 'invited') {\n      await ctx.membership.eventMembers.insert({\n        eventId: args.eventId,\n        userId: ctx.auth.userId,\n        role: 'guest',\n      });\n    }\n    await ctx.db.patch('invites', mine._id, {\n      status: args.status,\n      ...(args.note === undefined ? {} : { note: args.note }),\n    });\n    return mine._id;\n  },\n\n  async postToWall(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "online-only",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "guestList",
+      "exportedName": "guestList",
+      "id": "shindig:guestList",
+      "kind": "LiveQuery",
+      "name": "guestList",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "invites",
+        "tables": [
+          "invites",
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "eventId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "eventId"
+                }
+              }
+            ],
+            "indexed_by": "by_event",
+            "limit": null,
+            "membershipFilters": [
+              {
+                "declaration": "eventMembers",
+                "resource": {
+                  "arg": {
+                    "path": "eventId",
+                    "resourceTable": "events"
+                  }
+                }
+              }
+            ],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "invites"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "invite",
+      "exportedName": "invite",
+      "id": "shindig:invite",
+      "kind": "Mutation",
+      "name": "invite",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "events",
+        "tables": [
+          "events",
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "invite",
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  // Members-only event detail. requireRole is the boundary: the denial is\n  // invariant and reveals neither event existence nor roster contents.\n  async getEvent(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    // Query handlers return row arrays, even for a point read.\n    return [event];\n  },\n\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('event title is required');\n    const eventId = await ctx.membership.eventMembers.bootstrap({\n      title,\n      emoji: args.emoji,\n      description: args.description,\n      location: args.location,\n      startsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    await ctx.db.insert('invites', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n      eventTitle: title,\n      eventEmoji: args.emoji,\n      eventStartsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    return eventId;\n  },\n\n  async invite(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    return await ctx.db.insert('invites', {\n      eventId: args.eventId,\n      userId: args.userId,\n      guestName: args.guestName,\n      status: 'invited',\n      eventTitle: event.title,\n      eventEmoji: event.emoji,\n      eventStartsAt: event.startsAt,\n      hostName: event.hostName,\n    });\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('rsvp status must be going, maybe, or cant');\n    }\n    const mine = (await ctx.db\n      .query('invites')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .collect())\n      .find((row) => row.eventId === args.eventId);\n    // Product policy: only invited people can respond. The membership matrix\n    // below additionally enforces that the seat is a self-insert as 'guest'.\n    if (mine === undefined) throw new Error('you are not invited to this event');\n    if (mine.status === 'host') throw new Error('the host is already going');\n    if (mine.status === 'invited') {\n      await ctx.membership.eventMembers.insert({\n        eventId: args.eventId,\n        userId: ctx.auth.userId,\n        role: 'guest',\n      });\n    }\n    await ctx.db.patch('invites', mine._id, {\n      status: args.status,\n      ...(args.note === undefined ? {} : { note: args.note }),\n    });\n    return mine._id;\n  },\n\n  async postToWall(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "invites",
+        "tables": [
+          "invites"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "myFeed",
+      "exportedName": "myFeed",
+      "id": "shindig:myFeed",
+      "kind": "LiveQuery",
+      "name": "myFeed",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "invites",
+        "tables": [
+          "invites"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "userId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_user",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "eventStartsAt"
+              }
+            ],
+            "table": "invites"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "postToWall",
+      "exportedName": "postToWall",
+      "id": "shindig:postToWall",
+      "kind": "Mutation",
+      "name": "postToWall",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "eventMembers",
+        "tables": [
+          "eventMembers"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "postToWall",
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  // Members-only event detail. requireRole is the boundary: the denial is\n  // invariant and reveals neither event existence nor roster contents.\n  async getEvent(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    // Query handlers return row arrays, even for a point read.\n    return [event];\n  },\n\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('event title is required');\n    const eventId = await ctx.membership.eventMembers.bootstrap({\n      title,\n      emoji: args.emoji,\n      description: args.description,\n      location: args.location,\n      startsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    await ctx.db.insert('invites', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n      eventTitle: title,\n      eventEmoji: args.emoji,\n      eventStartsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    return eventId;\n  },\n\n  async invite(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    return await ctx.db.insert('invites', {\n      eventId: args.eventId,\n      userId: args.userId,\n      guestName: args.guestName,\n      status: 'invited',\n      eventTitle: event.title,\n      eventEmoji: event.emoji,\n      eventStartsAt: event.startsAt,\n      hostName: event.hostName,\n    });\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('rsvp status must be going, maybe, or cant');\n    }\n    const mine = (await ctx.db\n      .query('invites')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .collect())\n      .find((row) => row.eventId === args.eventId);\n    // Product policy: only invited people can respond. The membership matrix\n    // below additionally enforces that the seat is a self-insert as 'guest'.\n    if (mine === undefined) throw new Error('you are not invited to this event');\n    if (mine.status === 'host') throw new Error('the host is already going');\n    if (mine.status === 'invited') {\n      await ctx.membership.eventMembers.insert({\n        eventId: args.eventId,\n        userId: ctx.auth.userId,\n        role: 'guest',\n      });\n    }\n    await ctx.db.patch('invites', mine._id, {\n      status: args.status,\n      ...(args.note === undefined ? {} : { note: args.note }),\n    });\n    return mine._id;\n  },\n\n  async postToWall(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "posts",
+        "tables": [
+          "posts"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "authorityCreating": true,
+      "bundleEntrypoint": "rsvp",
+      "exportedName": "rsvp",
+      "id": "shindig:rsvp",
+      "kind": "Mutation",
+      "name": "rsvp",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "invites",
+        "tables": [
+          "invites"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "rsvp",
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  // Members-only event detail. requireRole is the boundary: the denial is\n  // invariant and reveals neither event existence nor roster contents.\n  async getEvent(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    // Query handlers return row arrays, even for a point read.\n    return [event];\n  },\n\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    if (!title) throw new Error('event title is required');\n    const eventId = await ctx.membership.eventMembers.bootstrap({\n      title,\n      emoji: args.emoji,\n      description: args.description,\n      location: args.location,\n      startsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    await ctx.db.insert('invites', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n      eventTitle: title,\n      eventEmoji: args.emoji,\n      eventStartsAt: args.startsAt,\n      hostName: args.hostName,\n    });\n    return eventId;\n  },\n\n  async invite(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host');\n    const event = await ctx.db.get('events', args.eventId);\n    if (event === null) throw new Error('event not found');\n    return await ctx.db.insert('invites', {\n      eventId: args.eventId,\n      userId: args.userId,\n      guestName: args.guestName,\n      status: 'invited',\n      eventTitle: event.title,\n      eventEmoji: event.emoji,\n      eventStartsAt: event.startsAt,\n      hostName: event.hostName,\n    });\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('rsvp status must be going, maybe, or cant');\n    }\n    const mine = (await ctx.db\n      .query('invites')\n      .withIndex('by_user')\n      .eq('userId', ctx.auth.userId)\n      .collect())\n      .find((row) => row.eventId === args.eventId);\n    // Product policy: only invited people can respond. The membership matrix\n    // below additionally enforces that the seat is a self-insert as 'guest'.\n    if (mine === undefined) throw new Error('you are not invited to this event');\n    if (mine.status === 'host') throw new Error('the host is already going');\n    if (mine.status === 'invited') {\n      await ctx.membership.eventMembers.insert({\n        eventId: args.eventId,\n        userId: ctx.auth.userId,\n        role: 'guest',\n      });\n    }\n    await ctx.db.patch('invites', mine._id, {\n      status: args.status,\n      ...(args.note === undefined ? {} : { note: args.note }),\n    });\n    return mine._id;\n  },\n\n  async postToWall(ctx, args) {\n    await ctx.permissions.eventMembers.requireRole(args.eventId, 'host', 'guest');\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n    });\n  },\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "eventMembers",
+        "tables": [
+          "eventMembers",
+          "invites"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "364d7a4be528099cbd17068c9f4c2aed4c8d4f1db87ab10a84384c1e85959431",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

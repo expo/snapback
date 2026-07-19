@@ -9,8 +9,8 @@ examples: [demos/all-aboard]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: ca367280505fdeff40f2cec741eb0c5151e39ca9
+reviewed: 2026-07-18
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -93,6 +93,21 @@ egress. Queries and mutations remain denied even in that runtime:
 Action wall-clock limits and the detached watchdog still apply. A timed-out
 action cannot commit late, and a later invocation gets an isolated worker.
 
+## Treat fetched text as data
+
+Egress does not make an action a general-purpose code loader. Direct or
+indirect `eval`, every Function-family string constructor (including
+constructor walks and reflective calls), and WebAssembly are unavailable at
+the runtime boundary. The same rule applies on the local Ibex engine and the
+Workerd target. Codegen reports the obvious source forms early, but the engine
+policy is what prevents aliases from bypassing the rule.
+
+Do not fetch JavaScript, templates intended for evaluation, or remote policy
+code. Parse a response as validated data and pass only typed values to a named
+mutation. This keeps the manifest's bundle hash truthful: an action may use its
+declared secret and egress authority, but fetched bytes never inherit its
+`ctx.runMutation` authority as executable code.
+
 ## Handle failure as data only when the product means it
 
 An action may return a structured fallback result when fallback is an explicit
@@ -115,5 +130,7 @@ reclassified as successful settlement by replacing reachable Promise hooks.
   validation, receipts, and live delivery share one commit.
 - **Do not enable egress globally as a convenience.** Turn it on only for the
   deployment that needs actions with network access.
+- **Do not evaluate fetched text.** Parse and validate it as data; dynamic
+  source compilation is denied even for egress-enabled actions.
 - **Do not launch unobserved Promise chains.** Await or return them so their
   failure remains part of the handler's explicit result.

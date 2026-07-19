@@ -1,6 +1,6 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:0345950e567b04c81819ce48a40a68b4e3590ff0c42be53b80cad76a0c5cf11b",
+  "bundleHash": "snapback.v1:sessions:function:sha256:8c8dccbd4b15f77d9da1e0e8f7440e7ae7d2145c3290bc23962549b26995474c",
   "capabilities": {
     "branchableFixtures": false,
     "derivedOptimisticOverlays": false,
@@ -15,9 +15,42 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:57c996324fe296bb154b19fa6d34f8d7194994e53c43e9dae85fb1e2e0b9c92b",
   "manifestVersion": 2,
   "mutations": {
+    "acceptInvite": {
+      "argOrder": [],
+      "args": {},
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "acceptInvite",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    },
+    "inviteApp": {
+      "argOrder": [
+        "userId"
+      ],
+      "args": {
+        "userId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "inviteApp",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    },
     "joinApp": {
       "argOrder": [],
       "args": {},
@@ -25,6 +58,19 @@
         "appMembers"
       ],
       "name": "joinApp",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "appMembers"
+      ]
+    },
+    "leaveApp": {
+      "argOrder": [],
+      "args": {},
+      "invalidates": [
+        "appMembers"
+      ],
+      "name": "leaveApp",
       "optimistic": false,
       "serverRunnable": true,
       "writes": [
@@ -120,6 +166,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:e967c0dde558e7f58975935c6c743c72aa8b130a1d05f4777520cf33fc6c2c22",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f96d87e6eb5f757015dde5c585a3a84a406a5f1c17b5dd07776c8eaa144ec05b",
   "schemaVersion": "snapback.v1"
 }

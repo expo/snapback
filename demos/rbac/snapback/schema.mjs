@@ -10,10 +10,14 @@ export const appMembers = defineTable({
   principal: 'userId',
   role: 'role',
   roles: ['member', 'admin'],
+  pendingRoles: ['invited'],
   scope: 'app',
   provenance: 'full',
   transitions: [
     { op: 'insert', by: ['none'], target: 'self', to: ['member'] },
+    { op: 'insert', by: ['member'], target: 'other', to: ['invited'] },
+    { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'member'] },
   ],
 });
 

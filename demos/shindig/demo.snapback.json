@@ -1,0 +1,82 @@
+{
+  "id": "shindig",
+  "title": "Shindig — Partiful-style events and RSVPs",
+  "description": "A React events app over resource-scoped membership: bootstrap-created events seat their host atomically, invites are displayable app data while the roster stays private, a first RSVP seats a guest through the declared self-insert transition, and the members-only event page / live guest list / wall are gated by the membership boundary rather than handler convention.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["RBAC", "Auth", "Codegen", "Storage", "Realtime", "Testing", "Clients"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "dev",
+    "membershipDeclarations": true,
+    "membershipRuleHelpers": true,
+    "generatedMembershipWrites": true,
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/shindig/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/package.json",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headless": {
+      "requirement": "required",
+      "buildTargets": [],
+      "runner": "node demos/shindig/tests/acceptance/headless.mjs",
+      "toolchain": "node>=24, cargo"
+    },
+    "react": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/shindig/tests/acceptance/react-browser.mjs",
+      "toolchain": "node>=24, cargo, bun install in surfaces/react, Chrome"
+    },
+    "contract": {
+      "requirement": "integration",
+      "buildTargets": ["web"],
+      "runner": "node demos/shindig/tests/acceptance/contract-browser.mjs",
+      "toolchain": "node>=24, cargo build, bun install in surfaces/contract, Chrome"
+    }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "createEvent bootstraps the event row and the host membership seat atomically",
+      "invites land as live feed rows while the roster stays private",
+      "an invited-but-unresponded guest receives the invariant role denial on the event page",
+      "a first RSVP seats a guest through the declared by:none self-insert transition and unlocks the gated queries",
+      "a changed RSVP takes the patch-only path and does not re-seat membership",
+      "membership-gated live queries deliver member fanout and never leak to non-members"
+    ],
+    "react": [
+      "the real create/invite/RSVP/wall flows work across three browser windows with live delivery",
+      "the locked event page renders the server denial honestly",
+      "non-member feeds observe none of the member activity"
+    ],
+    "contract": [
+      "the same flows work through the compiled .contract views over the multi-live surface",
+      "the membership-gated eventDetails subscription renders empty-rows as the locked page (no existence leak)",
+      "boot-bound live-query scoping: event selection is a navigation, one subscription per query name"
+    ]
+  },
+  "capabilityGaps": [
+    "no pending membership role: v1 setRole requires a memberId app handlers cannot discover (the roster is private), so the invited state lives in app data and the seat is created at first RSVP",
+    "hosted target support",
+    "offline retention of membership-gated results"
+  ],
+  "notClaiming": [
+    "sessions-mode auth (this demo runs the trusted-local dev mode with a persona switcher)",
+    "guest-list secrecy between members (every member sees every RSVP)",
+    "host transfer or uninvite flows (no remove/setRole transitions are declared)"
+  ]
+}

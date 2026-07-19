@@ -25,6 +25,33 @@ export const joinApp = defineJsMutation({
   writes: ['appMembers'],
 });
 
+export const inviteApp = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: { userId: v.principal() },
+  source: 'handlers.mjs',
+  exportName: 'inviteApp',
+  writes: ['appMembers'],
+});
+
+export const acceptInvite = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {},
+  source: 'handlers.mjs',
+  exportName: 'acceptInvite',
+  writes: ['appMembers'],
+});
+
+export const leaveApp = defineJsMutation({
+  auth: 'authenticated',
+  authorityCreating: true,
+  args: {},
+  source: 'handlers.mjs',
+  exportName: 'leaveApp',
+  writes: ['appMembers'],
+});
+
 export const postAnnouncement = defineJsMutation({
   auth: 'authenticated',
   args: { message: v.string() },

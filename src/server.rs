@@ -17239,7 +17239,11 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // @ref LLP 0055#principal-kinds — an operation naming a principal that is
         //   not a known agent.
         | "SNAPBACK_AUTH_AGENT_UNKNOWN"
-        | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND" => StatusCode::NOT_FOUND,
+        | "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND"
+        // @ref LLP 0056#writes-a-declared-transition-policy-closed-by-default —
+        //   the private self resolver may disclose only that the caller's own
+        //   membership row is absent, so this is a scoped not-found result.
+        | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
@@ -17599,6 +17603,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         //   is an internal misuse surfaced as a bad request.)
         | "SNAPBACK_MEMBERSHIP_NULL_AXIS"
         | "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING"
+        | "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED"
         | "SNAPBACK_MEMBERSHIP_TARGET_MISSING"
         | "SNAPBACK_MEMBERSHIP_PATCH_AXIS"
         | "SNAPBACK_MEMBERSHIP_NOT_DECLARED"
@@ -17633,6 +17638,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN"
         | "SNAPBACK_SCHEMA_PARSE_FAILED"
         | "SNAPBACK_SCHEMA_SYSTEM_FIELD"
+        | "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND"
         | "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION"
         | "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND"
@@ -27481,6 +27487,7 @@ globalThis.__snapbackHandlers = {
         // LLP 0056 M2 write-path malformed/structural refusals.
         "SNAPBACK_MEMBERSHIP_NULL_AXIS",
         "SNAPBACK_MEMBERSHIP_RESOURCE_MISSING",
+        "SNAPBACK_MEMBERSHIP_RESOURCE_UNEXPECTED",
         "SNAPBACK_MEMBERSHIP_TARGET_MISSING",
         "SNAPBACK_MEMBERSHIP_PATCH_AXIS",
         "SNAPBACK_MEMBERSHIP_NOT_DECLARED",
@@ -27515,6 +27522,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_SCHEMA_PERMISSION_FIELD_UNKNOWN",
         "SNAPBACK_SCHEMA_PARSE_FAILED",
         "SNAPBACK_SCHEMA_SYSTEM_FIELD",
+        "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD",
         "SNAPBACK_STALE_FUNCTION_ARTIFACT_KIND",
         "SNAPBACK_STALE_FUNCTION_ARTIFACT_VERSION",
         "SNAPBACK_STALE_SCHEMA_ARTIFACT_KIND",
@@ -27580,6 +27588,7 @@ globalThis.__snapbackHandlers = {
         "SNAPBACK_AUTH_AGENT_UNKNOWN",
         "SNAPBACK_AUTH_MAILBOX_ENTRY_NOT_FOUND",
         "SNAPBACK_AUTH_MODE_DEV",
+        "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND",
         "SNAPBACK_UNKNOWN_CRON_JOB",
         "SNAPBACK_UNKNOWN_FIELD",
         "SNAPBACK_UNKNOWN_FUNCTION",

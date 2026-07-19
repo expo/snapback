@@ -11,12 +11,12 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:dc3c2184e0a40067ed7a22eca82b472bfb200a6ec3679b5cf9ae8e2978bce192",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:57c996324fe296bb154b19fa6d34f8d7194994e53c43e9dae85fb1e2e0b9c92b",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"
   ],
-  "schemaHash": "snapback.v1:sessions:schema:sha256:e967c0dde558e7f58975935c6c743c72aa8b130a1d05f4777520cf33fc6c2c22",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:f96d87e6eb5f757015dde5c585a3a84a406a5f1c17b5dd07776c8eaa144ec05b",
   "schemaVersion": "snapback.v1",
   "tables": [
     {
@@ -34,6 +34,9 @@
       ],
       "indexes": [],
       "membership": {
+        "pendingRoles": [
+          "invited"
+        ],
         "principal": "userId",
         "provenance": "full",
         "role": "role",
@@ -52,6 +55,40 @@
             "to": [
               "member"
             ]
+          },
+          {
+            "by": [
+              "member"
+            ],
+            "op": "insert",
+            "target": "other",
+            "to": [
+              "invited"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited"
+            ],
+            "op": "setRole",
+            "target": "self",
+            "to": [
+              "member"
+            ]
+          },
+          {
+            "by": [
+              "self"
+            ],
+            "from": [
+              "invited",
+              "member"
+            ],
+            "op": "remove",
+            "target": "self"
           }
         ]
       },

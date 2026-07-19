@@ -30,8 +30,9 @@ semi-join deltas, or support hosted targets.
 
 ## Declare an app-wide role set
 
-An app-scoped declaration omits the resource axis. This demo lets an
-authenticated non-member seat only themselves as `member`:
+An app-scoped declaration omits the resource axis. This demo supports open
+self-join plus member-issued invitations that only the invited principal can
+accept or decline:
 
 ```js source=demos/rbac/snapback/schema.mjs
 export const appMembers = defineTable({
@@ -41,10 +42,14 @@ export const appMembers = defineTable({
   principal: 'userId',
   role: 'role',
   roles: ['member', 'admin'],
+  pendingRoles: ['invited'],
   scope: 'app',
   provenance: 'full',
   transitions: [
     { op: 'insert', by: ['none'], target: 'self', to: ['member'] },
+    { op: 'insert', by: ['member'], target: 'other', to: ['invited'] },
+    { op: 'setRole', by: ['self'], target: 'self', from: ['invited'], to: ['member'] },
+    { op: 'remove', by: ['self'], target: 'self', from: ['invited', 'member'] },
   ],
 });
 ```
@@ -143,9 +148,10 @@ so `ctx.permissions` is deliberately unavailable there.
 
 ## Change membership through generated methods
 
-Only mutation handlers receive `ctx.membership`. Its `insert`, `setRole`,
-`remove`, and `patch` methods submit a host-owned command evaluated against the
-declaration:
+Only mutation handlers receive `ctx.membership`. Its `insert`, id-addressed
+`setRole`/`remove`/`patch`, and self-addressed
+`setSelfRole`/`removeSelf`/`patchSelf` methods submit a host-owned command
+evaluated against the declaration:
 
 ```js source=demos/rbac/snapback/handlers.mjs
   async joinApp(ctx) {
@@ -156,6 +162,28 @@ declaration:
     return null;
   },
 ```
+
+App code does not need the private roster row id for its own transitions. App
+scope omits the resource argument; resource scope passes its branded resource
+id:
+
+```js source=demos/rbac/snapback/handlers.mjs
+  async acceptInvite(ctx) {
+    await ctx.membership.appMembers.setSelfRole('member');
+    return null;
+  },
+
+  async leaveApp(ctx) {
+    await ctx.membership.appMembers.removeSelf();
+    return null;
+  },
+```
+
+The host resolves only the effective principal's row, returns no id, and then
+runs the same declared transition matrix. A missing own row is
+`SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND`; no helper reveals whether anyone else has
+a row. Use the id-addressed forms only when the application already has a
+trusted row id for an authorized other-target operation.
 
 Generic `ctx.db` and HostPlan writes to a membership table fail with
 `SNAPBACK_MEMBERSHIP_RAW_WRITE_DENIED`; handler convention is not the security
@@ -190,6 +218,8 @@ queries and mutations, and exposes `GeneratedMembership` only to mutations.
   the nominal resource binding through arguments and row fields.
 - **Do not query or sync the roster to make an authorization decision.** Use a
   declaration-bound predicate or `ctx.permissions.requireRole`.
+- **Do not create an app-data roster-id mirror just to leave or accept.** Use
+  the declaration's self-addressed write methods.
 - **Do not write membership rows through `ctx.db` or a generic HostPlan.** Use
   mutation-only generated membership methods and declare every transition.
 - **Do not create a `lastHolder`-protected resource with `ctx.db.insert`.** Use

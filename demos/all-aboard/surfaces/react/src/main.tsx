@@ -27,33 +27,18 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
 import { SnapbackClient } from '../../../../_kit/client.mjs';
+import type { LiveQueryHandle } from '../../../../_kit/client.mjs';
 import functionsManifest from '../../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
 import { App } from './App.tsx';
 import { installGestures } from './gestures.ts';
 import { setBackendState, setConnection, setDelayRows, setFeedRows, setLocation, setRouteEstimateInvoker } from './store.ts';
+import type { DelayRow, FeedRow } from './store.ts';
 
 const CONNECTION = `all-aboard-react-${(globalThis.crypto?.randomUUID?.() ?? String(Math.round(performance.now())))}`;
 
-// The kit client is untyped .mjs; declare the slice of the liveQuery handle
-// this surface consumes (LLP 0034 D1 stream transport).
-interface LiveHandle {
-  rows: unknown[];
-  readonly connection: string;
-  dispose: () => void;
-}
-type LiveQueryFn = (
-  name: string,
-  options: {
-    connectionId: string;
-    transport: 'stream';
-    onUpdate: (rows: unknown[]) => void;
-    onConnectionChange: (value: string) => void;
-  },
-) => Promise<LiveHandle>;
-
-let liveHandles: LiveHandle[] = [];
+let liveHandles: Array<LiveQueryHandle<DelayRow> | LiveQueryHandle<FeedRow>> = [];
 let disposeGestures: (() => void) | null = null;
 let reactRoot: ReturnType<typeof createRoot> | null = null;
 
@@ -189,13 +174,7 @@ async function watchLocation(): Promise<void> {
 // sequence was admin-token-gated and died with SNAPBACK_ADMIN_TOKEN_REQUIRED
 // on any unprovisioned backend (ENG-23707).
 async function ensureProvisioned(client: SnapbackClient): Promise<string[]> {
-  // The kit client is untyped .mjs (its ensure spec defaults infer as null);
-  // assert the call shape here like the other kit seams in this file.
-  const ensured = (await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed } as never)) as {
-    schema?: string;
-    functions?: string;
-    seed?: string;
-  };
+  const ensured = await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
   return [
     ensured.schema === 'provisioned' ? 'schema' : null,
     ensured.functions === 'provisioned' ? 'functions' : null,
@@ -248,24 +227,23 @@ async function connectBackend(client: SnapbackClient): Promise<{
       // bind on one connection; snapshots arrive with the subscriptions
       // (never a prime race); server-authored deltas (cron ticks, other
       // clients' refreshes) stream into the store with no pump.
-      const liveQuery = client.liveQuery.bind(client) as unknown as LiveQueryFn;
-      const delaysLive = await liveQuery('liveTrainStatus', {
+      const delaysLive = await client.liveQuery<DelayRow>('liveTrainStatus', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setDelayRows(rows as never),
-        onConnectionChange: (value) => setConnection('liveTrainStatus', value as never),
+        onUpdate: (rows) => setDelayRows(rows),
+        onConnectionChange: (value) => setConnection('liveTrainStatus', value),
       });
-      const feedLive = await liveQuery('feedState', {
+      const feedLive = await client.liveQuery<FeedRow>('feedState', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setFeedRows(rows as never),
-        onConnectionChange: (value) => setConnection('feedState', value as never),
+        onUpdate: (rows) => setFeedRows(rows),
+        onConnectionChange: (value) => setConnection('feedState', value),
       });
       liveHandles = [delaysLive, feedLive];
-      setDelayRows(delaysLive.rows as never);
-      setFeedRows(feedLive.rows as never);
-      setConnection('liveTrainStatus', delaysLive.connection as never);
-      setConnection('feedState', feedLive.connection as never);
+      setDelayRows(delaysLive.rows);
+      setFeedRows(feedLive.rows);
+      setConnection('liveTrainStatus', delaysLive.connection);
+      setConnection('feedState', feedLive.connection);
       timing.liveDataAppliedMs = performance.now();
       logTiming('live data applied', timing.liveDataAppliedMs);
 

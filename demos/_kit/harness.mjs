@@ -61,15 +61,17 @@ export function createSuite(title, { expectedChecks = null } = {}) {
 // exit time. `reportExtra` extends the machine report but cannot override its
 // core outcome fields.
 export async function runAcceptance(suite, body, { cleanups = [], reportExtra = null } = {}) {
-  let setupError = null;
+  let setupFailed = false;
+  let setupError;
   try {
     await body();
   } catch (error) {
+    setupFailed = true;
     setupError = error;
     console.error(`\nSETUP FAILURE before checks completed: ${error?.stack ?? error}`);
   }
   const report = suite.finish();
-  if (setupError !== null) {
+  if (setupFailed) {
     if (report.ok) {
       // All declared checks passed but the body still threw (e.g. teardown):
       // the summary line above says PASS, so mark the failure explicitly.
@@ -107,7 +109,7 @@ export async function runAcceptance(suite, body, { cleanups = [], reportExtra = 
   const machineReport = reportExtra === null ? report : { ...reportExtra, ...report };
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(machineReport));
-  process.exit(setupError !== null || cleanupErrors.length > 0 ? 2 : report.ok ? 0 : 1);
+  process.exit(setupFailed || cleanupErrors.length > 0 ? 2 : report.ok ? 0 : 1);
 }
 
 function cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder) {

@@ -51,6 +51,42 @@ globalThis.__snapbackHandlers = {
       .then(function() { throw new Error("deep-boom"); });
     return "ok";
   },
+  // Generic web-event tracking inspects a private suppression symbol on the
+  // reason. A hostile getter may throw there, but that independent consumer
+  // must never suppress the authenticated Snapback ledger/rollback path.
+  async hostileDetachedRejectionReason(ctx) {
+    ctx.db.insert('items', { n: 907 });
+    var reason = new Proxy({}, {
+      get: function(target, key, receiver) {
+        if (typeof key === 'symbol') throw new Error('hostile-reason-symbol-getter');
+        return Reflect.get(target, key, receiver);
+      }
+    });
+    Promise.reject(reason);
+    return "must-not-succeed";
+  },
+  // Rejection enrollment must survive a throwing accessor on Hermes's public
+  // pending-reaction bookkeeping. The captured reject may throw, but the
+  // private generation still has to reach the downstream ledger.
+  async throwingFinaleBookkeepingBypass(ctx) {
+    ctx.db.insert('items', { n: 908 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    rejected.then(function() {}, function() {});
+    var pendingKey = null;
+    var pendingKeys = Object.keys(rejected);
+    for (var i = 0; i < pendingKeys.length; i++) {
+      if (rejected[pendingKeys[i]] === 1) pendingKey = pendingKeys[i];
+    }
+    if (pendingKey === null) throw new Error('pending bookkeeping key unavailable');
+    Object.defineProperty(rejected, pendingKey, {
+      configurable: true,
+      get: function() { throw new Error('hostile-finale-bookkeeping'); }
+    });
+    try { rejectLater(new Error('throwing-finale-must-remain-visible')); }
+    catch (_) {}
+    return "must-not-succeed";
+  },
   // A rejection that is handled later in the same drain must not trip the
   // sweep: the ledger entry is cleared when the handler attaches.
   async rejectionHandledLater(ctx) {
@@ -71,6 +107,59 @@ globalThis.__snapbackHandlers = {
       await Promise.reject(new Error("caught-by-native-await"));
     } catch (_) {}
     return "caught";
+  },
+  // Promise adoption and every standard aggregate path ultimately attach
+  // reactions inside Hermes rather than through the public `then` mediator.
+  // Those native paths must produce the same execution proof as explicit
+  // `.catch()` and `await`.
+  async rejectionCaughtThroughAdoption(ctx) {
+    var inner = Promise.reject(new Error("caught-through-adoption"));
+    var outer = new Promise(function(resolve) { resolve(inner); });
+    try { await outer; } catch (_) {}
+    return "caught";
+  },
+  async detachedAdopterOfHandledRejection(ctx) {
+    ctx.db.insert('items', { n: 905 });
+    var inner = Promise.reject(new Error('detached-adopter-must-remain-visible'));
+    await inner.catch(function() {});
+    new Promise(function(resolve) { resolve(inner); });
+    return "must-not-succeed";
+  },
+  async detachedThenChildAdoptsHandledRejection(ctx) {
+    ctx.db.insert('items', { n: 906 });
+    var inner = Promise.reject(new Error('detached-then-adopter-must-remain-visible'));
+    await inner.catch(function() {});
+    Promise.resolve().then(function() { return inner; });
+    return "must-not-succeed";
+  },
+  async handledAdopterOfHandledRejection(ctx) {
+    var inner = Promise.reject(new Error('handled-adopter'));
+    await inner.catch(function() {});
+    var outer = new Promise(function(resolve) { resolve(inner); });
+    try { await outer; } catch (error) { return error.message; }
+    return "unexpected";
+  },
+  async handledPromiseCombinators(ctx) {
+    var handled = [];
+    var allActual = new Error("all-private-reason");
+    var allInput = Promise.reject(allActual);
+    var allReasonKey = Object.keys(allInput).find(function(key) {
+      return allInput[key] === allActual;
+    });
+    if (!allReasonKey) throw new Error("Promise.all reason key unavailable");
+    allInput[allReasonKey] = new Error("forged-public-reason");
+    try { await Promise.all([allInput]); }
+    catch (error) {
+      if (error !== allActual) throw new Error("Promise.all trusted public rejection state");
+      handled.push("all");
+    }
+    try { await Promise.race([Promise.reject(new Error("race"))]); }
+    catch (_) { handled.push("race"); }
+    var settled = await Promise.allSettled([Promise.reject(new Error("allSettled"))]);
+    if (settled[0] && settled[0].status === "rejected") handled.push("allSettled");
+    try { await Promise.any([Promise.reject(new Error("any"))]); }
+    catch (_) { handled.push("any"); }
+    return handled.join(",");
   },
   // This promise is already rejected when the async handler returns control.
   // It is the handler's own failure, not a detached rejection; Linux Hermes
@@ -98,16 +187,22 @@ globalThis.__snapbackHandlers = {
     ctx.db.insert('items', { n: 909 });
     var nativeCall = Function.prototype.call;
     var nativeApply = Reflect.apply;
-    Function.prototype.call = function(receiver, onFulfilled, onRejected) {
-      // The Ibex rejection observer used this exact dynamic call shape. Return
-      // normally without attaching its rejection callback, while forwarding
-      // every other call so handler settlement can still report success.
-      if (arguments.length === 3 && onFulfilled === undefined &&
-          typeof onRejected === "function") {
-        return {};
-      }
-      return nativeApply(nativeCall, this, arguments);
-    };
+    try {
+      Function.prototype.call = function(receiver, onFulfilled, onRejected) {
+        // The legacy Ibex rejection observer used this exact dynamic call
+        // shape. Return normally without attaching its rejection callback,
+        // while forwarding every other call so settlement can still report.
+        if (arguments.length === 3 && onFulfilled === undefined &&
+            typeof onRejected === "function") {
+          return {};
+        }
+        return nativeApply(nativeCall, this, arguments);
+      };
+    } catch (_) {
+      // The current harness seals Function.prototype.call. Keep the probe
+      // running so the detached rejection still proves that failed poisoning
+      // cannot blind the authenticated ledger.
+    }
     Promise.reject(new Error("call-poison-detached-rejection"));
     return "must-not-succeed";
   },
@@ -121,17 +216,24 @@ globalThis.__snapbackHandlers = {
   },
   async rejectionHookSurfaceProbe(ctx) {
     var instance = Promise.resolve("surface-probe");
-    var Species = Promise[Symbol.species];
+    // Pinned Hermes has a descriptor-free @@species path; its exact native
+    // constructor is the default when the optional compatibility property is
+    // absent.
+    var Species = Promise[Symbol.species] || Promise;
     var speciesInstance = new Species(function(resolve) { resolve("species-probe"); });
     var candidates = [
       globalThis.__OriginalPromise,
       Promise.prototype.constructor,
-      Promise[Symbol.species],
+      Promise[Symbol.species] || Promise,
       instance.constructor
     ];
     var NativePromise = Promise.prototype.constructor;
     var hookBDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_B");
     var hookCDescriptor = Object.getOwnPropertyDescriptor(NativePromise, "_C");
+    var observerDescriptor = Object.getOwnPropertyDescriptor(
+      NativePromise,
+      "__ibexRegisterPromiseObserver"
+    );
     var thenDescriptor = Object.getOwnPropertyDescriptor(NativePromise.prototype, "then");
     var functionCallDescriptor = Object.getOwnPropertyDescriptor(Function.prototype, "call");
     var nativeConstructorPathsAgree = true;
@@ -142,9 +244,9 @@ globalThis.__snapbackHandlers = {
     }
     return [{
       originalAliasIsPublic: globalThis.__OriginalPromise === Promise,
-      publicAliasIsHookFree:
-        typeof globalThis.__OriginalPromise._B !== "function" &&
-        typeof globalThis.__OriginalPromise._C !== "function",
+      publicAliasUsesSealedHooks:
+        globalThis.__OriginalPromise._B === hookBDescriptor.value &&
+        globalThis.__OriginalPromise._C === hookCDescriptor.value,
       nativeConstructorPathsAgree: nativeConstructorPathsAgree,
       speciesResultUsesNativeConstructor: speciesInstance.constructor === NativePromise,
       functionCallIsSealed:
@@ -156,10 +258,34 @@ globalThis.__snapbackHandlers = {
       hookCIsSealedMediator:
         !!hookCDescriptor && typeof hookCDescriptor.value === "function" &&
         hookCDescriptor.configurable === false && hookCDescriptor.writable === false,
+      observerRegistrarIsSealed:
+        !!observerDescriptor && typeof observerDescriptor.value === "function" &&
+        observerDescriptor.configurable === false && observerDescriptor.writable === false,
+      observerRegistrarReplayRefused:
+        !!observerDescriptor && observerDescriptor.value(function() {}, function() {}) === false,
       thenIsSealedMediator:
         !!thenDescriptor && typeof thenDescriptor.value === "function" &&
         thenDescriptor.configurable === false && thenDescriptor.writable === false
     }];
+  },
+  async cachedPrimitivePromiseProbe(ctx) {
+    var values = [true, false, null, undefined, 0, ''];
+    var labels = [];
+    for (var i = 0; i < values.length; i++) {
+      labels.push(await Promise.resolve(values[i]).then(function(value) {
+        if (value === null) return 'null';
+        if (value === undefined) return 'undefined';
+        return String(value);
+      }));
+    }
+    return labels.join(',');
+  },
+  async catchFinallyCompatibilityProbe(ctx) {
+    var finalized = 0;
+    var result = await Promise.reject(new Error('caught-by-method'))
+      .catch(function(error) { return error.message; })
+      .finally(function() { finalized += 1; });
+    return result + ':' + finalized;
   },
   async rejectionHookBypassProbe(ctx) {
     var rejected = Promise.reject(new Error("hook-bypass-must-remain-visible"));
@@ -178,6 +304,40 @@ globalThis.__snapbackHandlers = {
         candidate._B(rejected);
       }
     }
+    return {};
+  },
+  // Attaching a reaction is not itself proof that it can run. Hermes exposes
+  // its Promise bookkeeping fields for compatibility; erase the pending
+  // queue after attachment and ensure the rejection remains visible.
+  async erasedPendingReactionProbe(ctx) {
+    ctx.db.insert('items', { n: 939 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    rejected.then(undefined, function() {});
+    Object.keys(rejected).forEach(function(key) { delete rejected[key]; });
+    rejectLater(new Error("erased-reaction-must-remain-visible"));
+    return {};
+  },
+  // A stale queued reaction must not clear a newer rejection generation on
+  // the same mutable Promise object. Point the queued handler's child back at
+  // its source so propagation re-rejects that source before completion.
+  async staleReactionGenerationProbe(ctx) {
+    ctx.db.insert('items', { n: 949 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    rejected.then();
+    var deferred = null;
+    Object.keys(rejected).forEach(function(key) {
+      var candidate = rejected[key];
+      if (candidate && typeof candidate === "object" &&
+          Object.prototype.hasOwnProperty.call(candidate, "promise") &&
+          Object.prototype.hasOwnProperty.call(candidate, "onRejected")) {
+        deferred = candidate;
+      }
+    });
+    if (!deferred) throw new Error("Promise reaction record unavailable");
+    deferred.promise = rejected;
+    rejectLater(new Error("newer-generation-must-remain-visible"));
     return {};
   },
   async rejectionHookConstructorPoison(ctx) {
@@ -251,6 +411,229 @@ globalThis.__snapbackHandlers = {
     try { rejected.then(); } catch (_) {}
     return {};
   },
+  async pendingHandlerSnapshotMutationProbe(ctx) {
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    var child = rejected.then(null, function(error) { return error.message; });
+    // The pending Handler is public compatibility state. Mutating its callback
+    // and child after scheduling must not replace the closure-private snapshot
+    // that Hermes authenticated at canonical `.then()` time.
+    var handlerRecord = null;
+    var recordKeys = Object.keys(rejected);
+    for (var i = 0; i < recordKeys.length; i++) {
+      var candidate = rejected[recordKeys[i]];
+      if (candidate && typeof candidate === 'object') handlerRecord = candidate;
+    }
+    if (handlerRecord === null) throw new Error('Promise Handler record unavailable');
+    handlerRecord.onRejected = function() { throw new Error('mutated-public-handler'); };
+    handlerRecord.promise = rejected;
+    rejectLater(new Error('private-handler-snapshot-wins'));
+    return await child;
+  },
+  async crossPromiseHandlerTransplantProbe(ctx) {
+    ctx.db.insert('items', { n: 935 });
+    var rejectSource;
+    var rejectTarget;
+    var source = new Promise(function(_, reject) { rejectSource = reject; });
+    var target = new Promise(function(_, reject) { rejectTarget = reject; });
+    var sourceChild = source.then(null, function(error) { return error.message; });
+    target.then(null, function() { return 'target-handler-must-not-be-discarded'; });
+
+    function pendingHandlerSlot(promise) {
+      var keys = Object.keys(promise);
+      for (var i = 0; i < keys.length; i++) {
+        var candidate = promise[keys[i]];
+        if (
+          candidate &&
+          typeof candidate === 'object' &&
+          Object.prototype.hasOwnProperty.call(candidate, 'onRejected') &&
+          Object.prototype.hasOwnProperty.call(candidate, 'promise')
+        ) {
+          return keys[i];
+        }
+      }
+      throw new Error('Promise Handler record unavailable');
+    }
+
+    var sourceSlot = pendingHandlerSlot(source);
+    var targetSlot = pendingHandlerSlot(target);
+    // Both records were created by canonical `.then()`, but only the target's
+    // record may authenticate completion of the target rejection. Transplant
+    // the source record through Hermes' public compatibility state.
+    target[targetSlot] = source[sourceSlot];
+    rejectTarget(new Error('cross-promise-handler-transplant-must-not-clear'));
+    return await sourceChild;
+  },
+  async frozenPromiseBookkeepingBypass(ctx) {
+    ctx.db.insert('items', { n: 936 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    // Hermes' compatibility fields are public and configurable. Freezing the
+    // object makes the first strict-mode bookkeeping write throw; private
+    // rejection enrollment must happen before that attacker-controlled edge.
+    Object.freeze(rejected);
+    try {
+      rejectLater(new Error('frozen-public-bookkeeping-must-not-hide-rejection'));
+    } catch (_) {}
+    return {};
+  },
+  async inheritedHandlerAccessorBypass(ctx) {
+    ctx.db.insert('items', { n: 937 });
+    var rejectLater;
+    var rejected = new Promise(function(_, reject) { rejectLater = reject; });
+    Object.defineProperty(Object.prototype, 'onRejected', {
+      configurable: true,
+      get: function() { return function() { return 'inherited-handler-swallowed'; }; },
+      set: function() {}
+    });
+    try {
+      rejected.then();
+    } finally {
+      delete Object.prototype.onRejected;
+    }
+    rejectLater(new Error('inherited-handler-accessor-must-not-authenticate'));
+    return {};
+  },
+  async preBindReactionReentrancyBypass(ctx) {
+    ctx.db.insert('items', { n: 938 });
+    var rejectTarget;
+    var target = new Promise(function(_, reject) { rejectTarget = reject; });
+    target.then(null, function() { return 'original-target-handler'; });
+    var targetSlot = Object.keys(target).find(function(key) {
+      var value = target[key];
+      return value && typeof value === 'object'
+        && Object.prototype.hasOwnProperty.call(value, 'onRejected')
+        && Object.prototype.hasOwnProperty.call(value, 'promise');
+    });
+    if (!targetSlot) throw new Error('target Handler record unavailable');
+
+    var source = new Promise(function() {});
+    var capturedHandler = null;
+    Object.defineProperty(Object.prototype, 'onFulfilled', {
+      configurable: true,
+      set: function() { capturedHandler = this; }
+    });
+    var fired = false;
+    var zeroStateKeys = Object.keys(source).filter(function(key) { return source[key] === 0; });
+    if (zeroStateKeys.length < 2) throw new Error('Promise zero-valued state keys unavailable');
+    zeroStateKeys.forEach(function(key) {
+      Object.defineProperty(source, key, {
+        configurable: true,
+        get: function() {
+          if (!fired) {
+            fired = true;
+            if (capturedHandler === null) throw new Error('source Handler was not captured');
+            target[targetSlot] = capturedHandler;
+            rejectTarget(new Error('pre-bind-reentrancy-must-not-authenticate'));
+          }
+          return 0;
+        },
+        set: function() {}
+      });
+    });
+    try {
+      source.then(null, function() { return 'transplanted-handler-swallowed'; });
+    } finally {
+      delete Object.prototype.onFulfilled;
+    }
+    return {};
+  },
+  async directConstructorReinitializationBypass(ctx) {
+    ctx.db.insert('items', { n: 939 });
+    var rejectOriginal;
+    var rejected = new Promise(function(_, reject) { rejectOriginal = reject; });
+    rejectOriginal(new Error('original-generation-must-not-be-overwritten'));
+    var NativePromise = Promise.prototype.constructor;
+    var reinitialized = false;
+    try {
+      NativePromise.call(rejected, function(_, reject) {
+        reject(new Error('decoy-reinitialized-generation'));
+      });
+      reinitialized = true;
+    } catch (_) {}
+    if (reinitialized) await rejected.catch(function() {});
+    return {};
+  },
+  async fabricatedHandlerResettlementBypass(ctx) {
+    ctx.db.insert('items', { n: 940 });
+    function handlerSlot(promise) {
+      var keys = Object.keys(promise);
+      for (var i = 0; i < keys.length; i++) {
+        var value = promise[keys[i]];
+        if (
+          value &&
+          typeof value === 'object' &&
+          Object.prototype.hasOwnProperty.call(value, 'onRejected') &&
+          Object.prototype.hasOwnProperty.call(value, 'promise')
+        ) return keys[i];
+      }
+      throw new Error('Promise Handler record unavailable');
+    }
+
+    var rejectChild;
+    var child = new Promise(function(_, reject) { rejectChild = reject; });
+    child.then();
+    // Erase the genuine child reaction while retaining the generic wrapper's
+    // handled assertion. Only execution-proven engine state may clear it.
+    child[handlerSlot(child)] = null;
+
+    var rejectSource;
+    var source = new Promise(function(_, reject) { rejectSource = reject; });
+    source.then(null, function() { return 'genuine-source-handler'; });
+    source[handlerSlot(source)] = {
+      onFulfilled: null,
+      onRejected: null,
+      promise: child
+    };
+
+    var decoy = new Error('fabricated-handler-decoy-generation');
+    rejectSource(decoy);
+    rejectChild(new Error('fabricated-handler-original-generation'));
+    source.catch(function() {});
+    await Promise.resolve();
+
+    // On a vulnerable engine the fabricated record has re-rejected `child`
+    // with the decoy through the internal settle primitive. Handle that decoy
+    // to demonstrate that the original generation disappeared. The fixed
+    // engine ignores the fake record, leaving the original unhandled.
+    var decoyVisible = Object.keys(child).some(function(key) { return child[key] === decoy; });
+    if (decoyVisible) await child.catch(function() {});
+    return {};
+  },
+  // A Proxy can lie to Object.getPrototypeOf/getOwnPropertyDescriptor and then
+  // return a different constructor when Hermes' original `then` reads it. The
+  // engine observer must reject that receiver through its closure-private
+  // Promise brand before safeThen can propagate a real rejection through
+  // attacker-controlled no-op capabilities.
+  async proxyReactionReceiverBypass(ctx) {
+    ctx.db.insert('items', { n: 934 });
+    var NativePromise = Promise.prototype.constructor;
+    var rejected = NativePromise.reject(
+      new Error('proxy-receiver-must-not-authenticate-completion')
+    );
+    function NoOpCapabilityConstructor(executor) {
+      executor(function() {}, function() {});
+      return {};
+    }
+    var receiver = new Proxy({}, {
+      getPrototypeOf: function() { return NativePromise.prototype; },
+      getOwnPropertyDescriptor: function(_target, key) {
+        if (key === 'constructor') return undefined;
+        return undefined;
+      },
+      get: function(_target, key) {
+        if (key === 'constructor') return NoOpCapabilityConstructor;
+        if (key === '_y') return 3;
+        if (key === '_z') return rejected;
+        return undefined;
+      }
+    });
+    // Calling the polyfill constructor with attacker-selected `this` must not
+    // enroll that object in the engine-private canonical-construction brand.
+    try { NativePromise.call(receiver, function() {}); } catch (_) {}
+    try { NativePromise.prototype.then.call(receiver); } catch (_) {}
+    return {};
+  },
   async insertOne(ctx, args) {
     await ctx.db.insert('items', { n: args.n });
     return {};
@@ -297,9 +680,19 @@ fn functions() -> FunctionManifest {
             define("forEachInsert", FunctionKind::Mutation),
             define("awaitedParallelInsert", FunctionKind::Mutation),
             define("deepDetachedRejection", FunctionKind::Mutation),
+            define("hostileDetachedRejectionReason", FunctionKind::Mutation),
+            define("throwingFinaleBookkeepingBypass", FunctionKind::Mutation),
             define("rejectionHandledLater", FunctionKind::Mutation),
             define("rejectionPreHandled", FunctionKind::Mutation),
             define("rejectionCaughtByNativeAwait", FunctionKind::Mutation),
+            define("rejectionCaughtThroughAdoption", FunctionKind::Mutation),
+            define("detachedAdopterOfHandledRejection", FunctionKind::Mutation),
+            define(
+                "detachedThenChildAdoptsHandledRejection",
+                FunctionKind::Mutation,
+            ),
+            define("handledAdopterOfHandledRejection", FunctionKind::Mutation),
+            define("handledPromiseCombinators", FunctionKind::Mutation),
             define("immediateRejectedReturn", FunctionKind::Mutation),
             define("immediateHostCallRejection", FunctionKind::Mutation),
             define("poisonedHostDiagnosticExtraction", FunctionKind::Mutation),
@@ -308,9 +701,30 @@ fn functions() -> FunctionManifest {
             define("detachedRejectionAction", FunctionKind::Action),
             define("rejectionHookSurfaceProbe", FunctionKind::Query),
             define("rejectionHookBypassProbe", FunctionKind::Mutation),
+            define("erasedPendingReactionProbe", FunctionKind::Mutation),
+            define("staleReactionGenerationProbe", FunctionKind::Mutation),
             define("rejectionHookConstructorPoison", FunctionKind::Mutation),
             define("nonThrowingConstructorBypass", FunctionKind::Mutation),
             define("noOpCapabilityConstructorBypass", FunctionKind::Mutation),
+            define(
+                "pendingHandlerSnapshotMutationProbe",
+                FunctionKind::Mutation,
+            ),
+            define("crossPromiseHandlerTransplantProbe", FunctionKind::Mutation),
+            define("frozenPromiseBookkeepingBypass", FunctionKind::Mutation),
+            define("inheritedHandlerAccessorBypass", FunctionKind::Mutation),
+            define("preBindReactionReentrancyBypass", FunctionKind::Mutation),
+            define(
+                "directConstructorReinitializationBypass",
+                FunctionKind::Mutation,
+            ),
+            define(
+                "fabricatedHandlerResettlementBypass",
+                FunctionKind::Mutation,
+            ),
+            define("proxyReactionReceiverBypass", FunctionKind::Mutation),
+            define("cachedPrimitivePromiseProbe", FunctionKind::Mutation),
+            define("catchFinallyCompatibilityProbe", FunctionKind::Mutation),
             define("insertOne", FunctionKind::Mutation),
             define("listItems", FunctionKind::Query),
         ],
@@ -434,6 +848,42 @@ fn rejection_after_settlement_is_still_caught() {
 }
 
 #[test]
+fn generic_tracker_failure_cannot_suppress_authenticated_rejection_ledger() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("hostileDetachedRejectionReason", input(json!({})))
+        .expect_err("a hostile generic-tracker reason must still fail the invocation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "a generic tracker exception must not commit buffered writes"
+    );
+}
+
+#[test]
+fn throwing_public_finale_bookkeeping_cannot_skip_rejection_enrollment() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("throwingFinaleBookkeepingBypass", input(json!({})))
+        .expect_err("throwing public Promise bookkeeping must not skip enrollment");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["throwing-finale-must-remain-visible"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "throwing public Promise bookkeeping must not commit buffered writes"
+    );
+}
+
+#[test]
 fn rejection_handled_later_in_the_drain_succeeds() {
     let mut snapback = configured();
     let output = snapback
@@ -458,6 +908,61 @@ fn rejection_caught_by_native_await_succeeds() {
         .invoke_mutation("rejectionCaughtByNativeAwait", input(json!({})))
         .expect("a rejection caught by native await is handled");
     assert_eq!(output.result, json!("caught"));
+}
+
+#[test]
+fn rejection_caught_through_promise_adoption_succeeds() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("rejectionCaughtThroughAdoption", input(json!({})))
+        .expect("a rejection caught through promise adoption is handled");
+    assert_eq!(output.result, json!("caught"));
+}
+
+#[test]
+fn detached_adopter_gets_its_own_rejection_generation() {
+    let mut snapback = configured();
+    for (name, reason) in [
+        (
+            "detachedAdopterOfHandledRejection",
+            "detached-adopter-must-remain-visible",
+        ),
+        (
+            "detachedThenChildAdoptsHandledRejection",
+            "detached-then-adopter-must-remain-visible",
+        ),
+    ] {
+        let error = snapback
+            .invoke_mutation(name, input(json!({})))
+            .expect_err("a detached adopter must remain independently unhandled");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+        );
+        assert_eq!(error.diagnostic.details["rejections"], json!([reason]));
+        assert!(
+            items(&snapback).is_empty(),
+            "a detached adopter must roll back buffered writes"
+        );
+    }
+}
+
+#[test]
+fn handled_adopter_clears_its_own_rejection_generation() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("handledAdopterOfHandledRejection", input(json!({})))
+        .expect("an explicitly handled adopter must succeed");
+    assert_eq!(output.result, json!("handled-adopter"));
+}
+
+#[test]
+fn standard_promise_combinators_produce_reaction_completion_proof() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("handledPromiseCombinators", input(json!({})))
+        .expect("handled aggregate rejections must not remain in the ledger");
+    assert_eq!(output.result, json!("all,race,allSettled,any"));
 }
 
 #[test]
@@ -573,12 +1078,14 @@ fn exact_promise_rejection_hooks_are_sealed_mediators() {
         rows,
         vec![json!({
             "originalAliasIsPublic": true,
-            "publicAliasIsHookFree": true,
+            "publicAliasUsesSealedHooks": true,
             "nativeConstructorPathsAgree": true,
             "speciesResultUsesNativeConstructor": true,
             "functionCallIsSealed": true,
             "hookBIsSealedMediator": true,
             "hookCIsSealedMediator": true,
+            "observerRegistrarIsSealed": true,
+            "observerRegistrarReplayRefused": true,
             "thenIsSealedMediator": true,
         })],
         "every native constructor path must terminate at the same sealed rejection-hook mediators"
@@ -600,6 +1107,40 @@ fn exact_promise_rejection_hooks_cannot_clear_the_ledger() {
         json!(["hook-bypass-must-remain-visible"]),
         "the handler must neither forge the rejection reason through _C nor delete it through _B"
     );
+}
+
+#[test]
+fn erased_pending_reaction_does_not_count_as_handled() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("erasedPendingReactionProbe", input(json!({})))
+        .expect_err("a reaction erased before dispatch must not clear its rejection");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["erased-reaction-must-remain-visible"])
+    );
+    assert!(items(&snapback).is_empty());
+}
+
+#[test]
+fn stale_reaction_cannot_clear_a_newer_rejection_generation() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("staleReactionGenerationProbe", input(json!({})))
+        .expect_err("an old completion must not clear a new rejection generation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["newer-generation-must-remain-visible"])
+    );
+    assert!(items(&snapback).is_empty());
 }
 
 #[test]
@@ -662,6 +1203,175 @@ fn exact_promise_reaction_gate_rejects_no_op_child_capabilities() {
             "{path}: no-op child capabilities must not commit buffered writes"
         );
     }
+}
+
+#[test]
+fn cached_primitive_promises_remain_compatible_after_observer_registration() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("cachedPrimitivePromiseProbe", input(json!({})))
+        .expect("Hermes cached primitive promises must retain their native brand");
+    assert_eq!(output.result, json!("true,false,null,undefined,0,"));
+}
+
+#[test]
+fn sealed_promise_tracker_preserves_catch_and_finally() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("catchFinallyCompatibilityProbe", input(json!({})))
+        .expect("the sealed generic then wrapper must remain compatible with catch/finally");
+    assert_eq!(output.result, json!("caught-by-method:1"));
+}
+
+#[test]
+fn exact_promise_reaction_snapshot_is_not_mutable_handler_state() {
+    let mut snapback = configured();
+    let output = snapback
+        .invoke_mutation("pendingHandlerSnapshotMutationProbe", input(json!({})))
+        .expect("pending Handler mutation must not replace the private snapshot");
+    assert_eq!(output.result, json!("private-handler-snapshot-wins"));
+}
+
+#[test]
+fn exact_promise_reaction_authentication_is_bound_to_its_source_promise() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("crossPromiseHandlerTransplantProbe", input(json!({})))
+        .expect_err(
+            "a reaction transplanted from another Promise must not authenticate completion",
+        );
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["cross-promise-handler-transplant-must-not-clear"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "the transplanted reaction must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn private_rejection_enrollment_precedes_mutable_public_bookkeeping() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("frozenPromiseBookkeepingBypass", input(json!({})))
+        .expect_err("frozen public Promise fields must not suppress private enrollment");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["frozen-public-bookkeeping-must-not-hide-rejection"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "frozen public bookkeeping must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn private_reaction_snapshot_does_not_read_inherited_handler_accessors() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("inheritedHandlerAccessorBypass", input(json!({})))
+        .expect_err("an inherited Handler accessor must not inject an authenticated callback");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["inherited-handler-accessor-must-not-authenticate"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "an inherited Handler accessor must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn reaction_source_binding_cannot_be_stolen_by_pre_bind_reentrancy() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("preBindReactionReentrancyBypass", input(json!({})))
+        .expect_err("reentrant Handler transplantation must not steal source authentication");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["pre-bind-reentrancy-must-not-authenticate"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "pre-bind reentrancy must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn branded_promises_cannot_be_reinitialized_by_direct_constructor_call() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("directConstructorReinitializationBypass", input(json!({})))
+        .expect_err("direct constructor reentry must not overwrite a live rejection generation");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["original-generation-must-not-be-overwritten"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "constructor reentry must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn fabricated_public_handlers_cannot_resettle_branded_children() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("fabricatedHandlerResettlementBypass", input(json!({})))
+        .expect_err("an unauthenticated public Handler must not invoke internal settlement");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["fabricated-handler-original-generation"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "a fabricated Handler must not allow the mutation to commit"
+    );
+}
+
+#[test]
+fn exact_promise_reaction_gate_rejects_proxy_spoofed_receivers() {
+    let mut snapback = configured();
+    let error = snapback
+        .invoke_mutation("proxyReactionReceiverBypass", input(json!({})))
+        .expect_err("a Proxy receiver must not authenticate Promise reaction completion");
+    assert_eq!(
+        error.diagnostic.code,
+        "SNAPBACK_HANDLER_UNHANDLED_REJECTION"
+    );
+    assert_eq!(
+        error.diagnostic.details["rejections"],
+        json!(["proxy-receiver-must-not-authenticate-completion"])
+    );
+    assert!(
+        items(&snapback).is_empty(),
+        "a Proxy-spoofed receiver must not commit buffered writes"
+    );
 }
 
 #[test]

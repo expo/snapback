@@ -25,7 +25,11 @@ binding layer today. That is the deliberate difference between the arms:
 the [Contract adapter](./contract-adapter.md) generates the wiring; React
 writes ~20 explicit lines per surface. The wiring is small enough to audit,
 and this page is the paved version of it — the exact material diary 0010
-had to read source to reconstruct.
+had to read source to reconstruct. The client ships maintained TypeScript
+declarations beside the module as `demos/_kit/client.d.mts`; do not create an
+ambient copy or cast the client to `never`. The declaration covers structured
+calls/errors, live handles and connection callbacks, ephemeral overlays, and
+constructor/auth options.
 
 Boot is identical to the Contract arm: `client.health()`, then the
 idempotent `client.ensureApp({ schema, functions, seed })` — never a
@@ -37,22 +41,21 @@ Bind each live query once, pushing rows and connection state into React
 state; keep the handles for disposal:
 
 ```ts source=demos/all-aboard/surfaces/react/src/main.tsx
-      const liveQuery = client.liveQuery.bind(client) as unknown as LiveQueryFn;
-      const delaysLive = await liveQuery('liveTrainStatus', {
+      const delaysLive = await client.liveQuery<DelayRow>('liveTrainStatus', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setDelayRows(rows as never),
-        onConnectionChange: (value) => setConnection('liveTrainStatus', value as never),
+        onUpdate: (rows) => setDelayRows(rows),
+        onConnectionChange: (value) => setConnection('liveTrainStatus', value),
       });
-      const feedLive = await liveQuery('feedState', {
+      const feedLive = await client.liveQuery<FeedRow>('feedState', {
         connectionId: CONNECTION,
         transport: 'stream',
-        onUpdate: (rows) => setFeedRows(rows as never),
-        onConnectionChange: (value) => setConnection('feedState', value as never),
+        onUpdate: (rows) => setFeedRows(rows),
+        onConnectionChange: (value) => setConnection('feedState', value),
       });
       liveHandles = [delaysLive, feedLive];
-      setDelayRows(delaysLive.rows as never);
-      setFeedRows(feedLive.rows as never);
+      setDelayRows(delaysLive.rows);
+      setFeedRows(feedLive.rows);
 ```
 
 Notes that keep this correct:
@@ -89,6 +92,8 @@ opaque id that the server granted and used as the entry lease key.
 
 - **Do not build a polling loop where a subscription exists** — wire
   `liveQuery` with `onUpdate` into state.
+- **Do not hand-declare the kit client.** Import its exported types from
+  `client.mjs`; TypeScript resolves the adjacent `client.d.mts`.
 - **Do not treat `stale` as `live`.** The axis exists so the UI can tell
   the truth; collapsing it to a boolean re-creates the all-aboard red-team
   finding.

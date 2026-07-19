@@ -189,6 +189,35 @@ for (const laterStep of [
     `disk reclaim must run before ${laterStep}`,
   );
 }
+const hermesCacheStepStart = localProof.indexOf('      - name: Cache Hermes Linux build');
+const hermesCacheStepEnd = localProof.indexOf('\n      - ', hermesCacheStepStart + 1);
+assert(
+  hermesCacheStepStart >= 0 && hermesCacheStepEnd > hermesCacheStepStart,
+  'Hermes cache step block must be bounded',
+);
+const hermesCacheStep = localProof.slice(hermesCacheStepStart, hermesCacheStepEnd);
+for (const identityInput of [
+  'vendor/ibex/scripts/hermes-version.sh',
+  'vendor/ibex/scripts/apply-hermes-patches.sh',
+  'vendor/ibex/scripts/build-hermes-linux.sh',
+  'vendor/ibex/patches/hermes/*.patch',
+  'vendor/ibex/Cargo.toml',
+]) {
+  assert(
+    hermesCacheStep.includes(`'${identityInput}'`),
+    `Hermes cache identity must include ${identityInput}`,
+  );
+}
+assert.match(
+  hermesCacheStep,
+  /key:\s*\$\{\{ runner\.os \}\}-hermes-\$\{\{ hashFiles\(/,
+  'Hermes cache must derive its exact key from the reviewed identity inputs',
+);
+assert.doesNotMatch(
+  hermesCacheStep,
+  /restore-keys:/,
+  'Hermes cache must not restore an artifact built for a different runtime identity',
+);
 const localProofScript = readFileSync(join(ROOT, 'scripts', 'verify-local-proof'), 'utf8');
 assert.match(
   localProofScript,
