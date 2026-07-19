@@ -1,10 +1,11 @@
 # Attest browser exit before removing acceptance profiles
 
-**Status:** In Progress
+**Status:** Closed
 **Severity:** P1
 **Systems:** CI, Testing, Demo apps, Browser lifecycle
 **Author:** Codex (GPT-5), directed by Charlie Cheever
 **Date:** 2026-07-17
+**Closed:** 2026-07-18
 **Related:** LLP 0015 §Acceptance Rules; LLP 0010 §Test Surfaces and Harness; GitHub Actions run 29636498866
 **Marker:** chrome, cleanup, process-tree, cold-clone, acceptance
 
@@ -32,25 +33,17 @@ lifecycle invariant.
   same helper, and focused tests pin shutdown-before-removal ordering.
 - The All Aboard cold-clone workflow passes remotely.
 
-## Implemented; remote verification pending
+## Resolution
 
-All six temporary-profile launchers now use `demos/_kit/chrome-process.mjs`.
-The shared launcher creates a detached POSIX process group, registers its
-leader-close tracker immediately, joins explicit and parent-signal cleanup onto
-one idempotent promise, and awaits the existing bounded `stopChild` tree proof
-before removing the profile. Synchronous spawn failure, asynchronous spawn
-failure, premature exit, and readiness timeout all cross the same cleanup; an
-unattested exit preserves and reports the profile path.
+All six temporary-profile launchers use `demos/_kit/chrome-process.mjs`. The
+shared helper owns the browser process tree, joins explicit and parent-signal
+cleanup, attests bounded tree exit before removing the profile, and preserves
+the profile with a diagnostic when exit cannot be proven. Startup failures and
+normal teardown use the same path. Focused real-process and injected lifecycle
+regressions cover ordering, failed attestation, idempotence, Windows spawn
+shape, flag ownership, and the repository-wide launcher inventory.
 
-The helper owns `--user-data-dir` and `--remote-debugging-port` and rejects both
-`--flag=value` and split override forms before creating a profile. The admin CSP
-and update-economy runners retain every cleanup failure and aggregate it with
-any primary failure; update-economy can reach its explicit exit 0 only after
-that failure combiner returns cleanly.
-
-The focused lifecycle proof uses real detached leader/descendant fixtures for
-POSIX success, timeout, and premature-exit paths. Dependency-injected cases pin
-`stopChild` completion before profile removal on both normal and startup
-cleanup, profile preservation on failed attestation, Windows-shaped spawn
-options, lifecycle-flag refusal, idempotent stop, and the repository-wide
-single-launcher inventory. Remote cold-clone verification remains pending.
+Snapback commit `a5ed6ebd05766b10607937a1c010352d79eea4b0` passed GitHub Actions
+all-aboard-cold-clone run `29674515105` on 2026-07-18: registry install,
+production Contract build, all 34 browser checks, and attested cleanup completed
+successfully in 6m21s.

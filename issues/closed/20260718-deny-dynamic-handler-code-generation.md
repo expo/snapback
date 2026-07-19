@@ -1,10 +1,11 @@
 # Deny dynamic handler code generation at the runtime boundary
 
-**Status:** In Progress
+**Status:** Closed
 **Severity:** P1
 **Systems:** Runtime, Security, Auth/RBAC, Actions, Codegen, Upstream Ibex, Hermes, Workerd
 **Author:** Codex (GPT-5), directed by Charlie Cheever
 **Date:** 2026-07-18
+**Closed:** 2026-07-18
 **Related:** LLP 0009 §Capability Model; LLP 0009 §Supply Chain and Generated Bundles; LLP 0013 §Embedding dynamic-code policy; LLP 0048 §Handler-visible API surface
 **Marker:** dynamic-code, eval, function-constructor, egress, bundle-identity, authority
 
@@ -48,22 +49,16 @@ constructor walks, and `Reflect` even to a no-eval embedder.
 - Fresh patch application, native tests, the two-engine twin, the full local
   proof, and canonical remote Linux proof all pass.
 
-## Implemented; remote verification pending
+## Resolution
 
-Ibex now exposes `ex_hermes_create_no_eval`; Snapback uses it and probes the
-complete constructor family during trusted setup. The variant completes trusted
-Ibex bootstrap and then applies a one-way native latch before returning; a stale
-engine without that latch fails closed. The build verifies both the header
-declaration and the actual linked target framework/shared/static-library export
-on macOS, iOS, Linux, Android, and Windows, avoiding header/library-skew link
-failures. Hermes patch 0010 also closes the cached
-`return this` exception. Workerd seals and attests its own equivalent
-pre-handler denial rather than inheriting the local runtime's V8 default.
-Egress and twin regressions cover direct aliases and an action constructor
-that would otherwise receive `ctx.runMutation`. The codegen scanner now uses
-Acorn for JavaScript and the pinned TypeScript compiler AST for `.ts`/`.mts`,
-with stable authored spans and no type-syntax false rejection; it keeps only
-the documented fetch/timer relaxation for egress actions.
+Ibex commit `bfbc6133af739ed2dabc2f44efa693d1412452e5` exposes the fail-closed
+`ex_hermes_create_no_eval` bootstrap and carries the Hermes fix that makes the
+cached `Function("return this")` path honor disabled eval. Snapback verifies the
+linked export, attests the full Function-family denial, and Workerd seals and
+attests its equivalent boundary. Codegen now uses Acorn and the pinned
+TypeScript AST for precise authored diagnostics. Local/Workerd twin, egress,
+constructor-walk, reflection, and fetched-code regressions pass.
 
-Keep this ticket open until the updated submodule and canonical workflows are
-green on `origin/main`.
+Snapback commit `a5ed6ebd05766b10607937a1c010352d79eea4b0` publishes the complete
+runtime and scanner changes. GitHub Actions local-proof run `29674515103` and
+required-surface-builds run `29674515104` passed on 2026-07-18.

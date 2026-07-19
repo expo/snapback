@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-18
-reviewed-commit: HEAD
+reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
 ---
 
 # Actions and outbound fetch

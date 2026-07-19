@@ -1,10 +1,11 @@
 # Classify new Ibex public ABI surfaces in the generated security registry
 
-**Status:** In Progress
+**Status:** Closed
 **Severity:** P1
 **Systems:** Upstream Ibex, Security inventory, Host ABI, CI
 **Author:** Codex (GPT-5), directed by Charlie Cheever
 **Date:** 2026-07-18
+**Closed:** 2026-07-18
 **Related:** Ibex LLP 0002 §What actually crosses the boundary; Ibex LLP 0021 WP1; `vendor/ibex/packages/ibex-devtools/src/scripts/capsec-coverage-model.mjs`
 **Marker:** ibex, capsec, public-abi, generated-registry, drift
 
@@ -30,11 +31,16 @@ security inventory stale.
 - The published Ibex compatibility branch and Snapback `main` point at that
   complete generated identity.
 
-## Implemented; remote verification pending
+## Resolution
 
-The reviewed-name set and exact classifiers now include all three exports,
-with an explicit no-eval exception ahead of the generic evaluator-name rule.
-Ibex LLP 0002 and LLP 0021 record the 184-surface ABI inventory (87 `ex_host`,
-39 `ex_hermes`, 10 worklet, plus the Android Java/JNI bridge routes) and the new
-classifications. Generated artifacts are current; publication and remote
-verification remain pending.
+Ibex commit `bfbc6133af739ed2dabc2f44efa693d1412452e5` adds
+`ex_hermes_create_no_eval`, `ex_hermes_watch_time_limit`, and
+`ex_hermes_unwatch_time_limit` to the exact reviewed ABI inventory. No-eval is
+classified as runtime bootstrap; time-limit arm/disarm are trusted
+authority-control-plane operations. The generated registry, manifest, review
+tables, fixtures, and digests are reproducibly current and their drift checks
+pass.
+
+Snapback commit `a5ed6ebd05766b10607937a1c010352d79eea4b0` points at that published
+Ibex identity. GitHub Actions local-proof run `29674515103` passed the canonical
+Linux proof on 2026-07-18.

@@ -1,10 +1,11 @@
 # Preserve capability principal through internal Promise hops
 
-**Status:** In Progress
+**Status:** Closed
 **Severity:** P0
 **Systems:** Runtime, Security, Actions, Upstream Ibex, Hermes
 **Author:** Codex (GPT-5), directed by Charlie Cheever
 **Date:** 2026-07-18
+**Closed:** 2026-07-18
 **Related:** LLP 0009 §Capability Model; Ibex LLP 0013 §Phase 5; `tests/action_watchdog_v0.rs`
 **Marker:** hermes, promise, principal, action, fetch, capability-attribution
 
@@ -36,11 +37,16 @@ propagate as authority.
 - Existing async deputy containment tests remain green.
 - `action_watchdog_v0` and the canonical local/Linux proofs pass.
 
-## Implemented; remote verification pending
+## Resolution
 
-Patches 0008–0009 now bind a reaction to its registrant with a closure-private,
-one-shot engine token; ordinary enqueues never inherit ambient authority. The
-private factory can carry a real active scheduler through a no-frame internal
-adoption hop while rejecting both sentinel values. The focused engine test
-reproduces the old `denied` result and will be rerun against the rebuilt patch
-stack together with Snapback's action watchdog and compartment red-team corpus.
+Ibex patches 0008–0009, published in commit
+`bfbc6133af739ed2dabc2f44efa693d1412452e5`, bind each Promise reaction to
+its registrant with a closure-private one-shot token. Only the exact internal
+adoption source can preserve a real active scheduler through a no-frame hop;
+ordinary enqueues never inherit ambient authority and both sentinel principals
+remain non-authoritative. The focused multi-hop engine and async-deputy
+containment regressions pass.
+
+Snapback commit `a5ed6ebd05766b10607937a1c010352d79eea4b0` publishes that runtime.
+GitHub Actions local-proof run `29674515103` passed the action watchdog,
+compartment red-team corpus, and canonical Linux proof on 2026-07-18.

@@ -1483,7 +1483,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-18
-reviewed-commit: HEAD
+reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
 ---
 
 # Actions and outbound fetch
@@ -4061,8 +4061,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 1af4c69c29e4908357d64a3052ff42469b2a1f02
+reviewed: 2026-07-18
+reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
 ---
 
 # Acceptance testing
