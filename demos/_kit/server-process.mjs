@@ -44,6 +44,11 @@ import {
   verifyBinaryProvenance,
 } from './provenance.mjs';
 
+// A clean CI runner can spend nearly a minute compiling before the child
+// publishes readiness. Keep that cold start bounded, with enough margin that
+// scheduler variance does not turn a healthy build into a lifecycle failure.
+const DEFAULT_SERVER_STARTUP_TIMEOUT_MS = 90_000;
+
 export async function startServer({
   port = 4399,
   db = ':memory:',
@@ -67,7 +72,7 @@ export async function startServer({
   // value is read only from the mechanical ready-file sibling after the
   // ready nonce has been verified against the live child.
   captureImpersonationCapability = false,
-  startupTimeoutMs = 60_000,
+  startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}) {
   return startServerWithDeps({
     port,
@@ -101,7 +106,7 @@ async function startServerWithDeps({
   bindPortExactly = false,
   startupArtifacts = null,
   captureImpersonationCapability = false,
-  startupTimeoutMs = 60_000,
+  startupTimeoutMs = DEFAULT_SERVER_STARTUP_TIMEOUT_MS,
 } = {}, deps = {}) {
   if (bindPortExactly && (!Number.isInteger(port) || port < 1 || port > 65_535)) {
     throw new TypeError('bindPortExactly requires an explicit TCP port from 1 through 65535');
