@@ -2,6 +2,11 @@ import assert from 'node:assert/strict';
 
 import { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
 import { createSnapbackContractSurface } from './index.mjs';
+import {
+  createSnapbackProviderDiagnostic,
+  createSnapbackProviderDiagnosticCollector,
+  createSnapbackProviderDiagnosticError,
+} from './diagnostics.mjs';
 
 const deferred = () => {
   let resolve;
@@ -144,5 +149,63 @@ await Promise.resolve();
 assert.deepEqual(factoryOpens[0].options.args, { eventId: 'binding-scope' });
 factoryBinding.dispose();
 await factorySurface.dispose();
+
+// The provider handoff is Exact DataProviderDiagnostic-compatible, carries a
+// source Exact can recover from a thrown refusal, and emits one report per
+// root/instance/cause rather than one entry per reactive tick.
+const diagnosticSource = {
+  file: 'demos/partiful-matrix/surfaces/contract/event.contract',
+  line: 30,
+  column: 5,
+  generatedFrom: 'snapback/generated/api.mjs#rsvp',
+};
+const diagnostic = createSnapbackProviderDiagnostic(
+  'SNAPBACK_CONTRACT_MUTATION_FAILED',
+  'the RSVP action was rejected',
+  {
+    provider: 'snapback-partitime',
+    owner: 'provider',
+    mutationName: 'rsvp',
+    source: diagnosticSource,
+    details: { rollbackReason: 'event_full' },
+  },
+);
+assert.equal(diagnostic.provider, 'snapback-partitime');
+assert.equal(diagnostic.owner, 'provider');
+assert.equal(diagnostic.mutationName, 'rsvp');
+assert.deepEqual(diagnostic.source, diagnosticSource);
+assert.equal(diagnostic.details.target_surface, 'Contract/Exact');
+
+const diagnosticFailure = createSnapbackProviderDiagnosticError(
+  diagnostic.code,
+  diagnostic.message,
+  {
+    provider: diagnostic.provider,
+    owner: diagnostic.owner,
+    mutationName: diagnostic.mutationName,
+    source: diagnostic.source,
+  },
+);
+assert.equal(diagnosticFailure.code, diagnostic.code);
+assert.equal(diagnosticFailure.source, diagnosticFailure.diagnostic.source);
+
+const diagnosticCollector = createSnapbackProviderDiagnosticCollector({ rootId: 'partitime-root' });
+const firstReport = diagnosticCollector.record(diagnosticFailure, {
+  instanceId: 'rsvp-binding-1',
+  causeCode: 'event_full',
+});
+const repeatedReport = diagnosticCollector.record(diagnosticFailure, {
+  instanceId: 'rsvp-binding-1',
+  causeCode: 'event_full',
+});
+assert.equal(firstReport, repeatedReport);
+assert.equal(diagnosticCollector.diagnostics().length, 1);
+assert.equal(firstReport.occurrences, 2);
+assert(firstReport.diagnosticDedupeKey.includes('rsvp-binding-1'));
+diagnosticCollector.record(diagnosticFailure, {
+  instanceId: 'rsvp-binding-1',
+  causeCode: 'network_timeout',
+});
+assert.equal(diagnosticCollector.diagnostics().length, 2);
 
 console.log('snapback keyed Contract provider: binding args, isolation, rotation, and late disposal pass');
