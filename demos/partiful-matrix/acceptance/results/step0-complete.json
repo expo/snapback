@@ -1,0 +1,185 @@
+{
+  "schemaVersion": "partitime.step0-complete.v1",
+  "claimId": "STEP0.COMPLETE",
+  "ok": true,
+  "outcome": "pass",
+  "manifestId": "partitime-cumulative-gates-v1",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "manifestSemanticSha256": "41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "prerequisiteCount": 18,
+  "prerequisites": [
+    {
+      "id": "STEP0.V0_DIAGNOSTICS",
+      "witnessClass": "stable-diagnostics",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.V0_RESET_SEED",
+      "witnessClass": "deterministic-state",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.V0_ATOMIC_SUBSCRIBE",
+      "witnessClass": "subscription-initial-snapshot",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.V0_DELIVERY_CONTROL",
+      "witnessClass": "deterministic-delivery",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.V0_CAPABILITY_GAPS",
+      "witnessClass": "capability-honesty",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.V0_ARTIFACT_FRESHNESS",
+      "witnessClass": "artifact-freshness",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+      }
+    },
+    {
+      "id": "STEP0.REQUIRED_SKIP_NONPASS",
+      "witnessClass": "harness-integrity",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
+        "sha256": "1e1187149aa4039e0555756f2cbf73387cb089ffdfc4fd6187da42d661b64acc"
+      }
+    },
+    {
+      "id": "STEP0.WEB_RENDERING",
+      "witnessClass": "rendering",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+      }
+    },
+    {
+      "id": "STEP0.WEB_RSVP_CONVERGENCE",
+      "witnessClass": "mutation-convergence",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+      }
+    },
+    {
+      "id": "STEP0.SNAPBACK_PUSH_PROVENANCE",
+      "witnessClass": "transport-provenance",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+      }
+    },
+    {
+      "id": "STEP0.VANILLA_LIFECYCLE",
+      "witnessClass": "differential-lifecycle-oracle",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json",
+        "sha256": "7e360518795ed503267295924d6cf46f832b0ed21612132f07a88d1258929312"
+      }
+    },
+    {
+      "id": "STEP0.PACKAGE_PROVENANCE",
+      "witnessClass": "package-provenance",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+      }
+    },
+    {
+      "id": "STEP0.NATIVE_BASELINE",
+      "witnessClass": "native-instrument-baseline",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
+        "sha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301"
+      }
+    },
+    {
+      "id": "STEP0.PROVIDER_ROW_SHAPE_SCOPE",
+      "witnessClass": "documentation-scope",
+      "artifact": {
+        "path": "demos/partiful-matrix/README.md",
+        "sha256": "99916ebb3b15b7f93d0975c9f9480cb4423ecd4f72aae505e854f34ee2aca140"
+      }
+    },
+    {
+      "id": "STEP0.NO_EXACT_CORE",
+      "witnessClass": "dependency-exclusion",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
+        "sha256": "01c9a1f1a61977f7a3a5f5f0eb1b49e784b5958840c12748832ef2b3629b0554"
+      }
+    },
+    {
+      "id": "STEP0.SHARED_MANIFEST",
+      "witnessClass": "cross-repository-lock",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
+        "sha256": "21cce175206acdd10a97198ef4ecae2e07f8a5390597b1952520ddc5f68dd33c"
+      }
+    },
+    {
+      "id": "STEP0.COMPARISON_PROTOCOL",
+      "witnessClass": "preregistered-method",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+        "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      }
+    },
+    {
+      "id": "STEP0.ATTRIBUTION_BASELINE",
+      "witnessClass": "cost-attribution",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+        "sha256": "51e892023ea08662a8864217a883a8bcaafd5b3c87687e1bb34013b968dbfc47"
+      }
+    }
+  ],
+  "nativeChildren": [
+    {
+      "name": "swiftui",
+      "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
+      "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be"
+    },
+    {
+      "name": "exact-contract",
+      "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
+      "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+    }
+  ],
+  "sharedManifestContract": {
+    "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
+    "sha256": "21cce175206acdd10a97198ef4ecae2e07f8a5390597b1952520ddc5f68dd33c",
+    "exactRevision": "89253b8079ccb3400c1a33e8d596ac840ff007b4"
+  },
+  "inputs": {
+    "semantics": {
+      "path": "demos/partiful-matrix/tests/acceptance/manifest-semantics.mjs",
+      "sha256": "9bd747d10a6de15c800db848bbf6a48af4130400ef51db34b215860e5ca5fc59"
+    },
+    "generator": {
+      "path": "demos/partiful-matrix/tests/acceptance/finalize-step0.mjs",
+      "sha256": "74fec8b1cdcba1036b759957f20f713930b4c7573299f0152ab0c4e89a931189"
+    }
+  }
+}

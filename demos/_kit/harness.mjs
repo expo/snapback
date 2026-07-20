@@ -10,6 +10,9 @@
 // thrown setup error (with stack) instead of letting a `finally`-style
 // process.exit swallow it into a green exit.
 
+import { mkdirSync, renameSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+
 export function createSuite(title, { expectedChecks = null } = {}) {
   const results = [];
   return {
@@ -23,19 +26,25 @@ export function createSuite(title, { expectedChecks = null } = {}) {
         console.log(`  ✗ ${name}\n      ${error.message}`);
       }
     },
+    skip(name, details) {
+      results.push({ name, ok: false, outcome: 'skip', details: details ?? null });
+      console.log(`  - ${name} (skipped)`);
+    },
     finish() {
       const passed = results.filter((r) => r.ok).length;
+      const skipped = results.filter((r) => r.outcome === 'skip').length;
+      const failed = results.length - passed - skipped;
       const total = results.length;
       // ENG-22486: zero checks (or a short run against a declared count) can
       // never be a pass — a pre-check throw that skips the checks must fail.
       let shortfall = null;
-      if (total === 0) {
+      if (total === 0 || passed + failed === 0) {
         shortfall = 'zero checks ran';
       } else if (expectedChecks !== null && total !== expectedChecks) {
         shortfall = `ran ${total}/${expectedChecks} expected checks`;
       }
-      const ok = passed === total && shortfall === null;
-      const report = { title, passed, total, ok, results };
+      const ok = failed === 0 && shortfall === null;
+      const report = { title, passed, skipped, failed, total, ok, results };
       if (expectedChecks !== null) report.expectedChecks = expectedChecks;
       if (shortfall !== null) report.shortfall = shortfall;
       console.log(`\n${ok ? 'PASS' : 'FAIL'} ${title} — ${passed}/${total}`);
@@ -60,7 +69,11 @@ export function createSuite(title, { expectedChecks = null } = {}) {
 // `cleanups` may be a live array (registered during body) — it is read at
 // exit time. `reportExtra` extends the machine report but cannot override its
 // core outcome fields.
-export async function runAcceptance(suite, body, { cleanups = [], reportExtra = null } = {}) {
+export async function runAcceptance(suite, body, {
+  cleanups = [],
+  reportExtra = null,
+  reportFile = null,
+} = {}) {
   let setupFailed = false;
   let setupError;
   try {
@@ -107,9 +120,23 @@ export async function runAcceptance(suite, body, { cleanups = [], reportExtra = 
     );
   }
   const machineReport = reportExtra === null ? report : { ...reportExtra, ...report };
+  if (reportFile !== null) writeMachineReport(reportFile, machineReport);
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(machineReport));
   process.exit(setupFailed || cleanupErrors.length > 0 ? 2 : report.ok ? 0 : 1);
+}
+
+// A retained acceptance receipt is evidence only after cleanup has completed.
+// Write it atomically so interruption cannot leave a truncated file that a
+// later aggregate validator mistakes for a complete run.
+export function writeMachineReport(reportFile, machineReport) {
+  // @ref LLP 0063#sequence — Step 0 evidence is retained only after its
+  // cleanup outcome is known; required skips never become passing receipts.
+  const path = String(reportFile);
+  mkdirSync(dirname(path), { recursive: true });
+  const temporary = `${path}.tmp-${process.pid}`;
+  writeFileSync(temporary, `${JSON.stringify(machineReport, null, 2)}\n`);
+  renameSync(temporary, path);
 }
 
 function cleanupFailureReport(error, cleanup, registrationIndex, cleanupOrder) {

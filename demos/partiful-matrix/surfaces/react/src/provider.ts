@@ -10,6 +10,7 @@ import seed from '../../../snapback/seed.json';
 declare const __MATRIX_BACKEND__: Backend;
 declare const __SNAPBACK_API_ORIGIN__: string;
 declare const __MATRIX_GATEWAY_ORIGIN__: string;
+declare const __PARTITIME_DISABLE_POLL_FALLBACK__: boolean;
 
 type Connection = 'connecting' | 'live' | 'polling' | 'disconnected';
 
@@ -27,6 +28,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
   // deliberately unreachable so reloads preserve the matrix cell's writes.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
   let counter = 0;
+  const subscriptionEvents: Record<string, unknown>[] = [];
   const refs = api as Record<string, unknown>;
   return {
     backend: 'snapback',
@@ -37,9 +39,15 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
         args,
         userId,
         transport: 'stream',
+        fallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         connectionId: `partiful_matrix_react_${name}_${counter += 1}`,
         onUpdate: (rows) => { latestRows = rows; observer(rows, 'live'); },
         onConnectionChange: (connection) => observer(latestRows, connection as Connection),
+        onSubscriptionEvent: (event) => subscriptionEvents.push({
+          queryName: name,
+          pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+          ...(event as unknown as Record<string, unknown>),
+        }),
       });
       latestRows = handle.rows;
       observer(handle.rows, handle.connection as Connection);
@@ -49,6 +57,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
       const result = await client.mutate(refs[name] as never, { args, userId } as never);
       return result.result as T;
     },
+    transportEvidence: () => subscriptionEvents.map((event) => ({ ...event })),
   };
 }
 

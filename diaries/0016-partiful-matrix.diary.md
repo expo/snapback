@@ -567,3 +567,126 @@ I attempted to file the scaffold/Guide mismatch as the required Exact-project
 `guide-gap` Linear issue, but the configured Linear connector required a new
 OAuth authorization and returned no search or create access. No issue was
 created; the gap remains recorded here and in the comparative report.
+
+## 2026-07-20 — Step 0 turns the comparison into retained evidence
+
+The original matrix was useful evidence but a weak gate. It could print a
+green-looking `PASS ... skipped` when Chrome or the Snapback binary was absent,
+its RSVP oracle could be satisfied by another seeded guest, and the Snapback
+cells could silently fall back to polling. LLP 0063 Step 0 forced those three
+ambiguities into explicit instruments.
+
+The required-prerequisite path now writes an atomic receipt with `ok: false`,
+`outcome: skip`, a named skip class, zero executed checks, and a nonzero exit.
+The full browser run uses Eve's actor-specific guest row, records the before
+and after values, and requires a real transition in all twelve cells. Each
+Snapback arm then runs a second time with polling fallback disabled: an
+out-of-band `SnapbackClient` mutation must update the DOM while the connection
+is live, and the surface must report a `guestList` subscription established on
+the push transport. Each transport cell now performs two warmups and seven
+measured alternating transitions, retaining the samples, median, and p95 that
+the preregistered protocol requires. This grew the complete browser gate from
+the recorded 40 checks to 43 without pretending that one timing observation is
+a sampled latency baseline.
+
+The Snapback-side implementation felt appropriately small once the proof had a
+precise shape. The client needed one option that disables its recovery poll,
+and the React, Contract, and vanilla providers needed an optional evidence
+callback. The product UI did not need a testing-only transport fork. The
+harder part was evidence hygiene: atomic writes after cleanup, hashes for the
+diary/report/locks, explicit package aliases, and making a missing prerequisite
+structurally incapable of becoming a pass.
+
+Review found a second class of false-green risk in process ownership and
+remote credentials. The final collectors register children at spawn time,
+terminate detached process groups with a bounded TERM→KILL sequence, and make
+cleanup failure part of the receipt outcome. The gateway now probes each
+backend without retaining credential text. A Supabase or Convex outage is an
+explicit remote-dependency skip, not a local failure and not a pass; Snapback
+and SQLite remain required. That distinction made the matrix more useful on a
+clean checkout without weakening what a green local cell means.
+
+The no-Exact-core check was particularly clarifying. It loads selected
+Snapback core and client suites under a deny-loader that rejects any Exact
+package import. That preserves a property the Todo demos made easy to assume
+but had not made executable: Contract integration is an adapter, not a hidden
+dependency of Snapback's core authoring path.
+
+For the native baseline I rebuilt the SwiftUI carriers from the checked-in
+project and reran all eight macOS/iOS/provider cells. The retained receipt pins
+both carrier binaries and passed 8/8. Exact was more revealing. The newest
+pre-existing carrier registered with Acto but correctly rejected the app's
+newer Motion schema envelope; treating it as the baseline would have been
+revision laundering. A new collector now records the Exact commit plus a hash
+of every dirty overlay path, linked package manifests, carrier hashes, Acto
+target identity, native hit reachability, and cleanup. Its fresh carrier build
+also exposed the same practical contrast as the first diary entry: SwiftUI's
+app build is one project, while Exact's shared carrier first rebuilds a large
+Rust/archive chain and then enters Xcode's machine-global build service. The
+first fresh attempt proved a real source incompatibility: the iOS path used a
+macOS-only `nativeHostIdentity` property. I reproduced the earlier platform
+guard in a hashed task-local carrier copy instead of changing the very dirty
+Exact checkout. The next attempt did not reach that source. On Xcode 26.6 both
+macOS and iOS stopped in SwiftBuild SDK discovery while `clang -v -E -dM`
+children blocked writing to undrained pipes; unrelated Xcode trees on the same
+machine had the identical multi-day signature. The collector's retained
+receipt records explicit timeouts, no executed cells, and clean collector
+shutdown. It never substitutes the stale host, so the native aggregate remains
+pending.
+
+The app-level TypeScript check also reaches the sibling Exact packages and is
+not green in the current Exact overlay: it reports existing compiler,
+renderer, router, and generated-route errors outside this demo. I left that
+checkout untouched and treated both failures as dependency-state evidence.
+
+Compared with React plus Supabase or Convex, Snapback's direct web push was
+easier to attribute once fallback could be disabled, because the same generated
+query identity survived from subscription setup to the evidence event. The
+gateway-backed providers remain useful controlled product comparisons, but
+their polling loop cannot support the same transport claim. Compared with
+SwiftUI, Contract remains much denser at the product-source layer and much
+heavier at the carrier/provenance layer; Step 0 makes both halves visible
+instead of letting the shorter `.contract` file stand for the entire loop.
+
+No new guide-gap issue was filed for this entry. The friction was in building a
+cross-repository comparison lock and fresh-carrier evidence, not in locating a
+documented Snapback authoring capability. The existing Guide accurately covers
+the client and live-query surface used here; LLP 0063 owns the new metrology and
+product gaps.
+
+## 2026-07-20 — Remote Xcode evidence closes Step 0
+
+The machine-local Xcode 26.6 failure turned out to be an instrument wedge, not
+an application verdict. A task-isolated checkout on the remote Apple-silicon
+Mac built the clean Exact revision with Xcode 26.3 for both macOS and iOS, then
+ran the eight Exact provider cells with native hit reachability. Snapback and
+SQLite passed on both platforms; unavailable Supabase and Convex credentials
+remained explicit `remote-dependency` skips. The SwiftUI side independently
+retained the same eight-cell shape, so the sixteen-cell aggregate could finally
+become green without substituting the earlier stale carrier.
+
+The most surprising failure was ordinary host chrome: Exact's diagnostic
+console could cover the RSVP control while the semantic view still existed.
+The acceptance collector now preflights the native hit path before every
+mutation and rejects degraded, host-chrome, occluded, or target-mismatched
+paths. Exact gained a documented environment switch that suppresses automatic
+console presentation without suppressing the diagnostic itself. This felt
+like the right division of labor: the carrier owns presentation policy; the
+acceptance instrument remains strict about what a user can actually reach.
+
+The cross-repository lock needed a similar distinction between logical and
+physical identity. A manifest cannot directly hash a completion receipt that
+itself embeds the final manifest hash. The closure therefore freezes claim
+semantics separately, makes the completion receipt bind every prerequisite and
+artifact to those semantics, mirrors that receipt into Exact for a registered
+aggregate check, and retains the final full-byte comparison in an unreferenced
+cross-repository receipt. It is more machinery than a single-repository demo
+would need, but it made 19/19 mean the same thing from two clean checkouts.
+
+Compared with React plus Supabase or Convex, the Snapback web path still had
+the simpler transport-provenance story because it could name the generated
+query and disable fallback. Compared with SwiftUI, Exact plus Contract still
+concentrated product behavior into much less app source, but required more
+carrier and governance work before the proof was trustworthy. The remote build
+did not erase that cost; it converted it from an ambiguous local failure into
+a reproducible, reviewable result.

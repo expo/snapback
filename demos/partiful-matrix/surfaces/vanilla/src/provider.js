@@ -20,6 +20,7 @@ async function createSnapbackProvider() {
   // no reset operation, so a reload cannot erase writes from another row.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
   let counter = 0;
+  const subscriptionEvents = [];
   return {
     backend: 'snapback',
     transport: 'push',
@@ -29,12 +30,18 @@ async function createSnapbackProvider() {
         args,
         userId,
         transport: 'stream',
+        fallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         connectionId: `partiful_matrix_vanilla_${name}_${counter += 1}`,
         onUpdate: (rows) => {
           latestRows = rows;
           observer(rows, 'live');
         },
         onConnectionChange: (connection) => observer(latestRows, connection),
+        onSubscriptionEvent: (event) => subscriptionEvents.push({
+          queryName: name,
+          pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+          ...event,
+        }),
       });
       latestRows = handle.rows;
       observer(handle.rows, handle.connection);
@@ -44,6 +51,7 @@ async function createSnapbackProvider() {
       const result = await client.mutate(api[name], { args, userId });
       return result.result;
     },
+    transportEvidence: () => subscriptionEvents.map((event) => ({ ...event })),
   };
 }
 

@@ -1,0 +1,461 @@
+{
+  "schemaVersion": "partitime.native-baseline-aggregate.v1",
+  "claimId": "STEP0.NATIVE_BASELINE",
+  "ok": true,
+  "outcome": "pass",
+  "children": [
+    {
+      "name": "swiftui",
+      "path": "demos/partiful-matrix/acceptance/results/step0-native-swiftui.json",
+      "sha256": "369f67e2e840ee23949489208107e1b6bc1298a165f5ef40be804ed15d5cb3be",
+      "schemaVersion": "partitime.native-swiftui-receipt.v1",
+      "buildMode": "fresh-xcode-build",
+      "buildResults": [
+        {
+          "platform": "macos",
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "6062744083df204e269b4b0edb47bb043caba1e6a7aa912a2de33a9becca0595",
+          "stderrSha256": "6c567a6da3a2ddefeebbc17bfae21e9234c1eef8cd8b4500898e91217c1473a5",
+          "stdoutTail": [
+            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/PartitimeSwiftUI.xcodeproj",
+            "    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache",
+            "",
+            "ProcessInfoPlistFile /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist (in target 'PartitimeSwiftUI-macOS' from project 'PartitimeSwiftUI')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
+            "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/PkgInfo -expandbuildsettings -platform macosx -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist",
+            "",
+            "** BUILD SUCCEEDED **"
+          ],
+          "stderrTail": [
+            "2026-07-20 03:24:23.420 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:23.463 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+          ]
+        },
+        {
+          "platform": "ios",
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "4d7e50e94a40c25555add49c28789e59ad74b8171440eadd31ab6203b4ab9a73",
+          "stderrSha256": "55a2d34ef0c7df61faa89871a1eae7228347438356d1b136000adc5170cf7752",
+          "stdoutTail": [
+            "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-iOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Info.plist",
+            "",
+            "CopySwiftLibs /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-iOS' from project 'PartitimeSwiftUI')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
+            "    builtin-swiftStdLibTool --copy --verbose --scan-executable /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PartitimeSwiftUI.debug.dylib --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PlugIns --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/SystemExtensions --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Intermediates.noindex/PartitimeSwiftUI.build/Debug-iphonesimulator/PartitimeSwiftUI-iOS.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os",
+            "Ignoring --strip-bitcode because --sign was not passed",
+            "",
+            "** BUILD SUCCEEDED **"
+          ],
+          "stderrTail": [
+            "2026-07-20 03:24:24.317 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:24.352 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+          ]
+        }
+      ],
+      "source": {
+        "snapbackRevision": "d6886d742c532fcba014e372ba0d4998260cfb28",
+        "exactRevision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+        "project": {
+          "files": 13,
+          "sha256": "b823f4ad421369996657504c07cd4c0f7133e6f6ea0ed9dfb5938dfe248f60c0"
+        },
+        "collectorSha256": "2c4723ae4ad5a3afb4ec93c34d56d96ab4c438373483fc6f78b69eb44984943a",
+        "gatewaySha256": "8f3bf3106f78bbcc72b6e88772f3d2e192621ea4d22d0e05ab66f32319ec0334"
+      },
+      "packages": {
+        "rootLockSha256": "49e572ef633d8a3c27325af931b4bdaa101c3127e9e776ac6df9bc5330d27202"
+      },
+      "environment": {
+        "os": "darwin-25.5.0-arm64",
+        "cpu": "Apple M4 Pro",
+        "logicalCpus": 12,
+        "totalMemoryBytes": 25769803776,
+        "xcode": [
+          "Xcode 26.3",
+          "Build version 17C529"
+        ],
+        "bun": "1.3.14",
+        "node": "v26.0.0"
+      },
+      "backendHealth": {
+        "ok": true,
+        "backends": {
+          "snapback": {
+            "ok": true,
+            "remote": false,
+            "fixtureRows": 3
+          },
+          "sqlite": {
+            "ok": true,
+            "remote": false,
+            "fixtureRows": 3
+          },
+          "supabase": {
+            "ok": false,
+            "skipClass": "remote-dependency",
+            "stage": "initialization",
+            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+          },
+          "convex": {
+            "ok": false,
+            "skipClass": "remote-dependency",
+            "stage": "initialization",
+            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+          }
+        }
+      },
+      "testInventory": [
+        {
+          "path": "demos/partiful-matrix/tests/acceptance/native-swiftui.mjs",
+          "sha256": "2c4723ae4ad5a3afb4ec93c34d56d96ab4c438373483fc6f78b69eb44984943a"
+        },
+        {
+          "path": "demos/partiful-matrix/native/swiftui/Sources/PartitimeStore.swift",
+          "sha256": "da8da91a2d70ba7da6177f268897a815d3b6ca9c1434025be7df0692628f1f39"
+        },
+        {
+          "path": "demos/partiful-matrix/native/swiftui/Sources/PartitimeApp.swift",
+          "sha256": "6cfa0b9baa8067d03e22b5dc6aba4da8b76ed2edb2b212b8da9c1f38a1ad0924"
+        }
+      ],
+      "binaries": {
+        "macosSha256": "b3d4f8bbc3bfd80ae44318ae5a1be3d5be7e78993e498a163b3e594fc9df5c69",
+        "iosSha256": "60cf16a6e8b07bc1a34ee9ca9bf7c154151149b68fbb2d0235cb39ff61a61399"
+      },
+      "simulator": {
+        "name": "iPhone 17 Pro",
+        "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A"
+      }
+    },
+    {
+      "name": "exact-contract",
+      "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
+      "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9",
+      "schemaVersion": "partitime.native-exact-receipt.v1",
+      "buildMode": "fresh-xcode-build",
+      "buildResults": [
+        {
+          "platform": "macos",
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "706bf56bc0d945b2a0b422af0294fa9f1250542ecfdde6abad851298e87f41e4",
+          "stderrSha256": "c04169803bfdf575b910468f690840bfa4419f9f535fd27684912f2ecc809a27",
+          "stdoutTail": [
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app -no-validate-extension -infoplist-subpath Contents/Info.plist",
+            "RegisterWithLaunchServices /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
+            "Touch /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
+            "note: Disabling hardened runtime with ad-hoc codesigning. (in target 'ExactAppMac' from project 'ExactApp')",
+            "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
+            "note: Run script build phase 'Verify Embedded Evidence Link' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
+            "** BUILD SUCCEEDED **"
+          ],
+          "stderrTail": [
+            "2026-07-20 03:22:03.608 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:03.664 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+          ]
+        },
+        {
+          "platform": "ios",
+          "status": 0,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "6f95df409c353f149ab0daa341074d4eb4f488a0f1b26922f347ad8b75974bbf",
+          "stderrSha256": "839a195a31ba461b5d0f3ee3bbf6736e02dbe2547692cd4f445063e7031abdcd",
+          "stdoutTail": [
+            "RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    builtin-RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+            "Validate /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app -shallow-bundle -infoplist-subpath Info.plist",
+            "Touch /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+            "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+            "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+            "note: Run script build phase 'Verify Motion Navigation Bench Router' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
+            "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
+            "** BUILD SUCCEEDED **"
+          ],
+          "stderrTail": [
+            "2026-07-20 03:22:27.542 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:27.596 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+            "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+          ]
+        }
+      ],
+      "source": {
+        "snapback": {
+          "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
+          "dirty": true,
+          "overlayEntries": 64,
+          "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+        },
+        "exact": {
+          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "dirty": false,
+          "overlayEntries": 0,
+          "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "carrierProject": {
+          "kind": "exact-working-tree",
+          "patchId": null,
+          "files": 311,
+          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+        },
+        "exactAfterBuild": {
+          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "dirty": false,
+          "overlayEntries": 0,
+          "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "carrierProjectAfterBuild": {
+          "kind": "exact-working-tree",
+          "patchId": null,
+          "files": 311,
+          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+        },
+        "snapbackAfterRun": {
+          "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
+          "dirty": true,
+          "overlayEntries": 64,
+          "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+        },
+        "exactAfterRun": {
+          "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+          "dirty": false,
+          "overlayEntries": 0,
+          "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        },
+        "carrierProjectAfterRun": {
+          "kind": "exact-working-tree",
+          "patchId": null,
+          "files": 311,
+          "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+        }
+      },
+      "packages": {
+        "appPackageSha256": "9cc3eff5c599fbf9129ff27791bea3235a310e1e7f7c982d7e3d7bab1a84c72b",
+        "appLockSha256": "583ba57921248efbe759b6a28dd34d59893d72973386ce336a3fd5010cbcd67f",
+        "linksSha256": "94943634ea1f7f312dded4b5b81faccd8e704e8547b0f095c43d9184c9304d23",
+        "exactPackages": [
+          {
+            "name": "@exact/adapter-node",
+            "version": "0.1.0",
+            "manifestSha256": "21c785fe2ad16e4d2d7e822465c9f52b9848709ba3be595f9eb2f6ac4bbbbbe9"
+          },
+          {
+            "name": "@exact/contract",
+            "version": "0.1.0",
+            "manifestSha256": "9875b0786ff5195a93bfdc5bf26485b4aceeb2a41529d7fb07fb4df91df0c7fe"
+          },
+          {
+            "name": "@exact/core",
+            "version": "0.1.0",
+            "manifestSha256": "615cedd3a8e344be69311d7f4dc6bad8fff930e6e2bbf8301536c1ff093d0c3a"
+          },
+          {
+            "name": "@exact/devtools",
+            "version": "0.1.0",
+            "manifestSha256": "0aabfc951875f602dcfd3850f360c9476f93b5d7cb4868b20a0d1004c05cd51d"
+          },
+          {
+            "name": "@exact/guide",
+            "version": "0.1.0",
+            "manifestSha256": "385d2c9ab7054acbd6cd8c573ca85bc8ae54d63b71dc17aa0b88e59a1342a389"
+          },
+          {
+            "name": "@exact/observability",
+            "version": "0.1.0",
+            "manifestSha256": "f8927ba67faaad2190616a8078b6aa932f7a17bf8516c39e7308e44b09e40a9c"
+          },
+          {
+            "name": "@exact/renderer",
+            "version": "0.1.0",
+            "manifestSha256": "896c9209bc0842179ed126c15a63ef12a794aca382a507a4cabf27fdedb8e458"
+          },
+          {
+            "name": "@exact/router",
+            "version": "0.1.0",
+            "manifestSha256": "5b07d72ef20c19a397d9f6375f957bebf852d6b0bef8f3b5a85c83adb2db20e8"
+          },
+          {
+            "name": "@exact/runtime",
+            "version": "0.1.0",
+            "manifestSha256": "64563743ada9fe5f4f132b17b162ecb07a7a3e1a9834c7a46123122f97fa13b7"
+          },
+          {
+            "name": "@exact/server",
+            "version": "0.1.0",
+            "manifestSha256": "44ec83ea188938aef9173e2fe7bc187c2ead67b98a8230338c31da1e358b8d38"
+          }
+        ]
+      },
+      "environment": {
+        "hardware": "arm64",
+        "os": "26.5.1",
+        "xcode": [
+          "Xcode 26.3",
+          "Build version 17C529"
+        ],
+        "bun": "1.3.14",
+        "node": "v26.0.0"
+      },
+      "backendHealth": {
+        "ok": true,
+        "backends": {
+          "snapback": {
+            "ok": true,
+            "remote": false,
+            "fixtureRows": 3
+          },
+          "sqlite": {
+            "ok": true,
+            "remote": false,
+            "fixtureRows": 3
+          },
+          "supabase": {
+            "ok": false,
+            "skipClass": "remote-dependency",
+            "stage": "initialization",
+            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+          },
+          "convex": {
+            "ok": false,
+            "skipClass": "remote-dependency",
+            "stage": "initialization",
+            "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+          }
+        }
+      },
+      "testInventory": [
+        {
+          "path": "demos/partiful-matrix/tests/acceptance/native-exact.mjs",
+          "sha256": "ce06cb4d6baf6c466f6c64f55efd67262fe6c5a722ff6d042db8c4b1cb632027"
+        },
+        {
+          "path": "demos/partiful-matrix/tests/acceptance/native-exact-acto.mjs",
+          "sha256": "499b1c65765dbbe6170f00f6e98440c8aa436c48298a83e6d7bc54118483dcf3"
+        },
+        {
+          "path": "demos/partiful-matrix/native/exact-contract/src/app/routes.ts",
+          "sha256": "22a30864c56c91b2744a51b406a38b6ab60c27bd49be284b9420f554c5cc25bf"
+        },
+        {
+          "path": "demos/partiful-matrix/native/exact-contract/src/partitime/provider.ts",
+          "sha256": "783f283ef57ba16587baf6a18eee3503e5085e21e1c0551a793e0747fd6a8ebe"
+        }
+      ],
+      "binaries": {
+        "macosSha256": "e8af3c516edbc59f1fde18bfb94b7371b5bee8c4ef0c15c16a6d3d9c7bd0d052",
+        "iosSha256": "48ed24e0129d6dfd7df777f8196e98442ea86225e11d2493e0c6813a4fb5e4e6",
+        "iosBundleId": "com.exact.ExactApp"
+      },
+      "simulator": {
+        "name": "iPhone 17 Pro",
+        "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A",
+        "installationCleanup": "uninstall-on-final-cleanup"
+      }
+    }
+  ],
+  "cells": [
+    {
+      "cell": "swiftui:macos:snapback",
+      "ok": true
+    },
+    {
+      "cell": "swiftui:macos:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "swiftui:macos:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "swiftui:macos:sqlite",
+      "ok": true
+    },
+    {
+      "cell": "swiftui:ios:snapback",
+      "ok": true
+    },
+    {
+      "cell": "swiftui:ios:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "swiftui:ios:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "swiftui:ios:sqlite",
+      "ok": true
+    },
+    {
+      "cell": "exact-contract:macos:snapback",
+      "ok": true
+    },
+    {
+      "cell": "exact-contract:ios:snapback",
+      "ok": true
+    },
+    {
+      "cell": "exact-contract:macos:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "exact-contract:ios:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "exact-contract:macos:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "exact-contract:ios:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency"
+    },
+    {
+      "cell": "exact-contract:macos:sqlite",
+      "ok": true
+    },
+    {
+      "cell": "exact-contract:ios:sqlite",
+      "ok": true
+    }
+  ],
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1"
+}

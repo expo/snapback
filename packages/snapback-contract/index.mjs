@@ -564,6 +564,10 @@ export async function createSnapbackContractSurface({
   // LLP 0034 D1 (Exact LLP 0284 §2.3): live descriptors bind with server push
   // by default; `livePush: false` opts the surface out (poll/reconcile only).
   livePush = true,
+  // Maintained transport witnesses may disable the ordinary HTTP drain
+  // fallback so an observed update proves socket delivery. Product callers
+  // keep the resilient default.
+  liveFallbackToPoll = true,
   connectionId = null,
   liveStreamOptions = {},
   onConnectionChange = null,
@@ -768,6 +772,7 @@ export async function createSnapbackContractSurface({
         liveQueries,
         requiredQueries,
         livePush,
+        liveFallbackToPoll,
         connectionId,
         liveStreamOptions,
         onConnectionChange,
@@ -1479,6 +1484,7 @@ export async function createSnapbackContractSurface({
         userId: activeUserId,
         authorityCapture: capture,
         transport: 'stream',
+        fallbackToPoll: liveFallbackToPoll,
         stream: liveStreamOptions,
         correlation: surfaceCorrelation,
         authorizationNamespace: authorizedQueryNamespace,
@@ -3803,6 +3809,7 @@ async function createMultiLiveContractSurface({
   liveQueries,
   requiredQueries = null,
   livePush,
+  liveFallbackToPoll,
   connectionId,
   liveStreamOptions,
   onConnectionChange,
@@ -4084,6 +4091,7 @@ async function createMultiLiveContractSurface({
         userId: activeUserId,
         authorityCapture: capture,
         transport: 'stream',
+        fallbackToPoll: liveFallbackToPoll,
         stream: liveStreamOptions,
         authorizationQueue: createContractQueryAuthorizationQueue(clientStore, capture),
         onAuthorizationBoundary: (rows, detail = {}) => {

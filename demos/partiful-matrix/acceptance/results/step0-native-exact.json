@@ -1,0 +1,1452 @@
+{
+  "schemaVersion": "partitime.native-exact-receipt.v1",
+  "claimId": "STEP0.NATIVE_BASELINE",
+  "claimEligible": true,
+  "receiptPurpose": "step0-native-baseline",
+  "authoring": "exact-contract",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "buildMode": "fresh-xcode-build",
+  "ok": true,
+  "outcome": "pass",
+  "source": {
+    "snapback": {
+      "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
+      "dirty": true,
+      "overlayEntries": 64,
+      "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+    },
+    "exact": {
+      "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+      "dirty": false,
+      "overlayEntries": 0,
+      "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "carrierProject": {
+      "kind": "exact-working-tree",
+      "patchId": null,
+      "files": 311,
+      "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+    },
+    "exactAfterBuild": {
+      "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+      "dirty": false,
+      "overlayEntries": 0,
+      "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "carrierProjectAfterBuild": {
+      "kind": "exact-working-tree",
+      "patchId": null,
+      "files": 311,
+      "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+    },
+    "snapbackAfterRun": {
+      "revision": "d6886d742c532fcba014e372ba0d4998260cfb28",
+      "dirty": true,
+      "overlayEntries": 64,
+      "overlaySha256": "de5b0b031bf2c7a255f18d4b53debbb9179a7ef9ee0fa025ae4a507989890057"
+    },
+    "exactAfterRun": {
+      "revision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+      "dirty": false,
+      "overlayEntries": 0,
+      "overlaySha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+    },
+    "carrierProjectAfterRun": {
+      "kind": "exact-working-tree",
+      "patchId": null,
+      "files": 311,
+      "sha256": "d3c2ca4ec8a222aa2a6776cdca07d1f889f84e462497f9820001416d674b393d"
+    }
+  },
+  "packages": {
+    "appPackageSha256": "9cc3eff5c599fbf9129ff27791bea3235a310e1e7f7c982d7e3d7bab1a84c72b",
+    "appLockSha256": "583ba57921248efbe759b6a28dd34d59893d72973386ce336a3fd5010cbcd67f",
+    "linksSha256": "94943634ea1f7f312dded4b5b81faccd8e704e8547b0f095c43d9184c9304d23",
+    "exactPackages": [
+      {
+        "name": "@exact/adapter-node",
+        "version": "0.1.0",
+        "manifestSha256": "21c785fe2ad16e4d2d7e822465c9f52b9848709ba3be595f9eb2f6ac4bbbbbe9"
+      },
+      {
+        "name": "@exact/contract",
+        "version": "0.1.0",
+        "manifestSha256": "9875b0786ff5195a93bfdc5bf26485b4aceeb2a41529d7fb07fb4df91df0c7fe"
+      },
+      {
+        "name": "@exact/core",
+        "version": "0.1.0",
+        "manifestSha256": "615cedd3a8e344be69311d7f4dc6bad8fff930e6e2bbf8301536c1ff093d0c3a"
+      },
+      {
+        "name": "@exact/devtools",
+        "version": "0.1.0",
+        "manifestSha256": "0aabfc951875f602dcfd3850f360c9476f93b5d7cb4868b20a0d1004c05cd51d"
+      },
+      {
+        "name": "@exact/guide",
+        "version": "0.1.0",
+        "manifestSha256": "385d2c9ab7054acbd6cd8c573ca85bc8ae54d63b71dc17aa0b88e59a1342a389"
+      },
+      {
+        "name": "@exact/observability",
+        "version": "0.1.0",
+        "manifestSha256": "f8927ba67faaad2190616a8078b6aa932f7a17bf8516c39e7308e44b09e40a9c"
+      },
+      {
+        "name": "@exact/renderer",
+        "version": "0.1.0",
+        "manifestSha256": "896c9209bc0842179ed126c15a63ef12a794aca382a507a4cabf27fdedb8e458"
+      },
+      {
+        "name": "@exact/router",
+        "version": "0.1.0",
+        "manifestSha256": "5b07d72ef20c19a397d9f6375f957bebf852d6b0bef8f3b5a85c83adb2db20e8"
+      },
+      {
+        "name": "@exact/runtime",
+        "version": "0.1.0",
+        "manifestSha256": "64563743ada9fe5f4f132b17b162ecb07a7a3e1a9834c7a46123122f97fa13b7"
+      },
+      {
+        "name": "@exact/server",
+        "version": "0.1.0",
+        "manifestSha256": "44ec83ea188938aef9173e2fe7bc187c2ead67b98a8230338c31da1e358b8d38"
+      }
+    ]
+  },
+  "environment": {
+    "hardware": "arm64",
+    "os": "26.5.1",
+    "xcode": [
+      "Xcode 26.3",
+      "Build version 17C529"
+    ],
+    "bun": "1.3.14",
+    "node": "v26.0.0"
+  },
+  "buildResults": [
+    {
+      "platform": "macos",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "706bf56bc0d945b2a0b422af0294fa9f1250542ecfdde6abad851298e87f41e4",
+      "stderrSha256": "c04169803bfdf575b910468f690840bfa4419f9f535fd27684912f2ecc809a27",
+      "stdoutTail": [
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app -no-validate-extension -infoplist-subpath Contents/Info.plist",
+        "RegisterWithLaunchServices /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
+        "Touch /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app (in target 'ExactAppMac' from project 'ExactApp')",
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-macos/Build/Products/Debug/ExactAppMac.app",
+        "note: Disabling hardened runtime with ad-hoc codesigning. (in target 'ExactAppMac' from project 'ExactApp')",
+        "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
+        "note: Run script build phase 'Verify Embedded Evidence Link' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactAppMac' from project 'ExactApp')",
+        "** BUILD SUCCEEDED **"
+      ],
+      "stderrTail": [
+        "2026-07-20 03:22:03.608 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:03.664 xcodebuild[46069:82475022]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:03.668 xcodebuild[46069:82474994] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+      ]
+    },
+    {
+      "platform": "ios",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "6f95df409c353f149ab0daa341074d4eb4f488a0f1b26922f347ad8b75974bbf",
+      "stderrSha256": "839a195a31ba461b5d0f3ee3bbf6736e02dbe2547692cd4f445063e7031abdcd",
+      "stdoutTail": [
+        "RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    builtin-RegisterExecutionPolicyException /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+        "Validate /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    builtin-validationUtility /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app -shallow-bundle -infoplist-subpath Info.plist",
+        "Touch /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app (in target 'ExactApp' from project 'ExactApp')",
+        "    cd /tmp/snapback-step0-remote.8ESNsN/exact/ios/ExactApp",
+        "    /usr/bin/touch -c /tmp/snapback-partitime-exact-step0-clean/step0-ios/Build/Products/Debug-iphonesimulator/ExactApp.app",
+        "note: Run script build phase 'Verify Motion Navigation Bench Router' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
+        "note: Run script build phase 'Build Rust Kernel' will be run during every build because the option to run the script phase \"Based on dependency analysis\" is unchecked. (in target 'ExactApp' from project 'ExactApp')",
+        "** BUILD SUCCEEDED **"
+      ],
+      "stderrTail": [
+        "2026-07-20 03:22:27.542 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:27.596 xcodebuild[46494:82476845]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
+        "2026-07-20 03:22:27.600 xcodebuild[46494:82476796] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
+      ]
+    }
+  ],
+  "cells": [
+    {
+      "cell": "exact-contract:macos:snapback",
+      "ok": true,
+      "acto": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "66ddea0297032b2093a26532ab130ec313a450ea033dc7fbe3a05db086a82ba2",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "{\"schemaVersion\":\"partitime.native-exact-acto-cell.v1\",\"platform\":\"mac\",\"backend\":\"snapback\",\"ok\":true,\"checks\":[{\"name\":\"one live Acto target\",\"ok\":true},{\"name\":\"backend label rendered\",\"ok\":true},{\"name\":\"canonical event rendered\",\"ok\":true},{\"name\":\"detail action rendered\",\"ok\":true},{\"name\":\"open action dispatched\",\"ok\":true},{\"name\":\"open action native-reachable\",\"ok\":true},{\"name\":\"detail loaded\",\"ok\":true},{\"name\":\"RSVP action dispatched\",\"ok\":true},{\"name\":\"RSVP action native-reachable\",\"ok\":true},{\"name\":\"RSVP state transitioned\",\"ok\":true}],\"transientRetries\":[],\"actionReceipts\":[{\"testId\":\"open-event_swim\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":56,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":16},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactAppKitPresenterNodeView\",\"hitNodeId\":57,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}},{\"testId\":\"rsvp-maybe\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":128,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":16},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactAppKitPresenterNodeView\",\"hitNodeId\":129,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}}],\"observedTargets\":[{\"targetId\":\"mac-e0d1252c-517c-40de-afe5-bcaa61d6009e\",\"platform\":\"mac\",\"live\":true,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":4,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:04.183Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":38,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":35,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:22:52.761Z\",\"finishedAt\":\"2026-07-20T10:23:02.627Z\",\"totalDurationMs\":9866.335034370422,\"bundleBytes\":3677,\"scriptBytes\":7048467,\"moduleCount\":452,\"moduleSourceBytes\":6194366,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2612.6999855041504,\"moduleGraphMs\":210.79206466674805,\"moduleSourcesMs\":71.01595401763916,\"bootstrapMs\":32.444000244140625,\"evaluateMs\":6908.529996871948,\"waitForDispatchMs\":0.36895275115966797,\"dispatchMs\":11.214017868041992}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":5,\"representableSnapshotApplyCount\":0}}}}],\"target\":{\"targetId\":\"mac-e0d1252c-517c-40de-afe5-bcaa61d6009e\",\"platform\":\"mac\",\"generation\":4,\"tokenFingerprintMatched\":true,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:04.183Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":38,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":35,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:22:52.761Z\",\"finishedAt\":\"2026-07-20T10:23:02.627Z\",\"totalDurationMs\":9866.335034370422,\"bundleBytes\":3677,\"scriptBytes\":7048467,\"moduleCount\":452,\"moduleSourceBytes\":6194366,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2612.6999855041504,\"moduleGraphMs\":210.79206466674805,\"moduleSourcesMs\":71.01595401763916,\"bootstrapMs\":32.444000244140625,\"evaluateMs\":6908.529996871948,\"waitForDispatchMs\":0.36895275115966797,\"dispatchMs\":11.214017868041992}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":5,\"representableSnapshotApplyCount\":0}}},\"stableReadinessObservations\":4},\"transition\":{\"before\":\"going\",\"after\":\"maybe\"}}"
+        ],
+        "stderrTail": [],
+        "receipt": {
+          "schemaVersion": "partitime.native-exact-acto-cell.v1",
+          "platform": "mac",
+          "backend": "snapback",
+          "ok": true,
+          "checks": [
+            {
+              "name": "one live Acto target",
+              "ok": true
+            },
+            {
+              "name": "backend label rendered",
+              "ok": true
+            },
+            {
+              "name": "canonical event rendered",
+              "ok": true
+            },
+            {
+              "name": "detail action rendered",
+              "ok": true
+            },
+            {
+              "name": "open action dispatched",
+              "ok": true
+            },
+            {
+              "name": "open action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "detail loaded",
+              "ok": true
+            },
+            {
+              "name": "RSVP action dispatched",
+              "ok": true
+            },
+            {
+              "name": "RSVP action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "RSVP state transitioned",
+              "ok": true
+            }
+          ],
+          "transientRetries": [],
+          "actionReceipts": [
+            {
+              "testId": "open-event_swim",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 56,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 16
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactAppKitPresenterNodeView",
+                "hitNodeId": 57,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            },
+            {
+              "testId": "rsvp-maybe",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 128,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 16
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactAppKitPresenterNodeView",
+                "hitNodeId": 129,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            }
+          ],
+          "observedTargets": [
+            {
+              "targetId": "mac-e0d1252c-517c-40de-afe5-bcaa61d6009e",
+              "platform": "mac",
+              "live": true,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 4,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:23:04.183Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (304 ops, 72 nodes)",
+                "sequence": 38,
+                "connected": true,
+                "stale": false,
+                "freshness": "live",
+                "ageMs": 35,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:22:52.761Z",
+                  "finishedAt": "2026-07-20T10:23:02.627Z",
+                  "totalDurationMs": 9866.335034370422,
+                  "bundleBytes": 3677,
+                  "scriptBytes": 7048467,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194366,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 2612.6999855041504,
+                    "moduleGraphMs": 210.79206466674805,
+                    "moduleSourcesMs": 71.01595401763916,
+                    "bootstrapMs": 32.444000244140625,
+                    "evaluateMs": 6908.529996871948,
+                    "waitForDispatchMs": 0.36895275115966797,
+                    "dispatchMs": 11.214017868041992
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "appkit-interactive",
+                  "technology": "appkit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 5,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            }
+          ],
+          "target": {
+            "targetId": "mac-e0d1252c-517c-40de-afe5-bcaa61d6009e",
+            "platform": "mac",
+            "generation": 4,
+            "tokenFingerprintMatched": true,
+            "hostStatus": {
+              "updatedAt": "2026-07-20T10:23:04.183Z",
+              "phase": "rendered",
+              "statusText": "Reloaded (304 ops, 72 nodes)",
+              "sequence": 38,
+              "connected": true,
+              "stale": false,
+              "freshness": "live",
+              "ageMs": 35,
+              "load": {
+                "state": "completed",
+                "label": "rendered (304 ops, 72 nodes)",
+                "startedAt": "2026-07-20T10:22:52.761Z",
+                "finishedAt": "2026-07-20T10:23:02.627Z",
+                "totalDurationMs": 9866.335034370422,
+                "bundleBytes": 3677,
+                "scriptBytes": 7048467,
+                "moduleCount": 452,
+                "moduleSourceBytes": 6194366,
+                "nativeEnvelope": true,
+                "stages": {
+                  "fetchMs": 2612.6999855041504,
+                  "moduleGraphMs": 210.79206466674805,
+                  "moduleSourcesMs": 71.01595401763916,
+                  "bootstrapMs": 32.444000244140625,
+                  "evaluateMs": 6908.529996871948,
+                  "waitForDispatchMs": 0.36895275115966797,
+                  "dispatchMs": 11.214017868041992
+                }
+              },
+              "presenter": {
+                "descriptorId": "appkit-interactive",
+                "technology": "appkit",
+                "unsupportedVisibleNodeCount": 0,
+                "missingNativeRequirements": [],
+                "delivery": {
+                  "directPresenterApplyCount": 5,
+                  "representableSnapshotApplyCount": 0
+                }
+              }
+            },
+            "stableReadinessObservations": 4
+          },
+          "transition": {
+            "before": "going",
+            "after": "maybe"
+          }
+        }
+      },
+      "carrierLogSha256": "fe3ef92c7b9c8f5b6945ed49bc8ac6c14db49e1f7ce8d735839c9734857e1efc",
+      "carrierLogTail": [
+        "[ExactAgent] Agent API listening on http://127.0.0.1:56815 (token set (2aa75a…; set EXACT_AGENT_TOKEN yourself or EXACT_AGENT_LOG_TOKEN=1 to print it))",
+        "[ExactAgent] WARNING: /agent/run-js is a privileged endpoint that executes arbitrary JavaScript in the app runtime. It requires \"Authorization: Bearer <token>\" even on loopback (LLP 0140 R3b). Mutating and host-affecting agent operations (tap, type, navigate, invoke, overrides, camera, …) also require the bearer token on loopback (ENG-23118); read-only inspection endpoints stay open. This is a development/debug surface — do not expose it in production.",
+        "[ExactAgent] Agent API listening on http://127.0.0.1:56823 (token set (2aa75a…; set EXACT_AGENT_TOKEN yourself or EXACT_AGENT_LOG_TOKEN=1 to print it))",
+        "[ExactAgent] WARNING: /agent/run-js is a privileged endpoint that executes arbitrary JavaScript in the app runtime. It requires \"Authorization: Bearer <token>\" even on loopback (LLP 0140 R3b). Mutating and host-affecting agent operations (tap, type, navigate, invoke, overrides, camera, …) also require the bearer token on loopback (ENG-23118); read-only inspection endpoints stay open. This is a development/debug surface — do not expose it in production.",
+        "2026-07-20 03:23:02.627 ExactAppMac[46891:82478878] [ContentView] First render ready: rendered (304 ops, 72 nodes)",
+        "2026-07-20 03:23:02.670 ExactAppMac[46891:82478878] [ContentView] JS load timings: t0EpochMs=1784542975781,t0:0,moduleTableParsed:18,resolverReady:19,entryEvaluated:3431,protocolDispatchStart:6762,protocolDispatchEnd:6762",
+        "2026-07-20 03:23:04.279 ExactAppMac[46891:82478878] [ContentView] First render ready: rendered (178 ops, 24 nodes)",
+        "2026-07-20 03:23:04.298 ExactAppMac[46891:82478878] [ContentView] First render ready: rendered (208 ops, 68 nodes)",
+        "2026-07-20 03:23:05.315 ExactAppMac[46891:82478878] [ContentView] First render ready: rendered (9 ops, 68 nodes)"
+      ],
+      "devServerLogSha256": "bedfe766107cf1d459b08f2ac4c21584d1d3669a543abd0813224be1e2541976",
+      "devServerLogTail": [
+        "(node:46875) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.",
+        "(Use `node --trace-deprecation ...` to show where the warning was created)",
+        "[exact-vite-plugin] HTML shell mode: router — no index.html at the project root (default shell: 'auto' generates the router shell)",
+        "3:22:51 AM [vite] (exact_native_native_host_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_android_android_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (client) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_linux_gtk_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_ios_uikit_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_mac_appkit_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_mac_swiftui_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_windows_winui_hermes) Re-optimizing dependencies because vite config has changed",
+        "  VITE v8.0.16  ready in 4617 ms",
+        "  ➜  Local:   http://127.0.0.1:56763/",
+        "  Exact",
+        "  Web:    http://localhost:56763",
+        "  Agent:  http://localhost:56763/__exact/agent/  (ready)",
+        "  MCP:    http://localhost:56763/__exact/mcp",
+        "  Agent surface active — 1 routes, 0 actions detected",
+        "  Connect Claude Code:  bun run setup-mcp",
+        "`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`."
+      ]
+    },
+    {
+      "cell": "exact-contract:ios:snapback",
+      "ok": true,
+      "launch": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "9191d70df29d0bb4c57a5848e9dc61726be9d40eaf9abda279faeea65f5b042d",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "com.exact.ExactApp: 46980"
+        ],
+        "stderrTail": [],
+        "preLaunchTermination": {
+          "status": 3,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrSha256": "4a0609a3f1bbe06f9b54ee8cae3a8aa664024a4835bf45f985b9323bccc8b74d",
+          "stdoutTail": [],
+          "stderrTail": [
+            "An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=3):",
+            "Simulator device failed to terminate com.exact.ExactApp.",
+            "found nothing to terminate",
+            "Underlying error (domain=NSPOSIXErrorDomain, code=3):",
+            "\tThe request to terminate \"com.exact.ExactApp\" failed. found nothing to terminate",
+            "\tfound nothing to terminate"
+          ]
+        }
+      },
+      "acto": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "b2f784bccaac217dddbe13743de1bf2c2f22a31e790ecc2fd70ddf512727248f",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "{\"schemaVersion\":\"partitime.native-exact-acto-cell.v1\",\"platform\":\"ios\",\"backend\":\"snapback\",\"ok\":true,\"checks\":[{\"name\":\"one live Acto target\",\"ok\":true},{\"name\":\"backend label rendered\",\"ok\":true},{\"name\":\"canonical event rendered\",\"ok\":true},{\"name\":\"detail action rendered\",\"ok\":true},{\"name\":\"open action dispatched\",\"ok\":true},{\"name\":\"open action native-reachable\",\"ok\":true},{\"name\":\"detail loaded\",\"ok\":true},{\"name\":\"RSVP action dispatched\",\"ok\":true},{\"name\":\"RSVP action native-reachable\",\"ok\":true},{\"name\":\"RSVP state transitioned\",\"ok\":true}],\"transientRetries\":[],\"actionReceipts\":[{\"testId\":\"open-event_swim\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":56,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":17},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactUIKitPresenterNodeView\",\"hitNodeId\":57,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}},{\"testId\":\"rsvp-going\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":125,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":17},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactUIKitPresenterNodeView\",\"hitNodeId\":126,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}}],\"observedTargets\":[{\"targetId\":\"ios-bc042dff-edbc-492f-8599-d1cd387535af\",\"platform\":\"ios\",\"live\":true,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":5,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:25.422Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":51,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":65,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:16.005Z\",\"finishedAt\":\"2026-07-20T10:23:23.640Z\",\"totalDurationMs\":7635.276913642883,\"firstAppFrameAt\":\"2026-07-20T10:23:23.640Z\",\"firstAppFrameMs\":7635.276913642883,\"firstInteractiveAt\":\"2026-07-20T10:23:23.640Z\",\"firstInteractiveMs\":7635.276913642883,\"bundleBytes\":3671,\"scriptBytes\":7048458,\"moduleCount\":452,\"moduleSourceBytes\":6194363,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":174.4469404220581,\"moduleGraphMs\":21.9419002532959,\"moduleSourcesMs\":179.7119379043579,\"bootstrapMs\":33.5850715637207,\"evaluateMs\":7002.970933914185,\"waitForDispatchMs\":1.5140771865844727,\"dispatchMs\":5.067944526672363,\"presentationMs\":132.6519250869751,\"interactiveMs\":0}},\"presenter\":{\"descriptorId\":\"uikit-interactive\",\"technology\":\"uikit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":6,\"representableSnapshotApplyCount\":0}}}},{\"targetId\":\"mac-e0d1252c-517c-40de-afe5-bcaa61d6009e\",\"platform\":\"mac\",\"live\":false,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":4,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:05.316Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (9 ops, 68 nodes)\",\"sequence\":46,\"connected\":false,\"stale\":true,\"freshness\":\"stale\",\"ageMs\":20169,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:22:52.761Z\",\"finishedAt\":\"2026-07-20T10:23:02.627Z\",\"totalDurationMs\":9866.335034370422,\"bundleBytes\":3677,\"scriptBytes\":7048467,\"moduleCount\":452,\"moduleSourceBytes\":6194366,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2612.6999855041504,\"moduleGraphMs\":210.79206466674805,\"moduleSourcesMs\":71.01595401763916,\"bootstrapMs\":32.444000244140625,\"evaluateMs\":6908.529996871948,\"waitForDispatchMs\":0.36895275115966797,\"dispatchMs\":11.214017868041992}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":7,\"representableSnapshotApplyCount\":0}}}}],\"target\":{\"targetId\":\"ios-bc042dff-edbc-492f-8599-d1cd387535af\",\"platform\":\"ios\",\"generation\":5,\"tokenFingerprintMatched\":true,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:25.422Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":51,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":65,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:16.005Z\",\"finishedAt\":\"2026-07-20T10:23:23.640Z\",\"totalDurationMs\":7635.276913642883,\"firstAppFrameAt\":\"2026-07-20T10:23:23.640Z\",\"firstAppFrameMs\":7635.276913642883,\"firstInteractiveAt\":\"2026-07-20T10:23:23.640Z\",\"firstInteractiveMs\":7635.276913642883,\"bundleBytes\":3671,\"scriptBytes\":7048458,\"moduleCount\":452,\"moduleSourceBytes\":6194363,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":174.4469404220581,\"moduleGraphMs\":21.9419002532959,\"moduleSourcesMs\":179.7119379043579,\"bootstrapMs\":33.5850715637207,\"evaluateMs\":7002.970933914185,\"waitForDispatchMs\":1.5140771865844727,\"dispatchMs\":5.067944526672363,\"presentationMs\":132.6519250869751,\"interactiveMs\":0}},\"presenter\":{\"descriptorId\":\"uikit-interactive\",\"technology\":\"uikit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":6,\"representableSnapshotApplyCount\":0}}},\"stableReadinessObservations\":4},\"transition\":{\"before\":\"not-going\",\"after\":\"going\"}}"
+        ],
+        "stderrTail": [],
+        "receipt": {
+          "schemaVersion": "partitime.native-exact-acto-cell.v1",
+          "platform": "ios",
+          "backend": "snapback",
+          "ok": true,
+          "checks": [
+            {
+              "name": "one live Acto target",
+              "ok": true
+            },
+            {
+              "name": "backend label rendered",
+              "ok": true
+            },
+            {
+              "name": "canonical event rendered",
+              "ok": true
+            },
+            {
+              "name": "detail action rendered",
+              "ok": true
+            },
+            {
+              "name": "open action dispatched",
+              "ok": true
+            },
+            {
+              "name": "open action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "detail loaded",
+              "ok": true
+            },
+            {
+              "name": "RSVP action dispatched",
+              "ok": true
+            },
+            {
+              "name": "RSVP action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "RSVP state transitioned",
+              "ok": true
+            }
+          ],
+          "transientRetries": [],
+          "actionReceipts": [
+            {
+              "testId": "open-event_swim",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 56,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 17
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactUIKitPresenterNodeView",
+                "hitNodeId": 57,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            },
+            {
+              "testId": "rsvp-going",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 125,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 17
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactUIKitPresenterNodeView",
+                "hitNodeId": 126,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            }
+          ],
+          "observedTargets": [
+            {
+              "targetId": "ios-bc042dff-edbc-492f-8599-d1cd387535af",
+              "platform": "ios",
+              "live": true,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 5,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:23:25.422Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (304 ops, 72 nodes)",
+                "sequence": 51,
+                "connected": true,
+                "stale": false,
+                "freshness": "live",
+                "ageMs": 65,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:23:16.005Z",
+                  "finishedAt": "2026-07-20T10:23:23.640Z",
+                  "totalDurationMs": 7635.276913642883,
+                  "firstAppFrameAt": "2026-07-20T10:23:23.640Z",
+                  "firstAppFrameMs": 7635.276913642883,
+                  "firstInteractiveAt": "2026-07-20T10:23:23.640Z",
+                  "firstInteractiveMs": 7635.276913642883,
+                  "bundleBytes": 3671,
+                  "scriptBytes": 7048458,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194363,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 174.4469404220581,
+                    "moduleGraphMs": 21.9419002532959,
+                    "moduleSourcesMs": 179.7119379043579,
+                    "bootstrapMs": 33.5850715637207,
+                    "evaluateMs": 7002.970933914185,
+                    "waitForDispatchMs": 1.5140771865844727,
+                    "dispatchMs": 5.067944526672363,
+                    "presentationMs": 132.6519250869751,
+                    "interactiveMs": 0
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "uikit-interactive",
+                  "technology": "uikit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 6,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            },
+            {
+              "targetId": "mac-e0d1252c-517c-40de-afe5-bcaa61d6009e",
+              "platform": "mac",
+              "live": false,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 4,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:23:05.316Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (9 ops, 68 nodes)",
+                "sequence": 46,
+                "connected": false,
+                "stale": true,
+                "freshness": "stale",
+                "ageMs": 20169,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:22:52.761Z",
+                  "finishedAt": "2026-07-20T10:23:02.627Z",
+                  "totalDurationMs": 9866.335034370422,
+                  "bundleBytes": 3677,
+                  "scriptBytes": 7048467,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194366,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 2612.6999855041504,
+                    "moduleGraphMs": 210.79206466674805,
+                    "moduleSourcesMs": 71.01595401763916,
+                    "bootstrapMs": 32.444000244140625,
+                    "evaluateMs": 6908.529996871948,
+                    "waitForDispatchMs": 0.36895275115966797,
+                    "dispatchMs": 11.214017868041992
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "appkit-interactive",
+                  "technology": "appkit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 7,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            }
+          ],
+          "target": {
+            "targetId": "ios-bc042dff-edbc-492f-8599-d1cd387535af",
+            "platform": "ios",
+            "generation": 5,
+            "tokenFingerprintMatched": true,
+            "hostStatus": {
+              "updatedAt": "2026-07-20T10:23:25.422Z",
+              "phase": "rendered",
+              "statusText": "Reloaded (304 ops, 72 nodes)",
+              "sequence": 51,
+              "connected": true,
+              "stale": false,
+              "freshness": "live",
+              "ageMs": 65,
+              "load": {
+                "state": "completed",
+                "label": "rendered (304 ops, 72 nodes)",
+                "startedAt": "2026-07-20T10:23:16.005Z",
+                "finishedAt": "2026-07-20T10:23:23.640Z",
+                "totalDurationMs": 7635.276913642883,
+                "firstAppFrameAt": "2026-07-20T10:23:23.640Z",
+                "firstAppFrameMs": 7635.276913642883,
+                "firstInteractiveAt": "2026-07-20T10:23:23.640Z",
+                "firstInteractiveMs": 7635.276913642883,
+                "bundleBytes": 3671,
+                "scriptBytes": 7048458,
+                "moduleCount": 452,
+                "moduleSourceBytes": 6194363,
+                "nativeEnvelope": true,
+                "stages": {
+                  "fetchMs": 174.4469404220581,
+                  "moduleGraphMs": 21.9419002532959,
+                  "moduleSourcesMs": 179.7119379043579,
+                  "bootstrapMs": 33.5850715637207,
+                  "evaluateMs": 7002.970933914185,
+                  "waitForDispatchMs": 1.5140771865844727,
+                  "dispatchMs": 5.067944526672363,
+                  "presentationMs": 132.6519250869751,
+                  "interactiveMs": 0
+                }
+              },
+              "presenter": {
+                "descriptorId": "uikit-interactive",
+                "technology": "uikit",
+                "unsupportedVisibleNodeCount": 0,
+                "missingNativeRequirements": [],
+                "delivery": {
+                  "directPresenterApplyCount": 6,
+                  "representableSnapshotApplyCount": 0
+                }
+              }
+            },
+            "stableReadinessObservations": 4
+          },
+          "transition": {
+            "before": "not-going",
+            "after": "going"
+          }
+        }
+      },
+      "devServerLogSha256": "bedfe766107cf1d459b08f2ac4c21584d1d3669a543abd0813224be1e2541976",
+      "devServerLogTail": [
+        "(node:46875) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.",
+        "(Use `node --trace-deprecation ...` to show where the warning was created)",
+        "[exact-vite-plugin] HTML shell mode: router — no index.html at the project root (default shell: 'auto' generates the router shell)",
+        "3:22:51 AM [vite] (exact_native_native_host_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_android_android_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (client) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_linux_gtk_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_ios_uikit_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_mac_appkit_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_mac_swiftui_hermes) Re-optimizing dependencies because vite config has changed",
+        "3:22:51 AM [vite] (exact_native_windows_winui_hermes) Re-optimizing dependencies because vite config has changed",
+        "  VITE v8.0.16  ready in 4617 ms",
+        "  ➜  Local:   http://127.0.0.1:56763/",
+        "  Exact",
+        "  Web:    http://localhost:56763",
+        "  Agent:  http://localhost:56763/__exact/agent/  (ready)",
+        "  MCP:    http://localhost:56763/__exact/mcp",
+        "  Agent surface active — 1 routes, 0 actions detected",
+        "  Connect Claude Code:  bun run setup-mcp",
+        "`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`."
+      ]
+    },
+    {
+      "cell": "exact-contract:macos:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency",
+      "health": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    },
+    {
+      "cell": "exact-contract:ios:supabase",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency",
+      "health": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    },
+    {
+      "cell": "exact-contract:macos:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency",
+      "health": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    },
+    {
+      "cell": "exact-contract:ios:convex",
+      "ok": false,
+      "outcome": "skip",
+      "skipClass": "remote-dependency",
+      "health": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    },
+    {
+      "cell": "exact-contract:macos:sqlite",
+      "ok": true,
+      "acto": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "d8ba5cb53e01e1350ba0e77d89a236eff2c464b9df3d62e5bacb9a4281cfaa8d",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "{\"schemaVersion\":\"partitime.native-exact-acto-cell.v1\",\"platform\":\"mac\",\"backend\":\"sqlite\",\"ok\":true,\"checks\":[{\"name\":\"one live Acto target\",\"ok\":true},{\"name\":\"backend label rendered\",\"ok\":true},{\"name\":\"canonical event rendered\",\"ok\":true},{\"name\":\"detail action rendered\",\"ok\":true},{\"name\":\"open action dispatched\",\"ok\":true},{\"name\":\"open action native-reachable\",\"ok\":true},{\"name\":\"detail loaded\",\"ok\":true},{\"name\":\"RSVP action dispatched\",\"ok\":true},{\"name\":\"RSVP action native-reachable\",\"ok\":true},{\"name\":\"RSVP state transitioned\",\"ok\":true}],\"transientRetries\":[],\"actionReceipts\":[{\"testId\":\"open-event_swim\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":56,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":16},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactAppKitPresenterNodeView\",\"hitNodeId\":57,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}},{\"testId\":\"rsvp-maybe\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":122,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":16},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactAppKitPresenterNodeView\",\"hitNodeId\":123,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}}],\"observedTargets\":[{\"targetId\":\"mac-614a60d2-02c3-4799-bd35-68ca801e76b5\",\"platform\":\"mac\",\"live\":true,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":4,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:42.400Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":38,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":155,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:30.974Z\",\"finishedAt\":\"2026-07-20T10:23:40.751Z\",\"totalDurationMs\":9776.404023170471,\"bundleBytes\":3677,\"scriptBytes\":7048463,\"moduleCount\":452,\"moduleSourceBytes\":6194362,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2729.995012283325,\"moduleGraphMs\":212.19801902770996,\"moduleSourcesMs\":70.38605213165283,\"bootstrapMs\":31.96108341217041,\"evaluateMs\":6701.845049858093,\"waitForDispatchMs\":0.7599592208862305,\"dispatchMs\":13.602018356323242}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":5,\"representableSnapshotApplyCount\":0}}}}],\"target\":{\"targetId\":\"mac-614a60d2-02c3-4799-bd35-68ca801e76b5\",\"platform\":\"mac\",\"generation\":4,\"tokenFingerprintMatched\":true,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:42.400Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":38,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":155,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:30.974Z\",\"finishedAt\":\"2026-07-20T10:23:40.751Z\",\"totalDurationMs\":9776.404023170471,\"bundleBytes\":3677,\"scriptBytes\":7048463,\"moduleCount\":452,\"moduleSourceBytes\":6194362,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2729.995012283325,\"moduleGraphMs\":212.19801902770996,\"moduleSourcesMs\":70.38605213165283,\"bootstrapMs\":31.96108341217041,\"evaluateMs\":6701.845049858093,\"waitForDispatchMs\":0.7599592208862305,\"dispatchMs\":13.602018356323242}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":5,\"representableSnapshotApplyCount\":0}}},\"stableReadinessObservations\":4},\"transition\":{\"before\":\"going\",\"after\":\"maybe\"}}"
+        ],
+        "stderrTail": [],
+        "receipt": {
+          "schemaVersion": "partitime.native-exact-acto-cell.v1",
+          "platform": "mac",
+          "backend": "sqlite",
+          "ok": true,
+          "checks": [
+            {
+              "name": "one live Acto target",
+              "ok": true
+            },
+            {
+              "name": "backend label rendered",
+              "ok": true
+            },
+            {
+              "name": "canonical event rendered",
+              "ok": true
+            },
+            {
+              "name": "detail action rendered",
+              "ok": true
+            },
+            {
+              "name": "open action dispatched",
+              "ok": true
+            },
+            {
+              "name": "open action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "detail loaded",
+              "ok": true
+            },
+            {
+              "name": "RSVP action dispatched",
+              "ok": true
+            },
+            {
+              "name": "RSVP action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "RSVP state transitioned",
+              "ok": true
+            }
+          ],
+          "transientRetries": [],
+          "actionReceipts": [
+            {
+              "testId": "open-event_swim",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 56,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 16
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactAppKitPresenterNodeView",
+                "hitNodeId": 57,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            },
+            {
+              "testId": "rsvp-maybe",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 122,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 16
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactAppKitPresenterNodeView",
+                "hitNodeId": 123,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            }
+          ],
+          "observedTargets": [
+            {
+              "targetId": "mac-614a60d2-02c3-4799-bd35-68ca801e76b5",
+              "platform": "mac",
+              "live": true,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 4,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:23:42.400Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (304 ops, 72 nodes)",
+                "sequence": 38,
+                "connected": true,
+                "stale": false,
+                "freshness": "live",
+                "ageMs": 155,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:23:30.974Z",
+                  "finishedAt": "2026-07-20T10:23:40.751Z",
+                  "totalDurationMs": 9776.404023170471,
+                  "bundleBytes": 3677,
+                  "scriptBytes": 7048463,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194362,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 2729.995012283325,
+                    "moduleGraphMs": 212.19801902770996,
+                    "moduleSourcesMs": 70.38605213165283,
+                    "bootstrapMs": 31.96108341217041,
+                    "evaluateMs": 6701.845049858093,
+                    "waitForDispatchMs": 0.7599592208862305,
+                    "dispatchMs": 13.602018356323242
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "appkit-interactive",
+                  "technology": "appkit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 5,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            }
+          ],
+          "target": {
+            "targetId": "mac-614a60d2-02c3-4799-bd35-68ca801e76b5",
+            "platform": "mac",
+            "generation": 4,
+            "tokenFingerprintMatched": true,
+            "hostStatus": {
+              "updatedAt": "2026-07-20T10:23:42.400Z",
+              "phase": "rendered",
+              "statusText": "Reloaded (304 ops, 72 nodes)",
+              "sequence": 38,
+              "connected": true,
+              "stale": false,
+              "freshness": "live",
+              "ageMs": 155,
+              "load": {
+                "state": "completed",
+                "label": "rendered (304 ops, 72 nodes)",
+                "startedAt": "2026-07-20T10:23:30.974Z",
+                "finishedAt": "2026-07-20T10:23:40.751Z",
+                "totalDurationMs": 9776.404023170471,
+                "bundleBytes": 3677,
+                "scriptBytes": 7048463,
+                "moduleCount": 452,
+                "moduleSourceBytes": 6194362,
+                "nativeEnvelope": true,
+                "stages": {
+                  "fetchMs": 2729.995012283325,
+                  "moduleGraphMs": 212.19801902770996,
+                  "moduleSourcesMs": 70.38605213165283,
+                  "bootstrapMs": 31.96108341217041,
+                  "evaluateMs": 6701.845049858093,
+                  "waitForDispatchMs": 0.7599592208862305,
+                  "dispatchMs": 13.602018356323242
+                }
+              },
+              "presenter": {
+                "descriptorId": "appkit-interactive",
+                "technology": "appkit",
+                "unsupportedVisibleNodeCount": 0,
+                "missingNativeRequirements": [],
+                "delivery": {
+                  "directPresenterApplyCount": 5,
+                  "representableSnapshotApplyCount": 0
+                }
+              }
+            },
+            "stableReadinessObservations": 4
+          },
+          "transition": {
+            "before": "going",
+            "after": "maybe"
+          }
+        }
+      },
+      "carrierLogSha256": "73549f2fdf4d71ddedb3f1f9dab728acc55a1ac0d6b8dfb88cdb52206bba9071",
+      "carrierLogTail": [
+        "[ExactAgent] Agent API listening on http://127.0.0.1:56939 (token set (42edb2…; set EXACT_AGENT_TOKEN yourself or EXACT_AGENT_LOG_TOKEN=1 to print it))",
+        "[ExactAgent] WARNING: /agent/run-js is a privileged endpoint that executes arbitrary JavaScript in the app runtime. It requires \"Authorization: Bearer <token>\" even on loopback (LLP 0140 R3b). Mutating and host-affecting agent operations (tap, type, navigate, invoke, overrides, camera, …) also require the bearer token on loopback (ENG-23118); read-only inspection endpoints stay open. This is a development/debug surface — do not expose it in production.",
+        "[ExactAgent] Agent API listening on http://127.0.0.1:56944 (token set (42edb2…; set EXACT_AGENT_TOKEN yourself or EXACT_AGENT_LOG_TOKEN=1 to print it))",
+        "[ExactAgent] WARNING: /agent/run-js is a privileged endpoint that executes arbitrary JavaScript in the app runtime. It requires \"Authorization: Bearer <token>\" even on loopback (LLP 0140 R3b). Mutating and host-affecting agent operations (tap, type, navigate, invoke, overrides, camera, …) also require the bearer token on loopback (ENG-23118); read-only inspection endpoints stay open. This is a development/debug surface — do not expose it in production.",
+        "2026-07-20 03:23:40.750 ExactAppMac[47043:82480174] [ContentView] First render ready: rendered (304 ops, 72 nodes)",
+        "2026-07-20 03:23:40.795 ExactAppMac[47043:82480174] [ContentView] JS load timings: t0EpochMs=1784543014102,t0:0,moduleTableParsed:16,resolverReady:18,entryEvaluated:3350,protocolDispatchStart:6563,protocolDispatchEnd:6563",
+        "2026-07-20 03:23:42.618 ExactAppMac[47043:82480174] [ContentView] First render ready: rendered (178 ops, 24 nodes)",
+        "2026-07-20 03:23:42.635 ExactAppMac[47043:82480174] [ContentView] First render ready: rendered (208 ops, 68 nodes)",
+        "2026-07-20 03:23:43.642 ExactAppMac[47043:82480174] [ContentView] First render ready: rendered (9 ops, 68 nodes)"
+      ],
+      "devServerLogSha256": "05b1d0173fdfc9125d0e51196c67d4f1c01dc175340d6a14dfa0f449cf8d1232",
+      "devServerLogTail": [
+        "$ bun run generate:routes && node node_modules/@exact/devtools/src/scripts/vite-cli.mjs --config vite.config.mjs",
+        "$ bun run node_modules/@exact/devtools/src/scripts/generate-route-registries.ts --source-root src",
+        "[route-registry-gen] registries already up to date",
+        "(node:47040) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.",
+        "(Use `node --trace-deprecation ...` to show where the warning was created)",
+        "[exact-vite-plugin] HTML shell mode: router — no index.html at the project root (default shell: 'auto' generates the router shell)",
+        "  VITE v8.0.16  ready in 3258 ms",
+        "  ➜  Local:   http://127.0.0.1:56895/",
+        "  Exact",
+        "  Web:    http://localhost:56895",
+        "  Agent:  http://localhost:56895/__exact/agent/  (ready)",
+        "  MCP:    http://localhost:56895/__exact/mcp",
+        "  Agent surface active — 1 routes, 0 actions detected",
+        "  Connect Claude Code:  bun run setup-mcp",
+        "`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`."
+      ]
+    },
+    {
+      "cell": "exact-contract:ios:sqlite",
+      "ok": true,
+      "launch": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "b43418312ae21ae53c19e53938783084ea43b980fc45720a4fd96a8caba56bd8",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "com.exact.ExactApp: 47102"
+        ],
+        "stderrTail": [],
+        "preLaunchTermination": {
+          "status": 3,
+          "signal": null,
+          "timedOut": false,
+          "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "stderrSha256": "4a0609a3f1bbe06f9b54ee8cae3a8aa664024a4835bf45f985b9323bccc8b74d",
+          "stdoutTail": [],
+          "stderrTail": [
+            "An error was encountered processing the command (domain=NSPOSIXErrorDomain, code=3):",
+            "Simulator device failed to terminate com.exact.ExactApp.",
+            "found nothing to terminate",
+            "Underlying error (domain=NSPOSIXErrorDomain, code=3):",
+            "\tThe request to terminate \"com.exact.ExactApp\" failed. found nothing to terminate",
+            "\tfound nothing to terminate"
+          ]
+        }
+      },
+      "acto": {
+        "status": 0,
+        "signal": null,
+        "timedOut": false,
+        "stdoutSha256": "40eeb69bcf814edbe1cd2fe23adaaab5708a6d3d14f8d1cf5af1a0759d05159a",
+        "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stdoutTail": [
+          "{\"schemaVersion\":\"partitime.native-exact-acto-cell.v1\",\"platform\":\"ios\",\"backend\":\"sqlite\",\"ok\":true,\"checks\":[{\"name\":\"one live Acto target\",\"ok\":true},{\"name\":\"backend label rendered\",\"ok\":true},{\"name\":\"canonical event rendered\",\"ok\":true},{\"name\":\"detail action rendered\",\"ok\":true},{\"name\":\"open action dispatched\",\"ok\":true},{\"name\":\"open action native-reachable\",\"ok\":true},{\"name\":\"detail loaded\",\"ok\":true},{\"name\":\"RSVP action dispatched\",\"ok\":true},{\"name\":\"RSVP action native-reachable\",\"ok\":true},{\"name\":\"RSVP state transitioned\",\"ok\":true}],\"transientRetries\":[],\"actionReceipts\":[{\"testId\":\"open-event_swim\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":56,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":17},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactUIKitPresenterNodeView\",\"hitNodeId\":57,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}},{\"testId\":\"rsvp-going\",\"preflight\":{\"attempts\":1,\"degraded\":false,\"occludedByHigherWindow\":false,\"semanticViewId\":103,\"semanticTargetReached\":true,\"finalTargetTestId\":null,\"nativeHitPathLength\":17},\"dispatched\":true,\"nativeReachability\":{\"status\":\"ok\",\"geometry\":\"model\",\"hitView\":\"ExactUIKitPresenterNodeView\",\"hitNodeId\":104,\"kind\":\"app-content\",\"reachesTarget\":true,\"occludedByHigherWindow\":false}}],\"observedTargets\":[{\"targetId\":\"ios-5617535f-24a1-4366-bb6d-13034e16c2bb\",\"platform\":\"ios\",\"live\":true,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":5,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:24:03.693Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":50,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":58,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:54.149Z\",\"finishedAt\":\"2026-07-20T10:24:01.782Z\",\"totalDurationMs\":7633.059024810791,\"firstAppFrameAt\":\"2026-07-20T10:24:01.782Z\",\"firstAppFrameMs\":7633.059024810791,\"firstInteractiveAt\":\"2026-07-20T10:24:01.782Z\",\"firstInteractiveMs\":7633.059024810791,\"bundleBytes\":3671,\"scriptBytes\":7048454,\"moduleCount\":452,\"moduleSourceBytes\":6194359,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":177.24895477294922,\"moduleGraphMs\":22.333979606628418,\"moduleSourcesMs\":178.33590507507324,\"bootstrapMs\":35.11810302734375,\"evaluateMs\":6986.140012741089,\"waitForDispatchMs\":1.6099214553833008,\"dispatchMs\":5.084037780761719,\"presentationMs\":128.04698944091797,\"interactiveMs\":0}},\"presenter\":{\"descriptorId\":\"uikit-interactive\",\"technology\":\"uikit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":6,\"representableSnapshotApplyCount\":0}}}},{\"targetId\":\"mac-614a60d2-02c3-4799-bd35-68ca801e76b5\",\"platform\":\"mac\",\"live\":false,\"hasAgentUrl\":true,\"tokenFingerprintMatched\":true,\"generation\":4,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:23:43.643Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (9 ops, 68 nodes)\",\"sequence\":46,\"connected\":false,\"stale\":true,\"freshness\":\"stale\",\"ageMs\":20111,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:30.974Z\",\"finishedAt\":\"2026-07-20T10:23:40.751Z\",\"totalDurationMs\":9776.404023170471,\"bundleBytes\":3677,\"scriptBytes\":7048463,\"moduleCount\":452,\"moduleSourceBytes\":6194362,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":2729.995012283325,\"moduleGraphMs\":212.19801902770996,\"moduleSourcesMs\":70.38605213165283,\"bootstrapMs\":31.96108341217041,\"evaluateMs\":6701.845049858093,\"waitForDispatchMs\":0.7599592208862305,\"dispatchMs\":13.602018356323242}},\"presenter\":{\"descriptorId\":\"appkit-interactive\",\"technology\":\"appkit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":7,\"representableSnapshotApplyCount\":0}}}}],\"target\":{\"targetId\":\"ios-5617535f-24a1-4366-bb6d-13034e16c2bb\",\"platform\":\"ios\",\"generation\":5,\"tokenFingerprintMatched\":true,\"hostStatus\":{\"updatedAt\":\"2026-07-20T10:24:03.693Z\",\"phase\":\"rendered\",\"statusText\":\"Reloaded (304 ops, 72 nodes)\",\"sequence\":50,\"connected\":true,\"stale\":false,\"freshness\":\"live\",\"ageMs\":58,\"load\":{\"state\":\"completed\",\"label\":\"rendered (304 ops, 72 nodes)\",\"startedAt\":\"2026-07-20T10:23:54.149Z\",\"finishedAt\":\"2026-07-20T10:24:01.782Z\",\"totalDurationMs\":7633.059024810791,\"firstAppFrameAt\":\"2026-07-20T10:24:01.782Z\",\"firstAppFrameMs\":7633.059024810791,\"firstInteractiveAt\":\"2026-07-20T10:24:01.782Z\",\"firstInteractiveMs\":7633.059024810791,\"bundleBytes\":3671,\"scriptBytes\":7048454,\"moduleCount\":452,\"moduleSourceBytes\":6194359,\"nativeEnvelope\":true,\"stages\":{\"fetchMs\":177.24895477294922,\"moduleGraphMs\":22.333979606628418,\"moduleSourcesMs\":178.33590507507324,\"bootstrapMs\":35.11810302734375,\"evaluateMs\":6986.140012741089,\"waitForDispatchMs\":1.6099214553833008,\"dispatchMs\":5.084037780761719,\"presentationMs\":128.04698944091797,\"interactiveMs\":0}},\"presenter\":{\"descriptorId\":\"uikit-interactive\",\"technology\":\"uikit\",\"unsupportedVisibleNodeCount\":0,\"missingNativeRequirements\":[],\"delivery\":{\"directPresenterApplyCount\":6,\"representableSnapshotApplyCount\":0}}},\"stableReadinessObservations\":4},\"transition\":{\"before\":\"not-going\",\"after\":\"going\"}}"
+        ],
+        "stderrTail": [],
+        "receipt": {
+          "schemaVersion": "partitime.native-exact-acto-cell.v1",
+          "platform": "ios",
+          "backend": "sqlite",
+          "ok": true,
+          "checks": [
+            {
+              "name": "one live Acto target",
+              "ok": true
+            },
+            {
+              "name": "backend label rendered",
+              "ok": true
+            },
+            {
+              "name": "canonical event rendered",
+              "ok": true
+            },
+            {
+              "name": "detail action rendered",
+              "ok": true
+            },
+            {
+              "name": "open action dispatched",
+              "ok": true
+            },
+            {
+              "name": "open action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "detail loaded",
+              "ok": true
+            },
+            {
+              "name": "RSVP action dispatched",
+              "ok": true
+            },
+            {
+              "name": "RSVP action native-reachable",
+              "ok": true
+            },
+            {
+              "name": "RSVP state transitioned",
+              "ok": true
+            }
+          ],
+          "transientRetries": [],
+          "actionReceipts": [
+            {
+              "testId": "open-event_swim",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 56,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 17
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactUIKitPresenterNodeView",
+                "hitNodeId": 57,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            },
+            {
+              "testId": "rsvp-going",
+              "preflight": {
+                "attempts": 1,
+                "degraded": false,
+                "occludedByHigherWindow": false,
+                "semanticViewId": 103,
+                "semanticTargetReached": true,
+                "finalTargetTestId": null,
+                "nativeHitPathLength": 17
+              },
+              "dispatched": true,
+              "nativeReachability": {
+                "status": "ok",
+                "geometry": "model",
+                "hitView": "ExactUIKitPresenterNodeView",
+                "hitNodeId": 104,
+                "kind": "app-content",
+                "reachesTarget": true,
+                "occludedByHigherWindow": false
+              }
+            }
+          ],
+          "observedTargets": [
+            {
+              "targetId": "ios-5617535f-24a1-4366-bb6d-13034e16c2bb",
+              "platform": "ios",
+              "live": true,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 5,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:24:03.693Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (304 ops, 72 nodes)",
+                "sequence": 50,
+                "connected": true,
+                "stale": false,
+                "freshness": "live",
+                "ageMs": 58,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:23:54.149Z",
+                  "finishedAt": "2026-07-20T10:24:01.782Z",
+                  "totalDurationMs": 7633.059024810791,
+                  "firstAppFrameAt": "2026-07-20T10:24:01.782Z",
+                  "firstAppFrameMs": 7633.059024810791,
+                  "firstInteractiveAt": "2026-07-20T10:24:01.782Z",
+                  "firstInteractiveMs": 7633.059024810791,
+                  "bundleBytes": 3671,
+                  "scriptBytes": 7048454,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194359,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 177.24895477294922,
+                    "moduleGraphMs": 22.333979606628418,
+                    "moduleSourcesMs": 178.33590507507324,
+                    "bootstrapMs": 35.11810302734375,
+                    "evaluateMs": 6986.140012741089,
+                    "waitForDispatchMs": 1.6099214553833008,
+                    "dispatchMs": 5.084037780761719,
+                    "presentationMs": 128.04698944091797,
+                    "interactiveMs": 0
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "uikit-interactive",
+                  "technology": "uikit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 6,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            },
+            {
+              "targetId": "mac-614a60d2-02c3-4799-bd35-68ca801e76b5",
+              "platform": "mac",
+              "live": false,
+              "hasAgentUrl": true,
+              "tokenFingerprintMatched": true,
+              "generation": 4,
+              "hostStatus": {
+                "updatedAt": "2026-07-20T10:23:43.643Z",
+                "phase": "rendered",
+                "statusText": "Reloaded (9 ops, 68 nodes)",
+                "sequence": 46,
+                "connected": false,
+                "stale": true,
+                "freshness": "stale",
+                "ageMs": 20111,
+                "load": {
+                  "state": "completed",
+                  "label": "rendered (304 ops, 72 nodes)",
+                  "startedAt": "2026-07-20T10:23:30.974Z",
+                  "finishedAt": "2026-07-20T10:23:40.751Z",
+                  "totalDurationMs": 9776.404023170471,
+                  "bundleBytes": 3677,
+                  "scriptBytes": 7048463,
+                  "moduleCount": 452,
+                  "moduleSourceBytes": 6194362,
+                  "nativeEnvelope": true,
+                  "stages": {
+                    "fetchMs": 2729.995012283325,
+                    "moduleGraphMs": 212.19801902770996,
+                    "moduleSourcesMs": 70.38605213165283,
+                    "bootstrapMs": 31.96108341217041,
+                    "evaluateMs": 6701.845049858093,
+                    "waitForDispatchMs": 0.7599592208862305,
+                    "dispatchMs": 13.602018356323242
+                  }
+                },
+                "presenter": {
+                  "descriptorId": "appkit-interactive",
+                  "technology": "appkit",
+                  "unsupportedVisibleNodeCount": 0,
+                  "missingNativeRequirements": [],
+                  "delivery": {
+                    "directPresenterApplyCount": 7,
+                    "representableSnapshotApplyCount": 0
+                  }
+                }
+              }
+            }
+          ],
+          "target": {
+            "targetId": "ios-5617535f-24a1-4366-bb6d-13034e16c2bb",
+            "platform": "ios",
+            "generation": 5,
+            "tokenFingerprintMatched": true,
+            "hostStatus": {
+              "updatedAt": "2026-07-20T10:24:03.693Z",
+              "phase": "rendered",
+              "statusText": "Reloaded (304 ops, 72 nodes)",
+              "sequence": 50,
+              "connected": true,
+              "stale": false,
+              "freshness": "live",
+              "ageMs": 58,
+              "load": {
+                "state": "completed",
+                "label": "rendered (304 ops, 72 nodes)",
+                "startedAt": "2026-07-20T10:23:54.149Z",
+                "finishedAt": "2026-07-20T10:24:01.782Z",
+                "totalDurationMs": 7633.059024810791,
+                "firstAppFrameAt": "2026-07-20T10:24:01.782Z",
+                "firstAppFrameMs": 7633.059024810791,
+                "firstInteractiveAt": "2026-07-20T10:24:01.782Z",
+                "firstInteractiveMs": 7633.059024810791,
+                "bundleBytes": 3671,
+                "scriptBytes": 7048454,
+                "moduleCount": 452,
+                "moduleSourceBytes": 6194359,
+                "nativeEnvelope": true,
+                "stages": {
+                  "fetchMs": 177.24895477294922,
+                  "moduleGraphMs": 22.333979606628418,
+                  "moduleSourcesMs": 178.33590507507324,
+                  "bootstrapMs": 35.11810302734375,
+                  "evaluateMs": 6986.140012741089,
+                  "waitForDispatchMs": 1.6099214553833008,
+                  "dispatchMs": 5.084037780761719,
+                  "presentationMs": 128.04698944091797,
+                  "interactiveMs": 0
+                }
+              },
+              "presenter": {
+                "descriptorId": "uikit-interactive",
+                "technology": "uikit",
+                "unsupportedVisibleNodeCount": 0,
+                "missingNativeRequirements": [],
+                "delivery": {
+                  "directPresenterApplyCount": 6,
+                  "representableSnapshotApplyCount": 0
+                }
+              }
+            },
+            "stableReadinessObservations": 4
+          },
+          "transition": {
+            "before": "not-going",
+            "after": "going"
+          }
+        }
+      },
+      "devServerLogSha256": "05b1d0173fdfc9125d0e51196c67d4f1c01dc175340d6a14dfa0f449cf8d1232",
+      "devServerLogTail": [
+        "$ bun run generate:routes && node node_modules/@exact/devtools/src/scripts/vite-cli.mjs --config vite.config.mjs",
+        "$ bun run node_modules/@exact/devtools/src/scripts/generate-route-registries.ts --source-root src",
+        "[route-registry-gen] registries already up to date",
+        "(node:47040) [DEP0205] DeprecationWarning: `module.register()` is deprecated. Use `module.registerHooks()` instead.",
+        "(Use `node --trace-deprecation ...` to show where the warning was created)",
+        "[exact-vite-plugin] HTML shell mode: router — no index.html at the project root (default shell: 'auto' generates the router shell)",
+        "  VITE v8.0.16  ready in 3258 ms",
+        "  ➜  Local:   http://127.0.0.1:56895/",
+        "  Exact",
+        "  Web:    http://localhost:56895",
+        "  Agent:  http://localhost:56895/__exact/agent/  (ready)",
+        "  MCP:    http://localhost:56895/__exact/mcp",
+        "  Agent surface active — 1 routes, 0 actions detected",
+        "  Connect Claude Code:  bun run setup-mcp",
+        "`transformWithEsbuild` is deprecated and will be removed in the future. Please migrate to `transformWithOxc`."
+      ]
+    }
+  ],
+  "cleanupErrors": [],
+  "carrierCleanup": [
+    {
+      "backend": "snapback",
+      "action": "terminate-ios-app",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [],
+      "stderrTail": []
+    },
+    {
+      "backend": "sqlite",
+      "action": "terminate-ios-app",
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [],
+      "stderrTail": []
+    }
+  ],
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/native-exact.mjs",
+      "sha256": "ce06cb4d6baf6c466f6c64f55efd67262fe6c5a722ff6d042db8c4b1cb632027"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/native-exact-acto.mjs",
+      "sha256": "499b1c65765dbbe6170f00f6e98440c8aa436c48298a83e6d7bc54118483dcf3"
+    },
+    {
+      "path": "demos/partiful-matrix/native/exact-contract/src/app/routes.ts",
+      "sha256": "22a30864c56c91b2744a51b406a38b6ab60c27bd49be284b9420f554c5cc25bf"
+    },
+    {
+      "path": "demos/partiful-matrix/native/exact-contract/src/partitime/provider.ts",
+      "sha256": "783f283ef57ba16587baf6a18eee3503e5085e21e1c0551a793e0747fd6a8ebe"
+    }
+  ],
+  "simulator": {
+    "name": "iPhone 17 Pro",
+    "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A",
+    "installationCleanup": "uninstall-on-final-cleanup"
+  },
+  "binaries": {
+    "macosSha256": "e8af3c516edbc59f1fde18bfb94b7371b5bee8c4ef0c15c16a6d3d9c7bd0d052",
+    "iosSha256": "48ed24e0129d6dfd7df777f8196e98442ea86225e11d2493e0c6813a4fb5e4e6",
+    "iosBundleId": "com.exact.ExactApp"
+  },
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      },
+      "convex": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    }
+  }
+}

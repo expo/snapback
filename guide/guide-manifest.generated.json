@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "157a3cc3f919736ef557dcc7024835b7b5de08e6"
+    "commit": "d6886d742c532fcba014e372ba0d4998260cfb28"
   },
   "nav": {
     ".": [
@@ -655,9 +655,9 @@
         "demos/all-aboard/surfaces/contract",
         "packages/snapback-contract/agent-authority-contract.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "9c9786772d9e590cbc37002609d0618338020569",
-      "sha256": "320b2ffe47bd8a7a02e663176f1c3ecf2cf1ef53307bec907e393b3c037ca225",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "85d34fdde6d1d0dc1fff62a31919b1abd5e82b97239234400d357d2aa5e7e658",
       "snippets": [
         {
           "lang": "contract",
@@ -1372,9 +1372,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
-      "reviewed": "2026-07-18",
-      "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
-      "sha256": "bbfc723699b360800bb670aead232c8a69d4d34402a8c88075e8882f493f0485",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "896d092a808bcb43997eebf3e90f8c314a4b50d82635fd5ce28fd1b50f3daeeb",
       "snippets": [
         {
           "lang": "js",
@@ -1432,5 +1432,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "d75b488a963914595c3de1f5d8afa98e828931ec9656d3a6de2ba26305d9adf4"
+  "contentHash": "c785740a3aa7295286521a9cb6fef677e7518422e28271578a2b049aa9afb84f"
 }

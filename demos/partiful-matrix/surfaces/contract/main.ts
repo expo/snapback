@@ -17,8 +17,10 @@ import { PERSONAS, type Backend } from '../../shared/model';
 declare const __MATRIX_BACKEND__: Backend;
 declare const __SNAPBACK_API_ORIGIN__: string;
 declare const __MATRIX_GATEWAY_ORIGIN__: string;
+declare const __PARTITIME_DISABLE_POLL_FALLBACK__: boolean;
 
 let active: { dispose?: () => void } | null = null;
+const subscriptionEvents: Record<string, unknown>[] = [];
 
 function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
   const el = document.getElementById('boot-status'); if (el) { el.textContent = message; el.dataset.state = state; }
@@ -44,6 +46,11 @@ async function boot() {
       liveQueries: eventId === null ? ['listEvents'] : [
         { name: 'eventDetails', args: { eventId } }, { name: 'guestList', args: { eventId } }, { name: 'eventWall', args: { eventId } },
       ],
+      liveFallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+      onSubscriptionEvent: (event: Record<string, unknown>) => subscriptionEvents.push({
+        pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+        ...event,
+      }),
     });
     active = surface;
     // The stable matrix bindings let one .contract source serve all columns;
@@ -58,7 +65,13 @@ async function boot() {
   if (eventId === null) mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__ } });
   else mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__ } });
   status('Ready', 'ready');
-  return { backend: __MATRIX_BACKEND__, authoring: 'contract', screen: eventId ? 'event' : 'feed', eventId };
+  return {
+    backend: __MATRIX_BACKEND__,
+    authoring: 'contract',
+    screen: eventId ? 'event' : 'feed',
+    eventId,
+    transportEvidence: () => subscriptionEvents.map((event) => ({ ...event })),
+  };
 }
 
 const ready = boot().catch((error) => { console.error('[partiful-matrix/contract] boot failed', error); status(`Boot failed: ${error instanceof Error ? error.message : String(error)}`, 'error'); throw error; });

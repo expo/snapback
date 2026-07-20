@@ -127,7 +127,7 @@ async function boot() {
   const renderPost = (post) => `
     <div class="post"><b>${escapeHtml(post.authorName).slice(0, 1)}</b><p><strong>${escapeHtml(post.authorName)}</strong>${escapeHtml(post.message)}</p></div>`;
   const renderGuest = (guest) => `
-    <div class="guest"><b>${escapeHtml(guest.guestName).slice(0, 2).toUpperCase()}</b><span>${escapeHtml(guest.guestName)}</span><em>${escapeHtml(statusLabel(guest.status))}</em></div>`;
+    <div class="guest" data-testid="guest-${escapeHtml(guest.userId)}"><b>${escapeHtml(guest.guestName).slice(0, 2).toUpperCase()}</b><span>${escapeHtml(guest.guestName)}</span><em>${escapeHtml(statusLabel(guest.status))}</em></div>`;
 
   const renderEvent = () => {
     const event = state.eventRows[0];

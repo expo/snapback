@@ -205,7 +205,9 @@ idiomatic frontend SDK usage.
 The final proof consisted of:
 
 - **13/13 provider checks** across all four backends;
-- **40/40 browser checks** across all twelve cells;
+- **43/43 retained browser checks** across all twelve cells: the original
+  per-cell flow plus four vanilla lifecycle checks and three Snapback
+  fallback-disabled push-provenance checks;
 - **4/4 React production builds**;
 - **4/4 Contract production builds**;
 - **4/4 Vanilla JS production builds**;
@@ -216,7 +218,7 @@ The final proof consisted of:
 - Convex deploy, typecheck, code generation, and idempotent seed passing;
 - Supabase schema creation and seed passing against isolated
   `partiful_matrix_*` tables;
-- all 1,417 repository LLP references resolving at the final audit;
+- the repository LLP reference audit passing;
 - the demo setup registry and destructive-on-mount guard passing;
 - no credential values found in source or generated client artifacts.
 
@@ -234,16 +236,49 @@ cleanup refuses to act unless the event belongs to the dedicated acceptance
 principal and has an `[acceptance]` title. The test therefore does not grow
 persistent remote junk or expose a broad delete primitive.
 
-The browser suite verifies three shared claims per cell:
+The retained browser suite verifies three shared claims per cell:
 
 1. the cell boots and reports the correct authoring/backend identity;
 2. the canonical feed renders;
-3. event navigation and RSVP convergence work through the rendered UI.
+3. event navigation and RSVP convergence work through the rendered UI — the
+   oracle reads Eve's actor-specific row, selects a different status, and
+   requires a different observed value after the mutation, so seeded data from
+   another guest cannot satisfy it.
 
 Every Vanilla cell has a fourth browser claim: detail owns exactly three active
 subscriptions, navigating back disposes them, and feed converges with exactly
 one active subscription. The separate lifecycle suite forces the stale and late
 promise cases a real backend cannot make deterministic on demand.
+
+Every Snapback cell has an additional transport witness. It relaunches with
+polling fallback disabled, performs an out-of-band mutation, requires a live
+connection and an unsolicited DOM transition, and retains the `guestList`
+subscription's push establishment event. The latency instrument performs two
+warmups followed by seven alternating RSVP transitions, then retains every
+sample plus the median and p95 under the preregistered comparison protocol. A separate
+synthetic-prerequisite run proves that missing Chrome or server binaries emit a
+committed `ok: false`/`outcome: skip` receipt and exit nonzero rather than
+printing a green-looking skipped pass.
+
+Remote-provider availability is classified separately from required local
+proof. The gateway initializes Snapback and SQLite independently, probes a
+canonical read on every backend, and records only health codes—not credential
+values. Supabase or Convex outages become explicit per-cell
+`remote-dependency` skips; they are excluded from local aggregation and never
+reported as passes. Snapback or SQLite preflight failures remain hard setup
+failures. All managed server and build processes use bounded TERM→KILL cleanup,
+and a cleanup survivor makes the retained receipt non-pass.
+
+This 2026-07-20 refresh now closes Step 0. The SwiftUI baseline and a clean
+Exact carrier revision both built freshly for macOS and iOS on the remote
+Xcode 26.3 instrument. All sixteen native cells retain passing local evidence
+or declared remote-dependency skips, and both authoring systems retain native
+hit reachability. The authoritative manifest finishes at 19/19 Step 0 claims;
+Exact mirrors the manifest, schema, protocol, lock, and self-reference-safe
+completion aggregate, while an independent cross-repository receipt binds the
+final byte digest and both registered Exact validators. The earlier Xcode 26.6
+SDK-discovery timeout remains useful diagnostic history below, but it is not
+the qualifying carrier result.
 
 ### 4.2 Handwritten backend source
 
@@ -1439,7 +1474,7 @@ correlation, cancellation, retries, and declared polling semantics. The
 handwritten adapter was workable, but it moved Snapback closer to the same
 lowest-common-denominator shape as the other providers.
 
-## 24. Native verification record and limits
+## 24. 2026-07-19 native verification record and limits
 
 - SwiftUI direct Swift compilation/typechecking: macOS and iOS pass.
 - SwiftUI remote Xcode target builds: macOS and iOS pass with Xcode 26.3.
@@ -1448,7 +1483,7 @@ lowest-common-denominator shape as the other providers.
 - SwiftUI macOS XCUITest: target built; execution blocked by remote UI
   automation permission before app interaction.
 - Exact + Contract production build: pass, 408 transformed modules.
-- Exact carrier builds: macOS pass; iOS pass after a task-local Exact source
+- Exact carrier builds (historical run): macOS pass; iOS pass after a task-local Exact source
   fix and AppIcon setting override.
 - Exact + Contract Acto acceptance with native reachability: 8/8 cells pass.
 - Gateway real-provider probes: Snapback, Supabase, Convex, and SQLite pass.

@@ -95,7 +95,13 @@ await runAcceptance(suite, async () => {
     });
   }
 
-  await suite.check('all providers agree on event, RSVP, and wall row shapes', async () => {
+  // The portable row-shape oracle intentionally compares the three gateway
+  // adapters. Snapback's raw rows carry system metadata fields that are not
+  // part of the language-neutral gateway contract; its projected product
+  // fields are already compared above, and its generated query/mutation path
+  // has dedicated checks. Including raw Snapback keys here would test storage
+  // metadata equality rather than provider portability (Exact 0373 §5.1).
+  await suite.check('all gateway providers agree on event, RSVP, and wall row shapes', async () => {
     const projections = await Promise.all(Object.values(adapters).map(async (adapter) => ({
       event: Object.keys((await adapter.query('eventDetails', { eventId: 'event_sunset' }))[0]).sort(),
       rsvp: Object.keys((await adapter.query('guestList', { eventId: 'event_sunset' }))[0]).sort(),

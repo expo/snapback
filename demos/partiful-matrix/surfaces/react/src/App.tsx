@@ -176,7 +176,7 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
           <div className="rsvp-actions" data-testid="rsvp-actions">
             {mine?.status === 'host' ? <div className="host-note">You’re hosting this one ✦</div> : ['going', 'maybe', 'cant'].map((status) => <button key={status} disabled={busy} className={mine?.status === status ? 'selected' : ''} data-testid={`rsvp-${status}`} onClick={() => respond(status as Exclude<RsvpStatus, 'host'>)}>{statusLabel(status)}</button>)}
           </div>
-          <div className="guest-list">{guests.map((guest) => <div className="guest" key={guest._id}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}</div>
+          <div className="guest-list">{guests.map((guest) => <div className="guest" key={guest._id} data-testid={`guest-${guest.userId}`}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}</div>
           <div className="provider-note"><span>{configuredBackend}</span>{provider.transport === 'push' ? 'streamed live' : 'refreshed every second'}</div>
         </aside>
       </div>

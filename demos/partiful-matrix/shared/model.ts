@@ -56,6 +56,7 @@ export interface MatrixProvider {
     args: Record<string, unknown>,
     userId: string,
   ): Promise<T>;
+  transportEvidence?(): readonly Record<string, unknown>[];
   dispose?(): void;
 }
 

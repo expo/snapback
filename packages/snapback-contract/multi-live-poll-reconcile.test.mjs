@@ -37,7 +37,7 @@ const makeClient = ({ withLiveQuery = false, failQueryAfterMutate = false } = {}
     alpha: [{ _id: 'a1', _version: 1 }],
     beta: [{ _id: 'b1', _version: 1 }],
   };
-  const state = { queryCalls: [], liveQueryCalls: 0, mutated: false };
+  const state = { queryCalls: [], liveQueryCalls: 0, liveQueryOptions: [], mutated: false };
   const client = {
     store,
     state,
@@ -55,8 +55,9 @@ const makeClient = ({ withLiveQuery = false, failQueryAfterMutate = false } = {}
     },
   };
   if (withLiveQuery) {
-    client.liveQuery = async (name) => {
+    client.liveQuery = async (name, options) => {
       state.liveQueryCalls += 1;
+      state.liveQueryOptions.push({ name, options });
       return {
         rows: store[name] ?? [],
         connection: 'live',
@@ -253,6 +254,28 @@ const makeRuntime = () => ({
     liveQueries: ['alpha', 'gamma'],
   });
   assert.deepEqual(surface.boundary.cells.get('gamma'), [{ _id: 'g1', _version: 1 }]);
+  surface.dispose();
+}
+
+// --- fallback-to-poll defaults on and can be disabled for every live cell ---
+for (const { label, value, expected } of [
+  { label: 'default', value: undefined, expected: true },
+  { label: 'disabled', value: false, expected: false },
+]) {
+  const client = makeClient({ withLiveQuery: true });
+  const surface = await createSnapbackContractSurface({
+    runtime: makeRuntime(),
+    client,
+    userId: 'u1',
+    manifest: makeManifest(),
+    liveQueries: ['alpha', 'beta'],
+    ...(value === undefined ? {} : { liveFallbackToPoll: value }),
+  });
+  assert.equal(client.state.liveQueryOptions.length, 2, `${label} multi-live surface was short`);
+  assert.ok(
+    client.state.liveQueryOptions.every(({ options }) => options.fallbackToPoll === expected),
+    `${label} multi-live fallback option drifted`,
+  );
   surface.dispose();
 }
 

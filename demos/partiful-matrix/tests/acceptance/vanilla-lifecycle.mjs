@@ -1,7 +1,20 @@
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import { assert, assertEqual, createSuite, runAcceptance } from '../../../_kit/harness.mjs';
 import { SubscriptionScope } from '../../surfaces/vanilla/src/lifecycle.js';
 
+const here = dirname(fileURLToPath(import.meta.url));
+const repoRoot = resolve(here, '..', '..', '..', '..');
+const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+const identity = (path) => ({ path, sha256: sha256(readFileSync(resolve(repoRoot, path))) });
 const suite = createSuite('partiful matrix / vanilla subscription lifecycle', { expectedChecks: 3 });
+const option = (name) => {
+  const at = process.argv.indexOf(`--${name}`);
+  return at < 0 ? null : process.argv[at + 1];
+};
 
 await runAcceptance(suite, async () => {
   await suite.check('renew disposes every active handle', async () => {
@@ -58,4 +71,13 @@ await runAcceptance(suite, async () => {
     assert(scope.snapshot().closed, 'scope should report closed');
     assertEqual(scope.snapshot().activeSubscriptions, 0, 'closed active subscription count');
   });
+}, {
+  reportFile: option('receipt'),
+  reportExtra: {
+    testInventory: [
+      'demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs',
+      'demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js',
+      'demos/_kit/harness.mjs',
+    ].map(identity),
+  },
 });

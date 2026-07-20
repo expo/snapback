@@ -1,0 +1,116 @@
+{
+  "claimId": "STEP0.NO_EXACT_CORE",
+  "ok": true,
+  "exactImportPolicy": "denied by ESM loader",
+  "packages": [
+    "snapback-client",
+    "snapback-codegen",
+    "snapback-app-cli"
+  ],
+  "results": [
+    {
+      "test": "packages/snapback-client/package.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "package.test.mjs: packaged client exports are consumable"
+      ],
+      "stderr": []
+    },
+    {
+      "test": "packages/snapback-codegen/identifier-validation.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "identifier-validation.test.mjs: all cases passed"
+      ],
+      "stderr": []
+    },
+    {
+      "test": "packages/snapback-codegen/authoring-validation.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "authoring-validation.test.mjs: all cases passed"
+      ],
+      "stderr": []
+    },
+    {
+      "test": "packages/snapback-codegen/dependency-graph.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "dependency-graph.test.mjs: all cases passed"
+      ],
+      "stderr": []
+    },
+    {
+      "test": "packages/snapback-codegen/operation-schemas.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "operation-schemas.test.mjs: all cases passed"
+      ],
+      "stderr": []
+    },
+    {
+      "test": "packages/snapback-app-cli/package.test.mjs",
+      "status": 0,
+      "signal": null,
+      "stdout": [
+        "package.test.mjs: packaged discover/pair/mutate/subscribe/verify journey passes"
+      ],
+      "stderr": []
+    }
+  ],
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/no-exact-core.mjs",
+      "sha256": "3f732f9568bde30fc27fa875b97e9c22c851bd95661de78b1d714780b42d4aa9"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/deny-exact-loader.mjs",
+      "sha256": "1bb7742733ffcd4683da34aa9b220e7201c7b0a86cd5c25184f06e15a6670ae9"
+    },
+    {
+      "path": "packages/snapback-client/package.json",
+      "sha256": "46f9a7e8081eb570267fa6a8d0d047c13bc7c109e3f82d59390b0f02c0188130"
+    },
+    {
+      "path": "packages/snapback-codegen/package.json",
+      "sha256": "be2556051944bcc12eb7964c10cebd161cc6ac68b7218ecb88d2e84cdd5d21a7"
+    },
+    {
+      "path": "packages/snapback-app-cli/package.json",
+      "sha256": "1bf614f19b9443d2b5f7e94ef1e206399d04752064b05c2a4281af8c193d165b"
+    },
+    {
+      "path": "packages/snapback-client/package.test.mjs",
+      "sha256": "2c5d11926a73aa27902f11f83bffe834ec8c0b4fdb5d8913428b7ab7c1d9d123"
+    },
+    {
+      "path": "packages/snapback-codegen/identifier-validation.test.mjs",
+      "sha256": "ab3aeab6a9258e9ceddaf711c4bf97c71d1aa3d5591a8894a06ef2c8ec24f9cf"
+    },
+    {
+      "path": "packages/snapback-codegen/authoring-validation.test.mjs",
+      "sha256": "2d5bd64866edeaa38a1c441d5f282b92b91bd736e755de721ee642a54cd098ad"
+    },
+    {
+      "path": "packages/snapback-codegen/dependency-graph.test.mjs",
+      "sha256": "1e8708f9fa50b3d83ad9a421d61f2dccbbba780dd5a0293dd7edc70c5790774c"
+    },
+    {
+      "path": "packages/snapback-codegen/operation-schemas.test.mjs",
+      "sha256": "7797f0941b9b2f05e3d4fd12bfd9291867a7f582097ff17021f4c858dec82e50"
+    },
+    {
+      "path": "packages/snapback-app-cli/package.test.mjs",
+      "sha256": "2299c09aa9d6d5a11fac82bb1b245bbaa62370def73341e2f7ea615cdb323a75"
+    },
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    }
+  ]
+}

@@ -1,0 +1,244 @@
+{
+  "revision": {
+    "snapback": "d6886d742c532fcba014e372ba0d4998260cfb28",
+    "exact": "94a65c3d729cb8e6d5404929e68ff6d3982c4090"
+  },
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "environment": {
+    "node": "v24.18.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "/definitely/not/chrome",
+    "chromeVersion": null,
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "packages": {
+    "react": {
+      "manifestSha256": "67e8175e3c54cf2d5e211395744f05916c6ed63a67fea7df6014d2460b0d4932",
+      "lockPath": "demos/partiful-matrix/surfaces/react/bun.lock",
+      "lockSha256": "3b7c734dfb4c00e9b246f780d6fa0a7c1cdba9492eda06f45da12c00bdbbaf25",
+      "dependencies": {
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "@types/node": "^26.0.0",
+        "@types/react": "^19.1.8",
+        "@types/react-dom": "^19.1.6",
+        "@vitejs/plugin-react": "^4.6.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "react": {
+          "requested": "^19.1.0",
+          "resolvedName": "react",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "51966ae9c8c377ff592b5d69c980966992101bc6791bf83a1e5c7ad9bcefa7f4"
+        },
+        "react-dom": {
+          "requested": "^19.1.0",
+          "resolvedName": "react-dom",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "447acd72cdb6a966d9db967729e286e7cbb4a09ea61fddd45e12c2a97fd4cfb6"
+        },
+        "@types/node": {
+          "requested": "^26.0.0",
+          "resolvedName": "@types/node",
+          "resolvedVersion": "26.1.1",
+          "manifestSha256": "83e7472f5b94b43acde2e60b39cef9adc278a1f2a5d7cc4b4c677e29da3e0ab9"
+        },
+        "@types/react": {
+          "requested": "^19.1.8",
+          "resolvedName": "@types/react",
+          "resolvedVersion": "19.2.17",
+          "manifestSha256": "36496fc09a9dcf31b0ca969ce5677c9ce9ebb5c89da9bd6212e0c89b6fae3f88"
+        },
+        "@types/react-dom": {
+          "requested": "^19.1.6",
+          "resolvedName": "@types/react-dom",
+          "resolvedVersion": "19.2.3",
+          "manifestSha256": "bf90986beaec5f757c164bf1d374f3038dc41b0b06673de4a55fd975d1e5deca"
+        },
+        "@vitejs/plugin-react": {
+          "requested": "^4.6.0",
+          "resolvedName": "@vitejs/plugin-react",
+          "resolvedVersion": "4.7.0",
+          "manifestSha256": "d608755568d9d654c34e9e2da06659df9122fa89d2604ee09cdeda457a20c035"
+        },
+        "typescript": {
+          "requested": "^5.9.3",
+          "resolvedName": "typescript",
+          "resolvedVersion": "5.9.3",
+          "manifestSha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+        },
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    },
+    "contract": {
+      "manifestSha256": "3e0803bc65aaf40d6f2af69bd6cb39125bf2ff179188f6c7669f6c1dc08e959f",
+      "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
+      "lockSha256": "dc6119a5ec00cb0412c467f28f0bec77d557a412a71d456f456277f802760bd5",
+      "dependencies": {
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "vite": "^8.0.0"
+      },
+      "resolvedDependencies": {
+        "@exact/contract": {
+          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "resolvedName": "@ccheever/exact-contract",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+        },
+        "@exact/devtools": {
+          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "resolvedName": "@ccheever/exact-devtools",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+        },
+        "@exact/renderer": {
+          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "resolvedName": "@ccheever/exact-renderer",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+        },
+        "vite": {
+          "requested": "^8.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "8.1.5",
+          "manifestSha256": "2f482c846a1c5b9e5883b458b3e54a171a320c2e8d9b924c7383c4baef607b09"
+        }
+      }
+    },
+    "vanilla": {
+      "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
+      "lockPath": "bun.lock",
+      "lockSha256": "49e572ef633d8a3c27325af931b4bdaa101c3127e9e776ac6df9bc5330d27202",
+      "dependencies": {
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "inputsHash": "b1708aa266d86d96e540610fd2928a444f3f629e4b2458686ba29dbf31e66ee8",
+    "bundleHash": "sha256:bc2591eecc7e82f6",
+    "diarySha256": "36038dfffdafa33ce2cb8197cb79432814c3246c3e06b10d90bc9d4dc89575fe",
+    "reportSha256": "f3ac635255bfb8a45d94d3ffb1b282e8c37ad6952e3e978769e92fdcd780fc5e"
+  },
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "demos/_kit/chrome-process.mjs",
+      "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "51100b635cbfc9d6714735d3e60ffceac399a8b88e5e46c675a38ebb4460247e"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+      "sha256": "249c62a7c58f5c24b5ff53832514f398450e92f5d7a5c0caa31cfb6375345312"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "5fede7947e5fcaf2459fb83348812b632038e588592ff65d18fb66479ffb6fb7"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "6658470fa16c27128a686ea75772eeae223a5f671b7e5986f80804c7bfd7beaf"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
+      "sha256": "220da6975b1c56ad247a18edfeab2e47ed18fadfa241eecca68429a175870926"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+      "sha256": "287bb6d3a23957ad8319a38feaec79785aac856ea782350a34cf9b8c1fec7e6e"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "7ec2883125771de9c12630216fce3126699252711ed918969fc0914c53701342"
+    }
+  ],
+  "testInventorySha256": "5a80c561f19b2231a73d69bafa5f62b4d266576138d8c2efa9f6de2da3ef9237",
+  "title": "partiful matrix / twelve browser cells",
+  "passed": 0,
+  "total": 0,
+  "expectedChecks": 4,
+  "ok": false,
+  "outcome": "skip",
+  "skipClass": "required-prerequisite-missing",
+  "skips": [
+    {
+      "prerequisite": "chrome",
+      "path": "/definitely/not/chrome"
+    }
+  ],
+  "results": [],
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0,
+  "witness": {
+    "command": [
+      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "--arm",
+      "react",
+      "--backend",
+      "snapback",
+      "--receipt",
+      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-16433"
+    ],
+    "exitStatus": 1,
+    "signal": null
+  },
+  "witnessInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/required-skip-nonpass.mjs",
+      "sha256": "0a91498fb027be5381d2a9405cf26f796065b341fd4bbe1cdb98f01cc06ca3a4"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "51100b635cbfc9d6714735d3e60ffceac399a8b88e5e46c675a38ebb4460247e"
+    },
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "demos/_kit/chrome-process.mjs",
+      "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
+    }
+  ]
+}

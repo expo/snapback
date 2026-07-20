@@ -9,8 +9,8 @@ examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, 
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 9c9786772d9e590cbc37002609d0618338020569
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 # The Contract adapter
@@ -164,7 +164,10 @@ What the surface does for you:
   override.
 - **Live push** — `livePush: true` by default; multi-query apps pass
   `liveQueries: [...]` (each entry a name or `{ name, args }`) bound over
-  one shared stream. `onConnectionChange` carries the
+  one shared stream. Maintained transport-provenance tests may pass
+  `liveFallbackToPoll: false` so an observed update proves socket delivery;
+  product callers should keep the resilient polling-fallback default.
+  `onConnectionChange` carries the
   [connection axis](../realtime/live-queries.md). A multi-live surface
   serves **configured live queries only**. Pass the mounted component's
   compiler-known binding list as `requiredQueries`; if any required binding

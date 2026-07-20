@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 const ASSIGNMENT = /^\s*(?:[-*]\s*)?(?:`)?([A-Z][A-Z0-9_]+)(?:`)?\s*=\s*(.+?)\s*$/;
@@ -13,7 +13,9 @@ function unquote(value) {
 
 export function loadLocalSecrets(root = resolve(import.meta.dirname, '..', '..', '..', '..')) {
   const values = {};
-  const source = readFileSync(resolve(root, '.agent-local-secrets.md'), 'utf8');
+  const path = resolve(root, '.agent-local-secrets.md');
+  if (!existsSync(path)) return values;
+  const source = readFileSync(path, 'utf8');
   for (const line of source.split(/\r?\n/)) {
     const match = line.match(ASSIGNMENT);
     if (match) values[match[1]] = unquote(match[2]);

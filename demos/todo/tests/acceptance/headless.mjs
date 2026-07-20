@@ -15,7 +15,7 @@ import { dirname, join } from 'node:path';
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { startServer } from '../../../_kit/server-process.mjs';
 import { generate } from '../../../_kit/codegen.mjs';
-import { assert, assertEqual, assertThrows, createSuite } from '../../../_kit/harness.mjs';
+import { assert, assertEqual, assertThrows, createSuite, writeMachineReport } from '../../../_kit/harness.mjs';
 import api from '../../snapback/generated/api.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -26,6 +26,8 @@ const gen = (f) => JSON.parse(readFileSync(join(backendDir, 'generated', f), 'ut
 const schemaManifest = gen('schema.manifest.json');
 const functionManifest = gen('functions.manifest.json');
 const seed = JSON.parse(readFileSync(join(backendDir, 'seed.json'), 'utf8'));
+const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
+const receiptFile = option('receipt');
 
 const ADA = 'user_ada';
 const GRACE = 'user_grace';
@@ -46,7 +48,7 @@ globalThis.__snapbackHandlers = {
 const server = await startServer({ port: 4399, db: ':memory:', cwd: repoRoot,
   provenance: { appId: 'todo', artifactsPath: join(repoRoot, 'demos', 'todo', 'snapback', 'generated', 'artifacts.json') } });
 const db = new SnapbackClient(server.baseUrl, server.clientOptions);
-const suite = createSuite('todo / headless');
+const suite = createSuite('todo / headless', { expectedChecks: 24 });
 
 try {
   await suite.check('health reports local ibex+sqlite target', async () => {
@@ -541,10 +543,24 @@ try {
   });
 
   const report = suite.finish();
+  const cleanupErrors = [];
+  try {
+    await server.stop();
+  } catch (error) {
+    cleanupErrors.push(error instanceof Error ? error.message : String(error));
+  }
+  const retainedReport = {
+    schemaVersion: 'snapback.todo-v0-receipt.v1',
+    ...report,
+    ok: report.ok && cleanupErrors.length === 0,
+    outcome: report.ok && cleanupErrors.length === 0 ? 'pass' : 'fail',
+    cleanupErrors,
+    cleanupErrorCount: cleanupErrors.length,
+  };
+  if (receiptFile !== null) writeMachineReport(receiptFile, retainedReport);
   console.log('\n--- machine-readable report ---');
-  console.log(JSON.stringify(report));
-  await server.stop();
-  process.exit(report.ok ? 0 : 1);
+  console.log(JSON.stringify(retainedReport));
+  process.exit(retainedReport.ok ? 0 : 1);
 } catch (error) {
   console.error('acceptance harness crashed:', error);
   await server.stop();

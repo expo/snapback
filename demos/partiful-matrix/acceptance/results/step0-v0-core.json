@@ -1,0 +1,120 @@
+{
+  "schemaVersion": "partitime.v0-core-receipt.v1",
+  "claimIds": [
+    "STEP0.V0_DIAGNOSTICS",
+    "STEP0.V0_RESET_SEED",
+    "STEP0.V0_ATOMIC_SUBSCRIBE",
+    "STEP0.V0_DELIVERY_CONTROL",
+    "STEP0.V0_CAPABILITY_GAPS",
+    "STEP0.V0_ARTIFACT_FRESHNESS"
+  ],
+  "ok": true,
+  "outcome": "pass",
+  "requiredCommandCount": 3,
+  "executedCommandCount": 3,
+  "results": [
+    {
+      "id": "todo-headless",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/todo/tests/acceptance/headless.mjs",
+        "--receipt",
+        "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-v0-todo.json"
+      ],
+      "status": 0,
+      "signal": null,
+      "stdoutSha256": "43ea440c8c80c0bc0ff8e6a01d27ffb61aec819f9ba22e1f79bb37d9e4edad07",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "  ✓ diagnostic: handler ambient capability denial is structured",
+        "  ✓ diagnostic: handler throw is structured",
+        "  ✓ codegen fails closed on an invalid definition (no silent drop)",
+        "",
+        "PASS todo / headless — 24/24",
+        "",
+        "--- machine-readable report ---",
+        "{\"schemaVersion\":\"snapback.todo-v0-receipt.v1\",\"title\":\"todo / headless\",\"passed\":24,\"skipped\":0,\"failed\":0,\"total\":24,\"ok\":true,\"results\":[{\"name\":\"health reports local ibex+sqlite target\",\"ok\":true,\"details\":{\"ok\":true,\"target\":\"local-dev-sqlite-ibex\",\"sqlite_version\":0,\"ibex_available\":true,\"authProvider\":\"dormant\",\"binary\":{\"crateVersion\":\"0.1.0\",\"gitCommit\":\"d6886d742c532fcba014e372ba0d4998260cfb28\",\"gitDirty\":true,\"buildProfile\":\"debug\",\"startupNonce\":\"019f7f33-d958-7e73-9c67-583891f46ce7\"}}},{\"name\":\"schema load (no error diagnostics)\",\"ok\":true,\"details\":{\"diagnostics\":[]}},{\"name\":\"generated function references load + are inspectable\",\"ok\":true,\"details\":{\"functions\":[\"createTodo\",\"deleteTodo\",\"editTitle\",\"listTodos\",\"listTodosOnce\",\"setCompleted\"],\"capabilityGaps\":[\"postgres\",\"cloudflare\",\"hosted_untrusted_code\",\"external_auth\",\"assets\",\"outbound_actions\",\"notifications\",\"ephemeral_hosted_adapter\",\"ephemeral_multi_instance_sticky_routing\"],\"bridge\":\"Available\",\"generatedRef\":{\"appId\":\"todo\",\"artifactKind\":\"functionReference\",\"id\":\"todo:createTodo\",\"kind\":\"Mutation\",\"name\":\"createTodo\",\"schemaVersion\":\"snapback.v0\"}}},{\"name\":\"deterministic reset + declarative seed\",\"ok\":true,\"details\":{\"rows\":3}},{\"name\":\"user-scoped query (auth filter) isolates users\",\"ok\":true,\"details\":null},{\"name\":\"mutation: createTodo returns id; ctx.db write + system fields\",\"ok\":true,\"details\":{\"id\":\"019f7f33-d9df-7222-813f-f9370438e37b\",\"version\":1}},{\"name\":\"mutation: createTodo rejects empty titles\",\"ok\":true,\"details\":null},{\"name\":\"mutations: toggle, edit, delete\",\"ok\":true,\"details\":null},{\"name\":\"admin runner surfaces captured handler read/write facts\",\"ok\":true,\"details\":{\"reads\":[{\"kind\":\"auth\",\"field\":\"userId\",\"value\":\"user_ada\"},{\"kind\":\"row\",\"table\":\"todos\",\"id\":\"019f7f33-da67-7031-a9f1-da399958fa77\",\"version\":1}],\"writes\":[{\"table\":\"todos\",\"id\":\"019f7f33-da67-7031-a9f1-da399958fa77\",\"op\":\"Update\"}]}},{\"name\":\"live subscription returns authoritative initial snapshot\",\"ok\":true,\"details\":{\"subscriptionId\":\"sub_019f7f33da8574019ae078efc76106d6\",\"version\":1}},{\"name\":\"realtime update reaches a second client\",\"ok\":true,\"details\":{\"rows\":4}},{\"name\":\"websocket stream pushes live replace without outbox polling\",\"ok\":true,\"details\":{\"version\":2,\"rows\":4}},{\"name\":\"generated ephemeral board cursors use product API and preserve durable lane\",\"ok\":true,\"details\":{\"coalesced\":29,\"rateLimited\":8}},{\"name\":\"realtime matcher skips unrelated user-scoped mutations\",\"ok\":true,\"details\":{\"updates\":0,\"liveDelivery\":{\"totalFanoutAttempts\":1,\"totalDeliveries\":0,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"realtime matcher skips hidden row patch and delete\",\"ok\":true,\"details\":{\"hiddenId\":\"019f7f33-dcd8-7681-8c44-8e2a3df17590\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":1,\"totalSkipped\":2,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":0,\"lastSkipped\":1,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"realtime matcher uses captured In predicates beyond auth scope\",\"ok\":true,\"details\":{\"id\":\"019f7f33-dd25-77b3-b38e-8f769096228e\",\"liveDelivery\":{\"totalFanoutAttempts\":3,\"totalDeliveries\":2,\"totalSkipped\":1,\"totalFailed\":0,\"lastFanoutSubscriptions\":1,\"lastDeliveries\":1,\"lastSkipped\":0,\"lastFailed\":0,\"authorizationBlastRadius\":{\"global\":{\"versionAdvances\":0,\"quarantinedSubscriptions\":0,\"resnapshots\":0},\"membershipDeclarations\":{}}}}},{\"name\":\"ordinary query is honestly reported as NOT syncable\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_NOT_LIVE\"}},{\"name\":\"read-set conflict prevents a stale-invariant commit\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_MUTATION_CONFLICT\",\"dependency\":{\"table\":\"todos\",\"id\":\"019f7f33-dd5a-7511-a142-b65f020e9099\",\"expected\":1,\"actual\":2}}},{\"name\":\"diagnostic: invalid schema (system field) fails loud\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_SCHEMA_SYSTEM_FIELD\"}},{\"name\":\"diagnostic: artifact version mismatch is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_STALE_SCHEMA_ARTIFACT_VERSION\",\"details\":{\"expectedArtifactKind\":\"schemaManifest\",\"artifactKind\":\"schemaManifest\",\"expectedSchemaVersion\":\"snapback.v0\",\"supportedSchemaVersions\":[\"snapback.v0\",\"snapback.v1\"],\"schemaVersion\":\"snapback.v999\",\"contentHash\":\"sha256:75be09c92f48bf45\",\"inputsHash\":\"080486df5a973a666cfd0260495ccfc99dfce53505ffde9d2e297a354cdfe08e\"}}},{\"name\":\"diagnostic: invalid query (unknown field) fails loud at the server\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_FUNCTION_SCHEMA_REFERENCE_INVALID\",\"installCode\":\"SNAPBACK_UNKNOWN_FUNCTION\"}},{\"name\":\"diagnostic: handler ambient capability denial is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_CAPABILITY_DENIED\"}},{\"name\":\"diagnostic: handler throw is structured\",\"ok\":true,\"details\":{\"code\":\"SNAPBACK_HANDLER_FAILED\"}},{\"name\":\"codegen fails closed on an invalid definition (no silent drop)\",\"ok\":true,\"details\":{\"codes\":[\"QUERY_UNKNOWN_FIELD\"]}}],\"expectedChecks\":24,\"outcome\":\"pass\",\"cleanupErrors\":[],\"cleanupErrorCount\":0}"
+      ],
+      "stderrTail": []
+    },
+    {
+      "id": "capability-v0",
+      "command": [
+        "cargo",
+        "test",
+        "--test",
+        "capability_v0"
+      ],
+      "status": 0,
+      "signal": null,
+      "stdoutSha256": "3e3878ae35799e30b33fe43b561cf37e985bdacee50761d58413989be01af930",
+      "stderrSha256": "e13a309b63ef257b740b3a6a058a7cf3bf410b42297597a7516824bbf4870308",
+      "stdoutTail": [
+        "running 3 tests",
+        "test p2_committed_cloudflare_manifest_matches_the_declared_target ... ok",
+        "test p2_committed_capability_manifest_matches_the_declared_server_manifest ... ok",
+        "test p2_live_inspect_manifest_matches_committed_modulo_instance_fields ... ok",
+        "",
+        "test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s"
+      ],
+      "stderrTail": [
+        "Compiling snapback v0.1.0 (/Users/ccheever/projects/snapback)",
+        "    Finished `test` profile [unoptimized + debuginfo] target(s) in 37.42s",
+        "     Running tests/capability_v0.rs (target/debug/deps/capability_v0-fad9a2a5357ae088)"
+      ]
+    },
+    {
+      "id": "generated-artifact-freshness",
+      "command": [
+        "scripts/check-generated-artifacts"
+      ],
+      "status": 0,
+      "signal": null,
+      "stdoutSha256": "f4b48b43df1d4f0d514f63a67565e4595f890d2f7d0c4d1e009bdb1f910af129",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "codegen ok: /Users/ccheever/projects/snapback/demos/rbac/snapback/generated  (inputsHash snapback.v1:…)",
+        "[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/shindig/snapback",
+        "codegen ok: /Users/ccheever/projects/snapback/demos/shindig/snapback/generated  (inputsHash 364d7a4be528…)",
+        "[check-generated-artifacts] $ node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback",
+        "codegen ok: /Users/ccheever/projects/snapback/demos/partiful-matrix/snapback/generated  (inputsHash b1708aa266d8…)",
+        "[check-generated-artifacts] $ node admin-ui/generate-contract-bindings.mjs",
+        "admin-ui: generated Contract bindings -> /Users/ccheever/projects/snapback/admin-ui/generated/contract",
+        "[check-generated-artifacts] ok: committed generated artifacts are current"
+      ],
+      "stderrTail": []
+    }
+  ],
+  "children": [
+    {
+      "path": "demos/partiful-matrix/acceptance/results/step0-v0-todo.json",
+      "sha256": "a50c4fa7ecfe39dcbf9077c838e160a67b68393344e78963c473f7263042e604",
+      "schemaVersion": "snapback.todo-v0-receipt.v1",
+      "total": 24,
+      "expectedChecks": 24
+    }
+  ],
+  "childError": null,
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/v0-core.mjs",
+      "sha256": "643961a31afeba13d4e3b359a510c2976ebaf8a55ee619e6a397567f384e0a26"
+    },
+    {
+      "path": "demos/todo/tests/acceptance/headless.mjs",
+      "sha256": "e854d7608dd819e11500d5c3fbce1b5e99973a913667fd6ffed083e893a53631"
+    },
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "tests/capability_v0.rs",
+      "sha256": "45731f2aafc74a9850f03b2c5c6b5c5eaa3cfac925d7a0f8ad8dad2803374429"
+    },
+    {
+      "path": "scripts/check-generated-artifacts",
+      "sha256": "30fa266579baddef1c3629da459afc26a094f95f5becdd63e61e7dc80e00d99f"
+    }
+  ]
+}

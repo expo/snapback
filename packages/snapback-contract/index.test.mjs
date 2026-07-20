@@ -142,6 +142,31 @@ async function waitFor(assertion, timeoutMs = 1_000) {
   surface.dispose();
 }
 
+for (const { label, value, expected } of [
+  { label: 'default', value: undefined, expected: true },
+  { label: 'disabled', value: false, expected: false },
+]) {
+  const optionsSeen = [];
+  const surface = await createSnapbackContractSurface({
+    runtime: mockRuntime(),
+    client: {
+      async liveQuery(_name, options) {
+        optionsSeen.push(options);
+        return { rows: [], connection: 'live', dispose() {} };
+      },
+      async mutate() {},
+    },
+    userId: 'ada',
+    manifest: baseManifest({ listTodos: { name: 'listTodos', mode: 'live' } }),
+    queryName: 'listTodos',
+    boundaryKey: 'todos',
+    ...(value === undefined ? {} : { liveFallbackToPoll: value }),
+  });
+  assert.equal(optionsSeen.length, 1, `${label} single-live surface did not subscribe exactly once`);
+  assert.equal(optionsSeen[0].fallbackToPoll, expected, `${label} single-live fallback option drifted`);
+  surface.dispose();
+}
+
 {
   const originalWarn = console.warn;
   let subscribeAttempts = 0;

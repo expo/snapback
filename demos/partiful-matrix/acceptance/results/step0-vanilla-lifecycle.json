@@ -1,0 +1,42 @@
+{
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs",
+      "sha256": "e353fa77d4c7eb31739dc1537d01ef9cec057920406213b50f9a76b6c78655ff"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "7ec2883125771de9c12630216fce3126699252711ed918969fc0914c53701342"
+    },
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    }
+  ],
+  "title": "partiful matrix / vanilla subscription lifecycle",
+  "passed": 3,
+  "skipped": 0,
+  "failed": 0,
+  "total": 3,
+  "ok": true,
+  "results": [
+    {
+      "name": "renew disposes every active handle",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "late handle resolution and stale updates are fenced",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "close is terminal and idempotently disposes the current scope",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 3,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

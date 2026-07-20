@@ -26,6 +26,13 @@ native authoring comparison controlled, but it also means every native cell is
 an honest one-second polling adapter. In particular, native Snapback does not
 claim the browser row's direct push transport.
 
+The provider conformance suite's final row-shape check intentionally compares
+SQLite, Supabase, and Convex only. Those gateway adapters expose the portable
+language-neutral projection. Snapback is exercised separately through its
+generated query and mutation references, and its raw rows additionally carry
+system metadata; comparing those raw keys with gateway rows would test storage
+metadata equality rather than the shared product contract.
+
 ## What it builds
 
 - `surfaces/react/dist/{snapback,supabase,convex,sqlite}`

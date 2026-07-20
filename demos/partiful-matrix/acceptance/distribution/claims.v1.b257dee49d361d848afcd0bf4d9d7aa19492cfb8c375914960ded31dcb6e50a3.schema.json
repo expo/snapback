@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/partitime-claims-v1.json",
+  "title": "Partitime cumulative claim manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schemaVersion", "manifestId", "workloadVersion", "authority", "outcomes", "claims"],
+  "properties": {
+    "schemaVersion": { "const": "partitime.claims.v1" },
+    "manifestId": { "type": "string", "minLength": 1 },
+    "workloadVersion": { "type": "string", "minLength": 1 },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "path", "changeControl", "distribution"],
+      "properties": {
+        "repository": { "const": "snapback" },
+        "path": { "const": "demos/partiful-matrix/acceptance/claims.v1.json" },
+        "changeControl": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["snapbackClaims", "exactClaims", "sharedClaims"],
+          "properties": {
+            "snapbackClaims": { "type": "string", "minLength": 1 },
+            "exactClaims": { "type": "string", "minLength": 1 },
+            "sharedClaims": { "type": "string", "minLength": 1 }
+          }
+        },
+        "distribution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["digestAlgorithm", "lockPath", "bundlePathTemplate", "schemaPath", "schemaSha256", "schemaBundlePathTemplate", "protocolPath", "protocolSha256", "protocolBundlePathTemplate", "generator", "exactMirrorPath", "exactMirrorLockPath", "exactMirrorSchemaPath", "exactMirrorProtocolPath"],
+          "properties": {
+            "digestAlgorithm": { "const": "sha256" },
+            "lockPath": { "type": "string", "minLength": 1 },
+            "bundlePathTemplate": { "type": "string", "pattern": "\\{sha256\\}" },
+            "schemaPath": { "type": "string", "minLength": 1 },
+            "schemaSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "schemaBundlePathTemplate": { "type": "string", "pattern": "\\{sha256\\}" },
+            "protocolPath": { "type": "string", "minLength": 1 },
+            "protocolSha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+            "protocolBundlePathTemplate": { "type": "string", "pattern": "\\{sha256\\}" },
+            "generator": { "type": "string", "minLength": 1 },
+            "exactMirrorPath": { "type": "string", "minLength": 1 },
+            "exactMirrorLockPath": { "type": "string", "minLength": 1 },
+            "exactMirrorSchemaPath": { "type": "string", "minLength": 1 },
+            "exactMirrorProtocolPath": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["mandatoryClaimIds"],
+        "properties": {
+          "mandatoryClaimIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Z0-9_.-]+$" }
+          }
+        }
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "step", "cells", "witnessClass", "command", "artifact", "skip", "owner", "status", "supersededBy"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[A-Z0-9_.-]+$" },
+          "step": { "type": "integer", "minimum": 0, "maximum": 6 },
+          "cells": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "witnessClass": { "type": "string", "minLength": 1 },
+          "command": { "type": ["string", "null"] },
+          "artifact": {
+            "oneOf": [
+              { "type": "null" },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["path", "sha256"],
+                "properties": {
+                  "path": { "type": "string", "minLength": 1 },
+                  "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+                }
+              }
+            ]
+          },
+          "skip": { "enum": ["forbidden", "remote-dependency-only", "not-applicable"] },
+          "owner": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["pending", "passing", "failing", "blocked", "superseded"] },
+          "supersededBy": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

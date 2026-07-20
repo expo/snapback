@@ -5,8 +5,8 @@
 **Systems:** API, Runtime, Sync, Realtime, Client integration, Developer experience, Testing, Security
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-17 (compatibility permission epochs are explicitly JavaScript-safe, capacity-check every mutation commit seam, and refuse before durable work when exhausted). 2026-07-09 (LLP 0051 D2 / ENG-23893: the "`HostPlan` is an internal bridge" invariant is amended in place — the mutation IR returns to first-class as the data-tier's default for the common mutation, authored via the typed builder; raw plan objects remain non-authoring); previously 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
-**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, Diary 0001
+**Revised:** 2026-07-20 (Phase 0's v0 contract set is ratified against a retained aggregate receipt under LLP 0063 Step 0; the overall Plan remains Draft because the open Phase 4 design is unchanged). 2026-07-17 (compatibility permission epochs are explicitly JavaScript-safe, capacity-check every mutation commit seam, and refuse before durable work when exhausted). 2026-07-09 (LLP 0051 D2 / ENG-23893: the "`HostPlan` is an internal bridge" invariant is amended in place — the mutation IR returns to first-class as the data-tier's default for the common mutation, authored via the typed builder; raw plan objects remain non-authoring); previously 2026-07-01 (LLP 0032 R1 batch verification: Phases 0–4 largely shipped, but §Remaining Phase 4 design — dependency vocabulary and auth epochs — is still open, so status honestly stays Draft; parts of that remaining work are now scheduled by LLP 0032 E4/P4; 2026-06-27: Phase 4 equality, `In`, range/boundary matcher, WebSocket push, permission-epoch resync, and retained reconnect/resume epoch gate slices; review revisions; see `llp/reviews/0020-core-authoring-surface.claude.md` and `llp/reviews/0020-core-authoring-surface.gpt-5.md`)
+**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0015, LLP 0016, LLP 0018, LLP 0019, LLP 0021, LLP 0063, Diary 0001
 
 ## Summary
 
@@ -166,6 +166,18 @@ Acceptance gate:
 - a deliberately missing capability is asserted as a structured fact, not
   inferred from a failed request;
 - stale generated artifacts are visible in diagnostics or runtime state.
+
+**Ratified 2026-07-20.** LLP 0063 Step 0 retains the aggregate receipt at
+`demos/partiful-matrix/acceptance/results/step0-v0-core.json`. It executes the
+Todo headless acceptance suite, the capability-manifest check, and the cargo
+capability/version test as three required commands and binds their passing
+results to the six Phase 0 claim IDs: stable diagnostics, deterministic
+reset/seed, atomic initial result plus subscription, deterministic delivery
+controls, machine-readable capability gaps, and artifact freshness. The
+aggregate's vacuous-pass guard requires all three commands and every child
+receipt to pass; a short or skipped run is non-passing. This ratifies the v0
+contract set for later lifecycle work without changing the overall Plan's
+Draft status or resolving its remaining Phase 4 design.
 
 ### Phase 1: Ship typed generated artifacts
 

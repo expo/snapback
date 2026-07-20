@@ -9,8 +9,8 @@ examples: [demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/accep
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-18
-reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 # Acceptance testing
@@ -28,21 +28,26 @@ artifacts, and drives the product client — no UI in the loop. UI arms
 
 `demos/_kit/harness.mjs` provides a dependency-free suite with structured,
 machine-readable results and **vacuous-pass protection** — a run that
-executes zero checks (or fewer than it declared) can never report success:
+executes zero non-skipped checks (or fewer checks than it declared) can never
+report success. Explicit remote-dependency skips remain visible evidence, but
+they are never counted as passes:
 
 ```js source=demos/_kit/harness.mjs
     finish() {
       const passed = results.filter((r) => r.ok).length;
+      const skipped = results.filter((r) => r.outcome === 'skip').length;
+      const failed = results.length - passed - skipped;
       const total = results.length;
       // ENG-22486: zero checks (or a short run against a declared count) can
       // never be a pass — a pre-check throw that skips the checks must fail.
       let shortfall = null;
-      if (total === 0) {
+      if (total === 0 || passed + failed === 0) {
         shortfall = 'zero checks ran';
       } else if (expectedChecks !== null && total !== expectedChecks) {
         shortfall = `ran ${total}/${expectedChecks} expected checks`;
       }
-      const ok = passed === total && shortfall === null;
+      const ok = failed === 0 && shortfall === null;
+      const report = { title, passed, skipped, failed, total, ok, results };
 ```
 
 Use `createSuite(title, { expectedChecks })` and `await suite.check(name,
@@ -53,7 +58,10 @@ order, and exits `0` (pass), `1` (check failure or short run), or `2`
 (setup/teardown infrastructure error). Cleanup rejections cannot turn a
 passing check run green: the final report has `ok: false` and retains every
 failure in `cleanupErrors`, including stable error codes and process-tree
-attestation details when supplied by the lifecycle helper.
+attestation details when supplied by the lifecycle helper. `suite.skip(...)`
+is reserved for an explicitly classified unavailable remote dependency; it
+adds a structured skipped result, cannot satisfy a required all-skipped run,
+and is never represented as a passing check.
 Assertion helpers: `assert`, `assertEqual`, and
 `assertThrows(fn, code, msg)`, which matches `error.diagnostic.code` —
 stable codes, never message text. `requireBunRuntime(label)` guards suites
