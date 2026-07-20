@@ -4,7 +4,7 @@ id: backend.standard-patterns
 order: 25
 audience: agent-first
 capabilities: [backend.standard-patterns]
-authorities: [llp/0051-declarative-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/standard-patterns.mjs]
+authorities: [llp/0051-language-neutral-data-tier.rfc.md, llp/0065-generated-data-pattern-soundness.rfc.md, packages/snapback-codegen/standard-patterns.mjs]
 examples: [packages/snapback-codegen/standard-patterns.test.mjs]
 status: current
 targets: [local]
@@ -28,6 +28,26 @@ This surface is partial while its governing soundness RFC is Draft and its
 full server-backed cross-user acceptance remains open. The implemented v1
 profile is intentionally narrow: owner visibility only, with authorization
 and visibility always declared by the caller.
+
+## Declare the owner and continuation boundary
+
+The pagination index is an authorization partition followed by one unique
+continuation field. This example uses a server-generated string `pageKey`;
+timestamps alone are usually not unique enough for the v1 keyset contract.
+
+```js source=packages/snapback-codegen/standard-patterns.test.mjs
+export const todos = defineTable({
+  ownerId: v.principal(),
+  slug: v.string(),
+  title: v.string(),
+  pageKey: v.string(),
+  createdAt: v.integer(),
+  updatedAt: v.integer(),
+})
+  .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
+  .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .sync();
+```
 
 ## Generate owner-scoped CRUD
 
@@ -53,9 +73,9 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
     delete: 'deleteTodo',
   },
   visibility: { kind: 'owner', field: 'ownerId' },
-  createDefaults: { createdAt: 'now', updatedAt: 'now' },
+  createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
-  immutable: ['slug', 'createdAt'],
+  immutable: ['slug', 'pageKey', 'createdAt'],
 });
 ```
 
@@ -70,7 +90,7 @@ arguments for the other index fields while retaining the server-derived owner
 predicate.
 
 ```js source=packages/snapback-codegen/standard-patterns.test.mjs
-export const todoBySlug = defineOwnedUniqueLookup({
+export const { todoBySlug } = defineOwnedUniqueLookup({
   table: schema.tables.todos,
   name: 'todoBySlug',
   index: 'by_owner_slug',
@@ -88,15 +108,19 @@ rejects a declaration that would disguise a scan as pagination.
 export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   table: schema.tables.todos,
   names: { first: 'firstTodoPage', next: 'nextTodoPage' },
-  index: 'by_owner_created',
-  cursorField: 'createdAt',
+  index: 'by_owner_page_key',
+  cursorField: 'pageKey',
   visibility: { kind: 'owner', field: 'ownerId' },
 });
 ```
 
 The default page size is 50. Pass `direction: 'desc'`, a smaller `limit`, or a
 different cursor argument name when the declared unique index supports that
-shape.
+shape. The index fields must be exactly `[ownerField, cursorField]`, in that
+order. A unique index with a third field is not sufficient because the cursor
+may still repeat within one owner's partition. A generated string `pageKey`
+using an `id` trusted default is the safe v1 continuation when the natural sort
+field, such as a timestamp, is not independently unique.
 
 ## Know when to leave the profile
 

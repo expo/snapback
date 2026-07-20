@@ -106,24 +106,35 @@ acceptance cases; a generator must not approximate them with the owner profile.
 
 `defineOwnedCrud` derives argument validators from one installed table
 builder and emits list/get/create/update/delete definitions. Callers explicitly
-name every exported function. Immutable fields and trusted create/update
-defaults are explicit options. Updates are complete-field updates for the
-mutable v1 field set; partial-patch omission semantics are not guessed.
+name every exported function, operation names must be distinct, and the
+document-id argument must not collide with a schema field. Immutable fields and
+trusted create/update defaults are explicit options. Trusted defaults cannot
+name the owner field, and update defaults cannot name immutable fields. Updates
+are complete-field updates for the mutable v1 field set; partial-patch omission
+semantics are not guessed. Every helper's top-level options object is closed;
+misspelled or future options fail rather than being ignored.
 
 `defineOwnedUniqueLookup` requires a declared unique index containing the owner
-field. It derives arguments from the remaining indexed fields, executes the
-owner predicate, and limits the result to one row. A merely conventionally
-unique index is refused.
+field. It returns a definition map keyed by the required operation name,
+derives arguments from the remaining indexed fields, executes the owner
+predicate, and limits the result to one row. A merely conventionally unique
+index is refused.
 
 `defineOwnedKeysetPages` emits separate first/next functions. The declared
-index must be unique and contain both the visibility field and cursor field.
-The next page uses a strict ordered comparison, so the unique boundary neither
-duplicates nor skips equal cursor values. Authors whose natural cursor is not
-unique must declare a unique continuation key or accept that v1 cannot express
-their pagination; codegen must not silently synthesize offset pagination.
+index must be unique with exactly `[visibilityField, cursorField]` in that
+order. Merely containing those fields is insufficient: a third index field
+could make the compound index unique while leaving duplicate cursors inside
+one owner's partition, and the strict continuation filter would then skip
+rows. The next page uses a strict ordered comparison over the exact unique
+boundary. Authors whose natural cursor is not unique must declare a unique
+continuation key or accept that v1 cannot express their pagination; codegen
+must not silently synthesize offset pagination. The cursor field is required
+and explicit; v1 does not pretend the system `_id` field is author-indexable.
 
 Trusted defaults accept only `now` and `id`, mapped to the existing
-`RuntimeNow` and `RuntimeId` expressions. Their schema field type must match.
+`RuntimeNow` and `RuntimeId` expressions. Their schema field type must match;
+`id` is admitted only for a plain required string field, never a principal or
+foreign-table ID, and neither default may set the owner field.
 The corresponding properties are omitted from operation argument schemas,
 whose `additionalProperties: false` rule prevents client forgery.
 

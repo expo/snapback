@@ -1,0 +1,101 @@
+import { defineSchema, defineTable, v } from '@snapback/codegen/define';
+import {
+  defineOwnedCrud,
+  defineOwnedKeysetPages,
+  defineOwnedUniqueLookup,
+} from '@snapback/codegen/standard-patterns';
+
+const todos = defineTable({
+  ownerId: v.principal(),
+  slug: v.string(),
+  pageKey: v.string(),
+  title: v.string(),
+})
+  .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
+  .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true });
+defineSchema({ todos });
+
+const crud = defineOwnedCrud({
+  table: todos,
+  names: {
+    list: 'listTodos',
+    get: 'getTodo',
+    create: 'createTodo',
+    update: 'updateTodo',
+    delete: 'deleteTodo',
+  },
+  visibility: { kind: 'owner', field: 'ownerId' },
+  createDefaults: { pageKey: 'id' },
+  immutable: ['slug', 'pageKey'],
+});
+crud.listTodos;
+crud.updateTodo;
+// @ts-expect-error generated definition maps expose only explicitly named operations
+crud.listTodso;
+
+const lookup = defineOwnedUniqueLookup({
+  table: todos,
+  name: 'todoBySlug',
+  index: 'by_owner_slug',
+  visibility: { kind: 'owner', field: 'ownerId' },
+});
+lookup.todoBySlug;
+// @ts-expect-error lookup names remain literal in the returned definition map
+lookup.todosBySlug;
+
+const pages = defineOwnedKeysetPages({
+  table: todos,
+  names: { first: 'firstTodoPage', next: 'nextTodoPage' },
+  index: 'by_owner_page_key',
+  cursorField: 'pageKey',
+  visibility: { kind: 'owner', field: 'ownerId' },
+});
+pages.firstTodoPage;
+pages.nextTodoPage;
+// @ts-expect-error keyset maps expose only their two declared names
+pages.previousTodoPage;
+
+defineOwnedCrud({
+  table: todos,
+  names: {
+    list: 'badList',
+    get: 'badGet',
+    create: 'badCreate',
+    update: 'badUpdate',
+    delete: 'badDelete',
+  },
+  // @ts-expect-error owner visibility fields must exist on the table
+  visibility: { kind: 'owner', field: 'tenantId' },
+});
+
+defineOwnedCrud({
+  table: todos,
+  names: {
+    list: 'badOwnerDefaultList',
+    get: 'badOwnerDefaultGet',
+    create: 'badOwnerDefaultCreate',
+    update: 'badOwnerDefaultUpdate',
+    delete: 'badOwnerDefaultDelete',
+  },
+  visibility: { kind: 'owner', field: 'ownerId' },
+  createDefaults: {
+    // @ts-expect-error runtime ids cannot manufacture authority principals
+    ownerId: 'id',
+  },
+});
+
+defineOwnedCrud({
+  table: todos,
+  names: {
+    list: 'badDefaultsList',
+    get: 'badDefaultsGet',
+    create: 'badDefaultsCreate',
+    update: 'badDefaultsUpdate',
+    delete: 'badDefaultsDelete',
+  },
+  visibility: { kind: 'owner', field: 'ownerId' },
+  createDefaults: {
+    // @ts-expect-error trusted defaults must name a table field
+    generatedAt: 'now',
+  },
+});

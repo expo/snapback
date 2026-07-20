@@ -34,6 +34,18 @@ import {
 
 const IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const CRUD_NAME_FIELDS = Object.freeze(['list', 'get', 'create', 'update', 'delete']);
+const CRUD_OPTION_FIELDS = new Set([
+  'table', 'names', 'visibility', 'idArg', 'createDefaults',
+  'updateDefaults', 'immutable', 'listOrder', 'listLimit',
+]);
+const UNIQUE_LOOKUP_OPTION_FIELDS = new Set([
+  'table', 'name', 'index', 'visibility', 'live',
+]);
+const KEYSET_OPTION_FIELDS = new Set([
+  'table', 'names', 'index', 'cursorField', 'cursor', 'direction',
+  'limit', 'visibility',
+]);
+const SYSTEM_ORDER_FIELDS = new Set(['_id', '_version', '_createdAt', '_updatedAt']);
 
 function fail(code, message) {
   throw new TypeError(`${code}: ${message}`);
@@ -66,6 +78,12 @@ function requireName(name, where) {
 }
 
 function ownerVisibility(table, visibility) {
+  if (!visibility || typeof visibility !== 'object' || Array.isArray(visibility)) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED',
+      'v1 standard patterns require visibility: { kind: "owner", field: ... }',
+    );
+  }
   exactObject(visibility, 'visibility', new Set(['kind', 'field']));
   if (visibility.kind !== 'owner') {
     fail(
@@ -99,8 +117,11 @@ function normalizeDefaults(table, defaults, where) {
     if (kind === 'now' && !['Integer', 'Real'].includes(validator.fieldType)) {
       fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where}.${field} uses now but is not numeric`);
     }
-    if (kind === 'id' && validator.primitive !== 'string') {
-      fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where}.${field} uses id but is not string-valued`);
+    if (kind === 'id' && (validator.fieldType !== 'String' || validator.optional)) {
+      fail(
+        'SNAPBACK_STANDARD_PATTERN_INVALID',
+        `${where}.${field} uses id but is not a plain string field`,
+      );
     }
     result[field] = kind;
   }
@@ -136,6 +157,13 @@ function ownedRowGuard(tableName, idArg, ownerField, bindAs) {
   ];
 }
 
+function requireDistinctNames(names, fields, where) {
+  const values = fields.map((field) => names[field]);
+  if (new Set(values).size !== values.length) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `${where} must name distinct operations`);
+  }
+}
+
 /**
  * Generate list/get/create/update/delete functions from a bound table builder.
  *
@@ -144,26 +172,48 @@ function ownedRowGuard(tableName, idArg, ownerField, bindAs) {
  * it from read/write sets, and generated mutations re-check ownership inside
  * the transaction before touching a row.
  */
-export function defineOwnedCrud({
-  table,
-  names,
-  visibility,
-  idArg = 'id',
-  createDefaults,
-  updateDefaults,
-  immutable = [],
-  listOrder = '_createdAt',
-  listLimit = 100,
-}) {
+export function defineOwnedCrud(options) {
+  exactObject(options, 'defineOwnedCrud options', CRUD_OPTION_FIELDS);
+  const {
+    table,
+    names,
+    visibility,
+    idArg = 'id',
+    createDefaults,
+    updateDefaults,
+    immutable = [],
+    listOrder = '_createdAt',
+    listLimit = 100,
+  } = options;
   const facts = tableFacts(table);
   exactObject(names, 'names', new Set(CRUD_NAME_FIELDS));
   for (const field of CRUD_NAME_FIELDS) requireName(names[field], `names.${field}`);
+  requireDistinctNames(names, CRUD_NAME_FIELDS, 'names');
   requireName(idArg, 'idArg');
+  if (Object.hasOwn(facts.fields, idArg)) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `idArg ${idArg} collides with a schema field`);
+  }
   const ownerField = ownerVisibility(facts, visibility);
   const createDefaultMap = normalizeDefaults(facts, createDefaults, 'createDefaults');
   const updateDefaultMap = normalizeDefaults(facts, updateDefaults, 'updateDefaults');
+  if (Object.hasOwn(createDefaultMap, ownerField) || Object.hasOwn(updateDefaultMap, ownerField)) {
+    fail(
+      'SNAPBACK_STANDARD_PATTERN_INVALID',
+      `trusted defaults cannot set owner visibility field ${ownerField}`,
+    );
+  }
   if (!Array.isArray(immutable) || immutable.some((field) => typeof field !== 'string' || !Object.hasOwn(facts.fields, field))) {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'immutable must contain schema field names');
+  }
+  const updateDefaultFields = Object.keys(updateDefaultMap);
+  if (immutable.some((field) => updateDefaultFields.includes(field))) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'updateDefaults cannot set immutable fields');
+  }
+  if (
+    typeof listOrder !== 'string'
+    || (!Object.hasOwn(facts.fields, listOrder) && !SYSTEM_ORDER_FIELDS.has(listOrder))
+  ) {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', `listOrder names unknown field ${String(listOrder)}`);
   }
   if (!Number.isSafeInteger(listLimit) || listLimit < 1 || listLimit > 1_024) {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'listLimit must be an integer from 1 through 1024');
@@ -173,7 +223,7 @@ export function defineOwnedCrud({
   create.values[ownerField] = authUserId();
   const update = argsAndValues(
     facts,
-    new Set([ownerField, ...immutable, ...Object.keys(updateDefaultMap)]),
+    new Set([ownerField, ...immutable, ...updateDefaultFields]),
   );
   for (const [field, kind] of Object.entries(updateDefaultMap)) update.values[field] = defaultExpr(kind);
 
@@ -225,9 +275,14 @@ export function defineOwnedCrud({
 }
 
 /** Generate an owner-scoped lookup backed by a declared unique index. */
-export function defineOwnedUniqueLookup({ table, name, index, visibility, live = true }) {
+export function defineOwnedUniqueLookup(options) {
+  exactObject(options, 'defineOwnedUniqueLookup options', UNIQUE_LOOKUP_OPTION_FIELDS);
+  const { table, name, index, visibility, live = true } = options;
   const facts = tableFacts(table);
   requireName(name, 'name');
+  if (typeof live !== 'boolean') {
+    fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'live must be boolean');
+  }
   const ownerField = ownerVisibility(facts, visibility);
   const indexFacts = facts.indexes.find((candidate) => candidate.name === index);
   if (!indexFacts?.unique) {
@@ -254,30 +309,38 @@ export function defineOwnedUniqueLookup({ table, name, index, visibility, live =
     auth: 'authenticated',
     authScopeField: ownerField,
   };
-  return live ? defineLiveQuery(query) : defineLiveQuery({ ...query, defaultLive: false });
+  const definition = live ? defineLiveQuery(query) : defineLiveQuery({ ...query, defaultLive: false });
+  return Object.freeze({ [name]: definition });
 }
 
 /**
  * Generate first/next owner-scoped keyset pages. The selected index must
- * contain both the visibility field and cursor field, so this helper never
- * hides a scan behind a pagination-looking API.
+ * have exactly the visibility field followed by the cursor field, so the
+ * cursor is both an index range boundary and unique within one owner.
  */
-export function defineOwnedKeysetPages({
-  table,
-  names,
-  index,
-  cursorField = '_id',
-  cursor = 'after',
-  direction = 'asc',
-  limit = 50,
-  visibility,
-}) {
+export function defineOwnedKeysetPages(options) {
+  exactObject(options, 'defineOwnedKeysetPages options', KEYSET_OPTION_FIELDS);
+  const {
+    table,
+    names,
+    index,
+    cursorField,
+    cursor = 'after',
+    direction = 'asc',
+    limit = 50,
+    visibility,
+  } = options;
   const facts = tableFacts(table);
   exactObject(names, 'names', new Set(['first', 'next']));
   requireName(names.first, 'names.first');
   requireName(names.next, 'names.next');
+  requireDistinctNames(names, ['first', 'next'], 'names');
+  requireName(cursorField, 'cursorField');
   requireName(cursor, 'cursor');
   const ownerField = ownerVisibility(facts, visibility);
+  if (cursorField === ownerField) {
+    fail('SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED', 'cursor field must differ from owner field');
+  }
   if (direction !== 'asc' && direction !== 'desc') {
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'direction must be asc or desc');
   }
@@ -288,16 +351,20 @@ export function defineOwnedKeysetPages({
   if (
     !indexFacts
     || indexFacts.unique !== true
-    || !indexFacts.fields.includes(ownerField)
-    || !indexFacts.fields.includes(cursorField)
+    || indexFacts.fields.length !== 2
+    || indexFacts.fields[0] !== ownerField
+    || indexFacts.fields[1] !== cursorField
   ) {
     fail(
       'SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED',
-      `${index} must be unique and include owner field ${ownerField} and cursor field ${cursorField}`,
+      `${index} must be unique with exact fields [${ownerField}, ${cursorField}] in that order`,
     );
   }
-  const cursorValidator = cursorField === '_id' ? v.id(facts.name) : facts.fields[cursorField];
+  const cursorValidator = facts.fields[cursorField];
   if (!cursorValidator) fail('SNAPBACK_STANDARD_PATTERN_INVALID', `unknown cursor field ${cursorField}`);
+  if (cursorValidator.optional) {
+    fail('SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED', `cursor field ${cursorField} must be required`);
+  }
   const order = direction === 'asc' ? asc(cursorField) : desc(cursorField);
   const after = direction === 'asc' ? gtFilter(cursorField, arg(cursor)) : ltFilter(cursorField, arg(cursor));
   const base = {

@@ -1,11 +1,22 @@
 import assert from 'node:assert/strict';
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { defineSchema, defineTable, v } from './define.mjs';
-import { defineOwnedCrud } from './standard-patterns.mjs';
+import {
+  defineOwnedCrud,
+  defineOwnedKeysetPages,
+  defineOwnedUniqueLookup,
+} from './standard-patterns.mjs';
 import { generate } from './index.mjs';
 
 const packageDir = dirname(fileURLToPath(import.meta.url));
@@ -13,15 +24,122 @@ const defineUrl = pathToFileURL(join(packageDir, 'define.mjs')).href;
 const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).href;
 
 {
-  const todos = defineTable({ ownerId: v.principal(), title: v.string() });
+  const todos = defineTable({
+    ownerId: v.string(),
+    slug: v.string(),
+    title: v.string(),
+    createdAt: v.integer(),
+    delegateId: v.principal(),
+    optionalKey: v.optional(v.string()),
+  })
+    .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
+    .index('by_owner_created_slug', ['ownerId', 'createdAt', 'slug'], { unique: true });
   defineSchema({ todos });
+  const names = {
+    list: 'listTodos',
+    get: 'getTodo',
+    create: 'createTodo',
+    update: 'updateTodo',
+    delete: 'deleteTodo',
+  };
   assert.throws(
     () => defineOwnedCrud({
       table: todos,
-      names: { list: 'listTodos', get: 'getTodo', create: 'createTodo', update: 'updateTodo', delete: 'deleteTodo' },
+      names,
     }),
-    /SNAPBACK_STANDARD_PATTERN_INVALID|SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED/,
+    /SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED/,
     'generation must fail closed when visibility is omitted',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      updateDefaults: { ownerId: 'id' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: trusted defaults cannot set owner visibility field ownerId/,
+    'a trusted default must not bypass the transactional owner guard by transferring ownership',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      createDefaults: { delegateId: 'id' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: createDefaults.delegateId uses id but is not a plain string field/,
+    'runtime ids must not manufacture authority principals',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      createDefaults: { optionalKey: 'id' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: createDefaults.optionalKey uses id but is not a plain string field/,
+    'runtime ids require a non-optional continuation field',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      visiblity: { kind: 'owner', field: 'ownerId' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: defineOwnedCrud options has unknown field visiblity/,
+    'top-level pattern options must be a closed vocabulary',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names: { ...names, get: names.list },
+      visibility: { kind: 'owner', field: 'ownerId' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: names must name distinct operations/,
+    'duplicate operation names must not overwrite generated definitions',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      idArg: 'slug',
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: idArg slug collides with a schema field/,
+    'the document-id argument must not overwrite a complete-update field argument',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      immutable: ['createdAt'],
+      updateDefaults: { createdAt: 'now' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: updateDefaults cannot set immutable fields/,
+    'immutable fields must not be silently changed by trusted update defaults',
+  );
+  assert.throws(
+    () => defineOwnedUniqueLookup({
+      table: todos,
+      name: 'todoBySlug',
+      index: 'by_owner_slug',
+      visibility: { kind: 'owner', field: 'ownerId' },
+      live: 'sometimes',
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: live must be boolean/,
+  );
+  assert.throws(
+    () => defineOwnedKeysetPages({
+      table: todos,
+      names: { first: 'firstTodoPage', next: 'nextTodoPage' },
+      index: 'by_owner_created_slug',
+      cursorField: 'createdAt',
+      visibility: { kind: 'owner', field: 'ownerId' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED: by_owner_created_slug must be unique with exact fields \[ownerId, createdAt\]/,
+    'a third unique-index field does not make the cursor unique within one owner partition',
   );
 }
 
@@ -33,11 +151,12 @@ export const todos = defineTable({
   ownerId: v.principal(),
   slug: v.string(),
   title: v.string(),
+  pageKey: v.string(),
   createdAt: v.integer(),
   updatedAt: v.integer(),
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
-  .index('by_owner_created', ['ownerId', 'createdAt'], { unique: true })
+  .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
@@ -59,12 +178,12 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
     delete: 'deleteTodo',
   },
   visibility: { kind: 'owner', field: 'ownerId' },
-  createDefaults: { createdAt: 'now', updatedAt: 'now' },
+  createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
-  immutable: ['slug', 'createdAt'],
+  immutable: ['slug', 'pageKey', 'createdAt'],
 });
 
-export const todoBySlug = defineOwnedUniqueLookup({
+export const { todoBySlug } = defineOwnedUniqueLookup({
   table: schema.tables.todos,
   name: 'todoBySlug',
   index: 'by_owner_slug',
@@ -74,8 +193,8 @@ export const todoBySlug = defineOwnedUniqueLookup({
 export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   table: schema.tables.todos,
   names: { first: 'firstTodoPage', next: 'nextTodoPage' },
-  index: 'by_owner_created',
-  cursorField: 'createdAt',
+  index: 'by_owner_page_key',
+  cursorField: 'pageKey',
   visibility: { kind: 'owner', field: 'ownerId' },
 });
 `);
@@ -111,6 +230,7 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.equal(createSchema.additionalProperties, false);
   assert.deepEqual(createSchema.required, ['slug', 'title']);
   assert.equal(Object.hasOwn(createSchema.properties, 'ownerId'), false, 'owner identity must be server-derived');
+  assert.equal(Object.hasOwn(createSchema.properties, 'pageKey'), false, 'trusted ids must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'createdAt'), false, 'trusted time must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'updatedAt'), false, 'trusted time must not be client-forgeable');
 
@@ -123,14 +243,35 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
 
   const create = byName.get('createTodo');
   assert.equal(create.runtime.HostPlan.Mutation.steps[0].Insert.values.ownerId, 'AuthUserId');
+  assert.equal(create.runtime.HostPlan.Mutation.steps[0].Insert.values.pageKey, 'RuntimeId');
   assert.equal(create.runtime.HostPlan.Mutation.steps[0].Insert.values.createdAt, 'RuntimeNow');
 
   const next = byName.get('nextTodoPage');
   assert.equal(next.runtime.HostPlan.Query.filters[1].op, 'Gt');
   assert.equal(next.runtime.HostPlan.Query.limit, 50);
   assert.equal(byName.get('todoBySlug').runtime.HostPlan.Query.limit, 1);
+
+  const firstTree = snapshotTree(join(dir, 'generated'));
+  const regenerated = await generate(dir);
+  assert.equal(regenerated.ok, true, JSON.stringify(regenerated.diagnostics));
+  assert.deepEqual(snapshotTree(join(dir, 'generated')), firstTree, 'regeneration must be byte-identical');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }
 
 console.log('standard-patterns.test.mjs: all cases passed');
+
+function snapshotTree(root) {
+  const files = [];
+  visit(root, '');
+  return files;
+
+  function visit(directory, prefix) {
+    for (const name of readdirSync(directory).sort()) {
+      const path = join(directory, name);
+      const relative = prefix ? `${prefix}/${name}` : name;
+      if (statSync(path).isDirectory()) visit(path, relative);
+      else files.push([relative, readFileSync(path)]);
+    }
+  }
+}

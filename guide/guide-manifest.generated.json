@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "506b622cd3f115061b0553b1aa8e08165fb0cfdb"
+    "commit": "00a62f5949a667cb25e428f7400917851478f26a"
   },
   "nav": {
     ".": [
@@ -74,6 +74,11 @@
         "id": "backend.cron",
         "order": 4,
         "title": "Scheduled execution with cron"
+      },
+      {
+        "id": "backend.standard-patterns",
+        "order": 25,
+        "title": "Safe standard data patterns"
       }
     ],
     "clients": [
@@ -585,6 +590,52 @@
         }
       ]
     },
+    "backend.standard-patterns": {
+      "path": "guide/backend/standard-patterns.md",
+      "title": "Safe standard data patterns",
+      "order": 25,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.standard-patterns"
+      ],
+      "authorities": [
+        "llp/0051-language-neutral-data-tier.rfc.md",
+        "llp/0065-generated-data-pattern-soundness.rfc.md",
+        "packages/snapback-codegen/standard-patterns.mjs"
+      ],
+      "examples": [
+        "packages/snapback-codegen/standard-patterns.test.mjs"
+      ],
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "ca0b88037f727b712f7bcbd5532c0386a031ee17698c468993d504b43e4db7d0",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "packages/snapback-codegen/standard-patterns.test.mjs"
+        }
+      ]
+    },
     "meta.capabilities": {
       "path": "guide/capabilities.md",
       "title": "Capability index",
@@ -606,7 +657,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "e141f6ad85ea1c574a27cc255431f536ead4c4862b54663dcde0cbeca5c88352",
+      "sha256": "41d529b6dce184ad6fc404cfa4ad1535a3d7dca5a356a1eb2209aa038e1a3fd4",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1001,7 +1052,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "f891aa2604b4c7f6e7848a9ff1c2bc5ac3859c41219dfd2e31e867ccdfe76763",
+      "sha256": "9d8a21c4840403855d254cf3f8f1ff2feafef2f4a7283f873bf38f38b751f223",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1465,6 +1516,7 @@
       "backend.query-semantics",
       "backend.schema",
       "backend.seed",
+      "backend.standard-patterns",
       "clients.app-cli",
       "clients.contract",
       "clients.contract-keyed-scopes",
@@ -1495,5 +1547,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "bf90681382ae75f5302d13ea300d6fea675fdd4458dbf6c7e13de6893d84c0db"
+  "contentHash": "61a8a55349add0a319d9136720a07149951d51dcfa158ea9d34f0abf1a708c1a"
 }
