@@ -1,7 +1,7 @@
 # chat-matrix
 
 One product — pick an OpenRouter model, have a conversation with an AI —
-authored across **eight UI stacks** and run over **four backends** (Snapback,
+authored across **eleven UI stacks** and run over **four backends** (Snapback,
 Convex, Supabase, SQLite). The assistant reply streams into the message row
 server-side and each backend's own realtime mechanism (or a poll) delivers it.
 Every app states its authoring stack in the UI ("built with …").
@@ -15,6 +15,9 @@ Every app states its authoring stack in the UI ("built with …").
 | **React web** (baseline) | gateway poll | gateway poll | gateway poll | gateway poll |
 | **Ratatui** (terminal, Rust) | gateway poll | gateway poll | gateway poll | gateway poll |
 | **Ink** (terminal, React) | gateway poll | gateway poll | gateway poll | gateway poll |
+| **Bubble Tea** (terminal, Go) | gateway poll | gateway poll | gateway poll | gateway poll |
+| **Textual** (terminal, Python) | gateway poll | gateway poll | gateway poll | gateway poll |
+| **OpenTUI** (terminal, React/TS) | gateway poll | gateway poll | gateway poll | gateway poll |
 | **Exact TUI** (terminal, Contract) | — offline by design — | — | — | — |
 
 Where the AI call lives is part of the comparison:
@@ -82,6 +85,16 @@ cd demos/chat-matrix/ratatui && cargo run -- --backend convex
 # Ink TUI
 cd demos/chat-matrix/ink && bun install && bun run cli.tsx --backend snapback
 # same keys and --autodemo hook as the Ratatui cell
+
+# Bubble Tea TUI (Go)
+cd demos/chat-matrix/bubbletea && go run . --backend sqlite
+
+# Textual TUI (Python; uv resolves deps from the script header)
+cd demos/chat-matrix/textual && uv run chat.py --backend convex
+# Ctrl-B cycles backends here (Tab moves focus in Textual)
+
+# OpenTUI TUI (React/TS)
+cd demos/chat-matrix/opentui && bun install && bun run cli.tsx --backend supabase
 
 # Exact TUI (offline cell — see boundary note below)
 cd demos/chat-matrix/exact-tui && exact run tui

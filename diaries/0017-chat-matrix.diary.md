@@ -269,6 +269,37 @@ the shared checkout drifted mid-build under concurrent fleet sessions. The
 Exact × iOS cell stays app-ready but host-blocked (ENG-23311 territory plus
 local checkout churn).
 
+### Round three: Bubble Tea, Textual, OpenTUI
+
+Three more terminal stacks, same product, same gateway. All three completed
+the AI loop on their first real run — at this point the portable `/rpc`
+surface has made new cells almost mechanical.
+
+- **Bubble Tea** (Go, ~430 lines): the Elm architecture is the strictest
+  model of the three — all effects live in `tea.Cmd` closures returning typed
+  messages, so the HTTP/poll wiring is more ceremony than Ink's
+  `useEffect`+`setInterval` but is impossible to get subtly wrong. Go compiled
+  clean on the first `go build`. Lip Gloss styling is pleasant. The toolchain
+  wasn't installed (`brew install go`) — heaviest setup of the TUI row.
+- **Textual** (Python, ~230 lines): the "web dev for terminals" pitch is
+  real — CSS stylesheet in the app class, widgets with ids, `set_interval`
+  polling, and it **rendered the assistant's markdown reply with headings
+  and bullets without being asked**. uv's PEP 723 script header made the
+  whole environment (`uv run chat.py`) a non-event: 16 packages in 15ms.
+  One convention difference: Tab moves focus in Textual, so backend cycling
+  lives on Ctrl-B here.
+- **OpenTUI** (React/TS, ~230 lines): API discovered entirely from the
+  package README in node_modules — `<box>/<text>/<input>` JSX, `useKeyboard`,
+  flexbox-style props. Closest sibling to Ink; younger (`<input>` has no
+  controlled-clear, I remounted it with a key to clear the composer), but the
+  renderer felt fast and the styling model (nested `<span>` with fg/bg) is
+  nicer than Ink's for inline color.
+- Comparative feel across the five networked TUIs: Ink and OpenTUI are the
+  shortest path for anyone who knows React; Textual is the most batteries-
+  included (markdown, CSS, focus system); Bubble Tea is the most disciplined;
+  Ratatui is the most manual but the most predictable. All five support the
+  same `--autodemo` exit-with-transcript acceptance hook now.
+
 ### Updated verdict snapshots
 
 - Time-to-working-cell, fastest first: **React web**, **Ink**, **SwiftUI**,

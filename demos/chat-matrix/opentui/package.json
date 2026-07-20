@@ -1,0 +1,13 @@
+{
+  "name": "chat-matrix-opentui",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun run cli.tsx"
+  },
+  "dependencies": {
+    "@opentui/core": "^0.4.5",
+    "@opentui/react": "^0.4.5",
+    "react": "^19.2.7"
+  }
+}
