@@ -17,5 +17,8 @@
   "devDependencies": {
     "@types/react": "^19.2.0",
     "typescript": "^5.9.3"
+  },
+  "patchedDependencies": {
+    "expo-modules-jsi@57.0.3": "patches/expo-modules-jsi@57.0.3.patch"
   }
 }
