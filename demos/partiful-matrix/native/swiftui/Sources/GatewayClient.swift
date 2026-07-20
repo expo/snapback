@@ -49,8 +49,7 @@ struct GatewayClient: Sendable {
             args: PostArguments(
                 eventId: eventID,
                 authorName: persona.name,
-                message: message,
-                createdAt: Int64(Date().timeIntervalSince1970 * 1_000)
+                message: message
             )
         )
     }
@@ -98,7 +97,7 @@ struct GatewayClient: Sendable {
 private struct EmptyArguments: Encodable {}
 private struct EventArguments: Encodable { let eventId: String }
 private struct RSVPArguments: Encodable { let eventId: String; let guestName: String; let status: String }
-private struct PostArguments: Encodable { let eventId: String; let authorName: String; let message: String; let createdAt: Int64 }
+private struct PostArguments: Encodable { let eventId: String; let authorName: String; let message: String }
 private struct CreateEventArguments: Encodable {
     let title: String
     let emoji: String

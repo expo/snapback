@@ -292,7 +292,6 @@ async function boot() {
         eventId: state.view.id,
         authorName: state.persona.name,
         message,
-        createdAt: Date.now(),
       }, state.persona.userId);
       state.wallDraft = '';
     } catch (error) {
