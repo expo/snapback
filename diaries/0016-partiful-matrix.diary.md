@@ -690,3 +690,48 @@ concentrated product behavior into much less app source, but required more
 carrier and governance work before the proof was trustworthy. The remote build
 did not erase that cost; it converted it from an ambiguous local failure into
 a reproducible, reviewable result.
+
+## 2026-07-20 — Step 1 keyed scopes and mutation outcomes
+
+The cleanest implementation boundary was narrower than I expected. Exact
+already had the hard logical machinery—canonical argument identity, opaque
+authority partitions, same-key attempt sharing, refcounts, and predecessor
+fences. Snapback only needed to expose one physical transport attempt for one
+logical subscription and let binding-time args reach `liveQuery`. Keeping that
+split avoided a second registry in the provider and made the cross-repository
+oracle useful: the Exact suite proved its 32 adversarial logical cases, while
+the Snapback companion proved the real transport args, partition rotation,
+late-handle disposal, and two-provider isolation.
+
+The old multi-live surface made its limitation unusually visible: it preopened
+one handle per query name and treated `{ name, args }` as the only server
+scope. The additive keyed mode turns the same list into an allowlist and does
+not open anything until a generated binding subscribes. The authority barrier
+required one extra nuance. Quiesce must rotate and clear Exact's logical
+entries immediately, but Snapback cannot reopen them with predecessor auth;
+the provider therefore holds the successor physical opens until resume supplies
+the new user and authority capture.
+
+Mutation outcomes reinforced the same ownership lesson. Snapback's useful
+facts were already low-level: call settlement, receipt outcome and correlation,
+overlay class, rollback reason, durable version, and receipt absence or delay.
+Exact's three-fact projection could render rejection, awaiting evidence,
+missing-promised ambiguity, late confirmation, and contradictory late evidence
+without the provider inventing a second product state machine. The fault
+matrix also made idempotency concrete: a commit whose response was lost, its
+retry, and duplicate receipt delivery produced one effect and one retained
+settlement row.
+
+The most awkward part was evidence infrastructure. Filling a later claim's
+command changed the Step 0 “semantic” digest even though the workload had not
+changed. The projection had excluded status and artifact but not the command.
+Normalizing post-Step-0 commands to their frozen pending value preserved the
+original semantic hash and made the cumulative-manifest design actually
+cumulative.
+
+Compared with a hand-written React hook over Convex or Supabase, the keyed
+provider has more explicit authority and evidence machinery, but component
+code no longer owns resubscription races or sibling deduplication. The guide
+did accurately describe the old boot-scoped Contract surface, so this was a
+new capability rather than missing guidance; I updated the Contract and live
+query pages and did not file a guide-gap issue.

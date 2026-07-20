@@ -4,8 +4,8 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, packages/snapback-codegen/define.mjs, demos/_kit/client.mjs]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -76,6 +76,21 @@ The supplied `connectionId` is a readable client-local label; the kit resolves
 and refreshes its opaque granted wire id for high-level calls. A low-level
 adapter constructing raw frames must use
 `(await client.connectionGrant(label)).id`, never the readable label.
+
+## Logical keyed bindings
+
+One physical handle is not necessarily one component binding. The dynamic
+Contract provider lets Exact key a logical attempt by opaque authority
+partition, stable descriptor identity and compatibility token, and canonical
+arguments. Same-key siblings share data/error/reconnect state but dispose by
+independent refcount; different args, descriptors, providers, or authority
+partitions stay isolated. An authority change clears predecessor rows before
+reopening, so a late result cannot cross the privacy cut.
+
+This layer is for generated/framework integrations. Direct headless callers
+still own each `client.liveQuery()` handle they create. See
+[the Contract adapter](../clients/contract-adapter.md) for the shipped dynamic
+mode and its current live-push/no-offline profile boundary.
 
 ## What arrives: replace and delta
 

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "d6886d742c532fcba014e372ba0d4998260cfb28"
+    "commit": "7d2262b7583c05d4d8bfe1c44665dd9d88ef73c7"
   },
   "nav": {
     ".": [
@@ -598,7 +598,7 @@
       "examples": [],
       "reviewed": "2026-07-17",
       "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "7407a9f9c36159f04c1d6aa8c53459af7c1374767f6abed256db4316802afa98",
+      "sha256": "b8352b3897ce8828aa210ab38d1fd53a3a442dcec3f3cfec3722ea4faf0814d3",
       "snippets": []
     },
     "clients.app-cli": {
@@ -640,24 +640,30 @@
       "maturity": "shipped",
       "capabilities": [
         "clients.contract",
+        "clients.contract-keyed-scopes",
+        "clients.mutation-outcomes",
         "clients.optimistic-overlays"
       ],
       "authorities": [
         "llp/0005-contract-exact-react-integration.explainer.md",
         "llp/0034-contract-source-seam-provider-side.rfc.md",
+        "llp/0043-offline-replay-retention.rfc.md",
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
-        "packages/snapback-contract/index.mjs"
+        "packages/snapback-contract/index.mjs",
+        "packages/snapback-contract/keyed-provider.mjs"
       ],
       "examples": [
         "demos/todo-v2/surfaces/contract",
         "demos/all-aboard/surfaces/contract",
-        "packages/snapback-contract/agent-authority-contract.test.mjs"
+        "packages/snapback-contract/agent-authority-contract.test.mjs",
+        "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs",
+        "demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs"
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "HEAD",
-      "sha256": "85d34fdde6d1d0dc1fff62a31919b1abd5e82b97239234400d357d2aa5e7e658",
+      "sha256": "ef702ae0c22b88f2fe25e301746b3513e534a71d070d62731a1ef4188ff49864",
       "snippets": [
         {
           "lang": "contract",
@@ -1150,17 +1156,20 @@
       "authorities": [
         "llp/0008-local-first-sync-and-realtime.rfc.md",
         "llp/0004-application-data-api.rfc.md",
+        "llp/0034-contract-source-seam-provider-side.rfc.md",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-contract/keyed-provider.mjs",
         "demos/_kit/client.mjs"
       ],
       "examples": [
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/_kit/tests/live-delta-e2e.mjs",
-        "demos/all-aboard/surfaces/react/src/main.tsx"
+        "demos/all-aboard/surfaces/react/src/main.tsx",
+        "demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs"
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "3539ead50e8f29a6bc8b1309804f17dcf083d30280ccbb154f1c17294317d1ab",
+      "sha256": "7a2cb5249eb8f6fef63dcd7c94720bb2dbdf61c16908ce96519626493f9a7f77",
       "snippets": [
         {
           "lang": "js",
@@ -1408,7 +1417,9 @@
       "backend.seed",
       "clients.app-cli",
       "clients.contract",
+      "clients.contract-keyed-scopes",
       "clients.headless",
+      "clients.mutation-outcomes",
       "clients.optimistic-overlays",
       "clients.react",
       "deploy.cloudflare",
@@ -1432,5 +1443,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "c785740a3aa7295286521a9cb6fef677e7518422e28271578a2b049aa9afb84f"
+  "contentHash": "c22625285dc417c564c46aedbeec9d991c5291b96b27221f4589b46d22d035bd"
 }

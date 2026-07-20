@@ -1,0 +1,39 @@
+{
+  "schemaVersion": "partitime.step1-keyed-scopes.v1",
+  "claim": "STEP1.KEYED_SCOPES",
+  "ok": true,
+  "checks": [
+    "Exact adversarial keyed-query oracle passes",
+    "canonical same-key bindings share one attempt and current state",
+    "different args and different provider partitions stay isolated",
+    "binding refcounts dispose only the final upstream",
+    "authority rotation clears predecessor rows and reopens survivors",
+    "late predecessor delivery is fenced",
+    "invalid args surface a structured diagnostic",
+    "root/HMR teardown leaves no logical attempts"
+  ],
+  "observed": {
+    "exactOracleTests": 32,
+    "transportAttemptsBeforeRotation": 2,
+    "transportAttemptsAfterRotation": 4,
+    "finalLogicalSubscriptions": 0
+  },
+  "sources": [
+    {
+      "path": "packages/snapback-contract/keyed-provider.mjs",
+      "sha256": "d92c200a1439174bc434f9077d8846c2433ba43a0b80ca1ad5c2cf8927b9fc7e"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/runtime/query-identity.ts",
+      "sha256": "3e2da75f4a9413159c8df05b3baf669d9ed1b06d8c19886be14b0a6bef5d3baf"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/runtime/query-dedup.ts",
+      "sha256": "fae89af68d99689c2a1f2e19b70c44721f283a22a3b000752af385a5dd125242"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/__tests__/keyed-query-scopes.test.ts",
+      "sha256": "a481a56d25b79edb4bfc67ee3ff95ec85e60beb05ae5debb2d9df7248eb29cad"
+    }
+  ]
+}

@@ -79,6 +79,11 @@ export {
 // root stays the single import site.
 export { createDeferredContractLinks, createRenderFirstSnapbackContractSurface } from './render-first.mjs';
 
+// LLP 0063 Step 1: binding-time keyed scopes. Exact owns logical identity and
+// deduplication; this provider owns one Snapback transport attempt per logical
+// Exact subscription.
+export { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
+
 // Derived optimistic overlays (Exact LLP 0329 E-B): generated default
 // reducers for IR-tier mutations whose manifest embeds the plan. Lives in
 // ./derived-overlay.mjs; re-exported so the package root stays the single
@@ -112,6 +117,7 @@ import {
   authorizedLeaseActivationHash,
   validateAuthorizedLeaseCapability,
 } from './authorized-lease.mjs';
+import { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
 
 // A physical format-6 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
@@ -599,6 +605,11 @@ export async function createSnapbackContractSurface({
   // serve multiple component entrypoints (for example Shindig feed/detail).
   // Every required binding must be configured before construction succeeds.
   requiredQueries = null,
+  // LLP 0063 Step 1: make liveQueries a descriptor allowlist and open one
+  // transport per binding-time logical key. Exact owns canonical identity,
+  // deduplication, refcounts, and fencing. Legacy name-keyed/preopened mode
+  // remains the default until published Exact packages carry that runtime.
+  keyedQueryScopes = false,
 }) {
   const lifecycleGenerationSeeds = normalizeTestLifecycleGenerationSeeds(
     testLifecycleGenerationSeeds,
@@ -761,6 +772,122 @@ export async function createSnapbackContractSurface({
       if (!bound.committed) throw staleContractAuthorityError();
     }
     if (Array.isArray(liveQueries)) {
+      if (keyedQueryScopes) {
+        if (!livePush || typeof client.liveQuery !== 'function') {
+          const error = new Error(
+            'SNAPBACK_CONTRACT_KEYED_LIVE_TRANSPORT_REQUIRED: keyed query scopes currently require Snapback liveQuery push',
+          );
+          error.code = 'SNAPBACK_CONTRACT_KEYED_LIVE_TRANSPORT_REQUIRED';
+          throw error;
+        }
+        if (clientStore) {
+          const error = new Error(
+            'SNAPBACK_CONTRACT_KEYED_OFFLINE_PENDING: keyed query scopes do not yet claim retained/offline behavior',
+          );
+          error.code = 'SNAPBACK_CONTRACT_KEYED_OFFLINE_PENDING';
+          throw error;
+        }
+        const configured = new Set(liveQueries.map((entry) => (
+          typeof entry === 'string' ? entry : entry?.name
+        )));
+        const missingRequired = (requiredQueries ?? [])
+          .map((entry) => typeof entry === 'string' ? entry : entry?.name)
+          .filter((name) => !configured.has(name));
+        if (missingRequired.length > 0) {
+          const diagnostic = contractDiagnostic(
+            'SNAPBACK_CONTRACT_QUERY_UNCONFIGURED',
+            `Contract query bindings are required by the mounted component but omitted from keyed liveQueries: ${missingRequired.join(', ')}.`,
+            { queries: missingRequired, configuredQueries: [...configured], configurationSurface: 'liveQueries' },
+          );
+          const error = new Error(diagnostic.message);
+          error.code = diagnostic.code;
+          error.diagnostic = diagnostic;
+          throw error;
+        }
+        let disposed = false;
+        let unregisterKeyedParticipant = null;
+        let keyedDisposeTask = null;
+        const keyed = createKeyedSnapbackContractProvider({
+          runtime,
+          client,
+          manifest,
+          userId: effectiveContractUserId(coordinator, null, userId),
+          initialAuthorityCapture: authorityCapture,
+          keyedQueries: liveQueries,
+          livePush,
+          liveFallbackToPoll,
+          connectionId,
+          liveStreamOptions,
+          onConnectionChange,
+          onSubscriptionEvent,
+          rootId: surfaceRootId,
+        });
+        if (coordinator) {
+          unregisterKeyedParticipant = registerContractParticipant(client, coordinator, {
+            name: `snapback-contract-keyed-surface:${surfaceRootId}`,
+            quiesce() {
+              keyed.quiesceAuthority();
+              detachReceiptListener?.();
+              detachReceiptListener = null;
+            },
+            blank() {},
+            clearMemory() {},
+            async commitDurable() {},
+            async resume(context) {
+              if (disposed) return;
+              if (client?.authCoordinator === coordinator) await coordinator.synchronize();
+              const authSession = context.authority?.kind === 'servicePrincipal'
+                && typeof client.authSession === 'function'
+                ? await client.authSession()
+                : null;
+              keyed.resumeAuthority({
+                userId: effectiveContractUserId(coordinator, authSession, userId),
+                authorityCapture: context.capture,
+              });
+              attachReceiptListener();
+            },
+          });
+          const current = await compareContractCommit(client, coordinator, authorityCapture, () => undefined);
+          if (!current.committed) throw staleContractAuthorityError();
+        }
+        return {
+          adapterVersion: SNAPBACK_CONTRACT_ADAPTER_VERSION,
+          capabilityClass: SNAPBACK_CONTRACT_CAPABILITY_CLASS,
+          links: keyed.links,
+          provider: keyed.provider,
+          diagnostics: [...diagnostics, ...keyed.diagnostics],
+          pendingCount: () => 0,
+          declaredQueries: Object.keys(manifest?.queries ?? {}),
+          declaredMutations: Object.keys(manifest?.mutations ?? {}),
+          livePush: true,
+          liveQueries: [...configured],
+          rootId: surfaceRootId,
+          receipts: () => typeof client.receipts === 'function' ? client.receipts() : [],
+          connection: () => null,
+          connections: () => ({}),
+          rotateAuthority: (next) => keyed.rotateAuthority(next),
+          mount: (component, options = {}) => {
+            const handle = mountSnapbackContractHeadless(runtime, component, options);
+            return rememberMountHandle(mountedHandles, handle);
+          },
+          flush: async () => {},
+          dispose: () => {
+            if (keyedDisposeTask) return keyedDisposeTask;
+            disposed = true;
+            keyed.dispose();
+            detachReceiptListener?.();
+            detachReceiptListener = null;
+            for (const handle of [...mountedHandles]) handle.dispose();
+            mountedHandles.clear();
+            const unregister = unregisterKeyedParticipant?.();
+            unregisterKeyedParticipant = null;
+            const releaseStore = releaseDurableStoreRegistration?.();
+            releaseDurableStoreRegistration = null;
+            keyedDisposeTask = Promise.all([unregister, releaseStore].filter(Boolean));
+            return keyedDisposeTask;
+          },
+        };
+      }
       return await createMultiLiveContractSurface({
         runtime,
         client,

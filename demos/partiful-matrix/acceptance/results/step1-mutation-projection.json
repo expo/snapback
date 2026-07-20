@@ -1,0 +1,50 @@
+{
+  "schemaVersion": "partitime.step1-mutation-projection.v1",
+  "claim": "STEP1.MUTATION_PROJECTION",
+  "ok": true,
+  "providers": [
+    "snapback-partitime-faults",
+    "synthetic-failing"
+  ],
+  "schedules": [
+    "rejection",
+    "timeout",
+    "retry",
+    "duplicate",
+    "idempotency",
+    "late-confirmation",
+    "receiptless-ambiguity",
+    "contradictory-late-evidence"
+  ],
+  "observed": {
+    "exactOracleTests": 35,
+    "snapbackEffectsForRetryIdentity": 1,
+    "snapbackSettlementRowsForRetryIdentity": 1,
+    "rejectionDisplay": "matched",
+    "lateDisplay": "late",
+    "ambiguityDisplay": "missing-promised",
+    "disagreementDisplay": "late-contradictory"
+  },
+  "sources": [
+    {
+      "path": "packages/snapback-contract/keyed-provider.mjs",
+      "sha256": "d92c200a1439174bc434f9077d8846c2433ba43a0b80ca1ad5c2cf8927b9fc7e"
+    },
+    {
+      "path": "llp/0043-offline-replay-retention.rfc.md",
+      "sha256": "9da465ee1bb4444553d3fe7d4dea2f3e009c3ae44d8a4e3b37abed295f95fbb6"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/runtime/mutation-projection.ts",
+      "sha256": "2fe7cd0dde65b26593d565c4eea1d07659d72c36b6e7d684db4bc5692556e8d4"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/runtime/synthetic-failing-provider.ts",
+      "sha256": "06e5d59a6a06f801112c0f9ab18131808845132273784722ce7406d319e7434c"
+    },
+    {
+      "path": "exact/packages/exact-contract/src/__tests__/mutation-projection.test.ts",
+      "sha256": "724773d97c567fb113c04c4b544bf2f937f81f05dfdb8cdd9f635cabc03b0bd0"
+    }
+  ]
+}

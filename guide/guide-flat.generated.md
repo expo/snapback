@@ -59,6 +59,8 @@ with the Snapback label and `guide-gap` in the title.
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
 | clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
+| clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
+| clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | React arm: hand-wired client, connection axis | react, hooks, dataprovider | local | shipped | demos/all-aboard/surfaces/react/src/main.tsx | llp/0005 | clients/react.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
@@ -1890,9 +1892,9 @@ title: The Contract adapter
 id: clients.contract-adapter
 order: 1
 audience: agent-first
-capabilities: [clients.contract, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
+capabilities: [clients.contract, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -2068,6 +2070,40 @@ What the surface does for you:
   semi-join delivers no rows to non-members) while gated JS point reads
   deny by *diagnostic* — pick the locked-state branch accordingly
   (`empty` vs `error`).
+- **Dynamic keyed scopes** — pass `keyedQueryScopes: true` with
+  `liveQueries` as a descriptor allowlist when a component's props or state
+  choose query args. The adapter no longer preopens one boot-scoped instance;
+  each binding's args reach Snapback. Exact's runtime canonicalizes the
+  logical key, shares same-key attempts with independent refcounts, and fences
+  predecessor generations. Snapback rotates the opaque partition at the auth
+  barrier and holds successor transport opens until resume. This mode requires
+  the LLP 0063-era Exact runtime and live push; it deliberately refuses a
+  retained/offline store until that profile earns its later gate. The legacy
+  boot-scoped mode remains the default for currently published Exact packages.
+
+  ```js source=packages/snapback-contract/keyed-provider.test.mjs
+  const factorySurface = await createSnapbackContractSurface({
+    runtime,
+    client: {
+      liveQuery(name, options) {
+        factoryOpens.push({ name, options });
+        return Promise.resolve({ rows: [{ _id: options.args.eventId }], connection: 'live', dispose() {} });
+      },
+      async mutate() {},
+    },
+    userId: 'factory-user',
+    manifest,
+    liveQueries: [{ name: 'eventDetails', args: { eventId: 'legacy-boot-scope' } }],
+    keyedQueryScopes: true,
+  });
+  ```
+- **Structural mutation outcomes** — Snapback preserves raw call, optimistic
+  overlay, receipt, durable-version, correlation, and ambiguity facts. Exact
+  projects those facts into attempt/overlay/evidence state; neither side lets
+  late or contradictory evidence rewrite an already committed outcome. The
+  Step 1 fault gate covers timeout, retry, duplicate delivery, idempotency,
+  late confirmation, rejection, and receipt-less ambiguity against Snapback
+  and a non-Snapback provider.
 - **Offline/Parity** — with a `clientStore`
   (`createLocalStorageSnapbackClientStore` /
   `createMemorySnapbackClientStore`) the surface persists retained queries
@@ -3604,8 +3640,8 @@ id: realtime.live-queries
 order: 1
 audience: agent-first
 capabilities: [realtime.live-queries, realtime.durable-push]
-authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, packages/snapback-codegen/define.mjs, demos/_kit/client.mjs]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx]
+authorities: [llp/0008-local-first-sync-and-realtime.rfc.md, llp/0004-application-data-api.rfc.md, llp/0034-contract-source-seam-provider-side.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-contract/keyed-provider.mjs, demos/_kit/client.mjs]
+examples: [demos/todo/tests/acceptance/headless.mjs, demos/_kit/tests/live-delta-e2e.mjs, demos/all-aboard/surfaces/react/src/main.tsx, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -3676,6 +3712,21 @@ The supplied `connectionId` is a readable client-local label; the kit resolves
 and refreshes its opaque granted wire id for high-level calls. A low-level
 adapter constructing raw frames must use
 `(await client.connectionGrant(label)).id`, never the readable label.
+
+## Logical keyed bindings
+
+One physical handle is not necessarily one component binding. The dynamic
+Contract provider lets Exact key a logical attempt by opaque authority
+partition, stable descriptor identity and compatibility token, and canonical
+arguments. Same-key siblings share data/error/reconnect state but dispose by
+independent refcount; different args, descriptors, providers, or authority
+partitions stay isolated. An authority change clears predecessor rows before
+reopening, so a late result cannot cross the privacy cut.
+
+This layer is for generated/framework integrations. Direct headless callers
+still own each `client.liveQuery()` handle they create. See
+[the Contract adapter](../clients/contract-adapter.md) for the shipped dynamic
+mode and its current live-push/no-offline profile boundary.
 
 ## What arrives: replace and delta
 

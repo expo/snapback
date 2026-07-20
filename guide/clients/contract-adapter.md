@@ -3,9 +3,9 @@ title: The Contract adapter
 id: clients.contract-adapter
 order: 1
 audience: agent-first
-capabilities: [clients.contract, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs]
-examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs]
+capabilities: [clients.contract, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
+examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
 maturity: shipped
@@ -181,6 +181,40 @@ What the surface does for you:
   semi-join delivers no rows to non-members) while gated JS point reads
   deny by *diagnostic* — pick the locked-state branch accordingly
   (`empty` vs `error`).
+- **Dynamic keyed scopes** — pass `keyedQueryScopes: true` with
+  `liveQueries` as a descriptor allowlist when a component's props or state
+  choose query args. The adapter no longer preopens one boot-scoped instance;
+  each binding's args reach Snapback. Exact's runtime canonicalizes the
+  logical key, shares same-key attempts with independent refcounts, and fences
+  predecessor generations. Snapback rotates the opaque partition at the auth
+  barrier and holds successor transport opens until resume. This mode requires
+  the LLP 0063-era Exact runtime and live push; it deliberately refuses a
+  retained/offline store until that profile earns its later gate. The legacy
+  boot-scoped mode remains the default for currently published Exact packages.
+
+  ```js source=packages/snapback-contract/keyed-provider.test.mjs
+  const factorySurface = await createSnapbackContractSurface({
+    runtime,
+    client: {
+      liveQuery(name, options) {
+        factoryOpens.push({ name, options });
+        return Promise.resolve({ rows: [{ _id: options.args.eventId }], connection: 'live', dispose() {} });
+      },
+      async mutate() {},
+    },
+    userId: 'factory-user',
+    manifest,
+    liveQueries: [{ name: 'eventDetails', args: { eventId: 'legacy-boot-scope' } }],
+    keyedQueryScopes: true,
+  });
+  ```
+- **Structural mutation outcomes** — Snapback preserves raw call, optimistic
+  overlay, receipt, durable-version, correlation, and ambiguity facts. Exact
+  projects those facts into attempt/overlay/evidence state; neither side lets
+  late or contradictory evidence rewrite an already committed outcome. The
+  Step 1 fault gate covers timeout, retry, duplicate delivery, idempotency,
+  late confirmation, rejection, and receipt-less ambiguity against Snapback
+  and a non-Snapback provider.
 - **Offline/Parity** — with a `clientStore`
   (`createLocalStorageSnapbackClientStore` /
   `createMemorySnapbackClientStore`) the surface persists retained queries

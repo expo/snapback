@@ -194,6 +194,26 @@ the ACKs and the current queued mutation. A request may not acknowledge its own
 current id. Acknowledgement and GC are idempotent and auth-bound, so one
 principal cannot delete another's replay result.
 
+#### Raw settlement facts and projection ownership (2026-07-20, LLP 0063 Step 1)
+
+The provider exposes facts; it does not collapse uncertainty into a product
+state. The raw Snapback facts are the effect-call settlement (pending,
+returned, or threw), the optimistic overlay lifecycle and class, the
+provider-core mutation receipt when one exists, its correlation identity,
+confirmed/rejected outcome, rollback reason, durable snapshot version, and
+whether delivery was immediate, late, duplicated, or absent. A receipt-less
+timeout remains ambiguous and queued; retry and duplicate delivery retain the
+same `clientMutationId` and cannot imply a second effect.
+
+Exact owns the total projection of those facts into renderable attempt,
+overlay, and evidence-join state under its LLP 0330/0342/0329 authorities.
+Snapback never rewrites a committed Exact outcome when later provider evidence
+disagrees; it supplies the receipt/settlement observation so Exact can render
+the disagreement. The two-provider fault gate must exercise timeout, retry,
+duplicate delivery, idempotent settlement, late confirmation, rejection, and
+receipt-less ambiguity against both Snapback's raw-fact seam and a non-Snapback
+provider.
+
 Exactly-once wins over opportunistic eviction. A retained result is capped at
 65,536 serialized bytes; the ledger is capped at 10,000 records and 67,108,864
 logical result bytes. One auth fingerprint is separately capped at 1,024

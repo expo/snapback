@@ -783,9 +783,40 @@ publish-budget facts. One adapter gap surfaced and was closed additively:
   whose args deep-differ from the configured entry's records
   `SNAPBACK_CONTRACT_LIVEQUERY_ARGS_MISMATCH` in the surface diagnostics
   plus a dev warning — it is still served the configured scope's rows, but
-  never silently. Per-binding argful subscriptions (N scopes of one query on
-  one surface) remain future work; today's contract is one scope per query
-  name. Gated by `regression-multilive-scoped.mjs`.
+  never silently. This is now named **legacy boot-scoped mode**, retained for
+  published-runtime compatibility and gated by
+  `regression-multilive-scoped.mjs`; it is no longer the platform ceiling.
+
+#### Dynamic keyed query scopes
+
+Accepted 2026-07-20 for LLP 0063 Step 1.
+
+`keyedQueryScopes: true` is the accepted additive mode. In this mode
+`liveQueries` is only a descriptor allowlist. An object's historical `args`
+member is ignored, and every generated binding's args are the authoritative
+server args. Exact's runtime owns the logical key `(opaque authority
+partition, stable descriptor identity, compatibility token, canonical args)`,
+same-key attempt sharing, independent binding refcounts, and logical
+generation fencing. Snapback owns one physical `liveQuery` attempt per Exact
+logical subscription, transport reconnect, and disposal of a handle that
+resolves after its binding is gone.
+
+An authority-barrier quiesce rotates the opaque partition synchronously. Exact
+first fences and clears predecessor entries; Snapback holds successor physical
+opens until the barrier resumes with its new user and authority capture. Thus
+same-user reauthentication, anonymous/authenticated changes, tenant/root
+changes, and provider reconfiguration never preserve logical identity merely
+because query args happen to match. Mutation dispatch is rejected while the
+provider is quiesced. The dynamic mode currently requires live push and does
+not claim retained/offline behavior; those are later profile gates, not silent
+fallbacks.
+
+The differential gate is
+`demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs`: it imports
+Exact's adversarial oracle and adds the real Snapback provider seam, including
+canonical same-key sharing, different-scope and different-provider isolation,
+late predecessor suppression, authority rotation, structured invalid-args
+refusal, and HMR/root teardown.
 
 The demo's row-shape acceptance check also confirms the §10.3 note about the
 Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`
