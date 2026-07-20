@@ -1,0 +1,88 @@
+{
+  "appId": "chat-matrix",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/applyAssistantDelta.args.schema.json",
+    "operations/claimReply.args.schema.json",
+    "operations/createConversation.args.schema.json",
+    "operations/generateReply.args.schema.json",
+    "operations/listConversations.args.schema.json",
+    "operations/sendMessage.args.schema.json",
+    "operations/thread.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/applyAssistantDelta.mutation.ts",
+    "contract/applyAssistantDelta.mutation.contract-meta.ts",
+    "contract/claimReply.mutation.ts",
+    "contract/claimReply.mutation.contract-meta.ts",
+    "contract/createConversation.mutation.ts",
+    "contract/createConversation.mutation.contract-meta.ts",
+    "contract/listConversations.query.ts",
+    "contract/listConversations.query.contract-meta.ts",
+    "contract/sendMessage.mutation.ts",
+    "contract/sendMessage.mutation.contract-meta.ts",
+    "contract/thread.query.ts",
+    "contract/thread.query.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:97195a0b1e2459a1",
+  "config": [
+    {
+      "name": "openrouter",
+      "pool": true,
+      "required": true
+    }
+  ],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "chat-matrix:applyAssistantDelta",
+      "kind": "Mutation",
+      "name": "applyAssistantDelta"
+    },
+    {
+      "id": "chat-matrix:claimReply",
+      "kind": "Mutation",
+      "name": "claimReply"
+    },
+    {
+      "id": "chat-matrix:createConversation",
+      "kind": "Mutation",
+      "name": "createConversation"
+    },
+    {
+      "id": "chat-matrix:generateReply",
+      "kind": "Action",
+      "name": "generateReply"
+    },
+    {
+      "id": "chat-matrix:listConversations",
+      "kind": "LiveQuery",
+      "name": "listConversations"
+    },
+    {
+      "id": "chat-matrix:sendMessage",
+      "kind": "Mutation",
+      "name": "sendMessage"
+    },
+    {
+      "id": "chat-matrix:thread",
+      "kind": "LiveQuery",
+      "name": "thread"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "3d2311dd52c6a315ab8053b004038286fb8f1dca1596585fa4763cb5939ce78e",
+  "schemaHash": "sha256:575e44bb29e4e248",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "conversations",
+    "messages"
+  ]
+}

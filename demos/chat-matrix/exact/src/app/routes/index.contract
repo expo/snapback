@@ -1,0 +1,115 @@
+use messages from "../../chat/data/messages.query.ts"
+use chatInfo from "../../chat/data/chatInfo.query.ts"
+use models from "../../chat/data/models.query.ts"
+use send from "../../chat/data/send.mutation.ts"
+use newConversation from "../../chat/data/newConversation.mutation.ts"
+use setModel from "../../chat/data/setModel.mutation.ts"
+
+// One AI conversation over the chat-matrix gateway. The provider owns which
+// conversation is live (Contract actions cannot consume mutation results into
+// state), so this view is purely declarative over messages + chatInfo.
+component ChatRoute
+  state draft = ""
+  state pickerOpen = false
+
+  derive canSend = draft.trim() != ""
+
+  query thread = messages({})
+  query info = chatInfo({})
+  query modelList = models({})
+  mutation sendMut = send
+  mutation newMut = newConversation
+  mutation setModelMut = setModel
+
+  action setDraft(value) writes draft
+    draft = value
+  action submit writes draft mutates sendMut
+    sendMut({ content: draft.trim() })
+    draft = ""
+  action startNew mutates newMut
+    newMut({})
+  action togglePicker writes pickerOpen
+    pickerOpen = !pickerOpen
+  action chooseModel(modelId) writes pickerOpen mutates setModelMut
+    setModelMut({ model: modelId })
+    pickerOpen = false
+
+  contract
+    has node testId="chat-root"
+    has node testId="composer"
+    has button "Send"
+    press button "Send" -> submit
+    has node testId="new-chat"
+    has node testId="model-button"
+    action submit writes draft
+    action chooseModel writes pickerOpen
+
+  view
+    column width="100%" height="100%" background="#f4f4f6" testId="chat-root"
+      column width="100%" gap=8 paddingTop=12 paddingBottom=10 paddingLeft=14 paddingRight=14 background="#ffffff" borderBottomWidth=1 borderColor="#e2e2e8"
+        async info
+          loading
+            text "chat-matrix" size=14 weight=800 color="#1f1f24"
+          error problem
+            text problem.message size=12 color="#b3261e"
+          empty
+            text "chat-matrix" size=14 weight=800 color="#1f1f24"
+          ready infoRows
+            each item in infoRows key=item._id
+              column width="100%" gap=6
+                row width="100%" align="center" gap=8
+                  text "chat-matrix" size=14 weight=800 color="#1f1f24"
+                  text `EXACT + CONTRACT · ${item.backend}` size=10 weight=700 color="#3478f6" testId="matrix-label" flex=1
+                  button label="New chat" press=startNew testId="new-chat" paddingTop=6 paddingBottom=6 paddingLeft=10 paddingRight=10 radius=999 background="#eef2ff"
+                    text "＋ New" size=12 weight=700 color="#3478f6"
+                row width="100%" align="center" gap=8
+                  button label="Choose model" press=togglePicker testId="model-button" flex=1 padding=8 background="#f4f4f6" borderWidth=1 borderColor="#d9d9e0" radius=8
+                    text item.model size=12 color="#1f1f24"
+                  text thread.connection size=10 color="#8a8a92" testId="connection"
+        when pickerOpen
+          column width="100%" gap=4 paddingTop=6 testId="model-picker"
+            text "FEATURED MODELS" size=9 weight=700 color="#8a8a92"
+            async modelList
+              loading
+                text "Loading models…" size=12 color="#8a8a92"
+              error problem
+                text problem.message size=11 color="#b3261e"
+              empty
+                text "Catalog unavailable" size=12 color="#8a8a92"
+              ready modelRows
+                column width="100%" gap=4
+                  each m in modelRows key=m._id
+                    button label=m.id press=chooseModel(m.id) testId=`model-${m.id}` width="100%" padding=8 background="#f8f8fa" borderWidth=1 borderColor="#e2e2e8" radius=8
+                      text m.id size=12 color="#1f1f24"
+
+      scroll flex=1 width="100%" testId="thread"
+        column width="100%" gap=8 padding=14
+          async thread
+            loading
+              text "Connecting…" size=13 color="#8a8a92" testId="thread-loading"
+            error problem
+              text problem.message size=12 color="#b3261e" testId="thread-error"
+            empty
+              column width="100%" gap=6 paddingTop=40 align="center" testId="thread-empty"
+                text "Say something to start the conversation." size=14 color="#8a8a92"
+            ready rows
+              column width="100%" gap=8
+                each m in rows key=m._id
+                  when m.role == "user"
+                    row width="100%"
+                      spacer flex=1
+                      column maxWidth="84%" padding=10 background="#3478f6" radius=14 testId=`msg-${m._id}`
+                        text m.content size=14 color="#ffffff"
+                  else
+                    row width="100%"
+                      column maxWidth="84%" padding=10 background="#ffffff" radius=14 borderWidth=1 borderColor="#e2e2e8" testId=`msg-${m._id}`
+                        when m.content == ""
+                          text "…" size=14 color="#8a8a92"
+                        else
+                          text m.status == "streaming" ? `${m.content} ▍` : m.content size=14 color="#1f1f24"
+                      spacer flex=1
+
+      row width="100%" gap=8 align="end" padding=10 background="#ffffff" borderTopWidth=1 borderColor="#e2e2e8" safeAreaEdges="bottom"
+        input value=draft change=setDraft submit=submit multiline=true placeholder="Message…" testId="composer" flex=1 padding=10 background="#f4f4f6" borderWidth=1 borderColor="#d9d9e0" radius=18
+        button label="Send" press=submit disabled=!canSend testId="send" paddingTop=10 paddingBottom=10 paddingLeft=14 paddingRight=14 radius=18 background="#3478f6" opacity=canSend ? 1 : 0.5
+          text "Send" size=13 weight=700 color="#ffffff"

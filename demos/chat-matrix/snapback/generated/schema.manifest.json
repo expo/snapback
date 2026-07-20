@@ -1,0 +1,86 @@
+{
+  "appId": "chat-matrix",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "3d2311dd52c6a315ab8053b004038286fb8f1dca1596585fa4763cb5939ce78e",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:575e44bb29e4e248",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "model",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "createdAt"
+          ],
+          "name": "by_created"
+        }
+      ],
+      "name": "conversations",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "conversations"
+            }
+          },
+          "name": "conversationId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "role",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "content",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "conversationId"
+          ],
+          "name": "by_conversation"
+        }
+      ],
+      "name": "messages",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

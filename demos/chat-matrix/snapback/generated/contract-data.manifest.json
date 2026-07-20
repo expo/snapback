@@ -1,0 +1,261 @@
+{
+  "artifactKind": "contractDataManifest",
+  "bundleHash": "sha256:97195a0b1e2459a1",
+  "capabilities": {
+    "branchableFixtures": false,
+    "derivedOptimisticOverlays": false,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": false,
+    "offlineReplay": false,
+    "optimisticMutations": false,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "ephemeral": {},
+  "inputsHash": "3d2311dd52c6a315ab8053b004038286fb8f1dca1596585fa4763cb5939ce78e",
+  "manifestVersion": 2,
+  "mutations": {
+    "applyAssistantDelta": {
+      "argOrder": [
+        "messageId",
+        "content",
+        "status"
+      ],
+      "args": {
+        "content": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "messageId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "status": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "messages"
+      ],
+      "name": "applyAssistantDelta",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "messages"
+      ]
+    },
+    "claimReply": {
+      "argOrder": [
+        "messageId"
+      ],
+      "args": {
+        "messageId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "messages"
+      ],
+      "name": "claimReply",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "messages"
+      ]
+    },
+    "createConversation": {
+      "argOrder": [
+        "title",
+        "model",
+        "createdAt"
+      ],
+      "args": {
+        "createdAt": {
+          "name": "number",
+          "shape": "primitive"
+        },
+        "model": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "conversations"
+      ],
+      "name": "createConversation",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "conversations"
+      ]
+    },
+    "sendMessage": {
+      "argOrder": [
+        "conversationId",
+        "content",
+        "createdAt"
+      ],
+      "args": {
+        "content": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "createdAt": {
+          "name": "number",
+          "shape": "primitive"
+        }
+      },
+      "invalidates": [
+        "messages"
+      ],
+      "name": "sendMessage",
+      "optimistic": false,
+      "serverRunnable": true,
+      "writes": [
+        "messages"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "listConversations": {
+      "argOrder": [],
+      "args": {},
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "listConversations",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "conversations"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "model": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    },
+    "thread": {
+      "argOrder": [
+        "conversationId"
+      ],
+      "args": {
+        "conversationId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "defaultLive": true,
+      "ephemeral": false,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": false,
+      "mode": "live",
+      "name": "thread",
+      "pollCadenceMs": 1500,
+      "reads": [
+        "messages"
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "_updatedAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "_version": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "content": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "role": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot",
+      "transport": "push"
+    }
+  },
+  "receipts": "mutation+subscription",
+  "schemaHash": "sha256:575e44bb29e4e248",
+  "schemaVersion": "snapback.v0"
+}
