@@ -37,7 +37,7 @@ export const todos = defineTable({
   updatedAt: v.integer(),
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
-  .index('by_owner_created', ['ownerId', 'createdAt'])
+  .index('by_owner_created', ['ownerId', 'createdAt'], { unique: true })
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);

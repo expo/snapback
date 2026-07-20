@@ -5,6 +5,8 @@
 //   schema source, while authorization and visibility remain explicit.
 // @ref LLP 0051#d2-promote-the-mutation-ir-extend-it-to-the-common-mutation —
 //   generated writes stay inside the closed, portable mutation IR.
+// @ref LLP 0065#2-the-v1-visibility-floor — owner visibility is an executable
+//   predicate and transaction guard, never metadata-only inference.
 
 import {
   arg,
@@ -283,10 +285,15 @@ export function defineOwnedKeysetPages({
     fail('SNAPBACK_STANDARD_PATTERN_INVALID', 'limit must be an integer from 1 through 1024');
   }
   const indexFacts = facts.indexes.find((candidate) => candidate.name === index);
-  if (!indexFacts || !indexFacts.fields.includes(ownerField) || !indexFacts.fields.includes(cursorField)) {
+  if (
+    !indexFacts
+    || indexFacts.unique !== true
+    || !indexFacts.fields.includes(ownerField)
+    || !indexFacts.fields.includes(cursorField)
+  ) {
     fail(
       'SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED',
-      `${index} must include owner field ${ownerField} and cursor field ${cursorField}`,
+      `${index} must be unique and include owner field ${ownerField} and cursor field ${cursorField}`,
     );
   }
   const cursorValidator = cursorField === '_id' ? v.id(facts.name) : facts.fields[cursorField];
