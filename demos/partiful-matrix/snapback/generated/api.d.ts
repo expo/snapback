@@ -59,7 +59,7 @@ export interface GeneratedApi {
   eventWall: FunctionReference<'eventWall', 'LiveQuery', { eventId: Id<'events'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "createdAt": number; "eventId": string; "message": string }>>;
   guestList: FunctionReference<'guestList', 'LiveQuery', { eventId: Id<'events'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "eventId": string; "guestName": string; "status": string; "userId": string }>>;
   listEvents: FunctionReference<'listEvents', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "accent": string; "description": string; "emoji": string; "hostId": string; "hostName": string; "location": string; "startsAt": number; "title": string }>>;
-  postMessage: FunctionReference<'postMessage', 'Mutation', { eventId: Id<'events'>; authorName: string; message: string; createdAt: number }, unknown>;
+  postMessage: FunctionReference<'postMessage', 'Mutation', { eventId: Id<'events'>; authorName: string; message: string }, unknown>;
   rsvp: FunctionReference<'rsvp', 'Mutation', { eventId: Id<'events'>; guestName: string; status: string }, unknown>;
   ephemeral: GeneratedEphemeral;
 }

@@ -5,7 +5,7 @@
 import { getSnapbackContractLinks } from './runtime-links';
 
 export const descriptor = 'postMessage';
-export type PostMessageArgs = { eventId: string; authorName: string; message: string; createdAt: number };
+export type PostMessageArgs = { eventId: string; authorName: string; message: string };
 
 export function postMessage(args: PostMessageArgs) {
   return getSnapbackContractLinks().postMessage(args);

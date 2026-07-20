@@ -147,7 +147,7 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
     if (!draft.trim()) return;
     setBusy(true);
     try {
-      await provider.mutate('postMessage', { eventId, authorName: persona.name, message: draft.trim(), createdAt: Date.now() }, persona.userId);
+      await provider.mutate('postMessage', { eventId, authorName: persona.name, message: draft.trim() }, persona.userId);
       setDraft('');
     } finally { setBusy(false); }
   };

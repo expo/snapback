@@ -7,7 +7,7 @@ export interface SnapbackContractLinks {
   eventWall(args: { eventId: string }): unknown;
   guestList(args: { eventId: string }): unknown;
   listEvents(args: Record<string, never>): unknown;
-  postMessage(args: { eventId: string; authorName: string; message: string; createdAt: number }): unknown;
+  postMessage(args: { eventId: string; authorName: string; message: string }): unknown;
   rsvp(args: { eventId: string; guestName: string; status: string }): unknown;
 }
 

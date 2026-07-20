@@ -1,21 +1,21 @@
 {
   "artifactKind": "contractDataManifest",
-  "bundleHash": "sha256:f74fae069b4d2e8a",
+  "bundleHash": "sha256:f4c24641a0539be3",
   "capabilities": {
     "branchableFixtures": false,
-    "derivedOptimisticOverlays": false,
+    "derivedOptimisticOverlays": true,
     "forceStates": true,
     "headlessBoot": true,
     "initialSnapshot": true,
     "localReplica": false,
     "offlineReplay": false,
-    "optimisticMutations": false,
+    "optimisticMutations": true,
     "rowSyncState": true,
     "serverRunnableQueries": true,
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+  "inputsHash": "bd51ec80fb5b677dd6ada86ed3a84798da9b1654709f421d7b1b1635fc0b184a",
   "manifestVersion": 2,
   "mutations": {
     "createEvent": {
@@ -63,7 +63,147 @@
         "rsvps"
       ],
       "name": "createEvent",
-      "optimistic": false,
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "eventId"
+        },
+        "steps": [
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "title"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_EVENT_TITLE_REQUIRED"
+            }
+          },
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "location"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_EVENT_LOCATION_REQUIRED"
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": "eventId",
+              "table": "events",
+              "values": {
+                "accent": {
+                  "Arg": "accent"
+                },
+                "description": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "description"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                },
+                "emoji": {
+                  "If": {
+                    "cond": {
+                      "Binary": {
+                        "left": {
+                          "Arg": "emoji"
+                        },
+                        "op": "Ne",
+                        "right": {
+                          "Literal": ""
+                        }
+                      }
+                    },
+                    "else": {
+                      "Literal": "✨"
+                    },
+                    "then": {
+                      "Arg": "emoji"
+                    }
+                  }
+                },
+                "hostId": "AuthUserId",
+                "hostName": {
+                  "Arg": "hostName"
+                },
+                "location": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "location"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                },
+                "startsAt": {
+                  "Arg": "startsAt"
+                },
+                "title": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "title"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                }
+              }
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": null,
+              "table": "rsvps",
+              "values": {
+                "eventId": {
+                  "Binding": "eventId"
+                },
+                "guestName": {
+                  "Arg": "hostName"
+                },
+                "status": {
+                  "Literal": "host"
+                },
+                "userId": "AuthUserId"
+              }
+            }
+          }
+        ]
+      },
       "serverRunnable": true,
       "writes": [
         "events",
@@ -74,16 +214,11 @@
       "argOrder": [
         "eventId",
         "authorName",
-        "message",
-        "createdAt"
+        "message"
       ],
       "args": {
         "authorName": {
           "name": "string",
-          "shape": "primitive"
-        },
-        "createdAt": {
-          "name": "number",
           "shape": "primitive"
         },
         "eventId": {
@@ -99,7 +234,63 @@
         "posts"
       ],
       "name": "postMessage",
-      "optimistic": false,
+      "optimistic": true,
+      "plan": {
+        "return_value": {
+          "Binding": "postId"
+        },
+        "steps": [
+          {
+            "Guard": {
+              "cond": {
+                "Binary": {
+                  "left": {
+                    "Call": {
+                      "args": [
+                        {
+                          "Arg": "message"
+                        }
+                      ],
+                      "func": "trim"
+                    }
+                  },
+                  "op": "Ne",
+                  "right": {
+                    "Literal": ""
+                  }
+                }
+              },
+              "else_error": "SNAPBACK_POST_MESSAGE_REQUIRED"
+            }
+          },
+          {
+            "Insert": {
+              "bind_id_as": "postId",
+              "table": "posts",
+              "values": {
+                "authorId": "AuthUserId",
+                "authorName": {
+                  "Arg": "authorName"
+                },
+                "createdAt": "RuntimeNow",
+                "eventId": {
+                  "Arg": "eventId"
+                },
+                "message": {
+                  "Call": {
+                    "args": [
+                      {
+                        "Arg": "message"
+                      }
+                    ],
+                    "func": "trim"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
       "serverRunnable": true,
       "writes": [
         "posts"
@@ -429,6 +620,6 @@
     }
   },
   "receipts": "mutation+subscription",
-  "schemaHash": "sha256:6d8f2c14b46ebe23",
+  "schemaHash": "sha256:f34c7e9c0ffaeb7e",
   "schemaVersion": "snapback.v0"
 }

@@ -36,10 +36,10 @@ export const rsvp = mutation({
 });
 
 export const postMessage = mutation({
-  args: { userId: v.string(), eventId: v.string(), authorName: v.string(), message: v.string(), createdAt: v.number() },
+  args: { userId: v.string(), eventId: v.string(), authorName: v.string(), message: v.string() },
   handler: async (ctx, args) => {
     const publicId = `post_${crypto.randomUUID()}`;
-    await ctx.db.insert('posts', { publicId, eventId: args.eventId, authorId: args.userId, authorName: args.authorName, message: args.message.trim(), createdAt: args.createdAt });
+    await ctx.db.insert('posts', { publicId, eventId: args.eventId, authorId: args.userId, authorName: args.authorName, message: args.message.trim(), createdAt: Date.now() });
     return publicId;
   },
 });

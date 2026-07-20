@@ -17,12 +17,12 @@
         },
         "name": "createEvent",
         "optimistic": {
-          "source": "none",
-          "supported": false
+          "source": "provider-plan",
+          "supported": true
         }
       },
       {
-        "argumentsType": "{ \"authorName\": string; \"createdAt\": number; \"eventId\": string; \"message\": string }",
+        "argumentsType": "{ \"authorName\": string; \"eventId\": string; \"message\": string }",
         "effects": {
           "invalidates": [
             "posts"
@@ -33,8 +33,8 @@
         },
         "name": "postMessage",
         "optimistic": {
-          "source": "none",
-          "supported": false
+          "source": "provider-plan",
+          "supported": true
         }
       },
       {
@@ -167,7 +167,7 @@
   },
   "schemaVersion": "provider-binding-metadata.v1",
   "source": {
-    "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+    "inputsHash": "bd51ec80fb5b677dd6ada86ed3a84798da9b1654709f421d7b1b1635fc0b184a",
     "introspectionSchemaVersion": "provider-introspection.v1"
   }
 }

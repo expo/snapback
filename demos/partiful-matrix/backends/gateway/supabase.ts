@@ -68,7 +68,7 @@ export async function createSupabaseAdapter(databaseUrl: string) {
       if (name === 'postMessage') {
         const id = `post_${crypto.randomUUID()}`;
         await sql`INSERT INTO partiful_matrix_posts (id,event_id,author_id,author_name,message,created_at)
-          VALUES (${id},${args.eventId},${userId},${args.authorName},${args.message.trim()},${args.createdAt})`;
+          VALUES (${id},${args.eventId},${userId},${args.authorName},${args.message.trim()},${Date.now()})`;
         return id;
       }
       throw new Error(`unknown mutation: ${name}`);

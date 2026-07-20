@@ -66,7 +66,7 @@ await runAcceptance(suite, async () => {
     const eventId = created.result;
     const guests = (await snapback.query(api.guestList, { args: { eventId }, userId: 'user_matrix_acceptance' })).rows;
     assert(guests.some((row) => row.status === 'host'), 'Snapback host seat missing');
-    await snapback.mutate(api.postMessage, { args: { eventId, authorName: 'Matrix Bot', message: 'write loop complete', createdAt: 1787000001000 }, userId: 'user_matrix_acceptance' });
+    await snapback.mutate(api.postMessage, { args: { eventId, authorName: 'Matrix Bot', message: 'write loop complete' }, userId: 'user_matrix_acceptance' });
     const wall = (await snapback.query(api.eventWall, { args: { eventId }, userId: 'user_matrix_acceptance' })).rows;
     assertEqual(wall.map((row) => row.message), ['write loop complete'], 'Snapback wall post');
   });
@@ -86,7 +86,7 @@ await runAcceptance(suite, async () => {
       try {
         const guests = await adapter.query('guestList', { eventId });
         assert(guests.some((row) => row.status === 'host'), `${name} host seat missing`);
-        await adapter.mutate('postMessage', { eventId, authorName: 'Matrix Bot', message: 'write loop complete', createdAt: 1787000001000 }, 'user_matrix_acceptance');
+        await adapter.mutate('postMessage', { eventId, authorName: 'Matrix Bot', message: 'write loop complete' }, 'user_matrix_acceptance');
         const wall = await adapter.query('eventWall', { eventId });
         assertEqual(wall.map((row) => row.message), ['write loop complete'], `${name} wall post`);
       } finally {

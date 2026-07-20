@@ -6,9 +6,6 @@
     "authorName": {
       "type": "string"
     },
-    "createdAt": {
-      "type": "integer"
-    },
     "eventId": {
       "type": "string"
     },
@@ -19,8 +16,7 @@
   "required": [
     "eventId",
     "authorName",
-    "message",
-    "createdAt"
+    "message"
   ],
   "title": "partiful-matrix:postMessage arguments",
   "type": "object"

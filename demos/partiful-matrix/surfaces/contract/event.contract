@@ -31,7 +31,7 @@ component PartifulEvent
   action setDraft(value) writes draft
     draft = value
   action post writes draft mutates postMut
-    postMut({ eventId: eventId, authorName: userName, message: draft.trim(), createdAt: now() })
+    postMut({ eventId: eventId, authorName: userName, message: draft.trim() })
     draft = ""
 
   contract

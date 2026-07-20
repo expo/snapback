@@ -67,7 +67,7 @@ export function createSqliteAdapter(filename = resolve(import.meta.dirname, 'par
       }
       if (name === 'postMessage') {
         const id = `post_${crypto.randomUUID()}`;
-        insertPost.run(id, args.eventId, userId, args.authorName, args.message.trim(), args.createdAt);
+        insertPost.run(id, args.eventId, userId, args.authorName, args.message.trim(), Date.now());
         return id;
       }
       throw new Error(`unknown mutation: ${name}`);

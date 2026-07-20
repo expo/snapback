@@ -811,3 +811,58 @@ separate `guide-gap` issue is needed because the new capability and its guide
 coverage land together. Exact itself was not changed in this tranche; its
 native Parity work remains owned by Exact LLPs 0331/0332 and the separate
 `exact-native/*` roadmap claims.
+
+## 2026-07-20 — Declarative common writes and trusted wall time
+
+Partitime's Snapback backend finally became smaller for a reason that felt like
+product progress rather than formatting. `createEvent` and `postMessage` moved
+from JavaScript handlers into the closed declarative mutation tier. The event
+write still validates and trims product input, inserts the host RSVP in the
+same transaction, and returns the bound event id. The wall write now stamps
+`createdAt` from `runtimeNow()` and omits it from the public argument schema.
+That removed a client-forgeable timestamp and reduced the measured backend
+from 190 lines to 137, below the frozen 152-line ceiling.
+
+The strongest ergonomic result was the multi-row event creation plan. A bound
+insert id flowing into the host RSVP made the transactional relationship more
+obvious than two `await ctx.db.insert(...)` calls, while keeping the generated
+write set and Contract invalidation facts intact. The remaining RSVP handler
+is a useful boundary rather than unfinished conversion: its indexed read,
+host-status rule, and update-or-insert branch exceed the deliberately closed
+IR profile.
+
+Trusted time exposed cross-provider coordination work. Removing `createdAt`
+from the shared product call meant SQLite, Supabase, and Convex also had to
+derive time at their server boundary. That is a better comparison—the user
+cannot forge the field in any arm—but the Convex deployment is shared with the
+new chat matrix. Deploying the older Partitime-only schema briefly removed the
+chat indexes. The deploy receipt made the mistake visible, and I immediately
+restored the union schema from the current upstream chat checkout with the
+trusted-time change layered on it. This is exactly the kind of external-state
+coupling a per-demo deployment identity or pre-deploy schema-union check should
+make impossible.
+
+The cumulative proof passed after the change: provider conformance was 13/13
+and the browser matrix was 43/43 across React, Contract, and vanilla over all
+four providers, including fallback-disabled Snapback push. The Step 4 budget
+audit now records the backend line sub-row as passing. It remains red overall:
+Contract source is 400 lines against 348, emitted bundles remain far above the
+frozen thresholds, and most prospective runtime/native instruments do not yet
+exist. The receipt makes that distinction mechanically instead of letting one
+successful optimization stand in for Workstream 8 closure.
+
+Compared with React plus Convex or Supabase, the trusted server timestamp is
+now equally terse at the component boundary and safer than the earlier shared
+`Date.now()` argument. Snapback adds more declared mutation structure, then
+returns executable write facts and generated client schemas; the gateway arms
+remain shorter but hand-maintain their boundary. Exact/Contract still has the
+heavier build and source-volume profile, and its existing mutation diagnostic
+correctly notices that feed creation writes `rsvps` without a reader bound in
+that component.
+
+The guide did not previously provide a paved page for trusted runtime time/ID
+defaults or safe common generated patterns. The new standard-pattern guide
+lands with this tranche, and the broader retrieval/migration follow-up is filed
+as Exact-project Linear issue ENG-25307 (`guide-gap`). The generated-pattern
+soundness RFC remains Draft, so this diary records implementation evidence—not
+ratification or a Step 5 claim.

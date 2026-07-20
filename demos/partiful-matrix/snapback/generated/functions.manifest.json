@@ -1,7 +1,7 @@
 {
   "appId": "partiful-matrix",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:f74fae069b4d2e8a",
+  "bundleHash": "sha256:f4c24641a0539be3",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -14,25 +14,163 @@
       "name": "createEvent",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "handlerDeclared",
+        "mode": "none",
         "primaryTable": null,
         "tables": []
       },
       "requiredCapabilities": [
-        "ibex_ctx_db_host_bridge",
+        "host_plan_runtime",
         "mutation_read_set_validation"
       ],
       "runtime": {
-        "IbexModule": {
-          "export": "createEvent",
-          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    const location = String(args.location ?? '').trim();\n    if (!title || !location) throw new Error('title and location are required');\n    const eventId = await ctx.db.insert('events', {\n      title,\n      emoji: String(args.emoji || '✨'),\n      description: String(args.description ?? '').trim(),\n      location,\n      startsAt: args.startsAt,\n      hostId: ctx.auth.userId,\n      hostName: args.hostName,\n      accent: args.accent,\n    });\n    await ctx.db.insert('rsvps', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n    });\n    return eventId;\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('status must be going, maybe, or cant');\n    }\n    const existing = (await ctx.db\n      .query('rsvps')\n      .withIndex('by_event')\n      .eq('eventId', args.eventId)\n      .collect())\n      .find((row) => row.userId === ctx.auth.userId);\n    if (existing?.status === 'host') throw new Error('the host is already going');\n    if (existing) {\n      await ctx.db.patch('rsvps', existing._id, { status: args.status, guestName: args.guestName });\n      return existing._id;\n    }\n    return await ctx.db.insert('rsvps', {\n      eventId: args.eventId,\n      userId: ctx.auth.userId,\n      guestName: args.guestName,\n      status: args.status,\n    });\n  },\n\n  async postMessage(ctx, args) {\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n      createdAt: args.createdAt,\n    });\n  },\n};\n"
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "eventId"
+            },
+            "steps": [
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Call": {
+                          "args": [
+                            {
+                              "Arg": "title"
+                            }
+                          ],
+                          "func": "trim"
+                        }
+                      },
+                      "op": "Ne",
+                      "right": {
+                        "Literal": ""
+                      }
+                    }
+                  },
+                  "else_error": "SNAPBACK_EVENT_TITLE_REQUIRED"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Call": {
+                          "args": [
+                            {
+                              "Arg": "location"
+                            }
+                          ],
+                          "func": "trim"
+                        }
+                      },
+                      "op": "Ne",
+                      "right": {
+                        "Literal": ""
+                      }
+                    }
+                  },
+                  "else_error": "SNAPBACK_EVENT_LOCATION_REQUIRED"
+                }
+              },
+              {
+                "Insert": {
+                  "bind_id_as": "eventId",
+                  "table": "events",
+                  "values": {
+                    "accent": {
+                      "Arg": "accent"
+                    },
+                    "description": {
+                      "Call": {
+                        "args": [
+                          {
+                            "Arg": "description"
+                          }
+                        ],
+                        "func": "trim"
+                      }
+                    },
+                    "emoji": {
+                      "If": {
+                        "cond": {
+                          "Binary": {
+                            "left": {
+                              "Arg": "emoji"
+                            },
+                            "op": "Ne",
+                            "right": {
+                              "Literal": ""
+                            }
+                          }
+                        },
+                        "else": {
+                          "Literal": "✨"
+                        },
+                        "then": {
+                          "Arg": "emoji"
+                        }
+                      }
+                    },
+                    "hostId": "AuthUserId",
+                    "hostName": {
+                      "Arg": "hostName"
+                    },
+                    "location": {
+                      "Call": {
+                        "args": [
+                          {
+                            "Arg": "location"
+                          }
+                        ],
+                        "func": "trim"
+                      }
+                    },
+                    "startsAt": {
+                      "Arg": "startsAt"
+                    },
+                    "title": {
+                      "Call": {
+                        "args": [
+                          {
+                            "Arg": "title"
+                          }
+                        ],
+                        "func": "trim"
+                      }
+                    }
+                  }
+                }
+              },
+              {
+                "Insert": {
+                  "bind_id_as": null,
+                  "table": "rsvps",
+                  "values": {
+                    "eventId": {
+                      "Binding": "eventId"
+                    },
+                    "guestName": {
+                      "Arg": "hostName"
+                    },
+                    "status": {
+                      "Literal": "host"
+                    },
+                    "userId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
-        "mode": "handlerDeclared",
+        "mode": "mutationPlan",
         "primaryTable": "events",
         "tables": [
           "events",
@@ -248,25 +386,79 @@
       "name": "postMessage",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "handlerDeclared",
+        "mode": "none",
         "primaryTable": null,
         "tables": []
       },
       "requiredCapabilities": [
-        "ibex_ctx_db_host_bridge",
+        "host_plan_runtime",
         "mutation_read_set_validation"
       ],
       "runtime": {
-        "IbexModule": {
-          "export": "postMessage",
-          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    const location = String(args.location ?? '').trim();\n    if (!title || !location) throw new Error('title and location are required');\n    const eventId = await ctx.db.insert('events', {\n      title,\n      emoji: String(args.emoji || '✨'),\n      description: String(args.description ?? '').trim(),\n      location,\n      startsAt: args.startsAt,\n      hostId: ctx.auth.userId,\n      hostName: args.hostName,\n      accent: args.accent,\n    });\n    await ctx.db.insert('rsvps', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n    });\n    return eventId;\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('status must be going, maybe, or cant');\n    }\n    const existing = (await ctx.db\n      .query('rsvps')\n      .withIndex('by_event')\n      .eq('eventId', args.eventId)\n      .collect())\n      .find((row) => row.userId === ctx.auth.userId);\n    if (existing?.status === 'host') throw new Error('the host is already going');\n    if (existing) {\n      await ctx.db.patch('rsvps', existing._id, { status: args.status, guestName: args.guestName });\n      return existing._id;\n    }\n    return await ctx.db.insert('rsvps', {\n      eventId: args.eventId,\n      userId: ctx.auth.userId,\n      guestName: args.guestName,\n      status: args.status,\n    });\n  },\n\n  async postMessage(ctx, args) {\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n      createdAt: args.createdAt,\n    });\n  },\n};\n"
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "postId"
+            },
+            "steps": [
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Call": {
+                          "args": [
+                            {
+                              "Arg": "message"
+                            }
+                          ],
+                          "func": "trim"
+                        }
+                      },
+                      "op": "Ne",
+                      "right": {
+                        "Literal": ""
+                      }
+                    }
+                  },
+                  "else_error": "SNAPBACK_POST_MESSAGE_REQUIRED"
+                }
+              },
+              {
+                "Insert": {
+                  "bind_id_as": "postId",
+                  "table": "posts",
+                  "values": {
+                    "authorId": "AuthUserId",
+                    "authorName": {
+                      "Arg": "authorName"
+                    },
+                    "createdAt": "RuntimeNow",
+                    "eventId": {
+                      "Arg": "eventId"
+                    },
+                    "message": {
+                      "Call": {
+                        "args": [
+                          {
+                            "Arg": "message"
+                          }
+                        ],
+                        "func": "trim"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
-        "mode": "handlerDeclared",
+        "mode": "mutationPlan",
         "primaryTable": "posts",
         "tables": [
           "posts"
@@ -295,7 +487,7 @@
       "runtime": {
         "IbexModule": {
           "export": "rsvp",
-          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  async createEvent(ctx, args) {\n    const title = String(args.title ?? '').trim();\n    const location = String(args.location ?? '').trim();\n    if (!title || !location) throw new Error('title and location are required');\n    const eventId = await ctx.db.insert('events', {\n      title,\n      emoji: String(args.emoji || '✨'),\n      description: String(args.description ?? '').trim(),\n      location,\n      startsAt: args.startsAt,\n      hostId: ctx.auth.userId,\n      hostName: args.hostName,\n      accent: args.accent,\n    });\n    await ctx.db.insert('rsvps', {\n      eventId,\n      userId: ctx.auth.userId,\n      guestName: args.hostName,\n      status: 'host',\n    });\n    return eventId;\n  },\n\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('status must be going, maybe, or cant');\n    }\n    const existing = (await ctx.db\n      .query('rsvps')\n      .withIndex('by_event')\n      .eq('eventId', args.eventId)\n      .collect())\n      .find((row) => row.userId === ctx.auth.userId);\n    if (existing?.status === 'host') throw new Error('the host is already going');\n    if (existing) {\n      await ctx.db.patch('rsvps', existing._id, { status: args.status, guestName: args.guestName });\n      return existing._id;\n    }\n    return await ctx.db.insert('rsvps', {\n      eventId: args.eventId,\n      userId: ctx.auth.userId,\n      guestName: args.guestName,\n      status: args.status,\n    });\n  },\n\n  async postMessage(ctx, args) {\n    const message = String(args.message ?? '').trim();\n    if (!message) throw new Error('message is required');\n    return await ctx.db.insert('posts', {\n      eventId: args.eventId,\n      authorId: ctx.auth.userId,\n      authorName: args.authorName,\n      message,\n      createdAt: args.createdAt,\n    });\n  },\n};\n"
+          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('status must be going, maybe, or cant');\n    }\n    const existing = (await ctx.db\n      .query('rsvps')\n      .withIndex('by_event')\n      .eq('eventId', args.eventId)\n      .collect())\n      .find((row) => row.userId === ctx.auth.userId);\n    if (existing?.status === 'host') throw new Error('the host is already going');\n    if (existing) {\n      await ctx.db.patch('rsvps', existing._id, { status: args.status, guestName: args.guestName });\n      return existing._id;\n    }\n    return await ctx.db.insert('rsvps', {\n      eventId: args.eventId,\n      userId: ctx.auth.userId,\n      guestName: args.guestName,\n      status: args.status,\n    });\n  },\n};\n"
         }
       },
       "sourceSpan": null,
@@ -311,7 +503,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+  "inputsHash": "bd51ec80fb5b677dd6ada86ed3a84798da9b1654709f421d7b1b1635fc0b184a",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

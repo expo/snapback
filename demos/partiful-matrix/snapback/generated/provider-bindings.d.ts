@@ -10,7 +10,7 @@ export type GuestListResult = ReadonlyArray<{ "_createdAt": number; "_id": strin
 export type ListEventsArgs = Record<string, never>;
 export type ListEventsResult = ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "accent": string; "description": string; "emoji": string; "hostId": string; "hostName": string; "location": string; "startsAt": number; "title": string }>;
 export type CreateEventArgs = { "accent": string; "description": string; "emoji": string; "hostName": string; "location": string; "startsAt": number; "title": string };
-export type PostMessageArgs = { "authorName": string; "createdAt": number; "eventId": string; "message": string };
+export type PostMessageArgs = { "authorName": string; "eventId": string; "message": string };
 export type RsvpArgs = { "eventId": string; "guestName": string; "status": string };
 
 export interface ProviderQueryBindings {

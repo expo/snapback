@@ -62,7 +62,7 @@ component PartitimeRoute
   action setWallDraft(value) writes wallDraft
     wallDraft = value
   action sendPost writes wallDraft mutates postMut
-    postMut({ eventId: selectedEventId, authorName: "Ada", message: wallDraft.trim(), createdAt: now() })
+    postMut({ eventId: selectedEventId, authorName: "Ada", message: wallDraft.trim() })
     wallDraft = ""
 
   contract
