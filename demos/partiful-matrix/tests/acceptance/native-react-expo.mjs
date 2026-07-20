@@ -316,9 +316,11 @@ async function backgroundAndForeground() {
     await run('adb foreground', appRoot, adb, ['shell', 'am', 'start', '-W', '-n', 'com.snapback.partitime.nativeonline/.MainActivity']);
     return;
   }
-  await run('simulator background', appRoot, 'osascript', [
-    '-e', 'tell application "Simulator" to activate',
-    '-e', 'tell application "System Events" to keystroke "h" using {command down, shift down}',
+  // @ref LLP 0063#workstream-2--first-class-react-expo-and-vanilla-projections —
+  // Exercise the simulator's application lifecycle without depending on GUI
+  // focus or macOS Accessibility permission for a synthetic Home shortcut.
+  await run('simulator background', appRoot, 'xcrun', [
+    'simctl', 'launch', '--terminate-running-process', deviceId, 'com.apple.Preferences',
   ]);
   await new Promise((resolveWait) => setTimeout(resolveWait, 1_000));
   await run('simulator foreground', appRoot, 'xcrun', ['simctl', 'launch', deviceId, 'com.snapback.partitime.nativeonline']);
