@@ -1,0 +1,154 @@
+{
+  "app": {
+    "description": "A controlled Partiful-style experiment: one deterministic event/RSVP/wall product contract is implemented as an explicit 3×4 matrix across React, Contract, and framework-free browser JavaScript, backed by Snapback, Supabase, Convex, and plain SQLite.",
+    "name": "Partitime — React × Contract × Vanilla JS × four backends"
+  },
+  "appId": "partiful-matrix",
+  "artifactDiagnostics": [],
+  "artifactKind": "schemaManifest",
+  "ephemeralCollections": [],
+  "generatedAt": 0,
+  "inputsHash": "b1708aa266d86d96e540610fd2928a444f3f629e4b2458686ba29dbf31e66ee8",
+  "portabilityFlags": [],
+  "schemaHash": "sha256:9d4448a3867b85ed",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    {
+      "fields": [
+        {
+          "field_type": "String",
+          "name": "title",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "emoji",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "description",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "location",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "startsAt",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "hostId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "hostName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "accent",
+          "optional": false
+        }
+      ],
+      "indexes": [],
+      "name": "events",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "userId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "guestName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "status",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        },
+        {
+          "fields": [
+            "eventId",
+            "userId"
+          ],
+          "name": "by_event_user",
+          "unique": true
+        }
+      ],
+      "name": "rsvps",
+      "syncable": true
+    },
+    {
+      "fields": [
+        {
+          "field_type": {
+            "Id": {
+              "table": "events"
+            }
+          },
+          "name": "eventId",
+          "optional": false
+        },
+        {
+          "field_type": "Principal",
+          "name": "authorId",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "authorName",
+          "optional": false
+        },
+        {
+          "field_type": "String",
+          "name": "message",
+          "optional": false
+        },
+        {
+          "field_type": "Integer",
+          "name": "createdAt",
+          "optional": false
+        }
+      ],
+      "indexes": [
+        {
+          "fields": [
+            "eventId"
+          ],
+          "name": "by_event"
+        }
+      ],
+      "name": "posts",
+      "syncable": true
+    }
+  ],
+  "targetProfile": "local-dev-sqlite-ibex"
+}

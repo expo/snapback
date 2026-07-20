@@ -1,0 +1,27 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/partiful-matrix/postMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "authorName": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "integer"
+    },
+    "eventId": {
+      "type": "string"
+    },
+    "message": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "eventId",
+    "authorName",
+    "message",
+    "createdAt"
+  ],
+  "title": "partiful-matrix:postMessage arguments",
+  "type": "object"
+}

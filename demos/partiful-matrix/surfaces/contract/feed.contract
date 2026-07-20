@@ -1,0 +1,94 @@
+use listEvents from "./data/listEvents.query.ts"
+use createEvent from "./data/createEvent.mutation.ts"
+use fmtWhen from "./helpers.ts"
+use openEvent from "./helpers.ts"
+
+component PartifulFeed
+  props
+    userName: string = "Someone"
+    backendName: string = "backend"
+
+  state creating = false
+  state draftTitle = ""
+  state draftEmoji = "🪩"
+  state draftLocation = ""
+  state draftDescription = ""
+
+  query events = listEvents({})
+  mutation createMut = createEvent
+  derive canCreate = draftTitle.trim() != "" && draftLocation.trim() != ""
+
+  action toggleCreate writes creating
+    creating = !creating
+  action setTitle(value) writes draftTitle
+    draftTitle = value
+  action setEmoji(value) writes draftEmoji
+    draftEmoji = value
+  action setLocation(value) writes draftLocation
+    draftLocation = value
+  action setDescription(value) writes draftDescription
+    draftDescription = value
+  action submit writes creating, draftTitle, draftLocation, draftDescription mutates createMut
+    createMut({ title: draftTitle.trim(), emoji: draftEmoji, description: draftDescription.trim(), location: draftLocation.trim(), startsAt: now() + 259200000, hostName: userName, accent: "tangerine" })
+    creating = false
+    draftTitle = ""
+    draftLocation = ""
+    draftDescription = ""
+  action open(eventId)
+    openEvent(eventId)
+
+  contract
+    has node testId="feed"
+    press button "+ Make something happen" -> toggleCreate
+    derive canCreate depends only on draftTitle, draftLocation
+
+  view
+    column width="100%" minHeight="100vh" background="#f4f0e8"
+      row align="center" paddingTop=20 paddingBottom=20 paddingLeft=52 paddingRight=52 borderWidth=1 borderColor="rgba(23,21,18,0.14)"
+        text "p" size=23 weight=800 color="#ffffff" background="#ff4d24" paddingLeft=10 paddingRight=10 paddingTop=3 paddingBottom=3 radius=999
+        text "  partitime" size=18 weight=800 color="#171512" flex=1
+        text `CONTRACT  ·  ${backendName}` size=10 color="#ff4d24" testId="matrix-label"
+      column gap=20 paddingTop=74 paddingBottom=70 paddingLeft=70 paddingRight=70 borderWidth=1 borderColor="rgba(23,21,18,0.14)"
+        text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 color="#5f594f"
+        text "Make a plan worth\nleaving the chat for." size=66 weight=800 color="#171512" lineHeight=0.9 testId="hero-title"
+        text "Small gatherings, good people, no algorithmic sludge." size=16 color="#5f594f"
+        row gap=18 align="center"
+          button press=toggleCreate testId="new-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background="#171512"
+            text creating ? "Never mind" : "+ Make something happen" size=14 weight=700 color="#ffffff"
+          text events.connection size=10 color="#6a6258" testId="connection"
+      when creating
+        row gap=36 padding=34 background="#dce3bf" align="center" testId="create-panel"
+          column gap=6 width=260
+            text "01 · WHAT'S THE PLAN?" size=10 color="#5f594f"
+            text "Keep it loose." size=27 weight=800 color="#171512"
+          column gap=10 flex=1 maxWidth=720
+            row gap=10
+              input value=draftEmoji change=setEmoji testId="create-emoji" width=62 padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" size=22
+              input label="Event title" value=draftTitle change=setTitle testId="create-title" flex=1 padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
+            input label="Location" value=draftLocation change=setLocation testId="create-location" padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
+            input label="Description" value=draftDescription change=setDescription testId="create-description" padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
+            button press=submit testId="create-submit" disabled=!canCreate opacity=canCreate ? 1 : 0.45 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background="#171512"
+              text "Send the invite ↗" size=14 weight=700 color="#ffffff"
+      column gap=24 padding=54 testId="feed"
+        row align="baseline"
+          text "02 · ON THE HORIZON" size=10 color="#5f594f" flex=1
+          text backendName size=10 color="#ff4d24"
+        async events
+          loading
+            text "Loading the plans…" size=14 color="#5f594f" testId="feed-loading"
+          error err
+            text err.message size=14 color="#aa2c20" testId="feed-error"
+          empty
+            text "No plans yet. Make something happen." size=14 color="#5f594f" testId="feed-empty"
+          ready rows
+            column gap=12
+              each event in rows key=event._id
+                row gap=22 align="center" padding=22 background="#faf7f0" borderWidth=1 borderColor="rgba(23,21,18,0.18)" testId=`event-card-${event._id}`
+                  text event.emoji size=48 background="#f6a25d" padding=24 width=110 radius=4
+                  column gap=6 flex=1
+                    text fmtWhen(event.startsAt) size=10 color="#ff4d24"
+                    text event.title size=25 weight=800 color="#171512"
+                    text event.location size=13 color="#625b52"
+                    text `HOSTED BY ${event.hostName}` size=9 color="#625b52"
+                  button press=open(event._id) testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background="#171512"
+                    text "View plan →" size=12 weight=700 color="#ffffff"

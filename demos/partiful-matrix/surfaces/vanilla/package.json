@@ -1,0 +1,16 @@
+{
+  "name": "partiful-matrix-vanilla",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1 --port 5193",
+    "build": "bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
+    "build:snapback": "vite build --mode snapback --outDir dist/snapback",
+    "build:supabase": "vite build --mode supabase --outDir dist/supabase",
+    "build:convex": "vite build --mode convex --outDir dist/convex",
+    "build:sqlite": "vite build --mode sqlite --outDir dist/sqlite"
+  },
+  "devDependencies": {
+    "vite": "^7.0.0"
+  }
+}

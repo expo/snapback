@@ -12,6 +12,7 @@ assert.deepEqual([...demos.keys()].sort(), [
   'card-game',
   'cursors-web',
   'graffiti',
+  'partiful-matrix',
   'rbac',
   'shindig',
   'todo',

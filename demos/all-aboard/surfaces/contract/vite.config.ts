@@ -209,7 +209,10 @@ export default async ({ command }: { command: 'serve' | 'build' }) => {
     // off-loopback (Vite 8 blocks unknown Host headers with 403 by default).
     allowedHosts: true,
     proxy: {
-      '/snapback': {
+      // @ref LLP 0030#proxy-surface — Vite's ordinary string keys are prefix
+      // matches. Keep the relay from swallowing the app's /snapback-target.ts
+      // module, which otherwise reaches the API as a bogus /-target.ts route.
+      '^/snapback(?:/|$)': {
         target: snapbackProxyTarget,
         changeOrigin: true,
         // The live stream (LLP 0034 D1) is a WebSocket at

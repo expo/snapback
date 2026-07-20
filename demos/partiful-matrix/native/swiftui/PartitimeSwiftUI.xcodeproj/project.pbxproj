@@ -1,0 +1,574 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		4D1D1D92AD1DE3653A3068C4 /* PartitimeSwiftUIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D286B2010F086821F5967C /* PartitimeSwiftUIUITests.swift */; };
+		5F10A34CEBA44B131A275BCB /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0FD9B1DDAD5EB687029161 /* GatewayClient.swift */; };
+		69AE5A91740EC5E716DE5D2C /* PartitimeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7AA726E1F85D4500C15463 /* PartitimeStore.swift */; };
+		7316EBBDD0BB19BF831DE6CB /* PartitimeStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE7AA726E1F85D4500C15463 /* PartitimeStore.swift */; };
+		91554FB0595C5D324993E425 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4054D427D6AF15025297EC6 /* Models.swift */; };
+		9AF6DBD61461A9057C805CE5 /* PartitimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86C090A73E190FB2FCEA4DC /* PartitimeApp.swift */; };
+		A515397E70295EB749749E2F /* PartitimeSwiftUIUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D286B2010F086821F5967C /* PartitimeSwiftUIUITests.swift */; };
+		A7B75288B9F1B385C801631D /* GatewayClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = AF0FD9B1DDAD5EB687029161 /* GatewayClient.swift */; };
+		BF654BADE70D57146889DF72 /* PartitimeApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B86C090A73E190FB2FCEA4DC /* PartitimeApp.swift */; };
+		DCFC7D102FC4682219991A15 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4054D427D6AF15025297EC6 /* Models.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		45B05FF5FEB9805F121F800B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B06153A0CA73E82B2240C596 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9F427527794D03B388A08CBF;
+			remoteInfo = "PartitimeSwiftUI-iOS";
+		};
+		8A5CF16BAAB8361EAEA7E7DF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = B06153A0CA73E82B2240C596 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5366F30A4506166DC7CFA36E;
+			remoteInfo = "PartitimeSwiftUI-macOS";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		2A94BBC438C5FBFB7F0A0573 /* PartitimeSwiftUI-iOSUITests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = "PartitimeSwiftUI-iOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		57D286B2010F086821F5967C /* PartitimeSwiftUIUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartitimeSwiftUIUITests.swift; sourceTree = "<group>"; };
+		9EC127628F344C7D235DF6DC /* PartitimeSwiftUI-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "PartitimeSwiftUI-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF0FD9B1DDAD5EB687029161 /* GatewayClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GatewayClient.swift; sourceTree = "<group>"; };
+		B86C090A73E190FB2FCEA4DC /* PartitimeApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartitimeApp.swift; sourceTree = "<group>"; };
+		C4054D427D6AF15025297EC6 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		C9A050FE4AC47B23009DD199 /* PartitimeSwiftUI-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "PartitimeSwiftUI-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		F0845F06E82ACB8723731B25 /* PartitimeSwiftUI-macOSUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "PartitimeSwiftUI-macOSUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		FE7AA726E1F85D4500C15463 /* PartitimeStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartitimeStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		4BB0895C7A892441BE6A4E2E /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				E7BAB106AC0371FD861B54AB /* UITests */,
+			);
+			path = Tests;
+			sourceTree = "<group>";
+		};
+		78E8238F0F296527F2648F54 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				C9A050FE4AC47B23009DD199 /* PartitimeSwiftUI-iOS.app */,
+				2A94BBC438C5FBFB7F0A0573 /* PartitimeSwiftUI-iOSUITests.xctest */,
+				9EC127628F344C7D235DF6DC /* PartitimeSwiftUI-macOS.app */,
+				F0845F06E82ACB8723731B25 /* PartitimeSwiftUI-macOSUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		9DC1FACF4AAB8E433BE210A2 /* Sources */ = {
+			isa = PBXGroup;
+			children = (
+				AF0FD9B1DDAD5EB687029161 /* GatewayClient.swift */,
+				C4054D427D6AF15025297EC6 /* Models.swift */,
+				B86C090A73E190FB2FCEA4DC /* PartitimeApp.swift */,
+				FE7AA726E1F85D4500C15463 /* PartitimeStore.swift */,
+			);
+			path = Sources;
+			sourceTree = "<group>";
+		};
+		DE2390B5CA2D08F09006E49E = {
+			isa = PBXGroup;
+			children = (
+				9DC1FACF4AAB8E433BE210A2 /* Sources */,
+				4BB0895C7A892441BE6A4E2E /* Tests */,
+				78E8238F0F296527F2648F54 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		E7BAB106AC0371FD861B54AB /* UITests */ = {
+			isa = PBXGroup;
+			children = (
+				57D286B2010F086821F5967C /* PartitimeSwiftUIUITests.swift */,
+			);
+			path = UITests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		3FCC61CF8941E13127F6A783 /* PartitimeSwiftUI-macOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = D5F2D92ED697F626162D99CC /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-macOSUITests" */;
+			buildPhases = (
+				D319C531798A7DFF1484B725 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5702B22A84C79D0C12C8EB34 /* PBXTargetDependency */,
+			);
+			name = "PartitimeSwiftUI-macOSUITests";
+			packageProductDependencies = (
+			);
+			productName = "PartitimeSwiftUI-macOSUITests";
+			productReference = F0845F06E82ACB8723731B25 /* PartitimeSwiftUI-macOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		4AB5A7AA9F3DB99F62B760DD /* PartitimeSwiftUI-iOSUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C4EBECF0AD7ADC6473E93996 /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-iOSUITests" */;
+			buildPhases = (
+				AD95A910E07167647BFC0B33 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				48E6FA43251EAD2FE5A18FB5 /* PBXTargetDependency */,
+			);
+			name = "PartitimeSwiftUI-iOSUITests";
+			packageProductDependencies = (
+			);
+			productName = "PartitimeSwiftUI-iOSUITests";
+			productReference = 2A94BBC438C5FBFB7F0A0573 /* PartitimeSwiftUI-iOSUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		5366F30A4506166DC7CFA36E /* PartitimeSwiftUI-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 9DB9F425E9C04655577D1B4E /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-macOS" */;
+			buildPhases = (
+				F4CA6AE344A93C45CE257D41 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "PartitimeSwiftUI-macOS";
+			packageProductDependencies = (
+			);
+			productName = "PartitimeSwiftUI-macOS";
+			productReference = 9EC127628F344C7D235DF6DC /* PartitimeSwiftUI-macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		9F427527794D03B388A08CBF /* PartitimeSwiftUI-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7DC5BC4758CC0E04FC8DCE25 /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-iOS" */;
+			buildPhases = (
+				06003B233F56EDF651D03D07 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "PartitimeSwiftUI-iOS";
+			packageProductDependencies = (
+			);
+			productName = "PartitimeSwiftUI-iOS";
+			productReference = C9A050FE4AC47B23009DD199 /* PartitimeSwiftUI-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		B06153A0CA73E82B2240C596 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					3FCC61CF8941E13127F6A783 = {
+						TestTargetID = 5366F30A4506166DC7CFA36E;
+					};
+					4AB5A7AA9F3DB99F62B760DD = {
+						TestTargetID = 9F427527794D03B388A08CBF;
+					};
+				};
+			};
+			buildConfigurationList = 748C4F5AFE6F88D07AD9C754 /* Build configuration list for PBXProject "PartitimeSwiftUI" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = DE2390B5CA2D08F09006E49E;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 78E8238F0F296527F2648F54 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				9F427527794D03B388A08CBF /* PartitimeSwiftUI-iOS */,
+				4AB5A7AA9F3DB99F62B760DD /* PartitimeSwiftUI-iOSUITests */,
+				5366F30A4506166DC7CFA36E /* PartitimeSwiftUI-macOS */,
+				3FCC61CF8941E13127F6A783 /* PartitimeSwiftUI-macOSUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		06003B233F56EDF651D03D07 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7B75288B9F1B385C801631D /* GatewayClient.swift in Sources */,
+				91554FB0595C5D324993E425 /* Models.swift in Sources */,
+				BF654BADE70D57146889DF72 /* PartitimeApp.swift in Sources */,
+				69AE5A91740EC5E716DE5D2C /* PartitimeStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AD95A910E07167647BFC0B33 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A515397E70295EB749749E2F /* PartitimeSwiftUIUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D319C531798A7DFF1484B725 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				4D1D1D92AD1DE3653A3068C4 /* PartitimeSwiftUIUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F4CA6AE344A93C45CE257D41 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5F10A34CEBA44B131A275BCB /* GatewayClient.swift in Sources */,
+				DCFC7D102FC4682219991A15 /* Models.swift in Sources */,
+				9AF6DBD61461A9057C805CE5 /* PartitimeApp.swift in Sources */,
+				7316EBBDD0BB19BF831DE6CB /* PartitimeStore.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		48E6FA43251EAD2FE5A18FB5 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9F427527794D03B388A08CBF /* PartitimeSwiftUI-iOS */;
+			targetProxy = 45B05FF5FEB9805F121F800B /* PBXContainerItemProxy */;
+		};
+		5702B22A84C79D0C12C8EB34 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5366F30A4506166DC7CFA36E /* PartitimeSwiftUI-macOS */;
+			targetProxy = 8A5CF16BAAB8361EAEA7E7DF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		24F141D857D5173B568E69D2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = "Generated/PartitimeSwiftUI-iOS-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.partitime.swiftui.ios;
+				PRODUCT_NAME = PartitimeSwiftUI;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		3CD596E2C9A21E69951C58B7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Generated/PartitimeSwiftUI-macOS-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.partitime.swiftui.macos;
+				PRODUCT_NAME = PartitimeSwiftUI;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		58C8347491A03259B02BEB99 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				COMBINE_HIDPI_IMAGES = YES;
+				INFOPLIST_FILE = "Generated/PartitimeSwiftUI-macOS-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.partitime.swiftui.macos;
+				PRODUCT_NAME = PartitimeSwiftUI;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		7E3F77063D6F4957146616C5 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.snapback.partitime.swiftui.ios-uitests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "PartitimeSwiftUI-iOS";
+			};
+			name = Debug;
+		};
+		93785E1EB43BF701D8F724B4 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = "Generated/PartitimeSwiftUI-iOS-Info.plist";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = dev.snapback.partitime.swiftui.ios;
+				PRODUCT_NAME = PartitimeSwiftUI;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		9AF340580A0612001DBE3E5F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.snapback.partitime.swiftui.macos-uitests";
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = "PartitimeSwiftUI-macOS";
+			};
+			name = Debug;
+		};
+		9F08D652A3D0D44ABF89E66B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.snapback.partitime.swiftui.macos-uitests";
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = "PartitimeSwiftUI-macOS";
+			};
+			name = Release;
+		};
+		D686B15CA1D3A99BC4C8A014 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "dev.snapback.partitime.swiftui.ios-uitests";
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "PartitimeSwiftUI-iOS";
+			};
+			name = Release;
+		};
+		DD06FD11CFE55F42B5910AB7 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		EA9344799E5E7F2767B0360E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		748C4F5AFE6F88D07AD9C754 /* Build configuration list for PBXProject "PartitimeSwiftUI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DD06FD11CFE55F42B5910AB7 /* Debug */,
+				EA9344799E5E7F2767B0360E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		7DC5BC4758CC0E04FC8DCE25 /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				93785E1EB43BF701D8F724B4 /* Debug */,
+				24F141D857D5173B568E69D2 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9DB9F425E9C04655577D1B4E /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3CD596E2C9A21E69951C58B7 /* Debug */,
+				58C8347491A03259B02BEB99 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C4EBECF0AD7ADC6473E93996 /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-iOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7E3F77063D6F4957146616C5 /* Debug */,
+				D686B15CA1D3A99BC4C8A014 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		D5F2D92ED697F626162D99CC /* Build configuration list for PBXNativeTarget "PartitimeSwiftUI-macOSUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9AF340580A0612001DBE3E5F /* Debug */,
+				9F08D652A3D0D44ABF89E66B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = B06153A0CA73E82B2240C596 /* Project object */;
+}

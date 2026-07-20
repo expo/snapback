@@ -1,0 +1,50 @@
+{
+  "events": [
+    {
+      "_id": "event_sunset",
+      "title": "Sunset Supper Club",
+      "emoji": "🍊",
+      "description": "A long table, tiny plates, and the last warm light of the day.",
+      "location": "Bernal Hill · secret garden",
+      "startsAt": 1785632400000,
+      "hostId": "user_ada",
+      "hostName": "Ada",
+      "accent": "tangerine"
+    },
+    {
+      "_id": "event_swim",
+      "title": "Night Swim Radio",
+      "emoji": "🌊",
+      "description": "Pool lights on, radios low, towels and fruit provided.",
+      "location": "Oakland · Temescal pool",
+      "startsAt": 1786228200000,
+      "hostId": "user_grace",
+      "hostName": "Grace",
+      "accent": "cobalt"
+    },
+    {
+      "_id": "event_ceramics",
+      "title": "Bad Ceramics Night",
+      "emoji": "🏺",
+      "description": "Make something lopsided on purpose. Clay, snacks, and aprons are here.",
+      "location": "Mission · Studio 14",
+      "startsAt": 1786921200000,
+      "hostId": "user_eve",
+      "hostName": "Eve",
+      "accent": "orchid"
+    }
+  ],
+  "rsvps": [
+    { "_id": "rsvp_sunset_ada", "eventId": "event_sunset", "userId": "user_ada", "guestName": "Ada", "status": "host" },
+    { "_id": "rsvp_sunset_grace", "eventId": "event_sunset", "userId": "user_grace", "guestName": "Grace", "status": "going" },
+    { "_id": "rsvp_sunset_eve", "eventId": "event_sunset", "userId": "user_eve", "guestName": "Eve", "status": "maybe" },
+    { "_id": "rsvp_swim_grace", "eventId": "event_swim", "userId": "user_grace", "guestName": "Grace", "status": "host" },
+    { "_id": "rsvp_swim_ada", "eventId": "event_swim", "userId": "user_ada", "guestName": "Ada", "status": "going" },
+    { "_id": "rsvp_ceramics_eve", "eventId": "event_ceramics", "userId": "user_eve", "guestName": "Eve", "status": "host" }
+  ],
+  "posts": [
+    { "_id": "post_sunset_1", "eventId": "event_sunset", "authorId": "user_grace", "authorName": "Grace", "message": "I am bringing fizzy water and a very serious playlist.", "createdAt": 1785010000000 },
+    { "_id": "post_sunset_2", "eventId": "event_sunset", "authorId": "user_ada", "authorName": "Ada", "message": "Perfect. Garden gate opens at 6:15.", "createdAt": 1785010300000 },
+    { "_id": "post_swim_1", "eventId": "event_swim", "authorId": "user_grace", "authorName": "Grace", "message": "Bring one song for the floating speaker queue.", "createdAt": 1785010600000 }
+  ]
+}

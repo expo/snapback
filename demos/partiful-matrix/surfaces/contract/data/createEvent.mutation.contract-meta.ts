@@ -1,0 +1,2 @@
+import { defineContractModule, mutation } from '@exact/contract/exports';
+export default defineContractModule('./createEvent.mutation.ts', { createEvent: mutation({ effects: ['events.write','rsvps.write'], invalidates: ['events','rsvps'] }) });

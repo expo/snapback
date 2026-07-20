@@ -1,0 +1,85 @@
+{
+  "appId": "partiful-matrix",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/createEvent.args.schema.json",
+    "operations/eventDetails.args.schema.json",
+    "operations/eventWall.args.schema.json",
+    "operations/guestList.args.schema.json",
+    "operations/listEvents.args.schema.json",
+    "operations/postMessage.args.schema.json",
+    "operations/rsvp.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/createEvent.mutation.ts",
+    "contract/createEvent.mutation.contract-meta.ts",
+    "contract/eventDetails.query.ts",
+    "contract/eventDetails.query.contract-meta.ts",
+    "contract/eventWall.query.ts",
+    "contract/eventWall.query.contract-meta.ts",
+    "contract/guestList.query.ts",
+    "contract/guestList.query.contract-meta.ts",
+    "contract/listEvents.query.ts",
+    "contract/listEvents.query.contract-meta.ts",
+    "contract/postMessage.mutation.ts",
+    "contract/postMessage.mutation.contract-meta.ts",
+    "contract/rsvp.mutation.ts",
+    "contract/rsvp.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:bc2591eecc7e82f6",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "partiful-matrix:createEvent",
+      "kind": "Mutation",
+      "name": "createEvent"
+    },
+    {
+      "id": "partiful-matrix:eventDetails",
+      "kind": "LiveQuery",
+      "name": "eventDetails"
+    },
+    {
+      "id": "partiful-matrix:eventWall",
+      "kind": "LiveQuery",
+      "name": "eventWall"
+    },
+    {
+      "id": "partiful-matrix:guestList",
+      "kind": "LiveQuery",
+      "name": "guestList"
+    },
+    {
+      "id": "partiful-matrix:listEvents",
+      "kind": "LiveQuery",
+      "name": "listEvents"
+    },
+    {
+      "id": "partiful-matrix:postMessage",
+      "kind": "Mutation",
+      "name": "postMessage"
+    },
+    {
+      "id": "partiful-matrix:rsvp",
+      "kind": "Mutation",
+      "name": "rsvp"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "b1708aa266d86d96e540610fd2928a444f3f629e4b2458686ba29dbf31e66ee8",
+  "schemaHash": "sha256:9d4448a3867b85ed",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "events",
+    "rsvps",
+    "posts"
+  ]
+}

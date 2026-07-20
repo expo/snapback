@@ -1,0 +1,74 @@
+{
+  "id": "partiful-matrix",
+  "title": "Partitime — React × Contract × Vanilla JS × four backends",
+  "description": "A controlled Partiful-style experiment: one deterministic event/RSVP/wall product contract is implemented as an explicit 3×4 matrix across React, Contract, and framework-free browser JavaScript, backed by Snapback, Supabase, Convex, and plain SQLite.",
+  "artifactSchemaVersion": "snapback.v0",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "systems": ["Codegen", "Storage", "Realtime", "Testing", "Clients"],
+  "requiredCapabilities": {
+    "storageEngine": "sqlite",
+    "runtimeEngine": "ibex",
+    "authMode": "dev",
+    "liveSubscriptions": true
+  },
+  "backend": {
+    "source": "snapback/schema.mjs + snapback/functions.mjs + snapback/handlers.mjs; comparison providers under backends/",
+    "codegen": "node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback",
+    "generated": [
+      "snapback/generated/schema.manifest.json",
+      "snapback/generated/functions.manifest.json",
+      "snapback/generated/capability.manifest.json",
+      "snapback/generated/contract-data.manifest.json",
+      "snapback/generated/api.mjs",
+      "snapback/generated/api.d.ts",
+      "snapback/generated/artifacts.json"
+    ],
+    "stalenessPolicy": "committed; regenerate with codegen; freshness tracked by artifacts.json inputsHash"
+  },
+  "surfaces": {
+    "headless": { "requirement": "required", "buildTargets": [], "runner": "bun demos/partiful-matrix/tests/acceptance/providers.mjs", "toolchain": "bun, cargo, local Supabase and Convex credentials" },
+    "react-snapback": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend snapback", "toolchain": "bun, Chrome, Snapback server" },
+    "react-supabase": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend supabase", "toolchain": "bun, Chrome, gateway, Supabase" },
+    "react-convex": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend convex", "toolchain": "bun, Chrome, gateway, Convex" },
+    "react-sqlite": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend sqlite", "toolchain": "bun, Chrome, gateway" },
+    "contract-snapback": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend snapback", "toolchain": "bun, Exact, Chrome, Snapback server" },
+    "contract-supabase": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend supabase", "toolchain": "bun, Exact, Chrome, gateway, Supabase" },
+    "contract-convex": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend convex", "toolchain": "bun, Exact, Chrome, gateway, Convex" },
+    "contract-sqlite": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend sqlite", "toolchain": "bun, Exact, Chrome, gateway" },
+    "vanilla-snapback": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend snapback", "toolchain": "bun, Vite, Chrome, Snapback server" },
+    "vanilla-supabase": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend supabase", "toolchain": "bun, Vite, Chrome, gateway, Supabase" },
+    "vanilla-convex": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend convex", "toolchain": "bun, Vite, Chrome, gateway, Convex" },
+    "vanilla-sqlite": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend sqlite", "toolchain": "bun, Vite, Chrome, gateway" }
+  },
+  "acceptanceChecks": {
+    "headless": [
+      "all four providers expose the same deterministic event projection and ordering",
+      "RSVP is idempotent per event/person on every provider",
+      "create event, atomic host seat, and wall post complete on every provider; temporary remote rows are scoped and removed",
+      "event, RSVP, and wall rows have portable normalized shapes"
+    ],
+    "browserMatrix": [
+      "all twelve independently built cells boot and identify their arm/backend",
+      "the shared feed and event detail render from each real provider",
+      "an RSVP mutation becomes observable in the selected cell",
+      "the vanilla row replaces feed/detail subscription scopes without leaking handles"
+    ],
+    "vanillaLifecycle": [
+      "renew disposes every active handle",
+      "late handle resolution and stale observer delivery are fenced",
+      "page close is terminal and idempotently disposes the current scope"
+    ]
+  },
+  "capabilityGaps": [
+    "the supplied Supabase publishable key was rejected, so the Supabase web cells use a local Bun gateway and server-only Postgres credentials",
+    "the portable comparison providers poll every second; only the Snapback cells exercise push subscriptions in this matrix",
+    "the vanilla row has no UI framework but still uses Vite for the production module graph and bundle measurement",
+    "hosted deployment and production authentication are outside this local comparison"
+  ],
+  "notClaiming": [
+    "production auth, row-level security, or tenant isolation (personas are trusted local demo identities)",
+    "equal realtime transports: polling is labeled in the Supabase, Convex, and SQLite cells",
+    "benchmark-quality performance results or backend pricing comparisons",
+    "twelve separately maintained UI codebases: each authoring row intentionally shares source across its four backend builds"
+  ]
+}

@@ -28,6 +28,7 @@ run node packages/snapback-codegen/index.mjs demos/graffiti/snapback
 run node packages/snapback-codegen/index.mjs demos/card-game/snapback
 run node packages/snapback-codegen/index.mjs demos/rbac/snapback
 run node packages/snapback-codegen/index.mjs demos/shindig/snapback
+run node packages/snapback-codegen/index.mjs demos/partiful-matrix/snapback
 run node admin-ui/generate-contract-bindings.mjs
 
 GENERATED_PATHS=(
@@ -41,6 +42,7 @@ GENERATED_PATHS=(
     demos/card-game/snapback/generated
     demos/rbac/snapback/generated
     demos/shindig/snapback/generated
+    demos/partiful-matrix/snapback/generated
     admin-ui/generated
 )
 

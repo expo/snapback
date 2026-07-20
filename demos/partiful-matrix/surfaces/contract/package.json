@@ -1,0 +1,15 @@
+{
+  "name": "partiful-matrix-contract",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --bun node_modules/.bin/vite --config vite.config.ts --host 127.0.0.1 --port 5192",
+    "build": "bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
+    "build:snapback": "bun --bun node_modules/.bin/vite build --config vite.config.ts --mode snapback --outDir dist/snapback",
+    "build:supabase": "bun --bun node_modules/.bin/vite build --config vite.config.ts --mode supabase --outDir dist/supabase",
+    "build:convex": "bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex --outDir dist/convex",
+    "build:sqlite": "bun --bun node_modules/.bin/vite build --config vite.config.ts --mode sqlite --outDir dist/sqlite"
+  },
+  "dependencies": { "@exact/contract": "npm:@ccheever/exact-contract@0.1.2", "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2", "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2" },
+  "devDependencies": { "vite": "^8.0.0" }
+}

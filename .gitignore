@@ -1,5 +1,7 @@
 /target/
 /.snapback/
+/.snapback.snapback.restore.lock
 node_modules/
 .agent-local-secrets.md
+*.swp
 /cloudflare/.wrangler/

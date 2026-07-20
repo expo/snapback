@@ -1,11 +1,12 @@
 # Upstream Exact: contract-block claim grammar rejects `mutates` with a mislocated parse error
 
-**Status:** Open
+**Status:** Closed
 **Severity:** P3
 **Systems:** Upstream Exact, Contract Compiler, DX
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-18
 **Related:** demos/shindig/surfaces/contract/feed.contract (diary 0015); Exact contract compiler (upstream repo)
+**Linear:** ENG-25271 (child of ENG-25267)
 **Marker:** exact, contract-language, parse-error, claim-grammar
 
 Repo-scoped pointer to an upstream Exact issue (promote to the Exact repo /
@@ -33,3 +34,10 @@ Two compounding problems hit while authoring Shindig's Contract arm:
 - Either `mutates` claims parse in contract blocks or the diagnostic names
   the allowed claim forms, and the error anchors at the offending claim
   line.
+
+## Resolution
+
+Promoted to upstream Exact as ENG-25271 on 2026-07-19, under the
+authoring-time diagnostics umbrella ENG-25267. Compiler implementation and
+verification are tracked there; this repository pointer is closed to avoid
+duplicate ownership.

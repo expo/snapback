@@ -1,0 +1,204 @@
+use listEvents from "../../partitime/data/listEvents.query.ts"
+use eventDetails from "../../partitime/data/eventDetails.query.ts"
+use guestList from "../../partitime/data/guestList.query.ts"
+use eventWall from "../../partitime/data/eventWall.query.ts"
+use createEvent from "../../partitime/data/createEvent.mutation.ts"
+use rsvp from "../../partitime/data/rsvp.mutation.ts"
+use postMessage from "../../partitime/data/postMessage.mutation.ts"
+use backendName from "../../partitime/helpers.ts"
+use formatWhen from "../../partitime/helpers.ts"
+use statusLabel from "../../partitime/helpers.ts"
+use goingCount from "../../partitime/helpers.ts"
+use myStatus from "../../partitime/helpers.ts"
+
+// One source renders on both Apple hosts and all four provider modes. The
+// provider manifests declare polling honestly; browser Snapback push remains
+// a separate cell in the broader Partitime experiment.
+// @ref LLP 0063 — Workstream 2's one-product-contract rule; backend facts stay visible.
+component PartitimeRoute
+  state selectedEventId = ""
+  state creating = false
+  state draftTitle = ""
+  state draftEmoji = "🪩"
+  state draftLocation = ""
+  state draftDescription = ""
+  state wallDraft = ""
+
+  derive backend = backendName()
+  derive canCreate = draftTitle.trim() != "" && draftLocation.trim() != ""
+  derive canPost = wallDraft.trim() != ""
+
+  query events = listEvents({})
+  query event = eventDetails({ eventId: selectedEventId })
+  query guests = guestList({ eventId: selectedEventId })
+  query wall = eventWall({ eventId: selectedEventId })
+  mutation createMut = createEvent
+  mutation rsvpMut = rsvp
+  mutation postMut = postMessage
+
+  action openEvent(eventId) writes selectedEventId
+    selectedEventId = eventId
+  action back writes selectedEventId, wallDraft
+    selectedEventId = ""
+    wallDraft = ""
+  action toggleCreate writes creating
+    creating = !creating
+  action setTitle(value) writes draftTitle
+    draftTitle = value
+  action setEmoji(value) writes draftEmoji
+    draftEmoji = value
+  action setLocation(value) writes draftLocation
+    draftLocation = value
+  action setDescription(value) writes draftDescription
+    draftDescription = value
+  action submitCreate writes creating, draftTitle, draftLocation, draftDescription mutates createMut
+    createMut({ title: draftTitle.trim(), emoji: draftEmoji, description: draftDescription.trim(), location: draftLocation.trim(), startsAt: now() + 259200000, hostName: "Ada", accent: "tangerine" })
+    creating = false
+    draftTitle = ""
+    draftLocation = ""
+    draftDescription = ""
+  action respond(status) mutates rsvpMut
+    rsvpMut({ eventId: selectedEventId, guestName: "Ada", status: status })
+  action setWallDraft(value) writes wallDraft
+    wallDraft = value
+  action sendPost writes wallDraft mutates postMut
+    postMut({ eventId: selectedEventId, authorName: "Ada", message: wallDraft.trim(), createdAt: now() })
+    wallDraft = ""
+
+  contract
+    has node testId="partitime-root"
+    when selectedEventId == "" then has node testId="partitime-feed"
+    when selectedEventId != "" then has node testId="partitime-event"
+    when selectedEventId == "" then has button "+ Make something happen"
+    when selectedEventId != "" then has button "← All plans"
+    action openEvent writes selectedEventId
+    action back writes selectedEventId, wallDraft
+    action submitCreate writes creating, draftTitle, draftLocation, draftDescription
+    action sendPost writes wallDraft
+
+  view
+    scroll width="100%" height="100%" background="#f4f0e8" testId="partitime-root"
+      when selectedEventId == ""
+        column width="100%" gap=0 testId="partitime-feed"
+          row width="100%" align="center" gap=10 paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 background="#fffaf2" borderBottomWidth=1 borderColor="#d9d2c8"
+            text "p" size=19 weight=800 color="#ffffff" background="#ff4d24" paddingLeft=10 paddingRight=10 paddingTop=5 paddingBottom=5 radius=999
+            text "partitime" size=18 weight=800 color="#171512" flex=1
+            text `EXACT + CONTRACT · ${backend}` size=10 weight=700 color="#ff4d24" testId="matrix-label"
+
+          column width="100%" gap=16 padding=24 borderBottomWidth=1 borderColor="#d9d2c8"
+            text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 weight=700 color="#665e54"
+            text "Make a plan worth leaving the chat for." size=42 weight=800 color="#171512" lineHeight=0.95 maxWidth=720 testId="hero-title"
+            text "Small gatherings, good people, no algorithmic sludge." size=14 color="#665e54"
+            row gap=12 align="center"
+              button label="+ Make something happen" press=toggleCreate testId="new-event" paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 radius=999 background="#171512"
+                text creating ? "Never mind" : "+ Make something happen" size=13 weight=700 color="#ffffff"
+              text events.connection size=10 color="#5a6f42" testId="connection"
+
+          when creating
+            column width="100%" gap=10 padding=22 background="#dce3bf" testId="create-panel"
+              text "01 · WHAT'S THE PLAN?" size=10 weight=700 color="#665e54"
+              text "Keep it loose." size=25 weight=800 color="#171512"
+              row width="100%" gap=8
+                input value=draftEmoji change=setEmoji label="Emoji" testId="create-emoji" width=62 padding=10 background="#fffaf2" borderWidth=1 borderColor="#9b948a" size=20
+                input value=draftTitle change=setTitle label="Event title" testId="create-title" flex=1 padding=10 background="#fffaf2" borderWidth=1 borderColor="#9b948a" color="#171512"
+              input value=draftLocation change=setLocation label="Location" testId="create-location" padding=10 background="#fffaf2" borderWidth=1 borderColor="#9b948a" color="#171512"
+              input value=draftDescription change=setDescription label="Description" testId="create-description" padding=10 background="#fffaf2" borderWidth=1 borderColor="#9b948a" color="#171512"
+              button label="Send the invite" press=submitCreate disabled=!canCreate testId="create-submit" paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 radius=999 background="#171512" opacity=canCreate ? 1 : 0.45
+                text "Send the invite ↗" size=13 weight=700 color="#ffffff"
+
+          column width="100%" gap=14 padding=22
+            async events
+              loading
+                text "Loading the plans…" size=14 color="#665e54" testId="feed-loading"
+              error problem
+                text problem.message size=13 color="#aa2c20" testId="feed-error"
+              empty
+                text "No plans yet. Make something happen." size=14 color="#665e54" testId="feed-empty"
+              ready rows
+                column width="100%" gap=12
+                  text `${rows.length} · ON THE HORIZON` size=10 weight=700 color="#665e54"
+                  each item in rows key=item._id
+                    row width="100%" gap=14 align="center" padding=16 background="#fffaf2" borderWidth=1 borderColor="#d9d2c8" radius=16 testId=`event-card-${item._id}`
+                      text item.emoji size=38 background="#f6a25d" padding=18 width=82 radius=12
+                      column gap=5 flex=1
+                        text formatWhen(item.startsAt) size=9 weight=700 color="#ff4d24"
+                        text item.title size=21 weight=800 color="#171512" testId=`event-title-${item._id}`
+                        text item.location size=12 color="#665e54"
+                        text `HOSTED BY ${item.hostName}` size=9 color="#665e54"
+                      button label="View plan" press=openEvent(item._id) testId=`open-${item._id}` paddingTop=9 paddingBottom=9 paddingLeft=13 paddingRight=13 radius=999 background="#171512"
+                        text "View plan →" size=11 weight=700 color="#ffffff"
+      else
+        column width="100%" gap=18 padding=20 testId="partitime-event"
+          row width="100%" align="center"
+            button label="← All plans" press=back testId="back" padding=8 background="transparent" flex=1
+              text "← All plans" size=12 weight=700 color="#171512"
+            text `EXACT + CONTRACT · ${backend}` size=10 weight=700 color="#ff4d24" testId="matrix-label"
+
+          async event
+            loading
+              text "Loading the plan…" size=14 color="#665e54"
+            error problem
+              text problem.message size=13 color="#aa2c20"
+            empty
+              text "That plan is gone." size=18 color="#171512"
+            ready eventRows
+              each item in eventRows key=item._id
+                column width="100%" gap=16
+                  row width="100%" gap=18 align="center" padding=22 background="#f6a25d" radius=20
+                    text item.emoji size=52 background="#ffffff44" padding=24 radius=999
+                    column gap=7 flex=1
+                      text `${formatWhen(item.startsAt)} · HOSTED BY ${item.hostName}` size=9 weight=700 color="#473b31"
+                      text item.title size=36 weight=800 color="#171512" lineHeight=0.95 testId="event-title"
+                      text item.description size=13 color="#473b31"
+                  column width="100%" gap=5 padding=16 background="#fffaf2" radius=14
+                    text "MEET HERE" size=9 weight=700 color="#665e54"
+                    text item.location size=23 weight=800 color="#171512"
+
+          column width="100%" gap=12 padding=16 background="#fffaf2" borderWidth=1 borderColor="#d9d2c8" radius=16 testId="guest-list"
+            async guests
+              loading
+                text "Loading guests…" size=12 color="#665e54"
+              error problem
+                text problem.message size=12 color="#aa2c20"
+              empty
+                text "Nobody yet." size=12 color="#665e54"
+              ready guestRows
+                column width="100%" gap=10
+                  row width="100%" align="baseline"
+                    text "WHO'S IN" size=9 weight=700 color="#665e54" flex=1
+                    text goingCount(guestRows) size=20 weight=800 color="#171512"
+                  when myStatus(guestRows, "user_ada") == "host"
+                    text "You're hosting this one ✦" size=12 color="#171512" background="#dce3bf" padding=10 radius=9 testId="my-rsvp-host"
+                  else
+                    row gap=6
+                      button label="Going" press=respond("going") testId="rsvp-going" padding=9 radius=999 background=myStatus(guestRows, "user_ada") == "going" ? "#ff4d24" : "#fffaf2" borderWidth=1 borderColor="#9b948a"
+                        text "Going" size=10 weight=700 color=myStatus(guestRows, "user_ada") == "going" ? "#ffffff" : "#171512"
+                      button label="Maybe" press=respond("maybe") testId="rsvp-maybe" padding=9 radius=999 background=myStatus(guestRows, "user_ada") == "maybe" ? "#ff4d24" : "#fffaf2" borderWidth=1 borderColor="#9b948a"
+                        text "Maybe" size=10 weight=700 color=myStatus(guestRows, "user_ada") == "maybe" ? "#ffffff" : "#171512"
+                      button label="Can't" press=respond("cant") testId="rsvp-cant" padding=9 radius=999 background=myStatus(guestRows, "user_ada") == "cant" ? "#ff4d24" : "#fffaf2" borderWidth=1 borderColor="#9b948a"
+                        text "Can't" size=10 weight=700 color=myStatus(guestRows, "user_ada") == "cant" ? "#ffffff" : "#171512"
+                  text `Your RSVP: ${statusLabel(myStatus(guestRows, "user_ada"))}` size=10 weight=700 color="#665e54" testId=`my-rsvp-${myStatus(guestRows, "user_ada")}`
+                  each guest in guestRows key=guest._id
+                    row width="100%" gap=10 paddingTop=7 paddingBottom=7 testId=`guest-${guest.userId}`
+                      text guest.guestName size=13 weight=700 color="#171512" flex=1
+                      text statusLabel(guest.status) size=9 color="#665e54"
+
+          column width="100%" gap=12 padding=16 background="#fffaf2" borderWidth=1 borderColor="#d9d2c8" radius=16 testId="wall"
+            text "THE WALL" size=9 weight=700 color="#665e54"
+            async wall
+              loading
+                text "Loading messages…" size=12 color="#665e54"
+              error problem
+                text problem.message size=12 color="#aa2c20"
+              empty
+                text "Quiet so far. Say something." size=13 color="#665e54"
+              ready posts
+                column width="100%" gap=0
+                  each item in posts key=item._id
+                    row width="100%" gap=10 paddingTop=10 paddingBottom=10 borderBottomWidth=1 borderColor="#e5ded4"
+                      text item.authorName size=11 weight=800 color="#171512" width=72
+                      text item.message size=12 color="#3f3a34" flex=1
+            row width="100%" gap=8
+              input value=wallDraft change=setWallDraft submit=sendPost label="Say something as Ada" testId="wall-input" padding=10 flex=1 background="#ffffff" borderWidth=1 borderColor="#9b948a" color="#171512"
+              button label="Send" press=sendPost disabled=!canPost testId="wall-send" paddingTop=10 paddingBottom=10 paddingLeft=15 paddingRight=15 radius=999 background="#171512" opacity=canPost ? 1 : 0.45
+                text "Send ↗" size=11 weight=700 color="#ffffff"
