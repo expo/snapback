@@ -34,6 +34,7 @@ with the Snapback label and `guide-gap` in the title.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | backend.schema | Declare tables, fields, indexes, sync | schema, tables, model | local | shipped | `defineSchema` in packages/snapback-codegen/define.mjs | llp/0037, llp/0004 | getting-started/your-first-backend.md |
 | backend.functions | Queries, mutations; declarative plans and JS handlers | query, mutation, endpoint, api | local | shipped | `defineQuery` in packages/snapback-codegen/define.mjs | llp/0004 | getting-started/your-first-backend.md |
+| backend.standard-patterns | Generate owner-scoped CRUD, unique lookup, and keyset pages with trusted defaults | CRUD generator, pagination, runtime time, runtime id | local | partial | `defineOwnedCrud` in packages/snapback-codegen/standard-patterns.mjs | llp/0051, llp/0065 | backend/standard-patterns.md |
 | backend.seed | Deterministic declarative seed + reset | seed, fixtures, sample data | local | shipped | route /_snapback/api/app/reset | llp/0004 | getting-started/your-first-backend.md |
 | backend.provisioning | Idempotent app provisioning (ensureApp) | ensure, deploy app, load app | local | shipped | route /app/ensure | llp/0034 | getting-started/your-first-backend.md |
 | backend.codegen | Generate manifests, client api, Contract bindings | codegen, generate, artifacts | local | shipped | `runCodegenCli` in packages/snapback-codegen/index.mjs | llp/0037, llp/0021 | getting-started/your-first-backend.md |

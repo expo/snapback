@@ -57,6 +57,8 @@ you never build around a feature because you didn't know it existed.
   and the ordinary-vs-live boundary.
 - [Mutations](./backend/mutations.md) — buffered writes, one commit version,
   read-set conflict validation, and structured results.
+- [Safe standard patterns](./backend/standard-patterns.md) — owner-scoped CRUD,
+  unique lookup, keyset pages, and server-derived time and IDs.
 - [Actions and outbound fetch](./backend/actions-and-fetch.md) — gated
   egress, config grants, and mutation-owned durable effects.
 - [Scheduled execution](./backend/cron.md) — action-backed jobs,
