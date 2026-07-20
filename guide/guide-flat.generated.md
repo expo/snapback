@@ -1906,7 +1906,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 27e3689a239c52a01a01ddf51f52ec4221ea7a86
 ---
 
 # Safe standard data patterns
