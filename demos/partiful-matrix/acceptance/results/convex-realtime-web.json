@@ -1,0 +1,215 @@
+{
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.followup.v1",
+  "cell": "react:convex-realtime",
+  "revision": "34436b1d357135a974be69e97ec8a4703b818e69",
+  "gitDirtyAtStart": false,
+  "sourceInputs": [
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/convex-direct.ts",
+      "sha256": "81d35b70f7d8239a16016f6dfcbd419d6485134c3dbd048f4658e00c4d1bf884",
+      "bytes": 7043
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88",
+      "bytes": 5661
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
+      "sha256": "27c1216d72977e9cecb9eb71c6123366f03226427c48fa5d35ca9faa1e775c92",
+      "bytes": 1621
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/vite.config.mts",
+      "sha256": "0b258d0c27e011a480be878fb79110da428bbf87d6296643cf174b688b346171",
+      "bytes": 2068
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/bun.lock",
+      "sha256": "20bb724eaa5f675b25e290bf66bc892d2eeb61e7382e7d6e1989cf59c8dfb239",
+      "bytes": 38883
+    },
+    {
+      "path": "demos/partiful-matrix/backends/convex/convex/_generated/api.js",
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70",
+      "bytes": 480
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs",
+      "sha256": "4bc0f58621b45c6b6e3ae5aad2c02eb9bfa8c4c2dd311cfc19907cf04058a723",
+      "bytes": 20100
+    }
+  ],
+  "environment": {
+    "node": "v24.18.0",
+    "bun": "1.3.12",
+    "chromeVersion": "Google Chrome 150.0.7871.128",
+    "convexClientVersion": "1.42.3"
+  },
+  "deploymentOrigin": "https://acoustic-alpaca-401.convex.cloud",
+  "deploymentProbe": {
+    "ok": true,
+    "query": "events:listEvents",
+    "rowCount": 3,
+    "canonicalFixture": true,
+    "attempts": [
+      {
+        "attempt": 1,
+        "ok": true,
+        "rowCount": 3
+      }
+    ]
+  },
+  "acceptanceFixture": {
+    "eventId": "event_4bb094cc-913e-4b17-90e5-d657eb997ec0",
+    "title": "[acceptance] convex direct dce77f78-b286-4ca6-abb4-04e96450dd2c"
+  },
+  "title": "partiful matrix / convex-realtime follow-up cell",
+  "passed": 6,
+  "skipped": 0,
+  "failed": 0,
+  "total": 6,
+  "ok": true,
+  "results": [
+    {
+      "name": "Convex deployment serves the canonical fixture and an isolated acceptance event",
+      "ok": true,
+      "details": {
+        "ok": true,
+        "query": "events:listEvents",
+        "rowCount": 3,
+        "canonicalFixture": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "ok": true,
+            "rowCount": 3
+          }
+        ],
+        "acceptanceEventId": "event_4bb094cc-913e-4b17-90e5-d657eb997ec0",
+        "isolatedFixture": true
+      }
+    },
+    {
+      "name": "react × convex-realtime boots browser-direct with push transport",
+      "ok": true,
+      "details": {
+        "backend": "convex-realtime",
+        "authoring": "react",
+        "transport": "push",
+        "client": "convex/browser",
+        "pollPath": "absent",
+        "socketConnected": true
+      }
+    },
+    {
+      "name": "opens details and performs an in-cell RSVP round trip",
+      "ok": true,
+      "details": {
+        "before": "no Eve RSVP row",
+        "after": "EVEveGoing",
+        "host": "preserved"
+      }
+    },
+    {
+      "name": "observes out-of-band writes through Convex WebSocket push with no poll path",
+      "ok": true,
+      "details": {
+        "mutationOrigin": "out-of-band Convex HTTP mutation client",
+        "observedTransport": "convex/browser WebSocket",
+        "pollPath": "absent",
+        "warmupCount": 1,
+        "sampleCount": 5,
+        "observations": [
+          {
+            "sampleIndex": 0,
+            "latencyMs": 414,
+            "deliveryCountBefore": 1,
+            "deliveryCountAfter": 2
+          },
+          {
+            "sampleIndex": 1,
+            "latencyMs": 220,
+            "deliveryCountBefore": 2,
+            "deliveryCountAfter": 3
+          },
+          {
+            "sampleIndex": 2,
+            "latencyMs": 218,
+            "deliveryCountBefore": 3,
+            "deliveryCountAfter": 4
+          },
+          {
+            "sampleIndex": 3,
+            "latencyMs": 220,
+            "deliveryCountBefore": 4,
+            "deliveryCountAfter": 5
+          },
+          {
+            "sampleIndex": 4,
+            "latencyMs": 209,
+            "deliveryCountBefore": 5,
+            "deliveryCountAfter": 6
+          },
+          {
+            "sampleIndex": 5,
+            "latencyMs": 218,
+            "deliveryCountBefore": 6,
+            "deliveryCountAfter": 7
+          }
+        ],
+        "freshnessLatencyMs": {
+          "samples": [
+            220,
+            218,
+            220,
+            209,
+            218
+          ],
+          "median": 218,
+          "p95": 220
+        },
+        "snapshotQueries": [
+          "listEvents",
+          "listEvents",
+          "eventDetails",
+          "guestList",
+          "eventWall",
+          "eventDetails",
+          "guestList",
+          "eventWall"
+        ],
+        "guestListConnectedPushUpdates": 7
+      }
+    },
+    {
+      "name": "Convex mutation authority refuses to displace the host",
+      "ok": true,
+      "details": {
+        "refusal": "server mutation invariant",
+        "message": "[Request ID: 44d7dfc9dfe0d18c] Server Error\nUncaught Error: the host is already going\n    at handler (../convex/events.ts:34:8)\n"
+      }
+    },
+    {
+      "name": "normal React root teardown closes subscriptions and the Convex client",
+      "ok": true,
+      "details": {
+        "providerClosed": true,
+        "disposedQueries": [
+          "listEvents",
+          "listEvents",
+          "eventDetails",
+          "guestList",
+          "eventWall",
+          "eventDetails",
+          "guestList",
+          "eventWall"
+        ]
+      }
+    }
+  ],
+  "expectedChecks": 6,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
