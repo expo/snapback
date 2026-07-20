@@ -1,0 +1,308 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/provider-introspection/v1.schema.json",
+  "title": "Provider introspection v1",
+  "description": "Backend-neutral declaration consumed by generators upstream of ContractDataManifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "artifactKind",
+    "schemaVersion",
+    "provider",
+    "source",
+    "capabilities",
+    "operations"
+  ],
+  "properties": {
+    "artifactKind": { "const": "providerIntrospection" },
+    "schemaVersion": { "const": "provider-introspection.v1" },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["inputsHash"],
+      "properties": {
+        "inputsHash": { "$ref": "#/$defs/nonEmptyString" },
+        "schemaHash": { "$ref": "#/$defs/nonEmptyString" },
+        "implementationHash": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["claims", "receipts"],
+      "properties": {
+        "claims": {
+          "type": "object",
+          "propertyNames": { "pattern": "^[A-Za-z][A-Za-z0-9_.-]*$" },
+          "additionalProperties": { "type": "boolean" }
+        },
+        "receipts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["mutation", "subscription"],
+          "properties": {
+            "mutation": { "type": "boolean" },
+            "subscription": { "type": "boolean" }
+          }
+        }
+      }
+    },
+    "operations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queries", "mutations", "ephemeral"],
+      "properties": {
+        "queries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/query" }
+        },
+        "mutations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutation" }
+        },
+        "ephemeral": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ephemeral" }
+        }
+      }
+    },
+    "extensions": { "$ref": "#/$defs/extensions" }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringSet": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "uniqueItems": true
+    },
+    "extensions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "dataType": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape"],
+          "properties": {
+            "shape": { "const": "unknown" },
+            "optional": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "name"],
+          "properties": {
+            "shape": { "const": "primitive" },
+            "name": { "enum": ["string", "number", "boolean", "unknown"] },
+            "optional": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["shape", "fields"],
+          "properties": {
+            "shape": { "const": "object" },
+            "fields": {
+              "type": "object",
+              "additionalProperties": { "$ref": "#/$defs/dataType" }
+            },
+            "optional": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "arguments": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fields", "order"],
+      "properties": {
+        "fields": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/dataType" }
+        },
+        "order": { "$ref": "#/$defs/stringSet" }
+      }
+    },
+    "result": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "row"],
+          "properties": {
+            "kind": { "const": "list" },
+            "row": { "$ref": "#/$defs/dataType" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value", "nullable"],
+          "properties": {
+            "kind": { "const": "single" },
+            "value": { "$ref": "#/$defs/dataType" },
+            "nullable": { "type": "boolean" }
+          }
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "value"],
+          "properties": {
+            "kind": { "const": "scalar" },
+            "value": { "$ref": "#/$defs/dataType" }
+          }
+        }
+      ]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serverRunnable", "localRunnable"],
+      "properties": {
+        "serverRunnable": { "type": "boolean" },
+        "localRunnable": { "type": "boolean" }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "role"],
+      "properties": {
+        "kind": { "enum": ["request", "push", "poll", "reconcile-on-mutate"] },
+        "role": { "enum": ["primary", "fallback"] },
+        "cadenceMs": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "initialSnapshot", "defaultLive", "transports"],
+      "properties": {
+        "mode": { "enum": ["snapshot", "live", "poll", "reconcile-on-mutate"] },
+        "initialSnapshot": { "type": "boolean" },
+        "defaultLive": { "type": "boolean" },
+        "transports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transport" }
+        }
+      }
+    },
+    "query": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "arguments", "result", "execution", "dependencies", "delivery"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "arguments": { "$ref": "#/$defs/arguments" },
+        "result": { "$ref": "#/$defs/result" },
+        "execution": { "$ref": "#/$defs/execution" },
+        "dependencies": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["reads"],
+          "properties": {
+            "reads": { "$ref": "#/$defs/stringSet" }
+          }
+        },
+        "delivery": { "$ref": "#/$defs/delivery" },
+        "retainable": { "type": "boolean" },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    },
+    "mutation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "arguments", "execution", "effects", "optimistic"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "arguments": { "$ref": "#/$defs/arguments" },
+        "execution": { "$ref": "#/$defs/execution" },
+        "effects": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["writes", "invalidates"],
+          "properties": {
+            "writes": { "$ref": "#/$defs/stringSet" },
+            "invalidates": { "$ref": "#/$defs/stringSet" }
+          }
+        },
+        "optimistic": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["supported", "source"],
+          "properties": {
+            "supported": { "type": "boolean" },
+            "source": { "enum": ["none", "provider-plan", "consumer"] }
+          }
+        },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    },
+    "ephemeral": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "arguments", "result", "execution", "delivery", "channel"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "arguments": { "$ref": "#/$defs/arguments" },
+        "result": { "$ref": "#/$defs/result" },
+        "execution": { "$ref": "#/$defs/execution" },
+        "delivery": { "$ref": "#/$defs/delivery" },
+        "channel": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "keyMode",
+            "scopeFields",
+            "routingFields",
+            "defaultTtlMs",
+            "maxTtlMs",
+            "deliveryMode",
+            "maxDeltaRateHz",
+            "coalesce",
+            "publish"
+          ],
+          "properties": {
+            "keyMode": { "$ref": "#/$defs/nonEmptyString" },
+            "scopeFields": { "$ref": "#/$defs/stringSet" },
+            "routingFields": { "$ref": "#/$defs/stringSet" },
+            "defaultTtlMs": { "type": "integer", "minimum": 1 },
+            "maxTtlMs": { "type": "integer", "minimum": 1 },
+            "deliveryMode": { "enum": ["latest"] },
+            "maxDeltaRateHz": { "type": "integer", "minimum": 1 },
+            "coalesce": { "type": "boolean" },
+            "publish": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["sustainedHz", "burst", "maxValueBytes"],
+              "properties": {
+                "sustainedHz": { "type": "integer", "minimum": 1 },
+                "burst": { "type": "integer", "minimum": 1 },
+                "maxValueBytes": { "type": "integer", "minimum": 1 }
+              }
+            }
+          }
+        },
+        "extensions": { "$ref": "#/$defs/extensions" }
+      }
+    }
+  }
+}

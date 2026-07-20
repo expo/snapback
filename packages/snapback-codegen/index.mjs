@@ -45,6 +45,14 @@ import {
   renderQueryMetaModule,
   renderRuntimeLinksModule,
 } from './contract-emitter.mjs';
+import {
+  CONTRACT_DATA_MANIFEST_VERSION,
+  createSnapbackProviderIntrospection,
+  projectContractDataManifest,
+  validateContractDataManifestProjection,
+  validateProviderIntrospection,
+  validateSnapbackIntrospectionSource,
+} from './provider-introspection.mjs';
 
 const HEADER = generatedByHeader();
 
@@ -125,7 +133,6 @@ const REMOTE_SERVICE_WIRE_SCHEMAS = Object.freeze({
 // old consumers ignore the new fields, and the legacy `subscription` field is
 // still emitted during the migration (0284 §2.4's emit-both rule). The
 // provider-owned poll-fallback floor is the demos' existing 1500 ms cadence.
-const CONTRACT_DATA_MANIFEST_VERSION = 2;
 const PROVIDER_POLL_CADENCE_FLOOR_MS = 1_500;
 
 /// Per-query liveness facts derived once from the definition kind, so the
@@ -1562,7 +1569,10 @@ export async function generateInProcess(backendDir, options = {}) {
   );
   const allMutationsReplayable = Object.values(contractMutations).length > 0
     && Object.values(contractMutations).every((descriptor) => descriptor.plan !== undefined);
-  const contractManifest = {
+  // Keep the pre-introspection projection during the migration as an
+  // independent emit-both witness. The neutral producer below must reproduce
+  // this Exact-owned consumer document exactly or codegen fails before writing.
+  const legacyContractManifest = {
     artifactKind: 'contractDataManifest',
     // Contract consumes the same schema/function pair as the server. Session
     // artifacts therefore carry v1 here too; pinning this adjacent artifact
@@ -1606,6 +1616,32 @@ export async function generateInProcess(backendDir, options = {}) {
     // legacy `subscription` field and the v2 liveness fields ever disagree.
     diagnostics.push(...crossCheckContractQueryBinding(name, binding));
   }
+
+  // @ref LLP 0063#workstream-4--generated-provider-boundaries-and-a-closed-type-loop
+  //   — Snapback is the first deterministic producer of the neutral provider
+  //   declaration; ContractDataManifest is a validated projection, not the
+  //   provider-native source.
+  const introspectionSource = {
+    queries: contractQueries,
+    mutations: contractMutations,
+    ephemeral: legacyContractManifest.ephemeral,
+  };
+  diagnostics.push(...validateSnapbackIntrospectionSource(introspectionSource));
+  const providerIntrospection = createSnapbackProviderIntrospection({
+    artifactVersion,
+    inputsHash,
+    schemaHash,
+    bundleHash,
+    capabilities: legacyContractManifest.capabilities,
+    receipts: legacyContractManifest.receipts,
+    ...introspectionSource,
+  });
+  diagnostics.push(...validateProviderIntrospection(providerIntrospection));
+  diagnostics.push(...validateContractDataManifestProjection(
+    providerIntrospection,
+    legacyContractManifest,
+  ));
+  const contractManifest = projectContractDataManifest(providerIntrospection);
 
   // DK-7 (LLP 0037): validate the Snapback-owned artifacts against the committed
   // Rust-derived schemas before writing. Fail closed (write nothing) on any
@@ -1734,7 +1770,17 @@ export async function generateInProcess(backendDir, options = {}) {
     return { ok: false, diagnostics };
   }
 
-  return { ok: true, diagnostics, inputsHash, outDir, schemaManifest, functionManifest, capabilityManifest, contractManifest };
+  return {
+    ok: true,
+    diagnostics,
+    inputsHash,
+    outDir,
+    schemaManifest,
+    functionManifest,
+    capabilityManifest,
+    providerIntrospection,
+    contractManifest,
+  };
 
   // Cache and hash by the fd-attested target's canonical backend-relative POSIX
   // identity, never an authored alias or absolute checkout path.

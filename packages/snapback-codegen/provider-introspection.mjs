@@ -1,0 +1,760 @@
+// Provider-native declaration and Snapback -> Contract projection boundary.
+//
+// This artifact is consumed by client/tooling generators; the Snapback server
+// never parses it. Its package-local schema therefore has an explicit JS
+// authority instead of entering the Rust-owned shared-artifact schema set.
+//
+// @ref LLP 0037#revisit-triggers — client-only artifacts need an explicitly
+//   chosen authority rather than being defaulted into the Rust schema set.
+// @ref LLP 0063#workstream-4--generated-provider-boundaries-and-a-closed-type-loop
+//   — providers expose neutral introspection; ContractDataManifest is a
+//   generated consumer projection, and liveness mismatches fail before runtime.
+
+export const PROVIDER_INTROSPECTION_SCHEMA_VERSION = 'provider-introspection.v1';
+export const CONTRACT_DATA_MANIFEST_VERSION = 2;
+
+const QUERY_KEYS = new Set([
+  'name', 'args', 'argOrder', 'reads', 'result', 'serverRunnable',
+  'localRunnable', 'retainable', 'subscription', 'mode', 'livePush',
+  'initialSnapshot', 'defaultLive', 'ephemeral', 'transport',
+  'pollCadenceMs',
+]);
+const EPHEMERAL_QUERY_KEYS = new Set([
+  ...QUERY_KEYS, 'maxDeltaRateHz', 'coalesce', 'keyMode', 'scopeFields',
+  'defaultTtlMs', 'maxTtlMs',
+]);
+const MUTATION_KEYS = new Set([
+  'name', 'args', 'argOrder', 'writes', 'invalidates', 'optimistic',
+  'plan', 'serverRunnable',
+]);
+const EPHEMERAL_SECTION_KEYS = new Set([
+  'name', 'ephemeral', 'keyMode', 'scopeFields', 'routingFields',
+  'defaultTtlMs', 'maxTtlMs', 'deliveryMode', 'maxDeltaRateHz',
+  'coalesce', 'publishBudget',
+]);
+const PUBLISH_BUDGET_KEYS = new Set([
+  'sustainedHz', 'burst', 'maxValueBytes',
+]);
+
+/**
+ * Deterministically derives the neutral declaration from Snapback's native
+ * codegen facts. The returned object has recursively sorted object keys and
+ * operation arrays sorted by name, so JSON.stringify is byte-stable.
+ */
+export function createSnapbackProviderIntrospection({
+  artifactVersion,
+  inputsHash,
+  schemaHash,
+  bundleHash,
+  capabilities,
+  receipts,
+  queries,
+  mutations,
+  ephemeral,
+}) {
+  const queryOperations = [];
+  const ephemeralOperations = [];
+
+  for (const [name, binding] of sortedEntries(queries)) {
+    if (binding?.ephemeral === true) {
+      ephemeralOperations.push(ephemeralOperation(name, binding, ephemeral?.[name]));
+    } else {
+      queryOperations.push(queryOperation(name, binding));
+    }
+  }
+
+  const mutationOperations = sortedEntries(mutations).map(([name, binding]) => (
+    mutationOperation(name, binding)
+  ));
+
+  return canonicalize({
+    artifactKind: 'providerIntrospection',
+    schemaVersion: PROVIDER_INTROSPECTION_SCHEMA_VERSION,
+    provider: {
+      id: 'snapback',
+      version: artifactVersion,
+    },
+    source: {
+      inputsHash,
+      schemaHash,
+      implementationHash: bundleHash,
+    },
+    capabilities: {
+      claims: capabilities,
+      receipts: {
+        mutation: receipts === 'mutation' || receipts === 'mutation+subscription',
+        subscription: receipts === 'mutation+subscription',
+      },
+    },
+    operations: {
+      queries: queryOperations,
+      mutations: mutationOperations,
+      ephemeral: ephemeralOperations,
+    },
+  });
+}
+
+/**
+ * Projects the neutral declaration onto Exact's ContractDataManifest v2.
+ * Exact owns that consumer shape; this function owns only Snapback's mapping.
+ */
+export function projectContractDataManifest(introspection) {
+  const queries = Object.create(null);
+  const mutations = Object.create(null);
+  const ephemeral = Object.create(null);
+
+  for (const operation of introspection?.operations?.queries ?? []) {
+    queries[operation.name] = projectQuery(operation, false);
+  }
+  for (const operation of introspection?.operations?.mutations ?? []) {
+    mutations[operation.name] = projectMutation(operation);
+  }
+  for (const operation of introspection?.operations?.ephemeral ?? []) {
+    queries[operation.name] = projectQuery(operation, true);
+    ephemeral[operation.name] = projectEphemeralSection(operation);
+  }
+
+  return canonicalize({
+    artifactKind: 'contractDataManifest',
+    schemaVersion: introspection?.provider?.version,
+    manifestVersion: CONTRACT_DATA_MANIFEST_VERSION,
+    provider: introspection?.provider?.id,
+    inputsHash: introspection?.source?.inputsHash,
+    schemaHash: introspection?.source?.schemaHash,
+    bundleHash: introspection?.source?.implementationHash,
+    capabilities: introspection?.capabilities?.claims,
+    receipts: introspection?.capabilities?.receipts?.subscription === true
+      ? 'mutation+subscription'
+      : (introspection?.capabilities?.receipts?.mutation === true ? 'mutation' : 'none'),
+    queries,
+    mutations,
+    ephemeral,
+  });
+}
+
+/**
+ * Schema/invariant validation used by codegen before it consumes a provider
+ * declaration. It intentionally validates semantic rules JSON Schema cannot:
+ * sorted/unique operation identities, complete argument order, and honest
+ * primary/fallback transport combinations.
+ */
+export function validateProviderIntrospection(introspection) {
+  const problems = [];
+  const add = (path, message) => problems.push(`${path}: ${message}`);
+
+  closedObject(introspection, '$', [
+    'artifactKind', 'schemaVersion', 'provider', 'source', 'capabilities',
+    'operations', 'extensions',
+  ], ['artifactKind', 'schemaVersion', 'provider', 'source', 'capabilities', 'operations'], add);
+  if (!isObject(introspection)) return schemaDiagnostics(problems);
+  if (introspection.artifactKind !== 'providerIntrospection') {
+    add('$.artifactKind', 'must be "providerIntrospection"');
+  }
+  if (introspection.schemaVersion !== PROVIDER_INTROSPECTION_SCHEMA_VERSION) {
+    add('$.schemaVersion', `must be ${JSON.stringify(PROVIDER_INTROSPECTION_SCHEMA_VERSION)}`);
+  }
+
+  closedObject(introspection.provider, '$.provider', ['id', 'version'], ['id'], add);
+  nonEmptyString(introspection.provider?.id, '$.provider.id', add);
+  if (introspection.provider?.version !== undefined) {
+    nonEmptyString(introspection.provider.version, '$.provider.version', add);
+  }
+
+  closedObject(
+    introspection.source,
+    '$.source',
+    ['inputsHash', 'schemaHash', 'implementationHash'],
+    ['inputsHash'],
+    add,
+  );
+  nonEmptyString(introspection.source?.inputsHash, '$.source.inputsHash', add);
+  for (const key of ['schemaHash', 'implementationHash']) {
+    if (introspection.source?.[key] !== undefined) {
+      nonEmptyString(introspection.source[key], `$.source.${key}`, add);
+    }
+  }
+
+  validateCapabilities(introspection.capabilities, add);
+  closedObject(
+    introspection.operations,
+    '$.operations',
+    ['queries', 'mutations', 'ephemeral'],
+    ['queries', 'mutations', 'ephemeral'],
+    add,
+  );
+
+  const seenNames = new Map();
+  for (const [kind, validator] of [
+    ['queries', validateQuery],
+    ['mutations', validateMutation],
+    ['ephemeral', validateEphemeral],
+  ]) {
+    const operations = introspection.operations?.[kind];
+    if (!Array.isArray(operations)) {
+      add(`$.operations.${kind}`, 'must be an array');
+      continue;
+    }
+    const names = [];
+    operations.forEach((operation, index) => {
+      const path = `$.operations.${kind}[${index}]`;
+      validator(operation, path, add);
+      if (typeof operation?.name === 'string') {
+        names.push(operation.name);
+        const prior = seenNames.get(operation.name);
+        if (prior) add(`${path}.name`, `duplicates provider binding ${JSON.stringify(operation.name)} from ${prior}`);
+        else seenNames.set(operation.name, path);
+      }
+    });
+    const sorted = [...names].sort(compareCodeUnits);
+    if (names.some((name, index) => name !== sorted[index])) {
+      add(`$.operations.${kind}`, 'must be sorted by name for deterministic generation');
+    }
+  }
+
+  if (introspection.extensions !== undefined && !isObject(introspection.extensions)) {
+    add('$.extensions', 'must be an object');
+  }
+  return schemaDiagnostics(problems);
+}
+
+/**
+ * Emit-both guard for the migration: compare an independently assembled
+ * ContractDataManifest with the neutral declaration's projection. Any dropped,
+ * renamed, or silently defaulted field is reported at a deterministic JSON path.
+ */
+export function validateContractDataManifestProjection(introspection, actual) {
+  const expected = projectContractDataManifest(introspection);
+  const problems = jsonDifferences(expected, actual);
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_CONTRACT_MAPPING_MISMATCH',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `provider introspection does not reproduce ContractDataManifest: ${problems[0]}`,
+    problems,
+  }];
+}
+
+export function serializeProviderIntrospection(introspection) {
+  return `${JSON.stringify(canonicalize(introspection), null, 2)}\n`;
+}
+
+function queryOperation(name, binding) {
+  return {
+    name,
+    arguments: argumentsDescriptor(binding),
+    result: binding?.result,
+    execution: {
+      serverRunnable: binding?.serverRunnable === true,
+      localRunnable: binding?.localRunnable === true,
+    },
+    dependencies: { reads: binding?.reads ?? [] },
+    delivery: deliveryDescriptor(binding),
+    ...(binding?.retainable === true ? { retainable: true } : {}),
+  };
+}
+
+function mutationOperation(name, binding) {
+  const hasProviderPlan = binding?.plan !== undefined;
+  const optimistic = binding?.optimistic === true;
+  return {
+    name,
+    arguments: argumentsDescriptor(binding),
+    execution: {
+      serverRunnable: binding?.serverRunnable === true,
+      localRunnable: false,
+    },
+    effects: {
+      writes: binding?.writes ?? [],
+      invalidates: binding?.invalidates ?? [],
+    },
+    optimistic: {
+      supported: optimistic,
+      source: optimistic ? (hasProviderPlan ? 'provider-plan' : 'consumer') : 'none',
+    },
+    ...(hasProviderPlan
+      ? { extensions: { snapback: { contractPlan: binding.plan } } }
+      : {}),
+  };
+}
+
+function ephemeralOperation(name, binding, section) {
+  return {
+    name,
+    arguments: argumentsDescriptor(binding),
+    result: binding?.result,
+    execution: {
+      serverRunnable: binding?.serverRunnable === true,
+      localRunnable: binding?.localRunnable === true,
+    },
+    delivery: deliveryDescriptor(binding),
+    channel: {
+      keyMode: section?.keyMode,
+      scopeFields: section?.scopeFields,
+      routingFields: section?.routingFields,
+      defaultTtlMs: section?.defaultTtlMs,
+      maxTtlMs: section?.maxTtlMs,
+      deliveryMode: section?.deliveryMode,
+      maxDeltaRateHz: section?.maxDeltaRateHz,
+      coalesce: section?.coalesce,
+      publish: section?.publishBudget,
+    },
+  };
+}
+
+function argumentsDescriptor(binding) {
+  return {
+    fields: binding?.args ?? {},
+    order: binding?.argOrder ?? [],
+  };
+}
+
+function deliveryDescriptor(binding) {
+  let primaryKind = 'request';
+  if (binding?.livePush === true) primaryKind = 'push';
+  else if (binding?.mode === 'poll') primaryKind = 'poll';
+  else if (binding?.mode === 'reconcile-on-mutate') primaryKind = 'reconcile-on-mutate';
+
+  const primary = { kind: primaryKind, role: 'primary' };
+  const transports = [primary];
+  if (binding?.pollCadenceMs !== undefined) {
+    if (primaryKind === 'poll') primary.cadenceMs = binding.pollCadenceMs;
+    else transports.push({ kind: 'poll', role: 'fallback', cadenceMs: binding.pollCadenceMs });
+  }
+  return {
+    mode: binding?.mode,
+    initialSnapshot: binding?.initialSnapshot === true,
+    defaultLive: binding?.defaultLive === true,
+    transports,
+  };
+}
+
+function projectQuery(operation, isEphemeral) {
+  const primary = operation.delivery.transports.find((transport) => transport.role === 'primary');
+  const poll = operation.delivery.transports.find((transport) => transport.kind === 'poll');
+  const subscription = operation.delivery.mode === 'snapshot'
+    ? 'none'
+    : (operation.delivery.initialSnapshot ? 'initial-snapshot' : 'change-only');
+  const base = {
+    name: operation.name,
+    args: operation.arguments.fields,
+    argOrder: operation.arguments.order,
+    result: operation.result,
+    serverRunnable: operation.execution.serverRunnable,
+    localRunnable: operation.execution.localRunnable,
+    subscription,
+    mode: operation.delivery.mode,
+    livePush: primary?.kind === 'push',
+    initialSnapshot: operation.delivery.initialSnapshot,
+    defaultLive: operation.delivery.defaultLive,
+    ephemeral: isEphemeral,
+  };
+
+  if (isEphemeral) {
+    return {
+      ...base,
+      maxDeltaRateHz: operation.channel.maxDeltaRateHz,
+      coalesce: operation.channel.coalesce,
+      keyMode: operation.channel.keyMode,
+      scopeFields: operation.channel.scopeFields,
+      defaultTtlMs: operation.channel.defaultTtlMs,
+      maxTtlMs: operation.channel.maxTtlMs,
+    };
+  }
+  return {
+    ...base,
+    reads: operation.dependencies.reads,
+    ...(operation.retainable === true ? { retainable: true } : {}),
+    ...(primary?.kind !== 'request' ? { transport: primary?.kind } : {}),
+    ...(poll?.cadenceMs !== undefined ? { pollCadenceMs: poll.cadenceMs } : {}),
+  };
+}
+
+function projectMutation(operation) {
+  const plan = operation.extensions?.snapback?.contractPlan;
+  return {
+    name: operation.name,
+    args: operation.arguments.fields,
+    argOrder: operation.arguments.order,
+    writes: operation.effects.writes,
+    invalidates: operation.effects.invalidates,
+    optimistic: operation.optimistic.supported,
+    ...(plan !== undefined ? { plan } : {}),
+    serverRunnable: operation.execution.serverRunnable,
+  };
+}
+
+function projectEphemeralSection(operation) {
+  return {
+    name: operation.name,
+    ephemeral: true,
+    keyMode: operation.channel.keyMode,
+    scopeFields: operation.channel.scopeFields,
+    routingFields: operation.channel.routingFields,
+    defaultTtlMs: operation.channel.defaultTtlMs,
+    maxTtlMs: operation.channel.maxTtlMs,
+    deliveryMode: operation.channel.deliveryMode,
+    maxDeltaRateHz: operation.channel.maxDeltaRateHz,
+    coalesce: operation.channel.coalesce,
+    publishBudget: operation.channel.publish,
+  };
+}
+
+function validateCapabilities(capabilities, add) {
+  closedObject(capabilities, '$.capabilities', ['claims', 'receipts'], ['claims', 'receipts'], add);
+  if (!isObject(capabilities?.claims)) add('$.capabilities.claims', 'must be an object');
+  else {
+    for (const [name, value] of Object.entries(capabilities.claims)) {
+      if (!/^[A-Za-z][A-Za-z0-9_.-]*$/.test(name)) add(`$.capabilities.claims.${name}`, 'has an invalid capability id');
+      if (typeof value !== 'boolean') add(`$.capabilities.claims.${name}`, 'must be boolean');
+    }
+  }
+  closedObject(capabilities?.receipts, '$.capabilities.receipts', ['mutation', 'subscription'], ['mutation', 'subscription'], add);
+  for (const key of ['mutation', 'subscription']) {
+    if (typeof capabilities?.receipts?.[key] !== 'boolean') add(`$.capabilities.receipts.${key}`, 'must be boolean');
+  }
+  if (capabilities?.receipts?.subscription === true && capabilities?.receipts?.mutation !== true) {
+    add('$.capabilities.receipts.subscription', 'cannot be true when mutation receipts are false');
+  }
+}
+
+function validateQuery(operation, path, add) {
+  closedObject(operation, path, [
+    'name', 'arguments', 'result', 'execution', 'dependencies', 'delivery',
+    'retainable', 'extensions',
+  ], ['name', 'arguments', 'result', 'execution', 'dependencies', 'delivery'], add);
+  nonEmptyString(operation?.name, `${path}.name`, add);
+  validateArguments(operation?.arguments, `${path}.arguments`, add);
+  validateResult(operation?.result, `${path}.result`, add);
+  validateExecution(operation?.execution, `${path}.execution`, add);
+  closedObject(operation?.dependencies, `${path}.dependencies`, ['reads'], ['reads'], add);
+  stringSet(operation?.dependencies?.reads, `${path}.dependencies.reads`, add);
+  validateDelivery(operation?.delivery, `${path}.delivery`, add);
+  if (operation?.retainable !== undefined && typeof operation.retainable !== 'boolean') {
+    add(`${path}.retainable`, 'must be boolean');
+  }
+}
+
+function validateMutation(operation, path, add) {
+  closedObject(operation, path, [
+    'name', 'arguments', 'execution', 'effects', 'optimistic', 'extensions',
+  ], ['name', 'arguments', 'execution', 'effects', 'optimistic'], add);
+  nonEmptyString(operation?.name, `${path}.name`, add);
+  validateArguments(operation?.arguments, `${path}.arguments`, add);
+  validateExecution(operation?.execution, `${path}.execution`, add);
+  closedObject(operation?.effects, `${path}.effects`, ['writes', 'invalidates'], ['writes', 'invalidates'], add);
+  stringSet(operation?.effects?.writes, `${path}.effects.writes`, add);
+  stringSet(operation?.effects?.invalidates, `${path}.effects.invalidates`, add);
+  closedObject(operation?.optimistic, `${path}.optimistic`, ['supported', 'source'], ['supported', 'source'], add);
+  if (typeof operation?.optimistic?.supported !== 'boolean') add(`${path}.optimistic.supported`, 'must be boolean');
+  if (!['none', 'provider-plan', 'consumer'].includes(operation?.optimistic?.source)) {
+    add(`${path}.optimistic.source`, 'must be none, provider-plan, or consumer');
+  }
+  if (operation?.optimistic?.supported === false && operation?.optimistic?.source !== 'none') {
+    add(`${path}.optimistic`, 'unsupported optimistic execution must use source "none"');
+  }
+  if (operation?.optimistic?.source === 'provider-plan' && operation?.extensions?.snapback?.contractPlan === undefined) {
+    add(`${path}.extensions.snapback.contractPlan`, 'is required for Snapback provider-plan optimism');
+  }
+}
+
+function validateEphemeral(operation, path, add) {
+  closedObject(operation, path, [
+    'name', 'arguments', 'result', 'execution', 'delivery', 'channel',
+    'extensions',
+  ], ['name', 'arguments', 'result', 'execution', 'delivery', 'channel'], add);
+  nonEmptyString(operation?.name, `${path}.name`, add);
+  validateArguments(operation?.arguments, `${path}.arguments`, add);
+  validateResult(operation?.result, `${path}.result`, add);
+  validateExecution(operation?.execution, `${path}.execution`, add);
+  validateDelivery(operation?.delivery, `${path}.delivery`, add);
+  closedObject(operation?.channel, `${path}.channel`, [
+    'keyMode', 'scopeFields', 'routingFields', 'defaultTtlMs', 'maxTtlMs',
+    'deliveryMode', 'maxDeltaRateHz', 'coalesce', 'publish',
+  ], [
+    'keyMode', 'scopeFields', 'routingFields', 'defaultTtlMs', 'maxTtlMs',
+    'deliveryMode', 'maxDeltaRateHz', 'coalesce', 'publish',
+  ], add);
+  nonEmptyString(operation?.channel?.keyMode, `${path}.channel.keyMode`, add);
+  stringSet(operation?.channel?.scopeFields, `${path}.channel.scopeFields`, add);
+  stringSet(operation?.channel?.routingFields, `${path}.channel.routingFields`, add);
+  positiveInteger(operation?.channel?.defaultTtlMs, `${path}.channel.defaultTtlMs`, add);
+  positiveInteger(operation?.channel?.maxTtlMs, `${path}.channel.maxTtlMs`, add);
+  if (operation?.channel?.defaultTtlMs > operation?.channel?.maxTtlMs) {
+    add(`${path}.channel.defaultTtlMs`, 'must not exceed maxTtlMs');
+  }
+  if (operation?.channel?.deliveryMode !== 'latest') add(`${path}.channel.deliveryMode`, 'must be "latest"');
+  positiveInteger(operation?.channel?.maxDeltaRateHz, `${path}.channel.maxDeltaRateHz`, add);
+  if (typeof operation?.channel?.coalesce !== 'boolean') add(`${path}.channel.coalesce`, 'must be boolean');
+  closedObject(operation?.channel?.publish, `${path}.channel.publish`, [
+    'sustainedHz', 'burst', 'maxValueBytes',
+  ], ['sustainedHz', 'burst', 'maxValueBytes'], add);
+  for (const key of ['sustainedHz', 'burst', 'maxValueBytes']) {
+    positiveInteger(operation?.channel?.publish?.[key], `${path}.channel.publish.${key}`, add);
+  }
+}
+
+function validateArguments(args, path, add) {
+  closedObject(args, path, ['fields', 'order'], ['fields', 'order'], add);
+  if (!isObject(args?.fields)) add(`${path}.fields`, 'must be an object');
+  else {
+    for (const [name, descriptor] of Object.entries(args.fields)) {
+      validateDataType(descriptor, `${path}.fields.${name}`, add);
+    }
+  }
+  stringSet(args?.order, `${path}.order`, add);
+  if (isObject(args?.fields) && Array.isArray(args?.order)) {
+    const fields = Object.keys(args.fields).sort(compareCodeUnits);
+    const order = [...args.order].sort(compareCodeUnits);
+    if (fields.length !== order.length || fields.some((name, index) => name !== order[index])) {
+      add(`${path}.order`, 'must contain every argument field exactly once');
+    }
+  }
+}
+
+function validateResult(result, path, add) {
+  if (!isObject(result)) {
+    add(path, 'must be an object');
+    return;
+  }
+  if (result.kind === 'list') {
+    closedObject(result, path, ['kind', 'row'], ['kind', 'row'], add);
+    validateDataType(result.row, `${path}.row`, add);
+  } else if (result.kind === 'single') {
+    closedObject(result, path, ['kind', 'value', 'nullable'], ['kind', 'value', 'nullable'], add);
+    validateDataType(result.value, `${path}.value`, add);
+    if (typeof result.nullable !== 'boolean') add(`${path}.nullable`, 'must be boolean');
+  } else if (result.kind === 'scalar') {
+    closedObject(result, path, ['kind', 'value'], ['kind', 'value'], add);
+    validateDataType(result.value, `${path}.value`, add);
+  } else {
+    add(`${path}.kind`, 'must be list, single, or scalar');
+  }
+}
+
+function validateDataType(descriptor, path, add) {
+  if (!isObject(descriptor)) {
+    add(path, 'must be a data type descriptor');
+    return;
+  }
+  if (descriptor.shape === 'unknown') {
+    closedObject(descriptor, path, ['shape', 'optional'], ['shape'], add);
+  } else if (descriptor.shape === 'primitive') {
+    closedObject(descriptor, path, ['shape', 'name', 'optional'], ['shape', 'name'], add);
+    if (!['string', 'number', 'boolean', 'unknown'].includes(descriptor.name)) {
+      add(`${path}.name`, 'must be string, number, boolean, or unknown');
+    }
+  } else if (descriptor.shape === 'object') {
+    closedObject(descriptor, path, ['shape', 'fields', 'optional'], ['shape', 'fields'], add);
+    if (!isObject(descriptor.fields)) add(`${path}.fields`, 'must be an object');
+    else {
+      for (const [name, field] of Object.entries(descriptor.fields)) {
+        validateDataType(field, `${path}.fields.${name}`, add);
+      }
+    }
+  } else {
+    add(`${path}.shape`, 'must be unknown, primitive, or object');
+  }
+  if (descriptor.optional !== undefined && typeof descriptor.optional !== 'boolean') {
+    add(`${path}.optional`, 'must be boolean');
+  }
+}
+
+function validateExecution(execution, path, add) {
+  closedObject(execution, path, ['serverRunnable', 'localRunnable'], ['serverRunnable', 'localRunnable'], add);
+  for (const key of ['serverRunnable', 'localRunnable']) {
+    if (typeof execution?.[key] !== 'boolean') add(`${path}.${key}`, 'must be boolean');
+  }
+}
+
+function validateDelivery(delivery, path, add) {
+  closedObject(delivery, path, [
+    'mode', 'initialSnapshot', 'defaultLive', 'transports',
+  ], ['mode', 'initialSnapshot', 'defaultLive', 'transports'], add);
+  if (!['snapshot', 'live', 'poll', 'reconcile-on-mutate'].includes(delivery?.mode)) {
+    add(`${path}.mode`, 'must be snapshot, live, poll, or reconcile-on-mutate');
+  }
+  for (const key of ['initialSnapshot', 'defaultLive']) {
+    if (typeof delivery?.[key] !== 'boolean') add(`${path}.${key}`, 'must be boolean');
+  }
+  if (!Array.isArray(delivery?.transports) || delivery.transports.length === 0) {
+    add(`${path}.transports`, 'must be a non-empty array');
+    return;
+  }
+  let primaryCount = 0;
+  const pairs = new Set();
+  for (const [index, transport] of delivery.transports.entries()) {
+    const transportPath = `${path}.transports[${index}]`;
+    closedObject(transport, transportPath, ['kind', 'role', 'cadenceMs'], ['kind', 'role'], add);
+    if (!['request', 'push', 'poll', 'reconcile-on-mutate'].includes(transport?.kind)) {
+      add(`${transportPath}.kind`, 'has an unsupported transport kind');
+    }
+    if (!['primary', 'fallback'].includes(transport?.role)) add(`${transportPath}.role`, 'must be primary or fallback');
+    if (transport?.role === 'primary') primaryCount += 1;
+    const pair = `${transport?.kind}:${transport?.role}`;
+    if (pairs.has(pair)) add(transportPath, `duplicates transport ${pair}`);
+    pairs.add(pair);
+    if (transport?.kind === 'poll') positiveInteger(transport.cadenceMs, `${transportPath}.cadenceMs`, add);
+    else if (transport?.cadenceMs !== undefined) add(`${transportPath}.cadenceMs`, 'is only valid for poll');
+  }
+  if (primaryCount !== 1) add(`${path}.transports`, 'must contain exactly one primary transport');
+  const primary = delivery.transports.find((transport) => transport?.role === 'primary');
+  if (delivery.mode === 'snapshot') {
+    if (primary?.kind !== 'request') add(`${path}.transports`, 'snapshot delivery must use request as its primary transport');
+    if (delivery.initialSnapshot !== false) add(`${path}.initialSnapshot`, 'must be false for snapshot delivery');
+    if (delivery.defaultLive !== false) add(`${path}.defaultLive`, 'must be false for snapshot delivery');
+  } else if (delivery.mode === 'live' && primary?.kind !== 'push') {
+    add(`${path}.transports`, 'live delivery must use push as its primary transport');
+  } else if (delivery.mode === 'poll' && primary?.kind !== 'poll') {
+    add(`${path}.transports`, 'poll delivery must use poll as its primary transport');
+  } else if (delivery.mode === 'reconcile-on-mutate' && primary?.kind !== 'reconcile-on-mutate') {
+    add(`${path}.transports`, 'reconcile-on-mutate delivery must use the matching primary transport');
+  }
+  if (primary?.kind === 'poll' && delivery.transports.some((transport) => transport?.kind === 'push')) {
+    add(`${path}.transports`, 'a polling provider cannot also claim push for the same operation');
+  }
+}
+
+function closedObject(value, path, allowed, required, add) {
+  if (!isObject(value)) {
+    add(path, 'must be an object');
+    return;
+  }
+  const allowedSet = new Set(allowed);
+  for (const key of Object.keys(value).sort(compareCodeUnits)) {
+    if (!allowedSet.has(key)) add(`${path}.${key}`, 'is not allowed');
+  }
+  for (const key of required) {
+    if (!Object.hasOwn(value, key)) add(`${path}.${key}`, 'is required');
+  }
+}
+
+function nonEmptyString(value, path, add) {
+  if (typeof value !== 'string' || value.length === 0) add(path, 'must be a non-empty string');
+}
+
+function positiveInteger(value, path, add) {
+  if (!Number.isSafeInteger(value) || value <= 0) add(path, 'must be a positive integer');
+}
+
+function stringSet(value, path, add) {
+  if (!Array.isArray(value)) {
+    add(path, 'must be an array');
+    return;
+  }
+  const seen = new Set();
+  for (const [index, entry] of value.entries()) {
+    nonEmptyString(entry, `${path}[${index}]`, add);
+    if (seen.has(entry)) add(`${path}[${index}]`, `duplicates ${JSON.stringify(entry)}`);
+    seen.add(entry);
+  }
+}
+
+function schemaDiagnostics(problems) {
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_SCHEMA_INVALID',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `provider introspection is invalid: ${problems[0]}`,
+    schema: 'packages/snapback-codegen/provider-introspection.schema.json',
+    problems,
+  }];
+}
+
+function jsonDifferences(expected, actual, path = '$', output = []) {
+  if (Object.is(expected, actual)) return output;
+  if (Array.isArray(expected) || Array.isArray(actual)) {
+    if (!Array.isArray(expected) || !Array.isArray(actual)) {
+      output.push(`${path}: expected ${describe(expected)}, received ${describe(actual)}`);
+      return output;
+    }
+    if (expected.length !== actual.length) {
+      output.push(`${path}.length: expected ${expected.length}, received ${actual.length}`);
+    }
+    const length = Math.max(expected.length, actual.length);
+    for (let index = 0; index < length; index += 1) {
+      if (index >= expected.length) output.push(`${path}[${index}]: unexpected ${describe(actual[index])}`);
+      else if (index >= actual.length) output.push(`${path}[${index}]: missing ${describe(expected[index])}`);
+      else jsonDifferences(expected[index], actual[index], `${path}[${index}]`, output);
+    }
+    return output;
+  }
+  if (isObject(expected) || isObject(actual)) {
+    if (!isObject(expected) || !isObject(actual)) {
+      output.push(`${path}: expected ${describe(expected)}, received ${describe(actual)}`);
+      return output;
+    }
+    const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
+    for (const key of [...keys].sort(compareCodeUnits)) {
+      if (!Object.hasOwn(expected, key)) output.push(`${path}.${key}: unexpected ${describe(actual[key])}`);
+      else if (!Object.hasOwn(actual, key)) output.push(`${path}.${key}: missing ${describe(expected[key])}`);
+      else jsonDifferences(expected[key], actual[key], `${path}.${key}`, output);
+    }
+    return output;
+  }
+  output.push(`${path}: expected ${describe(expected)}, received ${describe(actual)}`);
+  return output;
+}
+
+function describe(value) {
+  const serialized = JSON.stringify(value);
+  return serialized === undefined ? String(value) : serialized;
+}
+
+function canonicalize(value) {
+  if (Array.isArray(value)) return value.map(canonicalize);
+  if (!isObject(value)) return value;
+  const output = Object.create(null);
+  for (const key of Object.keys(value).sort(compareCodeUnits)) {
+    if (value[key] !== undefined) output[key] = canonicalize(value[key]);
+  }
+  return output;
+}
+
+function sortedEntries(value) {
+  return Object.entries(value ?? {}).sort(([left], [right]) => compareCodeUnits(left, right));
+}
+
+function compareCodeUnits(left, right) {
+  return left < right ? -1 : (left > right ? 1 : 0);
+}
+
+function isObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+/**
+ * Detect Snapback fields the v1 producer does not yet map. These are reported
+ * separately from semantic schema problems so a new backend shape can never
+ * disappear silently during projection.
+ */
+export function validateSnapbackIntrospectionSource({ queries, mutations, ephemeral }) {
+  const problems = [];
+  for (const [name, binding] of sortedEntries(queries)) {
+    const allowed = binding?.ephemeral === true ? EPHEMERAL_QUERY_KEYS : QUERY_KEYS;
+    unexpectedKeys(binding, allowed, `queries.${name}`, problems);
+  }
+  for (const [name, binding] of sortedEntries(mutations)) {
+    unexpectedKeys(binding, MUTATION_KEYS, `mutations.${name}`, problems);
+  }
+  for (const [name, section] of sortedEntries(ephemeral)) {
+    unexpectedKeys(section, EPHEMERAL_SECTION_KEYS, `ephemeral.${name}`, problems);
+    unexpectedKeys(section?.publishBudget, PUBLISH_BUDGET_KEYS, `ephemeral.${name}.publishBudget`, problems);
+  }
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_SNAPBACK_SOURCE_UNMAPPED',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `Snapback provider facts are not mapped into introspection: ${problems[0]}`,
+    problems,
+  }];
+}
+
+function unexpectedKeys(value, allowed, path, output) {
+  if (!isObject(value)) return;
+  for (const key of Object.keys(value).sort(compareCodeUnits)) {
+    if (!allowed.has(key)) output.push(`${path}.${key}`);
+  }
+}
