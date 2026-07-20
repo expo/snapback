@@ -373,8 +373,8 @@ export default function App() {
     });
     createProvider().then((next) => {
       providerRef.current = next;
-      setProvider(next);
       void report('provider-ready', { launchId });
+      setProvider(next);
     }, (reason) => {
       setError(reason instanceof Error ? reason.message : String(reason));
       void report('provider-error', { launchId, message: String(reason) });
