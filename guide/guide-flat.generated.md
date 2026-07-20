@@ -61,11 +61,12 @@ with the Snapback label and `guide-gap` in the title.
 | clients.external-store | Framework-neutral current-value/subscription store, keyed sibling sharing, lifecycle scope | external store, lifecycle, vanilla, strict mode | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
+| clients.contract-provider-generation | Provider-neutral Contract manifest, bindings, metadata, types, fixtures, and docs from a provider declaration | provider declaration, contract sidecar generator, convex bindings | local | shipped | `generateFromDeclaration` in demos/partiful-matrix/scripts/generate-contract-provider.mjs | llp/0063 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
 | clients.react | First-class React external-store hook over generated functions | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063 | clients/react.md |
-| clients.react-expo | React Expo Online surface; Android implementation evidence, iOS pending | react native, expo, android, ios, mobile | local | partial | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
+| clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -2044,8 +2045,8 @@ title: The Contract adapter
 id: clients.contract-adapter
 order: 1
 audience: agent-first
-capabilities: [clients.contract, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
+capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
 examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
@@ -2131,6 +2132,54 @@ node packages/snapback-contract/exact-conformance.mjs --run
 The Todo v2 provider-conformance acceptance points the Exact-owned suite at a
 live Snapback provider. Ordinary Snapback core work does not require a sibling
 Exact checkout; release/integration lanes use `--require` or `--run`.
+
+## Generate a provider-neutral Contract surface
+
+The ordinary Snapback path above still generates bindings directly from the
+Snapback artifact set. Partitime also carries the reference integration for a
+broader boundary: Exact consumes a provider-native declaration and emits the
+Contract manifest, callable binding module, metadata sidecar, named row/result
+types, conformance fixtures, and provider documentation. The same generator
+consumes independently produced Snapback and Convex declarations; it does not
+branch on the provider.
+
+```js source=demos/partiful-matrix/scripts/generate-contract-provider.mjs
+const declarations = {
+  convex: produceConvexProviderDeclaration(convexInput),
+  snapback: produceSnapbackProviderDeclaration(snapbackInput),
+};
+const artifacts = Object.fromEntries(
+  Object.entries(declarations).map(([provider, declaration]) => [
+    provider,
+    generateFromDeclaration(declaration, {
+      contractModuleSpecifier: './provider.generated.ts',
+    }),
+  ]),
+);
+```
+
+Run the reference generator and its cumulative gate with a clean Exact
+checkout:
+
+```sh
+bun demos/partiful-matrix/scripts/generate-contract-provider.mjs \
+  --exact-checkout /path/to/exact
+node demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs \
+  --exact-checkout /path/to/exact
+```
+
+The generated module exposes a typed configure/reset registry and callable
+query and mutation exports. Provider facts remain honest: the Convex adapter
+claims WebSocket subscriptions and an initial snapshot, but declines receipts,
+offline replay, forced states, and optimistic mutations it does not implement.
+The Exact-owned DataProvider suite treats those omissions as declared skips,
+not passes or hidden fallbacks.
+
+This integration surface is shipped as the **Partitime reference**, not yet the
+stable registry-published `@snapback/contract` package path. Use it to add or
+verify a provider producer; do not copy Partitime's generated files into
+another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
+external publication remains a later packaged-loop gate in LLP 0063.
 
 ## Boot: one surface, one idempotent ensure
 
@@ -2301,6 +2350,8 @@ function props for legacy capability glue until Exact promotes that spelling.
   optimistic overlays, receipts, and reconciliation.
 - **Do not write optimistic reducers for declarative mutations.** They are
   derived; hand-written ones drift.
+- **Do not hand-author provider binding sidecars.** Generate them from the
+  provider declaration; a handwritten mirror defeats the closed type loop.
 - **Do not skip `artifactIndex`/manifest validation by passing stale
   generates.** Regenerate; the stale-rejection codes exist to stop exactly
   this.
@@ -2821,9 +2872,9 @@ authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-cl
 examples: [demos/partiful-matrix/native/react-expo]
 status: current
 targets: [local]
-maturity: partial
+maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed-commit: 7914210856
 ---
 
 # React Expo Online clients
@@ -2838,12 +2889,12 @@ React web. It is an **Online** surface: queries and mutations run against a
 reachable Snapback backend. It does not execute handlers locally and therefore
 does not claim local-first behavior or Parity.
 
-The current implementation has a clean seven-check Android emulator receipt.
-It binds the implementation revision, 107 carrier/build inputs, in-process
-release build, and APK digest, so `STEP2.REACT_EXPO_ANDROID_ONLINE` is passing.
-iOS has no corresponding passing receipt and remains pending. Treat this page
-as the shipped API plus the exact current evidence boundary, not as a
-production-support declaration.
+The current implementation has independent clean seven-check Android emulator
+and iOS Simulator receipts. Each binds its implementation revision, hashed
+carrier/build inputs, release build and artifact digest, so both
+`STEP2.REACT_EXPO_ANDROID_ONLINE` and `STEP2.REACT_EXPO_IOS_ONLINE` are passing.
+Treat this page as the shipped API plus the exact current evidence boundary,
+not as a physical-device or production-support declaration.
 
 ## Use the same generated API and hook
 
@@ -2866,8 +2917,8 @@ Run the profile gate with an explicit OS and receipt:
 
 ```sh
 node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs \
-  --platform android \
-  --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json
+  --platform ios \
+  --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json
 ```
 
 The OS-specific receipt must prove all seven LLP 0064 facts:
@@ -2880,12 +2931,13 @@ The OS-specific receipt must prove all seven LLP 0064 facts:
 6. retained prior rows while offline, then authoritative reconnect; and
 7. release-artifact exclusion of Snapback server code.
 
-Android acceptance uses `adb reverse` to bridge the emulator to a loopback
-development server and witness collector. That is test infrastructure, not a
-production endpoint design and not permission to expose development auth on a
-non-loopback listener. An iOS result must run its own build, simulator/device,
-lifecycle, reconnect, and artifact-exclusion checks; Android evidence cannot
-substitute for it.
+Android acceptance uses `adb reverse`; iOS acceptance launches the release app
+in the selected simulator and backgrounds it by launching Settings through
+`simctl`. Both bridge to a loopback development server and witness collector.
+That is test infrastructure, not a production endpoint design and not
+permission to expose development auth on a non-loopback listener. Each OS must
+run its own build, lifecycle, reconnect, and artifact-exclusion checks; neither
+receipt can substitute for the other.
 
 ## Handle native reconnect honestly
 
@@ -2904,8 +2956,8 @@ Exact Native Parity.
 
 ## Anti-patterns
 
-- **Do not call the Android run an iOS pass.** Native evidence is per immutable
-  surface/OS profile.
+- **Do not transfer evidence between operating systems.** Native evidence is
+  per immutable surface/OS profile.
 - **Do not call Online local-first or Parity.** No local handler execution is
   claimed.
 - **Do not bundle the Snapback server into the carrier.** Native packages

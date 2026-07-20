@@ -1,5 +1,11 @@
 {
   "schemaVersion": "partitime.step3-diagnostics-parity.v1",
+  "claimId": "STEP3.DIAGNOSTICS",
+  "claimIds": [
+    "STEP3.DIAGNOSTICS",
+    "STEP3.REACT_CONTRACT_PARITY"
+  ],
+  "claimPromoted": true,
   "status": "pass",
   "scope": "LLP 0063 Step 3 diagnostics and React/Contract parity slice",
   "generatedArtifacts": {
@@ -14,7 +20,27 @@
   },
   "exactOracle": {
     "path": "packages/exact-contract/src/__tests__/diagnostics-parity.test.ts",
-    "passCount": 8
+    "passCount": 8,
+    "languageChecks": [
+      "contract-lsp",
+      "contract-cli-format"
+    ],
+    "languageOutputSha256": "85b2b1daa12991466f078d74bade697e7578b1e8c89860343a8755793c362b95",
+    "exactRevision": "436b3be658969e74d18d355710224683d388a2f3"
+  },
+  "languageService": {
+    "completion": true,
+    "navigation": {
+      "sourcePath": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "line": 1
+    },
+    "renameReferences": 7,
+    "formattingIdempotent": true,
+    "incremental": {
+      "changedDocumentVersionAdvanced": true,
+      "unaffectedFeedVersionRetained": true,
+      "atomicSnapshotReturned": true
+    }
   },
   "crossSurface": {
     "manifestObjectShared": true,
@@ -165,9 +191,18 @@
     "exactLogicalSubscriptionsAfterDispose": 0,
     "backendObserversAfterDispose": 0
   },
+  "quietOperation": {
+    "headlessStructuredOnly": true,
+    "nativeReceipt": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
+    "nativeExecutedCells": [
+      "exact-contract:macos:snapback",
+      "exact-contract:ios:snapback",
+      "exact-contract:macos:sqlite",
+      "exact-contract:ios:sqlite"
+    ],
+    "nativeStderrEmpty": true
+  },
   "nonClaims": [
-    "This slice does not promote any cumulative-gate manifest claim.",
-    "LSP completion/navigation/rename/formatting/incremental capability witnesses remain outside this diagnostics-parity slice.",
-    "Native quiet-operation and non-Snapback producer gates remain separate Step 3 receipts."
+    "Non-Snapback provider generation and conformance remain the separate STEP3.PROVIDER_BOUNDARY receipt."
   ]
 }

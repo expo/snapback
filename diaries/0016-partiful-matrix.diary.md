@@ -981,3 +981,94 @@ similarly concise and its hosted subscription feels excellent; Snapback still
 supplies more generated capability/authority facts and the local-first path.
 The guide already described provider capability honesty and this is a
 comparison-only non-Snapback cell, so no Snapback guide gap was filed.
+
+## 2026-07-20 — Step 3 closed the provider type loop
+
+The best result was deleting fifteen hand-maintained Contract binding,
+metadata, and runtime-link files and making one generated module the only data
+import in the product source. Exact's declaration generator now takes two
+independently produced inputs—Snapback and Convex—and emits manifests,
+callable bindings, metadata sidecars, row/result types, fixtures, and docs.
+Their view-facing projections and types are byte-equivalent even though the
+providers retain different capability facts. Convex is the canonical binding
+producer in this follow-up, so the successful browser run cannot accidentally
+fall back to the old Snapback-specialized path.
+
+The runtime half was pleasantly direct. `ConvexContractProvider` opens
+`convex/browser` subscriptions over the hosted WebSocket, configures the
+generated callable registry, and never goes through the matrix gateway. The
+retained cell passed 6/6 with six out-of-band mutations, connected-WebSocket
+samples, rendered RSVP transitions, ordinary surface teardown, and guarded
+fixture deletion. The same adapter passed the Exact-owned DataProvider suite:
+72 checks passed, 26 skipped for capabilities it explicitly does not claim,
+and none failed. Those skips are a feature of the evidence. Convex has no
+receipt stream, retained/offline replay, force-state surface, or ephemeral
+probe here, and the declaration does not pretend otherwise.
+
+The awkward part was integration volume, not view code. Step-3-specific
+authored glue is two files / 485 lines (279-line declaration/generation driver
+plus 206-line Convex runtime adapter). It produces 17 generated files / 3,200
+lines. The four new or expanded proof files are 1,494 lines. This is better
+maintenance ownership than fifteen small handwritten mirrors, but it is not
+yet a tiny provider SDK: much of the current generator driver is an explicit
+Partitime schema/operation projection that a stable backend producer should
+derive. Compared with React plus Convex, Contract's component source is cleaner
+while the provider integration remains heavier; compared with the old
+Contract gateway arm, the type and capability chain is now closed and the
+transport is idiomatic.
+
+Diagnostics produced a second strong result. Six deliberately seeded failures
+carry stable codes and source ownership through CLI, LSP, and Agent adapters;
+completion, navigation, rename, formatting, and atomic incremental replacement
+all have executable witnesses. React and Contract each observe the other's
+mutation through the same live product contract, and provider/action failures
+project equally without swallowed errors. Headless and native receipts remain
+quiet by default. The one useful warning that remains is real product feedback:
+feed creation writes `rsvps` even though that component reads only `events`.
+
+Two acceptance-harness races surfaced only under the larger cumulative run.
+The Chrome DevTools client registered its reply waiter after sending, so a
+fast `Runtime.evaluate` response could disappear and manifest as a random
+30-second timeout. Registering correlation before the send fixed the race.
+Vite cleanup also treated only numeric exit codes as stopped; signal-terminated
+children made repeated cleanup look like failure. Signal-aware idempotent
+cleanup, page disposal after each witness, and one bounded startup retry made
+the full 43/43 matrix repeatable with zero cleanup errors.
+
+The Snapback guide had no author-facing route from a provider declaration to
+the generated Contract boundary. That was new surface rather than friction the
+old guide could have prevented, so the Contract adapter page and capability
+index now land with it; no separate guide-gap issue is needed. Stable package
+publication remains deliberately partial. Completing the React Supabase,
+React Convex, and generated Contract Convex legs does not change the opening
+ranking: React × Convex stays third, React × Supabase fourth, and Contract ×
+Convex fifth. The uncertainty narrows—both hosted providers are stronger than
+the frozen polling row suggested—but production identity, offline/local
+execution, Contract UI completeness, and bundle cost still dominate the same
+ordering.
+
+## 2026-07-20 — React Expo iOS became a real headless proof
+
+The iOS Online tuple now passes the same seven facts as Android, independently:
+release build and Simulator launch, generated initial data, optimistic and
+authoritative mutation settlement, authority rotation, real background and
+foreground callbacks, stale-row retention plus authoritative reconnect, and
+release-artifact server-code exclusion. The receipt is bound to clean revision
+`7914210` and a 53,973,690-byte release app artifact.
+
+Two failures were useful. First, Xcode correctly refused a workspace whose
+committed `Podfile.lock` checksums disagreed with `Pods/Manifest.lock`.
+Re-running `pod install` reproduced the older checksums consistently; the
+previous checksum refresh had captured a non-reproducible state. Second, the
+AppleScript Command-Shift-H shortcut did not reliably background the simulator
+app even though the process stayed healthy. Launching Settings with
+`xcrun simctl launch --terminate-running-process ... com.apple.Preferences`
+triggered the actual OS lifecycle transition and removed GUI focus from the
+proof.
+
+Compared with React plus a browser backend, Expo still adds a large native
+dependency/build surface. Compared with the earlier polling SwiftUI and
+Contract carriers, it preserved much more of Snapback's generated client and
+live-query behavior with very little app-specific transport code. It remains
+honestly Online rather than Parity: no local handler execution, durable
+mutation queue, or replay/rebase claim follows from this result.

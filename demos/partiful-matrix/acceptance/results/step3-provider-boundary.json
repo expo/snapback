@@ -1,8 +1,8 @@
 {
   "schemaVersion": "partitime.step3-provider-boundary.v1",
   "claimId": "STEP3.PROVIDER_BOUNDARY",
-  "claimPromoted": false,
-  "revision": "730f32a35e71fa8b2014a5c63ae802ad634cc166",
+  "claimPromoted": true,
+  "revision": "d12d82027a96738ceb19afd5b8405d4a8a92f6c3",
   "childTests": [
     {
       "path": "packages/snapback-contract/render-first.test.mjs",
@@ -23,12 +23,17 @@
       "path": "packages/snapback-contract/index.test.mjs",
       "sha256": "1f4e87df57bcce854685cdf8176b4d9b593efa0fcb3fb1bf746b6371eb628fe7",
       "outputSha256": "6013225ab8cd4f8f55fc6d0bec8bd883acce9eb0cd4cac162d284dc2d9f5c795"
+    },
+    {
+      "path": "demos/todo-v2/tests/acceptance/provider-conformance.mjs",
+      "sha256": "7b9c6217b937860c812e047e9b9de2e334c00bce8e4a80cb27ce67b74d794b69",
+      "outputSha256": "0592e43a2531d9c67a47c869055b5556f9baea9be2ebbd14314f5e760d3903d5"
     }
   ],
   "testInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs",
-      "sha256": "7fba07aaba43957572168a52d256a2b16205e96a8c5627b5ac8e413d243b8502"
+      "sha256": "6925cf65f628fed0f6936d1ef01f60d61c9549f2011e927ee36f4b618d4398af"
     },
     {
       "path": "packages/snapback-codegen/index.mjs",
@@ -67,6 +72,54 @@
       "sha256": "1f4e87df57bcce854685cdf8176b4d9b593efa0fcb3fb1bf746b6371eb628fe7"
     },
     {
+      "path": "demos/partiful-matrix/scripts/generate-contract-provider.mjs",
+      "sha256": "d0c5a87e165dfa824804027c9c990b5dc5324955fb8323e38e79106ecbb86ee4"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/convex-provider.ts",
+      "sha256": "cc6e86dc38079b96e4410fced9d989544071cd8dcd867e916e2f0bcddfd2b0e3"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/data/generated/generation.receipt.json",
+      "sha256": "78cfebe1706a5fe4b432bd13d214f4349b2ab7dcfbb1b04e1298f685b4fa942f"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/contract-convex-provider-conformance.mjs",
+      "sha256": "7868f9e69983d47040f82dd6d456c68e930e97a66086493e4273b372a35149b3"
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/contract-convex-provider-conformance.json",
+      "sha256": "82bd85cc211383f12b168a6aa47c27a10a285aa73c32e0792e5e2215aa56f5ec"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/contract-convex-realtime-web.mjs",
+      "sha256": "4e4ce91b74ced180c250ef9cff3709da2df66e90003bdcde248397eec4ad7870"
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json",
+      "sha256": "bdbef3e6621640bdb1e0ab0800a054c7abad8bda00914167c2db9b25001d8ce2"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/supabase-realtime-web.mjs",
+      "sha256": "9c256390350241f71148c0de9d20f596f2402c811cab18a85e0e198d010a1a23"
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/supabase-realtime-web.json",
+      "sha256": "39e9b23011efcbcebd567fd024318d03a6a7137e8580dbdacadcbc6892a8bb75"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs",
+      "sha256": "068d9e2f1b5a4f2aadd0b5b0f0d7cf0e3f4e2a8fc5ea1125a38c8d4b5f59a2c0"
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/convex-realtime-web.json",
+      "sha256": "aa75b7eb4837d2e5416943c22582217c385f649d32388b2313634dd559860835"
+    },
+    {
+      "path": "demos/todo-v2/tests/acceptance/provider-conformance.mjs",
+      "sha256": "7b9c6217b937860c812e047e9b9de2e334c00bce8e4a80cb27ce67b74d794b69"
+    },
+    {
       "path": "demos/partiful-matrix/snapback/schema.mjs",
       "sha256": "eec92db650bf47b273e888ae20ba2a2661797d5359b7cd9b75513cce6e63933e"
     },
@@ -96,10 +149,10 @@
     }
   ],
   "title": "partiful matrix / Step 3 generated provider boundary",
-  "passed": 11,
+  "passed": 18,
   "skipped": 0,
   "failed": 0,
-  "total": 11,
+  "total": 18,
   "ok": true,
   "results": [
     {
@@ -156,9 +209,44 @@
       "name": "browser and native client artifacts exclude server implementation",
       "ok": true,
       "details": null
+    },
+    {
+      "name": "two independent declarations generate one closed Contract view surface",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "generated bindings replace every handwritten Contract data mirror",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "Snapback adapter still passes the same Exact-owned DataProvider suite",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "generated Convex adapter passes the Exact-owned DataProvider suite",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "generated Contract Convex cell proves direct push and teardown",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "idiomatic React Supabase Realtime follow-up leg remains direct and green",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "idiomatic React Convex follow-up leg remains direct and green",
+      "ok": true,
+      "details": null
     }
   ],
-  "expectedChecks": 11,
+  "expectedChecks": 18,
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }

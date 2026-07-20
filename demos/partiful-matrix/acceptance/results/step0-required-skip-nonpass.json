@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "4737eb6bbb0795834890d5757a348528868880a1",
-    "exact": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
+    "snapback": "79142108562c7b5891af336214659bfe09f615ad",
+    "exact": "450e0c78f83ac54f63e9fd05623c769adfcdc5eb"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -97,13 +97,14 @@
       }
     },
     "contract": {
-      "manifestSha256": "3e0803bc65aaf40d6f2af69bd6cb39125bf2ff179188f6c7669f6c1dc08e959f",
+      "manifestSha256": "0194e0b9ccb113e23adf49ce40347aefc4d6426acb87fc957656570827779a28",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "dc6119a5ec00cb0412c467f28f0bec77d557a412a71d456f456277f802760bd5",
+      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
       "dependencies": {
         "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
         "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
         "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
@@ -124,6 +125,12 @@
           "resolvedName": "@ccheever/exact-renderer",
           "resolvedVersion": "0.1.2",
           "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
         },
         "vite": {
           "requested": "^8.0.0",
@@ -153,8 +160,8 @@
   "artifacts": {
     "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
     "bundleHash": "sha256:f4c24641a0539be3",
-    "diarySha256": "ad02e74ad6196412e1b724cd866291a65a140fc63b4ffa9439a280c888ca4d07",
-    "reportSha256": "e2912f2f7a8eacddbc1a31947744175aee27154bbf33d32134ab6ba5b7bd51b5"
+    "diarySha256": "c8e46979d2d672660e4da9e09c5544d19f96f4967f00035201efe141c48dab51",
+    "reportSha256": "9e0f2405db3a53659c0ce99e86244869303ce1f02ea19370727cfc67a0126fca"
   },
   "testInventory": [
     {
@@ -167,7 +174,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "c505ce6e90595be46f69bf10afd0d0bfd633113772ebd7c37cac7bb5e8753b2d"
+      "sha256": "9ae0f2eb472941db7759b9399b4abd3427398ba30cdf9d838d28c90e682b2a7c"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -179,7 +186,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+      "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -187,11 +194,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+      "sha256": "d8af4d5c00c869f5565616f0e99114904194cf3bf967a385f050092483eda9a5"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
+      "sha256": "9c284e4c7d001af0db79f9a2db04b5534a5c1d058dbcdf6b4d2c0e28058e93b3"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -206,7 +213,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "91bd0b7904bc57b49c1114c7d8b5be5b258392a95a7fe19c73e0565ecebd8a01",
+  "testInventorySha256": "d026b47f1329b17ab37ab8ec3fca97bcda9bdf153d7fc5ba98d1ef61a6af636e",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -232,7 +239,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-85046"
+      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-59267"
     ],
     "exitStatus": 1,
     "signal": null
@@ -244,7 +251,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "c505ce6e90595be46f69bf10afd0d0bfd633113772ebd7c37cac7bb5e8753b2d"
+      "sha256": "9ae0f2eb472941db7759b9399b4abd3427398ba30cdf9d838d28c90e682b2a7c"
     },
     {
       "path": "demos/_kit/harness.mjs",

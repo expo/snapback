@@ -10,6 +10,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -42,6 +43,7 @@ const repoRoot = resolve(here, '..', '..', '..', '..');
 const demoRoot = resolve(here, '..', '..');
 const backendRoot = join(demoRoot, 'snapback');
 const generatedRoot = join(backendRoot, 'generated');
+const contractDataRoot = join(demoRoot, 'surfaces', 'contract', 'data');
 const option = (name) => {
   const index = process.argv.indexOf(`--${name}`);
   return index < 0 ? null : process.argv[index + 1];
@@ -50,6 +52,7 @@ const digest = (value) => createHash('sha256').update(value).digest('hex');
 const fileDigest = (path) => digest(readFileSync(resolve(repoRoot, path)));
 const identity = (path) => ({ path, sha256: fileDigest(path) });
 const readGeneratedJson = (name) => JSON.parse(readFileSync(join(generatedRoot, name), 'utf8'));
+const readJson = (path) => JSON.parse(readFileSync(path, 'utf8'));
 const clone = (value) => JSON.parse(JSON.stringify(value));
 const providerBindingsSchema = JSON.parse(readFileSync(
   join(repoRoot, 'packages', 'snapback-codegen', 'provider-bindings.schema.json'),
@@ -58,9 +61,19 @@ const providerBindingsSchema = JSON.parse(readFileSync(
 const validateProviderBindingsSchema = new Ajv2020({ allErrors: true, strict: true })
   .compile(providerBindingsSchema);
 const suite = createSuite('partiful matrix / Step 3 generated provider boundary', {
-  expectedChecks: 11,
+  expectedChecks: 18,
 });
 const childTests = [];
+let promotionEligible = true;
+let bodyCompleted = false;
+const claimCheck = (name, run) => suite.check(name, async () => {
+  try {
+    return await run();
+  } catch (error) {
+    promotionEligible = false;
+    throw error;
+  }
+});
 
 await runAcceptance(suite, async () => {
   const introspection = readGeneratedJson('provider-introspection.json');
@@ -69,7 +82,7 @@ await runAcceptance(suite, async () => {
   const artifactIndex = readGeneratedJson('artifacts.json');
   const generatedPackage = readGeneratedJson('package.json');
 
-  await suite.check('provider introspection is persisted, versioned, exported, and indexed', async () => {
+  await claimCheck('provider introspection is persisted, versioned, exported, and indexed', async () => {
     assert.equal(introspection.artifactKind, 'providerIntrospection');
     assert.equal(introspection.schemaVersion, PROVIDER_INTROSPECTION_SCHEMA_VERSION);
     assert.equal(introspection.provider.id, 'snapback');
@@ -89,7 +102,7 @@ await runAcceptance(suite, async () => {
     ]) assert(artifactIndex.artifacts.includes(artifact), `${artifact} is not indexed`);
   });
 
-  await suite.check('delete and regenerate restores provider sidecars byte-for-byte', async () => {
+  await claimCheck('delete and regenerate restores provider sidecars byte-for-byte', async () => {
     const temp = makeTemporaryPartitimeBackend();
     try {
       const first = await generate(temp.backend);
@@ -110,7 +123,7 @@ await runAcceptance(suite, async () => {
     }
   });
 
-  await suite.check('generated query result types reach function refs and binding metadata', async () => {
+  await claimCheck('generated query result types reach function refs and binding metadata', async () => {
     const apiTypes = readFileSync(join(generatedRoot, 'api.d.ts'), 'utf8');
     const bindingTypes = readFileSync(join(generatedRoot, 'provider-bindings.d.ts'), 'utf8');
     assert.match(apiTypes, /readonly __result\?: Result/);
@@ -129,7 +142,7 @@ await runAcceptance(suite, async () => {
     }
   });
 
-  await suite.check('adapter handshake accepts the exact tuple and refuses stale artifacts', async () => {
+  await claimCheck('adapter handshake accepts the exact tuple and refuses stale artifacts', async () => {
     const handshake = contractHandshake(introspection);
     assert.deepEqual(validateProviderAdapterHandshake(introspection, handshake), []);
     assert.equal(assertProviderAdapterHandshake(introspection, handshake), introspection);
@@ -144,7 +157,7 @@ await runAcceptance(suite, async () => {
     );
   });
 
-  await suite.check('Snapback passes neutral validation and exact projection conformance', async () => {
+  await claimCheck('Snapback passes neutral validation and exact projection conformance', async () => {
     assert.deepEqual(validateProviderIntrospection(introspection), []);
     assert.deepEqual(validateProviderResultShapeVocabulary(introspection), []);
     assert.deepEqual(validateContractDataManifestProjection(introspection, contractManifest), []);
@@ -159,7 +172,7 @@ await runAcceptance(suite, async () => {
     ));
   });
 
-  await suite.check('SQLite gateway passes the same producer and handshake conformance', async () => {
+  await claimCheck('SQLite gateway passes the same producer and handshake conformance', async () => {
     const sqlite = sqliteProviderIntrospection();
     assert.deepEqual(validateProviderIntrospection(sqlite), []);
     assert.deepEqual(validateProviderResultShapeVocabulary(sqlite), []);
@@ -173,7 +186,7 @@ await runAcceptance(suite, async () => {
     assert.deepEqual(validateProviderAdapterHandshake(sqlite, contractHandshake(sqlite)), []);
   });
 
-  await suite.check('a polling producer cannot claim push', async () => {
+  await claimCheck('a polling producer cannot claim push', async () => {
     const dishonest = sqliteProviderIntrospection();
     dishonest.operations.queries[0].delivery.transports.push({ kind: 'push', role: 'fallback' });
     const diagnostics = validateProviderIntrospection(dishonest);
@@ -181,7 +194,7 @@ await runAcceptance(suite, async () => {
     assert(diagnostics[0].problems.some((problem) => problem.includes('cannot also claim push')));
   });
 
-  await suite.check('unknown result shapes degrade explicitly and novel shapes fail closed', async () => {
+  await claimCheck('unknown result shapes degrade explicitly and novel shapes fail closed', async () => {
     const unknown = sqliteProviderIntrospection();
     unknown.operations.queries[0].result.row = { shape: 'unknown' };
     const degraded = createProviderBindingMetadata(unknown);
@@ -212,7 +225,7 @@ await runAcceptance(suite, async () => {
     ));
   });
 
-  await suite.check('switching producer metadata does not edit Contract view source', async () => {
+  await claimCheck('switching producer metadata does not edit Contract view source', async () => {
     const sourcePaths = [
       'demos/partiful-matrix/surfaces/contract/feed.contract',
       'demos/partiful-matrix/surfaces/contract/event.contract',
@@ -223,7 +236,7 @@ await runAcceptance(suite, async () => {
     assert.deepEqual(sourcePaths.map(fileDigest), before);
   });
 
-  await suite.check('retained provider race suites pass deterministically', async () => {
+  await claimCheck('retained provider race suites pass deterministically', async () => {
     for (const path of [
       'packages/snapback-contract/render-first.test.mjs',
       'packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs',
@@ -245,7 +258,7 @@ await runAcceptance(suite, async () => {
     }
   });
 
-  await suite.check('browser and native client artifacts exclude server implementation', async () => {
+  await claimCheck('browser and native client artifacts exclude server implementation', async () => {
     const clientArtifacts = [
       'api.mjs',
       'api.d.ts',
@@ -271,12 +284,180 @@ await runAcceptance(suite, async () => {
       ({ ok, name }) => ok === true && name.includes('release artifact excludes Snapback server code'),
     ));
   });
+
+  await claimCheck('two independent declarations generate one closed Contract view surface', async () => {
+    const receiptPath = join(contractDataRoot, 'generated', 'generation.receipt.json');
+    const receipt = readJson(receiptPath);
+    assert.equal(receipt.schema, 'partitime.contract-provider-generation.v1');
+    assert.equal(receipt.canonicalBindingProducer, 'convex');
+    assert.deepEqual(receipt.independentProducers, ['convex', 'snapback']);
+    assert.equal(receipt.viewProjectionEqual, true);
+    assert.equal(receipt.generatedTypesEqual, true);
+    assert.equal(receipt.exactTreeDirty, false, 'generated output must come from a committed Exact tree');
+    const exactRoot = resolve(
+      option('exact-checkout')
+        ?? process.env.EXACT_CHECKOUT
+        ?? resolve(repoRoot, '..', 'exact'),
+    );
+    assert.equal(
+      receipt.exactRevision,
+      execFileSync('git', ['rev-parse', 'HEAD'], { cwd: exactRoot, encoding: 'utf8' }).trim(),
+      'generation receipt does not bind the Exact revision under test',
+    );
+    assert.equal(
+      receipt.generatorSha256,
+      digest(readFileSync(join(exactRoot, receipt.generator))),
+      'generation receipt does not bind the Exact generator source',
+    );
+    for (const file of receipt.files) {
+      const absolute = join(contractDataRoot, file.path);
+      assert(existsSync(absolute), `generated file missing: ${file.path}`);
+      const bytes = readFileSync(absolute);
+      assert.equal(bytes.length, file.bytes, `${file.path} byte count drifted`);
+      assert.equal(digest(bytes), file.sha256, `${file.path} digest drifted`);
+    }
+
+    const snapbackManifest = readJson(join(contractDataRoot, 'generated', 'snapback.manifest.json'));
+    const convexManifest = readJson(join(contractDataRoot, 'generated', 'convex.manifest.json'));
+    assert.deepEqual(viewManifestProjection(convexManifest), viewManifestProjection(snapbackManifest));
+    assert.equal(convexManifest.capabilities.optimisticMutations, false);
+    assert(Object.values(convexManifest.queries).every((query) => query.receipts === 'none'));
+  });
+
+  await claimCheck('generated bindings replace every handwritten Contract data mirror', async () => {
+    for (const legacy of [
+      'createEvent.mutation.contract-meta.ts', 'createEvent.mutation.ts',
+      'eventDetails.query.contract-meta.ts', 'eventDetails.query.ts',
+      'eventWall.query.contract-meta.ts', 'eventWall.query.ts',
+      'guestList.query.contract-meta.ts', 'guestList.query.ts',
+      'listEvents.query.contract-meta.ts', 'listEvents.query.ts',
+      'postMessage.mutation.contract-meta.ts', 'postMessage.mutation.ts',
+      'rsvp.mutation.contract-meta.ts', 'rsvp.mutation.ts', 'runtime-links.ts',
+    ]) assert.equal(existsSync(join(contractDataRoot, legacy)), false, `legacy mirror remains: ${legacy}`);
+    for (const view of ['feed.contract', 'event.contract']) {
+      const source = readFileSync(join(demoRoot, 'surfaces', 'contract', view), 'utf8');
+      assert(source.includes('from "./data/provider.generated.ts"'));
+      assert(!source.includes('.query.ts'), `${view} still imports a handwritten query mirror`);
+      assert(!source.includes('.mutation.ts'), `${view} still imports a handwritten mutation mirror`);
+    }
+  });
+
+  await claimCheck('Snapback adapter still passes the same Exact-owned DataProvider suite', async () => {
+    const exactRoot = resolve(
+      option('exact-checkout')
+        ?? process.env.EXACT_CHECKOUT
+        ?? resolve(repoRoot, '..', 'exact'),
+    );
+    const path = 'demos/todo-v2/tests/acceptance/provider-conformance.mjs';
+    const child = spawnSync('bun', [path], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+      timeout: 120_000,
+      env: { ...process.env, SNAPBACK_EXACT_ROOT: exactRoot },
+    });
+    assert.equal(child.signal, null, `${path} was signaled: ${child.signal}`);
+    assert.equal(child.status, 0, `${path} failed:\n${child.stdout}\n${child.stderr}`);
+    assert.match(child.stdout, /PASS todo-v2 \/ provider conformance/);
+    childTests.push({
+      path,
+      sha256: fileDigest(path),
+      outputSha256: digest(`${child.stdout}${child.stderr}`),
+    });
+  });
+
+  await claimCheck('generated Convex adapter passes the Exact-owned DataProvider suite', async () => {
+    const receipt = readJson(join(
+      demoRoot,
+      'acceptance',
+      'results',
+      'contract-convex-provider-conformance.json',
+    ));
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.skipped, 0);
+    assert.equal(receipt.failed, 0);
+    const details = receipt.results.find(
+      ({ name }) => name === 'generated Convex adapter passes the Exact-owned DataProvider suite',
+    )?.details;
+    assert(details, 'non-Snapback conformance detail is missing');
+    assert.equal(details.provider, 'convex');
+    assert.equal(details.failed, 0);
+    assert(details.passed >= 70, `expected broad Exact conformance coverage, got ${details.passed}`);
+    assert(details.checks.some(({ id, status }) => id === 'subscription-disposal' && status === 'pass'));
+    assert(details.checks.some(({ id, status }) => id === 'unknown-query-diagnostic' && status === 'pass'));
+  });
+
+  await claimCheck('generated Contract Convex cell proves direct push and teardown', async () => {
+    const receipt = readJson(join(
+      demoRoot,
+      'acceptance',
+      'results',
+      'contract-convex-realtime-web.json',
+    ));
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.cell, 'contract:convex-realtime');
+    assert.equal(receipt.passed, 6);
+    assert.equal(receipt.failed, 0);
+    assert.equal(receipt.skipped, 0);
+    const push = receipt.results.find(({ name }) => name.includes('out-of-band writes'))?.details;
+    assert.equal(push?.observedTransport, 'convex/browser WebSocket');
+    assert.equal(push?.pollPath, 'absent');
+    assert.equal(push?.sampleCount, 5);
+    const teardown = receipt.results.find(({ name }) => name.includes('teardown closes'))?.details;
+    assert.equal(teardown?.providerClosed, true);
+    assert.deepEqual(teardown?.disposedQueries, ['eventDetails', 'guestList', 'eventWall']);
+  });
+
+  await claimCheck('idiomatic React Supabase Realtime follow-up leg remains direct and green', async () => {
+    const receipt = readJson(join(
+      demoRoot,
+      'acceptance',
+      'results',
+      'supabase-realtime-web.json',
+    ));
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.cell, 'react:supabase-realtime');
+    assert.equal(receipt.failed, 0);
+    assert.equal(receipt.skipped, 0);
+    assert.equal(receipt.cleanupErrorCount, 0);
+    const boot = receipt.results.find(({ name }) => name.includes('boots browser-direct'))?.details;
+    assert.equal(boot?.backend, 'supabase-realtime');
+    assert.equal(boot?.authoring, 'react');
+    const push = receipt.results.find(({ name }) => name.includes('out-of-band writes'))?.details;
+    assert.equal(push?.pollFallback, 'disabled');
+    assert.equal(push?.sampleCount, 5);
+  });
+
+  await claimCheck('idiomatic React Convex follow-up leg remains direct and green', async () => {
+    const receipt = readJson(join(
+      demoRoot,
+      'acceptance',
+      'results',
+      'convex-realtime-web.json',
+    ));
+    assert.equal(receipt.ok, true);
+    assert.equal(receipt.cell, 'react:convex-realtime');
+    assert.equal(receipt.failed, 0);
+    assert.equal(receipt.skipped, 0);
+    assert.equal(receipt.cleanupErrorCount, 0);
+    const boot = receipt.results.find(({ name }) => name.includes('boots browser-direct'))?.details;
+    assert.equal(boot?.client, 'convex/browser');
+    assert.equal(boot?.pollPath, 'absent');
+    assert.equal(boot?.socketConnected, true);
+    const push = receipt.results.find(({ name }) => name.includes('out-of-band writes'))?.details;
+    assert.equal(push?.observedTransport, 'convex/browser WebSocket');
+    assert.equal(push?.pollPath, 'absent');
+    assert.equal(push?.sampleCount, 5);
+  });
+
+  bodyCompleted = true;
 }, {
   reportFile: option('receipt'),
   reportExtra: {
     schemaVersion: 'partitime.step3-provider-boundary.v1',
     claimId: 'STEP3.PROVIDER_BOUNDARY',
-    claimPromoted: false,
+    get claimPromoted() {
+      return promotionEligible && bodyCompleted;
+    },
     revision: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoRoot, encoding: 'utf8' }).trim(),
     childTests,
     testInventory: [
@@ -290,6 +471,18 @@ await runAcceptance(suite, async () => {
       'packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs',
       'packages/snapback-contract/ephemeral-resubscribe-race.test.mjs',
       'packages/snapback-contract/index.test.mjs',
+      'demos/partiful-matrix/scripts/generate-contract-provider.mjs',
+      'demos/partiful-matrix/surfaces/contract/convex-provider.ts',
+      'demos/partiful-matrix/surfaces/contract/data/generated/generation.receipt.json',
+      'demos/partiful-matrix/tests/acceptance/contract-convex-provider-conformance.mjs',
+      'demos/partiful-matrix/acceptance/results/contract-convex-provider-conformance.json',
+      'demos/partiful-matrix/tests/acceptance/contract-convex-realtime-web.mjs',
+      'demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json',
+      'demos/partiful-matrix/tests/acceptance/supabase-realtime-web.mjs',
+      'demos/partiful-matrix/acceptance/results/supabase-realtime-web.json',
+      'demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs',
+      'demos/partiful-matrix/acceptance/results/convex-realtime-web.json',
+      'demos/todo-v2/tests/acceptance/provider-conformance.mjs',
       'demos/partiful-matrix/snapback/schema.mjs',
       'demos/partiful-matrix/snapback/functions.mjs',
       'demos/partiful-matrix/snapback/handlers.mjs',
@@ -300,6 +493,24 @@ await runAcceptance(suite, async () => {
     ].map(identity),
   },
 });
+
+function viewManifestProjection(manifest) {
+  return {
+    queries: Object.fromEntries(Object.entries(manifest.queries).map(([name, query]) => [
+      name,
+      {
+        args: query.args,
+        argOrder: query.argOrder,
+        result: query.result,
+        compatibilityToken: query.compatibilityToken,
+      },
+    ])),
+    mutations: Object.fromEntries(Object.entries(manifest.mutations).map(([name, mutation]) => [
+      name,
+      { args: mutation.args, argOrder: mutation.argOrder, writes: mutation.writes },
+    ])),
+  };
+}
 
 function makeTemporaryPartitimeBackend() {
   const root = mkdtempSync(join(repoRoot, 'demos', '.partitime-provider-boundary-'));

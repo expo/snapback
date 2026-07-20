@@ -1,0 +1,359 @@
+{
+  "capabilities": {
+    "branchableFixtures": true,
+    "forceStates": true,
+    "headlessBoot": true,
+    "initialSnapshot": true,
+    "localReplica": true,
+    "optimisticMutations": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "subscriptions": true
+  },
+  "inputsHash": "5e96f75eae7192af",
+  "manifestVersion": 2,
+  "mutations": {
+    "createEvent": {
+      "argOrder": [
+        "accent",
+        "description",
+        "emoji",
+        "hostName",
+        "location",
+        "startsAt",
+        "title"
+      ],
+      "args": {
+        "accent": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "description": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "emoji": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "hostName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "location": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "startsAt": {
+          "name": "number",
+          "shape": "primitive"
+        },
+        "title": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "createEvent",
+      "optimistic": true,
+      "serverRunnable": true,
+      "writes": [
+        "events",
+        "rsvps"
+      ]
+    },
+    "postMessage": {
+      "argOrder": [
+        "authorName",
+        "eventId",
+        "message"
+      ],
+      "args": {
+        "authorName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "message": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "postMessage",
+      "optimistic": true,
+      "serverRunnable": true,
+      "writes": [
+        "posts"
+      ]
+    },
+    "rsvp": {
+      "argOrder": [
+        "eventId",
+        "guestName",
+        "status"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "guestName": {
+          "name": "string",
+          "shape": "primitive"
+        },
+        "status": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "name": "rsvp",
+      "optimistic": true,
+      "serverRunnable": true,
+      "writes": [
+        "rsvps"
+      ]
+    }
+  },
+  "provider": "snapback",
+  "queries": {
+    "eventDetails": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "defaultLive": true,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": true,
+      "mode": "live",
+      "name": "eventDetails",
+      "reads": [
+        "events"
+      ],
+      "receipts": "mutation+subscription",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "accent": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "emoji": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "hostId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "hostName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startsAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "eventWall": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "defaultLive": true,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": true,
+      "mode": "live",
+      "name": "eventWall",
+      "reads": [
+        "posts"
+      ],
+      "receipts": "mutation+subscription",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "message": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "guestList": {
+      "argOrder": [
+        "eventId"
+      ],
+      "args": {
+        "eventId": {
+          "name": "string",
+          "shape": "primitive"
+        }
+      },
+      "compatibilityToken": "1",
+      "defaultLive": true,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": true,
+      "mode": "live",
+      "name": "guestList",
+      "reads": [
+        "rsvps"
+      ],
+      "receipts": "mutation+subscription",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "guestName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "userId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    },
+    "listEvents": {
+      "argOrder": [],
+      "args": {},
+      "compatibilityToken": "1",
+      "defaultLive": true,
+      "initialSnapshot": true,
+      "livePush": true,
+      "localRunnable": true,
+      "mode": "live",
+      "name": "listEvents",
+      "reads": [
+        "events"
+      ],
+      "receipts": "mutation+subscription",
+      "result": {
+        "kind": "list",
+        "row": {
+          "fields": {
+            "_id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "accent": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "emoji": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "hostId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "hostName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startsAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "shape": "object"
+        }
+      },
+      "serverRunnable": true,
+      "subscription": "initial-snapshot"
+    }
+  }
+}

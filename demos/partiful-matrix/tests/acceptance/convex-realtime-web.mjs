@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// react × convex-realtime: the idiomatic browser-direct Convex cell.
+// React/Contract × convex-realtime: idiomatic browser-direct Convex cells.
 //
 // @ref LLP 0063#next-application-pressure-tests — the React follow-up row
 // must use each provider's native client without the comparison gateway. This
@@ -21,22 +21,24 @@ import { loadLocalSecrets, requireSecret } from '../../backends/gateway/secrets.
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const demoRoot = resolve(here, '..', '..');
-const surface = join(demoRoot, 'surfaces', 'react');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 const receiptFile = option('receipt');
+const authoring = option('authoring') ?? 'react';
+if (!['react', 'contract'].includes(authoring)) throw new Error(`unsupported --authoring ${authoring}`);
+const surface = join(demoRoot, 'surfaces', authoring);
 const gitDirtyAtStart = gitDirty();
 
 const CHECKS = [
   'Convex deployment serves the canonical fixture and an isolated acceptance event',
-  'react × convex-realtime boots browser-direct with push transport',
+  `${authoring} × convex-realtime boots browser-direct with push transport`,
   'opens details and performs an in-cell RSVP round trip',
   'observes out-of-band writes through Convex WebSocket push with no poll path',
   'Convex mutation authority refuses to displace the host',
-  'normal React root teardown closes subscriptions and the Convex client',
+  `normal ${authoring} teardown closes subscriptions and the Convex client`,
 ];
-const suite = createSuite('partiful matrix / convex-realtime follow-up cell', { expectedChecks: CHECKS.length });
+const suite = createSuite(`partiful matrix / ${authoring} × convex-realtime follow-up cell`, { expectedChecks: CHECKS.length });
 const cleanups = [];
 
 let deploymentUrl = null;
@@ -54,17 +56,32 @@ const convexPackage = readJsonIfPresent(join(surface, 'node_modules', 'convex', 
 const reportIdentity = {
   demo: 'partiful-matrix',
   claimSetVersion: 'partitime.web.followup.v1',
-  cell: 'react:convex-realtime',
+  cell: `${authoring}:convex-realtime`,
   revision: gitRevision(),
   gitDirtyAtStart,
   sourceInputs: [
-    'demos/partiful-matrix/surfaces/react/src/convex-direct.ts',
-    'demos/partiful-matrix/surfaces/react/src/provider.ts',
-    'demos/partiful-matrix/surfaces/react/src/main.tsx',
-    'demos/partiful-matrix/surfaces/react/vite.config.mts',
-    'demos/partiful-matrix/surfaces/react/bun.lock',
+    ...(authoring === 'react' ? [
+      'demos/partiful-matrix/surfaces/react/src/convex-direct.ts',
+      'demos/partiful-matrix/surfaces/react/src/provider.ts',
+      'demos/partiful-matrix/surfaces/react/src/main.tsx',
+      'demos/partiful-matrix/surfaces/react/vite.config.mts',
+      'demos/partiful-matrix/surfaces/react/bun.lock',
+    ] : [
+      'demos/partiful-matrix/surfaces/contract/convex-provider.ts',
+      'demos/partiful-matrix/surfaces/contract/data/provider.generated.ts',
+      'demos/partiful-matrix/surfaces/contract/data/provider.generated.contract-meta.ts',
+      'demos/partiful-matrix/surfaces/contract/data/generated/generation.receipt.json',
+      'demos/partiful-matrix/surfaces/contract/feed.contract',
+      'demos/partiful-matrix/surfaces/contract/event.contract',
+      'demos/partiful-matrix/surfaces/contract/main.ts',
+      'demos/partiful-matrix/surfaces/contract/vite.config.ts',
+      'demos/partiful-matrix/surfaces/contract/bun.lock',
+    ]),
     'demos/partiful-matrix/backends/convex/convex/_generated/api.js',
     'demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs',
+    ...(authoring === 'contract'
+      ? ['demos/partiful-matrix/tests/acceptance/contract-convex-realtime-web.mjs']
+      : []),
   ].map(fileIdentity),
   environment: {
     node: process.version,
@@ -114,7 +131,12 @@ await runAcceptance(suite, async () => {
 
   const vitePort = await freePort();
   let viteLog = '';
-  const vite = spawn(join(surface, 'node_modules', '.bin', 'vite'), ['--mode', 'convex-realtime', '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort'], {
+  const viteBin = join(surface, 'node_modules', '.bin', 'vite');
+  const viteArgs = [
+    ...(authoring === 'contract' ? ['--bun', viteBin, '--config', 'vite.config.ts'] : []),
+    '--mode', 'convex-realtime', '--host', '127.0.0.1', '--port', String(vitePort), '--strictPort',
+  ];
+  const vite = spawn(authoring === 'contract' ? 'bun' : viteBin, viteArgs, {
     cwd: surface,
     detached: true,
     env: { ...process.env, CONVEX_URL: deploymentUrl },
@@ -147,8 +169,9 @@ await runAcceptance(suite, async () => {
 
   await suite.check(CHECKS[1], async () => {
     await page.navigate(`${viteUrl}/?user=eve`);
-    const boot = await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}const ready=await window.partifulMatrixReady;return {backend:ready.backend,authoring:ready.authoring,transport:ready.provider.transport};})()`);
-    if (boot.backend !== 'convex-realtime' || boot.authoring !== 'react' || boot.transport !== 'push') {
+    const boot = await page.eval(`(async()=>{const d=Date.now()+15000;while(!window.partifulMatrixReady){if(Date.now()>d)return {bootError:'global timeout',status:document.querySelector('#boot-status')?.textContent};await new Promise(r=>setTimeout(r,50));}return await Promise.race([window.partifulMatrixReady.then(ready=>({backend:ready.backend,authoring:ready.authoring,transport:ready.provider?.transport??ready.transport})).catch(error=>({bootError:String(error),stack:error?.stack,status:document.querySelector('#boot-status')?.textContent})),new Promise(resolve=>setTimeout(()=>resolve({bootError:'ready timeout',status:document.querySelector('#boot-status')?.textContent}),15000))]);})()`);
+    if (boot.bootError) throw new Error(`cell boot failed: ${JSON.stringify(boot)}\nVite log:\n${viteLog.slice(-4000)}`);
+    if (boot.backend !== 'convex-realtime' || boot.authoring !== authoring || boot.transport !== 'push') {
       throw new Error(`wrong cell identity: ${JSON.stringify(boot)}`);
     }
     const card = await page.pollText(`event-card-${acceptanceEventId}`, acceptanceTitle, 15_000);

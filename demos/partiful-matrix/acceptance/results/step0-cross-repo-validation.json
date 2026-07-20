@@ -2,13 +2,13 @@
   "schemaVersion": "partitime.cross-repo-step0-validation.v1",
   "ok": true,
   "manifestId": "partitime-cumulative-gates-v1",
-  "manifestSha256": "8ebba9feebc81a94811b313a6c67291d188af08c8fcb20cf232364ab978bee49",
+  "manifestSha256": "41750bcfc77ff4d3fca0193d8693823463f6ef8966613dd3c0cf18544e981ae1",
   "stepZeroClaimCount": 19,
   "exact": {
-    "revision": "eeff6291a0f8421e03ab280283269864110c7b45",
+    "revision": "17f374f1215a8f5c739d0715d39bbf59d280d379",
     "dirty": false
   },
-  "sharedContractExactRevision": "73d76ae8e8ae595121fcd979d88e6c0de0542f7d",
+  "sharedContractExactRevision": "35d502a5437d0660aa60bd51a2ce0e196e746110",
   "validators": {
     "snapback": {
       "path": "demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
@@ -31,7 +31,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "89096d6fb6d62d871dbbaa460b380dfa388cd3acf9be4556245a215d1697bae1"
+        "sha256": "3742056468faa2ac897a5f11eb3df02b74942a5832d4c48f156f36354a51eccc"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -45,17 +45,17 @@
     },
     "exactRegistry": {
       "path": "exact-verify.json",
-      "sha256": "89096d6fb6d62d871dbbaa460b380dfa388cd3acf9be4556245a215d1697bae1"
+      "sha256": "3742056468faa2ac897a5f11eb3df02b74942a5832d4c48f156f36354a51eccc"
     }
   },
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "d79722824441cb0c26f742f87f996219495da0fdbcf11ed1255d50ff50ec9e85"
+      "sha256": "ed91d706e3776c967595be42b18ab1ad5594e72cb63513153c9ef30fc42121c3"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "0ce2915a520860134b52a860812fa8ae919e4b945d3d13780ac3a1510765129e"
+      "sha256": "6aa5c7c0605c45d408b490640e368afe04f980c2c55a97f0628a3e07bdb95011"
     }
   },
   "results": {
@@ -64,7 +64,7 @@
       "validationOk": true,
       "manifestId": "partitime-cumulative-gates-v1",
       "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-      "digest": "8ebba9feebc81a94811b313a6c67291d188af08c8fcb20cf232364ab978bee49",
+      "digest": "41750bcfc77ff4d3fca0193d8693823463f6ef8966613dd3c0cf18544e981ae1",
       "claims": 40,
       "stepZero": {
         "passing": 19
@@ -76,7 +76,7 @@
       "schemaVersion": "partitime.exact-manifest-mirror-validation.v1",
       "ok": true,
       "authority": "demos/partiful-matrix/acceptance/claims.v1.json",
-      "digest": "8ebba9feebc81a94811b313a6c67291d188af08c8fcb20cf232364ab978bee49",
+      "digest": "41750bcfc77ff4d3fca0193d8693823463f6ef8966613dd3c0cf18544e981ae1",
       "schemaSha256": "3038ec48951acfd1b27c449d8234911a9387722be004e4a6bb19748c847baf00",
       "protocolSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
       "manifestId": "partitime-cumulative-gates-v1",
@@ -90,8 +90,8 @@
       "schemaVersion": "partitime.exact-step0-aggregate-validation.v1",
       "ok": true,
       "manifestId": "partitime-cumulative-gates-v1",
-      "manifestDigest": "8ebba9feebc81a94811b313a6c67291d188af08c8fcb20cf232364ab978bee49",
-      "aggregateSha256": "1b56f0af03b2f23154dcf00a3c4d7fd855c5755eb3e16593cd0d9541ea582588",
+      "manifestDigest": "41750bcfc77ff4d3fca0193d8693823463f6ef8966613dd3c0cf18544e981ae1",
+      "aggregateSha256": "92f89d273980d17908b67779b18137c9f3c7b4f86d55031e0ff090c43ce2aaf4",
       "manifestSemanticSha256": "41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7",
       "prerequisiteCount": 18,
       "nativeChildren": 2
@@ -101,14 +101,14 @@
     "manifest": {
       "source": {
         "path": "demos/partiful-matrix/acceptance/claims.v1.json",
-        "sha256": "8ebba9feebc81a94811b313a6c67291d188af08c8fcb20cf232364ab978bee49"
+        "sha256": "41750bcfc77ff4d3fca0193d8693823463f6ef8966613dd3c0cf18544e981ae1"
       },
       "exactPath": "vendor/snapback-partitime/claims.v1.json"
     },
     "lock": {
       "source": {
         "path": "demos/partiful-matrix/acceptance/claims.v1.sha256",
-        "sha256": "5aa9e4bff6997b08799235bc1fc061c9e9cc5813b602ac0ef0c266dc476f8363"
+        "sha256": "b533e0c82295f09fb577ff98f0cbc7520957ef4bc874de507abd3c2f061645dc"
       },
       "exactPath": "vendor/snapback-partitime/claims.v1.sha256"
     },
@@ -129,7 +129,7 @@
     "aggregate": {
       "source": {
         "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
-        "sha256": "1b56f0af03b2f23154dcf00a3c4d7fd855c5755eb3e16593cd0d9541ea582588"
+        "sha256": "92f89d273980d17908b67779b18137c9f3c7b4f86d55031e0ff090c43ce2aaf4"
       },
       "exactPath": "vendor/snapback-partitime/step0-complete.json"
     }

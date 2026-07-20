@@ -1,0 +1,230 @@
+{
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.followup.v1",
+  "cell": "contract:convex-realtime",
+  "revision": "d12d82027a96738ceb19afd5b8405d4a8a92f6c3",
+  "gitDirtyAtStart": true,
+  "sourceInputs": [
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/convex-provider.ts",
+      "sha256": "cc6e86dc38079b96e4410fced9d989544071cd8dcd867e916e2f0bcddfd2b0e3",
+      "bytes": 7596
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/data/provider.generated.ts",
+      "sha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1",
+      "bytes": 6964
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/data/provider.generated.contract-meta.ts",
+      "sha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f",
+      "bytes": 2083
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/data/generated/generation.receipt.json",
+      "sha256": "78cfebe1706a5fe4b432bd13d214f4349b2ab7dcfbb1b04e1298f685b4fa942f",
+      "bytes": 3136
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "d8af4d5c00c869f5565616f0e99114904194cf3bf967a385f050092483eda9a5",
+      "bytes": 5621
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "9c284e4c7d001af0db79f9a2db04b5534a5c1d058dbcdf6b4d2c0e28058e93b3",
+      "bytes": 6120
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905",
+      "bytes": 5380
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/vite.config.ts",
+      "sha256": "e6aa5d3abfbbca2025960b920463aae682b385956cdc990aca40c2a842755fea",
+      "bytes": 1157
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
+      "sha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "bytes": 86616
+    },
+    {
+      "path": "demos/partiful-matrix/backends/convex/convex/_generated/api.js",
+      "sha256": "f513058549831e85376f8d19cafaf2a4a770b6eb1b859fb371141f2c9dec0d70",
+      "bytes": 480
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs",
+      "sha256": "068d9e2f1b5a4f2aadd0b5b0f0d7cf0e3f4e2a8fc5ea1125a38c8d4b5f59a2c0",
+      "bytes": 21790
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/contract-convex-realtime-web.mjs",
+      "sha256": "4e4ce91b74ced180c250ef9cff3709da2df66e90003bdcde248397eec4ad7870",
+      "bytes": 300
+    }
+  ],
+  "environment": {
+    "node": "v24.18.0",
+    "bun": "1.3.12",
+    "chromeVersion": "Google Chrome 150.0.7871.128",
+    "convexClientVersion": "1.42.3"
+  },
+  "deploymentOrigin": "https://acoustic-alpaca-401.convex.cloud",
+  "deploymentProbe": {
+    "ok": true,
+    "query": "events:listEvents",
+    "rowCount": 3,
+    "canonicalFixture": true,
+    "attempts": [
+      {
+        "attempt": 1,
+        "ok": true,
+        "rowCount": 3
+      }
+    ]
+  },
+  "acceptanceFixture": {
+    "eventId": "event_6f87109a-7a5a-47c3-b5fb-8c9feb61c4c3",
+    "title": "[acceptance] convex direct fa766356-1b8d-4966-93cd-f5c3086a7719"
+  },
+  "title": "partiful matrix / contract × convex-realtime follow-up cell",
+  "passed": 6,
+  "skipped": 0,
+  "failed": 0,
+  "total": 6,
+  "ok": true,
+  "results": [
+    {
+      "name": "Convex deployment serves the canonical fixture and an isolated acceptance event",
+      "ok": true,
+      "details": {
+        "ok": true,
+        "query": "events:listEvents",
+        "rowCount": 3,
+        "canonicalFixture": true,
+        "attempts": [
+          {
+            "attempt": 1,
+            "ok": true,
+            "rowCount": 3
+          }
+        ],
+        "acceptanceEventId": "event_6f87109a-7a5a-47c3-b5fb-8c9feb61c4c3",
+        "isolatedFixture": true
+      }
+    },
+    {
+      "name": "contract × convex-realtime boots browser-direct with push transport",
+      "ok": true,
+      "details": {
+        "backend": "convex-realtime",
+        "authoring": "contract",
+        "transport": "push",
+        "client": "convex/browser",
+        "pollPath": "absent",
+        "socketConnected": true
+      }
+    },
+    {
+      "name": "opens details and performs an in-cell RSVP round trip",
+      "ok": true,
+      "details": {
+        "before": "no Eve RSVP row",
+        "after": "EveGoing",
+        "host": "preserved"
+      }
+    },
+    {
+      "name": "observes out-of-band writes through Convex WebSocket push with no poll path",
+      "ok": true,
+      "details": {
+        "mutationOrigin": "out-of-band Convex HTTP mutation client",
+        "observedTransport": "convex/browser WebSocket",
+        "pollPath": "absent",
+        "warmupCount": 1,
+        "sampleCount": 5,
+        "observations": [
+          {
+            "sampleIndex": 0,
+            "latencyMs": 256,
+            "deliveryCountBefore": 1,
+            "deliveryCountAfter": 2
+          },
+          {
+            "sampleIndex": 1,
+            "latencyMs": 207,
+            "deliveryCountBefore": 2,
+            "deliveryCountAfter": 3
+          },
+          {
+            "sampleIndex": 2,
+            "latencyMs": 218,
+            "deliveryCountBefore": 3,
+            "deliveryCountAfter": 4
+          },
+          {
+            "sampleIndex": 3,
+            "latencyMs": 203,
+            "deliveryCountBefore": 4,
+            "deliveryCountAfter": 5
+          },
+          {
+            "sampleIndex": 4,
+            "latencyMs": 212,
+            "deliveryCountBefore": 5,
+            "deliveryCountAfter": 6
+          },
+          {
+            "sampleIndex": 5,
+            "latencyMs": 312,
+            "deliveryCountBefore": 6,
+            "deliveryCountAfter": 7
+          }
+        ],
+        "freshnessLatencyMs": {
+          "samples": [
+            207,
+            218,
+            203,
+            212,
+            312
+          ],
+          "median": 212,
+          "p95": 312
+        },
+        "snapshotQueries": [
+          "eventDetails",
+          "guestList",
+          "eventWall"
+        ],
+        "guestListConnectedPushUpdates": 7
+      }
+    },
+    {
+      "name": "Convex mutation authority refuses to displace the host",
+      "ok": true,
+      "details": {
+        "refusal": "server mutation invariant",
+        "message": "[Request ID: fb806e4a6ad5df5d] Server Error\nUncaught Error: the host is already going\n    at handler (../convex/events.ts:34:8)\n"
+      }
+    },
+    {
+      "name": "normal contract teardown closes subscriptions and the Convex client",
+      "ok": true,
+      "details": {
+        "providerClosed": true,
+        "disposedQueries": [
+          "eventDetails",
+          "guestList",
+          "eventWall"
+        ]
+      }
+    }
+  ],
+  "expectedChecks": 6,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

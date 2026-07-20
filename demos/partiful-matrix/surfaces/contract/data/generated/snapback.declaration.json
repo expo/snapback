@@ -1,0 +1,500 @@
+{
+  "schemaVersion": "provider-declaration.v1",
+  "provider": "snapback",
+  "declarationVersion": "partitime-provider-v1",
+  "capabilities": {
+    "push": true,
+    "pollingCadenceMs": null,
+    "transactions": true,
+    "optimistic": true,
+    "deduplication": true,
+    "cancellation": true,
+    "localReplica": true,
+    "initialSnapshot": true,
+    "rowSyncState": true,
+    "serverRunnableQueries": true,
+    "forceStates": true,
+    "branchableFixtures": true,
+    "headlessBoot": true
+  },
+  "partitionPolicy": {
+    "minting": "declared",
+    "rotationTriggers": [
+      "authorization-change",
+      "provider-reconfiguration"
+    ]
+  },
+  "queries": [
+    {
+      "name": "eventDetails",
+      "reads": [
+        "events"
+      ],
+      "descriptorId": "eventDetails",
+      "compatibilityToken": "1",
+      "params": [
+        {
+          "name": "eventId",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "EventRow",
+          "fields": [
+            {
+              "name": "_id",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "accent",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "description",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "emoji",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "hostId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "hostName",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "location",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "startsAt",
+              "type": {
+                "kind": "number"
+              },
+              "nullable": false
+            },
+            {
+              "name": "title",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            }
+          ],
+          "excessFields": "project"
+        }
+      },
+      "liveness": {
+        "mode": "live",
+        "livePush": true,
+        "initialSnapshot": true,
+        "defaultLive": true
+      },
+      "errors": [],
+      "receipts": "promised"
+    },
+    {
+      "name": "eventWall",
+      "reads": [
+        "posts"
+      ],
+      "descriptorId": "eventWall",
+      "compatibilityToken": "1",
+      "params": [
+        {
+          "name": "eventId",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "PostRow",
+          "fields": [
+            {
+              "name": "_id",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "authorId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "authorName",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "createdAt",
+              "type": {
+                "kind": "number"
+              },
+              "nullable": false
+            },
+            {
+              "name": "eventId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "message",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            }
+          ],
+          "excessFields": "project"
+        }
+      },
+      "liveness": {
+        "mode": "live",
+        "livePush": true,
+        "initialSnapshot": true,
+        "defaultLive": true
+      },
+      "errors": [],
+      "receipts": "promised"
+    },
+    {
+      "name": "guestList",
+      "reads": [
+        "rsvps"
+      ],
+      "descriptorId": "guestList",
+      "compatibilityToken": "1",
+      "params": [
+        {
+          "name": "eventId",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "RsvpRow",
+          "fields": [
+            {
+              "name": "_id",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "eventId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "guestName",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "status",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "userId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            }
+          ],
+          "excessFields": "project"
+        }
+      },
+      "liveness": {
+        "mode": "live",
+        "livePush": true,
+        "initialSnapshot": true,
+        "defaultLive": true
+      },
+      "errors": [],
+      "receipts": "promised"
+    },
+    {
+      "name": "listEvents",
+      "reads": [
+        "events"
+      ],
+      "descriptorId": "listEvents",
+      "compatibilityToken": "1",
+      "params": [],
+      "result": {
+        "kind": "list",
+        "row": {
+          "kind": "shape",
+          "name": "EventRow",
+          "fields": [
+            {
+              "name": "_id",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "accent",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "description",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "emoji",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "hostId",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "hostName",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "location",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            },
+            {
+              "name": "startsAt",
+              "type": {
+                "kind": "number"
+              },
+              "nullable": false
+            },
+            {
+              "name": "title",
+              "type": {
+                "kind": "string"
+              },
+              "nullable": false
+            }
+          ],
+          "excessFields": "project"
+        }
+      },
+      "liveness": {
+        "mode": "live",
+        "livePush": true,
+        "initialSnapshot": true,
+        "defaultLive": true
+      },
+      "errors": [],
+      "receipts": "promised"
+    }
+  ],
+  "mutations": [
+    {
+      "name": "createEvent",
+      "params": [
+        {
+          "name": "accent",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "description",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "emoji",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "hostName",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "location",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "startsAt",
+          "type": {
+            "kind": "number"
+          },
+          "nullable": false
+        },
+        {
+          "name": "title",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "writes": [
+        "events",
+        "rsvps"
+      ],
+      "optimistic": true,
+      "receipts": "promised",
+      "errors": []
+    },
+    {
+      "name": "postMessage",
+      "params": [
+        {
+          "name": "authorName",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "eventId",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "message",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "writes": [
+        "posts"
+      ],
+      "optimistic": true,
+      "receipts": "promised",
+      "errors": []
+    },
+    {
+      "name": "rsvp",
+      "params": [
+        {
+          "name": "eventId",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "guestName",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        },
+        {
+          "name": "status",
+          "type": {
+            "kind": "string"
+          },
+          "nullable": false
+        }
+      ],
+      "writes": [
+        "rsvps"
+      ],
+      "optimistic": true,
+      "receipts": "promised",
+      "errors": []
+    }
+  ],
+  "extensions": {
+    "snapback.schema": {
+      "database": "partitime",
+      "version": "partitime-provider-v1"
+    },
+    "snapback.replica": {
+      "path": ".snapback/partitime.db"
+    }
+  }
+}

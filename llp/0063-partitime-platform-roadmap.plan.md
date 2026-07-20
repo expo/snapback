@@ -5,6 +5,35 @@
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (React Expo iOS closure):** 2026-07-20 (the local Xcode 26.6 path
+produces and launches the release iOS Simulator carrier, and the immutable
+`react-expo/ios` Online receipt passes all seven LLP 0064 facts: generated
+initial data, optimistic and authoritative settlement, authority rotation,
+real OS background/foreground callbacks, retained stale rows and authoritative
+reconnect, and server-code exclusion. Re-running CocoaPods exposed that the
+committed Expo lock carried non-reproducible checksums; restoring the checksums
+that `pod install` produces made the workspace reproducible. Replacing the
+unreliable GUI Home shortcut with a simulator-native Settings launch made the
+lifecycle proof headless. Both React Expo OS tuples are now passing; the two
+mandatory `exact-native/*` Parity tuples remain open.)
+**Revised (Step 3 closure):** 2026-07-20 (the generated provider boundary
+now closes across Exact revision `436b3be6…` and Snapback: independent
+Snapback and Convex declarations feed one provider-neutral generator; the
+unchanged Contract product imports only the generated module; the direct
+Contract × Convex WebSocket cell passes 6/6; Convex passes the Exact-owned
+DataProvider suite with 72 capability-applicable checks, 26 honest skips, and
+zero failures; the cumulative WS4 gate passes 18/18; and the diagnostics/
+React-Contract parity receipt passes with structured CLI/LSP/Agent envelopes,
+completion/navigation/rename/formatting/incremental witnesses, bidirectional
+live-data flow, and quiet headless/native operation. The shared claims
+`STEP3.PROVIDER_BOUNDARY`, `STEP3.DIAGNOSTICS`, and
+`STEP3.REACT_CONTRACT_PARITY` are promoted through the two-repository manifest
+ritual. This completes Sequence step 3 and closes WS2's transferred parity
+bullet. At the named follow-up-matrix ranking event, the opening order is
+retained: the direct Supabase/Convex React legs and generated Contract Convex
+leg narrow uncertainty but do not close production identity, retained/local
+execution, Contract UI, or bundle-budget gaps. Diary 0016 and REPORT §26 carry
+the build findings and updated evidence identities below.)
 **Revised (Convex follow-up leg):** 2026-07-20 (the React
 `convex-realtime` cell now runs the generated Convex API through
 `convex/browser` directly against the hosted deployment, with no gateway or
@@ -164,19 +193,21 @@ gateway and one-second polling. This Plan therefore treats the middle-stack
 ranking as provisional and does not claim that Supabase or Convex are polling
 systems.
 
-*Progress (2026-07-20):* both idiomatic React follow-up legs are built and
-witnessed ahead of Step 3 closure. The Step 0 "publishable key returned 401"
-record was a probe artifact (the secret-only OpenAPI root, not the key; see
-REPORT §7.4), so React `supabase-realtime` runs supabase-js browser-direct with
-Realtime `postgres_changes` over RLS-hardened tables. React
-`convex-realtime` now runs the generated Convex API through
-`convex/browser`, browser-direct over its WebSocket with no poll path. Their
-receipts are retained at
-`demos/partiful-matrix/acceptance/results/supabase-realtime-web.json` and
-`demos/partiful-matrix/acceptance/results/convex-realtime-web.json`. No claim
-rows were added here: the Step 3 closure amendment owns registering them
-through the cross-repository ritual, and the Contract row's generated
-non-Snapback binding proof remains open.
+*Progress (2026-07-20, Step 3 complete):* both idiomatic React follow-up legs
+and the generated Contract × Convex leg are built and witnessed. The Step 0
+"publishable key returned 401" record was a probe artifact (the secret-only
+OpenAPI root, not the key; see REPORT §7.4), so React `supabase-realtime` runs
+supabase-js browser-direct with Realtime `postgres_changes` over RLS-hardened
+tables. React `convex-realtime` and Contract `convex-realtime` run the generated
+Convex API through `convex/browser`, browser-direct over its WebSocket with no
+poll path. Exact's provider-native declaration generator consumes independent
+Snapback and Convex producers, emits the callable binding/type/metadata/
+fixture/documentation surface, and passes the non-Snapback conformance gate.
+The retained Step 3 provider and diagnostics/parity receipts promote all three
+Step 3 claims through the shared manifest, closing WS4, WS5's diagnostics half,
+and WS2's transferred parity bullet. Production identity, retained/local
+execution on Convex, stable external package publication, UI completeness, and
+budget closure remain explicitly outside this step.
 
 The report's remaining limits also bound every comparative claim here: no cell
 shipped production identity; no trustworthy clean-machine wall-clock study,
@@ -200,13 +231,15 @@ stacks; and no release archive, signed device, App Store path, energy,
 memory, cold-start, offline, or adverse-network evidence exists for any
 native cell.
 
-This Plan binds to the corrected web-plus-native state of Diary 0016 (sha256
-`ad02e74ad6196412e1b724cd866291a65a140fc63b4ffa9439a280c888ca4d07`) and
+This Plan binds to the corrected web-plus-native-plus-Step-3 state of Diary
+0016 (sha256
+`094a028a31cac46c8b2f5ada4cdc2070b0adf428ce70685676a997a1cb6b4b85`) and
 `demos/partiful-matrix/REPORT.md` (sha256
-`e2912f2f7a8eacddbc1a31947744175aee27154bbf33d32134ab6ba5b7bd51b5`) as of
+`903a4bde178fce1fdd0bd9f29f5a3db9bd98decd20f2cce98ca7c666bde59bd3`) as of
 2026-07-20. It was drafted against the eight-cell state and rebaselined as the
 vanilla extension, the Apple-native extension, the native oracle correction,
-and the Step 0 web/metrology instruments landed; any further extension
+the Step 0 web/metrology instruments, and the Step 3 generated-provider/
+diagnostic closure landed; any further extension
 of the evidence corpus requires a dated Revised entry here (with refreshed
 hashes) before this Plan may cite it, so the Plan can never silently
 describe a matrix that no longer exists.
@@ -596,10 +629,9 @@ same-generated-contract, idiomatic state-API, capability-class-honesty, and
 race-inheritance obligations, and the remaining checks are this Plan's own
 gate additions. Until a profile passes, it is an explicit machine-readable
 GAP, not an implied capability, and the program's "default" claims exclude
-it. The Android carrier now has a clean cumulative 7/7 Online receipt binding
-the final same-key registry inputs and rebuilt release artifact. iOS has no
-corresponding passing run. Neither result changes the pending Exact Native
-profiles.
+it. The Android and iOS carriers now have independent clean cumulative 7/7
+Online receipts binding their final same-key registry inputs and rebuilt
+release artifacts. Neither result changes the pending Exact Native profiles.
 
 Graduation has three named outcomes, ordered by ambition. **Full
 north-star** — the corpus's stated primary target (LLP 0000: Contract/Exact

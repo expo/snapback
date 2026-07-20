@@ -10,16 +10,24 @@ import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import feedApp from './feed.contract';
 import eventApp from './event.contract';
-import { configureMatrixContractLinks, resetMatrixContractLinks, type MatrixContractLinks } from './data/runtime-links';
+import {
+  configureGeneratedProviderLinks,
+  resetGeneratedProviderLinks,
+  type GeneratedProviderLinks,
+} from './data/provider.generated';
 import { GatewayContractProvider } from './provider';
-import { PERSONAS, type Backend } from '../../shared/model';
+import { PERSONAS, type BackendMode } from '../../shared/model';
 
-declare const __MATRIX_BACKEND__: Backend;
+declare const __MATRIX_BACKEND__: BackendMode;
 declare const __SNAPBACK_API_ORIGIN__: string;
 declare const __MATRIX_GATEWAY_ORIGIN__: string;
 declare const __PARTITIME_DISABLE_POLL_FALLBACK__: boolean;
+declare const __CONVEX_URL__: string;
 
-let active: { dispose?: () => void } | null = null;
+let active: {
+  dispose?: () => void | Promise<void>;
+  transportEvidence?: () => readonly Record<string, unknown>[];
+} | null = null;
 const subscriptionEvents: Record<string, unknown>[] = [];
 
 function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
@@ -55,12 +63,22 @@ async function boot() {
     active = surface;
     // The stable matrix bindings let one .contract source serve all columns;
     // this cell still delegates to the real generated Snapback surface links.
-    configureMatrixContractLinks(surface.links as MatrixContractLinks);
+    configureGeneratedProviderLinks(surface.links as GeneratedProviderLinks);
+  } else if (__MATRIX_BACKEND__ === 'convex-realtime') {
+    const { ConvexContractProvider } = await import('./convex-provider');
+    const provider = new ConvexContractProvider(__CONVEX_URL__, persona.userId);
+    active = provider;
+    configureGeneratedProviderLinks(provider.links());
   } else {
     const provider = new GatewayContractProvider(__MATRIX_BACKEND__, __MATRIX_GATEWAY_ORIGIN__ || '/matrix-api', persona.userId);
     active = provider;
-    configureMatrixContractLinks(provider.links() as MatrixContractLinks);
+    configureGeneratedProviderLinks(provider.links() as GeneratedProviderLinks);
   }
+
+  // Preserve the mounted provider as the evidence source even after disposeActive
+  // clears the global slot. The provider records its close event during disposal,
+  // and the acceptance harness reads that retained evidence afterward.
+  const evidenceSource = active;
 
   if (eventId === null) mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__ } });
   else mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__ } });
@@ -68,13 +86,24 @@ async function boot() {
   return {
     backend: __MATRIX_BACKEND__,
     authoring: 'contract',
+    transport: __MATRIX_BACKEND__ === 'snapback' || __MATRIX_BACKEND__ === 'convex-realtime' ? 'push' : 'poll',
     screen: eventId ? 'event' : 'feed',
     eventId,
-    transportEvidence: () => subscriptionEvents.map((event) => ({ ...event })),
+    transportEvidence: () => evidenceSource?.transportEvidence?.().map((event) => ({ ...event }))
+      ?? subscriptionEvents.map((event) => ({ ...event })),
+    dispose: disposeActive,
   };
+}
+
+async function disposeActive() {
+  const current = active;
+  active = null;
+  await current?.dispose?.();
+  resetGeneratedProviderLinks();
+  reset();
 }
 
 const ready = boot().catch((error) => { console.error('[partiful-matrix/contract] boot failed', error); status(`Boot failed: ${error instanceof Error ? error.message : String(error)}`, 'error'); throw error; });
 (globalThis as { partifulMatrixReady?: unknown }).partifulMatrixReady = ready;
 
-if (import.meta.hot) import.meta.hot.dispose(() => { active?.dispose?.(); active = null; resetMatrixContractLinks(); reset(); });
+if (import.meta.hot) import.meta.hot.dispose(() => { void disposeActive(); });

@@ -1,0 +1,448 @@
+{
+  "schemaVersion": "partitime.contract-convex-provider-conformance.v1",
+  "exactRevision": "436b3be658969e74d18d355710224683d388a2f3",
+  "deploymentOrigin": "https://acoustic-alpaca-401.convex.cloud",
+  "title": "partiful matrix / Contract Convex DataProvider conformance",
+  "passed": 1,
+  "skipped": 0,
+  "failed": 0,
+  "total": 1,
+  "ok": true,
+  "results": [
+    {
+      "name": "generated Convex adapter passes the Exact-owned DataProvider suite",
+      "ok": true,
+      "details": {
+        "exactRevision": "436b3be658969e74d18d355710224683d388a2f3",
+        "provider": "convex",
+        "transport": "convex/browser WebSocket",
+        "checks": [
+          {
+            "id": "headless-boot",
+            "status": "pass"
+          },
+          {
+            "id": "manifest-version",
+            "status": "pass"
+          },
+          {
+            "id": "manifest-provider",
+            "status": "pass"
+          },
+          {
+            "id": "manifest-capabilities-match-fixture",
+            "status": "pass"
+          },
+          {
+            "id": "manifest-query-table",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-name",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-args",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-result",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-subscription-shape",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventDetails-subscription-capability",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-name",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-args",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-result",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-subscription-shape",
+            "status": "pass"
+          },
+          {
+            "id": "query-eventWall-subscription-capability",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-name",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-args",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-result",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-subscription-shape",
+            "status": "pass"
+          },
+          {
+            "id": "query-guestList-subscription-capability",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-name",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-args",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-result",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-subscription-shape",
+            "status": "pass"
+          },
+          {
+            "id": "query-listEvents-subscription-capability",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-createEvent-name",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-createEvent-args",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-createEvent-writes",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-createEvent-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-createEvent-optimistic-capability",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-postMessage-name",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-postMessage-args",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-postMessage-writes",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-postMessage-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-postMessage-optimistic-capability",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-rsvp-name",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-rsvp-args",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-rsvp-writes",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-rsvp-runnable-flags",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-rsvp-optimistic-capability",
+            "status": "pass"
+          },
+          {
+            "id": "manifest-diagnostics-shape",
+            "status": "skip",
+            "message": "manifest has no diagnostics"
+          },
+          {
+            "id": "capability-localReplica",
+            "status": "pass"
+          },
+          {
+            "id": "capability-subscriptions",
+            "status": "pass"
+          },
+          {
+            "id": "capability-initialSnapshot",
+            "status": "pass"
+          },
+          {
+            "id": "capability-optimisticMutations",
+            "status": "pass"
+          },
+          {
+            "id": "capability-rowSyncState",
+            "status": "pass"
+          },
+          {
+            "id": "capability-serverRunnableQueries",
+            "status": "pass"
+          },
+          {
+            "id": "capability-forceStates",
+            "status": "pass"
+          },
+          {
+            "id": "capability-branchableFixtures",
+            "status": "pass"
+          },
+          {
+            "id": "capability-headlessBoot",
+            "status": "pass"
+          },
+          {
+            "id": "capability-derivedOptimisticOverlays",
+            "status": "pass"
+          },
+          {
+            "id": "capability-offlineReplay",
+            "status": "pass"
+          },
+          {
+            "id": "row-sync-capability-honesty",
+            "status": "pass"
+          },
+          {
+            "id": "force-states-capability-honesty",
+            "status": "pass"
+          },
+          {
+            "id": "server-runnable-capability-honesty",
+            "status": "pass"
+          },
+          {
+            "id": "subscriptions-capability-honesty",
+            "status": "pass"
+          },
+          {
+            "id": "initial-snapshot-capability-honesty",
+            "status": "pass"
+          },
+          {
+            "id": "fixture-primary-query-declared",
+            "status": "pass"
+          },
+          {
+            "id": "unknown-query-diagnostic",
+            "status": "pass"
+          },
+          {
+            "id": "unknown-mutation-diagnostic",
+            "status": "pass"
+          },
+          {
+            "id": "initial-snapshot",
+            "status": "pass"
+          },
+          {
+            "id": "initial-snapshot-shape",
+            "status": "pass"
+          },
+          {
+            "id": "subscription-update",
+            "status": "pass"
+          },
+          {
+            "id": "subscription-update-shape",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-result",
+            "status": "pass"
+          },
+          {
+            "id": "mutation-query-invalidation",
+            "status": "pass"
+          },
+          {
+            "id": "failed-mutation-diagnostic",
+            "status": "pass"
+          },
+          {
+            "id": "row-sync-state",
+            "status": "skip",
+            "message": "fixture does not claim rowSyncState"
+          },
+          {
+            "id": "force-states",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "force-reaches-live-observers",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "force-dispose-restores-live",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "force-scope-isolation",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "force-scope-broadcast",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "force-scope-restores",
+            "status": "skip",
+            "message": "fixture does not claim forceStates"
+          },
+          {
+            "id": "ephemeral-force-scope-isolation",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-snapshot",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-order",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-force-reaches-live",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-force-local-only",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-force-dispose-restores",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-ttl-deletion",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "ephemeral-entry-invariants",
+            "status": "skip",
+            "message": "fixture does not declare an ephemeral probe"
+          },
+          {
+            "id": "server-runnable-query-smoke",
+            "status": "pass"
+          },
+          {
+            "id": "snapshot-subscribe-atomicity",
+            "status": "skip",
+            "message": "fixture does not declare an atomicity probe"
+          },
+          {
+            "id": "connection-initial",
+            "status": "skip",
+            "message": "fixture does not declare a connection probe"
+          },
+          {
+            "id": "connection-transitions",
+            "status": "skip",
+            "message": "fixture does not declare a connection probe"
+          },
+          {
+            "id": "connection-values-legal",
+            "status": "skip",
+            "message": "fixture does not declare a connection probe"
+          },
+          {
+            "id": "receipts-capability-honesty",
+            "status": "skip",
+            "message": "provider emits no receipts"
+          },
+          {
+            "id": "receipt-subscription-established",
+            "status": "skip",
+            "message": "provider exposes no onReceipt observation surface"
+          },
+          {
+            "id": "receipt-transport-agreement",
+            "status": "skip",
+            "message": "provider exposes no onReceipt observation surface"
+          },
+          {
+            "id": "receipt-subscription-disposed",
+            "status": "skip",
+            "message": "provider exposes no onReceipt observation surface"
+          },
+          {
+            "id": "receipt-mutation-outcome",
+            "status": "skip",
+            "message": "provider exposes no onReceipt observation surface"
+          },
+          {
+            "id": "receipt-monotonicity",
+            "status": "skip",
+            "message": "provider exposes no onReceipt observation surface"
+          },
+          {
+            "id": "subscription-disposal",
+            "status": "pass"
+          }
+        ],
+        "passed": 72,
+        "skipped": 26,
+        "failed": 0
+      }
+    }
+  ],
+  "expectedChecks": 1,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

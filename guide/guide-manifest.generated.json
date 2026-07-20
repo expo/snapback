@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "27e3689a239c52a01a01ddf51f52ec4221ea7a86"
+    "commit": "79142108562c7b5891af336214659bfe09f615ad"
   },
   "nav": {
     ".": [
@@ -657,7 +657,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "41d529b6dce184ad6fc404cfa4ad1535a3d7dca5a356a1eb2209aa038e1a3fd4",
+      "sha256": "a7195fef1df323b246b59b6e7e9608dbb43b4f2de681ef87bf05460a9b3d5623",
       "snippets": []
     },
     "clients.app-cli": {
@@ -699,6 +699,7 @@
       "maturity": "shipped",
       "capabilities": [
         "clients.contract",
+        "clients.contract-provider-generation",
         "clients.contract-keyed-scopes",
         "clients.mutation-outcomes",
         "clients.optimistic-overlays"
@@ -710,6 +711,7 @@
         "llp/0052-contract-update-economy-and-host-state.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
         "llp/0059-session-projection-and-client-barrier.spec.md",
+        "llp/0063-partitime-platform-roadmap.plan.md",
         "packages/snapback-contract/index.mjs",
         "packages/snapback-contract/keyed-provider.mjs"
       ],
@@ -722,7 +724,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "HEAD",
-      "sha256": "ef702ae0c22b88f2fe25e301746b3513e534a71d070d62731a1ef4188ff49864",
+      "sha256": "29f59a9e1c5c547761b12d8b2b954e43bceadd0ed16e7d54da56cc2ab4523088",
       "snippets": [
         {
           "lang": "contract",
@@ -748,6 +750,11 @@
           "lang": "ts",
           "class": "transcluded",
           "source": "demos/todo-v2/snapback/generated/contract/runtime-links.ts"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/partiful-matrix/scripts/generate-contract-provider.mjs"
         },
         {
           "lang": "ts",
@@ -812,7 +819,7 @@
       "targets": [
         "local"
       ],
-      "maturity": "partial",
+      "maturity": "shipped",
       "capabilities": [
         "clients.react-expo"
       ],
@@ -828,8 +835,8 @@
         "demos/partiful-matrix/native/react-expo"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "506b622cd3",
-      "sha256": "3e930e26ceb9bb11ce7115326246d3998e6bd195f65b0f7243a9259d46210e95",
+      "reviewedCommit": "7914210856",
+      "sha256": "d4765cfced96c13b2a0b5686823803c083bfb7174038a33772e90e9cb1808e62",
       "snippets": [
         {
           "lang": "js",
@@ -1520,6 +1527,7 @@
       "clients.app-cli",
       "clients.contract",
       "clients.contract-keyed-scopes",
+      "clients.contract-provider-generation",
       "clients.external-store",
       "clients.headless",
       "clients.mutation-outcomes",
@@ -1547,5 +1555,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "36ac99b2f38067bda538260edb3cd0fb6f0de1eccbd217c246d9afced8aa56e0"
+  "contentHash": "2d0c3427b320ae425cb1c88b4319ddf60564de8d412d24295799177788cb9600"
 }

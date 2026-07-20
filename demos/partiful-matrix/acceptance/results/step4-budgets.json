@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-20T18:03:54.803Z",
+  "recordedAt": "2026-07-20T21:56:47.258Z",
   "repository": {
-    "snapbackRevision": "7f1330ac8f4380a2ac581d53b8870ae27830378b",
-    "exactRevision": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
+    "snapbackRevision": "d12d82027a96738ceb19afd5b8405d4a8a92f6c3",
+    "exactRevision": "436b3be658969e74d18d355710224683d388a2f3"
   },
   "inputs": {
     "protocol": {
@@ -19,12 +19,12 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "a7fa12b03fdb75819304b463ba53b80a205d2d18bdac7e7e3577df360c2f001d"
+      "sha256": "dcaab3d12e15fc6f46690fde11b81d7bea51fc9ee402c66489eae0fd462fe5d7"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "7f1330ac8f4380a2ac581d53b8870ae27830378b",
+      "revision": "d12d82027a96738ceb19afd5b8405d4a8a92f6c3",
       "sha256": "699e22283184da1c20b9ec82671a22640d604bde3465ffe19ff61a35f0832378"
     },
     "nativeReceipts": [
@@ -52,14 +52,20 @@
       },
       {
         "path": "demos/partiful-matrix/acceptance/results/convex-realtime-web.json",
-        "sha256": "83bc47ab678ebd6ee187f88bd4ce34bffde92b72291b13835717fcb92942a9b5"
+        "sha256": "aa75b7eb4837d2e5416943c22582217c385f649d32388b2313634dd559860835"
+      }
+    ],
+    "contractGeneratedProviderFollowupReceipts": [
+      {
+        "path": "demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json",
+        "sha256": "1f02d74631851b96e688560219f8dfe9360feef20cf6a8279c96d4673cc81ad6"
       }
     ]
   },
   "summary": {
-    "passed": 4,
-    "red": 22,
-    "nonclaims": 19,
+    "passed": 5,
+    "red": 21,
+    "nonclaims": 18,
     "total": 26
   },
   "requirements": [
@@ -71,28 +77,28 @@
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 728458,
+            "actual": 730144,
             "threshold": 422417,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:supabase",
-            "actual": 388369,
+            "actual": 391286,
             "threshold": 213488,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 388359,
+            "actual": 391276,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 388359,
+            "actual": 391276,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
@@ -104,10 +110,10 @@
           "react:supabase": 211498,
           "react:convex": 211494,
           "react:sqlite": 211494,
-          "contract:snapback": 728458,
-          "contract:supabase": 388369,
-          "contract:convex": 388359,
-          "contract:sqlite": 388359,
+          "contract:snapback": 730144,
+          "contract:supabase": 391286,
+          "contract:convex": 391276,
+          "contract:sqlite": 391276,
           "vanilla:snapback": 213837,
           "vanilla:supabase": 20235,
           "vanilla:convex": 20231,
@@ -123,28 +129,28 @@
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 194052,
+            "actual": 194245,
             "threshold": 119451,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:supabase",
-            "actual": 105386,
+            "actual": 106024,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 105386,
+            "actual": 106022,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 105387,
+            "actual": 106024,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
@@ -156,10 +162,10 @@
           "react:supabase": 66816,
           "react:convex": 66813,
           "react:sqlite": 66815,
-          "contract:snapback": 194052,
-          "contract:supabase": 105386,
-          "contract:convex": 105386,
-          "contract:sqlite": 105387,
+          "contract:snapback": 194245,
+          "contract:supabase": 106024,
+          "contract:convex": 106022,
+          "contract:sqlite": 106024,
           "vanilla:snapback": 56319,
           "vanilla:supabase": 7282,
           "vanilla:convex": 7279,
@@ -175,7 +181,7 @@
         "rows": [
           {
             "metric": "contractSourceLines",
-            "actual": 400,
+            "actual": 429,
             "threshold": 348,
             "formula": "floor(react_same_workload_source_lines * 1.10)",
             "pass": false
@@ -218,9 +224,9 @@
             "files": [
               {
                 "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-                "lines": 80,
-                "bytes": 4336,
-                "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+                "lines": 109,
+                "bytes": 5380,
+                "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
               },
               {
                 "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -241,7 +247,7 @@
                 "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
               }
             ],
-            "totalLines": 192
+            "totalLines": 221
           },
           "vanilla": {
             "files": [
@@ -279,18 +285,18 @@
       "status": "pass",
       "reasonCode": "STEP4_BUDGET_FIRST_PUSH_P95_PASSED",
       "evidence": {
-        "actual": 6,
+        "actual": 8,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
+          7,
+          7,
           6,
-          5,
           6,
-          5,
-          5,
+          8,
           6,
-          5
+          7
         ],
         "pass": true
       }
@@ -734,8 +740,8 @@
             "vanillaGatewayFloor": 20232,
             "snapbackProviderClientLowerBound": 193605,
             "reactFrameworkAndApplicationCombined": 191263,
-            "contractRuntimeAndApplicationCombined": 368130,
-            "contractSnapbackInteractionUnattributed": 146491
+            "contractRuntimeAndApplicationCombined": 371047,
+            "contractSnapbackInteractionUnattributed": 145260
           }
         },
         "vanillaCells": {
@@ -803,9 +809,8 @@
     },
     {
       "id": "native-realtime-follow-up-matrix-before-ranking",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_NATIVE_REALTIME_MATRIX_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_NATIVE_REALTIME_MATRIX_COMPLETE",
       "evidence": {
         "existingNativeWorkload": "partitime.web-3x4+apple-native-2x2x4.v1",
         "retainedNativeAggregate": {
@@ -824,14 +829,26 @@
           "convexRealtime": {
             "receipt": {
               "path": "demos/partiful-matrix/acceptance/results/convex-realtime-web.json",
-              "sha256": "83bc47ab678ebd6ee187f88bd4ce34bffde92b72291b13835717fcb92942a9b5"
+              "sha256": "aa75b7eb4837d2e5416943c22582217c385f649d32388b2313634dd559860835"
             },
             "ok": true,
             "passed": 6
           }
         },
-        "contractGeneratedLegs": [],
-        "finding": "Both React browser-direct provider receipts exist, but the retained Apple-native extension is polling and the Contract-generated direct bindings required for the full follow-up matrix remain open."
+        "contractGeneratedLegs": [
+          {
+            "provider": "convex",
+            "receipt": {
+              "path": "demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json",
+              "sha256": "1f02d74631851b96e688560219f8dfe9360feef20cf6a8279c96d4673cc81ad6"
+            },
+            "ok": true,
+            "passed": 6,
+            "transport": "convex/browser WebSocket",
+            "pollPath": "absent"
+          }
+        ],
+        "finding": "Both idiomatic React provider-native legs and the independently generated Contract × Convex producer leg are retained and green. The Apple-native extension remains a separate polling-only instrument."
       }
     }
   ],
@@ -849,12 +866,12 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "9969de5f00a7d946d6980fc56aa94120779c1329298c126b6a9f4e9eedb1edc7",
+        "stdoutSha256": "6dab1a7111300f845587c354fcc49915ab57227bbc33b57e37d8e2eb4a8d2bb6",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/convex-direct-B34_zLpf.js   69.67 kB │ gzip: 19.46 kB",
           "dist/convex-realtime/assets/index-f4DtgOTt.js          211.83 kB │ gzip: 67.07 kB",
-          "✓ built in 744ms",
+          "✓ built in 514ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 47 modules transformed.",
@@ -863,7 +880,7 @@
           "dist/sqlite/index.html                   0.41 kB │ gzip:  0.29 kB",
           "dist/sqlite/assets/index-YONlbN7G.css    8.09 kB │ gzip:  2.56 kB",
           "dist/sqlite/assets/index-C_v5UUin.js   211.49 kB │ gzip: 66.95 kB",
-          "✓ built in 600ms"
+          "✓ built in 456ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -884,25 +901,23 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "5aad61b12a0ebe9f40a4e80b24ccd77e4224abadc8aa6d3e26217281d7bdcd61",
-        "stderrSha256": "aa0af2361e17c767101fb84a3a444d53c5a312e3a78c7bb2d94563b078f6b469",
+        "stdoutSha256": "3157858ac5cfb6a7b28dddde1c867dc161195c267a00209c19cb4e233985585b",
+        "stderrSha256": "9ead92735f8ab21c20314f508637aac2324cb08b3986d42af8ac2b8a4a6008fd",
         "stdoutTail": [
-          "dist/convex/assets/index-BdtTA3qD.js  388.35 kB │ gzip: 106.67 kB │ map: 2,363.11 kB",
+          "dist/convex-realtime/assets/index-BmtF1pUH.js            389.41 kB │ gzip: 106.46 kB │ map: 2,370.41 kB",
           "",
-          "✓ built in 282ms",
+          "✓ built in 250ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "vite v8.1.5 building client environment for sqlite...",
-          "\u001b[2K\rtransforming...✓ 163 modules transformed.",
+          "\u001b[2K\rtransforming...✓ 156 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                  0.87 kB │ gzip:   0.55 kB",
-          "dist/sqlite/assets/index-C-pHYjjW.js  388.35 kB │ gzip: 106.67 kB │ map: 2,363.11 kB",
+          "dist/sqlite/assets/index-B6hq-VvT.js  391.27 kB │ gzip: 107.29 kB │ map: 2,372.63 kB",
           "",
-          "✓ built in 270ms"
+          "✓ built in 249ms"
         ],
         "stderrTail": [
-          "",
-          "[plugin builtin:vite-reporter] ",
           "(!) Some chunks are larger than 500 kB after minification. Consider:",
           "- Using dynamic import() to code-split the application",
           "- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting",
@@ -910,6 +925,8 @@
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode supabase --outDir dist/supabase",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:31 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex --outDir dist/convex",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:31 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex-realtime --outDir dist/convex-realtime",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:31 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode sqlite --outDir dist/sqlite",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:31 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
@@ -924,12 +941,12 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "ef87d1e15188a493253f69f8862fe2adaff50c6af84e01a97b20f500fdace186",
+        "stdoutSha256": "726a0b942b6a4552385b2e877f124f8dedd83759262d5e749081bbea7649679c",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-YONlbN7G.css   8.09 kB │ gzip: 2.56 kB",
           "dist/convex/assets/index-TeqhKRmD.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 177ms",
+          "✓ built in 169ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 21 modules transformed.",
@@ -938,7 +955,7 @@
           "dist/sqlite/index.html                  0.47 kB │ gzip: 0.30 kB",
           "dist/sqlite/assets/index-YONlbN7G.css   8.09 kB │ gzip: 2.56 kB",
           "dist/sqlite/assets/index-DVN1uxBX.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 191ms"
+          "✓ built in 177ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -979,19 +996,19 @@
             "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
             "lines": 94,
             "bytes": 5621,
-            "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+            "sha256": "d8af4d5c00c869f5565616f0e99114904194cf3bf967a385f050092483eda9a5"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/event.contract",
             "lines": 114,
-            "bytes": 6111,
-            "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
+            "bytes": 6120,
+            "sha256": "9c284e4c7d001af0db79f9a2db04b5534a5c1d058dbcdf6b4d2c0e28058e93b3"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 80,
-            "bytes": 4336,
-            "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+            "lines": 109,
+            "bytes": 5380,
+            "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -1012,7 +1029,7 @@
             "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
           }
         ],
-        "totalLines": 400
+        "totalLines": 429
       },
       "vanilla": {
         "files": [
@@ -1089,9 +1106,9 @@
         "files": [
           {
             "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 80,
-            "bytes": 4336,
-            "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+            "lines": 109,
+            "bytes": 5380,
+            "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -1112,7 +1129,7 @@
             "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
           }
         ],
-        "totalLines": 192
+        "totalLines": 221
       },
       "vanilla": {
         "files": [
@@ -1184,50 +1201,50 @@
       "contract:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DaAFVqdJ.js",
-            "minifiedBytes": 728458,
-            "deterministicGzipBytes": 194052,
-            "sha256": "eafcb94afe7fe9de20099dc88c5c50de3c3094c6c39a2663c1eed64bb1b7dba3"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-BxaRjess.js",
+            "minifiedBytes": 730144,
+            "deterministicGzipBytes": 194245,
+            "sha256": "547eead5ae90b87a9d36ffa1362178d63e5aa3e02ec2e971c478df626cc930bd"
           }
         ],
-        "minifiedBytes": 728458,
-        "deterministicGzipBytes": 194052
+        "minifiedBytes": 730144,
+        "deterministicGzipBytes": 194245
       },
       "contract:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-CAWvqy9h.js",
-            "minifiedBytes": 388369,
-            "deterministicGzipBytes": 105386,
-            "sha256": "39f197c30494dbfe138b3085c107d789231a2e9bf92f01246d0a1bcda5f15caf"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-Ds9IWwBN.js",
+            "minifiedBytes": 391286,
+            "deterministicGzipBytes": 106024,
+            "sha256": "38d3cb5a14a5bed2d9028b22bad591883af2877d7a8ed969319c4938d2274505"
           }
         ],
-        "minifiedBytes": 388369,
-        "deterministicGzipBytes": 105386
+        "minifiedBytes": 391286,
+        "deterministicGzipBytes": 106024
       },
       "contract:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-BdtTA3qD.js",
-            "minifiedBytes": 388359,
-            "deterministicGzipBytes": 105386,
-            "sha256": "9674de2e81a4f3b4d31c79e9fbd746027e128e52c1dd44ace564462f9de8710d"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-B3Or9w13.js",
+            "minifiedBytes": 391276,
+            "deterministicGzipBytes": 106022,
+            "sha256": "5938a40efd1a6a7a8f30c1c56c32cb639949a0a42e7a328a80994cbd6fed479e"
           }
         ],
-        "minifiedBytes": 388359,
-        "deterministicGzipBytes": 105386
+        "minifiedBytes": 391276,
+        "deterministicGzipBytes": 106022
       },
       "contract:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-C-pHYjjW.js",
-            "minifiedBytes": 388359,
-            "deterministicGzipBytes": 105387,
-            "sha256": "d3a0bbebe3cdd8ac32991271803d2a381c058ee64d3bb16eb3d1d114fae1bfcf"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-B6hq-VvT.js",
+            "minifiedBytes": 391276,
+            "deterministicGzipBytes": 106024,
+            "sha256": "023685eada90513796af4112a5fdf6f8eaf8161a8914f97ebc0e45aa12d6e493"
           }
         ],
-        "minifiedBytes": 388359,
-        "deterministicGzipBytes": 105387
+        "minifiedBytes": 391276,
+        "deterministicGzipBytes": 106024
       },
       "vanilla:snapback": {
         "assets": [
@@ -1284,28 +1301,28 @@
         "vanillaGatewayFloor": 20232,
         "snapbackProviderClientLowerBound": 193605,
         "reactFrameworkAndApplicationCombined": 191263,
-        "contractRuntimeAndApplicationCombined": 368130,
-        "contractSnapbackInteractionUnattributed": 146491
+        "contractRuntimeAndApplicationCombined": 371047,
+        "contractSnapbackInteractionUnattributed": 145260
       }
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "a7fa12b03fdb75819304b463ba53b80a205d2d18bdac7e7e3577df360c2f001d"
+      "sha256": "dcaab3d12e15fc6f46690fde11b81d7bea51fc9ee402c66489eae0fd462fe5d7"
     },
     "pushLatency": {
       "contract": {
-        "actual": 6,
+        "actual": 8,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
+          7,
+          7,
           6,
-          5,
           6,
-          5,
-          5,
+          8,
           6,
-          5
+          7
         ],
         "pass": true
       }

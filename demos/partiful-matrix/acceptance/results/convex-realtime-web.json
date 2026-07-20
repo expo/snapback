@@ -2,8 +2,8 @@
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.followup.v1",
   "cell": "react:convex-realtime",
-  "revision": "34436b1d357135a974be69e97ec8a4703b818e69",
-  "gitDirtyAtStart": false,
+  "revision": "d12d82027a96738ceb19afd5b8405d4a8a92f6c3",
+  "gitDirtyAtStart": true,
   "sourceInputs": [
     {
       "path": "demos/partiful-matrix/surfaces/react/src/convex-direct.ts",
@@ -37,8 +37,8 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs",
-      "sha256": "4bc0f58621b45c6b6e3ae5aad2c02eb9bfa8c4c2dd311cfc19907cf04058a723",
-      "bytes": 20100
+      "sha256": "068d9e2f1b5a4f2aadd0b5b0f0d7cf0e3f4e2a8fc5ea1125a38c8d4b5f59a2c0",
+      "bytes": 21790
     }
   ],
   "environment": {
@@ -62,10 +62,10 @@
     ]
   },
   "acceptanceFixture": {
-    "eventId": "event_4bb094cc-913e-4b17-90e5-d657eb997ec0",
-    "title": "[acceptance] convex direct dce77f78-b286-4ca6-abb4-04e96450dd2c"
+    "eventId": "event_3421171f-22ac-4982-9e2f-4c5362257327",
+    "title": "[acceptance] convex direct b0b500d9-a2b5-43ee-8424-ff9a468265fe"
   },
-  "title": "partiful matrix / convex-realtime follow-up cell",
+  "title": "partiful matrix / react × convex-realtime follow-up cell",
   "passed": 6,
   "skipped": 0,
   "failed": 0,
@@ -87,7 +87,7 @@
             "rowCount": 3
           }
         ],
-        "acceptanceEventId": "event_4bb094cc-913e-4b17-90e5-d657eb997ec0",
+        "acceptanceEventId": "event_3421171f-22ac-4982-9e2f-4c5362257327",
         "isolatedFixture": true
       }
     },
@@ -124,51 +124,51 @@
         "observations": [
           {
             "sampleIndex": 0,
-            "latencyMs": 414,
+            "latencyMs": 412,
             "deliveryCountBefore": 1,
             "deliveryCountAfter": 2
           },
           {
             "sampleIndex": 1,
-            "latencyMs": 220,
+            "latencyMs": 218,
             "deliveryCountBefore": 2,
             "deliveryCountAfter": 3
           },
           {
             "sampleIndex": 2,
-            "latencyMs": 218,
+            "latencyMs": 212,
             "deliveryCountBefore": 3,
             "deliveryCountAfter": 4
           },
           {
             "sampleIndex": 3,
-            "latencyMs": 220,
+            "latencyMs": 224,
             "deliveryCountBefore": 4,
             "deliveryCountAfter": 5
           },
           {
             "sampleIndex": 4,
-            "latencyMs": 209,
+            "latencyMs": 202,
             "deliveryCountBefore": 5,
             "deliveryCountAfter": 6
           },
           {
             "sampleIndex": 5,
-            "latencyMs": 218,
+            "latencyMs": 212,
             "deliveryCountBefore": 6,
             "deliveryCountAfter": 7
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
-            220,
             218,
-            220,
-            209,
-            218
+            212,
+            224,
+            202,
+            212
           ],
-          "median": 218,
-          "p95": 220
+          "median": 212,
+          "p95": 224
         },
         "snapshotQueries": [
           "listEvents",
@@ -188,11 +188,11 @@
       "ok": true,
       "details": {
         "refusal": "server mutation invariant",
-        "message": "[Request ID: 44d7dfc9dfe0d18c] Server Error\nUncaught Error: the host is already going\n    at handler (../convex/events.ts:34:8)\n"
+        "message": "[Request ID: 859e8e315bbcb7c4] Server Error\nUncaught Error: the host is already going\n    at handler (../convex/events.ts:34:8)\n"
       }
     },
     {
-      "name": "normal React root teardown closes subscriptions and the Convex client",
+      "name": "normal react teardown closes subscriptions and the Convex client",
       "ok": true,
       "details": {
         "providerClosed": true,

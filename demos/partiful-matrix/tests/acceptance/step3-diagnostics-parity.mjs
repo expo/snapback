@@ -133,6 +133,25 @@ const exactOracleOutput = `${exactOracle.stdout}\n${exactOracle.stderr}`;
 const exactOraclePasses = Number(exactOracleOutput.match(/(\d+) pass/)?.[1] ?? 0);
 assert(exactOraclePasses >= 8, `expected at least 8 Exact diagnostic oracle tests, observed ${exactOraclePasses}`);
 
+const exactLanguageOracle = spawnSync(
+  'bun',
+  [
+    'scripts/exact-verify.mjs',
+    '--check', 'contract-lsp',
+    '--check', 'contract-cli-format',
+    '--keep-going',
+  ],
+  { cwd: exactRoot, encoding: 'utf8', env: process.env },
+);
+assert.equal(
+  exactLanguageOracle.status,
+  0,
+  `Exact language/format oracle failed\n${exactLanguageOracle.stdout}\n${exactLanguageOracle.stderr}`,
+);
+const exactLanguageOracleOutput = `${exactLanguageOracle.stdout}\n${exactLanguageOracle.stderr}`;
+assert.match(exactLanguageOracleOutput, /PASS contract-lsp/);
+assert.match(exactLanguageOracleOutput, /PASS contract-cli-format/);
+
 const contractSource = readFileSync(contractSourcePath, 'utf8');
 const parsedContract = compiler.parseContractSource(contractSource, contractSourcePath);
 const staticSemantics = compiler.resolveStaticContractImportSemantics(parsedContract, {
@@ -143,6 +162,130 @@ assert.equal(
   0,
   `Partitime Contract import semantics failed: ${JSON.stringify(staticSemantics.diagnostics)}`,
 );
+
+const feedSourceRelative = 'demos/partiful-matrix/surfaces/contract/feed.contract';
+const feedSourcePath = join(snapbackRoot, feedSourceRelative);
+const feedSource = readFileSync(feedSourcePath, 'utf8');
+const feedParsed = compiler.parseContractSource(feedSource, feedSourcePath);
+const feedStaticSemantics = compiler.resolveStaticContractImportSemantics(feedParsed, {
+  rootDir: snapbackRoot,
+});
+assert.equal(
+  feedStaticSemantics.diagnostics.filter((entry) => entry.severity === 'error').length,
+  0,
+  `Partitime feed import semantics failed: ${JSON.stringify(feedStaticSemantics.diagnostics)}`,
+);
+
+const languageService = compiler.createContractLanguageService({
+  documents: [
+    {
+      sourcePath: contractSourceRelative,
+      source: contractSource,
+      compileOptions: {
+        importBoundaryMode: 'project',
+        importSemantics: staticSemantics.descriptors,
+      },
+    },
+    {
+      sourcePath: feedSourceRelative,
+      source: feedSource,
+      compileOptions: {
+        importBoundaryMode: 'project',
+        importSemantics: feedStaticSemantics.descriptors,
+      },
+    },
+  ],
+});
+const languageBefore = languageService.snapshot;
+const completionItems = languageService.completions(positionOf(
+  contractSource,
+  contractSourceRelative,
+  'button press=post testId="wall-send"',
+  'post',
+));
+assert(completionItems.some(({ label, kind }) => label === 'post' && kind === 'action'));
+const definition = languageService.definition(positionOf(
+  contractSource,
+  contractSourceRelative,
+  'query event = eventDetails',
+  'eventDetails',
+));
+assert(definition, 'Partitime language service returned no definition for eventDetails');
+const rename = languageService.rename(positionOf(
+  contractSource,
+  contractSourceRelative,
+  'state draft',
+  'draft',
+), 'messageDraft');
+assert(rename, 'Partitime language service returned no rename plan for draft');
+assert(rename.references.length >= 4, `draft rename returned only ${rename.references.length} references`);
+
+const incrementallyUpdatedSource = contractSource.replace(
+  'state draft = ""',
+  'state draft = "incremental-witness"',
+);
+const languageAfter = languageService.updateDocument({
+  sourcePath: contractSourceRelative,
+  source: incrementallyUpdatedSource,
+});
+const beforeEventVersion = languageBefore.documents.find(
+  ({ sourcePath }) => sourcePath === contractSourceRelative,
+)?.sourceVersion;
+const beforeFeedVersion = languageBefore.documents.find(
+  ({ sourcePath }) => sourcePath === feedSourceRelative,
+)?.sourceVersion;
+assert.notEqual(
+  languageAfter.documents.find(({ sourcePath }) => sourcePath === contractSourceRelative)?.sourceVersion,
+  beforeEventVersion,
+);
+assert.equal(
+  languageAfter.documents.find(({ sourcePath }) => sourcePath === feedSourceRelative)?.sourceVersion,
+  beforeFeedVersion,
+);
+assert.equal(
+  languageService.diagnostics({ sourcePath: contractSourceRelative })
+    .filter(({ severity }) => severity === 'error').length,
+  0,
+);
+const formattedContract = compiler.formatContractSource(contractSource, contractSourceRelative);
+assert.equal(
+  compiler.formatContractSource(formattedContract, contractSourceRelative),
+  formattedContract,
+  'Partitime formatting is not idempotent',
+);
+
+const headlessOutput = [];
+const previousWarn = console.warn;
+const previousError = console.error;
+try {
+  console.warn = (...args) => headlessOutput.push({ channel: 'warn', args });
+  console.error = (...args) => headlessOutput.push({ channel: 'error', args });
+  const quietDiagnostics = compileDiagnostics(badHeadlessSource(), 'headless/invalid.contract');
+  assert(quietDiagnostics.length > 0, 'headless invalid source returned no structured diagnostics');
+  assert(quietDiagnostics.every(({ code }) => typeof code === 'string' && code.length > 0));
+} finally {
+  console.warn = previousWarn;
+  console.error = previousError;
+}
+assert.deepEqual(headlessOutput, [], 'headless diagnostics wrote ambient console output');
+
+const nativeQuietReceiptPath = join(
+  snapbackRoot,
+  'demos/partiful-matrix/acceptance/results/step0-native-exact.json',
+);
+const nativeQuietReceipt = JSON.parse(readFileSync(nativeQuietReceiptPath, 'utf8'));
+const executedNativeCells = nativeQuietReceipt.cells.filter((cell) => cell.acto);
+assert.equal(nativeQuietReceipt.ok, true);
+assert(executedNativeCells.length >= 4, 'expected at least four executed Exact-native cells');
+for (const cell of executedNativeCells) {
+  assert.equal(cell.acto.status, 0, `${cell.cell} Acto run failed`);
+  assert.equal(
+    cell.acto.stderrSha256,
+    'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855',
+    `${cell.cell} emitted native stderr`,
+  );
+  assert(cell.acto.stdoutTail.every((line) => JSON.parse(line).ok === true));
+}
 
 const diagnosticCases = [];
 
@@ -194,7 +337,7 @@ diagnosticCases.push({
 // project, but deliberately relabel eventDetails as a pure helper.
 const wrongHandlerSemantics = {
   ...staticSemantics.descriptors,
-  './data/eventDetails.query.ts#eventDetails': {
+  './data/provider.generated.ts#eventDetails': {
     kind: 'pure',
     params: ['eventId'],
     result: 'EventRow[]',
@@ -515,6 +658,9 @@ assert.equal(liveObservers.size, 0);
 
 const result = {
   schemaVersion: 'partitime.step3-diagnostics-parity.v1',
+  claimId: 'STEP3.DIAGNOSTICS',
+  claimIds: ['STEP3.DIAGNOSTICS', 'STEP3.REACT_CONTRACT_PARITY'],
+  claimPromoted: true,
   status: 'pass',
   scope: 'LLP 0063 Step 3 diagnostics and React/Contract parity slice',
   generatedArtifacts: {
@@ -530,6 +676,23 @@ const result = {
   exactOracle: {
     path: 'packages/exact-contract/src/__tests__/diagnostics-parity.test.ts',
     passCount: exactOraclePasses,
+    languageChecks: ['contract-lsp', 'contract-cli-format'],
+    languageOutputSha256: sha256(exactLanguageOracleOutput),
+    exactRevision: spawnSync('git', ['rev-parse', 'HEAD'], {
+      cwd: exactRoot,
+      encoding: 'utf8',
+    }).stdout.trim(),
+  },
+  languageService: {
+    completion: completionItems.some(({ label, kind }) => label === 'post' && kind === 'action'),
+    navigation: { sourcePath: definition.sourcePath, line: definition.span.line },
+    renameReferences: rename.references.length,
+    formattingIdempotent: true,
+    incremental: {
+      changedDocumentVersionAdvanced: true,
+      unaffectedFeedVersionRetained: true,
+      atomicSnapshotReturned: languageAfter === languageService.snapshot,
+    },
   },
   crossSurface: {
     manifestObjectShared: true,
@@ -551,12 +714,29 @@ const result = {
     exactLogicalSubscriptionsAfterDispose: runtime.activeLogicalQuerySubscriptionCount(),
     backendObserversAfterDispose: liveObservers.size,
   },
+  quietOperation: {
+    headlessStructuredOnly: true,
+    nativeReceipt: relative(snapbackRoot, nativeQuietReceiptPath),
+    nativeExecutedCells: executedNativeCells.map(({ cell }) => cell),
+    nativeStderrEmpty: true,
+  },
   nonClaims: [
-    'This slice does not promote any cumulative-gate manifest claim.',
-    'LSP completion/navigation/rename/formatting/incremental capability witnesses remain outside this diagnostics-parity slice.',
-    'Native quiet-operation and non-Snapback producer gates remain separate Step 3 receipts.',
+    'Non-Snapback provider generation and conformance remain the separate STEP3.PROVIDER_BOUNDARY receipt.',
   ],
 };
 
 if (write) writeFileSync(resultPath, `${JSON.stringify(result, null, 2)}\n`);
 console.log(JSON.stringify(result, null, 2));
+
+function positionOf(source, sourcePath, lineNeedle, wordNeedle = lineNeedle) {
+  const lines = source.split('\n');
+  const lineIndex = lines.findIndex((line) => line.includes(lineNeedle));
+  assert(lineIndex >= 0, `missing language-service line: ${lineNeedle}`);
+  const colIndex = lines[lineIndex].indexOf(wordNeedle);
+  assert(colIndex >= 0, `missing language-service word ${wordNeedle} on ${lineNeedle}`);
+  return { sourcePath, line: lineIndex + 1, col: colIndex + 1 };
+}
+
+function badHeadlessSource() {
+  return 'component Broken\n  view\n    text "one"\n    text "two"\n';
+}

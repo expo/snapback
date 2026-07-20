@@ -3,8 +3,8 @@ title: The Contract adapter
 id: clients.contract-adapter
 order: 1
 audience: agent-first
-capabilities: [clients.contract, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
+capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
 examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
@@ -90,6 +90,54 @@ node packages/snapback-contract/exact-conformance.mjs --run
 The Todo v2 provider-conformance acceptance points the Exact-owned suite at a
 live Snapback provider. Ordinary Snapback core work does not require a sibling
 Exact checkout; release/integration lanes use `--require` or `--run`.
+
+## Generate a provider-neutral Contract surface
+
+The ordinary Snapback path above still generates bindings directly from the
+Snapback artifact set. Partitime also carries the reference integration for a
+broader boundary: Exact consumes a provider-native declaration and emits the
+Contract manifest, callable binding module, metadata sidecar, named row/result
+types, conformance fixtures, and provider documentation. The same generator
+consumes independently produced Snapback and Convex declarations; it does not
+branch on the provider.
+
+```js source=demos/partiful-matrix/scripts/generate-contract-provider.mjs
+const declarations = {
+  convex: produceConvexProviderDeclaration(convexInput),
+  snapback: produceSnapbackProviderDeclaration(snapbackInput),
+};
+const artifacts = Object.fromEntries(
+  Object.entries(declarations).map(([provider, declaration]) => [
+    provider,
+    generateFromDeclaration(declaration, {
+      contractModuleSpecifier: './provider.generated.ts',
+    }),
+  ]),
+);
+```
+
+Run the reference generator and its cumulative gate with a clean Exact
+checkout:
+
+```sh
+bun demos/partiful-matrix/scripts/generate-contract-provider.mjs \
+  --exact-checkout /path/to/exact
+node demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs \
+  --exact-checkout /path/to/exact
+```
+
+The generated module exposes a typed configure/reset registry and callable
+query and mutation exports. Provider facts remain honest: the Convex adapter
+claims WebSocket subscriptions and an initial snapshot, but declines receipts,
+offline replay, forced states, and optimistic mutations it does not implement.
+The Exact-owned DataProvider suite treats those omissions as declared skips,
+not passes or hidden fallbacks.
+
+This integration surface is shipped as the **Partitime reference**, not yet the
+stable registry-published `@snapback/contract` package path. Use it to add or
+verify a provider producer; do not copy Partitime's generated files into
+another app or hand-maintain the generated `.contract-meta.ts` mirror. Stable
+external publication remains a later packaged-loop gate in LLP 0063.
 
 ## Boot: one surface, one idempotent ensure
 
@@ -260,6 +308,8 @@ function props for legacy capability glue until Exact promotes that spelling.
   optimistic overlays, receipts, and reconciliation.
 - **Do not write optimistic reducers for declarative mutations.** They are
   derived; hand-written ones drift.
+- **Do not hand-author provider binding sidecars.** Generate them from the
+  provider declaration; a handwritten mirror defeats the closed type loop.
 - **Do not skip `artifactIndex`/manifest validation by passing stale
   generates.** Regenerate; the stale-rejection codes exist to stop exactly
   this.

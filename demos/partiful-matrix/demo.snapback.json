@@ -42,7 +42,7 @@
     "vanilla-convex": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend convex", "toolchain": "bun, Vite, Chrome, gateway, Convex" },
     "vanilla-sqlite": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm vanilla --backend sqlite", "toolchain": "bun, Vite, Chrome, gateway" },
     "react-expo-android-online": { "requirement": "integration", "buildTargets": ["android"], "runner": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform android --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json", "toolchain": "Expo, React Native, Android SDK/emulator, Gradle, Snapback server" },
-    "react-expo-ios-online": { "requirement": "blocked", "buildTargets": ["ios"], "runner": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform ios --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json", "toolchain": "Expo, React Native, Xcode/iOS Simulator, Snapback server; clean receipt pending" }
+    "react-expo-ios-online": { "requirement": "integration", "buildTargets": ["ios"], "runner": "node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs --platform ios --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json", "toolchain": "Expo, React Native, Xcode/iOS Simulator, Snapback server" }
   },
   "acceptanceChecks": {
     "headless": [
@@ -82,13 +82,19 @@
       "generated-function initial data and optimistic authoritative settlement",
       "authority rotation, background/foreground, offline rows, and authoritative reconnect",
       "release carrier excludes Snapback server code and claims Online only"
+    ],
+    "reactExpoIosOnline": [
+      "release build and simulator launch",
+      "generated-function initial data and optimistic authoritative settlement",
+      "authority rotation, background/foreground, offline rows, and authoritative reconnect",
+      "release carrier excludes Snapback server code and claims Online only"
     ]
   },
   "capabilityGaps": [
     "the original build misread a secret-only OpenAPI-root 401 as a rejected publishable key, so the frozen Supabase web cells use a local Bun gateway and server-only Postgres credentials; the corrected probe and the browser-direct supabase-realtime follow-up cell landed 2026-07-20",
     "the frozen portable comparison providers poll every second; separate React follow-up cells exercise browser-direct Supabase Realtime and Convex WebSocket push, while Contract-generated direct bindings remain open",
     "the comparison builds still use Vite even though a separate direct-ESM compatibility receipt passes",
-    "React Expo Android Online passes its clean cumulative profile; iOS remains pending on a host-wide Xcode pipe-buffer failure",
+    "React Expo Android and iOS Online each pass their clean cumulative per-OS profiles",
     "Exact Native iOS and Android Parity profiles remain pending",
     "hosted deployment and production authentication are outside this local comparison"
   ],

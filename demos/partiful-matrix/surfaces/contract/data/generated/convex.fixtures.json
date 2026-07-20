@@ -1,0 +1,105 @@
+{
+  "mutations": {
+    "createEvent": {
+      "args": {
+        "accent": "accent-example",
+        "description": "description-example",
+        "emoji": "emoji-example",
+        "hostName": "hostName-example",
+        "location": "location-example",
+        "startsAt": 1,
+        "title": "title-example"
+      },
+      "writes": [
+        "events",
+        "rsvps"
+      ]
+    },
+    "postMessage": {
+      "args": {
+        "authorName": "authorName-example",
+        "eventId": "eventId-example",
+        "message": "message-example"
+      },
+      "writes": [
+        "posts"
+      ]
+    },
+    "rsvp": {
+      "args": {
+        "eventId": "eventId-example",
+        "guestName": "guestName-example",
+        "status": "status-example"
+      },
+      "writes": [
+        "rsvps"
+      ]
+    }
+  },
+  "provider": "convex",
+  "queries": {
+    "eventDetails": {
+      "args": {
+        "eventId": "eventId-example"
+      },
+      "exampleResult": [
+        {
+          "_id": "_id-example",
+          "accent": "accent-example",
+          "description": "description-example",
+          "emoji": "emoji-example",
+          "hostId": "hostId-example",
+          "hostName": "hostName-example",
+          "location": "location-example",
+          "startsAt": 1,
+          "title": "title-example"
+        }
+      ]
+    },
+    "eventWall": {
+      "args": {
+        "eventId": "eventId-example"
+      },
+      "exampleResult": [
+        {
+          "_id": "_id-example",
+          "authorId": "authorId-example",
+          "authorName": "authorName-example",
+          "createdAt": 1,
+          "eventId": "eventId-example",
+          "message": "message-example"
+        }
+      ]
+    },
+    "guestList": {
+      "args": {
+        "eventId": "eventId-example"
+      },
+      "exampleResult": [
+        {
+          "_id": "_id-example",
+          "eventId": "eventId-example",
+          "guestName": "guestName-example",
+          "status": "status-example",
+          "userId": "userId-example"
+        }
+      ]
+    },
+    "listEvents": {
+      "args": {},
+      "exampleResult": [
+        {
+          "_id": "_id-example",
+          "accent": "accent-example",
+          "description": "description-example",
+          "emoji": "emoji-example",
+          "hostId": "hostId-example",
+          "hostName": "hostName-example",
+          "location": "location-example",
+          "startsAt": 1,
+          "title": "title-example"
+        }
+      ]
+    }
+  }
+}

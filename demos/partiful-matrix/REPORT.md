@@ -1580,3 +1580,79 @@ start. Its next leap is not more snapshot syntax. It is stronger session,
 revision, host-chrome, and end-to-end causal identity—and a protocol that can
 reach non-Exact native apps so comparative testing does not need two different
 oracles.
+
+## 26. Step 3 generated-provider and diagnostic closure
+
+The 2026-07-20 Step 3 follow-up replaces Partitime's handwritten Contract
+provider mirrors with Exact's provider-native declaration pipeline. Independent
+Snapback and Convex producers feed one generator, which emits the manifest,
+callable binding module, metadata sidecar, named result types, conformance
+fixtures, and documentation. The generator proves equal view-facing
+projections and types while preserving provider-specific capability facts.
+Convex supplies the canonical generated module used by the unchanged Contract
+view source.
+
+The runtime proof is browser-direct. `ConvexContractProvider` uses
+`convex/browser` over the hosted WebSocket; no gateway or polling path exists
+in that cell. Its retained browser receipt passes 6/6 with out-of-band
+mutations, connected transport samples, rendered RSVP transitions, normal
+subscription/client teardown, and zero cleanup failures. The generated Convex
+adapter also passes the Exact-owned DataProvider conformance surface with 72
+inner checks passing, 26 capability-honest skips, and zero failures. The skips
+cover facts the adapter does not claim—receipts, retained/offline replay,
+force-state controls, ephemeral probes, and connection/atomicity probes—rather
+than weakening them into implicit support.
+
+The cumulative provider-boundary gate passes 18/18. It joins deterministic
+regeneration, drift refusal, compatibility handshake, closed manifest mapping,
+typed result flow, Snapback and Convex producer equality, the Exact conformance
+surface, retained Snapback race tests, client-only entry-point inspection, and
+both idiomatic React follow-up receipts. The diagnostics/parity receipt is also
+green: six structured failure cases preserve code, severity, locus, and
+deduplication identity across CLI, LSP, and Agent adapters; completion,
+navigation, rename, formatting, and atomic incremental replacement have direct
+witnesses; React and Contract observe each other's writes; and headless/native
+operation remains quiet and structured.
+
+The source-volume result needs an honest interpretation. Step-3-specific
+authored provider glue is 485 lines across the declaration/generation driver
+and Convex runtime adapter. It deterministically produces 17 files / 3,200
+lines, replacing fifteen small handwritten binding/sidecar/runtime-link files.
+The maintenance authority is much better—the output is reproducible and drift
+checked—but the reference driver is not yet a small registry-published SDK.
+Stable external publication remains a later packaged-loop gate.
+
+The larger cumulative run found two harness defects unrelated to product
+semantics: a fast Chrome DevTools reply could arrive before its waiter was
+registered, and signal-terminated Vite children were not recognized as already
+stopped. Correlating before send, closing each page, making cleanup
+signal-aware/idempotent, and adding one bounded Vite startup retry restored a
+43/43 full web run with zero cleanup errors.
+
+This is the named follow-up-matrix ranking event. The ordering does not change:
+React × Convex remains third, React × Supabase fourth, and Contract × Convex
+fifth. The direct hosted transports and generated Contract Convex leg reduce
+uncertainty and remove the frozen matrix's polling/provider-mirror caveat, but
+they do not supply production identity, retained/local execution, Contract UI
+completeness, or a passing bundle budget. Those remaining facts still control
+the middle-stack ordering.
+
+## 27. React Expo iOS Online closure
+
+The iOS carrier now has an independent seven-check release/Simulator receipt,
+matching Android's capability class without borrowing any Android evidence. It
+proves generated-function initial data, optimistic pending and authoritative
+settlement, authority rotation, background/foreground lifecycle, retention of
+prior rows while offline, authoritative reconnect, and release-artifact
+exclusion of Snapback server code. The clean receipt binds revision `7914210`,
+67 release files, 53,973,690 bytes, and artifact SHA-256
+`e77d7f78bd8873621fd38b68d1680f79794b9ddaf87176826fb20e0768a281f7`.
+
+The main integration findings were build and lifecycle ownership. CocoaPods
+rejected non-reproducible lock checksums until `Podfile.lock` was restored to
+the values produced by a fresh `pod install`. GUI keyboard simulation was not
+a trustworthy background oracle; launching the Settings application with
+`simctl` produced the real OS transition repeatably and kept the harness
+headless. This closes the React Expo iOS Online claim only. Exact Native iOS
+and Android still require their generated Rust, retained-provider, local
+execution, durable replay/rebase, authority-fencing, and per-OS carrier proofs.

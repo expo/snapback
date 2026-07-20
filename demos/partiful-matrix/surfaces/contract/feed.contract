@@ -1,5 +1,5 @@
-use listEvents from "./data/listEvents.query.ts"
-use createEvent from "./data/createEvent.mutation.ts"
+use listEvents from "./data/provider.generated.ts"
+use createEvent from "./data/provider.generated.ts"
 use fmtWhen from "./helpers.ts"
 use openEvent from "./helpers.ts"
 

@@ -8,9 +8,9 @@ authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-cl
 examples: [demos/partiful-matrix/native/react-expo]
 status: current
 targets: [local]
-maturity: partial
+maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed-commit: 7914210856
 ---
 
 # React Expo Online clients
@@ -25,12 +25,12 @@ React web. It is an **Online** surface: queries and mutations run against a
 reachable Snapback backend. It does not execute handlers locally and therefore
 does not claim local-first behavior or Parity.
 
-The current implementation has a clean seven-check Android emulator receipt.
-It binds the implementation revision, 107 carrier/build inputs, in-process
-release build, and APK digest, so `STEP2.REACT_EXPO_ANDROID_ONLINE` is passing.
-iOS has no corresponding passing receipt and remains pending. Treat this page
-as the shipped API plus the exact current evidence boundary, not as a
-production-support declaration.
+The current implementation has independent clean seven-check Android emulator
+and iOS Simulator receipts. Each binds its implementation revision, hashed
+carrier/build inputs, release build and artifact digest, so both
+`STEP2.REACT_EXPO_ANDROID_ONLINE` and `STEP2.REACT_EXPO_IOS_ONLINE` are passing.
+Treat this page as the shipped API plus the exact current evidence boundary,
+not as a physical-device or production-support declaration.
 
 ## Use the same generated API and hook
 
@@ -53,8 +53,8 @@ Run the profile gate with an explicit OS and receipt:
 
 ```sh
 node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs \
-  --platform android \
-  --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json
+  --platform ios \
+  --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json
 ```
 
 The OS-specific receipt must prove all seven LLP 0064 facts:
@@ -67,12 +67,13 @@ The OS-specific receipt must prove all seven LLP 0064 facts:
 6. retained prior rows while offline, then authoritative reconnect; and
 7. release-artifact exclusion of Snapback server code.
 
-Android acceptance uses `adb reverse` to bridge the emulator to a loopback
-development server and witness collector. That is test infrastructure, not a
-production endpoint design and not permission to expose development auth on a
-non-loopback listener. An iOS result must run its own build, simulator/device,
-lifecycle, reconnect, and artifact-exclusion checks; Android evidence cannot
-substitute for it.
+Android acceptance uses `adb reverse`; iOS acceptance launches the release app
+in the selected simulator and backgrounds it by launching Settings through
+`simctl`. Both bridge to a loopback development server and witness collector.
+That is test infrastructure, not a production endpoint design and not
+permission to expose development auth on a non-loopback listener. Each OS must
+run its own build, lifecycle, reconnect, and artifact-exclusion checks; neither
+receipt can substitute for the other.
 
 ## Handle native reconnect honestly
 
@@ -91,8 +92,8 @@ Exact Native Parity.
 
 ## Anti-patterns
 
-- **Do not call the Android run an iOS pass.** Native evidence is per immutable
-  surface/OS profile.
+- **Do not transfer evidence between operating systems.** Native evidence is
+  per immutable surface/OS profile.
 - **Do not call Online local-first or Parity.** No local handler execution is
   claimed.
 - **Do not bundle the Snapback server into the carrier.** Native packages

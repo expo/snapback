@@ -1,0 +1,96 @@
+{
+  "schema": "partitime.contract-provider-generation.v1",
+  "exactRevision": "436b3be658969e74d18d355710224683d388a2f3",
+  "exactTreeDirty": false,
+  "generator": "packages/exact-contract/src/declaration/generate.ts",
+  "generatorSha256": "76e3dc4cb16eae11a81ca2622d939c64dd751e6c59cf859192451e4ebeecb39e",
+  "canonicalBindingProducer": "convex",
+  "independentProducers": [
+    "convex",
+    "snapback"
+  ],
+  "viewProjectionEqual": true,
+  "generatedTypesEqual": true,
+  "files": [
+    {
+      "path": "provider.generated.ts",
+      "bytes": 6964,
+      "sha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1"
+    },
+    {
+      "path": "provider.generated.contract-meta.ts",
+      "bytes": 2083,
+      "sha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f"
+    },
+    {
+      "path": "generated/snapback.declaration.json",
+      "bytes": 10847,
+      "sha256": "585cd65bc5f814eaee1b5160626cb4180ce914f55fc93ecf882cf810bd09fdfd"
+    },
+    {
+      "path": "generated/snapback.manifest.json",
+      "bytes": 8170,
+      "sha256": "e5d792423ee9968a47e00d866ee3e1d2a8268d0ac18958e20cdd74431b61761a"
+    },
+    {
+      "path": "generated/snapback.fixtures.json",
+      "bytes": 2463,
+      "sha256": "d3b33fd8edc073a0629a85a72f06dd90f3eca74f68e662f60c732df0291453b6"
+    },
+    {
+      "path": "generated/snapback.types.ts",
+      "bytes": 2494,
+      "sha256": "1a3efff74561ea3cf65fcf6e5bc035a02d720e4e1116f9e386cc0b53b82660be"
+    },
+    {
+      "path": "generated/snapback.bindings.ts",
+      "bytes": 6995,
+      "sha256": "e5738eaa070bdd82d99262f535f4c2ea2ddeed94ddb051eca18f47505a255215"
+    },
+    {
+      "path": "generated/snapback.bindings.contract-meta.ts",
+      "bytes": 2085,
+      "sha256": "2eea943bc562609e63bd44b3da841919e5b0aa5b8829d00fb9294806b7e18a9e"
+    },
+    {
+      "path": "generated/snapback.md",
+      "bytes": 2309,
+      "sha256": "f231c1132a92aafe307dca137e5d5015c813376959cb819f6459db70ad4e7296"
+    },
+    {
+      "path": "generated/convex.declaration.json",
+      "bytes": 10819,
+      "sha256": "acba6eee0f64f11e29cfc88ed6e21e83f1f3aef3578c8516c396adedf9069a63"
+    },
+    {
+      "path": "generated/convex.manifest.json",
+      "bytes": 8112,
+      "sha256": "9f0ccc2c33a8e528478f3e717334ccaf30f4d5302c45f1fdfb036620221de7af"
+    },
+    {
+      "path": "generated/convex.fixtures.json",
+      "bytes": 2461,
+      "sha256": "130507a1bc8252f49035b0625197cbd99ce04070ed95b43821055e9bc8190bff"
+    },
+    {
+      "path": "generated/convex.types.ts",
+      "bytes": 2464,
+      "sha256": "7e7117e13bc7ed55fc58268108cba9b31d7bbf4283794937f061b97b9d9d13c9"
+    },
+    {
+      "path": "generated/convex.bindings.ts",
+      "bytes": 6964,
+      "sha256": "449be380c5a61baf9f37702cb97e27f4e8dda7c9bf0828142cec1eb2c61deee1"
+    },
+    {
+      "path": "generated/convex.bindings.contract-meta.ts",
+      "bytes": 2083,
+      "sha256": "efe2e5994f366d3d0494126fedb2d55ca0709bb24d81f7d8a04a40dcc1458a2f"
+    },
+    {
+      "path": "generated/convex.md",
+      "bytes": 2283,
+      "sha256": "5519edf1ac5f91e8155f7ff439b723a9ef29830af50a4555d08c8ef2b902c4fb"
+    }
+  ]
+}

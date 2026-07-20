@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-20T18:02:09.224Z",
+  "measuredAt": "2026-07-20T21:56:10.142Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M5 Max",
@@ -16,7 +16,7 @@
   "inputs": {
     "claimManifestSemanticSha256": "41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7",
     "protocolSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
-    "webReceiptSha256": "a7fa12b03fdb75819304b463ba53b80a205d2d18bdac7e7e3577df360c2f001d",
+    "webReceiptSha256": "dcaab3d12e15fc6f46690fde11b81d7bea51fc9ee402c66489eae0fd462fe5d7",
     "thresholdFreezeSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "revision": "508956134f3517169735078272a846e5ac86ba5c",
@@ -29,7 +29,7 @@
       },
       "contract": {
         "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
-        "sha256": "dc6119a5ec00cb0412c467f28f0bec77d557a412a71d456f456277f802760bd5"
+        "sha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a"
       },
       "vanilla": {
         "path": "bun.lock",
@@ -67,19 +67,19 @@
           "path": "surfaces/contract/feed.contract",
           "lines": 94,
           "bytes": 5621,
-          "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+          "sha256": "d8af4d5c00c869f5565616f0e99114904194cf3bf967a385f050092483eda9a5"
         },
         {
           "path": "surfaces/contract/event.contract",
           "lines": 114,
-          "bytes": 6111,
-          "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
+          "bytes": 6120,
+          "sha256": "9c284e4c7d001af0db79f9a2db04b5534a5c1d058dbcdf6b4d2c0e28058e93b3"
         },
         {
           "path": "surfaces/contract/main.ts",
-          "lines": 80,
-          "bytes": 4336,
-          "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+          "lines": 109,
+          "bytes": 5380,
+          "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
         },
         {
           "path": "surfaces/contract/provider.ts",
@@ -100,7 +100,7 @@
           "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
         }
       ],
-      "totalLines": 400
+      "totalLines": 429
     },
     "vanilla": {
       "files": [
@@ -177,9 +177,9 @@
       "files": [
         {
           "path": "surfaces/contract/main.ts",
-          "lines": 80,
-          "bytes": 4336,
-          "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+          "lines": 109,
+          "bytes": 5380,
+          "sha256": "52824ae11e6e9ef63e411bb8cbf0f638ed19a3d19cf0570c832ace285dc97905"
         },
         {
           "path": "surfaces/contract/provider.ts",
@@ -200,7 +200,7 @@
           "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
         }
       ],
-      "totalLines": 192
+      "totalLines": 221
     },
     "vanilla": {
       "files": [
@@ -272,50 +272,50 @@
     "contract:snapback": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DaAFVqdJ.js",
-          "minifiedBytes": 728458,
-          "deterministicGzipBytes": 194052,
-          "sha256": "eafcb94afe7fe9de20099dc88c5c50de3c3094c6c39a2663c1eed64bb1b7dba3"
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-BxaRjess.js",
+          "minifiedBytes": 730144,
+          "deterministicGzipBytes": 194245,
+          "sha256": "547eead5ae90b87a9d36ffa1362178d63e5aa3e02ec2e971c478df626cc930bd"
         }
       ],
-      "minifiedBytes": 728458,
-      "deterministicGzipBytes": 194052
+      "minifiedBytes": 730144,
+      "deterministicGzipBytes": 194245
     },
     "contract:supabase": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-CAWvqy9h.js",
-          "minifiedBytes": 388369,
-          "deterministicGzipBytes": 105386,
-          "sha256": "39f197c30494dbfe138b3085c107d789231a2e9bf92f01246d0a1bcda5f15caf"
+          "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-Ds9IWwBN.js",
+          "minifiedBytes": 391286,
+          "deterministicGzipBytes": 106024,
+          "sha256": "38d3cb5a14a5bed2d9028b22bad591883af2877d7a8ed969319c4938d2274505"
         }
       ],
-      "minifiedBytes": 388369,
-      "deterministicGzipBytes": 105386
+      "minifiedBytes": 391286,
+      "deterministicGzipBytes": 106024
     },
     "contract:convex": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-BdtTA3qD.js",
-          "minifiedBytes": 388359,
-          "deterministicGzipBytes": 105386,
-          "sha256": "9674de2e81a4f3b4d31c79e9fbd746027e128e52c1dd44ace564462f9de8710d"
+          "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-B3Or9w13.js",
+          "minifiedBytes": 391276,
+          "deterministicGzipBytes": 106022,
+          "sha256": "5938a40efd1a6a7a8f30c1c56c32cb639949a0a42e7a328a80994cbd6fed479e"
         }
       ],
-      "minifiedBytes": 388359,
-      "deterministicGzipBytes": 105386
+      "minifiedBytes": 391276,
+      "deterministicGzipBytes": 106022
     },
     "contract:sqlite": {
       "assets": [
         {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-C-pHYjjW.js",
-          "minifiedBytes": 388359,
-          "deterministicGzipBytes": 105387,
-          "sha256": "d3a0bbebe3cdd8ac32991271803d2a381c058ee64d3bb16eb3d1d114fae1bfcf"
+          "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-B6hq-VvT.js",
+          "minifiedBytes": 391276,
+          "deterministicGzipBytes": 106024,
+          "sha256": "023685eada90513796af4112a5fdf6f8eaf8161a8914f97ebc0e45aa12d6e493"
         }
       ],
-      "minifiedBytes": 388359,
-      "deterministicGzipBytes": 105387
+      "minifiedBytes": 391276,
+      "deterministicGzipBytes": 106024
     },
     "vanilla:snapback": {
       "assets": [
@@ -372,49 +372,49 @@
       "vanillaGatewayFloor": 20232,
       "snapbackProviderClientLowerBound": 193605,
       "reactFrameworkAndApplicationCombined": 191263,
-      "contractRuntimeAndApplicationCombined": 368130,
-      "contractSnapbackInteractionUnattributed": 146491
+      "contractRuntimeAndApplicationCombined": 371047,
+      "contractSnapbackInteractionUnattributed": 145260
     }
   },
   "pushLatency": {
     "react": {
       "samples": [
-        6,
-        4,
-        7,
-        5,
-        6,
-        4,
-        5
+        11,
+        10,
+        11,
+        21,
+        14,
+        21,
+        17
       ],
-      "median": 5,
-      "p95": 7
+      "median": 14,
+      "p95": 21
     },
     "contract": {
       "samples": [
-        6,
-        5,
-        6,
-        5,
-        5,
-        6,
-        5
-      ],
-      "median": 5,
-      "p95": 6
-    },
-    "vanilla": {
-      "samples": [
         7,
-        8,
         7,
+        6,
+        6,
         8,
-        5,
         6,
         7
       ],
       "median": 7,
       "p95": 8
+    },
+    "vanilla": {
+      "samples": [
+        8,
+        9,
+        8,
+        6,
+        7,
+        7,
+        8
+      ],
+      "median": 8,
+      "p95": 9
     }
   },
   "currentFormulaThresholds": {
@@ -433,7 +433,7 @@
     "contractSourceLines": 391,
     "snapbackBackendLines": 109,
     "requiredWebCheckCount": 43,
-    "firstPushFreshnessLatencyMsP95": 7
+    "firstPushFreshnessLatencyMsP95": 23
   },
   "thresholds": {
     "emittedMinifiedJsBytes": {

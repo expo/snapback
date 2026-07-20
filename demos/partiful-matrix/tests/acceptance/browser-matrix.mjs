@@ -111,6 +111,24 @@ async function startGateway(snapbackUrl) {
 }
 
 async function startVite({ arm, backend }, snapbackUrl, gatewayUrl, { disablePollFallback = false } = {}) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    try {
+      return await startViteAttempt(
+        { arm, backend },
+        snapbackUrl,
+        gatewayUrl,
+        { disablePollFallback },
+      );
+    } catch (error) {
+      lastError = error;
+      if (attempt < 2) await sleep(250);
+    }
+  }
+  throw lastError;
+}
+
+async function startViteAttempt({ arm, backend }, snapbackUrl, gatewayUrl, { disablePollFallback }) {
   const port = await freePort();
   const surface = join(demoRoot, 'surfaces', arm);
   const vite = join(surface, 'node_modules', '.bin', 'vite');
@@ -135,7 +153,10 @@ async function startVite({ arm, backend }, snapbackUrl, gatewayUrl, { disablePol
   child.stdout.on('data', (chunk) => { log += chunk; }); child.stderr.on('data', (chunk) => { log += chunk; });
   const url = `http://127.0.0.1:${port}`;
   try { await waitUrl(url, child, `${arm}/${backend} Vite`); }
-  catch (error) { throw new Error(`${error.message}\n${log.slice(-4000)}`); }
+  catch (error) {
+    await stopChild(child, `${arm}/${backend} Vite startup`);
+    throw new Error(`${error.message}\n${log.slice(-4000)}`);
+  }
   return { url, stop: () => stopChild(child, `${arm}/${backend} Vite`) };
 }
 
@@ -217,7 +238,10 @@ await runAcceptance(suite, async () => {
           return { eventScope, feedScope, startupMilestones };
         });
       }
-    } finally { await vite.stop(); }
+    } finally {
+      try { await page.close(); }
+      finally { await vite.stop(); }
+    }
 
     if (cell.backend === 'snapback') {
       await suite.check(`${cell.arm} × snapback proves unsolicited push with polling fallback disabled`, async () => {
@@ -280,7 +304,8 @@ await runAcceptance(suite, async () => {
             established,
           };
         } finally {
-          await witness.stop();
+          try { await witnessPage.close(); }
+          finally { await witness.stop(); }
         }
       });
     }
@@ -314,7 +339,7 @@ async function waitForMatrixBoot(page) {
 }
 
 async function stopChild(child, label) {
-  if (child.exitCode !== null) return;
+  if (child.exitCode !== null || child.signalCode !== null) return;
   const closed = new Promise((resolveClose) => child.once('close', resolveClose));
   terminateGroup(child, 'SIGTERM');
   const outcome = await Promise.race([
@@ -429,13 +454,29 @@ async function connectCdp(url) {
   const settle = (id) => { const value = pending.get(id); if (value) clearTimeout(value.timer); pending.delete(id); return value; };
   socket.addEventListener('message', async (event) => { const msg = JSON.parse(typeof event.data === 'string' ? event.data : await event.data.text()); if (msg.id && pending.has(msg.id)) { const request = settle(msg.id); msg.error ? request.reject(new Error(msg.error.message)) : request.resolve(msg.result || {}); } });
   await new Promise((resolveOpen, reject) => { socket.addEventListener('open', resolveOpen, { once: true }); socket.addEventListener('error', () => reject(new Error('CDP failed')), { once: true }); });
-  const send = (method, params = {}, sessionId = null) => { const id = nextId++; socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params })); return new Promise((resolveSend, reject) => { const timer = setTimeout(() => { settle(id); reject(new Error(`CDP timeout: ${method}`)); }, 30_000); pending.set(id, { resolve: resolveSend, reject, timer }); }); };
+  // @ref LLP 0063#sequence — a cumulative gate must not lose a fast CDP reply;
+  // register the correlation slot before the browser can answer.
+  const send = (method, params = {}, sessionId = null) => new Promise((resolveSend, reject) => {
+    const id = nextId++;
+    const timer = setTimeout(() => {
+      settle(id);
+      reject(new Error(`CDP timeout: ${method}`));
+    }, 30_000);
+    pending.set(id, { resolve: resolveSend, reject, timer });
+    try {
+      socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params }));
+    } catch (error) {
+      settle(id);
+      reject(error);
+    }
+  });
   return { close: () => socket.close(), newPage: async () => {
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' }); const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true }); await send('Page.enable', {}, sessionId); await send('Runtime.enable', {}, sessionId);
     const evalRaw = async (expression) => { const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId); if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text); return result.result?.value; };
     const selector = (id) => `[data-testid="${id}"]`;
     return {
       navigate: (pageUrl) => send('Page.navigate', { url: pageUrl }, sessionId),
+      close: () => send('Target.closeTarget', { targetId }),
       waitForNavigation: () => sleep(300),
       eval: evalRaw,
       click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
