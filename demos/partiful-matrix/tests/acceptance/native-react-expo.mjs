@@ -119,7 +119,8 @@ await runAcceptance(suite, async () => {
 
   const launch = await waitEvent('device-launch');
   activeLaunchId = launch.launchId;
-  events.splice(0, events.length, launch);
+  const activeLaunchEvents = events.filter((event) => event.launchId === activeLaunchId);
+  events.splice(0, events.length, ...activeLaunchEvents);
   const fromLaunch = (event) => event.launchId === activeLaunchId;
   const providerReady = await waitEvent('provider-ready', fromLaunch);
   const initialSnapshot = await waitEvent(
