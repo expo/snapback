@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -62,15 +63,15 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  createEvent: FunctionReference<'createEvent', 'Mutation', { title: string; emoji: string; description: string; location: string; startsAt: number; hostName: string }>;
-  eventDetails: FunctionReference<'eventDetails', 'LiveQuery', { eventId: Id<'events'> }>;
-  eventWall: FunctionReference<'eventWall', 'LiveQuery', { eventId: Id<'events'> }>;
-  getEvent: FunctionReference<'getEvent', 'Query', { eventId: Id<'events'> }>;
-  guestList: FunctionReference<'guestList', 'LiveQuery', { eventId: Id<'events'> }>;
-  invite: FunctionReference<'invite', 'Mutation', { eventId: Id<'events'>; userId: string; guestName: string }>;
-  myFeed: FunctionReference<'myFeed', 'LiveQuery', Record<string, never>>;
-  postToWall: FunctionReference<'postToWall', 'Mutation', { eventId: Id<'events'>; message: string; authorName: string }>;
-  rsvp: FunctionReference<'rsvp', 'Mutation', { eventId: Id<'events'>; status: string; note?: string }>;
+  createEvent: FunctionReference<'createEvent', 'Mutation', { title: string; emoji: string; description: string; location: string; startsAt: number; hostName: string }, unknown>;
+  eventDetails: FunctionReference<'eventDetails', 'LiveQuery', { eventId: Id<'events'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "description": string; "emoji": string; "hostName": string; "location": string; "startsAt": number; "title": string }>>;
+  eventWall: FunctionReference<'eventWall', 'LiveQuery', { eventId: Id<'events'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "authorName": string; "eventId": string; "message": string }>>;
+  getEvent: FunctionReference<'getEvent', 'Query', { eventId: Id<'events'> }, ReadonlyArray<unknown>>;
+  guestList: FunctionReference<'guestList', 'LiveQuery', { eventId: Id<'events'> }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "eventEmoji": string; "eventId": string; "eventStartsAt": number; "eventTitle": string; "guestName": string; "hostName": string; "note"?: string; "status": string; "userId": string }>>;
+  invite: FunctionReference<'invite', 'Mutation', { eventId: Id<'events'>; userId: string; guestName: string }, unknown>;
+  myFeed: FunctionReference<'myFeed', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "eventEmoji": string; "eventId": string; "eventStartsAt": number; "eventTitle": string; "guestName": string; "hostName": string; "note"?: string; "status": string; "userId": string }>>;
+  postToWall: FunctionReference<'postToWall', 'Mutation', { eventId: Id<'events'>; message: string; authorName: string }, unknown>;
+  rsvp: FunctionReference<'rsvp', 'Mutation', { eventId: Id<'events'>; status: string; note?: string }, unknown>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;

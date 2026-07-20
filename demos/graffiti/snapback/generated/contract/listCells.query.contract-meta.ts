@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./listCells.query.ts', {
   listCells: query({ reads: ["cells"], readMode: 'sync', cacheKey: 'cells', result: 'ListCellsRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  ListCellsRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","boardId":"string","x":"number","y":"number","color":"string","authorId":"string"} }),
+  ListCellsRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","authorId":"string","boardId":"string","color":"string","x":"number","y":"number"} }),
 });

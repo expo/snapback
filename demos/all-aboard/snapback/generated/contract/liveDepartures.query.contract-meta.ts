@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./liveDepartures.query.ts', {
   liveDepartures: query({ reads: ["liveDepartures"], readMode: 'sync', cacheKey: 'liveDepartures', result: 'LiveDeparturesRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  LiveDeparturesRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","departureId":"string","stationId":"string","stopName":"string","direction":"string","service":"string","patternId":"string","trainNumber":"string","headsign":"string","scheduledDepartureMs":"number","predictedDepartureMs":"number","delaySeconds":"number","status":"string","observedAt":"number","source":"string"} }),
+  LiveDeparturesRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","delaySeconds":"number","departureId":"string","direction":"string","headsign":"string","observedAt":"number","patternId":"string","predictedDepartureMs":"number","scheduledDepartureMs":"number","service":"string","source":"string","stationId":"string","status":"string","stopName":"string","trainNumber":"string"} }),
 });

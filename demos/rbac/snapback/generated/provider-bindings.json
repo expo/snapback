@@ -1,0 +1,142 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "acceptInvite",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"userId\": string }",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "inviteApp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "joinApp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "leaveApp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"message\": string }",
+        "effects": {
+          "invalidates": [
+            "announcements"
+          ],
+          "writes": [
+            "announcements"
+          ]
+        },
+        "name": "postAnnouncement",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "effects": {
+          "invalidates": [
+            "appMembers"
+          ],
+          "writes": [
+            "appMembers"
+          ]
+        },
+        "name": "rawJoin",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "announcements",
+            "appMembers"
+          ]
+        },
+        "name": "listAnnouncements",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"message\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:486adee4df11cacdf8eeb0a43904029de1578777a5d8760e66c78af9f62bdcd6",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

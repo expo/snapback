@@ -5,6 +5,9 @@
     "schema.manifest.json",
     "functions.manifest.json",
     "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
@@ -29,7 +32,7 @@
     "contract/setCompleted.mutation.ts",
     "contract/setCompleted.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:c4e52bf83220dbb1",
+  "bundleHash": "sha256:4914a3d32c5f2b72",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -66,8 +69,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "080486df5a973a666cfd0260495ccfc99dfce53505ffde9d2e297a354cdfe08e",
-  "schemaHash": "sha256:75be09c92f48bf45",
+  "inputsHash": "d7a59f47a3d003d79e2a3cf6142e28a7cc9d0d92f770cafa1882dc6ab2339f0f",
+  "schemaHash": "sha256:bae4664c6b61e69f",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

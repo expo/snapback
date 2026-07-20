@@ -1,0 +1,163 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"listId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "todoPresence",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"priority\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "createTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "deleteTodo",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "editTitle",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"completed\": boolean; \"id\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "setCompleted",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"id\": string; \"priority\": string }",
+        "effects": {
+          "invalidates": [
+            "todos"
+          ],
+          "writes": [
+            "todos"
+          ]
+        },
+        "name": "setPriority",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "listTodos",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"priority\": string; \"title\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "todos"
+          ]
+        },
+        "name": "listTodosOnce",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"completed\": boolean; \"priority\": string; \"title\": string; \"userId\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "3a0b2ffaa9db2e00d5f622231e4b6e1896c0b18900e7a473998003d43f10f79b",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

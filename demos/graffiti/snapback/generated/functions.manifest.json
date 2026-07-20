@@ -1,7 +1,7 @@
 {
   "appId": "graffiti",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:96797a1b319a6784",
+  "bundleHash": "sha256:97e7d82ecb1cb35a",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -120,7 +120,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "1384b3a4afdca7c5e23aaa897147984faf493f92bebf2a1af8b4f5cabaceb286",
+  "inputsHash": "e8030799490bd5cd979e138e814253cce4b9bd97ea241ae1ee827d1106060592",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

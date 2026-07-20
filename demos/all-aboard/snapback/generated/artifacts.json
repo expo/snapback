@@ -5,6 +5,9 @@
     "schema.manifest.json",
     "functions.manifest.json",
     "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
@@ -43,7 +46,7 @@
     "contract/tripsQuery.query.ts",
     "contract/tripsQuery.query.contract-meta.ts"
   ],
-  "bundleHash": "sha256:f7be5c76ff57629c",
+  "bundleHash": "sha256:3ad74ffbcd535c36",
   "config": [
     {
       "name": "caltrainFeed",
@@ -127,8 +130,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "56bd238a3869bdc83839cf19db9d88be716d605f842f95ac46b05b3b51f92648",
-  "schemaHash": "sha256:9e2f86a1f2da3df5",
+  "inputsHash": "c186706ca275c5879ca4c50ea99eb0d181810272aeb1366bcb76d4ff2fa6da6b",
+  "schemaHash": "sha256:04d75f099a6b4180",
   "schemaVersion": "snapback.v0",
   "tables": [
     "stations",

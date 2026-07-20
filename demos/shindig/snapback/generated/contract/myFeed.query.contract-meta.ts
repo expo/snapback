@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./myFeed.query.ts', {
   myFeed: query({ reads: ["invites"], readMode: 'sync', cacheKey: 'invites', result: 'MyFeedRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  MyFeedRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","eventId":"string","userId":"string","guestName":"string","status":"string","note":{"type":"string","optional":true},"eventTitle":"string","eventEmoji":"string","eventStartsAt":"number","hostName":"string"} }),
+  MyFeedRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","eventEmoji":"string","eventId":"string","eventStartsAt":"number","eventTitle":"string","guestName":"string","hostName":"string","note":{"type":"string","optional":true},"status":"string","userId":"string"} }),
 });

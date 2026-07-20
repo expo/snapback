@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -52,13 +53,13 @@ export interface GeneratedEphemeral {
   todoPresence: EphemeralCollectionReference<'todoPresence', { listId: string }, { name: string; editing?: boolean }>;
 }
 export interface GeneratedApi {
-  createTodo: FunctionReference<'createTodo', 'Mutation', { title: string; priority: string }>;
-  deleteTodo: FunctionReference<'deleteTodo', 'Mutation', { id: string }>;
-  editTitle: FunctionReference<'editTitle', 'Mutation', { id: string; title: string }>;
-  listTodos: FunctionReference<'listTodos', 'LiveQuery', Record<string, never>>;
-  listTodosOnce: FunctionReference<'listTodosOnce', 'Query', Record<string, never>>;
-  setCompleted: FunctionReference<'setCompleted', 'Mutation', { id: string; completed: boolean }>;
-  setPriority: FunctionReference<'setPriority', 'Mutation', { id: string; priority: string }>;
+  createTodo: FunctionReference<'createTodo', 'Mutation', { title: string; priority: string }, unknown>;
+  deleteTodo: FunctionReference<'deleteTodo', 'Mutation', { id: string }, unknown>;
+  editTitle: FunctionReference<'editTitle', 'Mutation', { id: string; title: string }, unknown>;
+  listTodos: FunctionReference<'listTodos', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>>;
+  listTodosOnce: FunctionReference<'listTodosOnce', 'Query', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "completed": boolean; "priority": string; "title": string; "userId": string }>>;
+  setCompleted: FunctionReference<'setCompleted', 'Mutation', { id: string; completed: boolean }, unknown>;
+  setPriority: FunctionReference<'setPriority', 'Mutation', { id: string; priority: string }, unknown>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;

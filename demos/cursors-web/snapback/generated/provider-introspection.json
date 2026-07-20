@@ -1,0 +1,92 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [
+      {
+        "arguments": {
+          "fields": {
+            "roomId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "roomId"
+          ]
+        },
+        "channel": {
+          "coalesce": true,
+          "defaultTtlMs": 5000,
+          "deliveryMode": "latest",
+          "keyMode": "Connection",
+          "maxDeltaRateHz": 30,
+          "maxTtlMs": 30000,
+          "publish": {
+            "burst": 40,
+            "maxValueBytes": 1024,
+            "sustainedHz": 20
+          },
+          "routingFields": [
+            "roomId"
+          ],
+          "scopeFields": [
+            "roomId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "execution": {
+          "localRunnable": true,
+          "serverRunnable": false
+        },
+        "name": "webCursors",
+        "result": {
+          "kind": "list",
+          "row": {
+            "shape": "unknown"
+          }
+        }
+      }
+    ],
+    "mutations": [],
+    "queries": []
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:d8d5f5edcbc840da",
+    "inputsHash": "43235cafefd3dcd148e6d1e3e0f27b8de77d58a003dc0cca6530e3de0fe44dcd",
+    "schemaHash": "sha256:49161a9aa26d4057"
+  }
+}

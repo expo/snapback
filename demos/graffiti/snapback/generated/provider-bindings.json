@@ -1,0 +1,78 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"boardId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "boardCursors",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ],
+    "mutations": [
+      {
+        "argumentsType": "{ \"boardId\": string; \"color\": string; \"x\": number; \"y\": number }",
+        "effects": {
+          "invalidates": [
+            "cells"
+          ],
+          "writes": [
+            "cells"
+          ]
+        },
+        "name": "paintCell",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"boardId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "cells"
+          ]
+        },
+        "name": "listCells",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"boardId\": string; \"color\": string; \"x\": number; \"y\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "e8030799490bd5cd979e138e814253cce4b9bd97ea241ae1ee827d1106060592",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

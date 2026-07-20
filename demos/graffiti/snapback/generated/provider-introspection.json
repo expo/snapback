@@ -1,0 +1,254 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": true,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": true,
+      "optimisticMutations": true,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [
+      {
+        "arguments": {
+          "fields": {
+            "boardId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "boardId"
+          ]
+        },
+        "channel": {
+          "coalesce": true,
+          "defaultTtlMs": 5000,
+          "deliveryMode": "latest",
+          "keyMode": "Connection",
+          "maxDeltaRateHz": 30,
+          "maxTtlMs": 30000,
+          "publish": {
+            "burst": 12,
+            "maxValueBytes": 1024,
+            "sustainedHz": 20
+          },
+          "routingFields": [
+            "boardId"
+          ],
+          "scopeFields": [
+            "boardId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "execution": {
+          "localRunnable": true,
+          "serverRunnable": false
+        },
+        "name": "boardCursors",
+        "result": {
+          "kind": "list",
+          "row": {
+            "shape": "unknown"
+          }
+        }
+      }
+    ],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "boardId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "color": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "x": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "y": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "boardId",
+            "x",
+            "y",
+            "color"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "cells"
+          ],
+          "writes": [
+            "cells"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Binding": "cellId"
+              },
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": "cellId",
+                    "table": "cells",
+                    "values": {
+                      "authorId": "AuthUserId",
+                      "boardId": {
+                        "Arg": "boardId"
+                      },
+                      "color": {
+                        "Arg": "color"
+                      },
+                      "x": {
+                        "Arg": "x"
+                      },
+                      "y": {
+                        "Arg": "y"
+                      }
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "paintCell",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "boardId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "boardId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "cells"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listCells",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "boardId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "color": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "x": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "y": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:97e7d82ecb1cb35a",
+    "inputsHash": "e8030799490bd5cd979e138e814253cce4b9bd97ea241ae1ee827d1106060592",
+    "schemaHash": "sha256:c4ea8475509e67b6"
+  }
+}

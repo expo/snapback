@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./stopTimesByStation.query.ts', {
   stopTimesByStation: query({ reads: ["stopTimes"], readMode: 'async', cacheKey: 'stopTimes', result: 'StopTimesByStationRow[]', mode: "snapshot", livePush: false, initialSnapshot: false, ephemeral: false }),
-  StopTimesByStationRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","patternId":"string","stationId":"string","sequence":"number","offsetMinutes":"number"} }),
+  StopTimesByStationRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","offsetMinutes":"number","patternId":"string","sequence":"number","stationId":"string"} }),
 });

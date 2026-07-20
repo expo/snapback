@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -47,8 +48,8 @@ export interface GeneratedEphemeral {
   boardCursors: EphemeralCollectionReference<'boardCursors', { boardId: string }, { x: number; y: number; color: string; name?: string }>;
 }
 export interface GeneratedApi {
-  listCells: FunctionReference<'listCells', 'LiveQuery', { boardId: string }>;
-  paintCell: FunctionReference<'paintCell', 'Mutation', { boardId: string; x: number; y: number; color: string }>;
+  listCells: FunctionReference<'listCells', 'LiveQuery', { boardId: string }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "boardId": string; "color": string; "x": number; "y": number }>>;
+  paintCell: FunctionReference<'paintCell', 'Mutation', { boardId: string; x: number; y: number; color: string }, unknown>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;

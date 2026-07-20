@@ -1,12 +1,12 @@
 {
   "appId": "cursors-web",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:8b1f0f3b8c3e24f2",
+  "bundleHash": "sha256:d8d5f5edcbc840da",
   "config": [],
   "cronJobs": [],
   "functions": [],
   "generatedAt": 0,
-  "inputsHash": "0db193481c39190a93ff950ba81ed69683a73619ad803017f1f77b3398d6480c",
+  "inputsHash": "43235cafefd3dcd148e6d1e3e0f27b8de77d58a003dc0cca6530e3de0fe44dcd",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

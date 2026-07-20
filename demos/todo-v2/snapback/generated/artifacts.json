@@ -5,6 +5,9 @@
     "schema.manifest.json",
     "functions.manifest.json",
     "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
@@ -36,7 +39,7 @@
     "contract/setPriority.mutation.ts",
     "contract/setPriority.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:8d86ac0265782287",
+  "bundleHash": "sha256:079506d11d508ce6",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [
@@ -80,8 +83,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "42361c98dc62c0de3710ae28003c2d6139ec27ff95e134f22ee047c732805881",
-  "schemaHash": "sha256:83748f41f4d6d7ea",
+  "inputsHash": "48bb630dd4e2d37a1632e7e9657876275b069cf6e36d6f6fae329ba179119999",
+  "schemaHash": "sha256:8ac28b71ce6df6d1",
   "schemaVersion": "snapback.v0",
   "tables": [
     "todos"

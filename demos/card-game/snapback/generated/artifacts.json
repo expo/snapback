@@ -5,6 +5,9 @@
     "schema.manifest.json",
     "functions.manifest.json",
     "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
     "contract-data.manifest.json",
     "api.mjs",
     "api.d.ts",
@@ -20,7 +23,7 @@
     "contract/signalReady.mutation.ts",
     "contract/signalReady.mutation.contract-meta.ts"
   ],
-  "bundleHash": "snapback.v1:sessions:function:sha256:90bb777dba79d4ba3de4eb58a711877471841576e454eafe7fcf63ae04015e0d",
+  "bundleHash": "snapback.v1:sessions:function:sha256:f0b304901893a1d75e8eec27846bd7dc3605d21068aef051f1d895c9d6f99e12",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -42,8 +45,8 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:bb5d33c302b628941db1f038b8477e93af0dc3b2289a81b009b24a580c356855",
-  "schemaHash": "snapback.v1:sessions:schema:sha256:cca7875fc48abf3e31751eff3dad3f96c08165167991a44b4890cbffa30265e9",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:734c6e08c78537ee38b3811a5923bf78a7b42901c1195a6a0cf32eb0cc2346fe",
+  "schemaHash": "snapback.v1:sessions:schema:sha256:ca64a1f582caaa2632229408e53588ab5f999367324d50fcf31c1c2ca40f0814",
   "schemaVersion": "snapback.v0",
   "tables": [
     "hands",

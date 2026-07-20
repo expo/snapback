@@ -1,0 +1,34 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [
+      {
+        "argumentsType": "{ \"roomId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            }
+          ]
+        },
+        "name": "webCursors",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ],
+    "mutations": [],
+    "queries": []
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "43235cafefd3dcd148e6d1e3e0f27b8de77d58a003dc0cca6530e3de0fe44dcd",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

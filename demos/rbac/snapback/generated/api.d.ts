@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -57,13 +58,13 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  acceptInvite: FunctionReference<'acceptInvite', 'Mutation', Record<string, never>>;
-  inviteApp: FunctionReference<'inviteApp', 'Mutation', { userId: Principal }>;
-  joinApp: FunctionReference<'joinApp', 'Mutation', Record<string, never>>;
-  leaveApp: FunctionReference<'leaveApp', 'Mutation', Record<string, never>>;
-  listAnnouncements: FunctionReference<'listAnnouncements', 'LiveQuery', Record<string, never>>;
-  postAnnouncement: FunctionReference<'postAnnouncement', 'Mutation', { message: string }>;
-  rawJoin: FunctionReference<'rawJoin', 'Mutation', Record<string, never>>;
+  acceptInvite: FunctionReference<'acceptInvite', 'Mutation', Record<string, never>, unknown>;
+  inviteApp: FunctionReference<'inviteApp', 'Mutation', { userId: Principal }, unknown>;
+  joinApp: FunctionReference<'joinApp', 'Mutation', Record<string, never>, unknown>;
+  leaveApp: FunctionReference<'leaveApp', 'Mutation', Record<string, never>, unknown>;
+  listAnnouncements: FunctionReference<'listAnnouncements', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "authorId": string; "message": string }>>;
+  postAnnouncement: FunctionReference<'postAnnouncement', 'Mutation', { message: string }, unknown>;
+  rawJoin: FunctionReference<'rawJoin', 'Mutation', Record<string, never>, unknown>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;

@@ -8,6 +8,11 @@
     "./contract/*": "./contract/*",
     "./functions": "./functions.manifest.json",
     "./operations/*": "./operations/*",
+    "./provider-bindings": {
+      "default": "./provider-bindings.json",
+      "types": "./provider-bindings.d.ts"
+    },
+    "./provider-introspection": "./provider-introspection.json",
     "./remote-auth-capability": "./remote-auth-capability.manifest.json",
     "./remote-data-capability": "./remote-data-capability.manifest.json",
     "./remote-service-profile": "./remote-service.profile.json",

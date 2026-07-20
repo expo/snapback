@@ -1,0 +1,39 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": false,
+          "initialSnapshot": false,
+          "mode": "snapshot",
+          "transports": [
+            {
+              "kind": "request",
+              "role": "primary"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "probe"
+          ]
+        },
+        "name": "queryProbe",
+        "resultType": "ReadonlyArray<unknown>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "7c39aefeb56d245246c5cb88699938641c74a1a2c3ba17cd797dd29b8b9c8eb2",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

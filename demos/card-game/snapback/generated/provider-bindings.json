@@ -1,0 +1,77 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"card\": string; \"gameId\": string; \"position\": number }",
+        "effects": {
+          "invalidates": [
+            "hands"
+          ],
+          "writes": [
+            "hands"
+          ]
+        },
+        "name": "acceptHandCard",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "argumentsType": "{ \"gameId\": string; \"ready\": boolean }",
+        "effects": {
+          "invalidates": [
+            "readySignals"
+          ],
+          "writes": [
+            "readySignals"
+          ]
+        },
+        "name": "signalReady",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"gameId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "hands"
+          ]
+        },
+        "name": "myHand",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"card\": string; \"gameId\": string; \"ownerId\": string; \"position\": number }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v1"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "snapback.v1:sessions:inputs:sha256:734c6e08c78537ee38b3811a5923bf78a7b42901c1195a6a0cf32eb0cc2346fe",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

@@ -4,7 +4,7 @@ export type Principal = string & { readonly __snapbackPrincipal: unique symbol }
 export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };
 export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';
 export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';
-export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {
+export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {
   artifactKind: 'functionReference';
   schemaVersion: SchemaVersion;
   appId: string;
@@ -12,6 +12,7 @@ export interface FunctionReference<Name extends string, Kind extends FunctionKin
   name: Name;
   kind: Kind;
   readonly __args?: Args;
+  readonly __result?: Result;
 }
 export interface EphemeralCollectionReference<Name extends string, Scope, Value> {
   artifactKind: 'ephemeralCollectionReference';
@@ -62,18 +63,18 @@ export interface GeneratedFunctionContexts {
 export interface GeneratedEphemeral {
 }
 export interface GeneratedApi {
-  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger?: string; source?: string; lastError?: string }>;
-  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger?: string; source?: string; delays: unknown; departures?: unknown; note?: string; lastError?: string }>;
-  claimFeedPoll: FunctionReference<'claimFeedPoll', 'Mutation', { trigger?: string; minIntervalMs?: number }>;
-  feedState: FunctionReference<'feedState', 'LiveQuery', Record<string, never>>;
-  liveDepartures: FunctionReference<'liveDepartures', 'LiveQuery', Record<string, never>>;
-  liveTrainStatus: FunctionReference<'liveTrainStatus', 'LiveQuery', Record<string, never>>;
-  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger?: string; source?: string; feedUrl?: string; pollBudgetMs?: number }>;
-  resetFeed: FunctionReference<'resetFeed', 'Mutation', Record<string, never>>;
-  routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl?: string }>;
-  stationsQuery: FunctionReference<'stationsQuery', 'Query', Record<string, never>>;
-  stopTimesByStation: FunctionReference<'stopTimesByStation', 'Query', { stationId: string }>;
-  tripsQuery: FunctionReference<'tripsQuery', 'Query', Record<string, never>>;
+  applyFeedTick: FunctionReference<'applyFeedTick', 'Mutation', { trigger?: string; source?: string; lastError?: string }, unknown>;
+  applyLiveFeedSnapshot: FunctionReference<'applyLiveFeedSnapshot', 'Mutation', { trigger?: string; source?: string; delays: unknown; departures?: unknown; note?: string; lastError?: string }, unknown>;
+  claimFeedPoll: FunctionReference<'claimFeedPoll', 'Mutation', { trigger?: string; minIntervalMs?: number }, unknown>;
+  feedState: FunctionReference<'feedState', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "fetchedAt": number; "lastError"?: string; "lastRunTrigger"?: string; "lastSource": string; "lastUpstreamPollAt"?: number; "staleAfterMs": number; "tickCount": number; "tickIndex": number }>>;
+  liveDepartures: FunctionReference<'liveDepartures', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "delaySeconds": number; "departureId": string; "direction": string; "headsign": string; "observedAt": number; "patternId": string; "predictedDepartureMs": number; "scheduledDepartureMs": number; "service": string; "source": string; "stationId": string; "status": string; "stopName": string; "trainNumber": string }>>;
+  liveTrainStatus: FunctionReference<'liveTrainStatus', 'LiveQuery', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "delaySeconds": number; "observedAt": number; "patternId": string; "status": string }>>;
+  refreshFeed: FunctionReference<'refreshFeed', 'Action', { trigger?: string; source?: string; feedUrl?: string; pollBudgetMs?: number }, unknown>;
+  resetFeed: FunctionReference<'resetFeed', 'Mutation', Record<string, never>, unknown>;
+  routeEstimate: FunctionReference<'routeEstimate', 'Action', { fromLat: number; fromLng: number; toLat: number; toLng: number; mode: string; baseUrl?: string }, unknown>;
+  stationsQuery: FunctionReference<'stationsQuery', 'Query', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "lat": number; "lng": number; "minutesFromSf": number; "name": string; "orderIndex": number; "photoAttribution": string; "photoUrl": string; "shortName": string; "stationId": string; "zone": number }>>;
+  stopTimesByStation: FunctionReference<'stopTimesByStation', 'Query', { stationId: string }, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "offsetMinutes": number; "patternId": string; "sequence": number; "stationId": string }>>;
+  tripsQuery: FunctionReference<'tripsQuery', 'Query', Record<string, never>, ReadonlyArray<{ "_createdAt": number; "_id": string; "_updatedAt": number; "_version": number; "destinationStationId": string; "direction": string; "minuteSlots": unknown; "originStationId": string; "patternId": string; "service": string; "speedFactor": number; "trainNumberBase": number }>>;
   ephemeral: GeneratedEphemeral;
 }
 export declare const ephemeral: GeneratedEphemeral;
