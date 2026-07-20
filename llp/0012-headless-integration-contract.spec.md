@@ -5,7 +5,12 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (registered LLP 0060 D6's future
+**Revised:** 2026-07-20 (Partitime Step 2 client checkpoint — the framework-neutral
+`snapback.external-store.v1` implementation and `@snapback/react` adapter now
+ship with package tests; React web and React Expo Android consume the same
+generated function references and lifecycle store, while the Android carrier
+claims Online only and the iOS and Exact Native tuples remain pending under LLP
+0064); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (registered LLP 0060 D6's future
 `SNAPBACK_AUTH_HANDLER_INCOMPATIBLE` startup and per-invocation exposure while
 keeping private binding markers out of public details). 2026-07-15 (registered the generated contract-data manifest as the
 sole derived v1-sessions artifact exception and registered
@@ -34,7 +39,7 @@ versions are per-app-stream opaque `(stream, version)` resume tokens, no
 cross-stream comparison; earlier: 2026-07-01 LLP 0032 M3: DK-3 wire guardrail
 added — keep the cacheable-HTTP-read-lane option open beside WS delivery; linked
 LLP 0030 for Contract/Exact preview server lifecycle)
-**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060
+**Related:** LLP 0000, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0039, LLP 0053, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0064
 
 ## Summary
 
@@ -828,6 +833,33 @@ documented as equivalent to one — and it should inherit the reference race-han
 behaviors (pre-subscribe delta queueing, error→empty-array, full-resync-on-reconnect)
 rather than re-deriving them.
 
+### As-built external-store and React projection (2026-07-20)
+
+The framework-neutral implementation lives at
+`@snapback/client/external-store` and advertises the exact compatibility token
+`snapback.external-store.v1`. It owns canonical provider/query/authority/args
+identity, immutable current snapshots, same-key sibling sharing, independent
+subscriber cleanup, late-handle and stale-generation fencing, connection and
+error state, optimistic pending state, authoritative confirmation/rejection,
+rollback, and replaceable framework-free scopes. An incompatible token refuses
+with `SNAPBACK_EXTERNAL_STORE_INCOMPATIBLE` instead of publishing application
+data.
+
+`@snapback/react` is a thin `useSyncExternalStore` projection over that shared
+object. The Partitime React web arm and the React Expo carrier consume the same
+package and the same generated function references; neither introduces a
+parallel application cache or a direct-table-write API. A pre-lock Android run
+recorded release build and device launch, generated-function initial data,
+optimistic pending plus confirmed settlement, authority rotation,
+background/foreground events, stale-row retention and authoritative reconnect,
+and server-code exclusion. That implementation is **Online** only:
+`localHandlerExecutionClaimed` is false. The cumulative claim remains pending
+until the final registry inputs rerun against the implementation revision.
+`react-expo/ios`,
+`exact-native/ios`, and `exact-native/android` remain unproved and must not be
+inferred from the Android result. LLP 0064 owns the per-OS native surface and
+artifact-integrity contract.
+
 ## Versioning
 
 Each artifact should carry a version or schema hash. Adapters must declare which
@@ -950,10 +982,11 @@ polish of either adapter.
 
 ## Open Questions
 
-- What are the first physical file paths and package names for generated
-  artifacts?
-- Are generated client bindings one package with adapter entrypoints or separate
-  packages per framework?
+- Generated artifacts remain project-local under each app's generated output;
+  the shared physical client paths are now `@snapback/client`,
+  `@snapback/client/external-store`, and the separate framework package
+  `@snapback/react`. Additional framework projections remain an open packaging
+  question rather than reopening those shipped names.
 - Which fields above need to move from v0 manifests into separately versioned
   package schemas before public release?
 - How does a Contract/Exact preview process own or attach to the local Snapback
@@ -987,8 +1020,10 @@ is folded in — the packaging/typecheck-honesty bar, the Online-vs-Parity capab
 class, the current-value+subscription seam, the reference adapter's race handling,
 and the single-source-of-truth + drift-gate versioning all come from what Valet
 shipped or got wrong. The v0 artifact schema pin is accepted for the first local
-implementation; the broader Spec should still be revised when the first generated
-client adapter is implemented. The retired Valet LLP 0088 ("Snapback Contract
+implementation. The first framework-neutral store and React adapter are now
+implemented and registered above; the broader Spec remains Draft while iOS,
+Exact Native Parity, generated-artifact compatibility across native build
+systems, and the remaining validation matrix are open. The retired Valet LLP 0088 ("Snapback Contract
 Integration") holds reviewed adapter design — package API, headless boot
 (`openSnapbackContractRuntime`), scoped install, generated runtime callables — to
 mine into this Spec and [LLP 0021](./0021-contract-exact-integration-hardening.plan.md)

@@ -3,14 +3,14 @@ title: The headless client
 id: clients.headless
 order: 1
 audience: agent-first
-capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
+capabilities: [clients.headless, clients.external-store]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -169,6 +169,34 @@ callbacks instead of reading socket internals. Always dispose the handle.
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
+
+## Project live state into a framework-neutral external store
+
+Import `createExternalQueryStore`, `createExternalQueryStoreRegistry`,
+`externalStoreIdentity`, `ExternalQueryScope`, and
+`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@snapback/client/external-store` when
+building a framework or generated UI adapter.
+
+The registry owns logical stores above physical `liveQuery` handles. Its key is
+the exact protocol token plus canonical provider/query/authority/args identity.
+Same-key sibling consumers share one upstream attempt, updates, errors, and
+connection state; each `subscribe` cleanup remains independent, and the last
+listener disposes the handle. Different keys remain isolated. Late handles and
+stale-generation deliveries are fenced and inspected rather than republished.
+
+`ExternalQueryScope` groups independently keyed stores behind one replaceable
+Vanilla view generation. Renewing a scope disposes every predecessor binding;
+closing it is terminal and idempotent. Prefer it over an app-authored
+generation counter. React apps should normally consume the thin
+[`@snapback/react` adapter](./react.md), which projects the same store through
+`useSyncExternalStore`.
+
+Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
+If a resolved handle also declares a protocol, an incompatible token publishes
+`SNAPBACK_EXTERNAL_STORE_INCOMPATIBLE` and disposes that handle. The external
+store is lifecycle/state ownership, not a second transport
+or cache: generated Snapback refs and `SnapbackClient.liveQuery` still own the
+actual query.
 
 ## Subscribe to ephemeral state
 

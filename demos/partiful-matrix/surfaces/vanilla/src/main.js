@@ -7,6 +7,19 @@ import {
   snapbackArtifactHash,
 } from './provider.js';
 
+const markStartup = (name) => {
+  const fullName = `partitime:${name}`;
+  if (performance.getEntriesByName(fullName).length === 0) performance.mark(fullName);
+};
+const startupMilestones = () => Object.fromEntries([
+  'module-evaluated',
+  'boot-started',
+  'provider-ready',
+  'ui-mounted',
+  'first-authoritative-snapshot',
+].map((name) => [name, performance.getEntriesByName(`partitime:${name}`)[0]?.startTime ?? null]));
+markStartup('module-evaluated');
+
 const PERSONAS = [
   { id: 'ada', userId: 'user_ada', name: 'Ada', initials: 'AD' },
   { id: 'grace', userId: 'user_grace', name: 'Grace', initials: 'GH' },
@@ -39,9 +52,11 @@ const accentClass = (accent, index = 0) => ACCENTS.has(accent)
 const valueAttribute = (value) => escapeHtml(value);
 
 async function boot() {
+  markStartup('boot-started');
   const root = document.getElementById('root');
   if (!root) throw new Error('missing #root');
   const provider = await createMatrixProvider();
+  markStartup('provider-ready');
   const state = {
     persona: personaFromSearch(),
     view: { kind: 'feed' },
@@ -183,9 +198,16 @@ async function boot() {
   const watch = (name, args, applyRows, generation) => {
     void scope.watch(
       (observer) => provider.subscribe(name, args, state.persona.userId, observer),
-      (rows, connection) => {
-        applyRows(rows);
+      (rows, connection, delivery) => {
         if (name === 'listEvents' || name === 'eventDetails') state.connection = connection;
+        if (delivery.kind === 'error') {
+          showCurrentError(delivery.error?.message ?? delivery.error, generation);
+          return;
+        }
+        if (delivery.kind === 'authoritative') {
+          applyRows(rows);
+          if (rows.length > 0) markStartup('first-authoritative-snapshot');
+        }
         render();
       },
     ).catch((error) => showCurrentError(error, generation));
@@ -327,9 +349,10 @@ async function boot() {
     root.querySelector('[data-testid="wall-send"]')?.addEventListener('click', () => void postMessage());
   }
 
-  globalThis.partifulMatrixDebug = { snapshot, goHome: mountFeed };
+  globalThis.partifulMatrixDebug = { snapshot, goHome: mountFeed, startupMilestones };
   globalThis.addEventListener('pagehide', () => scope.close(), { once: true });
   mountFeed();
+  markStartup('ui-mounted');
   return {
     backend: provider.backend,
     authoring: 'vanilla',

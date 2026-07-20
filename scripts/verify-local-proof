@@ -163,6 +163,7 @@ run node demos/_kit/tests/live-delta-e2e.mjs
 # inventory gate proves every maintained test file is declared, so this cannot
 # silently regress to a hand-picked subset (ENG-24502).
 run bun run --cwd packages/snapback-client test
+run bun run --cwd packages/snapback-react test
 run bun run --cwd packages/snapback-app-cli test
 run bun run --cwd packages/snapback-contract test
 run bun run --cwd packages/snapback-codegen test

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7d2262b7583c05d4d8bfe1c44665dd9d88ef73c7"
+    "commit": "4400c90ac4390109e843367c9ea0691d8a8f9357"
   },
   "nav": {
     ".": [
@@ -95,7 +95,12 @@
       {
         "id": "clients.react",
         "order": 2,
-        "title": "The React arm"
+        "title": "The React client"
+      },
+      {
+        "id": "clients.react-expo",
+        "order": 3,
+        "title": "React Expo Online clients"
       }
     ],
     "deploying": [
@@ -592,13 +597,16 @@
       "capabilities": [],
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
+        "llp/0064-native-client-surfaces.rfc.md",
         "src/server.rs",
-        "src/admin.rs"
+        "src/admin.rs",
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-react/index.mjs"
       ],
       "examples": [],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "a9440ba09eb469c308a46d0c5139e5ca5a9165ff",
-      "sha256": "b8352b3897ce8828aa210ab38d1fd53a3a442dcec3f3cfec3722ea4faf0814d3",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "99b0f1be013cb479ff8014746738b5d24dc4e47884af32743f7dfff3ef937ef9",
       "snippets": []
     },
     "clients.app-cli": {
@@ -707,11 +715,14 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "clients.headless"
+        "clients.headless",
+        "clients.external-store"
       ],
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
+        "llp/0064-native-client-surfaces.rfc.md",
         "packages/snapback-client/index.mjs",
+        "packages/snapback-client/external-store.mjs",
         "packages/snapback-client/agent-authority.mjs",
         "demos/_kit/agent-authority-filesystem.mjs",
         "packages/snapback-contract/index.mjs",
@@ -723,11 +734,12 @@
         "demos/todo",
         "demos/todo-v2",
         "demos/graffiti",
-        "demos/card-game"
+        "demos/card-game",
+        "demos/partiful-matrix/surfaces/vanilla"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "8506bee4b8e324cf027e12c4c1e31058e87d3f0c737a90c5cfe40e9351caf707",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "3b121ad0ee37ad9d1228b7d4d3230062b056839c8d6ac5db047573be504fb3e9",
       "snippets": [
         {
           "lang": "js",
@@ -741,9 +753,43 @@
         }
       ]
     },
+    "clients.react-expo": {
+      "path": "guide/clients/react-expo.md",
+      "title": "React Expo Online clients",
+      "order": 3,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "clients.react-expo"
+      ],
+      "authorities": [
+        "llp/0012-headless-integration-contract.spec.md",
+        "llp/0064-native-client-surfaces.rfc.md",
+        "packages/snapback-client/index.mjs",
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-react/index.mjs",
+        "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
+      ],
+      "examples": [
+        "demos/partiful-matrix/native/react-expo"
+      ],
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "bce139c3e6c729bf5645bc640d4c79d58ff9e13d25f55f9233a11dd02a6b8831",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/partiful-matrix/native/react-expo/App.js"
+        }
+      ]
+    },
     "clients.react": {
       "path": "guide/clients/react.md",
-      "title": "The React arm",
+      "title": "The React client",
       "order": 2,
       "status": "current",
       "targets": [
@@ -754,21 +800,23 @@
         "clients.react"
       ],
       "authorities": [
-        "llp/0005-contract-exact-react-integration.explainer.md",
-        "demos/_kit/client.mjs"
+        "llp/0012-headless-integration-contract.spec.md",
+        "llp/0063-partitime-platform-roadmap.plan.md",
+        "packages/snapback-client/external-store.mjs",
+        "packages/snapback-react/index.mjs"
       ],
       "examples": [
-        "demos/all-aboard/surfaces/react/src/main.tsx",
-        "demos/cursors-web/surfaces/react/src/useCursorRoom.ts"
+        "demos/partiful-matrix/surfaces/react",
+        "packages/snapback-react/package.test.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "880b16bba2841829cf40715bd1c09b53ed8575907194203d1e25926b72844452",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "edc70784330d6bd4795c48290a122b93c18f525b96868b5eec171537cf94859e",
       "snippets": [
         {
-          "lang": "ts",
+          "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/all-aboard/surfaces/react/src/main.tsx"
+          "source": "demos/partiful-matrix/surfaces/react/src/App.tsx"
         }
       ]
     },
@@ -941,17 +989,19 @@
       ],
       "authorities": [
         "llp/0061-agent-first-snapback-guide.rfc.md",
-        "llp/0000-snapback.explainer.md"
+        "llp/0000-snapback.explainer.md",
+        "llp/0064-native-client-surfaces.rfc.md"
       ],
       "examples": [
         "demos/todo",
         "demos/todo-v2",
         "demos/cursors-web",
-        "demos/card-game"
+        "demos/card-game",
+        "demos/partiful-matrix"
       ],
-      "reviewed": "2026-07-16",
-      "reviewedCommit": "175bff12109510545bdf0f927c9dfbd210109cfa",
-      "sha256": "11ed7f3b3995425aca93dad729fbc4fba81f0bd90e758ed194fc201ab79889db",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "HEAD",
+      "sha256": "b8deb80e47d872ca6a3c6f0c639968f87b664962681979164ec50d7c935fc9de",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1418,10 +1468,12 @@
       "clients.app-cli",
       "clients.contract",
       "clients.contract-keyed-scopes",
+      "clients.external-store",
       "clients.headless",
       "clients.mutation-outcomes",
       "clients.optimistic-overlays",
       "clients.react",
+      "clients.react-expo",
       "deploy.cloudflare",
       "operating.admin-console",
       "operating.diagnostics",
@@ -1443,5 +1495,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "c22625285dc417c564c46aedbeec9d991c5291b96b27221f4589b46d22d035bd"
+  "contentHash": "b736d27f65f3c70605089863dbd20f1d26cf2d837902a4e56401e8ce0d094647"
 }

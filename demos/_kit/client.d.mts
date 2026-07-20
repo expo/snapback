@@ -86,7 +86,7 @@ export interface LiveQueryOptions<Row = Record<string, unknown>, Args = Record<s
   pollCadenceMs?: number;
   fallbackToPoll?: boolean;
   onUpdate?: ((rows: Row[]) => void) | null;
-  onConnectionChange?: ((connection: ConnectionAxis) => void) | null;
+  onConnectionChange?: ((connection: ConnectionAxis, detail: { previous: ConnectionAxis; error?: unknown }) => void) | null;
   onSubscriptionEvent?: ((event: unknown) => void) | null;
   onAuthorizationBoundary?: ((boundary: unknown) => void) | null;
   onAuthorizationError?: ((error: SnapbackError) => void) | null;

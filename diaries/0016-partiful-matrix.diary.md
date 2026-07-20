@@ -735,3 +735,69 @@ code no longer owns resubscription races or sibling deduplication. The guide
 did accurately describe the old boot-scoped Contract surface, so this was a
 new capability rather than missing guidance; I updated the Contract and live
 query pages and did not file a guide-gap issue.
+
+## 2026-07-20 — Step 2 external stores, Vanilla, and React Expo Android
+
+The best part of this tranche was deleting lifecycle code. Partitime's React
+hook had owned a serialized argument key, a `disposed` flag, a late-resolving
+handle, connection state, and cleanup in every call site. The replacement is a
+single `useSnapbackQuery` projection. Vanilla's 72-line `SubscriptionScope`
+became a three-line re-export of `ExternalQueryScope`. That reduction felt
+better than merely moving the same code into a utility: the package suite now
+owns canonical identity, same-key sibling sharing, independent refcounts,
+Strict Mode replay, A→B→A replacement, late-handle disposal, error snapshots,
+optimistic settlement, and compatibility refusal as one contract.
+
+The same-key registry was the non-obvious last mile. A per-hook external store
+made cleanup safer but still opened parallel upstream attempts for sibling
+components with identical queries. Scoping a registry to the provider made the
+sharing boundary explicit: same provider plus protocol and canonical identity
+shares; different args, authority, or provider does not. Compared with React
+over Convex or Supabase, the hook is now similarly small at the component
+boundary, while Snapback keeps more visible authority and transport facts. The
+portable gateway providers still poll by design, so the common hook does not
+pretend their transport is Snapback push.
+
+Vanilla answered two questions the original matrix left open. A real Chrome
+page imported the full `@snapback/client` root and ran the lifecycle primitive
+from direct `<script type="module">` delivery with no transform. Vite remains
+the comparison build because it selects providers and produces comparable
+artifacts, but it is no longer a compatibility requirement for the client
+module itself. The four Vanilla cells also expose five ordered startup marks:
+module evaluation, boot start, provider ready, UI mount, and first authoritative
+snapshot. Those are observations, not a performance budget; they establish
+where later measurement can attach without claiming one run is a benchmark.
+
+Android was more instructive than the web package work. The Expo carrier reused
+the generated API, `SnapbackClient`, and `@snapback/react`; it did not need a
+native-specific data cache. The seven-check run built and launched a release
+APK, rendered authoritative rows, exposed optimistic pending and confirmed
+settlement, rotated authority, observed background/foreground, kept rows during
+a server outage, reconnected through a fresh subscription, and excluded server
+markers from the carrier. React Native's WebSocket behavior was the sharp edge:
+a refused upgrade can emit `error` without the browser-style `close`, which had
+left the shared manager wedged until the error path became an explicit loss.
+The emulator used `adb reverse`, so this remains a loopback development proof,
+not hosted endpoint evidence.
+
+The capability boundary matters more than the green device flow. The Android
+carrier is Online only: it executes no handlers locally and proves no durable
+offline queue, replay/rebase, or Parity. iOS still has no passing receipt, and
+neither `exact-native/ios` nor `exact-native/android` moved. The final
+provider-scoped registry and protocol declarations also changed package inputs
+after the first Android and browser receipts were written. Their functional
+runs are useful, but the cumulative claims stay pending until clean
+implementation-revision reruns bind the final sources and carrier artifacts.
+That is exactly the kind of difference the Step 0 manifest discipline was
+meant to preserve.
+
+This work made the existing React guide materially stale: it still taught the
+hand-wired hook and said there was no generated/shipped React binding. The
+comparison README's frozen Step 0 wording also predates the direct-ESM run, so
+the current result is recorded in the new guide/package coverage without
+silently rewriting that locked artifact. I added the framework-neutral and Expo
+capability rows and documented the Android/iOS split in the same change. No
+separate `guide-gap` issue is needed because the new capability and its guide
+coverage land together. Exact itself was not changed in this tranche; its
+native Parity work remains owned by Exact LLPs 0331/0332 and the separate
+`exact-native/*` roadmap claims.

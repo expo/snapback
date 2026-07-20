@@ -6,9 +6,13 @@
   "description": "Versioned framework-neutral Snapback app-data client and scoped agent authority fence.",
   "exports": {
     ".": "./index.mjs",
-    "./agent-authority": "./agent-authority.mjs"
+    "./agent-authority": "./agent-authority.mjs",
+    "./external-store": {
+      "types": "./external-store.d.mts",
+      "import": "./external-store.mjs"
+    }
   },
   "scripts": {
-    "test": "node package.test.mjs"
+    "test": "node package.test.mjs && node external-store.test.mjs"
   }
 }

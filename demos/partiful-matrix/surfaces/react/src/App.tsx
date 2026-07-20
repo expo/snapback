@@ -1,9 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+
+import { useSnapbackQuery } from '../../../../../packages/snapback-react/index.mjs';
 
 import {
   PERSONAS,
   formatWhen,
   statusLabel,
+  type Connection,
   type EventRow,
   type MatrixProvider,
   type Persona,
@@ -14,22 +17,17 @@ import {
 } from '../../../shared/model';
 import { configuredBackend } from './provider';
 
-type Connection = 'connecting' | 'live' | 'polling' | 'disconnected';
 type View = { kind: 'feed' } | { kind: 'event'; id: string };
 
 function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<string, unknown>, persona: Persona) {
-  const [rows, setRows] = useState<Row[]>([]);
-  const [connection, setConnection] = useState<Connection>('connecting');
-  const key = JSON.stringify(args);
-  useEffect(() => {
-    let disposed = false;
-    let handle: { dispose(): void } | undefined;
-    provider.subscribe<Row>(name, args, persona.userId, (next, state) => {
-      if (!disposed) { setRows(next); setConnection(state); }
-    }).then((next) => { if (disposed) next.dispose(); else handle = next; });
-    return () => { disposed = true; handle?.dispose(); };
-  }, [provider, name, key, persona.userId]);
-  return { rows, connection };
+  const snapshot = useSnapbackQuery<Row>({
+    provider,
+    name,
+    args,
+    userId: persona.userId,
+    authority: persona.userId,
+  });
+  return { rows: snapshot.rows, connection: snapshot.connection as Connection };
 }
 
 export function App({ provider, initialPersona }: { provider: MatrixProvider; initialPersona: Persona }) {

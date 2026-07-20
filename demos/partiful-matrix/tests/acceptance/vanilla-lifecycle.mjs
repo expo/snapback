@@ -10,7 +10,7 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const identity = (path) => ({ path, sha256: sha256(readFileSync(resolve(repoRoot, path))) });
-const suite = createSuite('partiful matrix / vanilla subscription lifecycle', { expectedChecks: 3 });
+const suite = createSuite('partiful matrix / vanilla subscription lifecycle', { expectedChecks: 5 });
 const option = (name) => {
   const at = process.argv.indexOf(`--${name}`);
   return at < 0 ? null : process.argv[at + 1];
@@ -71,6 +71,39 @@ await runAcceptance(suite, async () => {
     assert(scope.snapshot().closed, 'scope should report closed');
     assertEqual(scope.snapshot().activeSubscriptions, 0, 'closed active subscription count');
   });
+
+  await suite.check('connection-only delivery retains the last authoritative rows', async () => {
+    const scope = new SubscriptionScope();
+    const seen = [];
+    scope.renew();
+    await scope.watch(
+      async (observer) => {
+        observer(['authoritative'], 'live', { kind: 'authoritative' });
+        observer(['cached-must-not-win'], 'stale', { kind: 'connection' });
+        return { dispose() {} };
+      },
+      (rows, connection, delivery) => seen.push({ rows, connection, delivery }),
+    );
+    assertEqual(seen.length, 2, 'delivery count');
+    assertEqual(seen[1].delivery.kind, 'connection', 'second delivery kind');
+    assertEqual(seen[1].rows[0], 'authoritative', 'retained row');
+    scope.close();
+  });
+
+  await suite.check('startup rejection is observable and leaves no active binding', async () => {
+    const scope = new SubscriptionScope();
+    scope.renew();
+    let error;
+    try {
+      await scope.watch(async () => { throw new Error('subscribe failed'); }, () => {});
+    } catch (caught) {
+      error = caught;
+    }
+    assertEqual(error?.message, 'subscribe failed', 'startup error');
+    assertEqual(scope.snapshot().activeSubscriptions, 0, 'failed active subscription count');
+    scope.close();
+  });
+
 }, {
   reportFile: option('receipt'),
   reportExtra: {

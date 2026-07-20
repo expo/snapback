@@ -1,4 +1,11 @@
-import type { Backend, MatrixProvider, MutationName, QueryName } from '../../../shared/model';
+import type {
+  Backend,
+  Connection,
+  MatrixProvider,
+  MutationName,
+  ProviderDelivery,
+  QueryName,
+} from '../../../shared/model';
 
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import api from '../../../snapback/generated/api.mjs';
@@ -6,13 +13,12 @@ import artifactIndex from '../../../snapback/generated/artifacts.json';
 import functionsManifest from '../../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
+import { createPollingDeliveryTracker } from '../../../shared/poll-recovery.mjs';
 
 declare const __MATRIX_BACKEND__: Backend;
 declare const __SNAPBACK_API_ORIGIN__: string;
 declare const __MATRIX_GATEWAY_ORIGIN__: string;
 declare const __PARTITIME_DISABLE_POLL_FALLBACK__: boolean;
-
-type Connection = 'connecting' | 'live' | 'polling' | 'disconnected';
 
 export const configuredBackend: Backend = __MATRIX_BACKEND__;
 
@@ -33,7 +39,8 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
   return {
     backend: 'snapback',
     transport: 'push',
-    async subscribe<Row>(name: QueryName, args: Record<string, unknown>, userId: string, observer: (rows: Row[], connection: Connection) => void) {
+    externalStoreProtocol: 'snapback.external-store.v1',
+    async subscribe<Row>(name: QueryName, args: Record<string, unknown>, userId: string, observer: (rows: Row[], connection: Connection, delivery?: ProviderDelivery) => void) {
       let latestRows: Row[] = [];
       const handle = await client.liveQuery<Row>(refs[name] as never, {
         args,
@@ -41,8 +48,12 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
         transport: 'stream',
         fallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         connectionId: `partiful_matrix_react_${name}_${counter += 1}`,
-        onUpdate: (rows) => { latestRows = rows; observer(rows, 'live'); },
-        onConnectionChange: (connection) => observer(latestRows, connection as Connection),
+        onUpdate: (rows) => { latestRows = rows; observer(rows, 'live', { kind: 'authoritative' }); },
+        onConnectionChange: (connection, detail) => observer(
+          latestRows,
+          connection as Connection,
+          detail?.error ? { kind: 'error', error: detail.error } : { kind: 'connection' },
+        ),
         onSubscriptionEvent: (event) => subscriptionEvents.push({
           queryName: name,
           pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
@@ -50,7 +61,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
         }),
       });
       latestRows = handle.rows;
-      observer(handle.rows, handle.connection as Connection);
+      observer(handle.rows, handle.connection as Connection, { kind: 'authoritative' });
       return { rows: handle.rows, dispose: () => handle.dispose() };
     },
     async mutate<T>(name: MutationName, args: Record<string, unknown>, userId: string) {
@@ -76,27 +87,27 @@ function createGatewayProvider(backend: Exclude<Backend, 'snapback'>): MatrixPro
   return {
     backend,
     transport: 'poll',
-    async subscribe<Row>(name: QueryName, args: Record<string, unknown>, userId: string, observer: (rows: Row[], connection: Connection) => void) {
+    externalStoreProtocol: 'snapback.external-store.v1',
+    async subscribe<Row>(name: QueryName, args: Record<string, unknown>, userId: string, observer: (rows: Row[], connection: Connection, delivery?: ProviderDelivery) => void) {
       let disposed = false;
       let rows: Row[] = [];
-      let fingerprint = '';
+      const deliveryTracker = createPollingDeliveryTracker();
       let timer: number | undefined;
       const poll = async () => {
         try {
           const next = await call<Row[]>('query', name, args, userId);
-          const nextFingerprint = JSON.stringify(next);
           rows = next;
-          if (nextFingerprint !== fingerprint) {
-            fingerprint = nextFingerprint;
-            observer(rows, 'polling');
+          if (deliveryTracker.accept(next)) {
+            observer(rows, 'polling', { kind: 'authoritative' });
           }
-        } catch {
-          observer(rows, 'disconnected');
+        } catch (error) {
+          deliveryTracker.fail();
+          observer(rows, 'disconnected', { kind: 'error', error });
         } finally {
           if (!disposed) timer = window.setTimeout(poll, 1000);
         }
       };
-      observer(rows, 'connecting');
+      observer(rows, 'connecting', { kind: 'connection' });
       await poll();
       return { rows, dispose() { disposed = true; if (timer) window.clearTimeout(timer); } };
     },

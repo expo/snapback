@@ -17,6 +17,13 @@ const inventories = [
     packageDir: 'packages/snapback-client',
     testDir: '.',
     suffix: '.test.mjs',
+    expectedFiles: ['external-store.test.mjs', 'package.test.mjs'],
+  },
+  {
+    id: '@snapback/react',
+    packageDir: 'packages/snapback-react',
+    testDir: '.',
+    suffix: '.test.mjs',
     expectedFiles: ['package.test.mjs'],
   },
   {
@@ -75,6 +82,7 @@ const inventories = [
       'exact-conformance.test.mjs',
       'exact-package.test.mjs',
       'index.test.mjs',
+      'keyed-provider.test.mjs',
       'lifecycle-generation-exhaustion.test.mjs',
       'multi-live-poll-reconcile.test.mjs',
       'mutation-reconcile-failure.test.mjs',
@@ -154,7 +162,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 58, 'reviewed package/admin test count changed');
+assert.equal(total, 61, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

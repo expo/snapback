@@ -1,0 +1,30 @@
+{
+  "expo": {
+    "name": "Partitime Native Online",
+    "slug": "partitime-native-online",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "experiments": {
+      "onDemandFilesystem": false
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.snapback.partitime.nativeonline",
+      "infoPlist": {
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true
+        }
+      }
+    },
+    "android": {
+      "package": "com.snapback.partitime.nativeonline",
+      "usesCleartextTraffic": true
+    },
+    "extra": {
+      "capabilityClass": "Online",
+      "profileIds": ["react-expo/ios", "react-expo/android"]
+    }
+  }
+}

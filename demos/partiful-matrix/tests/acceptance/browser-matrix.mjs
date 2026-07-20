@@ -209,6 +209,12 @@ await runAcceptance(suite, async () => {
           if (feedScope.activeSubscriptions !== 1) throw new Error(`feed scope should own one subscription: ${JSON.stringify(feedScope)}`);
           if (feedScope.disposedSubscriptions < eventScope.disposedSubscriptions + 3) throw new Error(`event subscriptions were not disposed: ${JSON.stringify({ eventScope, feedScope })}`);
           if (feedScope.generation <= eventScope.generation) throw new Error(`scope generation did not advance: ${JSON.stringify({ eventScope, feedScope })}`);
+          const startupMilestones = await page.eval('window.partifulMatrixDebug.startupMilestones()');
+          for (const name of ['module-evaluated', 'boot-started', 'provider-ready', 'ui-mounted', 'first-authoritative-snapshot']) {
+            if (!Number.isFinite(startupMilestones[name])) throw new Error(`missing vanilla startup milestone ${name}: ${JSON.stringify(startupMilestones)}`);
+          }
+          if (startupMilestones['provider-ready'] < startupMilestones['boot-started']) throw new Error(`provider-ready preceded boot-started: ${JSON.stringify(startupMilestones)}`);
+          return { eventScope, feedScope, startupMilestones };
         });
       }
     } finally { await vite.stop(); }

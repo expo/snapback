@@ -9,13 +9,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, src/server.rs, src/admin.rs]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, src/server.rs, src/admin.rs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: a9440ba09eb469c308a46d0c5139e5ca5a9165ff
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 # Capability index
@@ -57,12 +57,14 @@ with the Snapback label and `guide-gap` in the title.
 | auth.agent-principals | Agent principals and scoped grants | agent auth, grants, pairing | local | shipped | route /auth/agents/pair | llp/0055 | auth/agent-principals.md |
 | auth.scoped-roles | Scoped roles and memberships | roles, permissions, membership | local | shipped | `membership(spec)` in packages/snapback-codegen/define.mjs | llp/0056 | auth/scoped-roles.md |
 | clients.headless | The framework-neutral client (SnapbackClient) | http client, node client, sdk | local | shipped | `SnapbackClient` in packages/snapback-client/index.mjs | llp/0012 | clients/headless.md |
+| clients.external-store | Framework-neutral current-value/subscription store, keyed sibling sharing, lifecycle scope | external store, lifecycle, vanilla, strict mode | local | shipped | `createExternalQueryStoreRegistry` in packages/snapback-client/external-store.mjs | llp/0012, llp/0064 | clients/headless.md |
 | clients.app-cli | Artifact-driven application CLI and packaged agent journey | app cli, agent cli, introspect | local | partial | `snapback-app` in packages/snapback-app-cli/cli.mjs | llp/0062 | clients/app-cli.md |
 | clients.contract | Contract/Exact adapter; generated bindings; surface boot | contract, exact, ui bindings | local | shipped | `createSnapbackContractSurface` in packages/snapback-contract/index.mjs | llp/0005, llp/0034 | clients/contract-adapter.md |
 | clients.contract-keyed-scopes | Binding-time keyed Contract queries with dedup, refcounts, and authority fencing | dynamic query, query args, dedup, selection | local | shipped | `createKeyedSnapbackContractProvider` in packages/snapback-contract/keyed-provider.mjs | llp/0034, llp/0063 | clients/contract-adapter.md |
 | clients.mutation-outcomes | Raw provider settlement facts plus Exact three-fact mutation projection | mutation state, timeout, retry, receipt, ambiguity | local | shipped | `partitime.step1-mutation-projection.v1` in demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs | llp/0043, llp/0063 | clients/contract-adapter.md |
 | clients.optimistic-overlays | Derived optimistic mutations + reconciliation | optimistic, overlays, latency | local | shipped | `deriveOptimisticReducer` in packages/snapback-contract/index.mjs | llp/0052 | clients/contract-adapter.md |
-| clients.react | React arm: hand-wired client, connection axis | react, hooks, dataprovider | local | shipped | demos/all-aboard/surfaces/react/src/main.tsx | llp/0005 | clients/react.md |
+| clients.react | First-class React external-store hook over generated functions | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063 | clients/react.md |
+| clients.react-expo | React Expo Online surface; Android implementation evidence, iOS pending | react native, expo, android, ios, mobile | local | partial | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
@@ -186,13 +188,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md]
-examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0064-native-client-surfaces.rfc.md]
+examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -273,8 +275,10 @@ you never build around a feature because you didn't know it existed.
   the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
-- [The React arm](./clients/react.md) — hand-wired client, live queries in
-  hooks, honest connection state.
+- [The React client](./clients/react.md) — first-class external-store hook,
+  keyed sibling sharing, Strict Mode lifecycle, and settlement state.
+- [React Expo Online clients](./clients/react-expo.md) — the shared React
+  projection on native carriers, per-OS evidence, and Online/Parity honesty.
 
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,
@@ -2164,14 +2168,14 @@ title: The headless client
 id: clients.headless
 order: 1
 audience: agent-first
-capabilities: [clients.headless]
-authorities: [llp/0012-headless-integration-contract.spec.md, packages/snapback-client/index.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
-examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game]
+capabilities: [clients.headless, clients.external-store]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -2330,6 +2334,34 @@ callbacks instead of reading socket internals. Always dispose the handle.
 The lower-level `subscribeLive` / `unsubscribeLive`, `openLiveStream`,
 `liveStreamManager`, and drain methods exist for adapters and acceptance
 harnesses. App UI code normally uses `liveQuery`.
+
+## Project live state into a framework-neutral external store
+
+Import `createExternalQueryStore`, `createExternalQueryStoreRegistry`,
+`externalStoreIdentity`, `ExternalQueryScope`, and
+`SNAPBACK_EXTERNAL_STORE_PROTOCOL` from `@snapback/client/external-store` when
+building a framework or generated UI adapter.
+
+The registry owns logical stores above physical `liveQuery` handles. Its key is
+the exact protocol token plus canonical provider/query/authority/args identity.
+Same-key sibling consumers share one upstream attempt, updates, errors, and
+connection state; each `subscribe` cleanup remains independent, and the last
+listener disposes the handle. Different keys remain isolated. Late handles and
+stale-generation deliveries are fenced and inspected rather than republished.
+
+`ExternalQueryScope` groups independently keyed stores behind one replaceable
+Vanilla view generation. Renewing a scope disposes every predecessor binding;
+closing it is terminal and idempotent. Prefer it over an app-authored
+generation counter. React apps should normally consume the thin
+[`@snapback/react` adapter](./react.md), which projects the same store through
+`useSyncExternalStore`.
+
+Providers must declare `externalStoreProtocol: "snapback.external-store.v1"`.
+If a resolved handle also declares a protocol, an incompatible token publishes
+`SNAPBACK_EXTERNAL_STORE_INCOMPATIBLE` and disposes that handle. The external
+store is lifecycle/state ownership, not a second transport
+or cache: generated Snapback refs and `SnapbackClient.liveQuery` still own the
+actual query.
 
 ## Subscribe to ephemeral state
 
@@ -2507,108 +2539,233 @@ Those deferred tickets remain design work, not implied CLI commands.
 
 <!-- snapback-guide-source: guide/clients/react.md -->
 ---
-title: The React arm
+title: The React client
 id: clients.react
 order: 2
 audience: agent-first
 capabilities: [clients.react]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, demos/_kit/client.mjs]
-examples: [demos/all-aboard/surfaces/react/src/main.tsx, demos/cursors-web/surfaces/react/src/useCursorRoom.ts]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+examples: [demos/partiful-matrix/surfaces/react, packages/snapback-react/package.test.mjs]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 8a6bbd1ec980a49010aa67269ee908433a257c9a
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
-# The React arm
+# The React client
 
 > **Local target only.** This page describes the local dev/test target.
 > Hosted targets make deliberately weaker or different claims — see
 > [auth/targets](../auth/targets.md).
 
-React apps consume Snapback through the framework-neutral client
-(`demos/_kit/client.mjs`) **wired by hand** — there is no generated React
-binding layer today. That is the deliberate difference between the arms:
-the [Contract adapter](./contract-adapter.md) generates the wiring; React
-writes ~20 explicit lines per surface. The wiring is small enough to audit,
-and this page is the paved version of it — the exact material diary 0010
-had to read source to reconstruct. The client ships maintained TypeScript
-declarations beside the module as `demos/_kit/client.d.mts`; do not create an
-ambient copy or cast the client to `never`. The declaration covers structured
-calls/errors, live handles and connection callbacks, ephemeral overlays, and
-constructor/auth options.
+`@snapback/react` projects the framework-neutral
+`@snapback/client/external-store` through React's supported
+`useSyncExternalStore` contract. Use `useSnapbackQuery` instead of owning a
+`useEffect` subscription, a late-handle flag, and a second query cache in each
+component.
 
-Boot is identical to the Contract arm: `client.health()`, then the
-idempotent `client.ensureApp({ schema, functions, seed })` — never a
-destructive reset on reload.
+The adapter owns initial pending/ready state, immutable rows, connection and
+error state, canonical argument identity, authority identity, Strict Mode
+replay, late-handle disposal, optimistic pending/confirmed/rejected mutation
+state, and unmount cleanup. Same-key sibling components over the same provider
+share one logical store and upstream attempt; each component still has an
+independent React subscription. Different args or authority identities stay
+isolated.
 
-## Wire live queries into state
+## Bind a generated query
 
-Bind each live query once, pushing rows and connection state into React
-state; keep the handles for disposal:
+Provide the generated operation name/arguments and the current user/authority.
+Partitime's entire compatibility hook is now this projection:
 
-```ts source=demos/all-aboard/surfaces/react/src/main.tsx
-      const delaysLive = await client.liveQuery<DelayRow>('liveTrainStatus', {
-        connectionId: CONNECTION,
-        transport: 'stream',
-        onUpdate: (rows) => setDelayRows(rows),
-        onConnectionChange: (value) => setConnection('liveTrainStatus', value),
-      });
-      const feedLive = await client.liveQuery<FeedRow>('feedState', {
-        connectionId: CONNECTION,
-        transport: 'stream',
-        onUpdate: (rows) => setFeedRows(rows),
-        onConnectionChange: (value) => setConnection('feedState', value),
-      });
-      liveHandles = [delaysLive, feedLive];
-      setDelayRows(delaysLive.rows);
-      setFeedRows(feedLive.rows);
+```tsx source=demos/partiful-matrix/surfaces/react/src/App.tsx
+function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<string, unknown>, persona: Persona) {
+  const snapshot = useSnapbackQuery<Row>({
+    provider,
+    name,
+    args,
+    userId: persona.userId,
+    authority: persona.userId,
+  });
+  return { rows: snapshot.rows, connection: snapshot.connection as Connection };
+}
 ```
 
-Notes that keep this correct:
+The provider declares `externalStoreProtocol: "snapback.external-store.v1"`
+and implements `subscribe(name, args, userId, observer)` plus
+`mutate(name, args, userId)`. Generated Snapback refs stay behind that provider;
+components never write tables directly or mirror server data into another
+client cache. Observer deliveries distinguish `authoritative`, `connection`,
+and `error`; a cached-row connection transition must never masquerade as a new
+authoritative snapshot or retire an optimistic layer.
 
-- **One `connectionId` per surface.** All of a page's live handles share
-  one durable socket; per-handle connection axes still arrive per query.
-- **Apply `handle.rows` immediately after subscribing** — the snapshot is
-  already on the handle; don't wait for the first push.
-- **Dispose on unmount/HMR.** Every handle's `dispose()` runs in the
-  effect cleanup (and StrictMode double-mount means a subscribe can resolve
-  *after* its cleanup ran — check a `disposed` flag and dispose the
-  latecomer instead of leaking it, as `useCursorRoom.ts` does).
-- Mutations are direct calls handed down as callbacks:
-  `client.mutate(ref, { args, userId })` / `client.action(...)` — the same
-  structured results the headless client gets.
+`useSnapbackQuery` returns:
+
+- `status`: `pending | ready | refreshing | error`;
+- `rows`: always an immutable array, including retained previous rows on an
+  error or stale connection;
+- `connection`: the headless connection axis;
+- `error`: a serialized structured error or `null`;
+- `mutation`: `idle | pending | confirmed | rejected` plus id/result/error;
+- `mutate(name, args, { optimisticRows, id })`;
+- `store`, for inspection or advanced composition.
+
+## Let identity replace subscriptions
+
+Pass semantic args, not a manually serialized dependency string. The shared
+store canonicalizes plain-object keys, arrays, finite numbers, and authority.
+Changing A→B→A opens the current identity without accepting a late B result.
+Two siblings at A share one upstream attempt; moving only one sibling to B
+leaves A live for the other.
+
+The package suite runs these cases under `StrictMode`, including same-key
+sibling sharing, different-key isolation, replay after cleanup, and final
+unmount disposal. The framework-neutral suite separately covers late-resolving
+handles, stale-generation deliveries, error snapshots, optimistic rollback,
+and incompatible-protocol refusal.
+
+## Mutate with visible settlement
+
+Call the hook's `mutate` function when the component needs pending and
+settlement state. `optimisticRows` may be an array or a pure projection over
+the current rows. Supply `isAuthoritative(rows, mutation)` when generated
+result/row identity can correlate the live result with this mutation. That
+matcher suppresses the overlay even when the authoritative query update beats
+the HTTP response; without it, the conservative fallback retires a confirmed
+overlay on the next authoritative delivery. Rejection always recomputes from
+the latest authoritative rows rather than restoring a mutation-start snapshot.
+
+This is an Online client projection. It does not claim local handler execution,
+durable offline queueing, or Parity merely because it can preserve current rows
+while a connection is stale. See [React Expo](./react-expo.md) for the per-OS
+native profile.
 
 ## Render connection state honestly
 
-Consume the derived connection axis
-(`connecting | live | stale | disconnected` — see
-[live queries](../realtime/live-queries.md)) and render degraded states as
-degraded: retained rows shown under a `stale` marker, TTL-pruning frozen
-while degraded so departed entries stay renderable, resubscribe on
-recovery. `demos/cursors-web/surfaces/react/src/useCursorRoom.ts` is the
-reference hook for the full pattern (state mapping, `needs_resync`
-handling, frozen maps).
-
-For a connection-keyed map, compute `self` as
-`entry.key === overlay.grantedConnectionId`. The hook's readable
-`connectionId` is only the client registry label; it can differ from the
-opaque id that the server granted and used as the entry lease key.
+Render `connecting | live | polling | stale | disconnected` as distinct facts.
+Retained rows under `stale` are useful but are not authoritative current data.
+Do not infer freshness from the presence of rows or from an open socket; consume
+the same connection axis described by [live queries](../realtime/live-queries.md).
 
 ## Anti-patterns
 
-- **Do not build a polling loop where a subscription exists** — wire
-  `liveQuery` with `onUpdate` into state.
-- **Do not hand-declare the kit client.** Import its exported types from
-  `client.mjs`; TypeScript resolves the adjacent `client.d.mts`.
-- **Do not treat `stale` as `live`.** The axis exists so the UI can tell
-  the truth; collapsing it to a boolean re-creates the all-aboard red-team
-  finding.
-- **Do not leak handles across HMR/StrictMode remounts.** Track and
-  dispose, including late-resolving subscribes.
-- **Do not compare presence keys with a readable connection label.** Read the
-  successful overlay's `grantedConnectionId` authority fact.
+- **Do not rebuild the adapter with `useEffect` and `useState`.** That
+  reintroduces Strict Mode, late-handle, sibling-sharing, and teardown races.
+- **Do not key by `JSON.stringify(args)` in component code.** Pass args and
+  authority to `useSnapbackQuery`; the shared identity contract owns them.
+- **Do not add a parallel React query cache.** The external store is the shared
+  current-value-plus-subscription seam.
+- **Do not omit authority identity when user or tenant context changes.** A
+  privacy cut must create a distinct store identity.
+- **Do not call Online local-first or Parity.** Those classes require the
+  retained execution/replay proofs in LLP 0012 and LLP 0064.
+
+---
+
+<!-- snapback-guide-source: guide/clients/react-expo.md -->
+---
+title: React Expo Online clients
+id: clients.react-expo
+order: 3
+audience: agent-first
+capabilities: [clients.react-expo]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs, demos/partiful-matrix/tests/acceptance/native-react-expo.mjs]
+examples: [demos/partiful-matrix/native/react-expo]
+status: current
+targets: [local]
+maturity: partial
+reviewed: 2026-07-20
+reviewed-commit: HEAD
+---
+
+# React Expo Online clients
+
+> **Local target only.** This page describes the local dev/test target.
+> Hosted targets make deliberately weaker or different claims — see
+> [auth/targets](../auth/targets.md).
+
+React Native/Expo uses the same `@snapback/client`, generated function
+references, framework-neutral external store, and `@snapback/react` hook as
+React web. It is an **Online** surface: queries and mutations run against a
+reachable Snapback backend. It does not execute handlers locally and therefore
+does not claim local-first behavior or Parity.
+
+The current implementation has a seven-check Android emulator run. The final
+same-key registry hardening changed content-addressed package inputs after that
+run, so `STEP2.REACT_EXPO_ANDROID_ONLINE` remains pending until it is rerun from
+the implementation commit. iOS has no corresponding passing receipt and also
+remains pending. Treat this page as the shipped API plus the exact current
+evidence boundary, not as a production-support declaration.
+
+## Use the same generated API and hook
+
+The carrier imports project-generated refs and binds them through the ordinary
+React hook:
+
+```js source=demos/partiful-matrix/native/react-expo/App.js
+  const query = useSnapbackQuery({ provider, name: 'listEvents', args: {}, userId, authority: userId });
+```
+
+The provider calls `SnapbackClient.liveQuery(api[name], ...)` and
+`SnapbackClient.mutate(api[name], ...)`; there is no direct table-write API or
+second native cache. It declares the exact
+`snapback.external-store.v1` compatibility token. A different token refuses
+before application data is published.
+
+## Prove one operating-system tuple at a time
+
+Run the profile gate with an explicit OS and receipt:
+
+```sh
+node demos/partiful-matrix/tests/acceptance/native-react-expo.mjs \
+  --platform android \
+  --receipt demos/partiful-matrix/acceptance/results/step2-react-expo-android.json
+```
+
+The OS-specific receipt must prove all seven LLP 0064 facts:
+
+1. release carrier build and emulator/device launch;
+2. generated-function initial authoritative data;
+3. optimistic pending followed by authoritative settlement;
+4. authority rotation followed by a fresh query;
+5. background and foreground lifecycle events;
+6. retained prior rows while offline, then authoritative reconnect; and
+7. release-artifact exclusion of Snapback server code.
+
+Android acceptance uses `adb reverse` to bridge the emulator to a loopback
+development server and witness collector. That is test infrastructure, not a
+production endpoint design and not permission to expose development auth on a
+non-loopback listener. An iOS result must run its own build, simulator/device,
+lifecycle, reconnect, and artifact-exclusion checks; Android evidence cannot
+substitute for it.
+
+## Handle native reconnect honestly
+
+React Native WebSockets may emit `error` without the browser-style follow-up
+`close`. The shared stream manager treats that error as connection loss,
+refreshes the connection grant, and re-enters through a fresh
+snapshot-with-subscribe. During the gap, keep the prior rows visible under a
+`stale` or disconnected connection fact; never relabel them live.
+
+Backgrounding quiesces the provider's live handles while retaining rendered
+rows; foregrounding restarts the surviving current-authority subscriptions and
+waits for authoritative snapshots. The Online gate asserts those provider
+transitions in addition to the OS events. It does not claim the durable queue,
+local execution, replay/rebase, or authority-safe retained store required for
+Exact Native Parity.
+
+## Anti-patterns
+
+- **Do not call the Android run an iOS pass.** Native evidence is per immutable
+  surface/OS profile.
+- **Do not call Online local-first or Parity.** No local handler execution is
+  claimed.
+- **Do not bundle the Snapback server into the carrier.** Native packages
+  contain public generated client artifacts only.
+- **Do not replace generated function refs with stringly table calls.** The
+  generated API is the cross-surface contract.
+- **Do not ship emulator port bridging as endpoint security.** It is local
+  acceptance infrastructure only.
 
 ---
 

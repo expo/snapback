@@ -30,6 +30,13 @@ export {
   createMemoryAgentAuthorityCustodyStorage,
 } from './agent-authority.mjs';
 export { deriveServiceAuthorityInstanceId } from '../snapback-contract/auth-coordinator.mjs';
+export {
+  assertExternalStoreCompatibility,
+  createExternalQueryStore,
+  externalStoreIdentity,
+  ExternalQueryScope,
+  SNAPBACK_EXTERNAL_STORE_PROTOCOL,
+} from './external-store.mjs';
 
 // ---------------------------------------------------------------------------
 // D1 freshness + reconnect policy (LLP 0034 §2.2/§2.3; Exact LLP 0284 §2.2).
@@ -5038,8 +5045,12 @@ class LiveStreamManager {
     };
     ws.addEventListener('close', onLoss, { once: true });
     ws.addEventListener('error', () => {
-      // 'close' follows 'error' in both browser and undici WebSockets; loss
-      // handling is centralized in the close handler.
+      // Browser and undici sockets normally follow `error` with `close`, but
+      // React Native may report a refused upgrade only as `error`. Waiting for
+      // a close that never comes wedges the manager with a non-open socket and
+      // prevents grant refresh after a server restart. #loseSocket is
+      // idempotent, so the usual later close event is harmless.
+      this.#loseSocket(ws, new Error(`Snapback live stream errored: ${url}`));
     });
   }
 

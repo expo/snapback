@@ -28,6 +28,9 @@
     "esbuild": "^0.28.1",
     "fake-indexeddb": "^6.2.5",
     "miniflare": "^4.20260701.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "react-test-renderer": "^19.1.0",
     "typescript": "5.9.3",
     "workerd": "^1.20260707.1",
     "wrangler": "^4.107.0"

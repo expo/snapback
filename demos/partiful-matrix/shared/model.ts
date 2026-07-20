@@ -41,15 +41,21 @@ export interface PostRow {
 
 export type QueryName = 'listEvents' | 'eventDetails' | 'guestList' | 'eventWall';
 export type MutationName = 'createEvent' | 'rsvp' | 'postMessage';
+export type Connection = 'connecting' | 'live' | 'polling' | 'stale' | 'disconnected';
+export type ProviderDelivery =
+  | { kind: 'authoritative' }
+  | { kind: 'connection' }
+  | { kind: 'error'; error?: unknown };
 
 export interface MatrixProvider {
   readonly backend: Backend;
   readonly transport: 'push' | 'poll';
+  readonly externalStoreProtocol: 'snapback.external-store.v1';
   subscribe<Row>(
     name: QueryName,
     args: Record<string, unknown>,
     userId: string,
-    observer: (rows: Row[], connection: 'connecting' | 'live' | 'polling' | 'disconnected') => void,
+    observer: (rows: Row[], connection: Connection, delivery?: ProviderDelivery) => void,
   ): Promise<{ rows: Row[]; dispose(): void }>;
   mutate<T>(
     name: MutationName,

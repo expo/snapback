@@ -4,13 +4,13 @@ id: meta.index
 order: 1
 audience: agent-first
 capabilities: [operating.served-guide, operating.guide-mcp]
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md]
-examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game]
+authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0000-snapback.explainer.md, llp/0064-native-client-surfaces.rfc.md]
+examples: [demos/todo, demos/todo-v2, demos/cursors-web, demos/card-game, demos/partiful-matrix]
 status: current
 targets: [all]
 maturity: shipped
-reviewed: 2026-07-16
-reviewed-commit: 175bff12109510545bdf0f927c9dfbd210109cfa
+reviewed: 2026-07-20
+reviewed-commit: HEAD
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -91,8 +91,10 @@ you never build around a feature because you didn't know it existed.
   the packaged local agent journey without source-diving.
 - [The Contract adapter](./clients/contract-adapter.md) — generated
   bindings, one-surface boot, derived optimistic overlays, offline classes.
-- [The React arm](./clients/react.md) — hand-wired client, live queries in
-  hooks, honest connection state.
+- [The React client](./clients/react.md) — first-class external-store hook,
+  keyed sibling sharing, Strict Mode lifecycle, and settlement state.
+- [React Expo Online clients](./clients/react-expo.md) — the shared React
+  projection on native carriers, per-OS evidence, and Online/Parity honesty.
 
 ### Testing
 - [Acceptance testing](./testing/acceptance.md) — headless-first harness,

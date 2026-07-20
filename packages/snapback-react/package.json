@@ -1,0 +1,22 @@
+{
+  "name": "@snapback/react",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "React external-store bindings for the Snapback app-data client.",
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "import": "./index.mjs"
+    }
+  },
+  "dependencies": {
+    "@snapback/client": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=18.0.0 <20.0.0"
+  },
+  "scripts": {
+    "test": "node package.test.mjs"
+  }
+}

@@ -4,6 +4,7 @@ import artifactIndex from '../../../snapback/generated/artifacts.json';
 import functionsManifest from '../../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
+import { createPollingDeliveryTracker } from '../../../shared/poll-recovery.mjs';
 
 export const configuredBackend = __MATRIX_BACKEND__;
 export const snapbackArtifactHash = artifactIndex.inputsHash;
@@ -34,9 +35,13 @@ async function createSnapbackProvider() {
         connectionId: `partiful_matrix_vanilla_${name}_${counter += 1}`,
         onUpdate: (rows) => {
           latestRows = rows;
-          observer(rows, 'live');
+          observer(rows, 'live', { kind: 'authoritative' });
         },
-        onConnectionChange: (connection) => observer(latestRows, connection),
+        onConnectionChange: (connection, detail = {}) => observer(
+          latestRows,
+          connection,
+          detail.error ? { kind: 'error', error: detail.error } : { kind: 'connection' },
+        ),
         onSubscriptionEvent: (event) => subscriptionEvents.push({
           queryName: name,
           pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
@@ -44,7 +49,7 @@ async function createSnapbackProvider() {
         }),
       });
       latestRows = handle.rows;
-      observer(handle.rows, handle.connection);
+      observer(handle.rows, handle.connection, { kind: 'authoritative' });
       return { rows: handle.rows, dispose: () => handle.dispose() };
     },
     async mutate(name, args, userId) {
@@ -73,24 +78,23 @@ function createGatewayProvider(backend) {
     async subscribe(name, args, userId, observer) {
       let disposed = false;
       let rows = [];
-      let fingerprint = '';
+      const deliveryTracker = createPollingDeliveryTracker();
       let timer;
       const poll = async () => {
         try {
           const next = await call('query', name, args, userId);
-          const nextFingerprint = JSON.stringify(next);
           rows = next;
-          if (nextFingerprint !== fingerprint) {
-            fingerprint = nextFingerprint;
-            observer(rows, 'polling');
+          if (deliveryTracker.accept(next)) {
+            observer(rows, 'polling', { kind: 'authoritative' });
           }
-        } catch {
-          observer(rows, 'disconnected');
+        } catch (error) {
+          deliveryTracker.fail();
+          observer(rows, 'disconnected', { kind: 'error', error });
         } finally {
           if (!disposed) timer = window.setTimeout(poll, 1000);
         }
       };
-      observer(rows, 'connecting');
+      observer(rows, 'connecting', { kind: 'connection' });
       await poll();
       return {
         rows,

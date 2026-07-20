@@ -39,10 +39,11 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const { SnapbackClient } = await import(join(repoRoot, 'demos/_kit/client.mjs'));
 
-// --- controllable WebSocket: 'real' | 'fail-construct' | 'handshake-death' ---
+// --- controllable WebSocket modes ---
 const RealWebSocket = globalThis.WebSocket;
 let wsMode = 'real';
 let ghostDeaths = 0; // sockets that completed the upgrade but died pre-'open'
+let errorOnlySignals = 0;
 
 // Connects for real (the server registers the stream task on upgrade
 // completion) but suppresses the client-visible 'open', then closes shortly
@@ -75,9 +76,33 @@ class GhostSocket {
   }
 }
 
+// React Native can surface a refused WebSocket upgrade as `error` without the
+// browser/undici follow-up `close`. The manager must treat that event itself as
+// loss or it retains a permanently connecting socket and never refreshes the
+// stale connection grant.
+class ErrorOnlySocket {
+  constructor() {
+    this.listeners = new Map();
+    queueMicrotask(() => {
+      errorOnlySignals += 1;
+      for (const listener of this.listeners.get('error') ?? []) listener(new Event('error'));
+    });
+  }
+
+  addEventListener(type, listener) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push(listener);
+    this.listeners.set(type, listeners);
+  }
+
+  close() {}
+  send() { throw new Error('error-only socket never opened'); }
+}
+
 globalThis.WebSocket = function PatchedWebSocket(url, protocols) {
   if (wsMode === 'fail-construct') throw new Error('simulated blocked WebSocket constructor');
   if (wsMode === 'handshake-death') return new GhostSocket(url, protocols);
+  if (wsMode === 'error-only') return new ErrorOnlySocket();
   return new RealWebSocket(url, protocols);
 };
 
@@ -118,6 +143,27 @@ try {
 
   try {
     await waitFor(() => handle.connection === 'live', "initial 'live'");
+
+    await suite.check('an error-only WebSocket failure cannot wedge reconnect', async () => {
+      const lossesBefore = managerStates.filter((state) => state.state === 'lost').length;
+      const resubscribesBefore = events.filter((event) => event.startsWith('resubscribed')).length;
+      wsMode = 'error-only';
+      db.liveStreamManager(CONN).debugCloseSocket();
+      await waitFor(() => errorOnlySignals >= 1, 'an error-only socket failure');
+      wsMode = 'fail-construct';
+      await waitFor(
+        () => managerStates.filter((state) => state.state === 'lost').length >= lossesBefore + 2,
+        "a 'lost' emission for the error-only socket",
+      );
+      await waitFor(
+        () => events.filter((event) => event.startsWith('resubscribed')).length > resubscribesBefore,
+        'a fresh subscribe after the error-only socket',
+      );
+      return { errorOnlySignals, managerStates, events };
+    });
+
+    wsMode = 'real';
+    await waitFor(() => handle.connection === 'live', "recovery from the error-only socket");
 
     // 1. Poll-fallback with a healthy re-created subscription: kill the open
     //    socket while the constructor is blocked, and let the loss path land
