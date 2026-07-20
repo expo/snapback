@@ -1656,3 +1656,25 @@ a trustworthy background oracle; launching the Settings application with
 headless. This closes the React Expo iOS Online claim only. Exact Native iOS
 and Android still require their generated Rust, retained-provider, local
 execution, durable replay/rebase, authority-fencing, and per-OS carrier proofs.
+
+## 28. Portable RSVP plan for Exact Native
+
+The first generated Rust Partitime binding identified one semantic gap before
+per-OS carrier work: `rsvp` was still an `IbexModule`, unlike `createEvent` and
+`postMessage`. Exact's retained native evaluator could not execute the core
+RSVP flow locally from that artifact, so neither Exact Native profile could
+honestly claim Parity.
+
+RSVP now uses the portable declarative mutation tier. It validates the three
+public statuses, replaces the current authority's row at the declared
+`(eventId, userId)` identity, and returns the inserted row id. A live
+in-memory-server witness applied `going` then `maybe`, observed exactly one
+row at `maybe`, and rejected an invalid status with
+`SNAPBACK_RSVP_STATUS_INVALID`. Regeneration classifies all three Partitime
+mutations as host plans and removes the unused JavaScript handler from the
+authored backend.
+
+This closes the local-executability prerequisite, not either OS claim. The
+remaining Exact Native work is still the retained Partitime replay corpus,
+release carrier integration, lifecycle behavior, artifact exclusion, and one
+independent receipt per OS.

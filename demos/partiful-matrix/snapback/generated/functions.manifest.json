@@ -1,7 +1,7 @@
 {
   "appId": "partiful-matrix",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:f4c24641a0539be3",
+  "bundleHash": "sha256:1aec679b48f4f0a6",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -474,27 +474,117 @@
       "name": "rsvp",
       "readSetSummary": {
         "authScopeField": null,
-        "mode": "handlerDeclared",
+        "mode": "singleTable",
         "primaryTable": "rsvps",
         "tables": [
           "rsvps"
         ]
       },
       "requiredCapabilities": [
-        "ibex_ctx_db_host_bridge",
+        "host_plan_runtime",
         "mutation_read_set_validation"
       ],
       "runtime": {
-        "IbexModule": {
-          "export": "rsvp",
-          "source": "const RSVP_STATUSES = new Set(['going', 'maybe', 'cant']);\n\nglobalThis.__snapbackHandlers = {\n  async rsvp(ctx, args) {\n    if (!RSVP_STATUSES.has(args.status)) {\n      throw new Error('status must be going, maybe, or cant');\n    }\n    const existing = (await ctx.db\n      .query('rsvps')\n      .withIndex('by_event')\n      .eq('eventId', args.eventId)\n      .collect())\n      .find((row) => row.userId === ctx.auth.userId);\n    if (existing?.status === 'host') throw new Error('the host is already going');\n    if (existing) {\n      await ctx.db.patch('rsvps', existing._id, { status: args.status, guestName: args.guestName });\n      return existing._id;\n    }\n    return await ctx.db.insert('rsvps', {\n      eventId: args.eventId,\n      userId: ctx.auth.userId,\n      guestName: args.guestName,\n      status: args.status,\n    });\n  },\n};\n"
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Binding": "rsvpId"
+            },
+            "steps": [
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Binary": {
+                          "left": {
+                            "Arg": "status"
+                          },
+                          "op": "Eq",
+                          "right": {
+                            "Literal": "going"
+                          }
+                        }
+                      },
+                      "op": "Or",
+                      "right": {
+                        "Binary": {
+                          "left": {
+                            "Binary": {
+                              "left": {
+                                "Arg": "status"
+                              },
+                              "op": "Eq",
+                              "right": {
+                                "Literal": "maybe"
+                              }
+                            }
+                          },
+                          "op": "Or",
+                          "right": {
+                            "Binary": {
+                              "left": {
+                                "Arg": "status"
+                              },
+                              "op": "Eq",
+                              "right": {
+                                "Literal": "cant"
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "else_error": "SNAPBACK_RSVP_STATUS_INVALID"
+                }
+              },
+              {
+                "DeleteWhere": {
+                  "filter": [
+                    {
+                      "field": "eventId",
+                      "op": "Eq",
+                      "value": {
+                        "Arg": "eventId"
+                      }
+                    },
+                    {
+                      "field": "userId",
+                      "op": "Eq",
+                      "value": "AuthUserId"
+                    }
+                  ],
+                  "table": "rsvps"
+                }
+              },
+              {
+                "Insert": {
+                  "bind_id_as": "rsvpId",
+                  "table": "rsvps",
+                  "values": {
+                    "eventId": {
+                      "Arg": "eventId"
+                    },
+                    "guestName": {
+                      "Arg": "guestName"
+                    },
+                    "status": {
+                      "Arg": "status"
+                    },
+                    "userId": "AuthUserId"
+                  }
+                }
+              }
+            ]
+          }
         }
       },
       "sourceSpan": null,
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
-        "mode": "handlerDeclared",
+        "mode": "mutationPlan",
         "primaryTable": "rsvps",
         "tables": [
           "rsvps"
@@ -503,7 +593,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
+  "inputsHash": "b82fce1973ae4c03a16f5e4aa6c57b80593a8238adabba549dea1f0d428e2e77",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }

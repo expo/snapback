@@ -1,6 +1,6 @@
 import {
-  arg, asc, authUserId, bindingRef, call, cond, defineJsMutation,
-  defineLiveQuery, defineMutation, eq, guard, insert, lit, ne,
+  arg, asc, authUserId, bindingRef, call, cond, defineLiveQuery,
+  defineMutation, deleteWhere, eq, eqv, guard, insert, lit, ne, or,
   returnBinding, runtimeNow, v,
 } from '../../_kit/define.mjs';
 
@@ -51,9 +51,34 @@ export const createEvent = defineMutation({
   returns: returnBinding('eventId'),
 });
 
-export const rsvp = defineJsMutation({
+// Replace-by-authority keeps RSVP mutation semantics in the portable plan
+// tier. RSVP row ids are not product identity; (eventId, userId) is the
+// declared unique key. This also makes the complete Partitime mutation set
+// deterministically executable by retained native clients.
+// @ref LLP 0064#4-exact-native-parity-surface — Parity requires generated
+// deterministic local handler execution, not an embedded server JS fallback.
+export const rsvp = defineMutation({
   args: { eventId: v.id('events'), guestName: v.string(), status: v.string() },
-  source: 'handlers.mjs', exportName: 'rsvp', reads: ['rsvps'], writes: ['rsvps'],
+  plan: [
+    guard(
+      or(
+        eqv(arg('status'), lit('going')),
+        or(eqv(arg('status'), lit('maybe')), eqv(arg('status'), lit('cant'))),
+      ),
+      'SNAPBACK_RSVP_STATUS_INVALID',
+    ),
+    deleteWhere('rsvps', [
+      eq('eventId', arg('eventId')),
+      eq('userId', authUserId()),
+    ]),
+    insert('rsvps', {
+      eventId: arg('eventId'),
+      userId: authUserId(),
+      guestName: arg('guestName'),
+      status: arg('status'),
+    }, { bindIdAs: 'rsvpId' }),
+  ],
+  returns: returnBinding('rsvpId'),
 });
 
 export const postMessage = defineMutation({

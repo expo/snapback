@@ -8,7 +8,7 @@
       "headlessBoot": true,
       "initialSnapshot": true,
       "localReplica": false,
-      "offlineReplay": false,
+      "offlineReplay": true,
       "optimisticMutations": true,
       "rowSyncState": true,
       "serverRunnableQueries": true,
@@ -362,10 +362,106 @@
           "localRunnable": false,
           "serverRunnable": true
         },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Binding": "rsvpId"
+              },
+              "steps": [
+                {
+                  "Guard": {
+                    "cond": {
+                      "Binary": {
+                        "left": {
+                          "Binary": {
+                            "left": {
+                              "Arg": "status"
+                            },
+                            "op": "Eq",
+                            "right": {
+                              "Literal": "going"
+                            }
+                          }
+                        },
+                        "op": "Or",
+                        "right": {
+                          "Binary": {
+                            "left": {
+                              "Binary": {
+                                "left": {
+                                  "Arg": "status"
+                                },
+                                "op": "Eq",
+                                "right": {
+                                  "Literal": "maybe"
+                                }
+                              }
+                            },
+                            "op": "Or",
+                            "right": {
+                              "Binary": {
+                                "left": {
+                                  "Arg": "status"
+                                },
+                                "op": "Eq",
+                                "right": {
+                                  "Literal": "cant"
+                                }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    },
+                    "else_error": "SNAPBACK_RSVP_STATUS_INVALID"
+                  }
+                },
+                {
+                  "DeleteWhere": {
+                    "filter": [
+                      {
+                        "field": "eventId",
+                        "op": "Eq",
+                        "value": {
+                          "Arg": "eventId"
+                        }
+                      },
+                      {
+                        "field": "userId",
+                        "op": "Eq",
+                        "value": "AuthUserId"
+                      }
+                    ],
+                    "table": "rsvps"
+                  }
+                },
+                {
+                  "Insert": {
+                    "bind_id_as": "rsvpId",
+                    "table": "rsvps",
+                    "values": {
+                      "eventId": {
+                        "Arg": "eventId"
+                      },
+                      "guestName": {
+                        "Arg": "guestName"
+                      },
+                      "status": {
+                        "Arg": "status"
+                      },
+                      "userId": "AuthUserId"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
         "name": "rsvp",
         "optimistic": {
-          "source": "none",
-          "supported": false
+          "source": "provider-plan",
+          "supported": true
         }
       }
     ],
@@ -723,8 +819,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:f4c24641a0539be3",
-    "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
+    "implementationHash": "sha256:1aec679b48f4f0a6",
+    "inputsHash": "b82fce1973ae4c03a16f5e4aa6c57b80593a8238adabba549dea1f0d428e2e77",
     "schemaHash": "sha256:f34c7e9c0ffaeb7e"
   }
 }

@@ -120,6 +120,14 @@ deterministic inputs and authority, and persists the ordered mutation request.
 Visible state is the authoritative base with every eligible pending mutation
 replayed in sequence.
 
+Partitime's three product mutations are all in that portable plan tier. The
+last gap was RSVP: it previously used an Ibex-only JavaScript handler. The
+native-parity implementation replaces the actor's `(eventId, userId)` RSVP
+and inserts the selected status through one declarative plan, preserving the
+declared unique product identity while making server and native replay consume
+the same generated operation. A server-only handler is not admissible evidence
+for deterministic local execution.
+
 On reconnect, the provider replaces the authoritative base and deterministically
 replays the remaining queue. Confirmed mutations leave the queue; rejected
 mutations roll back through the same replay operation. A lost response retains

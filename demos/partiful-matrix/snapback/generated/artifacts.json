@@ -35,7 +35,7 @@
     "contract/rsvp.mutation.ts",
     "contract/rsvp.mutation.contract-meta.ts"
   ],
-  "bundleHash": "sha256:f4c24641a0539be3",
+  "bundleHash": "sha256:1aec679b48f4f0a6",
   "config": [],
   "cronJobs": [],
   "ephemeralCollections": [],
@@ -77,7 +77,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
+  "inputsHash": "b82fce1973ae4c03a16f5e4aa6c57b80593a8238adabba549dea1f0d428e2e77",
   "schemaHash": "sha256:f34c7e9c0ffaeb7e",
   "schemaVersion": "snapback.v0",
   "tables": [

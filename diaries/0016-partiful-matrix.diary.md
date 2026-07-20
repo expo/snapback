@@ -1072,3 +1072,30 @@ Contract carriers, it preserved much more of Snapback's generated client and
 live-query behavior with very little app-specific transport code. It remains
 honestly Online rather than Parity: no local handler execution, durable
 mutation queue, or replay/rebase claim follows from this result.
+
+## 2026-07-20 — RSVP crossed the native replay boundary
+
+The first Exact Native binding run exposed a sharper blocker than platform
+plumbing: Partitime's RSVP was the only product mutation still implemented as
+an Ibex JavaScript handler. The generated Rust client could name it, but the
+retained native evaluator could not execute it while offline. Calling that
+surface Parity would have made the most visible product interaction silently
+Online-only.
+
+The fix was smaller and more honest than embedding a second JavaScript engine.
+RSVP row identity is the declared `(eventId, userId)` key, not its storage row
+id, so the mutation now deletes that actor's RSVP for the event and inserts the
+new validated status in one declarative plan. Server execution and Exact's
+deterministic local replay therefore consume the same generated steps. The
+unused 28-line handler file disappeared, and a live in-memory server check
+proved two successive status changes leave one row plus a typed rejection for
+an invalid status.
+
+This felt like Snapback at its best: the manifest made the server-only tier
+obvious before device work could hide it. The awkward part is that replacing a
+row changes its storage id. Partitime never exposes RSVP row ids as product
+identity, so that is acceptable for this fixture; a product that does expose
+them would need a declarative unique-key upsert or another portable operation,
+not this replace pattern. Compared with Convex or Supabase, the native replay
+requirement asks more of mutation authoring, but it also makes the offline
+claim mechanically inspectable instead of depending on app-authored optimism.
