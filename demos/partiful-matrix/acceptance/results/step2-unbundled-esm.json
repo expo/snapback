@@ -1,0 +1,39 @@
+{
+  "delivery": "direct-script-type-module",
+  "transforms": [],
+  "testInventory": [
+    {
+      "path": "packages/snapback-client/index.mjs",
+      "sha256": "c9e03ca882be526a91d3c217fa2a2c0d93c3699b649aa81919eddf1bfa833461"
+    },
+    {
+      "path": "packages/snapback-client/external-store.mjs",
+      "sha256": "be25fd98973a2ee717b07906a53a09821498d14b2a44b13e90475d91bf3a184e"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/unbundled-esm.mjs",
+      "sha256": "92aa4fae7be621030aa1ab5299769a35908bf9f2bb5c48745ea93db21a883f0a"
+    }
+  ],
+  "title": "partiful matrix / direct unbundled browser ESM",
+  "passed": 2,
+  "skipped": 0,
+  "failed": 0,
+  "total": 2,
+  "ok": true,
+  "results": [
+    {
+      "name": "the full Snapback client root imports in a browser without a bundler",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "the shipped lifecycle primitive executes from direct browser ESM",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 2,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

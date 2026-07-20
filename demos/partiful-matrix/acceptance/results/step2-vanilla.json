@@ -1,0 +1,128 @@
+{
+  "schemaVersion": "partitime.step2-client-aggregate.v1",
+  "claimId": "STEP2.VANILLA",
+  "profile": "vanilla",
+  "ok": true,
+  "outcome": "pass",
+  "recordedAt": "2026-07-20T15:58:00.092Z",
+  "repository": {
+    "revision": "9fe4e65fa5072723d1af293b3f50626fd75e1cba",
+    "sourceDirty": false,
+    "dirtySource": []
+  },
+  "children": [
+    {
+      "id": "poll-recovery",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/poll-recovery.test.mjs"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "d2f398715ce90550ea05367bd2072447083c73caebc6837641309a45eb6ce775",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": null
+    },
+    {
+      "id": "vanilla-browser",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+        "--arm",
+        "vanilla",
+        "--receipt",
+        "demos/partiful-matrix/acceptance/results/step2-vanilla-browser.json"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "34c2f3a462f2716856bf35da1e9843fb09c4bc8c6c8a557c6197dca294c1cea9",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-vanilla-browser.json",
+        "sha256": "cfd8cf89e37aee6e07c9ea5c95ddf0376608819be46b099848f70249b0a28f8b"
+      },
+      "passed": 17,
+      "total": 17
+    },
+    {
+      "id": "vanilla-lifecycle",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs",
+        "--receipt",
+        "demos/partiful-matrix/acceptance/results/step2-vanilla-lifecycle.json"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "7f6ef16d100384a19b219cb3c72a5a7e429bb354f6fd858e32220fb78611c08d",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-vanilla-lifecycle.json",
+        "sha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a"
+      },
+      "passed": 5,
+      "total": 5
+    },
+    {
+      "id": "vanilla-unbundled-esm",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/unbundled-esm.mjs",
+        "--receipt",
+        "demos/partiful-matrix/acceptance/results/step2-unbundled-esm.json"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "f0d6e05721e5bb57cf08ba010a11866a6e44ff909f681275b4565d020b16d4d7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-unbundled-esm.json",
+        "sha256": "43f27d9859efbbec1a037f2cf2c7a9f40bdd6c7a17793dc454d4e9811aeb0de2"
+      },
+      "passed": 2,
+      "total": 2
+    }
+  ],
+  "sourceInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs",
+      "sha256": "651b49746a158aa3e7abe0408b5ba0858c053c608d69b54f35b07577d1d91adc"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/poll-recovery.test.mjs",
+      "sha256": "d80f5efa32e9b518170d09c867c87f5ac7b127b250179ec745b764837a9ba6eb"
+    },
+    {
+      "path": "demos/partiful-matrix/shared/poll-recovery.mjs",
+      "sha256": "6e5d04ac2f254337c02232290d298a82fa3895b12c1d01d86943c28938016979"
+    },
+    {
+      "path": "packages/snapback-client/external-store.mjs",
+      "sha256": "be25fd98973a2ee717b07906a53a09821498d14b2a44b13e90475d91bf3a184e"
+    },
+    {
+      "path": "packages/snapback-client/external-store.d.mts",
+      "sha256": "81dc4024a57ca5a63e3d864f999546ffef252f02618b9dc3619ce91e07aa0010"
+    },
+    {
+      "path": "packages/snapback-client/external-store.test.mjs",
+      "sha256": "c6bf5df3ed6ec84d5f613ad8e28ab075db47bd969c5e7ec7793e90a4b033a255"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
+      "sha256": "ac06fa06fbf43904a38b0dc5a67cf6577778fc9d7e8bd6aa9a3995c56773bc7b"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs",
+      "sha256": "0ca3f108124f95fc4b9329df2d3604938760a32e44e6db4fecb2ac1466055458"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/unbundled-esm.mjs",
+      "sha256": "92aa4fae7be621030aa1ab5299769a35908bf9f2bb5c48745ea93db21a883f0a"
+    }
+  ]
+}

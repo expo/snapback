@@ -15,7 +15,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 # Capability index
@@ -194,7 +194,7 @@ status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 <img src="../brand/snapback-mark.svg" alt="Snapback" width="96" />
@@ -2175,7 +2175,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 # The headless client
@@ -2550,7 +2550,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 # The React client
@@ -2675,7 +2675,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 # React Expo Online clients
@@ -2690,12 +2690,12 @@ React web. It is an **Online** surface: queries and mutations run against a
 reachable Snapback backend. It does not execute handlers locally and therefore
 does not claim local-first behavior or Parity.
 
-The current implementation has a seven-check Android emulator run. The final
-same-key registry hardening changed content-addressed package inputs after that
-run, so `STEP2.REACT_EXPO_ANDROID_ONLINE` remains pending until it is rerun from
-the implementation commit. iOS has no corresponding passing receipt and also
-remains pending. Treat this page as the shipped API plus the exact current
-evidence boundary, not as a production-support declaration.
+The current implementation has a clean seven-check Android emulator receipt.
+It binds the implementation revision, 107 carrier/build inputs, in-process
+release build, and APK digest, so `STEP2.REACT_EXPO_ANDROID_ONLINE` is passing.
+iOS has no corresponding passing receipt and remains pending. Treat this page
+as the shipped API plus the exact current evidence boundary, not as a
+production-support declaration.
 
 ## Use the same generated API and hook
 

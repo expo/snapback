@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 506b622cd3
 ---
 
 # The React client

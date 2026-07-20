@@ -1,0 +1,52 @@
+{
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/vanilla-lifecycle.mjs",
+      "sha256": "0ca3f108124f95fc4b9329df2d3604938760a32e44e6db4fecb2ac1466055458"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+    },
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    }
+  ],
+  "title": "partiful matrix / vanilla subscription lifecycle",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "renew disposes every active handle",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "late handle resolution and stale updates are fenced",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "close is terminal and idempotently disposes the current scope",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "connection-only delivery retains the last authoritative rows",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "startup rejection is observable and leaves no active binding",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

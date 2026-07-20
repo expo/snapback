@@ -780,16 +780,26 @@ left the shared manager wedged until the error path became an explicit loss.
 The emulator used `adb reverse`, so this remains a loopback development proof,
 not hosted endpoint evidence.
 
+The clean follow-up receipts closed the mutable-input gap: React recorded
+13/13 plus its package/recovery checks, Vanilla recorded 17/17 plus lifecycle
+5/5 and direct ESM 2/2, and Android recorded 7/7 from a clean revision. The
+native receipt hashes 107 source/build inputs and the rebuilt 68.9 MB release
+APK. Two harness problems surfaced during the clean device run and were worth
+fixing rather than explaining away: concurrent fire-and-forget witness POSTs
+could drop `provider-ready`, and APKs with duplicate resource names made
+`unzip` prompt interactively. Serial bounded witness delivery and explicit
+overwrite extraction made both paths deterministic.
+
 The capability boundary matters more than the green device flow. The Android
 carrier is Online only: it executes no handlers locally and proves no durable
 offline queue, replay/rebase, or Parity. iOS still has no passing receipt, and
-neither `exact-native/ios` nor `exact-native/android` moved. The final
-provider-scoped registry and protocol declarations also changed package inputs
-after the first Android and browser receipts were written. Their functional
-runs are useful, but the cumulative claims stay pending until clean
-implementation-revision reruns bind the final sources and carrier artifacts.
-That is exactly the kind of difference the Step 0 manifest discipline was
-meant to preserve.
+neither `exact-native/ios` nor `exact-native/android` moved. The iOS blocker is
+host-wide rather than app-local: macOS 26.5 is creating fresh pipes with only
+512 bytes of capacity, so Xcode's clang feature-detection subprocess blocks in
+`write`. A reboot is the known short-term recovery, but it is intentionally not
+performed without explicit authority on this shared machine. The cumulative
+manifest therefore closes only the three clean Step 2 claims and keeps iOS and
+Exact Native honest and pending.
 
 This work made the existing React guide materially stale: it still taught the
 hand-wired hook and said there was no generated/shipped React binding. The

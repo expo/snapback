@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "4400c90ac4390109e843367c9ea0691d8a8f9357"
+    "commit": "506b622cd3f115061b0553b1aa8e08165fb0cfdb"
   },
   "nav": {
     ".": [
@@ -605,8 +605,8 @@
       ],
       "examples": [],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "99b0f1be013cb479ff8014746738b5d24dc4e47884af32743f7dfff3ef937ef9",
+      "reviewedCommit": "506b622cd3",
+      "sha256": "e141f6ad85ea1c574a27cc255431f536ead4c4862b54663dcde0cbeca5c88352",
       "snippets": []
     },
     "clients.app-cli": {
@@ -738,8 +738,8 @@
         "demos/partiful-matrix/surfaces/vanilla"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "3b121ad0ee37ad9d1228b7d4d3230062b056839c8d6ac5db047573be504fb3e9",
+      "reviewedCommit": "506b622cd3",
+      "sha256": "913b82ffbf8eb500a611cb977b8069acc0a25b4631d0fe540e5d0e959040cf52",
       "snippets": [
         {
           "lang": "js",
@@ -777,8 +777,8 @@
         "demos/partiful-matrix/native/react-expo"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "bce139c3e6c729bf5645bc640d4c79d58ff9e13d25f55f9233a11dd02a6b8831",
+      "reviewedCommit": "506b622cd3",
+      "sha256": "3e930e26ceb9bb11ce7115326246d3998e6bd195f65b0f7243a9259d46210e95",
       "snippets": [
         {
           "lang": "js",
@@ -810,8 +810,8 @@
         "packages/snapback-react/package.test.mjs"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "edc70784330d6bd4795c48290a122b93c18f525b96868b5eec171537cf94859e",
+      "reviewedCommit": "506b622cd3",
+      "sha256": "5e8f895dcbe9761d700fffa4d004011795cf9f97d89b66ef8723b329eae23d7e",
       "snippets": [
         {
           "lang": "tsx",
@@ -1000,8 +1000,8 @@
         "demos/partiful-matrix"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "b8deb80e47d872ca6a3c6f0c639968f87b664962681979164ec50d7c935fc9de",
+      "reviewedCommit": "506b622cd3",
+      "sha256": "f891aa2604b4c7f6e7848a9ff1c2bc5ac3859c41219dfd2e31e867ccdfe76763",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1495,5 +1495,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "b736d27f65f3c70605089863dbd20f1d26cf2d837902a4e56401e8ce0d094647"
+  "contentHash": "bf90681382ae75f5302d13ea300d6fea675fdd4458dbf6c7e13de6893d84c0db"
 }

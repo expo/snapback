@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "partitime.step2-client-aggregate.v1",
+  "claimId": "STEP2.REACT_WEB",
+  "profile": "react",
+  "ok": true,
+  "outcome": "pass",
+  "recordedAt": "2026-07-20T15:57:42.423Z",
+  "repository": {
+    "revision": "9fe4e65fa5072723d1af293b3f50626fd75e1cba",
+    "sourceDirty": false,
+    "dirtySource": []
+  },
+  "children": [
+    {
+      "id": "poll-recovery",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/poll-recovery.test.mjs"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "d2f398715ce90550ea05367bd2072447083c73caebc6837641309a45eb6ce775",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": null
+    },
+    {
+      "id": "react-package",
+      "command": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback-react",
+        "test"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "9f4310e67eb0efc6ebc0ea2eb4817de3537d5b958150dca5d482b0efa597a5ae",
+      "stderrSha256": "94aefe763eef0bc991f4fda24ba78789d0c64e2a597c3da64198e2c4b71bdc10",
+      "artifact": null
+    },
+    {
+      "id": "react-browser",
+      "command": [
+        "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+        "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+        "--arm",
+        "react",
+        "--receipt",
+        "demos/partiful-matrix/acceptance/results/step2-react-browser.json"
+      ],
+      "exitStatus": 0,
+      "stdoutSha256": "72b4c12b87e25ead66fc3d17101a1aec1195884b9ed72ea02bbd317b37d145d4",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "artifact": {
+        "path": "demos/partiful-matrix/acceptance/results/step2-react-browser.json",
+        "sha256": "abb156456d1181acd425242380a9d67e2d6618262f962b75d1295a39b52c9c0d"
+      },
+      "passed": 13,
+      "total": 13
+    }
+  ],
+  "sourceInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step2-client-aggregate.mjs",
+      "sha256": "651b49746a158aa3e7abe0408b5ba0858c053c608d69b54f35b07577d1d91adc"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/poll-recovery.test.mjs",
+      "sha256": "d80f5efa32e9b518170d09c867c87f5ac7b127b250179ec745b764837a9ba6eb"
+    },
+    {
+      "path": "demos/partiful-matrix/shared/poll-recovery.mjs",
+      "sha256": "6e5d04ac2f254337c02232290d298a82fa3895b12c1d01d86943c28938016979"
+    },
+    {
+      "path": "packages/snapback-client/external-store.mjs",
+      "sha256": "be25fd98973a2ee717b07906a53a09821498d14b2a44b13e90475d91bf3a184e"
+    },
+    {
+      "path": "packages/snapback-client/external-store.d.mts",
+      "sha256": "81dc4024a57ca5a63e3d864f999546ffef252f02618b9dc3619ce91e07aa0010"
+    },
+    {
+      "path": "packages/snapback-client/external-store.test.mjs",
+      "sha256": "c6bf5df3ed6ec84d5f613ad8e28ab075db47bd969c5e7ec7793e90a4b033a255"
+    },
+    {
+      "path": "packages/snapback-react/index.mjs",
+      "sha256": "9e829b99b43466fbec0611d8cc0ac031d2b09978e960c5b5203e50661711cd03"
+    },
+    {
+      "path": "packages/snapback-react/index.d.mts",
+      "sha256": "d039455bfdbf8d37f60b3ea3260d8248ab60ce92779b256f0ac52bf7238a31e2"
+    },
+    {
+      "path": "packages/snapback-react/package.test.mjs",
+      "sha256": "9fcd3498c69ea124593985b92dbdef6341a03e60ec18574810c3f1fe7527b171"
+    },
+    {
+      "path": "demos/partiful-matrix/shared/model.ts",
+      "sha256": "041e13c9b19916ed9fdaefdf73936f6b970cc312d32f1d0b1905e3b8beb38493"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+      "sha256": "9a2bf4cfe6e73e785b0e824e655672fdae20681e7e4264effeea215470782518"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "c3c51cab44b243865811be006ca5246790fb563d5814788b67a4dce00ea67290"
+    }
+  ]
+}
