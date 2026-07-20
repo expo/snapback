@@ -1,0 +1,173 @@
+{
+  "schemaVersion": "partitime.step3-diagnostics-parity.v1",
+  "status": "pass",
+  "scope": "LLP 0063 Step 3 diagnostics and React/Contract parity slice",
+  "generatedArtifacts": {
+    "artifactIndex": "demos/partiful-matrix/snapback/generated/artifacts.json",
+    "contractManifest": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
+    "apiModule": "demos/partiful-matrix/snapback/generated/api.mjs",
+    "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+    "schemaHash": "sha256:6d8f2c14b46ebe23",
+    "bundleHash": "sha256:f74fae069b4d2e8a",
+    "queryReference": "partiful-matrix:guestList",
+    "mutationReference": "partiful-matrix:rsvp"
+  },
+  "exactOracle": {
+    "path": "packages/exact-contract/src/__tests__/diagnostics-parity.test.ts",
+    "passCount": 8
+  },
+  "crossSurface": {
+    "manifestObjectShared": true,
+    "reactMutationObservedByContractLiveQuery": true,
+    "contractMutationObservedByReactLiveQuery": true,
+    "providerDiagnosticProjectionEqual": true,
+    "actionDiagnosticProjectionEqual": true,
+    "actionErrorPropagatedToReactCaller": true,
+    "contractActionReturnedStructuredFailure": true
+  },
+  "diagnostics": [
+    {
+      "case": "grammar",
+      "code": "view_root_count",
+      "severity": "error",
+      "source": "compiler",
+      "primarySpan": {
+        "file": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "line": 42,
+        "column": 3
+      },
+      "related": [],
+      "fixIts": [],
+      "dedupeKey": "compiler:view_root_count:demos/partiful-matrix/surfaces/contract/event.contract:42:3",
+      "adapterProjectionSha256": "928f1223aac4175339c2a79e3f28ce196e3361072ddb289709e637d7f7ff1fa6",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    },
+    {
+      "case": "non_live_binding",
+      "code": "declaration_snapshot_liveness_conflict",
+      "severity": "error",
+      "source": "checker",
+      "primarySpan": null,
+      "related": [
+        {
+          "message": "declaration path: $.queries[0].liveness"
+        }
+      ],
+      "fixIts": [],
+      "dedupeKey": "checker:declaration_snapshot_liveness_conflict:$.queries[0].liveness",
+      "adapterProjectionSha256": "9b46da7f5bdaff9d2ec53ed43861543d2940b45d46770e79208b23d3fee49b73",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    },
+    {
+      "case": "wrong_handler_kind",
+      "code": "query_non_query_import",
+      "severity": "error",
+      "source": "compiler",
+      "primarySpan": {
+        "file": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "line": 20,
+        "column": 1
+      },
+      "related": [],
+      "fixIts": [],
+      "dedupeKey": "compiler:query_non_query_import:demos/partiful-matrix/surfaces/contract/event.contract:20:1",
+      "adapterProjectionSha256": "cebc45cab221e69c08956db43c964b6ea9a0761b25b4556aabd51e819afcaa4a",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    },
+    {
+      "case": "helper_type_metadata",
+      "code": "missing_import_semantics",
+      "severity": "warning",
+      "source": "compiler",
+      "primarySpan": {
+        "file": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "line": 6,
+        "column": 1
+      },
+      "related": [],
+      "fixIts": [],
+      "dedupeKey": "compiler:missing_import_semantics:demos/partiful-matrix/surfaces/contract/event.contract:6:1",
+      "adapterProjectionSha256": "4db80a7a0de3686d07a6c9f225315ed8d5995cba4586228fae3b4f8458b3fada",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    },
+    {
+      "case": "provider_refusal",
+      "code": "SNAPBACK_PROVIDER_SUBSCRIBE_REFUSED",
+      "severity": "error",
+      "source": "provider",
+      "primarySpan": {
+        "file": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "line": 21,
+        "column": 5
+      },
+      "related": [
+        {
+          "message": "generated from demos/partiful-matrix/snapback/generated/api.mjs#guestList"
+        }
+      ],
+      "fixIts": [],
+      "dedupeKey": "provider:SNAPBACK_PROVIDER_SUBSCRIBE_REFUSED:snapback:guestList",
+      "adapterProjectionSha256": "e0b0db00f482b8cb878920d0b6320d33ee395273d319c4178c174b3dc9687d2d",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    },
+    {
+      "case": "action_rejection",
+      "code": "SNAPBACK_ACTION_REJECTED",
+      "severity": "error",
+      "source": "provider",
+      "primarySpan": {
+        "file": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "line": 30,
+        "column": 5
+      },
+      "related": [
+        {
+          "message": "generated from demos/partiful-matrix/snapback/generated/api.mjs#rsvp"
+        }
+      ],
+      "fixIts": [],
+      "dedupeKey": "provider:SNAPBACK_ACTION_REJECTED:snapback:rsvp",
+      "adapterProjectionSha256": "e9435b953f656bf8ef8e29068ca9ab4f3e708daf2307bd38846c5542d721d242",
+      "adapters": [
+        "cli",
+        "lsp",
+        "agent"
+      ]
+    }
+  ],
+  "rootReporting": {
+    "rootId": "partitime-step3-contract-root",
+    "actionCode": "SNAPBACK_ACTION_REJECTED",
+    "reports": 1,
+    "occurrences": 2
+  },
+  "lifecycle": {
+    "exactLogicalSubscriptionsAfterDispose": 0,
+    "backendObserversAfterDispose": 0
+  },
+  "nonClaims": [
+    "This slice does not promote any cumulative-gate manifest claim.",
+    "LSP completion/navigation/rename/formatting/incremental capability witnesses remain outside this diagnostics-parity slice.",
+    "Native quiet-operation and non-Snapback producer gates remain separate Step 3 receipts."
+  ]
+}

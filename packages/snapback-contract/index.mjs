@@ -15,6 +15,12 @@ export const SNAPBACK_CONTRACT_CAPABILITY_CLASS = 'Online';
 export const SNAPBACK_CONTRACT_PARITY_CAPABILITY_CLASS = 'Parity';
 
 export {
+  createSnapbackProviderDiagnostic,
+  createSnapbackProviderDiagnosticCollector,
+  createSnapbackProviderDiagnosticError,
+} from './diagnostics.mjs';
+
+export {
   AuthCoordinator,
   authAppIdHash,
   canonicalAgentAuthorityKey,
@@ -118,6 +124,7 @@ import {
   validateAuthorizedLeaseCapability,
 } from './authorized-lease.mjs';
 import { createKeyedSnapbackContractProvider } from './keyed-provider.mjs';
+import { createSnapbackProviderDiagnostic } from './diagnostics.mjs';
 
 // A physical format-6 store is one durable barrier participant even when an
 // app mounts several Contract surfaces over it. The coordinator owns the
@@ -5066,16 +5073,30 @@ function normalizeContractMountOptions(options = {}) {
 }
 
 function contractDiagnostic(code, message, details = {}) {
-  return {
-    code,
-    severity: 'error',
-    subsystem: 'contract-integration',
-    message,
-    details: {
-      target_surface: 'Contract/Exact',
-      ...details,
-    },
-  };
+  const {
+    severity = 'error',
+    provider = 'snapback',
+    owner = 'provider',
+    source,
+    queryName = details.query,
+    mutationName = details.mutation,
+    table,
+    suggestedFix,
+    target_surface: targetSurface = 'Contract/Exact',
+    ...providerDetails
+  } = details;
+  return createSnapbackProviderDiagnostic(code, message, {
+    severity,
+    provider,
+    owner,
+    source,
+    queryName,
+    mutationName,
+    table,
+    suggestedFix,
+    targetSurface,
+    details: providerDetails,
+  });
 }
 
 function normalizeResourceDefinition(name, resource) {

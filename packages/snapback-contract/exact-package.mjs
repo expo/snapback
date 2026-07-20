@@ -35,6 +35,14 @@ export async function importExactContractConformance({ exactRoot = null } = {}) 
   return importExactContractExport('./conformance', { exactRoot });
 }
 
+export async function importExactContractDeclaration({ exactRoot = null } = {}) {
+  return importExactContractExport('./declaration', { exactRoot });
+}
+
+export async function importExactContractDiagnostics({ exactRoot = null } = {}) {
+  return importExactContractExport('./diagnostics', { exactRoot });
+}
+
 export async function importExactContractExport(subpath, {
   exactRoot = null,
   resolveSpecifier = (specifier) => import.meta.resolve(specifier),

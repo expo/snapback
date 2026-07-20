@@ -11,6 +11,12 @@
 // @ref LLP 0053#client-fences — authority changes rotate Exact's opaque
 //   partition before any successor result can publish.
 
+import {
+  createSnapbackProviderDiagnostic,
+  createSnapbackProviderDiagnosticCollector,
+  createSnapbackProviderDiagnosticError,
+} from './diagnostics.mjs';
+
 function randomOpaqueId() {
   const value = globalThis.crypto?.randomUUID?.()
     ?? `${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
@@ -27,21 +33,46 @@ function serializedError(error) {
 }
 
 function providerDiagnostic(code, message, details = {}) {
-  return Object.freeze({
-    schemaVersion: 'contract-diagnostic.v1',
-    code,
-    severity: 'error',
-    message,
-    details: Object.freeze({ ...details }),
+  const {
+    severity = 'error',
+    provider = 'snapback',
+    owner = 'provider',
+    source,
+    queryName = details.query,
+    mutationName = details.mutation,
+    table,
+    suggestedFix,
+    targetSurface = 'Contract/Exact',
+    ...providerDetails
+  } = details;
+  return createSnapbackProviderDiagnostic(code, message, {
+    severity,
+    provider,
+    owner,
+    source,
+    queryName,
+    mutationName,
+    table,
+    suggestedFix,
+    targetSurface,
+    details: providerDetails,
   });
 }
 
 function diagnosticError(code, message, details = {}) {
   const diagnostic = providerDiagnostic(code, message, details);
-  const error = new Error(`${code}: ${message}`);
-  error.code = code;
-  error.diagnostic = diagnostic;
-  return error;
+  return createSnapbackProviderDiagnosticError(code, message, {
+    severity: diagnostic.severity,
+    provider: diagnostic.provider,
+    owner: diagnostic.owner,
+    source: diagnostic.source,
+    queryName: diagnostic.queryName,
+    mutationName: diagnostic.mutationName,
+    table: diagnostic.table,
+    suggestedFix: diagnostic.suggestedFix,
+    targetSurface: diagnostic.details.target_surface,
+    details: diagnostic.details,
+  });
 }
 
 function readyCell(rows, connection = null) {
@@ -120,7 +151,8 @@ export function createKeyedSnapbackContractProvider({
   }
   const allowedQueries = normalizeAllowedQueries(manifest, keyedQueries);
   const active = new Set();
-  const diagnostics = [];
+  const diagnosticCollector = createSnapbackProviderDiagnosticCollector({ rootId });
+  const diagnostics = diagnosticCollector.diagnostics();
   let disposed = false;
   let activeUserId = userId;
   let authorityCapture = initialAuthorityCapture;
@@ -128,8 +160,8 @@ export function createKeyedSnapbackContractProvider({
   let subscriptionSequence = 0;
   let authorityPaused = false;
 
-  const recordDiagnostic = (error) => {
-    if (error?.diagnostic) diagnostics.push(error.diagnostic);
+  const recordDiagnostic = (error, identity = {}) => {
+    diagnosticCollector.record(error, identity);
     return error;
   };
   const assertActive = () => {
@@ -186,7 +218,13 @@ export function createKeyedSnapbackContractProvider({
               throw diagnosticError(
                 'SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE',
                 `query binding "${queryName}" is not declared live`,
-                { query: queryName },
+                {
+                  provider: manifest?.provider ?? 'snapback',
+                  owner: 'generated',
+                  queryName,
+                  source: descriptor.source,
+                  query: queryName,
+                },
               );
             }
             const handle = await client.liveQuery(queryName, {
@@ -247,7 +285,10 @@ export function createKeyedSnapbackContractProvider({
           publish(readyCell(record.previous, null));
         } catch (error) {
           if (!current()) return;
-          recordDiagnostic(error);
+          recordDiagnostic(error, {
+            instanceId: `${rootId}:query:${queryName}:${sequence}`,
+            causeCode: error?.code ?? error?.diagnostic?.code,
+          });
           publish(errorCell(error, record.previous, record.connection));
         }
       };
@@ -284,7 +325,10 @@ export function createKeyedSnapbackContractProvider({
         });
         return { ok: true, value };
       } catch (error) {
-        recordDiagnostic(error);
+        recordDiagnostic(error, {
+          instanceId: `${rootId}:mutation:${mutationName}`,
+          causeCode: error?.code ?? error?.diagnostic?.code,
+        });
         return { ok: false, error: serializedError(error) };
       }
     },
