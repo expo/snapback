@@ -143,7 +143,7 @@ const pushLatency = Object.fromEntries(pushResults.map(({ name, details }) => {
   return [arm, details.freshnessLatencyMs];
 }));
 assert.deepEqual(Object.keys(pushLatency).sort(), ['contract', 'react', 'vanilla']);
-const thresholds = {
+const currentFormulaThresholds = {
   emittedMinifiedJsBytes: Object.fromEntries(backends.map((backend) => [backend, Math.floor(cells[`react:${backend}`].minifiedBytes * 1.05)])),
   compressedJsBytes: Object.fromEntries(backends.map((backend) => [backend, Math.floor(cells[`react:${backend}`].deterministicGzipBytes * 1.05)])),
   contractSourceLines: Math.floor(sourceInventory.react.totalLines * 1.10),
@@ -151,7 +151,34 @@ const thresholds = {
   requiredWebCheckCount: 43,
   firstPushFreshnessLatencyMsP95: Math.floor(pushLatency.react.p95 * 1.10),
 };
-const thresholdId = `partitime-thresholds-v1-sha256-${sha256(JSON.stringify(thresholds)).slice(0, 16)}`;
+let thresholds = currentFormulaThresholds;
+let thresholdId = `partitime-thresholds-v1-sha256-${sha256(JSON.stringify(thresholds)).slice(0, 16)}`;
+let thresholdFreezeSource = null;
+if (output) {
+  // @ref LLP 0063#product-choice-at-the-start-of-the-program — threshold
+  // numbers freeze at the first attribution run. A cumulative rerun measures
+  // current costs against that baseline; it must never silently recompute a
+  // more permissive threshold after implementation changes the cells.
+  const outputPath = relative(repoRoot, resolve(repoRoot, output));
+  const committed = spawnSync('git', ['show', `HEAD:${outputPath}`], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  if (committed.status === 0) {
+    const frozen = JSON.parse(committed.stdout);
+    assert.equal(frozen.schemaVersion, 'partitime.attribution.v1');
+    assert.equal(frozen.workloadVersion, protocol.workloadVersion);
+    assert.equal(frozen.methodId, protocol.protocolId);
+    assert.equal(frozen.thresholdFormulaSetId, protocol.thresholdFormulaSetId);
+    thresholds = frozen.thresholds;
+    thresholdId = frozen.thresholdId;
+    thresholdFreezeSource = {
+      path: outputPath,
+      revision: 'HEAD',
+      sha256: sha256(committed.stdout),
+    };
+  }
+}
 const result = {
   schemaVersion: 'partitime.attribution.v1',
   workloadVersion: protocol.workloadVersion,
@@ -171,6 +198,7 @@ const result = {
     claimManifestSemanticSha256: manifestSemanticSha256(manifest),
     protocolSha256: sha256(readFileSync(join(acceptanceRoot, 'comparison-protocol.v1.json'))),
     webReceiptSha256: sha256(webReceiptBytes),
+    thresholdFreezeSource,
     // React and Contract intentionally have isolated dependency graphs. The
     // dependency-free Vanilla arm is a root-workspace package, so its resolved
     // Vite identity is pinned by the repository lock rather than a fictional
@@ -190,6 +218,7 @@ const result = {
   cells,
   attribution,
   pushLatency,
+  currentFormulaThresholds,
   thresholds,
 };
 
