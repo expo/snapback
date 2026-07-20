@@ -1,0 +1,387 @@
+{
+  "schemaVersion": "partitime.step4-product-ui.v1",
+  "claimId": "STEP4.PRODUCT_UI",
+  "auditCompleted": true,
+  "ok": false,
+  "claimSatisfied": false,
+  "outcome": "red",
+  "skipPolicy": "forbidden",
+  "skipped": 0,
+  "recordedAt": "2026-07-20T16:37:53.847Z",
+  "repository": {
+    "snapbackRevision": "0f61314a449b5c4d7d8bbb4e87eb5949862e8662",
+    "exactRevision": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
+  },
+  "inputs": {
+    "protocol": {
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+    },
+    "retainedWebReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+      "sha256": "320d3a3b3e96ac6abf2e78922a3604fea93975818a54e50e85bbcc9dc4aaea9d"
+    },
+    "surfaces": [
+      {
+        "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+        "sha256": "9a2bf4cfe6e73e785b0e824e655672fdae20681e7e4264effeea215470782518"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+        "sha256": "cf92374677dbb275bae18ab637cf0d485ef0cd5df7c4431faf165f7de102633c"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+        "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+        "sha256": "6658470fa16c27128a686ea75772eeae223a5f671b7e5986f80804c7bfd7beaf"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+        "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+      }
+    ]
+  },
+  "summary": {
+    "passed": 3,
+    "red": 14,
+    "nonclaims": 14,
+    "total": 17
+  },
+  "requirements": [
+    {
+      "id": "styles-and-design-tokens",
+      "status": "red",
+      "reasonCode": "STEP4_UI_REUSABLE_STYLE_SYSTEM_UNWITNESSED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactStylesheet": {
+          "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
+          "sha256": "cf92374677dbb275bae18ab637cf0d485ef0cd5df7c4431faf165f7de102633c"
+        },
+        "reactClassCount": 49,
+        "contractLiteralColorCount": 77,
+        "finding": "The app has styling, but no Partitime witness proves reusable Contract styles/classes and shared design tokens."
+      }
+    },
+    {
+      "id": "responsive-and-container-aware-layout",
+      "status": "red",
+      "reasonCode": "STEP4_UI_CONTRACT_RESPONSIVE_PARITY_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactMediaQueryCount": 1,
+        "contractResponsiveConstructCount": 0,
+        "finding": "React has a mobile breakpoint; the Contract tree uses fixed row layouts and has no responsive/container witness."
+      }
+    },
+    {
+      "id": "transitions-animation-and-reduced-motion",
+      "status": "red",
+      "reasonCode": "STEP4_UI_REDUCED_MOTION_PARITY_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactTransitionCount": 2,
+        "reducedMotionRuleCount": 0,
+        "contractMotionConstructCount": 0
+      }
+    },
+    {
+      "id": "overlays-portals-menus-sheets-and-focus-management",
+      "status": "red",
+      "reasonCode": "STEP4_UI_OVERLAY_FOCUS_SURFACE_UNEXERCISED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "partitimeSurfaceMatches": 0,
+        "finding": "Partitime contains no executable overlay/portal/menu/sheet/focus-management case."
+      }
+    },
+    {
+      "id": "accessible-form-controls-and-validation-states",
+      "status": "red",
+      "reasonCode": "STEP4_UI_FORM_VALIDATION_ACCESSIBILITY_UNPROVEN",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactAriaLabelCount": 4,
+        "contractInputLabelCount": 4,
+        "finding": "Both arms name inputs, but no screen-reader, validation-error association, IME, or focus-on-error witness exists for Partitime."
+      }
+    },
+    {
+      "id": "virtualized-collections",
+      "status": "red",
+      "reasonCode": "STEP4_UI_VIRTUAL_COLLECTION_UNEXERCISED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactMatches": 0,
+        "contractMatches": 0
+      }
+    },
+    {
+      "id": "query-backed-selectors-and-slot-local-transforms",
+      "status": "red",
+      "reasonCode": "STEP4_UI_SLOT_LOCAL_QUERY_TRANSFORM_UNWITNESSED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "contractQueryCount": 4,
+        "appLocalRowHelpers": [
+          "goingCount",
+          "myStatus"
+        ],
+        "finding": "Queries and app-local row helpers exist, but the Exact 0265 slot-local transform obligation has no Partitime witness."
+      }
+    },
+    {
+      "id": "typed-dom-custom-component-escape-hatch",
+      "status": "red",
+      "reasonCode": "STEP4_UI_TYPED_ESCAPE_HATCH_UNEXERCISED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "finding": "The Partitime workload never exercises a typed custom DOM/component escape while retaining Contract verification."
+      }
+    },
+    {
+      "id": "same-product-claims-react-and-contract",
+      "status": "red",
+      "reasonCode": "STEP4_UI_PARITY_MATRIX_INCOMPLETE",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "inheritedProductionBrowserChecks": [
+          "react × snapback boots its identified cell",
+          "react × snapback renders the canonical feed",
+          "react × snapback opens details and observes RSVP",
+          "contract × snapback boots its identified cell",
+          "contract × snapback renders the canonical feed",
+          "contract × snapback opens details and observes RSVP"
+        ],
+        "missingDimensions": [
+          "responsive",
+          "keyboard",
+          "focus",
+          "reduced-motion",
+          "screen-reader-oriented"
+        ],
+        "finding": "The retained browser suite proves pointer-driven product flow, not the five mandatory parity dimensions."
+      }
+    },
+    {
+      "id": "no-app-local-runtime-patch-or-untyped-dom-workaround",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_NO_RUNTIME_PATCH_FOUND",
+      "evidence": {
+        "contractRuntimeImports": [
+          "@exact/contract/runtime",
+          "@exact/renderer/web-host"
+        ],
+        "usesPublicRuntime": true,
+        "untypedEscapeCount": 0,
+        "finding": "The Contract view uses public runtime/host APIs and the audited app sources contain no untyped patch marker."
+      }
+    },
+    {
+      "id": "visual-variant-without-duplicate-tree",
+      "status": "red",
+      "reasonCode": "STEP4_UI_VISUAL_VARIANT_WITNESS_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "finding": "No visual-variant input and single-tree structural witness is registered for either Partitime arm."
+      }
+    },
+    {
+      "id": "theme-textarea-and-static-native-recipes",
+      "status": "red",
+      "reasonCode": "STEP4_UI_PRODUCT_RECIPE_SURFACES_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "reactTextareaCount": 0,
+        "contractTextareaCount": 0,
+        "themeVariantCount": 0,
+        "finding": "Theme, textarea, and documented static/native recipe acceptance are absent from the workload."
+      }
+    },
+    {
+      "id": "exact-agent-inspection-operations",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_EXACT_AGENT_ORACLE_PASSED",
+      "evidence": {
+        "registry": {
+          "path": "../exact/packages/exact-devtools/src/agent/operations/registry.ts",
+          "sha256": "d1f5f6f8149772d89b046390c72a436c1976ac9b8ad775575bc7c2887af9bebb"
+        },
+        "implementation": {
+          "path": "../exact/packages/exact-devtools/src/agent/contract-inspection.ts",
+          "sha256": "b22a15353658e2320afe41ed51fd1d509e8d3cb3aec21ec2dca829952cdf24f8"
+        },
+        "oracle": {
+          "path": "../exact/packages/exact-devtools/src/agent/contract-inspection.test.ts",
+          "sha256": "6bb8a0ab8ce2e66c11a6bc000c9a7d546d049083a6b80be4e617c0a6f28abeac"
+        },
+        "execution": {
+          "command": [
+            "bun",
+            "test",
+            "packages/exact-devtools/src/agent/contract-inspection.test.ts"
+          ],
+          "cwd": "../exact",
+          "status": 0,
+          "signal": null,
+          "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
+          "stderrSha256": "b36102a26be1f3fe70b9b55f20ba7554671aaa91d419195cfe6481534ee14347",
+          "stdoutTail": [
+            "bun test v1.3.12 (700fc117)"
+          ],
+          "stderrTail": [
+            "  dispatchType: \"undefined\",",
+            "}",
+            "[ExactRenderer] Missing exact.dispatch during protocol flush {",
+            "  byteLength: 25,",
+            "  hasExact: false,",
+            "  dispatchType: \"undefined\",",
+            "}",
+            "",
+            " 8 pass",
+            " 0 fail",
+            " 102 expect() calls",
+            "Ran 8 tests across 1 file. [4.11s]"
+          ]
+        },
+        "operations": [
+          "exact_contract_bindings",
+          "exact_contract_mutation_outcomes",
+          "exact_contract_source_map",
+          "exact_contract_verify_claims"
+        ]
+      }
+    },
+    {
+      "id": "partitime-forced-loading-error-empty-ready",
+      "status": "red",
+      "reasonCode": "STEP4_UI_PARTITIME_FORCED_DATA_STATES_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "declaredAsyncBranches": 16,
+        "forcedStateFixtureCount": 0,
+        "finding": "The render branches exist, but Partitime has no command that forces all four states through the real Snapback provider."
+      }
+    },
+    {
+      "id": "partitime-agent-explains-list-non-update",
+      "status": "red",
+      "reasonCode": "STEP4_UI_PARTITIME_AGENT_SESSION_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "upstreamOperation": "exact_contract_bindings",
+        "partitimeAgentBootHookCount": 0,
+        "finding": "The upstream explanation API exists, but no mounted Partitime Agent session asks and answers why a list did not update."
+      }
+    },
+    {
+      "id": "data-state-clauses-never-skip-silently",
+      "status": "red",
+      "reasonCode": "STEP4_UI_QUERY_RENDER_CLAUSES_UNREGISTERED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "partitimeQueryRenderClauseCount": 0,
+        "finding": "No Partitime query-state clauses or enforcement-status receipt exists; upstream interaction-clause reporting cannot substitute for this obligation."
+      }
+    },
+    {
+      "id": "source-volume-and-emitted-javascript-measured",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_COST_INPUTS_PRESENT",
+      "evidence": {
+        "contractSource": {
+          "files": [
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+              "lines": 94,
+              "bytes": 5621,
+              "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+              "lines": 114,
+              "bytes": 6129,
+              "sha256": "6658470fa16c27128a686ea75772eeae223a5f671b7e5986f80804c7bfd7beaf"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+              "lines": 80,
+              "bytes": 4336,
+              "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+              "lines": 85,
+              "bytes": 4550,
+              "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+              "lines": 18,
+              "bytes": 1066,
+              "sha256": "c7b9f944ee64bee88b983850a56e797624c484635996a262c06ace986a706661"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
+              "lines": 9,
+              "bytes": 613,
+              "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
+            }
+          ],
+          "totalLines": 400
+        },
+        "reactSource": {
+          "files": [
+            {
+              "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+              "lines": 183,
+              "bytes": 10302,
+              "sha256": "9a2bf4cfe6e73e785b0e824e655672fdae20681e7e4264effeea215470782518"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
+              "lines": 23,
+              "bytes": 1007,
+              "sha256": "92407914fdf2f250582fac22194d1c29d2bc7beb06c371346215cd63ab0f123f"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+              "lines": 120,
+              "bytes": 5288,
+              "sha256": "c3c51cab44b243865811be006ca5246790fb563d5814788b67a4dce00ea67290"
+            }
+          ],
+          "totalLines": 326
+        },
+        "contractSnapbackBundle": {
+          "assets": [
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-3bBV329Y.js",
+              "minifiedBytes": 730963,
+              "deterministicGzipBytes": 194019,
+              "sha256": "2704784dfe1987f47ea2012737689a2ac72f981de60eea3da88fd24b75156c0d"
+            }
+          ],
+          "minifiedBytes": 730963,
+          "deterministicGzipBytes": 194019
+        },
+        "reactSnapbackBundle": {
+          "assets": [
+            {
+              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-DF0lz2wJ.js",
+              "minifiedBytes": 410110,
+              "deterministicGzipBytes": 116383,
+              "sha256": "30f640d7a247dd0614c697b3db0f4f32678fac8a115ff551685d0e6d3e70dc70"
+            }
+          ],
+          "minifiedBytes": 410110,
+          "deterministicGzipBytes": 116383
+        }
+      }
+    }
+  ],
+  "conclusion": "React × Snapback remains the polished-web default because mandatory product-surface parity is not closed."
+}

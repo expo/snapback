@@ -1,0 +1,216 @@
+{
+  "schemaVersion": "partitime.step4-production-web.v1",
+  "claimId": "STEP4.PRODUCTION_WEB",
+  "auditCompleted": true,
+  "ok": false,
+  "claimSatisfied": false,
+  "outcome": "red",
+  "skipPolicy": "forbidden",
+  "skipped": 0,
+  "recordedAt": "2026-07-20T16:37:49.713Z",
+  "repository": {
+    "snapbackRevision": "0f61314a449b5c4d7d8bbb4e87eb5949862e8662",
+    "exactRevision": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
+  },
+  "inputs": {
+    "protocol": {
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+    },
+    "retainedWebReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+      "sha256": "320d3a3b3e96ac6abf2e78922a3604fea93975818a54e50e85bbcc9dc4aaea9d"
+    },
+    "surface": [
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+        "sha256": "d48834fe2339a67061836a1e1f92f5eb3d0b1195968c12ce6f1b52a5dd3315f2"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/index.html",
+        "sha256": "eac422229566b6c192943a347ba895a5dc17d141661d11fb46996a72c7f02aad"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+        "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
+        "sha256": "c7b9f944ee64bee88b983850a56e797624c484635996a262c06ace986a706661"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+        "sha256": "9a2bf4cfe6e73e785b0e824e655672fdae20681e7e4264effeea215470782518"
+      }
+    ],
+    "exactVerifyRegistry": {
+      "path": "../exact/exact-verify.json",
+      "sha256": "38424a2eeea1b6fdbc8e29064516eed00b4733a677e8e4517ec9e1e22b756677"
+    }
+  },
+  "summary": {
+    "passed": 4,
+    "red": 7,
+    "nonclaims": 7,
+    "total": 11
+  },
+  "requirements": [
+    {
+      "id": "production-build-artifact",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_PRODUCTION_BUILD_PRESENT",
+      "evidence": {
+        "html": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+          "sha256": "d48834fe2339a67061836a1e1f92f5eb3d0b1195968c12ce6f1b52a5dd3315f2"
+        },
+        "javascript": {
+          "assets": [
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-3bBV329Y.js",
+              "minifiedBytes": 730963,
+              "deterministicGzipBytes": 194019,
+              "sha256": "2704784dfe1987f47ea2012737689a2ac72f981de60eea3da88fd24b75156c0d"
+            }
+          ],
+          "minifiedBytes": 730963,
+          "deterministicGzipBytes": 194019
+        }
+      }
+    },
+    {
+      "id": "browser-product-flow",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_BROWSER_FLOW_INHERITED",
+      "evidence": {
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+          "sha256": "320d3a3b3e96ac6abf2e78922a3604fea93975818a54e50e85bbcc9dc4aaea9d"
+        },
+        "checks": [
+          "contract × snapback boots its identified cell",
+          "contract × snapback renders the canonical feed",
+          "contract × snapback opens details and observes RSVP",
+          "contract × snapback proves unsolicited push with polling fallback disabled"
+        ],
+        "caveat": "The retained runner starts Vite source-mode servers; it is product-flow evidence, not a browser execution of dist/."
+      }
+    },
+    {
+      "id": "production-built-artifact-browser-execution",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_DIST_BROWSER_RECEIPT_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "productionArtifactPresent": true,
+        "retainedBrowserServerMode": "vite-source-mode",
+        "finding": "No retained receipt serves the immutable Contract dist/snapback artifact and executes the product flow against it."
+      }
+    },
+    {
+      "id": "browser-history",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_HISTORY_MODEL_INCOMPLETE",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "contractNavigation": "location.assign with search parameters",
+        "contractHistoryApiCount": 0,
+        "reactBrowserNavigationApiCount": 0,
+        "finding": "Contract navigation reloads; React detail navigation is component state only. Back/forward history behavior has no executable parity witness."
+      }
+    },
+    {
+      "id": "deep-links",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_CONTRACT_QUERY_DEEP_LINK_FLOW_PASSED",
+      "evidence": {
+        "bootReadsEventParameter": true,
+        "navigationWritesEventParameter": true,
+        "browserCheck": "contract × snapback opens details and observes RSVP",
+        "caveat": "This passes the Contract query-parameter route used by Partitime; React parity and path routing remain outside this item."
+      }
+    },
+    {
+      "id": "ssr-ssg-authority",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_PARTITIME_SSR_SSG_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "rootMarkup": "",
+        "hasHydrationManifest": false,
+        "finding": "The production Partitime HTML has an empty root and a CSR module script; it contains no authoritative route content."
+      }
+    },
+    {
+      "id": "hydration-without-duplicates-or-stale-flash",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_PARTITIME_HYDRATION_WITNESS_MISSING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "mountCallCount": 2,
+        "hydrationCallCount": 0,
+        "finding": "Partitime mounts into an empty root. No server DOM adoption, duplicate-subscription count, or stale-flash assertion runs."
+      }
+    },
+    {
+      "id": "document-metadata",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_ROUTE_METADATA_INCOMPLETE",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "title": "Partitime · Contract matrix",
+        "themeColor": "#f4f0e8",
+        "canonicalCount": 0,
+        "descriptionCount": 0,
+        "finding": "The build has fixed shell metadata but no per-route title/description/canonical witness."
+      }
+    },
+    {
+      "id": "basepath",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_BASEPATH_UNWITNESSED",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "absoluteAssetReferences": 1,
+        "sourceAbsoluteEntryReferences": 1,
+        "basePathReferences": 0,
+        "finding": "The emitted asset URL is root-absolute and no non-root deployment/basePath acceptance exists."
+      }
+    },
+    {
+      "id": "exact-production-web-capabilities-registered",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
+      "evidence": {
+        "registry": {
+          "path": "../exact/exact-verify.json",
+          "sha256": "38424a2eeea1b6fdbc8e29064516eed00b4733a677e8e4517ec9e1e22b756677"
+        },
+        "checks": [
+          "contract-web-host-csr",
+          "contract-ssg-no-js",
+          "contract-hydration-corpus",
+          "web-citizenship-axe-delta",
+          "web-bundle-budget",
+          "web-citizenship-desktop-chrome",
+          "web-citizenship-ime-forms"
+        ],
+        "missingChecks": [],
+        "caveat": "Registry presence establishes reusable upstream surfaces only; it does not make the Partitime integration rows pass."
+      }
+    },
+    {
+      "id": "residual-browser-device-ime-forms-matrix",
+      "status": "red",
+      "reasonCode": "STEP4_WEB_MANUAL_DEVICE_MATRIX_PENDING",
+      "claimTreatment": "nonclaim",
+      "evidence": {
+        "exactCheckId": "web-citizenship-ime-forms",
+        "manual": true,
+        "notes": "LLP 0211 §4.3 manual gating suite: IME composition, autofill/password-manager, focus-trap/restore, bfcache restore, and find-on-page across iOS Safari current/current-1, Android Chrome current, desktop Safari/Chrome/Firefox. The checked-in JSON artifact is a pending runbook placeholder, not a passed device-matrix report; the generated runbook enumerates the required rows and evidence shape. The current exact-verify runner skips manual checks in profile runs.",
+        "finding": "The governing Exact check is explicitly a pending manual release/support gate and Partitime has no passed device report."
+      }
+    }
+  ],
+  "conclusion": "The Contract × Snapback CSR product flow works, but Partitime has not earned the production-web claim."
+}
