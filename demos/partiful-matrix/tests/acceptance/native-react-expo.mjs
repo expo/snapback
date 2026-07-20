@@ -220,7 +220,10 @@ await runAcceptance(suite, async () => {
       ? resolve(tempRoot, 'release-artifact')
       : artifact;
     if (platform === 'android') {
-      execFileSync('unzip', ['-qq', artifact, '-d', inspectionRoot]);
+      // Android release APKs may legitimately contain duplicate resource
+      // entry names. Extract deterministically without an interactive prompt;
+      // the payload scan still visits the resulting complete file set.
+      execFileSync('unzip', ['-oq', artifact, '-d', inspectionRoot]);
     }
     const dependencyGraph = platform === 'android'
       ? execFileSync(resolve(appRoot, 'android/gradlew'), [
