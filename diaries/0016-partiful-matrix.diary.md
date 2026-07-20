@@ -735,3 +735,62 @@ code no longer owns resubscription races or sibling deduplication. The guide
 did accurately describe the old boot-scoped Contract surface, so this was a
 new capability rather than missing guidance; I updated the Contract and live
 query pages and did not file a guide-gap issue.
+
+## 2026-07-20 — The Supabase 401 was never real
+
+Revisiting "what did we need from Supabase" produced an uncomfortable answer:
+mostly a better probe on our side. The publishable key that the whole gateway
+fallback was built around had been probed against `GET /rest/v1/` — the
+OpenAPI introspection root, which new-format `sb_publishable_*` projects
+deliberately restrict to secret keys. Its 401 body even says "Only secret API
+keys can be used for this endpoint." Table reads and Auth endpoints had
+accepted the key all along. One wrong probe surface reshaped an entire
+column of the matrix: the gateway detour, the "Postgres-on-Supabase, not
+Supabase" qualification, and the unanswered supabase-js/RLS/Realtime
+questions all trace back to it. The corrected probe
+(`tests/acceptance/supabase-probe.mjs`) now asserts the root's 401 as a
+regression witness so the misreading is structurally unrepeatable.
+
+What the correction exposed was more interesting than the correction. The
+tables had been created over direct Postgres with owner defaults: RLS off and
+anon holding every grant including TRUNCATE. Every browser cell going through
+the gateway had hidden that; the moment browser-direct became possible, it
+became unshippable. `harden-supabase.ts` closed it, and the pleasant surprise
+was expressing the host-displacement invariant as an RLS UPDATE policy
+(`USING status <> 'host'`): an upsert that would overwrite the host now fails
+inside the database no matter how careless the client is. That is a stronger
+shape than the gateway's read-before-write check — though writing it took
+more care than expected, because createEvent still has to INSERT host rows
+while UPDATE must never mint or displace one.
+
+The idiomatic cell itself (`supabase-realtime` React mode, supabase-js +
+postgres_changes, no gateway) mostly went smoothly, with two honest bruises.
+First, Realtime has a registration gap: a write committed between channel
+creation and server-side filter registration is silently never echoed, and
+with poll fallback disabled the UI stays stale forever. The fix is the
+classic supabase-js discipline — refresh your own subscriptions after your
+own writes — which the app layer must remember; Snapback's live queries
+hand you read-your-own-writes from the transport. Second, PostgREST's
+merge-duplicates upsert happily rewrote a row's primary key mid-experiment,
+which broke the seed's `ON CONFLICT (id)` idempotence a run later. Keyed
+identity is a contract every client must respect by hand.
+
+Push freshness measured well: median ≈1s end-to-end from an out-of-band
+PostgREST write to a rendered DOM change (samples 0.5–1.1s to us-east-1),
+versus the snapback cells' same-machine push in the low hundreds of ms —
+not a like-for-like comparison, but a real feel for the hosted round trip.
+
+Ephemeral acceptance schemas closed the remote-fixture discipline gap:
+`providers.mjs --ephemeral-supabase` seeds `partiful_matrix_test_*` and drops
+it. The trap was the hosted pooler silently ignoring the
+`options=-csearch_path` startup parameter — the first "ephemeral" run leaked
+an acceptance row into the shared fixture while claiming isolation. The
+adapter now schema-qualifies every statement instead of trusting
+search_path; the leak was removed with the guarded cleanup path.
+
+Claims bookkeeping stayed deliberately minimal: the browser-direct cell's
+receipt is retained at `acceptance/results/supabase-realtime-web.json`, but
+no claim row was added — adding one would rebaseline the frozen cross-repo
+semantics, and that amendment belongs to the Step 3 closure. Only the
+README-pinning documentation claim's byte-level artifact hash was refreshed,
+following the Step 1 precedent.

@@ -607,6 +607,42 @@ made isolation easier.
 Supabase moved effort into **database DDL and operational credential handling**.
 The data model was easy; the configuration boundary dominated the experience.
 
+### 7.4 Correction and follow-up (2026-07-20)
+
+The §7.2 conclusion that "the publishable key returned 401" was a probe
+artifact, not a credential failure. The readiness probe hit `GET /rest/v1/` —
+the OpenAPI introspection root, which projects on the new `sb_publishable_*` /
+`sb_secret_*` key format deliberately restrict to secret keys (its 401 body
+says so: "Only secret API keys can be used for this endpoint"). The same key
+returned 200 for table reads and Auth endpoints all along.
+`tests/acceptance/supabase-probe.mjs` is the corrected probe; it also asserts
+the root's 401 as a regression witness so the misreading cannot recur.
+
+Three follow-ups landed with the correction:
+
+1. **Hardening.** The tables carried direct-Postgres defaults: RLS disabled
+   and full anon grants including `DELETE`/`TRUNCATE` — invisible while every
+   cell went through the gateway, unshippable for browser-direct access.
+   `backends/gateway/harden-supabase.ts` (idempotent) enables RLS, revokes the
+   destructive grants, expresses the host-displacement invariant as an RLS
+   `UPDATE` policy (`USING/WITH CHECK status <> 'host'`), and registers the
+   tables in the `supabase_realtime` publication. The gateway is unaffected
+   (it connects as table owner).
+2. **The idiomatic cell.** React mode `supabase-realtime` runs `supabase-js`
+   browser-direct with Realtime `postgres_changes`. With poll fallback
+   disabled, out-of-band writes arrived via push with median ≈1s end-to-end
+   latency (samples 0.5–1.1s to `aws-0-us-east-1`); receipt at
+   `acceptance/results/supabase-realtime-web.json`. One product-shaped lesson:
+   a write committed between channel creation and server-side registration is
+   never echoed, so own mutations refresh local subscriptions directly —
+   the read-your-own-writes discipline `supabase-js` leaves to the app,
+   where Snapback's live queries deliver it from the transport.
+3. **Ephemeral acceptance databases.** `providers.mjs --ephemeral-supabase`
+   seeds a disposable `partiful_matrix_test_*` schema and drops it after the
+   run. The hosted pooler silently ignores the `options=-csearch_path`
+   startup parameter, so the adapter schema-qualifies every statement rather
+   than trusting `search_path`.
+
 ## 8. Convex: detailed experience
 
 ### 8.1 What was pleasant

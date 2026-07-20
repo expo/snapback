@@ -1,4 +1,4 @@
-import type { Backend, MatrixProvider, MutationName, QueryName } from '../../../shared/model';
+import type { Backend, BackendMode, MatrixProvider, MutationName, QueryName } from '../../../shared/model';
 
 import { SnapbackClient } from '../../../../_kit/client.mjs';
 import api from '../../../snapback/generated/api.mjs';
@@ -7,17 +7,21 @@ import functionsManifest from '../../../snapback/generated/functions.manifest.js
 import schemaManifest from '../../../snapback/generated/schema.manifest.json';
 import seed from '../../../snapback/seed.json';
 
-declare const __MATRIX_BACKEND__: Backend;
+declare const __MATRIX_BACKEND__: BackendMode;
 declare const __SNAPBACK_API_ORIGIN__: string;
 declare const __MATRIX_GATEWAY_ORIGIN__: string;
 declare const __PARTITIME_DISABLE_POLL_FALLBACK__: boolean;
 
 type Connection = 'connecting' | 'live' | 'polling' | 'disconnected';
 
-export const configuredBackend: Backend = __MATRIX_BACKEND__;
+export const configuredBackend: BackendMode = __MATRIX_BACKEND__;
 
 export async function createMatrixProvider(): Promise<MatrixProvider> {
   if (__MATRIX_BACKEND__ === 'snapback') return createSnapbackProvider();
+  if (__MATRIX_BACKEND__ === 'supabase-realtime') {
+    const { createSupabaseDirectProvider } = await import('./supabase-direct');
+    return createSupabaseDirectProvider();
+  }
   return createGatewayProvider(__MATRIX_BACKEND__);
 }
 

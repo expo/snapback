@@ -4,13 +4,25 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5191",
-    "build": "bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
+    "build": "bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:sqlite",
     "build:snapback": "vite build --mode snapback --outDir dist/snapback",
     "build:supabase": "vite build --mode supabase --outDir dist/supabase",
+    "build:supabase-realtime": "vite build --mode supabase-realtime --outDir dist/supabase-realtime",
     "build:convex": "vite build --mode convex --outDir dist/convex",
     "build:sqlite": "vite build --mode sqlite --outDir dist/sqlite",
     "typecheck": "tsc --noEmit"
   },
-  "dependencies": { "react": "^19.1.0", "react-dom": "^19.1.0" },
-  "devDependencies": { "@types/node": "^26.0.0", "@types/react": "^19.1.8", "@types/react-dom": "^19.1.6", "@vitejs/plugin-react": "^4.6.0", "typescript": "^5.9.3", "vite": "^7.0.0" }
+  "dependencies": {
+    "@supabase/supabase-js": "^2.110.7",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.6.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.0"
+  }
 }
