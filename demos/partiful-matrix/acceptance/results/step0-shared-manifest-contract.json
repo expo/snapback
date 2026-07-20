@@ -27,7 +27,7 @@
   "validators": {
     "snapback": {
       "path": "demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
-      "sha256": "bc592718b3bb0bb76fb0d3d950b9f97c87b17bd9919a4a1db4f07a6922f7f1e4",
+      "sha256": "13e1937058f6b6b18d8ea99da647c8eb3c097639f59c6cc35d218e5f94481e5c",
       "command": "node demos/partiful-matrix/tests/acceptance/validate-step0.mjs",
       "resultSchemaVersion": "partitime.claim-manifest-validation.v1"
     },
@@ -39,7 +39,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "100bbf55c382e6091be0b0fe0c2728a368cf7d4acd2206cf195af33fa63d52b4"
+        "sha256": "9f34080be510a61ae1441383d22b6524788cb825e0ac767b8b8560834eb7e187"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -55,7 +55,7 @@
   "siblingPlans": {
     "snapback": {
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "a89bbc26e746991233a20eac1efa3d107a538a214d0cf42e1caab9fcff245821"
+      "sha256": "7fac15c03ab372e3c44ebb7d07c1556de4fc0cd730599762172a21fb03930478"
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
@@ -63,7 +63,7 @@
     }
   },
   "exact": {
-    "revision": "d7241efc8d7a04666807f59802f718c31c985180",
+    "revision": "649606755e3db7c60fbbfca558f36e3ed920990e",
     "dirty": false
   },
   "inputs": {

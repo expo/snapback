@@ -15,7 +15,7 @@
       "witnessClass": "stable-diagnostics",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -23,7 +23,7 @@
       "witnessClass": "deterministic-state",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -31,7 +31,7 @@
       "witnessClass": "subscription-initial-snapshot",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -39,7 +39,7 @@
       "witnessClass": "deterministic-delivery",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -47,7 +47,7 @@
       "witnessClass": "capability-honesty",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -55,7 +55,7 @@
       "witnessClass": "artifact-freshness",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
-        "sha256": "19581befa8c9b510532094c035ad4e4da50f7e923b6cf6df892f04752f556c3d"
+        "sha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a"
       }
     },
     {
@@ -63,7 +63,7 @@
       "witnessClass": "harness-integrity",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "1e1187149aa4039e0555756f2cbf73387cb089ffdfc4fd6187da42d661b64acc"
+        "sha256": "2d66cc9c14c3b1da7ff8a3db0f630939386abd416cf5883e7769eab5dde0b781"
       }
     },
     {
@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+        "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+        "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+        "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
       }
     },
     {
@@ -95,7 +95,7 @@
       "witnessClass": "differential-lifecycle-oracle",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json",
-        "sha256": "7e360518795ed503267295924d6cf46f832b0ed21612132f07a88d1258929312"
+        "sha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "3f9398e6ca94f86a3de55c6569c1f6cec05943539a80dc19a36ee7876dc75a1b"
+        "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
       }
     },
     {
@@ -119,7 +119,7 @@
       "witnessClass": "documentation-scope",
       "artifact": {
         "path": "demos/partiful-matrix/README.md",
-        "sha256": "99916ebb3b15b7f93d0975c9f9480cb4423ecd4f72aae505e854f34ee2aca140"
+        "sha256": "3df5b026d63749e313e352dd78beae6c31f7794a4f7eaeaedd88676449bdec41"
       }
     },
     {
@@ -127,7 +127,7 @@
       "witnessClass": "dependency-exclusion",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "01c9a1f1a61977f7a3a5f5f0eb1b49e784b5958840c12748832ef2b3629b0554"
+        "sha256": "5f2894c9337705230b352c16185a59aaa2f119967418b0e7b6771fc2ad75c789"
       }
     },
     {
@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "b44061bf7c10449b04d0b2916bec1832d60d7fb721cebe343f4510cf11e852b0"
+        "sha256": "e1333cd9670a167fe64434c56367c68005c31e3696a94758bed5ed531b367ff8"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "51e892023ea08662a8864217a883a8bcaafd5b3c87687e1bb34013b968dbfc47"
+        "sha256": "2825d34b784623f33ae162a0d63cad282f82f910e20e76144e3bf7315cd9271c"
       }
     }
   ],
@@ -169,8 +169,8 @@
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "b44061bf7c10449b04d0b2916bec1832d60d7fb721cebe343f4510cf11e852b0",
-    "exactRevision": "d7241efc8d7a04666807f59802f718c31c985180"
+    "sha256": "e1333cd9670a167fe64434c56367c68005c31e3696a94758bed5ed531b367ff8",
+    "exactRevision": "649606755e3db7c60fbbfca558f36e3ed920990e"
   },
   "inputs": {
     "semantics": {

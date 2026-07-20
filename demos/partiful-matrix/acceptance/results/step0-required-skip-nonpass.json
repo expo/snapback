@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "d6886d742c532fcba014e372ba0d4998260cfb28",
-    "exact": "94a65c3d729cb8e6d5404929e68ff6d3982c4090"
+    "snapback": "508956134f3517169735078272a846e5ac86ba5c",
+    "exact": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -18,10 +18,11 @@
   },
   "packages": {
     "react": {
-      "manifestSha256": "67e8175e3c54cf2d5e211395744f05916c6ed63a67fea7df6014d2460b0d4932",
+      "manifestSha256": "c3250e2860d56e89c9a86f4507ab79e5b37c49cb1d6c56f713af5375f3908c37",
       "lockPath": "demos/partiful-matrix/surfaces/react/bun.lock",
-      "lockSha256": "3b7c734dfb4c00e9b246f780d6fa0a7c1cdba9492eda06f45da12c00bdbbaf25",
+      "lockSha256": "c084dfc6e30d0dbb5c5a58ee74c12f13e8dea00f53108a2c4f37cbd11a08bbbf",
       "dependencies": {
+        "@supabase/supabase-js": "^2.110.7",
         "react": "^19.1.0",
         "react-dom": "^19.1.0",
         "@types/node": "^26.0.0",
@@ -32,6 +33,12 @@
         "vite": "^7.0.0"
       },
       "resolvedDependencies": {
+        "@supabase/supabase-js": {
+          "requested": "^2.110.7",
+          "resolvedName": "@supabase/supabase-js",
+          "resolvedVersion": "2.110.7",
+          "manifestSha256": "11d42f0c4a030fe450aeb9e3dd0085afff5c46ae9d071f25cdd8d0923bd852c4"
+        },
         "react": {
           "requested": "^19.1.0",
           "resolvedName": "react",
@@ -122,7 +129,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "49e572ef633d8a3c27325af931b4bdaa101c3127e9e776ac6df9bc5330d27202",
+      "lockSha256": "b0063035cbe4b40623de4614dae11b2fdc72bf5410abadf61d0514b6b6555f18",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -137,10 +144,10 @@
     }
   },
   "artifacts": {
-    "inputsHash": "b1708aa266d86d96e540610fd2928a444f3f629e4b2458686ba29dbf31e66ee8",
-    "bundleHash": "sha256:bc2591eecc7e82f6",
-    "diarySha256": "36038dfffdafa33ce2cb8197cb79432814c3246c3e06b10d90bc9d4dc89575fe",
-    "reportSha256": "f3ac635255bfb8a45d94d3ffb1b282e8c37ad6952e3e978769e92fdcd780fc5e"
+    "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
+    "bundleHash": "sha256:f4c24641a0539be3",
+    "diarySha256": "89c9cd4e2b2476aab4dfa68f5755c52e313fbf3fba8c455cebac5c263d9eca13",
+    "reportSha256": "5326fe6b95729b6a5dba7da7e103da5a9c92622e3ca34cf9a3f6cc75cfd01ba1"
   },
   "testInventory": [
     {
@@ -153,15 +160,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "51100b635cbfc9d6714735d3e60ffceac399a8b88e5e46c675a38ebb4460247e"
+      "sha256": "c505ce6e90595be46f69bf10afd0d0bfd633113772ebd7c37cac7bb5e8753b2d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "249c62a7c58f5c24b5ff53832514f398450e92f5d7a5c0caa31cfb6375345312"
+      "sha256": "97dec41613e6958e327d3c45b7ee1d9ad12193aba23ed809edace8672ef20acb"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
-      "sha256": "5fede7947e5fcaf2459fb83348812b632038e588592ff65d18fb66479ffb6fb7"
+      "sha256": "2273a7a6f58a0da8361f90ccaf52ae560720ae43b3d73d9e40ae1bafc13546e3"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
@@ -177,22 +184,22 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "6658470fa16c27128a686ea75772eeae223a5f671b7e5986f80804c7bfd7beaf"
+      "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
-      "sha256": "220da6975b1c56ad247a18edfeab2e47ed18fadfa241eecca68429a175870926"
+      "sha256": "10bff8b52e37dfefa5de2773d1944f5bf00f5d38bef6e2dcab6128b2a0c07a69"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
-      "sha256": "287bb6d3a23957ad8319a38feaec79785aac856ea782350a34cf9b8c1fec7e6e"
+      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
-      "sha256": "7ec2883125771de9c12630216fce3126699252711ed918969fc0914c53701342"
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "5a80c561f19b2231a73d69bafa5f62b4d266576138d8c2efa9f6de2da3ef9237",
+  "testInventorySha256": "ef62e1102858eb050bf059bbdc711ec0d56c1904d5aa376a4a1dde43a78860da",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -218,7 +225,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-16433"
+      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-21668"
     ],
     "exitStatus": 1,
     "signal": null
@@ -230,7 +237,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "51100b635cbfc9d6714735d3e60ffceac399a8b88e5e46c675a38ebb4460247e"
+      "sha256": "c505ce6e90595be46f69bf10afd0d0bfd633113772ebd7c37cac7bb5e8753b2d"
     },
     {
       "path": "demos/_kit/harness.mjs",
