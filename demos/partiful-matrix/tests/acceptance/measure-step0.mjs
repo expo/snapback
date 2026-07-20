@@ -160,7 +160,14 @@ if (output) {
   // current costs against that baseline; it must never silently recompute a
   // more permissive threshold after implementation changes the cells.
   const outputPath = relative(repoRoot, resolve(repoRoot, output));
-  const committed = spawnSync('git', ['show', `HEAD:${outputPath}`], {
+  const revisionResult = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(revisionResult.status, 0, `git rev-parse HEAD failed: ${revisionResult.stderr}`);
+  const committedRevision = revisionResult.stdout.trim();
+  assert.match(committedRevision, /^[a-f0-9]{40}$/);
+  const committed = spawnSync('git', ['show', `${committedRevision}:${outputPath}`], {
     cwd: repoRoot,
     encoding: 'utf8',
   });
@@ -172,9 +179,9 @@ if (output) {
     assert.equal(frozen.thresholdFormulaSetId, protocol.thresholdFormulaSetId);
     thresholds = frozen.thresholds;
     thresholdId = frozen.thresholdId;
-    thresholdFreezeSource = {
+    thresholdFreezeSource = frozen.inputs?.thresholdFreezeSource ?? {
       path: outputPath,
-      revision: 'HEAD',
+      revision: committedRevision,
       sha256: sha256(committed.stdout),
     };
   }

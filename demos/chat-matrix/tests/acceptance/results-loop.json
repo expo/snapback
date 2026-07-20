@@ -1,0 +1,52 @@
+{
+  "title": "chat-matrix / four-backend AI loop",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "gateway serves the model catalog",
+      "ok": true,
+      "details": {
+        "models": 339
+      }
+    },
+    {
+      "name": "sqlite completes send → assistant reply",
+      "ok": true,
+      "details": {
+        "latencyMs": 2107,
+        "reply": "pong"
+      }
+    },
+    {
+      "name": "snapback completes send → assistant reply",
+      "ok": true,
+      "details": {
+        "latencyMs": 2109,
+        "reply": "pong"
+      }
+    },
+    {
+      "name": "convex completes send → assistant reply",
+      "ok": true,
+      "details": {
+        "latencyMs": 1616,
+        "reply": "pong"
+      }
+    },
+    {
+      "name": "supabase completes send → assistant reply",
+      "ok": true,
+      "details": {
+        "latencyMs": 2322,
+        "reply": "pong"
+      }
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

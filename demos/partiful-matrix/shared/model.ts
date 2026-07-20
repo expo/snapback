@@ -1,6 +1,10 @@
 export const BACKENDS = ['snapback', 'supabase', 'convex', 'sqlite'] as const;
 export type Backend = (typeof BACKENDS)[number];
 
+// Web-only follow-up cells beyond the frozen Step 0 matrix (LLP 0063):
+// 'supabase-realtime' is the idiomatic browser-direct supabase-js cell.
+export type BackendMode = Backend | 'supabase-realtime';
+
 export const PERSONAS = [
   { id: 'ada', userId: 'user_ada', name: 'Ada', initials: 'AD' },
   { id: 'grace', userId: 'user_grace', name: 'Grace', initials: 'GH' },
@@ -48,7 +52,7 @@ export type ProviderDelivery =
   | { kind: 'error'; error?: unknown };
 
 export interface MatrixProvider {
-  readonly backend: Backend;
+  readonly backend: BackendMode;
   readonly transport: 'push' | 'poll';
   readonly externalStoreProtocol: 'snapback.external-store.v1';
   subscribe<Row>(

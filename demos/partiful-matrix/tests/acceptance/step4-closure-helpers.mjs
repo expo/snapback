@@ -22,6 +22,10 @@ export function readText(path) {
   return readBytes(path).toString('utf8');
 }
 
+export function readExactText(path) {
+  return readFileSync(resolve(exactRoot, path), 'utf8');
+}
+
 export function readJson(path) {
   return JSON.parse(readText(path));
 }
@@ -36,16 +40,23 @@ export function identity(path) {
 
 export function readCommittedJson(path, revision = 'HEAD') {
   const normalized = relative(repoRoot, resolve(repoRoot, path));
-  const child = spawnSync('git', ['show', `${revision}:${normalized}`], {
+  const resolved = spawnSync('git', ['rev-parse', revision], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(resolved.status, 0, `git rev-parse ${revision} failed: ${resolved.stderr}`);
+  const committedRevision = resolved.stdout.trim();
+  assert.match(committedRevision, /^[a-f0-9]{40}$/);
+  const child = spawnSync('git', ['show', `${committedRevision}:${normalized}`], {
     cwd: repoRoot,
     encoding: null,
   });
-  assert.equal(child.status, 0, `git show ${revision}:${normalized} failed: ${child.stderr?.toString('utf8')}`);
+  assert.equal(child.status, 0, `git show ${committedRevision}:${normalized} failed: ${child.stderr?.toString('utf8')}`);
   return {
     value: JSON.parse(child.stdout.toString('utf8')),
     identity: {
       path: normalized,
-      revision,
+      revision: committedRevision,
       sha256: sha256(child.stdout),
     },
   };

@@ -14,7 +14,7 @@ const initialization: Record<string, { ok: boolean; errorCode?: string }> = {
   sqlite: { ok: true },
 };
 for (const [backend, create] of [
-  ['supabase', () => createSupabaseAdapter(requireSecret(local, 'DIRECT_URL', 'DATABASE_URL', 'SUPABASE_DB_URL'))],
+  ['supabase', () => createSupabaseAdapter(requireSecret(local, 'DIRECT_URL', 'DATABASE_URL', 'SUPABASE_DB_URL'), { schema: process.env.PARTIFUL_MATRIX_SUPABASE_SCHEMA })],
   ['convex', () => createConvexAdapter(requireSecret(local, 'CONVEX_DEPLOY_KEY', 'CONVEX_URL'))],
 ] as const) {
   try {

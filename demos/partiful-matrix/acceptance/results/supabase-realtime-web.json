@@ -1,0 +1,157 @@
+{
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.followup.v1",
+  "cell": "react:supabase-realtime",
+  "revision": "b24f656d3fcd6ca014e1b4aec19ab3829a61b951",
+  "environment": {
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "chromeVersion": "Google Chrome 150.0.7871.128"
+  },
+  "publishableProbe": {
+    "ok": true,
+    "checks": [
+      {
+        "label": "auth-health",
+        "path": "/auth/v1/health",
+        "status": 200,
+        "ok": true,
+        "detail": null
+      },
+      {
+        "label": "data-api-table-read",
+        "path": "/rest/v1/partiful_matrix_events?select=id&limit=1",
+        "status": 200,
+        "ok": true,
+        "detail": null
+      },
+      {
+        "label": "openapi-root-secret-only",
+        "path": "/rest/v1/",
+        "status": 401,
+        "ok": true,
+        "detail": null
+      }
+    ]
+  },
+  "title": "partiful matrix / supabase-realtime follow-up cell",
+  "passed": 5,
+  "skipped": 0,
+  "failed": 0,
+  "total": 5,
+  "ok": true,
+  "results": [
+    {
+      "name": "publishable key authenticates against its entitled endpoints",
+      "ok": true,
+      "details": [
+        {
+          "label": "auth-health",
+          "path": "/auth/v1/health",
+          "status": 200,
+          "ok": true,
+          "detail": null
+        },
+        {
+          "label": "data-api-table-read",
+          "path": "/rest/v1/partiful_matrix_events?select=id&limit=1",
+          "status": 200,
+          "ok": true,
+          "detail": null
+        },
+        {
+          "label": "openapi-root-secret-only",
+          "path": "/rest/v1/",
+          "status": 401,
+          "ok": true,
+          "detail": null
+        }
+      ]
+    },
+    {
+      "name": "react × supabase-realtime boots browser-direct with push transport",
+      "ok": true,
+      "details": {
+        "backend": "supabase-realtime",
+        "authoring": "react"
+      }
+    },
+    {
+      "name": "opens details and performs an in-cell RSVP round trip",
+      "ok": true,
+      "details": {
+        "before": "EVEveGoing",
+        "after": "EVEveMaybe"
+      }
+    },
+    {
+      "name": "observes out-of-band writes via Realtime push with poll fallback disabled",
+      "ok": true,
+      "details": {
+        "mutationOrigin": "out-of-band PostgREST (publishable key)",
+        "pollFallback": "disabled",
+        "warmupCount": 1,
+        "sampleCount": 5,
+        "observations": [
+          {
+            "sampleIndex": 0,
+            "latencyMs": 875
+          },
+          {
+            "sampleIndex": 1,
+            "latencyMs": 585
+          },
+          {
+            "sampleIndex": 2,
+            "latencyMs": 437
+          },
+          {
+            "sampleIndex": 3,
+            "latencyMs": 539
+          },
+          {
+            "sampleIndex": 4,
+            "latencyMs": 602
+          },
+          {
+            "sampleIndex": 5,
+            "latencyMs": 514
+          }
+        ],
+        "freshnessLatencyMs": {
+          "samples": [
+            585,
+            437,
+            539,
+            602,
+            514
+          ],
+          "median": 539,
+          "p95": 602
+        },
+        "establishedChannels": [
+          "listEvents",
+          "listEvents",
+          "eventDetails",
+          "guestList",
+          "eventWall",
+          "eventDetails",
+          "guestList",
+          "eventWall"
+        ],
+        "pushDeliveries": 7
+      }
+    },
+    {
+      "name": "database, not client, refuses to displace the host",
+      "ok": true,
+      "details": {
+        "status": 401,
+        "refusal": "row-level security policy (USING expression)"
+      }
+    }
+  ],
+  "expectedChecks": 5,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

@@ -1,0 +1,313 @@
+{
+  "appId": "chat-matrix",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:97195a0b1e2459a1",
+  "config": [
+    {
+      "acquisition": {
+        "cost": "pay-per-token",
+        "humanCommitment": [
+          "terms"
+        ],
+        "inputs": [
+          "email"
+        ],
+        "kind": "self-serve",
+        "url": "https://openrouter.ai/keys"
+      },
+      "description": "OpenRouter API key",
+      "howToGet": "Create a key at https://openrouter.ai/keys",
+      "name": "openrouter",
+      "pool": true,
+      "probe": null,
+      "purpose": "Generates assistant replies via the OpenRouter chat-completions API",
+      "required": true,
+      "secret": true,
+      "sourceSpan": null
+    }
+  ],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "applyAssistantDelta",
+      "exportedName": "applyAssistantDelta",
+      "id": "chat-matrix:applyAssistantDelta",
+      "kind": "Mutation",
+      "name": "applyAssistantDelta",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyAssistantDelta",
+          "source": "// Chat matrix — Snapback JS handlers.\n\nconst OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';\nasync function createConversation(ctx, args) {\n  const id = await ctx.db.insert('conversations', {\n    title: args.title,\n    model: args.model,\n    createdAt: args.createdAt,\n  });\n  return { conversationId: id };\n}\n\nasync function sendMessage(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    createdAt: args.createdAt,\n  });\n  const assistantId = await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'pending',\n    createdAt: args.createdAt + 1,\n  });\n  return { assistantMessageId: assistantId };\n}\n\nasync function claimReply(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  if (row.status !== 'pending') return { claimed: false, model: null, history: [] };\n  const conversation = await ctx.db.get('conversations', row.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_conversation')\n    .eq('conversationId', row.conversationId)\n    .order('createdAt', 'asc')\n    .collect();\n  const history = rows\n    .filter((message) => message._id !== args.messageId && message.status === 'complete')\n    .map((message) => ({ role: message.role, content: message.content }));\n  await ctx.db.patch('messages', args.messageId, { status: 'streaming' });\n  return { claimed: true, model: conversation.model, history };\n}\n\nasync function applyAssistantDelta(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  await ctx.db.patch('messages', args.messageId, { content: args.content, status: args.status });\n  return { status: args.status };\n}\n\nasync function generateReply(ctx, args) {\n  const claim = await ctx.runMutation('claimReply', { messageId: args.messageId });\n  if (!claim.claimed) return { outcome: 'already-claimed' };\n  const key = ctx.secrets.rotating('openrouter').expose();\n  const commit = (content, status) =>\n    ctx.runMutation('applyAssistantDelta', { messageId: args.messageId, content, status });\n  try {\n    // The Ibex action runtime's fetch exposes no ReadableStream, so token\n    // streaming cannot be expressed here today: the reply lands as one commit.\n    // (Convex/Supabase/SQLite cells stream token deltas; this asymmetry is a\n    // recorded Snapback authoring gap — see the chat-matrix diary.) The\n    // claim's 'streaming' status still gives surfaces an honest busy state.\n    const response = await fetch(OPENROUTER_URL, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${key}`,\n        'content-type': 'application/json',\n        'HTTP-Referer': 'https://github.com/ccheever/snapback',\n        'X-Title': 'snapback chat-matrix demo',\n      },\n      body: JSON.stringify({ model: claim.model, messages: claim.history, stream: false }),\n    });\n    if (!response.ok) {\n      const detail = (await response.text()).slice(0, 300);\n      await commit(`(OpenRouter error: HTTP ${response.status} ${detail})`, 'error');\n      return { outcome: 'error' };\n    }\n    const payload = await response.json();\n    const accumulated = payload.choices?.[0]?.message?.content ?? '';\n    await commit(accumulated.length > 0 ? accumulated : '(empty reply)', 'complete');\n    return { outcome: 'complete', characters: accumulated.length };\n  } catch (error) {\n    await commit(`(generation failed: ${String(error && error.message ? error.message : error)})`, 'error');\n    return { outcome: 'error' };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  createConversation,\n  sendMessage,\n  claimReply,\n  applyAssistantDelta,\n  generateReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "claimReply",
+      "exportedName": "claimReply",
+      "id": "chat-matrix:claimReply",
+      "kind": "Mutation",
+      "name": "claimReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations",
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "claimReply",
+          "source": "// Chat matrix — Snapback JS handlers.\n\nconst OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';\nasync function createConversation(ctx, args) {\n  const id = await ctx.db.insert('conversations', {\n    title: args.title,\n    model: args.model,\n    createdAt: args.createdAt,\n  });\n  return { conversationId: id };\n}\n\nasync function sendMessage(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    createdAt: args.createdAt,\n  });\n  const assistantId = await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'pending',\n    createdAt: args.createdAt + 1,\n  });\n  return { assistantMessageId: assistantId };\n}\n\nasync function claimReply(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  if (row.status !== 'pending') return { claimed: false, model: null, history: [] };\n  const conversation = await ctx.db.get('conversations', row.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_conversation')\n    .eq('conversationId', row.conversationId)\n    .order('createdAt', 'asc')\n    .collect();\n  const history = rows\n    .filter((message) => message._id !== args.messageId && message.status === 'complete')\n    .map((message) => ({ role: message.role, content: message.content }));\n  await ctx.db.patch('messages', args.messageId, { status: 'streaming' });\n  return { claimed: true, model: conversation.model, history };\n}\n\nasync function applyAssistantDelta(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  await ctx.db.patch('messages', args.messageId, { content: args.content, status: args.status });\n  return { status: args.status };\n}\n\nasync function generateReply(ctx, args) {\n  const claim = await ctx.runMutation('claimReply', { messageId: args.messageId });\n  if (!claim.claimed) return { outcome: 'already-claimed' };\n  const key = ctx.secrets.rotating('openrouter').expose();\n  const commit = (content, status) =>\n    ctx.runMutation('applyAssistantDelta', { messageId: args.messageId, content, status });\n  try {\n    // The Ibex action runtime's fetch exposes no ReadableStream, so token\n    // streaming cannot be expressed here today: the reply lands as one commit.\n    // (Convex/Supabase/SQLite cells stream token deltas; this asymmetry is a\n    // recorded Snapback authoring gap — see the chat-matrix diary.) The\n    // claim's 'streaming' status still gives surfaces an honest busy state.\n    const response = await fetch(OPENROUTER_URL, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${key}`,\n        'content-type': 'application/json',\n        'HTTP-Referer': 'https://github.com/ccheever/snapback',\n        'X-Title': 'snapback chat-matrix demo',\n      },\n      body: JSON.stringify({ model: claim.model, messages: claim.history, stream: false }),\n    });\n    if (!response.ok) {\n      const detail = (await response.text()).slice(0, 300);\n      await commit(`(OpenRouter error: HTTP ${response.status} ${detail})`, 'error');\n      return { outcome: 'error' };\n    }\n    const payload = await response.json();\n    const accumulated = payload.choices?.[0]?.message?.content ?? '';\n    await commit(accumulated.length > 0 ? accumulated : '(empty reply)', 'complete');\n    return { outcome: 'complete', characters: accumulated.length };\n  } catch (error) {\n    await commit(`(generation failed: ${String(error && error.message ? error.message : error)})`, 'error');\n    return { outcome: 'error' };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  createConversation,\n  sendMessage,\n  claimReply,\n  applyAssistantDelta,\n  generateReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "createConversation",
+      "exportedName": "createConversation",
+      "id": "chat-matrix:createConversation",
+      "kind": "Mutation",
+      "name": "createConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "createConversation",
+          "source": "// Chat matrix — Snapback JS handlers.\n\nconst OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';\nasync function createConversation(ctx, args) {\n  const id = await ctx.db.insert('conversations', {\n    title: args.title,\n    model: args.model,\n    createdAt: args.createdAt,\n  });\n  return { conversationId: id };\n}\n\nasync function sendMessage(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    createdAt: args.createdAt,\n  });\n  const assistantId = await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'pending',\n    createdAt: args.createdAt + 1,\n  });\n  return { assistantMessageId: assistantId };\n}\n\nasync function claimReply(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  if (row.status !== 'pending') return { claimed: false, model: null, history: [] };\n  const conversation = await ctx.db.get('conversations', row.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_conversation')\n    .eq('conversationId', row.conversationId)\n    .order('createdAt', 'asc')\n    .collect();\n  const history = rows\n    .filter((message) => message._id !== args.messageId && message.status === 'complete')\n    .map((message) => ({ role: message.role, content: message.content }));\n  await ctx.db.patch('messages', args.messageId, { status: 'streaming' });\n  return { claimed: true, model: conversation.model, history };\n}\n\nasync function applyAssistantDelta(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  await ctx.db.patch('messages', args.messageId, { content: args.content, status: args.status });\n  return { status: args.status };\n}\n\nasync function generateReply(ctx, args) {\n  const claim = await ctx.runMutation('claimReply', { messageId: args.messageId });\n  if (!claim.claimed) return { outcome: 'already-claimed' };\n  const key = ctx.secrets.rotating('openrouter').expose();\n  const commit = (content, status) =>\n    ctx.runMutation('applyAssistantDelta', { messageId: args.messageId, content, status });\n  try {\n    // The Ibex action runtime's fetch exposes no ReadableStream, so token\n    // streaming cannot be expressed here today: the reply lands as one commit.\n    // (Convex/Supabase/SQLite cells stream token deltas; this asymmetry is a\n    // recorded Snapback authoring gap — see the chat-matrix diary.) The\n    // claim's 'streaming' status still gives surfaces an honest busy state.\n    const response = await fetch(OPENROUTER_URL, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${key}`,\n        'content-type': 'application/json',\n        'HTTP-Referer': 'https://github.com/ccheever/snapback',\n        'X-Title': 'snapback chat-matrix demo',\n      },\n      body: JSON.stringify({ model: claim.model, messages: claim.history, stream: false }),\n    });\n    if (!response.ok) {\n      const detail = (await response.text()).slice(0, 300);\n      await commit(`(OpenRouter error: HTTP ${response.status} ${detail})`, 'error');\n      return { outcome: 'error' };\n    }\n    const payload = await response.json();\n    const accumulated = payload.choices?.[0]?.message?.content ?? '';\n    await commit(accumulated.length > 0 ? accumulated : '(empty reply)', 'complete');\n    return { outcome: 'complete', characters: accumulated.length };\n  } catch (error) {\n    await commit(`(generation failed: ${String(error && error.message ? error.message : error)})`, 'error');\n    return { outcome: 'error' };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  createConversation,\n  sendMessage,\n  claimReply,\n  applyAssistantDelta,\n  generateReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "generateReply",
+      "exportedName": "generateReply",
+      "id": "chat-matrix:generateReply",
+      "kind": "Action",
+      "name": "generateReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "generateReply",
+          "source": "// Chat matrix — Snapback JS handlers.\n\nconst OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';\nasync function createConversation(ctx, args) {\n  const id = await ctx.db.insert('conversations', {\n    title: args.title,\n    model: args.model,\n    createdAt: args.createdAt,\n  });\n  return { conversationId: id };\n}\n\nasync function sendMessage(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    createdAt: args.createdAt,\n  });\n  const assistantId = await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'pending',\n    createdAt: args.createdAt + 1,\n  });\n  return { assistantMessageId: assistantId };\n}\n\nasync function claimReply(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  if (row.status !== 'pending') return { claimed: false, model: null, history: [] };\n  const conversation = await ctx.db.get('conversations', row.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_conversation')\n    .eq('conversationId', row.conversationId)\n    .order('createdAt', 'asc')\n    .collect();\n  const history = rows\n    .filter((message) => message._id !== args.messageId && message.status === 'complete')\n    .map((message) => ({ role: message.role, content: message.content }));\n  await ctx.db.patch('messages', args.messageId, { status: 'streaming' });\n  return { claimed: true, model: conversation.model, history };\n}\n\nasync function applyAssistantDelta(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  await ctx.db.patch('messages', args.messageId, { content: args.content, status: args.status });\n  return { status: args.status };\n}\n\nasync function generateReply(ctx, args) {\n  const claim = await ctx.runMutation('claimReply', { messageId: args.messageId });\n  if (!claim.claimed) return { outcome: 'already-claimed' };\n  const key = ctx.secrets.rotating('openrouter').expose();\n  const commit = (content, status) =>\n    ctx.runMutation('applyAssistantDelta', { messageId: args.messageId, content, status });\n  try {\n    // The Ibex action runtime's fetch exposes no ReadableStream, so token\n    // streaming cannot be expressed here today: the reply lands as one commit.\n    // (Convex/Supabase/SQLite cells stream token deltas; this asymmetry is a\n    // recorded Snapback authoring gap — see the chat-matrix diary.) The\n    // claim's 'streaming' status still gives surfaces an honest busy state.\n    const response = await fetch(OPENROUTER_URL, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${key}`,\n        'content-type': 'application/json',\n        'HTTP-Referer': 'https://github.com/ccheever/snapback',\n        'X-Title': 'snapback chat-matrix demo',\n      },\n      body: JSON.stringify({ model: claim.model, messages: claim.history, stream: false }),\n    });\n    if (!response.ok) {\n      const detail = (await response.text()).slice(0, 300);\n      await commit(`(OpenRouter error: HTTP ${response.status} ${detail})`, 'error');\n      return { outcome: 'error' };\n    }\n    const payload = await response.json();\n    const accumulated = payload.choices?.[0]?.message?.content ?? '';\n    await commit(accumulated.length > 0 ? accumulated : '(empty reply)', 'complete');\n    return { outcome: 'complete', characters: accumulated.length };\n  } catch (error) {\n    await commit(`(generation failed: ${String(error && error.message ? error.message : error)})`, 'error');\n    return { outcome: 'error' };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  createConversation,\n  sendMessage,\n  claimReply,\n  applyAssistantDelta,\n  generateReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [
+        "openrouter"
+      ],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "listConversations",
+      "exportedName": "listConversations",
+      "id": "chat-matrix:listConversations",
+      "kind": "LiveQuery",
+      "name": "listConversations",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [],
+            "indexed_by": "by_created",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "sendMessage",
+      "exportedName": "sendMessage",
+      "id": "chat-matrix:sendMessage",
+      "kind": "Mutation",
+      "name": "sendMessage",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "sendMessage",
+          "source": "// Chat matrix — Snapback JS handlers.\n\nconst OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';\nasync function createConversation(ctx, args) {\n  const id = await ctx.db.insert('conversations', {\n    title: args.title,\n    model: args.model,\n    createdAt: args.createdAt,\n  });\n  return { conversationId: id };\n}\n\nasync function sendMessage(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    createdAt: args.createdAt,\n  });\n  const assistantId = await ctx.db.insert('messages', {\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'pending',\n    createdAt: args.createdAt + 1,\n  });\n  return { assistantMessageId: assistantId };\n}\n\nasync function claimReply(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  if (row.status !== 'pending') return { claimed: false, model: null, history: [] };\n  const conversation = await ctx.db.get('conversations', row.conversationId);\n  if (!conversation) throw new Error('conversation not found');\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_conversation')\n    .eq('conversationId', row.conversationId)\n    .order('createdAt', 'asc')\n    .collect();\n  const history = rows\n    .filter((message) => message._id !== args.messageId && message.status === 'complete')\n    .map((message) => ({ role: message.role, content: message.content }));\n  await ctx.db.patch('messages', args.messageId, { status: 'streaming' });\n  return { claimed: true, model: conversation.model, history };\n}\n\nasync function applyAssistantDelta(ctx, args) {\n  const row = await ctx.db.get('messages', args.messageId);\n  if (!row) throw new Error('assistant message not found');\n  await ctx.db.patch('messages', args.messageId, { content: args.content, status: args.status });\n  return { status: args.status };\n}\n\nasync function generateReply(ctx, args) {\n  const claim = await ctx.runMutation('claimReply', { messageId: args.messageId });\n  if (!claim.claimed) return { outcome: 'already-claimed' };\n  const key = ctx.secrets.rotating('openrouter').expose();\n  const commit = (content, status) =>\n    ctx.runMutation('applyAssistantDelta', { messageId: args.messageId, content, status });\n  try {\n    // The Ibex action runtime's fetch exposes no ReadableStream, so token\n    // streaming cannot be expressed here today: the reply lands as one commit.\n    // (Convex/Supabase/SQLite cells stream token deltas; this asymmetry is a\n    // recorded Snapback authoring gap — see the chat-matrix diary.) The\n    // claim's 'streaming' status still gives surfaces an honest busy state.\n    const response = await fetch(OPENROUTER_URL, {\n      method: 'POST',\n      headers: {\n        Authorization: `Bearer ${key}`,\n        'content-type': 'application/json',\n        'HTTP-Referer': 'https://github.com/ccheever/snapback',\n        'X-Title': 'snapback chat-matrix demo',\n      },\n      body: JSON.stringify({ model: claim.model, messages: claim.history, stream: false }),\n    });\n    if (!response.ok) {\n      const detail = (await response.text()).slice(0, 300);\n      await commit(`(OpenRouter error: HTTP ${response.status} ${detail})`, 'error');\n      return { outcome: 'error' };\n    }\n    const payload = await response.json();\n    const accumulated = payload.choices?.[0]?.message?.content ?? '';\n    await commit(accumulated.length > 0 ? accumulated : '(empty reply)', 'complete');\n    return { outcome: 'complete', characters: accumulated.length };\n  } catch (error) {\n    await commit(`(generation failed: ${String(error && error.message ? error.message : error)})`, 'error');\n    return { outcome: 'error' };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  createConversation,\n  sendMessage,\n  claimReply,\n  applyAssistantDelta,\n  generateReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "optional-user",
+      "bundleEntrypoint": "thread",
+      "exportedName": "thread",
+      "id": "chat-matrix:thread",
+      "kind": "LiveQuery",
+      "name": "thread",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "conversationId",
+                "op": "Eq",
+                "value": {
+                  "Arg": "conversationId"
+                }
+              }
+            ],
+            "indexed_by": "by_conversation",
+            "limit": null,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "createdAt"
+              }
+            ],
+            "table": "messages"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "3d2311dd52c6a315ab8053b004038286fb8f1dca1596585fa4763cb5939ce78e",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

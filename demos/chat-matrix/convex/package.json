@@ -1,0 +1,12 @@
+{
+  "name": "chat-matrix-convex",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node setup.mjs"
+  },
+  "devDependencies": {
+    "convex": "^1.28.0",
+    "typescript": "^5.9.3"
+  }
+}

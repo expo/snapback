@@ -6,6 +6,7 @@ import {
   finalizeReport,
   identity,
   measureJavaScriptBundle,
+  readExactText,
   readJson,
   readText,
   requirement,
@@ -38,7 +39,7 @@ const reactApp = readText(reactAppPath);
 const contractBundle = measureJavaScriptBundle('demos/partiful-matrix/surfaces/contract/dist/snapback');
 
 const exactVerifyPath = 'exact-verify.json';
-const exactVerify = JSON.parse(readText(`../exact/${exactVerifyPath}`));
+const exactVerify = JSON.parse(readExactText(exactVerifyPath));
 const exactCheckIds = new Set(exactVerify.checks.map(({ id }) => id));
 const upstreamChecks = [
   'contract-web-host-csr',

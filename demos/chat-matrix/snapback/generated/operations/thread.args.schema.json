@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/chat-matrix/thread.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "conversationId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "conversationId"
+  ],
+  "title": "chat-matrix:thread arguments",
+  "type": "object"
+}

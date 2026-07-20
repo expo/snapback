@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/chat-matrix/generateReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "messageId": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "messageId"
+  ],
+  "title": "chat-matrix:generateReply arguments",
+  "type": "object"
+}

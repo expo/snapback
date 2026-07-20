@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/chat-matrix/applyAssistantDelta.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "messageId": {
+      "type": "string"
+    },
+    "status": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "messageId",
+    "content",
+    "status"
+  ],
+  "title": "chat-matrix:applyAssistantDelta arguments",
+  "type": "object"
+}

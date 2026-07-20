@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/chat-matrix/createConversation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "createdAt": {
+      "type": "integer"
+    },
+    "model": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "title",
+    "model",
+    "createdAt"
+  ],
+  "title": "chat-matrix:createConversation arguments",
+  "type": "object"
+}

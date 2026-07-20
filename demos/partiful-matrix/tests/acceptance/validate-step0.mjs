@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -237,8 +238,8 @@ if (webClaimIds.some((id) => passing.has(id))) {
 if (passing.has('STEP0.VANILLA_LIFECYCLE')) {
   const report = reportFor('STEP0.VANILLA_LIFECYCLE');
   assert.equal(report.ok, true, 'vanilla lifecycle oracle did not pass');
-  assert.equal(report.total, 3, 'vanilla lifecycle oracle was short');
-  assert.equal(report.expectedChecks, 3, 'vanilla lifecycle expected-check count drifted');
+  assert.equal(report.total, 5, 'vanilla lifecycle oracle was short');
+  assert.equal(report.expectedChecks, 5, 'vanilla lifecycle expected-check count drifted');
   assert.equal(report.cleanupErrorCount, 0, 'vanilla lifecycle cleanup failed');
   validateInventory(report.testInventory, 'vanilla lifecycle');
 }
@@ -304,10 +305,6 @@ if (passing.has('STEP0.ATTRIBUTION_BASELINE')) {
   assert.match(report.thresholdId, /^partitime-thresholds-v\d+-sha256-[a-f0-9]{16}$/);
   assert.equal(report.thresholds.requiredWebCheckCount, 43);
   assert.equal(report.pushLatency.react.samples.length, 7);
-  assert.equal(
-    report.thresholds.firstPushFreshnessLatencyMsP95,
-    Math.floor(report.pushLatency.react.p95 * 1.10),
-  );
   for (const group of Object.values(report.sourceInventory)) {
     for (const file of group.files) {
       const bytes = readFileSync(join(demoRoot, file.path));
@@ -338,11 +335,52 @@ if (passing.has('STEP0.ATTRIBUTION_BASELINE')) {
     requiredWebCheckCount: 43,
     firstPushFreshnessLatencyMsP95: Math.floor(report.pushLatency.react.p95 * 1.10),
   };
-  assert.deepEqual(report.thresholds, expectedThresholds, 'formula-computed thresholds drifted');
+  assert.deepEqual(
+    report.currentFormulaThresholds,
+    expectedThresholds,
+    'current formula-computed thresholds drifted',
+  );
+  const thresholdFreezeSource = report.inputs.thresholdFreezeSource;
+  if (thresholdFreezeSource === null) {
+    assert.deepEqual(report.thresholds, expectedThresholds, 'initial formula-computed thresholds drifted');
+  } else {
+    assert.equal(
+      thresholdFreezeSource.path,
+      'demos/partiful-matrix/acceptance/results/step0-attribution.json',
+      'threshold freeze source path drifted',
+    );
+    assert.match(
+      thresholdFreezeSource.revision,
+      /^[a-f0-9]{40}$/,
+      'threshold freeze source revision is not immutable',
+    );
+    const frozen = spawnSync(
+      'git',
+      ['show', `${thresholdFreezeSource.revision}:${thresholdFreezeSource.path}`],
+      { cwd: repoRoot, encoding: null },
+    );
+    assert.equal(
+      frozen.status,
+      0,
+      `threshold freeze source is unreadable: ${frozen.stderr?.toString('utf8')}`,
+    );
+    assert.equal(
+      sha256(frozen.stdout),
+      thresholdFreezeSource.sha256,
+      'threshold freeze source digest drifted',
+    );
+    const baseline = JSON.parse(frozen.stdout.toString('utf8'));
+    assert.equal(baseline.schemaVersion, 'partitime.attribution.v1');
+    assert.equal(baseline.workloadVersion, report.workloadVersion);
+    assert.equal(baseline.methodId, report.methodId);
+    assert.equal(baseline.thresholdFormulaSetId, report.thresholdFormulaSetId);
+    assert.deepEqual(report.thresholds, baseline.thresholds, 'frozen thresholds drifted');
+    assert.equal(report.thresholdId, baseline.thresholdId, 'frozen threshold ID drifted');
+  }
   assert.equal(
     report.thresholdId,
-    `partitime-thresholds-v1-sha256-${sha256(JSON.stringify(expectedThresholds)).slice(0, 16)}`,
-    'threshold ID does not identify the computed thresholds',
+    `partitime-thresholds-v1-sha256-${sha256(JSON.stringify(report.thresholds)).slice(0, 16)}`,
+    'threshold ID does not identify the retained thresholds',
   );
   assert.deepEqual(protocol.initialAttributionCategories, [
     'emittedMinifiedJsBytes', 'compressedJsBytes', 'authoredSourceLines',

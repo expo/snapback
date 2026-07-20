@@ -9,7 +9,7 @@ import api from '../../snapback/generated/api.mjs';
 import { createConvexAdapter } from '../../backends/gateway/convex.ts';
 import { loadLocalSecrets, requireSecret } from '../../backends/gateway/secrets.mjs';
 import { createSqliteAdapter } from '../../backends/gateway/sqlite.ts';
-import { createSupabaseAdapter } from '../../backends/gateway/supabase.ts';
+import { createSupabaseAdapter, EPHEMERAL_SCHEMA_PREFIX } from '../../backends/gateway/supabase.ts';
 
 const here = import.meta.dirname;
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -31,12 +31,20 @@ await runAcceptance(suite, async () => {
 
   const sqliteDir = mkdtempSync(join(tmpdir(), 'partiful-matrix-sqlite-'));
   cleanups.push(() => rmSync(sqliteDir, { recursive: true, force: true }));
+  // --ephemeral-supabase runs the Supabase leg in a disposable per-run schema
+  // (dropped on exit) instead of the shared public fixture. The default stays
+  // on the shared fixture: that is the same data the deployed cells read, so
+  // the default run doubles as a real-remote smoke test.
+  const ephemeralSchema = process.argv.includes('--ephemeral-supabase')
+    ? `${EPHEMERAL_SCHEMA_PREFIX}${Date.now().toString(36)}_${process.pid}`
+    : undefined;
   const adapters = {
     sqlite: createSqliteAdapter(join(sqliteDir, 'matrix.sqlite')),
-    supabase: await createSupabaseAdapter(requireSecret(secrets, 'DIRECT_URL', 'DATABASE_URL', 'SUPABASE_DB_URL')),
+    supabase: await createSupabaseAdapter(requireSecret(secrets, 'DIRECT_URL', 'DATABASE_URL', 'SUPABASE_DB_URL'), { schema: ephemeralSchema }),
     convex: createConvexAdapter(requireSecret(secrets, 'CONVEX_DEPLOY_KEY', 'CONVEX_URL')),
   };
   cleanups.push(...Object.values(adapters).map((adapter) => () => adapter.close?.()));
+  if (ephemeralSchema) cleanups.push(() => adapters.supabase.dropEphemeralSchema());
 
   let canonical;
   await suite.check('Snapback loads generated artifacts and the shared fixture', async () => {

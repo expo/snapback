@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/chat-matrix/sendMessage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "content": {
+      "type": "string"
+    },
+    "conversationId": {
+      "type": "string"
+    },
+    "createdAt": {
+      "type": "integer"
+    }
+  },
+  "required": [
+    "conversationId",
+    "content",
+    "createdAt"
+  ],
+  "title": "chat-matrix:sendMessage arguments",
+  "type": "object"
+}

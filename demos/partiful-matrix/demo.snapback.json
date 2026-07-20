@@ -78,7 +78,7 @@
     ]
   },
   "capabilityGaps": [
-    "the supplied Supabase publishable key was rejected, so the Supabase web cells use a local Bun gateway and server-only Postgres credentials",
+    "the original build misread a secret-only OpenAPI-root 401 as a rejected publishable key, so the frozen Supabase web cells use a local Bun gateway and server-only Postgres credentials; the corrected probe and the browser-direct supabase-realtime follow-up cell landed 2026-07-20",
     "the portable comparison providers poll every second; only the Snapback cells exercise push subscriptions in this matrix",
     "the comparison builds still use Vite even though a separate direct-ESM compatibility receipt passes",
     "React Expo Android Online passes its clean cumulative profile; iOS remains pending on a host-wide Xcode pipe-buffer failure",

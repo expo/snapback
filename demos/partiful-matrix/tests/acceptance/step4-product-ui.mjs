@@ -10,6 +10,7 @@ import {
   identity,
   measureJavaScriptBundle,
   measureSourceInventory,
+  readExactText,
   readJson,
   readText,
   requirement,
@@ -71,8 +72,8 @@ const inheritedBrowserEvidence = [
 const exactRegistryPath = 'packages/exact-devtools/src/agent/operations/registry.ts';
 const exactInspectionPath = 'packages/exact-devtools/src/agent/contract-inspection.ts';
 const exactInspectionTestPath = 'packages/exact-devtools/src/agent/contract-inspection.test.ts';
-const exactRegistry = readText(`../exact/${exactRegistryPath}`);
-const exactInspection = readText(`../exact/${exactInspectionPath}`);
+const exactRegistry = readExactText(exactRegistryPath);
+const exactInspection = readExactText(exactInspectionPath);
 for (const operation of [
   'exact_contract_bindings',
   'exact_contract_mutation_outcomes',
