@@ -19,22 +19,33 @@ const host = '127.0.0.1';
 const snapbackOrigin = process.env.EXPO_PUBLIC_SNAPBACK_ORIGIN ?? `http://${host}:18763`;
 const witnessOrigin = process.env.EXPO_PUBLIC_PARTITIME_WITNESS_ORIGIN ?? `http://${host}:18764`;
 const carrierLaunchId = `${Platform.OS}-${Date.now()}`;
-const report = async (event, details = {}) => {
-  try {
-    await fetch(`${witnessOrigin}/event`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        schemaVersion: 'partitime.native-event.v1',
-        profileId: `react-expo/${Platform.OS}`,
-        capabilityClass: 'Online',
-        launchId: carrierLaunchId,
-        event,
-        details,
-        atMs: Date.now(),
-      }),
-    });
-  } catch { /* the witness reconnects independently of the data transport */ }
+let reportTail = Promise.resolve();
+const report = (event, details = {}) => {
+  const body = JSON.stringify({
+    schemaVersion: 'partitime.native-event.v1',
+    profileId: `react-expo/${Platform.OS}`,
+    capabilityClass: 'Online',
+    launchId: carrierLaunchId,
+    event,
+    details,
+    atMs: Date.now(),
+  });
+  const delivery = reportTail.then(async () => {
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const response = await fetch(`${witnessOrigin}/event`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body,
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (response.ok) return;
+      } catch { /* retry the witness without coupling it to data transport */ }
+      if (attempt < 3) await new Promise((resolveRetry) => setTimeout(resolveRetry, attempt * 50));
+    }
+  });
+  reportTail = delivery.catch(() => {});
+  return delivery;
 };
 
 async function createProvider() {
