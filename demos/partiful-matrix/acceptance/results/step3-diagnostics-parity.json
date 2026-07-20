@@ -6,9 +6,9 @@
     "artifactIndex": "demos/partiful-matrix/snapback/generated/artifacts.json",
     "contractManifest": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
     "apiModule": "demos/partiful-matrix/snapback/generated/api.mjs",
-    "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
-    "schemaHash": "sha256:6d8f2c14b46ebe23",
-    "bundleHash": "sha256:f74fae069b4d2e8a",
+    "inputsHash": "f2a917d4d29401dba8b00954627b4dc2bed4226aa02c4bc795afac747d43f0bd",
+    "schemaHash": "sha256:f34c7e9c0ffaeb7e",
+    "bundleHash": "sha256:f4c24641a0539be3",
     "queryReference": "partiful-matrix:guestList",
     "mutationReference": "partiful-matrix:rsvp"
   },

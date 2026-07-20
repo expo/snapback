@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-20T16:37:49.713Z",
+  "recordedAt": "2026-07-20T17:14:48.254Z",
   "repository": {
-    "snapbackRevision": "0f61314a449b5c4d7d8bbb4e87eb5949862e8662",
-    "exactRevision": "91ad0dc9d026fe639a25b7b8f619ca6491d118e0"
+    "snapbackRevision": "730f32a35e71fa8b2014a5c63ae802ad634cc166",
+    "exactRevision": "07db274fcd201a7bd60f3a32e2832eca5753e0db"
   },
   "inputs": {
     "protocol": {
@@ -19,12 +19,12 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "320d3a3b3e96ac6abf2e78922a3604fea93975818a54e50e85bbcc9dc4aaea9d"
+      "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
     },
     "surface": [
       {
         "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-        "sha256": "d48834fe2339a67061836a1e1f92f5eb3d0b1195968c12ce6f1b52a5dd3315f2"
+        "sha256": "7c15e4a031b455e034e9e0934d1e268f9440a08a7844710b228db516cc78dea5"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/index.html",
@@ -40,12 +40,12 @@
       },
       {
         "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-        "sha256": "9a2bf4cfe6e73e785b0e824e655672fdae20681e7e4264effeea215470782518"
+        "sha256": "97dec41613e6958e327d3c45b7ee1d9ad12193aba23ed809edace8672ef20acb"
       }
     ],
     "exactVerifyRegistry": {
-      "path": "../exact/exact-verify.json",
-      "sha256": "38424a2eeea1b6fdbc8e29064516eed00b4733a677e8e4517ec9e1e22b756677"
+      "path": "../exact-llp0063-full-20260720/exact-verify.json",
+      "sha256": "9f34080be510a61ae1441383d22b6524788cb825e0ac767b8b8560834eb7e187"
     }
   },
   "summary": {
@@ -62,19 +62,19 @@
       "evidence": {
         "html": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-          "sha256": "d48834fe2339a67061836a1e1f92f5eb3d0b1195968c12ce6f1b52a5dd3315f2"
+          "sha256": "7c15e4a031b455e034e9e0934d1e268f9440a08a7844710b228db516cc78dea5"
         },
         "javascript": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-3bBV329Y.js",
-              "minifiedBytes": 730963,
-              "deterministicGzipBytes": 194019,
-              "sha256": "2704784dfe1987f47ea2012737689a2ac72f981de60eea3da88fd24b75156c0d"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DaAFVqdJ.js",
+              "minifiedBytes": 728458,
+              "deterministicGzipBytes": 194052,
+              "sha256": "eafcb94afe7fe9de20099dc88c5c50de3c3094c6c39a2663c1eed64bb1b7dba3"
             }
           ],
-          "minifiedBytes": 730963,
-          "deterministicGzipBytes": 194019
+          "minifiedBytes": 728458,
+          "deterministicGzipBytes": 194052
         }
       }
     },
@@ -85,7 +85,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-          "sha256": "320d3a3b3e96ac6abf2e78922a3604fea93975818a54e50e85bbcc9dc4aaea9d"
+          "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
         },
         "checks": [
           "contract × snapback boots its identified cell",
@@ -183,8 +183,8 @@
       "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
       "evidence": {
         "registry": {
-          "path": "../exact/exact-verify.json",
-          "sha256": "38424a2eeea1b6fdbc8e29064516eed00b4733a677e8e4517ec9e1e22b756677"
+          "path": "../exact-llp0063-full-20260720/exact-verify.json",
+          "sha256": "9f34080be510a61ae1441383d22b6524788cb825e0ac767b8b8560834eb7e187"
         },
         "checks": [
           "contract-web-host-csr",

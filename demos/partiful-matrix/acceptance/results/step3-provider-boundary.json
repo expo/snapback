@@ -2,7 +2,7 @@
   "schemaVersion": "partitime.step3-provider-boundary.v1",
   "claimId": "STEP3.PROVIDER_BOUNDARY",
   "claimPromoted": false,
-  "revision": "fe32f1a26e2552b54205347fd4d0f6b409a9bd0d",
+  "revision": "730f32a35e71fa8b2014a5c63ae802ad634cc166",
   "childTests": [
     {
       "path": "packages/snapback-contract/render-first.test.mjs",
@@ -68,27 +68,27 @@
     },
     {
       "path": "demos/partiful-matrix/snapback/schema.mjs",
-      "sha256": "c80e3b1942f6e9026a619ee3eaad26007f768ed445ab30e0a9c3cffb86c44a67"
+      "sha256": "eec92db650bf47b273e888ae20ba2a2661797d5359b7cd9b75513cce6e63933e"
     },
     {
       "path": "demos/partiful-matrix/snapback/functions.mjs",
-      "sha256": "434fb6e52137e60678cee4cf7e5fe4696b9f5fdcbe5ba9cc566961f55d72a917"
+      "sha256": "0e935e91f26bc3ca3dd601e98307eb607beb1577c8757973e311f13dd61f283b"
     },
     {
       "path": "demos/partiful-matrix/snapback/handlers.mjs",
-      "sha256": "00d98bd243e9570f482e66ad0fa1307617b6012b07491da55b3c9d9d6fba8f21"
+      "sha256": "ff79bcc7c2f25c8610e3c082cc21737062a96491493535f0fba709f6ad095099"
     },
     {
       "path": "demos/partiful-matrix/snapback/generated/provider-introspection.json",
-      "sha256": "a68d0fedfb677a5104fe6b8c4dd70733738817f591b9fd582cd51393e19a7df0"
+      "sha256": "f82b32d8d47f830c8be4ae578ee239d8ed64b3fab8247e793d040a9536bcce21"
     },
     {
       "path": "demos/partiful-matrix/snapback/generated/provider-bindings.json",
-      "sha256": "7434a2a170eb8c952a0e06a62f6c8e23704731a9eced5c69bc8c8dc8e2ef70ed"
+      "sha256": "0239fce975cf6b5d12370f3faeeea134910f581f9afbf201b944c273ada7508e"
     },
     {
       "path": "demos/partiful-matrix/snapback/generated/provider-bindings.d.ts",
-      "sha256": "63ba641e3fcab723423a0e84e44b6dd4d7a580c4bd2451ff7039f63a211666ee"
+      "sha256": "2933dd3dd6de12e87811170d68f7c56ca231c197b24d4df3d1c5c873447bce58"
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
