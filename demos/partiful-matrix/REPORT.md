@@ -694,12 +694,34 @@ Convex generates document IDs. The shared fixture required stable IDs such as
 adapter projects it back to `_id`. The other stores could use the fixture ID as
 their primary key directly.
 
-#### The matrix did not use Convex's strongest client path
+#### The frozen matrix did not use Convex's strongest client path
 
 React did not use Convex subscriptions or `useQuery`; Contract did not receive
 a generated Convex binding package. Both used the common HTTP gateway and
 poller. That was controlled, but it made Convex look more like a generic remote
 function service than an idiomatic Convex app.
+
+#### Follow-up correction (2026-07-20)
+
+The React omission is now measured rather than hypothetical. The follow-up
+`convex-realtime` mode imports the generated Convex API and uses
+`ConvexClient` from `convex/browser` directly against the hosted deployment.
+Its retained 6/6 receipt proves initial product data, an in-cell RSVP, six
+out-of-band HTTP mutations arriving as new `guestList` updates while the
+client reports a connected WebSocket, no polling path, the server-side
+host-displacement refusal, and normal React-root/provider teardown. The five
+post-warmup freshness observations were all around two tenths of a second in
+this run; they are hosted diagnostic evidence, not a comparative benchmark.
+
+Two details mattered. A dashboard-copied deployment URL with a trailing slash
+made the shared HTTP adapter request `//api/*`, which the hosted edge answered
+with an empty body; deployment-origin normalization now removes the ambiguity.
+The acceptance harness creates a unique `[acceptance]` event, registers its
+guarded deletion before browser work, and proves cleanup after the client is
+closed, so concurrent runs do not share an RSVP row and a green hosted run
+cannot leave fixture drift. This closes the idiomatic React × Convex follow-up
+leg only. Contract still lacks generated Convex bindings, and the cell has no
+production identity or local-first claim.
 
 ### 8.3 Where the effort went
 
@@ -1227,11 +1249,17 @@ The report should not be read as a general backend benchmark for these reasons:
    affect experience.
 3. **No production auth.** Auth and authorization often dominate real backend
    work.
-4. **No native Supabase client path.** The publishable credential did not work.
-5. **No native Convex subscription path.** The controlled gateway was retained.
-6. **Polling parity is not realtime parity.** Only Snapback push was exercised.
-7. **No performance benchmark.** Bundle sizes were measured; latency,
-   throughput, fan-out, cold start, and cost were not.
+4. **The frozen matrix has no native Supabase client path.** A later
+   browser-direct Supabase Realtime follow-up exists, but it does not
+   retroactively change the twelve-cell baseline.
+5. **The frozen matrix has no native Convex subscription path.** A later
+   browser-direct ConvexClient follow-up exists; Contract-generated Convex
+   bindings remain absent.
+6. **Polling parity is not realtime parity.** The frozen matrix exercised only
+   Snapback push; the two provider-native follow-ups are separate instruments.
+7. **No performance benchmark.** Bundle sizes were measured; follow-up
+   freshness samples are diagnostic observations, while throughput,
+   fan-out, cold start, and cost were not.
 8. **No clean-machine timing study.** Setup effort is qualitative.
 9. **Specific package versions.** React 19, Vite 7/8, Exact 0.1.2, Bun 1.3.12,
    and the installed Convex version shaped results.
@@ -1305,10 +1333,10 @@ The most successful cell for coherent data authoring remains
 consumer web product remains **React×Snapback**. **Vanilla×Snapback** is the
 smallest proven push client, and **Vanilla×SQLite** is the smallest complete
 local cell, though React×SQLite required less handwritten frontend source. The
-most promising under-tested cell remains **React×Convex using Convex's native
-client**, and the least fairly represented product remains **Supabase**, because
-the publishable-key failure removed its normal browser, RLS, Auth, and Realtime
-path from the experiment.
+most important under-tested cells are now the **Contract-generated direct
+Supabase and Convex bindings**: both provider-native React legs have separate
+push receipts, while the frozen ranking still compares their gateway/polling
+controls. Production auth remains outside both follow-ups.
 
 The durable outcome is not the ranking. It is the comparison harness: one
 product contract, deterministic data, honest capability declarations, provider

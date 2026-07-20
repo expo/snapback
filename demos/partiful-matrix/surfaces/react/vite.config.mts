@@ -3,11 +3,14 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 
+import { convexDeploymentUrl } from '../../backends/gateway/convex';
 import { loadLocalSecrets } from '../../backends/gateway/secrets.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 // Browser-safe by design: only the publishable key may reach a bundle.
 const localSecrets = loadLocalSecrets(resolve(root, '..', '..', '..', '..'));
+const rawConvexUrl = process.env.CONVEX_URL ?? localSecrets.CONVEX_URL ?? localSecrets.CONVEX_DEPLOY_KEY ?? '';
+const convexUrl = rawConvexUrl ? convexDeploymentUrl(rawConvexUrl) : '';
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
   define: {
@@ -17,6 +20,9 @@ export default defineConfig(({ mode }) => ({
     __PARTITIME_DISABLE_POLL_FALLBACK__: JSON.stringify(process.env.PARTITIME_DISABLE_POLL_FALLBACK === '1'),
     __SUPABASE_URL__: JSON.stringify(process.env.SUPABASE_URL ?? localSecrets.SUPABASE_URL ?? ''),
     __SUPABASE_PUBLISHABLE_KEY__: JSON.stringify(process.env.SUPABASE_PUBLISHABLE_KEY ?? localSecrets.SUPABASE_PUBLISHABLE_KEY ?? ''),
+    // A Convex deployment URL is public client configuration. The deploy key
+    // is used only to derive that URL and is never embedded in the bundle.
+    __CONVEX_URL__: JSON.stringify(convexUrl),
   },
   server: {
     host: '127.0.0.1', port: 5191, fs: { allow: ['../../../..'] },

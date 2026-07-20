@@ -931,3 +931,53 @@ no claim row was added — adding one would rebaseline the frozen cross-repo
 semantics, and that amendment belongs to the Step 3 closure. Only the
 README-pinning documentation claim's byte-level artifact hash was refreshed,
 following the Step 1 precedent.
+
+## 2026-07-20 — Convex finally got its own client
+
+The original Convex column was fair as a row-shape control and unfair as a
+product experience: React called the same HTTP gateway as every non-Snapback
+cell, then polled once a second. The follow-up `convex-realtime` mode deletes
+that mediation. It imports the generated Convex API, creates a
+`ConvexClient`, and lets Convex's WebSocket own query freshness. The component
+tree did not change; the same shipped external-store projection consumed the
+provider, so the experiment isolates transport/provider work instead of
+quietly giving Convex a different UI.
+
+The pleasant part was how little subscription code the native client needed.
+`onUpdate` supplied an authoritative initial array and subsequent values,
+deduplicated transport subscriptions, and exposed connection state. The
+retained 6/6 browser receipt tied six out-of-band HTTP mutations to six new
+`guestList` callbacks sampled while `ConvexClient.connectionState()` reported
+an established WebSocket and to six rendered RSVP transitions. With the poll
+path absent by construction, that is stronger provenance than inferring
+realtime from a fast screen update. The final check unmounted the normal React
+root and observed both subscription disposal and `ConvexClient.close()`. Five
+post-warmup observations landed around 0.2 seconds on this hosted deployment.
+They are useful feel, not a benchmark.
+
+The awkward edge was deployment URL normalization. The local `CONVEX_URL`
+ended in `/`; the shared adapter appended `/api/query`, producing `//api/query`.
+Convex's edge returned an empty redirect body, so the first preflight failed
+closed with no green checks. Canonicalizing bare deployment origins fixed both
+the new cell and a latent gateway trap; URL paths, query strings, fragments,
+and credentials now fail closed, and `.convex.site` maps explicitly to its
+`.convex.cloud` sibling. This is a nice contrast with Snapback's local
+verified-ready descriptor: Convex deployment is pleasantly hands-off, but a
+public origin and deploy authority can still look compatible while selecting a
+subtly different request surface.
+
+The acceptance runner now creates a unique `[acceptance]` event and registers
+its guarded deletion before opening the browser. That is safer than restoring
+Eve's canonical RSVP: parallel runs no longer race on one shared value, while
+the cleanup attestation still rejects “test passed but fixture drifted.” No
+deploy was needed for this tranche, so the shared schema and chat indexes were
+not touched.
+
+This closes only the idiomatic React × Convex leg. Contract still needs a
+generated Convex provider-introspection/binding path, production identity is
+absent, and no retained-offline or local-handler claim follows from a hosted
+WebSocket. Compared with React plus Snapback, Convex's component-facing loop is
+similarly concise and its hosted subscription feels excellent; Snapback still
+supplies more generated capability/authority facts and the local-first path.
+The guide already described provider capability honesty and this is a
+comparison-only non-Snapback cell, so no Snapback guide gap was filed.

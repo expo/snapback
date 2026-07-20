@@ -2,8 +2,10 @@ export const BACKENDS = ['snapback', 'supabase', 'convex', 'sqlite'] as const;
 export type Backend = (typeof BACKENDS)[number];
 
 // Web-only follow-up cells beyond the frozen Step 0 matrix (LLP 0063):
-// 'supabase-realtime' is the idiomatic browser-direct supabase-js cell.
-export type BackendMode = Backend | 'supabase-realtime';
+// The `*-realtime` modes are idiomatic browser-direct follow-up cells. They
+// are deliberately outside the frozen Step 0 matrix and never route through
+// the comparison gateway.
+export type BackendMode = Backend | 'supabase-realtime' | 'convex-realtime';
 
 export const PERSONAS = [
   { id: 'ada', userId: 'user_ada', name: 'Ada', initials: 'AD' },
@@ -67,7 +69,7 @@ export interface MatrixProvider {
     userId: string,
   ): Promise<T>;
   transportEvidence?(): readonly Record<string, unknown>[];
-  dispose?(): void;
+  dispose?(): void | Promise<void>;
 }
 
 export function personaFromSearch(search: string): Persona {

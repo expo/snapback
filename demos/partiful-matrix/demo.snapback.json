@@ -29,7 +29,9 @@
     "headless": { "requirement": "required", "buildTargets": [], "runner": "bun demos/partiful-matrix/tests/acceptance/providers.mjs", "toolchain": "bun, cargo, local Supabase and Convex credentials" },
     "react-snapback": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend snapback", "toolchain": "bun, Chrome, Snapback server" },
     "react-supabase": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend supabase", "toolchain": "bun, Chrome, gateway, Supabase" },
+    "react-supabase-realtime": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/supabase-realtime-web.mjs --receipt demos/partiful-matrix/acceptance/results/supabase-realtime-web.json", "toolchain": "bun, Vite, Chrome, @supabase/supabase-js, hosted Supabase Realtime" },
     "react-convex": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend convex", "toolchain": "bun, Chrome, gateway, Convex" },
+    "react-convex-realtime": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/convex-realtime-web.mjs --receipt demos/partiful-matrix/acceptance/results/convex-realtime-web.json", "toolchain": "bun, Vite, Chrome, convex/browser, hosted Convex WebSocket" },
     "react-sqlite": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm react --backend sqlite", "toolchain": "bun, Chrome, gateway" },
     "contract-snapback": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend snapback", "toolchain": "bun, Exact, Chrome, Snapback server" },
     "contract-supabase": { "requirement": "integration", "buildTargets": ["web"], "runner": "node demos/partiful-matrix/tests/acceptance/browser-matrix.mjs --arm contract --backend supabase", "toolchain": "bun, Exact, Chrome, gateway, Supabase" },
@@ -70,6 +72,11 @@
       "React Strict Mode replay, same-key sharing, different-key isolation, A-to-B-to-A replacement, and unmount disposal pass",
       "Partitime React web consumes @snapback/react and the same generated provider operations"
     ],
+    "providerNativeReactFollowup": [
+      "React uses each provider's browser-native client without the comparison gateway",
+      "an isolated acceptance event receives out-of-band updates through the measured push transport with no polling fallback",
+      "normal React root teardown disposes query scopes and closes the provider client"
+    ],
     "reactExpoAndroidOnline": [
       "release build and emulator launch",
       "generated-function initial data and optimistic authoritative settlement",
@@ -79,7 +86,7 @@
   },
   "capabilityGaps": [
     "the original build misread a secret-only OpenAPI-root 401 as a rejected publishable key, so the frozen Supabase web cells use a local Bun gateway and server-only Postgres credentials; the corrected probe and the browser-direct supabase-realtime follow-up cell landed 2026-07-20",
-    "the portable comparison providers poll every second; only the Snapback cells exercise push subscriptions in this matrix",
+    "the frozen portable comparison providers poll every second; separate React follow-up cells exercise browser-direct Supabase Realtime and Convex WebSocket push, while Contract-generated direct bindings remain open",
     "the comparison builds still use Vite even though a separate direct-ESM compatibility receipt passes",
     "React Expo Android Online passes its clean cumulative profile; iOS remains pending on a host-wide Xcode pipe-buffer failure",
     "Exact Native iOS and Android Parity profiles remain pending",
@@ -87,7 +94,7 @@
   ],
   "notClaiming": [
     "production auth, row-level security, or tenant isolation (personas are trusted local demo identities)",
-    "equal realtime transports: polling is labeled in the Supabase, Convex, and SQLite cells",
+    "equal realtime transports in the frozen matrix: polling is labeled in the Supabase, Convex, and SQLite cells; the two React-only direct follow-ups are partial evidence, not a completed cross-authoring matrix",
     "benchmark-quality performance results or backend pricing comparisons",
     "twelve separately maintained UI codebases: each authoring row intentionally shares source across its four backend builds",
     "React Expo Parity or local-first execution: the current native JavaScript carrier is Online only"

@@ -4,16 +4,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite --host 127.0.0.1 --port 5191",
-    "build": "bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:sqlite",
+    "build": "bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
     "build:snapback": "vite build --mode snapback --outDir dist/snapback",
     "build:supabase": "vite build --mode supabase --outDir dist/supabase",
     "build:supabase-realtime": "vite build --mode supabase-realtime --outDir dist/supabase-realtime",
     "build:convex": "vite build --mode convex --outDir dist/convex",
+    "build:convex-realtime": "vite build --mode convex-realtime --outDir dist/convex-realtime",
     "build:sqlite": "vite build --mode sqlite --outDir dist/sqlite",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.7",
+    "convex": "^1.28.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },

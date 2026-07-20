@@ -5,6 +5,17 @@
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Convex follow-up leg):** 2026-07-20 (the React
+`convex-realtime` cell now runs the generated Convex API through
+`convex/browser` directly against the hosted deployment, with no gateway or
+polling path. Its retained 6/6 receipt binds six out-of-band mutations to new
+`guestList` updates sampled while the client reports a connected WebSocket and
+to rendered RSVP transitions, proves the server-side host invariant and normal
+React-root/client teardown, and records zero cleanup failures after deleting a
+unique acceptance event. This closes the second idiomatic React follow-up leg, not
+Step 3: Contract-generated non-Snapback bindings, full WS4 acceptance,
+diagnostic/cross-surface closure, claim registration, and the cumulative
+cross-repository rerun remain open.)
 **Revised (Step 2 evidence checkpoint):** 2026-07-20 (the shipped
 `@snapback/client/external-store` and `@snapback/react` packages replace
 Partitime's app-local React and vanilla lifecycle glue; framework-neutral and
@@ -147,22 +158,25 @@ Diary 0016 and the Partitime report confirm:
    a 64-line gateway adapter, so a first-class Swift client or generated
    gateway/Swift pair is real Workstream 2 scope.
 
-The matrix did not exercise native Supabase Auth/RLS/Realtime or the native
-Convex React subscription client. Those columns used a controlled gateway and
-one-second polling. This Plan therefore treats the middle-stack ranking as
-provisional and does not claim that Supabase or Convex are polling systems.
+The frozen matrix did not exercise native Supabase Auth/RLS/Realtime or the
+native Convex React subscription client. Those columns used a controlled
+gateway and one-second polling. This Plan therefore treats the middle-stack
+ranking as provisional and does not claim that Supabase or Convex are polling
+systems.
 
-*Progress (2026-07-20):* the Supabase leg of the follow-up matrix is built
-and witnessed ahead of its Step 3 closure. The Step 0 "publishable key
-returned 401" record was a probe artifact (the secret-only OpenAPI root, not
-the key; see REPORT §7.4), so the React `supabase-realtime` mode now runs
-supabase-js browser-direct with Realtime `postgres_changes` over RLS-hardened
-tables, with its receipt retained at
-`demos/partiful-matrix/acceptance/results/supabase-realtime-web.json`. No
-claim row was added here — that would rebaseline the frozen manifest
-semantics; the Step 3 closure amendment owns registering the follow-up-leg
-claims (Supabase Realtime done; native Convex client still open) through the
-cross-repository ritual.
+*Progress (2026-07-20):* both idiomatic React follow-up legs are built and
+witnessed ahead of Step 3 closure. The Step 0 "publishable key returned 401"
+record was a probe artifact (the secret-only OpenAPI root, not the key; see
+REPORT §7.4), so React `supabase-realtime` runs supabase-js browser-direct with
+Realtime `postgres_changes` over RLS-hardened tables. React
+`convex-realtime` now runs the generated Convex API through
+`convex/browser`, browser-direct over its WebSocket with no poll path. Their
+receipts are retained at
+`demos/partiful-matrix/acceptance/results/supabase-realtime-web.json` and
+`demos/partiful-matrix/acceptance/results/convex-realtime-web.json`. No claim
+rows were added here: the Step 3 closure amendment owns registering them
+through the cross-repository ritual, and the Contract row's generated
+non-Snapback binding proof remains open.
 
 The report's remaining limits also bound every comparative claim here: no cell
 shipped production identity; no trustworthy clean-machine wall-clock study,
@@ -187,9 +201,9 @@ memory, cold-start, offline, or adverse-network evidence exists for any
 native cell.
 
 This Plan binds to the corrected web-plus-native state of Diary 0016 (sha256
-`116d23607b60023af4f3cc8248e33a1e2e56972dadb7964a29a1e1520a3221e8`) and
+`ad02e74ad6196412e1b724cd866291a65a140fc63b4ffa9439a280c888ca4d07`) and
 `demos/partiful-matrix/REPORT.md` (sha256
-`25c2415fc0ffa02d41c62a492a370707fc1819d1dc4af812c805f2e9305aa96b`) as of
+`e2912f2f7a8eacddbc1a31947744175aee27154bbf33d32134ab6ba5b7bd51b5`) as of
 2026-07-20. It was drafted against the eight-cell state and rebaselined as the
 vanilla extension, the Apple-native extension, the native oracle correction,
 and the Step 0 web/metrology instruments landed; any further extension

@@ -29,6 +29,10 @@ export async function createMatrixProvider(): Promise<MatrixProvider> {
     const { createSupabaseDirectProvider } = await import('./supabase-direct');
     return createSupabaseDirectProvider();
   }
+  if (__MATRIX_BACKEND__ === 'convex-realtime') {
+    const { createConvexDirectProvider } = await import('./convex-direct');
+    return createConvexDirectProvider();
+  }
   return createGatewayProvider(__MATRIX_BACKEND__);
 }
 

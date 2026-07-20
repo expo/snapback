@@ -29,6 +29,8 @@ const nativeAggregatePath = 'demos/partiful-matrix/acceptance/results/step0-nati
 const nativeExactPath = 'demos/partiful-matrix/acceptance/results/step0-native-exact.json';
 const nativeSwiftuiPath = 'demos/partiful-matrix/acceptance/results/step0-native-swiftui.json';
 const reactAndroidPath = 'demos/partiful-matrix/acceptance/results/step2-react-expo-android.json';
+const supabaseRealtimePath = 'demos/partiful-matrix/acceptance/results/supabase-realtime-web.json';
+const convexRealtimePath = 'demos/partiful-matrix/acceptance/results/convex-realtime-web.json';
 
 const protocol = readJson(protocolPath);
 const thresholdSource = readCommittedJson(attributionPath);
@@ -38,6 +40,8 @@ const nativeAggregate = readJson(nativeAggregatePath);
 const nativeExact = readJson(nativeExactPath);
 const nativeSwiftui = readJson(nativeSwiftuiPath);
 const reactAndroid = readJson(reactAndroidPath);
+const supabaseRealtime = readJson(supabaseRealtimePath);
+const convexRealtime = readJson(convexRealtimePath);
 validateRetainedWebReceipt(webReceipt);
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
@@ -274,10 +278,15 @@ const requirements = [
     holdoutValidationArtifacts: [],
     finding: 'The frozen protocol contains formulas but no dated prospective amendments or holdout validation for the remaining WS8 categories.',
   }, 'nonclaim'),
-  requirement('native-realtime-follow-up-matrix-before-ranking', 'red', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_NOT_RUN', {
+  requirement('native-realtime-follow-up-matrix-before-ranking', 'red', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_INCOMPLETE', {
     existingNativeWorkload: protocol.workloadVersion,
     retainedNativeAggregate: identity(nativeAggregatePath),
-    finding: 'The retained Apple-native extension is polling and excluded from comparative ranking; no native-realtime follow-up matrix receipt exists.',
+    reactDirectLegs: {
+      supabaseRealtime: { receipt: identity(supabaseRealtimePath), ok: supabaseRealtime.ok, passed: supabaseRealtime.passed },
+      convexRealtime: { receipt: identity(convexRealtimePath), ok: convexRealtime.ok, passed: convexRealtime.passed },
+    },
+    contractGeneratedLegs: [],
+    finding: 'Both React browser-direct provider receipts exist, but the retained Apple-native extension is polling and the Contract-generated direct bindings required for the full follow-up matrix remain open.',
   }, 'nonclaim'),
 ];
 
@@ -291,6 +300,10 @@ const report = finalizeReport({
     thresholdId: frozen.thresholdId,
     thresholdSource: thresholdSource.identity,
     nativeReceipts: nativeReceiptEvidence.retainedReceipts,
+    providerNativeReactFollowupReceipts: [
+      identity(supabaseRealtimePath),
+      identity(convexRealtimePath),
+    ],
   },
   details: {
     candidateMeasurement: {
