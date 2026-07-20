@@ -139,6 +139,10 @@ export interface FilterSpec { field: string; op: string; value: ValueExpr }
 export interface OrderSpec { field: string; direction: 'Asc' | 'Desc' }
 
 export declare function eq(field: string, value: ValueExpr): FilterSpec;
+export declare function ltFilter(field: string, value: ValueExpr): FilterSpec;
+export declare function lteFilter(field: string, value: ValueExpr): FilterSpec;
+export declare function gtFilter(field: string, value: ValueExpr): FilterSpec;
+export declare function gteFilter(field: string, value: ValueExpr): FilterSpec;
 export declare function asc(field: string): OrderSpec;
 export declare function desc(field: string): OrderSpec;
 

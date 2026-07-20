@@ -603,6 +603,10 @@ export const record = (fields) => {
 // ---------------------------------------------------------------------------
 
 export const eq = (field, value) => ({ field, op: 'Eq', value });
+export const ltFilter = (field, value) => ({ field, op: 'Lt', value });
+export const lteFilter = (field, value) => ({ field, op: 'Lte', value });
+export const gtFilter = (field, value) => ({ field, op: 'Gt', value });
+export const gteFilter = (field, value) => ({ field, op: 'Gte', value });
 export const asc = (field) => ({ field, direction: 'Asc' });
 export const desc = (field) => ({ field, direction: 'Desc' });
 
