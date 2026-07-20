@@ -11,6 +11,8 @@
 //   generated consumer projection, and liveness mismatches fail before runtime.
 
 export const PROVIDER_INTROSPECTION_SCHEMA_VERSION = 'provider-introspection.v1';
+export const PROVIDER_ADAPTER_HANDSHAKE_VERSION = 'provider-adapter-handshake.v1';
+export const PROVIDER_BINDING_METADATA_SCHEMA_VERSION = 'provider-binding-metadata.v1';
 export const CONTRACT_DATA_MANIFEST_VERSION = 2;
 
 const QUERY_KEYS = new Set([
@@ -154,11 +156,9 @@ export function validateProviderIntrospection(introspection) {
     add('$.schemaVersion', `must be ${JSON.stringify(PROVIDER_INTROSPECTION_SCHEMA_VERSION)}`);
   }
 
-  closedObject(introspection.provider, '$.provider', ['id', 'version'], ['id'], add);
+  closedObject(introspection.provider, '$.provider', ['id', 'version'], ['id', 'version'], add);
   nonEmptyString(introspection.provider?.id, '$.provider.id', add);
-  if (introspection.provider?.version !== undefined) {
-    nonEmptyString(introspection.provider.version, '$.provider.version', add);
-  }
+  nonEmptyString(introspection.provider?.version, '$.provider.version', add);
 
   closedObject(
     introspection.source,
@@ -237,6 +237,384 @@ export function validateContractDataManifestProjection(introspection, actual) {
 
 export function serializeProviderIntrospection(introspection) {
   return `${JSON.stringify(canonicalize(introspection), null, 2)}\n`;
+}
+
+/**
+ * Validate the explicit adapter/artifact compatibility tuple before an adapter
+ * projects or publishes provider data. Provider versions are deliberately
+ * enumerated per producer: accepting the neutral schema does not imply that a
+ * consumer understands every backend's artifact version or capabilities.
+ */
+export function validateProviderAdapterHandshake(introspection, handshake) {
+  const problems = [];
+  const adapter = handshake?.adapter ?? 'unknown';
+  const invalidArtifact = validateProviderIntrospection(introspection);
+  for (const diagnostic of invalidArtifact) {
+    for (const problem of diagnostic.problems ?? [diagnostic.message]) {
+      problems.push(`artifact ${problem}`);
+    }
+  }
+
+  if (!isObject(handshake)) {
+    problems.push('handshake must be an object');
+  } else {
+    const allowed = new Set([
+      'handshakeVersion', 'adapter', 'supportedIntrospectionVersions',
+      'supportedProviderVersions', 'requiredCapabilities', 'expectedSource',
+    ]);
+    for (const key of Object.keys(handshake).sort(compareCodeUnits)) {
+      if (!allowed.has(key)) problems.push(`handshake.${key} is not allowed`);
+    }
+    if (handshake.handshakeVersion !== PROVIDER_ADAPTER_HANDSHAKE_VERSION) {
+      problems.push(`handshake.handshakeVersion must be ${JSON.stringify(PROVIDER_ADAPTER_HANDSHAKE_VERSION)}`);
+    }
+    if (typeof handshake.adapter !== 'string' || handshake.adapter.length === 0) {
+      problems.push('handshake.adapter must be a non-empty string');
+    }
+    if (!stringArray(handshake.supportedIntrospectionVersions)) {
+      problems.push('handshake.supportedIntrospectionVersions must be a non-empty string array');
+    } else if (!handshake.supportedIntrospectionVersions.includes(introspection?.schemaVersion)) {
+      problems.push(`artifact schema version ${describe(introspection?.schemaVersion)} is unsupported`);
+    }
+    if (!isObject(handshake.supportedProviderVersions)) {
+      problems.push('handshake.supportedProviderVersions must be an object');
+    } else {
+      const providerId = introspection?.provider?.id;
+      const supported = handshake.supportedProviderVersions[providerId];
+      if (!stringArray(supported)) {
+        problems.push(`provider ${describe(providerId)} has no explicit supported version set`);
+      } else if (!supported.includes(introspection?.provider?.version)) {
+        problems.push(
+          `provider ${describe(providerId)} version ${describe(introspection?.provider?.version)} is unsupported`,
+        );
+      }
+    }
+    if (handshake.requiredCapabilities !== undefined) {
+      if (!stringArray(handshake.requiredCapabilities, { allowEmpty: true })) {
+        problems.push('handshake.requiredCapabilities must be a string array');
+      } else {
+        for (const capability of handshake.requiredCapabilities) {
+          if (introspection?.capabilities?.claims?.[capability] !== true) {
+            problems.push(`required capability ${JSON.stringify(capability)} is not true`);
+          }
+        }
+      }
+    }
+    if (handshake.expectedSource !== undefined) {
+      if (!isObject(handshake.expectedSource)) {
+        problems.push('handshake.expectedSource must be an object');
+      } else {
+        const allowedSource = new Set(['inputsHash', 'schemaHash', 'implementationHash']);
+        for (const key of Object.keys(handshake.expectedSource).sort(compareCodeUnits)) {
+          if (!allowedSource.has(key)) {
+            problems.push(`handshake.expectedSource.${key} is not allowed`);
+          } else if (handshake.expectedSource[key] !== introspection?.source?.[key]) {
+            problems.push(
+              `source ${key} expected ${describe(handshake.expectedSource[key])}, received ${describe(introspection?.source?.[key])}`,
+            );
+          }
+        }
+      }
+    }
+  }
+
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_HANDSHAKE_INCOMPATIBLE',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `provider introspection is incompatible with adapter ${JSON.stringify(adapter)}: ${problems[0]}`,
+    details: {
+      adapter,
+      handshakeVersion: handshake?.handshakeVersion ?? null,
+      artifactSchemaVersion: introspection?.schemaVersion ?? null,
+      provider: introspection?.provider ?? null,
+    },
+    problems,
+  }];
+}
+
+export function assertProviderAdapterHandshake(introspection, handshake) {
+  const [diagnostic] = validateProviderAdapterHandshake(introspection, handshake);
+  if (!diagnostic) return introspection;
+  const error = new Error(`${diagnostic.code}: ${diagnostic.message}`);
+  error.code = diagnostic.code;
+  error.diagnostic = diagnostic;
+  throw error;
+}
+
+/**
+ * Close the generated type loop over the provider declaration. Explicit
+ * `unknown` shapes remain consumable but carry a stable degraded diagnostic;
+ * any shape outside the v1 vocabulary fails and produces no metadata.
+ */
+export function createProviderBindingMetadata(introspection) {
+  const diagnostics = [
+    ...validateProviderResultShapeVocabulary(introspection),
+    ...validateProviderIntrospection(introspection),
+    ...validateProviderBindingTypeNames(introspection),
+  ];
+  if (diagnostics.some(({ severity }) => severity === 'error')) {
+    return { ok: false, diagnostics, metadata: null };
+  }
+
+  const bindings = { queries: [], mutations: [], ephemeral: [] };
+  const renderType = (descriptor, path) => renderDataType(descriptor, path, diagnostics);
+  for (const kind of ['queries', 'ephemeral']) {
+    for (const operation of introspection.operations[kind]) {
+      const args = renderArgumentsType(operation.arguments, `${kind}.${operation.name}.arguments`, diagnostics);
+      const result = renderResultType(operation.result, `${kind}.${operation.name}.result`, diagnostics);
+      bindings[kind].push(canonicalize({
+        name: operation.name,
+        argumentsType: args,
+        resultType: result,
+        delivery: operation.delivery,
+        dependencies: operation.dependencies,
+      }));
+    }
+  }
+  for (const operation of introspection.operations.mutations) {
+    bindings.mutations.push(canonicalize({
+      name: operation.name,
+      argumentsType: renderArgumentsType(
+        operation.arguments,
+        `mutations.${operation.name}.arguments`,
+        diagnostics,
+      ),
+      effects: operation.effects,
+      optimistic: operation.optimistic,
+    }));
+  }
+
+  if (diagnostics.some(({ severity }) => severity === 'error')) {
+    return { ok: false, diagnostics, metadata: null };
+  }
+  return {
+    ok: true,
+    diagnostics,
+    metadata: canonicalize({
+      artifactKind: 'providerBindingMetadata',
+      schemaVersion: PROVIDER_BINDING_METADATA_SCHEMA_VERSION,
+      provider: introspection.provider,
+      source: {
+        introspectionSchemaVersion: introspection.schemaVersion,
+        inputsHash: introspection.source.inputsHash,
+      },
+      bindings,
+    }),
+  };
+
+  function renderResultType(result, path, output) {
+    if (result?.kind === 'list') return `ReadonlyArray<${renderType(result.row, `${path}.row`)}>`;
+    if (result?.kind === 'single') {
+      const value = renderType(result.value, `${path}.value`);
+      return result.nullable === true ? `${value} | null` : value;
+    }
+    if (result?.kind === 'scalar') return renderType(result.value, `${path}.value`);
+    output.push(unmappedShapeDiagnostic(path, result?.kind, 'result kind'));
+    return 'never';
+  }
+}
+
+/**
+ * Generated TypeScript aliases share one namespace across every operation
+ * kind. Provider operation names remain wire identities, so two distinct wire
+ * names that normalize to the same alias must be refused rather than silently
+ * emitting duplicate declarations.
+ */
+export function validateProviderBindingTypeNames(introspection) {
+  const seen = new Map();
+  const problems = [];
+  for (const kind of ['queries', 'mutations', 'ephemeral']) {
+    for (const [index, operation] of (introspection?.operations?.[kind] ?? []).entries()) {
+      if (typeof operation?.name !== 'string') continue;
+      const alias = pascalIdentifier(operation.name);
+      const path = `$.operations.${kind}[${index}].name`;
+      const prior = seen.get(alias);
+      if (prior) {
+        problems.push(
+          `${path}: generated alias ${JSON.stringify(alias)} for ${JSON.stringify(operation.name)} collides with ${JSON.stringify(prior.name)} from ${prior.path}`,
+        );
+      } else {
+        seen.set(alias, { name: operation.name, path });
+      }
+    }
+  }
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_BINDING_TYPE_COLLISION',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `provider operation names collide after TypeScript alias normalization: ${problems[0]}`,
+    problems,
+  }];
+}
+
+export function validateProviderResultShapeVocabulary(introspection) {
+  const problems = [];
+  for (const kind of ['queries', 'ephemeral']) {
+    for (const [index, operation] of (introspection?.operations?.[kind] ?? []).entries()) {
+      inspectResult(operation?.result, `$.operations.${kind}[${index}].result`);
+    }
+  }
+  if (problems.length === 0) return [];
+  return [{
+    code: 'PROVIDER_INTROSPECTION_RESULT_SHAPE_UNMAPPED',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `provider result shape has no v1 mapping: ${problems[0]}`,
+    problems,
+  }];
+
+  function inspectResult(result, path) {
+    if (result?.kind === 'list') inspectType(result.row, `${path}.row`);
+    else if (result?.kind === 'single' || result?.kind === 'scalar') {
+      inspectType(result.value, `${path}.value`);
+    } else {
+      problems.push(`${path}.kind: unmapped ${describe(result?.kind)}`);
+    }
+  }
+
+  function inspectType(descriptor, path) {
+    if (descriptor?.shape === 'unknown') return;
+    if (descriptor?.shape === 'primitive') {
+      if (!['string', 'number', 'boolean', 'unknown'].includes(descriptor.name)) {
+        problems.push(`${path}.name: unmapped ${describe(descriptor.name)}`);
+      }
+      return;
+    }
+    if (descriptor?.shape === 'object' && isObject(descriptor.fields)) {
+      for (const [name, field] of Object.entries(descriptor.fields)) {
+        inspectType(field, `${path}.fields.${name}`);
+      }
+      return;
+    }
+    problems.push(`${path}.shape: unmapped ${describe(descriptor?.shape)}`);
+  }
+}
+
+export function serializeProviderBindingMetadata(metadata) {
+  return `${JSON.stringify(canonicalize(metadata), null, 2)}\n`;
+}
+
+export function renderProviderBindingTypes(metadata) {
+  assertDistinctRenderedBindingTypeNames(metadata);
+  const lines = [
+    '// Generated by @snapback/codegen. Do not edit by hand.',
+    `export type ProviderBindingMetadataVersion = '${PROVIDER_BINDING_METADATA_SCHEMA_VERSION}';`,
+    '',
+  ];
+  const queryMembers = [];
+  const mutationMembers = [];
+  for (const binding of [
+    ...(metadata?.bindings?.queries ?? []),
+    ...(metadata?.bindings?.ephemeral ?? []),
+  ]) {
+    const name = pascalIdentifier(binding.name);
+    lines.push(`export type ${name}Args = ${binding.argumentsType};`);
+    lines.push(`export type ${name}Result = ${binding.resultType};`);
+    queryMembers.push(`  ${JSON.stringify(binding.name)}: { args: ${name}Args; result: ${name}Result };`);
+  }
+  for (const binding of metadata?.bindings?.mutations ?? []) {
+    const name = pascalIdentifier(binding.name);
+    lines.push(`export type ${name}Args = ${binding.argumentsType};`);
+    mutationMembers.push(`  ${JSON.stringify(binding.name)}: { args: ${name}Args };`);
+  }
+  lines.push('', 'export interface ProviderQueryBindings {', ...queryMembers, '}');
+  lines.push('export interface ProviderMutationBindings {', ...mutationMembers, '}');
+  return `${lines.join('\n')}\n`;
+}
+
+function assertDistinctRenderedBindingTypeNames(metadata) {
+  const seen = new Map();
+  for (const kind of ['queries', 'mutations', 'ephemeral']) {
+    for (const binding of metadata?.bindings?.[kind] ?? []) {
+      const alias = pascalIdentifier(binding?.name);
+      const prior = seen.get(alias);
+      if (prior) {
+        const error = new Error(
+          `PROVIDER_INTROSPECTION_BINDING_TYPE_COLLISION: generated alias ${JSON.stringify(alias)} for ${JSON.stringify(binding?.name)} collides with ${JSON.stringify(prior.name)}`,
+        );
+        error.code = 'PROVIDER_INTROSPECTION_BINDING_TYPE_COLLISION';
+        throw error;
+      }
+      seen.set(alias, binding);
+    }
+  }
+}
+
+function renderArgumentsType(argumentsDescriptor, path, diagnostics) {
+  if (!isObject(argumentsDescriptor?.fields)) {
+    diagnostics.push(unmappedShapeDiagnostic(`${path}.fields`, argumentsDescriptor?.fields, 'arguments'));
+    return 'never';
+  }
+  return renderObjectFields(argumentsDescriptor.fields, path, diagnostics);
+}
+
+function renderDataType(descriptor, path, diagnostics) {
+  if (descriptor?.shape === 'unknown') {
+    diagnostics.push({
+      code: 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED',
+      severity: 'warning',
+      subsystem: 'contract',
+      message: `${path} is explicitly unknown; generated consumers receive unknown`,
+      path,
+    });
+    return 'unknown';
+  }
+  if (descriptor?.shape === 'primitive') {
+    if (['string', 'number', 'boolean'].includes(descriptor.name)) return descriptor.name;
+    if (descriptor.name === 'unknown') {
+      diagnostics.push({
+        code: 'PROVIDER_INTROSPECTION_RESULT_TYPE_DEGRADED',
+        severity: 'warning',
+        subsystem: 'contract',
+        message: `${path} is explicitly unknown; generated consumers receive unknown`,
+        path,
+      });
+      return 'unknown';
+    }
+    diagnostics.push(unmappedShapeDiagnostic(path, descriptor.name, 'primitive'));
+    return 'never';
+  }
+  if (descriptor?.shape === 'object' && isObject(descriptor.fields)) {
+    return renderObjectFields(descriptor.fields, path, diagnostics);
+  }
+  diagnostics.push(unmappedShapeDiagnostic(path, descriptor?.shape, 'shape'));
+  return 'never';
+}
+
+function renderObjectFields(fields, path, diagnostics) {
+  const entries = Object.entries(fields).sort(([left], [right]) => compareCodeUnits(left, right));
+  if (entries.length === 0) return 'Record<string, never>';
+  return `{ ${entries.map(([name, descriptor]) => (
+    `${JSON.stringify(name)}${descriptor?.optional === true ? '?' : ''}: ${renderDataType(descriptor, `${path}.${name}`, diagnostics)}`
+  )).join('; ')} }`;
+}
+
+function unmappedShapeDiagnostic(path, received, className) {
+  return {
+    code: 'PROVIDER_INTROSPECTION_RESULT_SHAPE_UNMAPPED',
+    severity: 'error',
+    subsystem: 'contract',
+    message: `${path} has unmapped ${className} ${describe(received)}`,
+    path,
+    received: received ?? null,
+  };
+}
+
+function pascalIdentifier(value) {
+  const rendered = String(value)
+    .replace(/(^|[^A-Za-z0-9])([A-Za-z0-9])/g, (_match, _separator, character) => character.toUpperCase())
+    .replace(/[^A-Za-z0-9]/g, '');
+  return /^[A-Za-z]/.test(rendered) ? rendered : `Binding${rendered}`;
+}
+
+function stringArray(value, { allowEmpty = false } = {}) {
+  return Array.isArray(value)
+    && (allowEmpty || value.length > 0)
+    && value.every((entry) => typeof entry === 'string' && entry.length > 0)
+    && new Set(value).size === value.length;
 }
 
 function queryOperation(name, binding) {

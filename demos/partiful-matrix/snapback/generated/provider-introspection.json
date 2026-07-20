@@ -1,0 +1,531 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": false,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": false,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "accent": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "description": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "emoji": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "hostName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "location": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "startsAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "title",
+            "emoji",
+            "description",
+            "location",
+            "startsAt",
+            "hostName",
+            "accent"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "events",
+            "rsvps"
+          ],
+          "writes": [
+            "events",
+            "rsvps"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "createEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "authorName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "createdAt": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "message": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId",
+            "authorName",
+            "message",
+            "createdAt"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "postMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "guestName": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId",
+            "guestName",
+            "status"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "rsvps"
+          ],
+          "writes": [
+            "rsvps"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "rsvp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "eventDetails",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "accent": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "description": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "emoji": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "hostId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "hostName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "location": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "startsAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "eventWall",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "authorId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "authorName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "eventId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "message": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "eventId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "eventId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rsvps"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "guestList",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "eventId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "guestName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "userId": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listEvents",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "accent": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "description": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "emoji": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "hostId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "hostName": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "location": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "startsAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:f74fae069b4d2e8a",
+    "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+    "schemaHash": "sha256:6d8f2c14b46ebe23"
+  }
+}

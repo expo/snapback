@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./eventDetails.query.ts', {
   eventDetails: query({ reads: ["events"], readMode: 'sync', cacheKey: 'events', result: 'EventDetailsRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  EventDetailsRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","title":"string","emoji":"string","description":"string","location":"string","startsAt":"number","hostId":"string","hostName":"string","accent":"string"} }),
+  EventDetailsRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","accent":"string","description":"string","emoji":"string","hostId":"string","hostName":"string","location":"string","startsAt":"number","title":"string"} }),
 });

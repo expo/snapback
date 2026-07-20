@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./eventWall.query.ts', {
   eventWall: query({ reads: ["posts"], readMode: 'sync', cacheKey: 'posts', result: 'EventWallRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  EventWallRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","eventId":"string","authorId":"string","authorName":"string","message":"string","createdAt":"number"} }),
+  EventWallRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","authorId":"string","authorName":"string","createdAt":"number","eventId":"string","message":"string"} }),
 });

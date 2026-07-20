@@ -19,7 +19,7 @@
     "provider": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["id"],
+      "required": ["id", "version"],
       "properties": {
         "id": { "$ref": "#/$defs/nonEmptyString" },
         "version": { "$ref": "#/$defs/nonEmptyString" }

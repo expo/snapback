@@ -1,0 +1,173 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"accent\": string; \"description\": string; \"emoji\": string; \"hostName\": string; \"location\": string; \"startsAt\": number; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "events",
+            "rsvps"
+          ],
+          "writes": [
+            "events",
+            "rsvps"
+          ]
+        },
+        "name": "createEvent",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"authorName\": string; \"createdAt\": number; \"eventId\": string; \"message\": string }",
+        "effects": {
+          "invalidates": [
+            "posts"
+          ],
+          "writes": [
+            "posts"
+          ]
+        },
+        "name": "postMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"eventId\": string; \"guestName\": string; \"status\": string }",
+        "effects": {
+          "invalidates": [
+            "rsvps"
+          ],
+          "writes": [
+            "rsvps"
+          ]
+        },
+        "name": "rsvp",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events"
+          ]
+        },
+        "name": "eventDetails",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"description\": string; \"emoji\": string; \"hostId\": string; \"hostName\": string; \"location\": string; \"startsAt\": number; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "posts"
+          ]
+        },
+        "name": "eventWall",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"authorId\": string; \"authorName\": string; \"createdAt\": number; \"eventId\": string; \"message\": string }>"
+      },
+      {
+        "argumentsType": "{ \"eventId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "rsvps"
+          ]
+        },
+        "name": "guestList",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"eventId\": string; \"guestName\": string; \"status\": string; \"userId\": string }>"
+      },
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "events"
+          ]
+        },
+        "name": "listEvents",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"accent\": string; \"description\": string; \"emoji\": string; \"hostId\": string; \"hostName\": string; \"location\": string; \"startsAt\": number; \"title\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "88b5980d9d07c8bbd15fcb817c39be5ebbda73ac1ec7a0852dd5b1195d824b66",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}

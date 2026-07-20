@@ -12,6 +12,7 @@
     "./contract-emitter": "./contract-emitter.mjs",
     "./provider-introspection": "./provider-introspection.mjs",
     "./provider-introspection.schema.json": "./provider-introspection.schema.json",
+    "./provider-bindings.schema.json": "./provider-bindings.schema.json",
     "./standard-patterns": {
       "types": "./standard-patterns.d.ts",
       "default": "./standard-patterns.mjs"

@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.snapback.dev/provider-bindings/v1.schema.json",
+  "title": "Provider binding metadata v1",
+  "description": "Versioned generated TypeScript binding metadata derived from provider introspection.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["artifactKind", "schemaVersion", "provider", "source", "bindings"],
+  "properties": {
+    "artifactKind": { "const": "providerBindingMetadata" },
+    "schemaVersion": { "const": "provider-binding-metadata.v1" },
+    "provider": { "$ref": "#/$defs/provider" },
+    "source": { "$ref": "#/$defs/source" },
+    "bindings": { "$ref": "#/$defs/bindings" }
+  },
+  "$defs": {
+    "nonEmptyString": {
+      "type": "string",
+      "minLength": 1
+    },
+    "stringSet": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/nonEmptyString" },
+      "uniqueItems": true
+    },
+    "provider": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "version"],
+      "properties": {
+        "id": { "$ref": "#/$defs/nonEmptyString" },
+        "version": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["introspectionSchemaVersion", "inputsHash"],
+      "properties": {
+        "introspectionSchemaVersion": { "const": "provider-introspection.v1" },
+        "inputsHash": { "$ref": "#/$defs/nonEmptyString" }
+      }
+    },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["queries", "mutations", "ephemeral"],
+      "properties": {
+        "queries": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/queryBinding" }
+        },
+        "mutations": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/mutationBinding" }
+        },
+        "ephemeral": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ephemeralBinding" }
+        }
+      }
+    },
+    "queryBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argumentsType", "resultType", "delivery", "dependencies"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "argumentsType": { "$ref": "#/$defs/nonEmptyString" },
+        "resultType": { "$ref": "#/$defs/nonEmptyString" },
+        "delivery": { "$ref": "#/$defs/delivery" },
+        "dependencies": { "$ref": "#/$defs/dependencies" }
+      }
+    },
+    "mutationBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argumentsType", "effects", "optimistic"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "argumentsType": { "$ref": "#/$defs/nonEmptyString" },
+        "effects": { "$ref": "#/$defs/effects" },
+        "optimistic": { "$ref": "#/$defs/optimistic" }
+      }
+    },
+    "ephemeralBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "argumentsType", "resultType", "delivery"],
+      "properties": {
+        "name": { "$ref": "#/$defs/nonEmptyString" },
+        "argumentsType": { "$ref": "#/$defs/nonEmptyString" },
+        "resultType": { "$ref": "#/$defs/nonEmptyString" },
+        "delivery": { "$ref": "#/$defs/delivery" }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reads"],
+      "properties": {
+        "reads": { "$ref": "#/$defs/stringSet" }
+      }
+    },
+    "effects": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["writes", "invalidates"],
+      "properties": {
+        "writes": { "$ref": "#/$defs/stringSet" },
+        "invalidates": { "$ref": "#/$defs/stringSet" }
+      }
+    },
+    "optimistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["supported", "source"],
+      "properties": {
+        "supported": { "type": "boolean" },
+        "source": { "enum": ["none", "provider-plan", "consumer"] }
+      }
+    },
+    "delivery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "initialSnapshot", "defaultLive", "transports"],
+      "properties": {
+        "mode": { "enum": ["snapshot", "live", "poll", "reconcile-on-mutate"] },
+        "initialSnapshot": { "type": "boolean" },
+        "defaultLive": { "type": "boolean" },
+        "transports": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/transport" }
+        }
+      }
+    },
+    "transport": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "role"],
+      "properties": {
+        "kind": { "enum": ["request", "push", "poll", "reconcile-on-mutate"] },
+        "role": { "enum": ["primary", "fallback"] },
+        "cadenceMs": { "type": "integer", "minimum": 1 }
+      }
+    }
+  }
+}

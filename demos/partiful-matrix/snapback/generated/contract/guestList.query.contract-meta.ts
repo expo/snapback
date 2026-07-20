@@ -3,5 +3,5 @@ import { defineContractModule, query, shape } from '@exact/contract/exports';
 
 export default defineContractModule('./guestList.query.ts', {
   guestList: query({ reads: ["rsvps"], readMode: 'sync', cacheKey: 'rsvps', result: 'GuestListRow[]', mode: "live", livePush: true, initialSnapshot: true, ephemeral: false, pollCadenceMs: 1500, transport: "push" }),
-  GuestListRow: shape({ fields: {"_id":"string","_version":"number","_createdAt":"number","_updatedAt":"number","eventId":"string","userId":"string","guestName":"string","status":"string"} }),
+  GuestListRow: shape({ fields: {"_createdAt":"number","_id":"string","_updatedAt":"number","_version":"number","eventId":"string","guestName":"string","status":"string","userId":"string"} }),
 });

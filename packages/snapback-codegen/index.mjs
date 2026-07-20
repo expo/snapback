@@ -47,8 +47,12 @@ import {
 } from './contract-emitter.mjs';
 import {
   CONTRACT_DATA_MANIFEST_VERSION,
+  createProviderBindingMetadata,
   createSnapbackProviderIntrospection,
   projectContractDataManifest,
+  renderProviderBindingTypes,
+  serializeProviderBindingMetadata,
+  serializeProviderIntrospection,
   validateContractDataManifestProjection,
   validateProviderIntrospection,
   validateSnapbackIntrospectionSource,
@@ -1641,6 +1645,9 @@ export async function generateInProcess(backendDir, options = {}) {
     providerIntrospection,
     legacyContractManifest,
   ));
+  const providerBindingResult = createProviderBindingMetadata(providerIntrospection);
+  diagnostics.push(...providerBindingResult.diagnostics);
+  const providerBindingMetadata = providerBindingResult.metadata;
   const contractManifest = projectContractDataManifest(providerIntrospection);
 
   // DK-7 (LLP 0037): validate the Snapback-owned artifacts against the committed
@@ -1669,7 +1676,14 @@ export async function generateInProcess(backendDir, options = {}) {
 
   const outDir = join(backendRoot, targetConfig.outputDirectory);
   const apiModule = renderApiModule(appId, functionManifest.functions, ephemeralCollections);
-  const apiTypes = renderApiTypes(functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
+  const apiTypes = renderApiTypes(
+    functionManifest.functions,
+    functionsModule,
+    ephemeralCollections,
+    schemaDef,
+    providerBindingMetadata,
+  );
+  const providerBindingTypes = renderProviderBindingTypes(providerBindingMetadata);
   const contractModules = renderContractModules(contractManifest, functionManifest.functions, functionsModule, ephemeralCollections, schemaDef);
   const operationSchemas = renderOperationSchemas(appId, functionManifest.functions, functionsModule);
   validateContractModuleFilenames(contractModules, err);
@@ -1719,6 +1733,11 @@ export async function generateInProcess(backendDir, options = {}) {
       './schema': './schema.manifest.json',
       './functions': './functions.manifest.json',
       './capabilities': './capability.manifest.json',
+      './provider-introspection': './provider-introspection.json',
+      './provider-bindings': {
+        types: './provider-bindings.d.ts',
+        default: './provider-bindings.json',
+      },
       './operations/*': './operations/*',
       './contract/*': './contract/*',
       ...(remoteServicePublication ? {
@@ -1739,7 +1758,7 @@ export async function generateInProcess(backendDir, options = {}) {
     generatedAt,
     schemaHash,
     bundleHash,
-    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
+    artifacts: ['schema.manifest.json', 'functions.manifest.json', 'capability.manifest.json', 'provider-introspection.json', 'provider-bindings.json', 'provider-bindings.d.ts', 'contract-data.manifest.json', 'api.mjs', 'api.d.ts', 'package.json', ...operationArtifactFiles, ...remoteServiceArtifactFiles, ...contractArtifactFiles],
     tables: Object.keys(tables),
     ephemeralCollections: ephemeralCollections.map((collection) => collection.name),
     functions: functionManifest.functions.map((f) => ({ id: f.id, name: f.name, kind: f.kind })),
@@ -1754,6 +1773,9 @@ export async function generateInProcess(backendDir, options = {}) {
       schemaManifest,
       functionManifest,
       capabilityManifest,
+      providerIntrospection,
+      providerBindingMetadata,
+      providerBindingTypes,
       contractManifest,
       apiModule,
       apiTypes,
@@ -1779,6 +1801,7 @@ export async function generateInProcess(backendDir, options = {}) {
     functionManifest,
     capabilityManifest,
     providerIntrospection,
+    providerBindingMetadata,
     contractManifest,
   };
 
@@ -3963,7 +3986,13 @@ function renderApiModule(appId, functions, ephemeralCollections) {
     `export default api;\n`;
 }
 
-function renderApiTypes(functions, functionsModule, ephemeralCollections, schemaDef) {
+function renderApiTypes(
+  functions,
+  functionsModule,
+  ephemeralCollections,
+  schemaDef,
+  providerBindingMetadata,
+) {
   const lines = [
     HEADER,
     "export type SchemaVersion = 'snapback.v0';",
@@ -3971,7 +4000,7 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
     "export type Id<Table extends string> = string & { readonly __snapbackIdTable: Table };",
     "export type FunctionKind = 'Query' | 'Mutation' | 'LiveQuery' | 'Action';",
     "export type EphemeralKeyMode = 'Connection' | 'Session' | 'User' | 'Custom';",
-    'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args> {',
+    'export interface FunctionReference<Name extends string, Kind extends FunctionKind, Args, Result = unknown> {',
     "  artifactKind: 'functionReference';",
     '  schemaVersion: SchemaVersion;',
     '  appId: string;',
@@ -3979,6 +4008,7 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
     '  name: Name;',
     '  kind: Kind;',
     '  readonly __args?: Args;',
+    '  readonly __result?: Result;',
     '}',
     'export interface EphemeralCollectionReference<Name extends string, Scope, Value> {',
     "  artifactKind: 'ephemeralCollectionReference';",
@@ -4099,7 +4129,9 @@ function renderApiTypes(functions, functionsModule, ephemeralCollections, schema
   );
   for (const fn of functions) {
     const def = functionsModule[fn.name];
-    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForGeneratedArgs(def?.args ?? {})}>;`);
+    const result = providerBindingMetadata?.bindings?.queries
+      ?.find(({ name }) => name === fn.name)?.resultType ?? 'unknown';
+    lines.push(`  ${fn.name}: FunctionReference<'${fn.name}', '${fn.kind}', ${typeForGeneratedArgs(def?.args ?? {})}, ${result}>;`);
   }
   lines.push('  ephemeral: GeneratedEphemeral;');
   lines.push('}');
@@ -5172,6 +5204,9 @@ function writeGeneratedOutput(outDir, {
   schemaManifest,
   functionManifest,
   capabilityManifest,
+  providerIntrospection,
+  providerBindingMetadata,
+  providerBindingTypes,
   contractManifest,
   apiModule,
   apiTypes,
@@ -5189,6 +5224,9 @@ function writeGeneratedOutput(outDir, {
   writeFileSync(join(outDir, 'schema.manifest.json'), stableJson(schemaManifest) + '\n');
   writeFileSync(join(outDir, 'functions.manifest.json'), stableJson(functionManifest) + '\n');
   writeFileSync(join(outDir, 'capability.manifest.json'), stableJson(capabilityManifest) + '\n');
+  writeFileSync(join(outDir, 'provider-introspection.json'), serializeProviderIntrospection(providerIntrospection));
+  writeFileSync(join(outDir, 'provider-bindings.json'), serializeProviderBindingMetadata(providerBindingMetadata));
+  writeFileSync(join(outDir, 'provider-bindings.d.ts'), providerBindingTypes);
   writeFileSync(join(outDir, 'contract-data.manifest.json'), stableJson(contractManifest) + '\n');
   writeFileSync(join(outDir, 'api.mjs'), apiModule);
   writeFileSync(join(outDir, 'api.d.ts'), apiTypes);

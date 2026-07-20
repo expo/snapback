@@ -1,0 +1,164 @@
+{
+  "schemaVersion": "partitime.step3-provider-boundary.v1",
+  "claimId": "STEP3.PROVIDER_BOUNDARY",
+  "claimPromoted": false,
+  "revision": "fe32f1a26e2552b54205347fd4d0f6b409a9bd0d",
+  "childTests": [
+    {
+      "path": "packages/snapback-contract/render-first.test.mjs",
+      "sha256": "ac7f1693cbabfff949d476e22c98d53720c0870d843336d57ce68e954e1ffd73",
+      "outputSha256": "0b8d4eb9619a7fea52e81663561ee3b47cc8107477bc1b0b73740cebd9958b9e"
+    },
+    {
+      "path": "packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs",
+      "sha256": "070bd658de14198c88c9aa27d8f7d4f0ba0d048156a097b08aaa70008604a163",
+      "outputSha256": "977ddbbb7f7aa5ca9cd7fa7c4b1a10f6b05a9b9bf921d0c8d8c86c3835d4db63"
+    },
+    {
+      "path": "packages/snapback-contract/ephemeral-resubscribe-race.test.mjs",
+      "sha256": "bc31d8d42310b0e634cf449e7c08a598bd67804cc8f97cd8d5a9a111928084b0",
+      "outputSha256": "579ad4965d2b8e657a3af9021cfd6dec2776e0be55077eb295be32c851d9a371"
+    },
+    {
+      "path": "packages/snapback-contract/index.test.mjs",
+      "sha256": "1f4e87df57bcce854685cdf8176b4d9b593efa0fcb3fb1bf746b6371eb628fe7",
+      "outputSha256": "6013225ab8cd4f8f55fc6d0bec8bd883acce9eb0cd4cac162d284dc2d9f5c795"
+    }
+  ],
+  "testInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step3-provider-boundary.mjs",
+      "sha256": "7fba07aaba43957572168a52d256a2b16205e96a8c5627b5ac8e413d243b8502"
+    },
+    {
+      "path": "packages/snapback-codegen/index.mjs",
+      "sha256": "7a5dfa84844b6a7d7e0df73961815f27763ca962d4d3d7281c585a0955c73e74"
+    },
+    {
+      "path": "packages/snapback-codegen/provider-introspection.mjs",
+      "sha256": "bcc091dd6304dc1f6285369ef1d1cfb9024d94b79fbc9f3813d4b23d3a72b301"
+    },
+    {
+      "path": "packages/snapback-codegen/provider-introspection.schema.json",
+      "sha256": "cde6901d02acd4fe4f8f4d17243e466bed0a243b0695b64fa044aec075a0a6be"
+    },
+    {
+      "path": "packages/snapback-codegen/provider-bindings.schema.json",
+      "sha256": "b7a2a7f8ee6ce876c06bcede4da1ad36d9fa125fb9141df9c4bc3c68255cea8c"
+    },
+    {
+      "path": "packages/snapback-codegen/provider-introspection.test.mjs",
+      "sha256": "39177e5bf371cfdd3b07e5f0550043633f3ed6e91d559fe1254b078ce820f06f"
+    },
+    {
+      "path": "packages/snapback-contract/render-first.test.mjs",
+      "sha256": "ac7f1693cbabfff949d476e22c98d53720c0870d843336d57ce68e954e1ffd73"
+    },
+    {
+      "path": "packages/snapback-contract/auth-coordinator-missed-wakeup.test.mjs",
+      "sha256": "070bd658de14198c88c9aa27d8f7d4f0ba0d048156a097b08aaa70008604a163"
+    },
+    {
+      "path": "packages/snapback-contract/ephemeral-resubscribe-race.test.mjs",
+      "sha256": "bc31d8d42310b0e634cf449e7c08a598bd67804cc8f97cd8d5a9a111928084b0"
+    },
+    {
+      "path": "packages/snapback-contract/index.test.mjs",
+      "sha256": "1f4e87df57bcce854685cdf8176b4d9b593efa0fcb3fb1bf746b6371eb628fe7"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/schema.mjs",
+      "sha256": "c80e3b1942f6e9026a619ee3eaad26007f768ed445ab30e0a9c3cffb86c44a67"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/functions.mjs",
+      "sha256": "434fb6e52137e60678cee4cf7e5fe4696b9f5fdcbe5ba9cc566961f55d72a917"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/handlers.mjs",
+      "sha256": "00d98bd243e9570f482e66ad0fa1307617b6012b07491da55b3c9d9d6fba8f21"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/generated/provider-introspection.json",
+      "sha256": "a68d0fedfb677a5104fe6b8c4dd70733738817f591b9fd582cd51393e19a7df0"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/generated/provider-bindings.json",
+      "sha256": "7434a2a170eb8c952a0e06a62f6c8e23704731a9eced5c69bc8c8dc8e2ef70ed"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/generated/provider-bindings.d.ts",
+      "sha256": "63ba641e3fcab723423a0e84e44b6dd4d7a580c4bd2451ff7039f63a211666ee"
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
+      "sha256": "9f9509f6b80ccde05264001cf2390abfbf86961c9019833f569590aa7dfa9390"
+    }
+  ],
+  "title": "partiful matrix / Step 3 generated provider boundary",
+  "passed": 11,
+  "skipped": 0,
+  "failed": 0,
+  "total": 11,
+  "ok": true,
+  "results": [
+    {
+      "name": "provider introspection is persisted, versioned, exported, and indexed",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "delete and regenerate restores provider sidecars byte-for-byte",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "generated query result types reach function refs and binding metadata",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "adapter handshake accepts the exact tuple and refuses stale artifacts",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "Snapback passes neutral validation and exact projection conformance",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "SQLite gateway passes the same producer and handshake conformance",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "a polling producer cannot claim push",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "unknown result shapes degrade explicitly and novel shapes fail closed",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "switching producer metadata does not edit Contract view source",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "retained provider race suites pass deterministically",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "browser and native client artifacts exclude server implementation",
+      "ok": true,
+      "details": null
+    }
+  ],
+  "expectedChecks": 11,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
