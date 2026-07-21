@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:14:31.804Z",
+  "recordedAt": "2026-07-21T12:02:06.833Z",
   "repository": {
-    "snapbackRevision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
-    "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
+    "snapbackRevision": "980260bdfb2bcdec86bb7526405907546cfa4df2",
+    "exactRevision": "ca9e94fd8f96a2552bf19c6915c44e83e9f8c2b8"
   },
   "inputs": {
     "protocol": {
@@ -27,14 +27,14 @@
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "missing": true
+      "sha256": "9c13c23e44142eb9ed129ee695171855208e17c6ef889cf21470fad790db8136"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
       "sha256": "1873f5a51f0381c5d2ae0fc1909c2054e0ebc0142a8c01acb28a364df456b8a0"
     },
     "exactVerifyRegistry": {
-      "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
+      "path": "../exact-snapback-mirror-20260721/exact-verify.json",
       "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
     }
   },
@@ -129,12 +129,12 @@
             {
               "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CwGZKwL6.js",
               "minifiedBytes": 659515,
-              "deterministicGzipBytes": 165844,
+              "deterministicGzipBytes": 166539,
               "sha256": "b081fbd3df493c298894c40799a140a7e324e5bd3f36a3771c52550f0133c8e6"
             }
           ],
           "minifiedBytes": 659515,
-          "deterministicGzipBytes": 165844
+          "deterministicGzipBytes": 166539
         }
       }
     },
@@ -484,7 +484,7 @@
       "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
       "evidence": {
         "registry": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
+          "path": "../exact-snapback-mirror-20260721/exact-verify.json",
           "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
         },
         "checks": [
@@ -506,12 +506,290 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "missing": true
+          "sha256": "9c13c23e44142eb9ed129ee695171855208e17c6ef889cf21470fad790db8136"
         },
         "issues": [
-          "receipt-missing"
+          "receipt-not-green"
         ],
-        "rows": []
+        "rows": [
+          {
+            "id": "android-chrome-current:autofill-password-manager",
+            "environment": "android-chrome-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "android-chrome-current:bfcache-restore",
+            "environment": "android-chrome-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "multi-route-bfcache"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "android-chrome-current:find-on-page",
+            "environment": "android-chrome-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "android-chrome-current:focus-trap-restore",
+            "environment": "android-chrome-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "android-chrome-current:ime-composition",
+            "environment": "android-chrome-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "caltrain-contract-search",
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "desktop-chrome:find-on-page",
+            "environment": "desktop-chrome",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "pass",
+            "issues": [],
+            "fixture": "caltrain-contract-search",
+            "notes": "Chrome window.find located visible Caltrain Contract text and selected Mountain View in the real DOM.",
+            "evidence": [
+              {
+                "kind": "chrome-cdp-log",
+                "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/find-on-page",
+                "artifact": {
+                  "repository": "exact",
+                  "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
+                  "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+                }
+              }
+            ]
+          },
+          {
+            "id": "desktop-chrome:focus-trap-restore",
+            "environment": "desktop-chrome",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "pass",
+            "issues": [],
+            "fixture": "facet-overlay-fixture",
+            "notes": "Chrome opened the Facet dialog, retained focus inside the dialog on Tab, dismissed with Escape, and restored focus to open-dialog.",
+            "evidence": [
+              {
+                "kind": "chrome-cdp-log",
+                "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/focus-trap-restore",
+                "artifact": {
+                  "repository": "exact",
+                  "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
+                  "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+                }
+              }
+            ]
+          },
+          {
+            "id": "desktop-firefox:find-on-page",
+            "environment": "desktop-firefox",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "desktop-firefox:focus-trap-restore",
+            "environment": "desktop-firefox",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "desktop-safari:find-on-page",
+            "environment": "desktop-safari",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "desktop-safari:focus-trap-restore",
+            "environment": "desktop-safari",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current-1:autofill-password-manager",
+            "environment": "ios-safari-current-1",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current-1:bfcache-restore",
+            "environment": "ios-safari-current-1",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "multi-route-bfcache"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current-1:find-on-page",
+            "environment": "ios-safari-current-1",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current-1:focus-trap-restore",
+            "environment": "ios-safari-current-1",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current-1:ime-composition",
+            "environment": "ios-safari-current-1",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "caltrain-contract-search",
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current:autofill-password-manager",
+            "environment": "ios-safari-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current:bfcache-restore",
+            "environment": "ios-safari-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "multi-route-bfcache"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current:find-on-page",
+            "environment": "ios-safari-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "caltrain-contract-search"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current:focus-trap-restore",
+            "environment": "ios-safari-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "facet-overlay-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          },
+          {
+            "id": "ios-safari-current:ime-composition",
+            "environment": "ios-safari-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "caltrain-contract-search",
+              "facet-form-fixture"
+            ],
+            "status": "red",
+            "issues": [
+              "evidence-missing"
+            ]
+          }
+        ]
       }
     }
   ],

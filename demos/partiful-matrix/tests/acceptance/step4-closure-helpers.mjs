@@ -110,6 +110,15 @@ export function exactIdentity(path) {
   };
 }
 
+export function exactArtifactIdentity(path) {
+  const absolute = resolve(exactRoot, path);
+  return {
+    repository: 'exact',
+    path,
+    sha256: sha256(readFileSync(absolute)),
+  };
+}
+
 export function gitRevision(root = repoRoot) {
   const child = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
   assert.equal(child.status, 0, `git revision lookup failed under ${root}: ${child.stderr}`);
@@ -125,6 +134,66 @@ export function validateRetainedWebReceipt(receipt) {
   for (const entry of receipt.testInventory ?? []) {
     assert.deepEqual(identity(entry.path), entry, `retained Step 0 input drifted: ${entry.path}`);
   }
+}
+
+export function validateCitizenshipReceipt(receipt, reportPath, validatorPath, generatorPath) {
+  assert.equal(receipt.schemaVersion, 'partitime.step4-web-citizenship.v1');
+  assert.equal(receipt.claimId, 'STEP4.WEB_CITIZENSHIP');
+  assert.equal(receipt.auditCompleted, true);
+  assert.equal(receipt.skipPolicy, 'forbidden');
+  assert.equal(receipt.skipped, 0);
+  assert(Array.isArray(receipt.rows) && receipt.rows.length > 0, 'citizenship receipt has no rows');
+  assert.equal(
+    new Set(receipt.rows.map(({ id }) => id)).size,
+    receipt.rows.length,
+    'citizenship receipt has duplicate rows',
+  );
+  assert(
+    receipt.rows.every(({ status }) => status === 'pass' || status === 'red'),
+    'citizenship receipt contains a status other than pass/red',
+  );
+  assert.deepEqual(receipt.inputs.exactReport, exactArtifactIdentity(reportPath));
+  assert.deepEqual(receipt.inputs.exactValidator, exactArtifactIdentity(validatorPath));
+  assert.deepEqual(receipt.inputs.generator, identity(generatorPath));
+  const source = JSON.parse(readExactText(reportPath));
+  assert.equal(receipt.sourceStatus, source.status ?? 'missing');
+  const required = [...(source.requiredResults ?? [])].sort((left, right) =>
+    `${left.environment}:${left.assertion}`.localeCompare(`${right.environment}:${right.assertion}`),
+  );
+  assert.deepEqual(
+    receipt.rows.map(({ id }) => id),
+    required.map(({ environment, assertion }) => `${environment}:${assertion}`),
+    'citizenship receipt row inventory does not match Exact report',
+  );
+  for (const [index, row] of receipt.rows.entries()) {
+    const expected = required[index];
+    assert.equal(row.environment, expected.environment);
+    assert.equal(row.assertion, expected.assertion);
+    assert.deepEqual(row.acceptedFixtures, expected.acceptedFixtures);
+    if (row.status === 'pass') {
+      const sourceResult = (source.results ?? []).find(
+        ({ environment, assertion }) =>
+          environment === expected.environment && assertion === expected.assertion,
+      );
+      assert(sourceResult, `passing citizenship row ${row.id} has no Exact source result`);
+      assert.equal(sourceResult.status, 'passed');
+      assert(expected.acceptedFixtures.includes(sourceResult.fixture));
+      assert.equal(typeof sourceResult.notes, 'string');
+      assert(sourceResult.notes.trim().length > 0);
+      assert(Array.isArray(sourceResult.evidence) && sourceResult.evidence.length > 0);
+    }
+  }
+  const allRowsPass = receipt.rows.every(({ status }) => status === 'pass');
+  const structurallySound = (receipt.structuralFailures ?? []).length === 0;
+  const expectedSatisfied = allRowsPass && structurallySound && receipt.sourceStatus === 'passed';
+  assert.equal(receipt.claimSatisfied, expectedSatisfied);
+  assert.equal(receipt.ok, expectedSatisfied);
+  assert.deepEqual(receipt.summary, {
+    passed: receipt.rows.filter(({ status }) => status === 'pass').length,
+    red: receipt.rows.filter(({ status }) => status === 'red').length,
+    total: receipt.rows.length,
+    structuralFailures: (receipt.structuralFailures ?? []).length,
+  });
 }
 
 export function retainedResult(receipt, name) {

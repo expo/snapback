@@ -1,0 +1,323 @@
+{
+  "schemaVersion": "partitime.step4-web-citizenship.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP",
+  "auditCompleted": true,
+  "ok": false,
+  "claimSatisfied": false,
+  "outcome": "red",
+  "skipPolicy": "forbidden",
+  "skipped": 0,
+  "recordedAt": "2026-07-21T12:02:06.790Z",
+  "repository": {
+    "snapbackRevision": "980260bdfb2bcdec86bb7526405907546cfa4df2",
+    "exactRevision": "ca9e94fd8f96a2552bf19c6915c44e83e9f8c2b8"
+  },
+  "inputs": {
+    "exactReport": {
+      "repository": "exact",
+      "path": "docs/reports/web-citizenship-ime-forms.json",
+      "sha256": "b7db4263c2d7c48c09237c499286487475ab41e53971e24d5d5482887d4d4fdf"
+    },
+    "exactValidator": {
+      "repository": "exact",
+      "path": "scripts/check-web-citizenship-ime-forms.mjs",
+      "sha256": "f79a8842d7ce28eb69db512b5f50bcba24b503aa4dab2a716ab9cc77c14e34e0"
+    },
+    "generator": {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-web-citizenship.mjs",
+      "sha256": "5fb988944c3df0245a6372f40e4a2faa03e798f8c363846192a848f6b7f939d6"
+    }
+  },
+  "sourceStatus": "pending-manual-device-matrix",
+  "sourceRun": null,
+  "summary": {
+    "passed": 2,
+    "red": 19,
+    "total": 21,
+    "structuralFailures": 0
+  },
+  "rows": [
+    {
+      "id": "android-chrome-current:autofill-password-manager",
+      "environment": "android-chrome-current",
+      "assertion": "autofill-password-manager",
+      "acceptedFixtures": [
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "android-chrome-current:bfcache-restore",
+      "environment": "android-chrome-current",
+      "assertion": "bfcache-restore",
+      "acceptedFixtures": [
+        "multi-route-bfcache"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "android-chrome-current:find-on-page",
+      "environment": "android-chrome-current",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "android-chrome-current:focus-trap-restore",
+      "environment": "android-chrome-current",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "android-chrome-current:ime-composition",
+      "environment": "android-chrome-current",
+      "assertion": "ime-composition",
+      "acceptedFixtures": [
+        "caltrain-contract-search",
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "desktop-chrome:find-on-page",
+      "environment": "desktop-chrome",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "pass",
+      "issues": [],
+      "fixture": "caltrain-contract-search",
+      "notes": "Chrome window.find located visible Caltrain Contract text and selected Mountain View in the real DOM.",
+      "evidence": [
+        {
+          "kind": "chrome-cdp-log",
+          "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/find-on-page",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
+            "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+          }
+        }
+      ]
+    },
+    {
+      "id": "desktop-chrome:focus-trap-restore",
+      "environment": "desktop-chrome",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "pass",
+      "issues": [],
+      "fixture": "facet-overlay-fixture",
+      "notes": "Chrome opened the Facet dialog, retained focus inside the dialog on Tab, dismissed with Escape, and restored focus to open-dialog.",
+      "evidence": [
+        {
+          "kind": "chrome-cdp-log",
+          "ref": "docs/reports/web-citizenship-desktop-chrome-evidence.json#results/desktop-chrome/focus-trap-restore",
+          "artifact": {
+            "repository": "exact",
+            "path": "docs/reports/web-citizenship-desktop-chrome-evidence.json",
+            "sha256": "c328a34e024039f47ffb05bf1a3af7bf998ff6c05536c56558e37fab0a77fa07"
+          }
+        }
+      ]
+    },
+    {
+      "id": "desktop-firefox:find-on-page",
+      "environment": "desktop-firefox",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "desktop-firefox:focus-trap-restore",
+      "environment": "desktop-firefox",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "desktop-safari:find-on-page",
+      "environment": "desktop-safari",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "desktop-safari:focus-trap-restore",
+      "environment": "desktop-safari",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current-1:autofill-password-manager",
+      "environment": "ios-safari-current-1",
+      "assertion": "autofill-password-manager",
+      "acceptedFixtures": [
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current-1:bfcache-restore",
+      "environment": "ios-safari-current-1",
+      "assertion": "bfcache-restore",
+      "acceptedFixtures": [
+        "multi-route-bfcache"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current-1:find-on-page",
+      "environment": "ios-safari-current-1",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current-1:focus-trap-restore",
+      "environment": "ios-safari-current-1",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current-1:ime-composition",
+      "environment": "ios-safari-current-1",
+      "assertion": "ime-composition",
+      "acceptedFixtures": [
+        "caltrain-contract-search",
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current:autofill-password-manager",
+      "environment": "ios-safari-current",
+      "assertion": "autofill-password-manager",
+      "acceptedFixtures": [
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current:bfcache-restore",
+      "environment": "ios-safari-current",
+      "assertion": "bfcache-restore",
+      "acceptedFixtures": [
+        "multi-route-bfcache"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current:find-on-page",
+      "environment": "ios-safari-current",
+      "assertion": "find-on-page",
+      "acceptedFixtures": [
+        "caltrain-contract-search"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current:focus-trap-restore",
+      "environment": "ios-safari-current",
+      "assertion": "focus-trap-restore",
+      "acceptedFixtures": [
+        "facet-overlay-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    },
+    {
+      "id": "ios-safari-current:ime-composition",
+      "environment": "ios-safari-current",
+      "assertion": "ime-composition",
+      "acceptedFixtures": [
+        "caltrain-contract-search",
+        "facet-form-fixture"
+      ],
+      "status": "red",
+      "issues": [
+        "evidence-missing"
+      ]
+    }
+  ],
+  "structuralFailures": [],
+  "nonClaims": [
+    "This receipt consumes Exact LLP 0211 evidence; it does not replace or synthesize a browser/device run.",
+    "Passing partial desktop evidence does not satisfy the residual production-web matrix."
+  ]
+}

@@ -13,6 +13,7 @@ import {
   readJson,
   requirement,
   retainedResult,
+  validateCitizenshipReceipt,
   validateRetainedWebReceipt,
   writeStep4Report,
 } from './step4-closure-helpers.mjs';
@@ -46,6 +47,14 @@ assert.equal(productionReceipt.skipped, 0, 'production-web browser receipt conta
 assert.equal(productionReceipt.cleanupErrorCount, 0, 'production-web browser cleanup failed');
 for (const entry of productionReceipt.testInventory ?? []) {
   assert.deepEqual(identity(entry.path), entry, `production-web input drifted: ${entry.path}`);
+}
+if (citizenshipReceipt !== null) {
+  validateCitizenshipReceipt(
+    citizenshipReceipt,
+    'docs/reports/web-citizenship-ime-forms.json',
+    'scripts/check-web-citizenship-ime-forms.mjs',
+    'demos/partiful-matrix/tests/acceptance/step4-web-citizenship.mjs',
+  );
 }
 const citizenshipIssues = citizenshipReceipt === null
   ? ['receipt-missing']
