@@ -1240,23 +1240,27 @@ does not turn a partial reduction into a budget claim.
 ## 2026-07-21 — the Online Contract arm stopped importing offline custody
 
 The next attribution pass found a similar boundary one layer up. Partitime's
-Snapback Contract arm only needs live keyed queries and mutations, but it
-constructed the monolithic Contract surface that also owns retained state,
-offline replay, derived overlays, ephemeral wiring, and coordinated authority
-custody. The package already had the correct transport owner in
-`keyed-provider.mjs`; the missing pieces were generated-artifact validation and
-the deterministic force-state seam used by product UI acceptance.
+Snapback Contract arm only needs live queries and mutations, but it constructed
+the monolithic Contract surface that also owns retained state, offline replay,
+derived overlays, ephemeral wiring, and coordinated authority custody.
 
-Artifact coherence now lives in a small shared module used by both entrypoints.
-The keyed provider gained the same local-only force behavior Exact specifies:
-a scope mounted under force opens no transport, already-live delivery is
-suppressed but remembered, scoped and broadcast forces compose, and disposal
-restores the newest live cell. The test suite also proves stale generated hashes
-fail closed. Partitime can therefore import the package subpath directly while
-Exact still owns logical key identity/dedup/refcounts and Snapback still owns
-one physical live attempt and its disposal.
+My first extraction tried to use the newer keyed provider directly. The
+production bundle compiled and shrank, but the browser gate refused to boot:
+the pinned published Exact 0.1.2 runtime does not expose `rotatePartition`.
+That refusal was correct. A no-op shim would have erased the authority axis
+from logical query identity while pretending the dynamic-scope contract still
+held.
 
-The ownership limit matters. This direct path is for an Online client with no
+The compatibility-safe result is a second package entrypoint,
+`online-surface.mjs`. It extracts the published runtime's existing preopened,
+boot-scoped multi-live behavior: generated-artifact validation, fixed query
+scopes with mismatch diagnostics, live connection delivery, Exact's own force
+plane, server-authoritative mutation calls, and complete live-handle cleanup.
+The newer keyed provider still gained shared artifact checks plus scoped local
+force behavior for runtimes that genuinely support partition rotation, but
+Partitime does not claim that path from its stable dependency.
+
+The ownership limit matters. The smaller path is for an Online client with no
 auth coordinator or retained store. A coordinated browser session, agent
 principal, or offline surface must keep using the full surface constructor so
 its boot/quiesce/partition-rotation/resume participant cannot be skipped. That
@@ -1264,8 +1268,9 @@ distinction was more ergonomic than inventing app-local bridge glue: the
 package boundary got narrower and the demo got simpler.
 
 On the frozen production workload, Contract × Snapback fell from 738,080 to
-661,299 minified bytes and from 188,851 to 166,452 deterministic-gzip bytes.
-The full Contract package suite, Exact's 32-test keyed oracle, the 35-test
-mutation-projection oracle, and the production build pass. This is still not a
-budget exit: the Contract views/runtime dominate the common cells and the
-Snapback client root remains 158,644 rendered bytes in this cell.
+659,495 minified bytes and from 188,851 to 165,829 deterministic-gzip bytes.
+A targeted browser rerun passes 4/4, including fallback-disabled push. The
+package suites, Exact's 32-test keyed oracle, the 35-test mutation-projection
+oracle, and the production build pass. This is still not a budget exit: the
+Contract views/runtime dominate the common cells and the Snapback client root
+remains 158,644 rendered bytes in this cell.

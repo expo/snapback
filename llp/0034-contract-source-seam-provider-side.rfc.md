@@ -819,18 +819,22 @@ canonical same-key sharing, different-scope and different-provider isolation,
 late predecessor suppression, authority rotation, structured invalid-args
 refusal, and HMR/root teardown.
 
-The capability-scoped packaging path is also first-class. An Online surface
-without coordinated authority custody or retained/offline state may construct
-`createKeyedSnapbackContractProvider` directly from
-`@snapback/contract/keyed-provider`. It runs the same generated-artifact
-coherence checks when the artifact identity or companions are supplied and
-exposes Exact-compatible broadcast/scoped `forceQueryState` controls without
-allocating a physical transport while a scope is forced. This does not replace
-the full surface's authority participant: a client with `authCoordinator`,
-`agentAuthority`, or a client store still enters through
-`createSnapbackContractSurface({ keyedQueryScopes: true })`, which owns boot,
-quiesce, partition rotation, and resume. Partitime's unauthenticated Online
-browser arm uses the direct path as the Workstream-8 tree-shaking witness.
+The capability-scoped packaging paths are also first-class. A runtime that
+exposes partition rotation may construct `createKeyedSnapbackContractProvider`
+directly from `@snapback/contract/keyed-provider`; it runs generated-artifact
+coherence checks when artifact identity is present and exposes Exact-compatible
+broadcast/scoped `forceQueryState` controls without allocating a physical
+transport while a scope is forced. The published Exact 0.1.2 runtime predates
+that partition API, so Partitime's stable-package arm instead uses
+`@snapback/contract/online-surface`: a lean extraction of the legacy preopened,
+boot-scoped multi-live semantics, including artifact validation, connection
+drivability, Exact's force plane, server-authoritative mutations, and disposal.
+It does not pretend to offer binding-time scope identity.
+
+Neither capability-scoped path replaces the full surface's authority
+participant. A client with `authCoordinator`, `agentAuthority`, retained state,
+or offline replay still enters through `createSnapbackContractSurface`, which
+owns boot, quiesce, partition rotation where supported, and resume.
 
 The demo's row-shape acceptance check also confirms the §10.3 note about the
 Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`

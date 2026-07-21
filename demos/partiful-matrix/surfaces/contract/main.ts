@@ -12,7 +12,7 @@ import { setThemeReducedMotion, setThemeViewportWidth } from '@exact/facet-core'
 import { installContractWebHost, type ContractWebHostHandle } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createKeyedSnapbackContractProvider } from '../../../../packages/snapback-contract/keyed-provider.mjs';
+import { createOnlineSnapbackContractSurface } from '../../../../packages/snapback-contract/online-surface.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
@@ -161,14 +161,20 @@ async function boot() {
     // @ref LLP 0034#5 — one idempotent ensure per mount; never reset from a
     // Contract surface, so reload and cross-arm mutations remain observable.
     await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-    const created = createKeyedSnapbackContractProvider({
+    const liveQueries = eventId === null
+      ? ['listEvents']
+      : [
+          { name: 'eventDetails', args: { eventId } },
+          { name: 'guestList', args: { eventId } },
+          { name: 'eventWall', args: { eventId } },
+        ];
+    const created = await createOnlineSnapbackContractSurface({
       runtime: await import('@exact/contract/runtime'),
       client,
       userId: persona.userId,
       manifest: contractDataManifest, artifactIndex, schemaManifest, functionManifest: functionsManifest,
-      keyedQueries: eventId === null
-        ? ['listEvents']
-        : ['eventDetails', 'guestList', 'eventWall'],
+      liveQueries,
+      requiredQueries: liveQueries,
       liveFallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
       onSubscriptionEvent: (event: Record<string, unknown>) => subscriptionEvents.push({
         pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,

@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "cd03e2d488b1c58b35c110adbf7ee9f0a80854a4"
+    "commit": "98e2d842e32798b5b05c2936ed4d473cbaec0232"
   },
   "nav": {
     ".": [
@@ -715,7 +715,8 @@
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
         "packages/snapback-contract/index.mjs",
-        "packages/snapback-contract/keyed-provider.mjs"
+        "packages/snapback-contract/keyed-provider.mjs",
+        "packages/snapback-contract/online-surface.mjs"
       ],
       "examples": [
         "demos/todo-v2/surfaces/contract",
@@ -726,7 +727,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "0d46dcf2314dbc61ef82f7380f92e438e529eac349a14f2eabdb930139a6abb6",
+      "sha256": "2dc542c8517a721cfb01cdf001384d54df221cb8d99352fb181d9ba829106b68",
       "snippets": [
         {
           "lang": "contract",
@@ -1563,5 +1564,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "0fc4ee2797cb03437e4ac844065087229a2104f7cbb6b567daec3d4fa75c04a3"
+  "contentHash": "d688d245300ef2bc85064a45748bdcb88a9ed31b51950bafdf4b598d14534f1c"
 }

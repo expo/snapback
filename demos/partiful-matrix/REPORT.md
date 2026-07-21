@@ -1773,29 +1773,31 @@ budget receipt therefore remains red with 5 passing and 21 red requirements.
 
 ## 32. Step 4 capability-scoped Contract packaging checkpoint
 
-Partitime's Snapback Contract arm now consumes the package-owned keyed provider
-directly instead of reaching it through `createSnapbackContractSurface`. This
-is not demo-specific transport glue: Exact continues to own logical query
-identity, same-key sharing, refcounts, and predecessor fencing, while the
-Snapback package owns each physical live attempt, mutation transport, authority
-partition rotation, and disposal.
+Partitime's stable-package Snapback Contract arm now consumes the package-owned
+preopened Online surface instead of reaching live/mutation wiring through
+`createSnapbackContractSurface`. This is not demo-specific transport glue: it
+is an exported package path that preserves the published Exact 0.1.2 runtime's
+legacy boot-scoped behavior without importing unrelated retained/offline,
+ephemeral, derived-overlay, or coordinated-authority implementation.
 
-The smaller entrypoint now shares the full adapter's generated-artifact
-coherence validator. It also implements Exact-compatible local force states:
-scoped and broadcast forces reach existing bindings, a binding mounted under
-force does not allocate a backend attempt, live updates are retained but
-suppressed, and releasing the governing force restores the newest cell. A
-stale generated bundle hash is refused before transport construction. The
-direct path is deliberately limited to Online surfaces without coordinated
-auth or retained/offline custody; those profiles continue to use the full
-surface so its authority participant owns boot, quiesce, rotation, and resume.
+The first attempted extraction used the newer keyed provider. Its fail-closed
+runtime check caught that published Exact does not yet expose partition
+rotation; the 39/43 diagnostic run was discarded rather than papering over the
+logical identity contract with a no-op shim. The final Online entrypoint keeps
+fixed `{name,args}` scopes, diagnoses binding mismatch, shares the full
+adapter's artifact validator, delegates force-state behavior to Exact's
+boundary provider, carries live connection updates, and closes every live
+handle. It refuses coordinated authority; those profiles continue through the
+full surface participant. Source-Exact runtimes with partition rotation retain
+the separately tested keyed provider.
 
 On the unchanged frozen workload, Contract × Snapback moved from 738,080 to
-661,299 minified bytes and from 188,851 to 166,452 deterministic-gzip bytes.
-The full Contract package test suite passes, as do Exact's 32-test keyed-query
-oracle, its 35-test mutation-projection oracle, npm package dry-run, and the
-production Snapback build. The remaining attribution is candid: the Snapback
-client root still contributes 158,644 rendered bytes, while the compiled
-Contract views and shared Exact runtime dominate every Contract cell. All four
-frozen byte thresholds therefore remain red; this is a second measured
-Snapback-owned remediation checkpoint, not Step 4 closure.
+659,495 minified bytes and from 188,851 to 165,829 deterministic-gzip bytes. A
+targeted browser rerun passes 4/4 including fallback-disabled push. The full
+Contract package test suite passes, as do Exact's 32-test keyed-query oracle,
+its 35-test mutation-projection oracle, npm package dry-run, and the production
+Snapback build. The remaining attribution is candid: the Snapback client root
+still contributes 158,644 rendered bytes, while the compiled Contract views
+and shared Exact runtime dominate every Contract cell. All four frozen byte
+thresholds therefore remain red; this is a second measured Snapback-owned
+remediation checkpoint, not Step 4 closure.
