@@ -1792,7 +1792,7 @@ full surface participant. Source-Exact runtimes with partition rotation retain
 the separately tested keyed provider.
 
 On the unchanged frozen workload, Contract × Snapback moved from 738,080 to
-659,528 minified bytes and from 188,851 to 165,860 deterministic-gzip bytes.
+659,515 minified bytes and from 188,851 to 165,844 deterministic-gzip bytes.
 Review reruns pass the full 43/43 browser matrix, the 19/19 product-UI gate,
 and the 9/9 immutable production-web gate, including fallback-disabled push.
 The production rerun first exposed a 7/9 evidence-only failure: the completed

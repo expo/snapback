@@ -53,7 +53,7 @@ drivability, server-authoritative mutations, and complete handle disposal.
 Coordinated auth/offline surfaces still use the full constructor; runtimes
 with binding-time identity use the separately fail-closed keyed provider. On
 the unchanged frozen workload the cell fell from 738,080/188,851 to
-659,528/165,860 minified/deterministic-gzip bytes. Review reruns pass the full
+659,515/165,844 minified/deterministic-gzip bytes. Review reruns pass the full
 43/43 browser matrix, the 19/19 product-UI gate, and the 9/9 immutable
 production-web gate, alongside the 32-test keyed oracle, 35-test
 mutation-projection oracle, package tests, and production build. The

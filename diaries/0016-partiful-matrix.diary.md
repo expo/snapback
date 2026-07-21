@@ -1268,7 +1268,7 @@ distinction was more ergonomic than inventing app-local bridge glue: the
 package boundary got narrower and the demo got simpler.
 
 On the frozen production workload, Contract × Snapback fell from 738,080 to
-659,528 minified bytes and from 188,851 to 165,860 deterministic-gzip bytes.
+659,515 minified bytes and from 188,851 to 165,844 deterministic-gzip bytes.
 Review reruns pass 43/43 ordinary browser checks, 19/19 product-UI checks, and
 9/9 production-web checks, including fallback-disabled push. The package
 suites, Exact's 32-test keyed oracle, the 35-test mutation-projection oracle,
