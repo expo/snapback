@@ -1,33 +1,12 @@
 import { exactContractWeb } from '@exact/devtools/contract-web';
-import type { Plugin } from 'vite';
-
-function costAttribution(): Plugin {
-  return {
-    name: 'partitime-cost-attribution',
-    generateBundle(_options, bundle) {
-      const modules = Object.values(bundle)
-        .filter((item) => item.type === 'chunk')
-        .flatMap((chunk) => Object.entries(chunk.modules).map(([id, value]) => ({
-          id,
-          renderedBytes: value.renderedLength,
-          chunk: chunk.fileName,
-        })))
-        .sort((left, right) => right.renderedBytes - left.renderedBytes || left.id.localeCompare(right.id));
-      this.emitFile({
-        type: 'asset',
-        fileName: 'partitime-cost-attribution.json',
-        source: `${JSON.stringify({ schemaVersion: 'partitime.web-cost-attribution.v1', modules }, null, 2)}\n`,
-      });
-    },
-  };
-}
+import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
 export default ({ mode, command }: { mode: string; command: 'serve' | 'build' }) => {
   const base = process.env.PARTITIME_BASE_PATH ?? (command === 'build' ? '/partitime/' : '/');
   return {
     root: __dirname,
     base,
-    plugins: [exactContractWeb({ data: 'snapback', app: { entry: '/main.ts' } }), costAttribution()],
+    plugins: [exactContractWeb({ data: 'snapback', app: { entry: '/main.ts' } }), partitimeCostAttribution()],
     define: {
       __MATRIX_BACKEND__: JSON.stringify(mode),
       __PARTITIME_BASE_PATH__: JSON.stringify(base),

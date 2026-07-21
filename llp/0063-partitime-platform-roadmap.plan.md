@@ -34,6 +34,20 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 performance-instrument checkpoint):** 2026-07-21 (A dated
+prospective amendment and executable collectors now define the eleven missing
+web/build metrics, four native-carrier metrics, four-layer per-module cost
+ledgers, and calibration-versus-committed-holdout isolation. Quick, explicitly
+nonclaim canaries pass navigation/data/idle/memory/update and fresh/incremental
+build collection; a synthetic native receipt test proves same-host structured
+sample aggregation and fail-closed rejection of missing launch stages. The
+amendment remains `pending-ratifier-confirmation`; no claim-grade calibration
+or holdout may run before owner ratification. The cumulative budget receipt is
+therefore 7 pass / 19 red, with 16 nonclaims. A source-linked Exact AOT/pruning
+checkpoint at `e49e1d238…` measures the common Contract gateway bundle at
+294,831 minified / 84,473 gzip bytes, still 81,348 / 17,227 above the frozen
+limits. Strict browser citizenship and native calibration/holdout receipts are
+absent, so this is instrumentation and measured remediation, not Step 4 exit.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
 (the package root no longer retains the full agent-custody implementation just
 to validate an optional `agentAuthority` constructor value. A package-private
@@ -1137,6 +1151,25 @@ Acceptance:
   per-workload-version baselines and declared prospective rollover;
 - the native-realtime follow-up matrix (see the pressure tests) has run
   before any final comparative ranking is published — risk R2's gate.
+
+### 2026-07-21 Step 4 metrology status
+
+`demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json`
+defines the prospective sampling protocol without changing or loosening any
+Step 0 threshold. The web collector measures all twelve production cells from
+outside their bundles and the native collector admits only paired same-host iOS
+receipts whose launch-stage definitions match. Both collectors retain every
+valid sample, separate two warmups from seven reported observations, and make
+holdout consume thresholds from an explicitly named committed calibration
+revision. Production builds emit a four-layer, non-executable module ledger.
+
+This machinery does not itself satisfy WS8. Until the named owner ratifies the
+amendment, both calibration and holdout remain structurally ineligible. After
+ratification, a calibration artifact must land before the independently run
+holdout. The browser citizenship matrix remains a separate cumulative Step 4
+gate: missing iOS/Android/current-minus-one, IME, autofill/password-manager,
+focus, bfcache, or find-on-page evidence is red, never N/A or inferred from a
+Chromium canary.
 
 ## Sequence
 

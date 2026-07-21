@@ -1257,9 +1257,10 @@ The report should not be read as a general backend benchmark for these reasons:
    bindings remain absent.
 6. **Polling parity is not realtime parity.** The frozen matrix exercised only
    Snapback push; the two provider-native follow-ups are separate instruments.
-7. **No performance benchmark.** Bundle sizes were measured; follow-up
-   freshness samples are diagnostic observations, while throughput,
-   fan-out, cold start, and cost were not.
+7. **No claim-grade performance benchmark yet.** The dated Step 4 amendment
+   and executable web/build/native collectors now exist, but only quick
+   nonclaim canaries have run; owner ratification, committed calibration, and
+   independent holdout receipts remain absent.
 8. **No clean-machine timing study.** Setup effort is qualitative.
 9. **Specific package versions.** React 19, Vite 7/8, Exact 0.1.2, Bun 1.3.12,
    and the installed Convex version shaped results.
@@ -1274,8 +1275,10 @@ The report should not be read as a general backend benchmark for these reasons:
     framework-free app.
 14. **Bundled Vanilla path.** Vite remained in the loop; direct unbundled ESM
     compatibility was not tested.
-15. **No startup milestone instrumentation.** Emitted bytes were measured, but
-    parse, boot, first-data, and interactive timings were not.
+15. **Startup milestones are prospective, not baseline evidence.** The new
+    external web observer and native launch-stage receipts measure boot,
+    first-data, and interactive milestones, but they were added after Step 0
+    and cannot become claims without the dated-amendment/holdout procedure.
 16. **Browser-controller substitution.** The in-app browser plugin failed
     during setup, so rendered verification used the repository's established
     Chrome/CDP acceptance harness. The application proof is executable, but no
@@ -1808,3 +1811,40 @@ client root still contributes 158,644 rendered bytes, while the compiled
 Contract views and shared Exact runtime dominate every Contract cell. All four
 frozen byte thresholds therefore remain red; this is a second measured
 Snapback-owned remediation checkpoint, not Step 4 closure.
+
+## 33. Step 4 prospective performance-instrument checkpoint
+
+The fifteen missing web/build/native metric rows now have executable
+collectors instead of permanent placeholder prose. The dated 2026-07-21
+amendment freezes definitions, two warmups plus seven-sample cohorts, an
+all-valid-samples policy, React-relative margins, absolute idle ceilings, and
+a committed-calibration boundary before holdout. It does not alter any Step 0
+threshold. The amendment is still pending the named owner's confirmation, so
+full calibration and holdout structurally refuse to run.
+
+The web collector builds and previews every production cell, installs a
+pre-document observer outside the measured bundle, and records cold/warm
+mount, authoritative/current data, Chrome task and network idle cost, heap per
+logical subscription, bounded DOM update fan-out/patches, fresh Vite build,
+and watch rebuild. A React × SQLite quick canary completes this full path with
+one sample and is explicitly nonclaim. Every Vite arm also emits a
+`partitime.web-cost-attribution.v2` ledger that assigns each production module
+exactly once to framework runtime, provider runtime, generated app data, or
+application code.
+
+The native aggregator requires paired same-host iOS receipts. React Expo now
+reads React Native's script-execution duration at the JavaScript-loaded
+notification, inventories its admitted startup JS/Hermes assets, and relates
+its first committed root effect and authoritative event to an external process
+launch request. Exact exposes its existing evaluation/first-frame stages plus
+the same external request timestamp. Missing or incomparable stages fail the
+collector; macOS Exact and Android React remain report-only because workload v1
+has no same-OS counterpart arm.
+
+The latest source-linked Exact AOT/runtime-pruning checkpoint
+(`e49e1d238…`) emits 294,831 minified / 84,473 gzip bytes for the non-Snapback
+Contract cell. That is a large improvement from the stable package's roughly
+468/117 kB, but remains 81,348 / 17,227 bytes above the frozen limits and is
+not stable-package evidence. Authored Contract source remains 1,095 lines
+against 348. The rerun budget receipt is therefore 7 pass / 19 red, including
+16 explicit nonclaims; no Step 4 claim is promoted.

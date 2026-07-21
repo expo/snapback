@@ -1284,3 +1284,60 @@ post-adoption viewport and live-data turns later appended to the same
 missed anchors. Deep-snapshotting the result in the callback restored the
 honest boundary: adoption remains immutable evidence, while responsive and
 live updates continue on the mounted tree.
+
+## 2026-07-21 — Step 4 stopped treating missing measurements as prose
+
+The budget receipt originally had fifteen performance rows that could only say
+"instrument missing," plus three attribution/amendment rows with no executable
+path to green. The new dated amendment turns those placeholders into a real
+protocol: two warmups, seven retained calibration samples, a committed
+calibration boundary, then seven independently collected holdout samples. It
+does not touch the frozen Step 0 byte/source thresholds.
+
+The browser-side collector is deliberately outside the measured application.
+A pre-document observer records product shell, authoritative card, live/current
+connection, and the bounded event-navigation mutation window. Chrome's
+performance, heap, GC, and network domains supply idle CPU, idle bytes, and
+heap-per-logical-subscription. Vite's command clock and watch events measure
+fresh and incremental builds without editing the repository. A React × SQLite
+quick canary exercised the whole path; because it used one sample and a 200 ms
+idle window, its receipt is explicitly nonclaim.
+
+Native metrology exposed a useful asymmetry. Exact already reports evaluation
+and first-frame stages. React Expo reported only JS-level product events, so a
+naive comparison would have called unlike timestamps equivalent. The iOS
+carrier now reads React Native's own script-execution duration when the
+JavaScript-loaded notification fires, inventories only the admitted startup
+JS/Hermes assets, and relates its first committed root effect and authoritative
+event to an external launch request. The aggregator refuses samples that lack
+those four structured values and requires React and Exact to name the same
+host identity.
+
+Cost attribution also became more useful than subtraction alone. Every Vite
+cell now emits a stable module ledger partitioned exactly once into framework
+runtime, provider runtime, generated app data, or application code. The
+vanilla row remains an honest lower bound; the ledger does not pretend a delta
+isolates one framework perfectly.
+
+The biggest good surprise was the active Exact AOT/pruning work. A
+source-linked build of the same Partitime gateway cell reached 294,831 bytes
+minified and 84,473 gzip, down from the stable package's roughly 468/117 kB.
+That is substantial and makes the remaining bundle gap feel tractable, but it
+is still 81,348 minified and 17,227 gzip bytes over the frozen limits. The
+authored Contract surface is also still 1,095 lines against 348. Neither is
+papered over by the new instruments.
+
+Two environmental gaps remain concrete. The authorized Apple host initially
+had only 2.6 GiB free; removing about 9.1 GiB of this project's prior ignored
+Rust/DerivedData outputs made isolated Xcode verification possible without
+touching its dirty evidence worktree. And the available browser inventory has
+desktop Safari/Chrome/Firefox, one iOS 26.2 runtime, and an Android Chrome 134
+emulator—not the required current/current-minus-one mobile matrix. With no
+device-cloud credentials present, those missing citizenship rows must remain
+red rather than being inferred from desktop Chrome.
+
+Compared with React plus Convex or Supabase, this is more ceremony, but the
+ceremony caught real category errors: total heap versus subscription delta,
+React JS effects versus Hermes evaluation, dev-server payload versus a native
+binary, and calibration data leaking into holdout thresholds. The amendment is
+still pending owner ratification, so no performance claim has been promoted.

@@ -1,0 +1,100 @@
+{
+  "schemaVersion": "partitime.performance-amendment.v1",
+  "amendmentId": "partitime-ws8-prospective-2026-07-21",
+  "date": "2026-07-21",
+  "status": "pending-ratifier-confirmation",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 closure request",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "appliesToWorkloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "changeClass": "prospective-category-addition",
+  "baselinePolicy": "No frozen Step 0 threshold is changed or loosened. Calibration thresholds for these newly admitted categories become immutable before the independently executed holdout cohort.",
+  "sampling": {
+    "warmups": 2,
+    "calibrationSamples": 7,
+    "holdoutSamples": 7,
+    "aggregation": ["median", "p95"],
+    "outlierPolicy": "retain every valid sample; invalidate only a receipt-recorded instrument failure",
+    "cohortIsolation": "The calibration receipt is committed before the holdout run. Holdout accepts an explicit committed calibration revision and reads thresholds from git, never from the mutable worktree."
+  },
+  "web": {
+    "cells": [
+      "react:snapback", "react:supabase", "react:convex", "react:sqlite",
+      "contract:snapback", "contract:supabase", "contract:convex", "contract:sqlite",
+      "vanilla:snapback", "vanilla:supabase", "vanilla:convex", "vanilla:sqlite"
+    ],
+    "navigation": {
+      "coldStartupMs": "Navigation start through the first product-shell/feed DOM mount, with the HTTP cache disabled and cleared before navigation.",
+      "warmStartupMs": "Navigation start through the first product-shell/feed DOM mount after a same-cell cache-prime navigation, with the HTTP cache enabled.",
+      "firstAuthoritativeDataMs": "Navigation start through a non-empty feed-ready DOM state produced by the cell provider.",
+      "firstLiveDataMs": "Navigation start through the first simultaneous feed-ready state and settled connection indicator (live for push cells; polling for the protocol's declared polling cells).",
+      "observer": "A pre-document MutationObserver installed by the browser harness records milestones without adding instrument code to any measured application bundle."
+    },
+    "idle": {
+      "windowMs": 3000,
+      "cpuUnit": "Chrome TaskDuration delta, converted to task milliseconds per wall-clock second after first-live-data and forced garbage collection",
+      "networkUnit": "CDP Network.loadingFinished encodedDataLength plus WebSocket payload bytes per wall-clock second after first-live-data",
+      "absoluteCeilings": {
+        "cpuTaskMsPerSecond": 25,
+        "networkBytesPerSecond": {
+          "push": 1024,
+          "poll": 32768
+        }
+      }
+    },
+    "memory": {
+      "metric": "Runtime.getHeapUsage usedSize after first-live-data and forced garbage collection, divided by the feed workload's one active logical subscription",
+      "logicalSubscriptions": 1
+    },
+    "update": {
+      "action": "Activate the canonical open-event_swim control and wait for event-page to render.",
+      "fanout": "Number of distinct DOM mutation targets observed from action dispatch through event-page readiness.",
+      "patches": "Sum of attribute/characterData mutations and added/removed node counts over that same interval.",
+      "scope": "DOM/host-visible effects only; framework-private scheduler work is intentionally excluded so all three authoring arms share one observer."
+    },
+    "build": {
+      "production": "Fresh Vite production command duration for the named arm/backend cell; dependency-download time is excluded and the committed node_modules/lock state is retained.",
+      "incremental": "Vite production watch rebuild duration after a one-newline change to a temporary mirror of the cell entry module; the repository worktree is never mutated.",
+      "clock": "host monotonic clock around process completion for production; watcher BUNDLE_START/BUNDLE_END event clock for incremental"
+    }
+  },
+  "native": {
+    "claimedProfile": "ios",
+    "candidate": "Exact + Contract iOS carrier",
+    "control": "React Expo iOS carrier on the same host/OS/simulator profile",
+    "metrics": {
+      "hermesEvaluationMs": "Hermes entry evaluation duration reported by the carrier's structured launch stages: React Expo reads React Native's RCTPLScriptExecution duration at RCTJavaScriptDidLoadNotification; Exact reads hostStatus.load.stages.evaluateMs.",
+      "startupAssetWeightBytes": "Sum of the JavaScript or Hermes startup assets actually admitted by the qualifying carrier launch (React Expo main.jsbundle/HBC; Exact hostStatus.load.scriptBytes), excluding native binaries, symbols, and test artifacts. Build/profile mode remains receipt-visible.",
+      "coldLaunchMs": "External process launch request through the carrier's first interactive app marker after terminating the prior app process (React Expo's first committed root-effect device-launch event; Exact's firstAppFrameAt).",
+      "firstAuthoritativeDataMs": "Process launch request through the first structured authoritative-data event for the canonical feed."
+    },
+    "reportOnlyProfiles": [
+      "Exact macOS has no React Expo same-OS control in workload v1.",
+      "React Expo Android has no Exact + Contract Android carrier in workload v1."
+    ]
+  },
+  "thresholds": {
+    "startupAndData": "floor(react_same_cell_calibration_p95 * 1.10)",
+    "idle": "min(react_same_cell_calibration_p95 * 1.05, declared_absolute_ceiling)",
+    "memoryFanoutBuild": "floor(react_same_cell_calibration_p95 * 1.10)",
+    "native": "floor(react_expo_same_os_calibration_p95 * 1.10)",
+    "equalityPasses": true
+  },
+  "attribution": {
+    "manifest": "partitime.web-cost-attribution.v2",
+    "layers": ["framework-runtime", "provider-runtime", "generated-app-data", "application-code"],
+    "capabilityToggles": [
+      "backend mode: snapback versus the same-arm gateway average",
+      "authoring mode: contract/react versus the vanilla same-backend lower bound",
+      "transport mode: push versus declared polling cells"
+    ],
+    "rule": "Every production build emits a non-executable module ledger; combined delta buckets remain labelled as lower bounds and are never presented as isolated framework truth."
+  },
+  "holdoutValidation": {
+    "required": true,
+    "calibrationArtifact": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+    "holdoutArtifact": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+    "nativeCalibrationArtifact": "demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json",
+    "nativeHoldoutArtifact": "demos/partiful-matrix/acceptance/results/step4-native-performance-holdout.json"
+  }
+}

@@ -55,6 +55,14 @@
     "glueFileAndLineInventory", "requiredCheckCount", "firstPushFreshnessLatencyMsP95"
   ],
   "futureCategoriesDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
+  "amendments": [
+    {
+      "id": "partitime-ws8-prospective-2026-07-21",
+      "date": "2026-07-21",
+      "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+      "status": "pending-ratifier-confirmation"
+    }
+  ],
   "changePolicy": {
     "validBaseline": "Never loosen or replace an ID; later amendments may tighten or add a holdout-validated metric.",
     "invalidBaseline": "Preserve original artifacts; document the instrument defect and impact; obtain ratifier approval; version-bump method and threshold IDs; rerun both comparison arms and controls prospectively. The replacement may move either direction.",
