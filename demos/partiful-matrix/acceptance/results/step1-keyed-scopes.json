@@ -21,7 +21,7 @@
   "sources": [
     {
       "path": "packages/snapback-contract/keyed-provider.mjs",
-      "sha256": "d92c200a1439174bc434f9077d8846c2433ba43a0b80ca1ad5c2cf8927b9fc7e"
+      "sha256": "ff3266bc1a76cb9b2ce72791660d9876ef891a2ab2a0579216a8dead2cb4c1f4"
     },
     {
       "path": "exact/packages/exact-contract/src/runtime/query-identity.ts",
