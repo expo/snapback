@@ -7,9 +7,9 @@
   "outcome": "pass",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:08:22.043Z",
+  "recordedAt": "2026-07-21T09:14:32.350Z",
   "repository": {
-    "snapbackRevision": "b7ea370a502416be77ea921116275c22ffd82d4f",
+    "snapbackRevision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
     "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "inputs": {
@@ -19,11 +19,11 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "5c979a3e29ec8de17f805cd5fff48603b434c72dae76b7e43dbdea9a8ea98b0f"
+      "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
     },
     "productUiBrowserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+      "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
     },
     "agentSession": {
       "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
@@ -100,7 +100,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -158,7 +158,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -193,7 +193,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -282,7 +282,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -376,7 +376,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -470,7 +470,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "dimensions": [
           "responsive",
@@ -638,7 +638,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "checks": [
           {
@@ -776,7 +776,7 @@
           "status": 0,
           "signal": null,
           "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
-          "stderrSha256": "afb19feaeb9176eb2e93fbf7b0e38cfa6a2beccac92f1260a480128f43cd00fb",
+          "stderrSha256": "2bb4a9f0eee95e99046335f05805d82587d9370e17fea80fc77faac1fae72265",
           "stdoutTail": [
             "bun test v1.3.12 (700fc117)"
           ],
@@ -792,7 +792,7 @@
             " 8 pass",
             " 0 fail",
             " 102 expect() calls",
-            "Ran 8 tests across 1 file. [438.00ms]"
+            "Ran 8 tests across 1 file. [557.00ms]"
           ]
         },
         "operations": [
@@ -811,7 +811,7 @@
         "declaredAsyncBranches": 16,
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "42e69c29826ed626a1bf36297250b075b98d98a5668a6342fa359029c4ca36a2"
+          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7"
         },
         "check": {
           "name": "contract × snapback forces loading error empty and ready through its provider",

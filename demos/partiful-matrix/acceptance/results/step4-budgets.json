@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:08:34.148Z",
+  "recordedAt": "2026-07-21T09:14:45.215Z",
   "repository": {
-    "snapbackRevision": "b7ea370a502416be77ea921116275c22ffd82d4f",
+    "snapbackRevision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
     "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "inputs": {
@@ -19,13 +19,13 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "5c979a3e29ec8de17f805cd5fff48603b434c72dae76b7e43dbdea9a8ea98b0f"
+      "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "b7ea370a502416be77ea921116275c22ffd82d4f",
-      "sha256": "d215f2e051fa0ffc1dce496e5bcbf4db50f7740e885ab271b676e39de04d9831"
+      "revision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
+      "sha256": "459e29b758d62d0f7faa44c54a76c7caa1e879f081d009626f19e77ef6aebeb4"
     },
     "nativeReceipts": [
       {
@@ -320,9 +320,9 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          3,
           2,
-          3,
+          2,
+          2,
           2,
           2,
           3,
@@ -896,12 +896,12 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "c67eb5802babbf25dce6a3ac6a55c9baae153ac0ff547ca29f5a4b1d58550916",
+        "stdoutSha256": "464377db9813c735f371054161ebe61c61c88591a8fd5115b3a548bd1c7d7984",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/convex-direct-B34_zLpf.js   69.67 kB │ gzip: 19.45 kB",
           "dist/convex-realtime/assets/index-Bl9_t8ky.js          215.38 kB │ gzip: 68.12 kB",
-          "✓ built in 419ms",
+          "✓ built in 442ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 49 modules transformed.",
@@ -910,7 +910,7 @@
           "dist/sqlite/index.html                   0.41 kB │ gzip:  0.29 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css   10.21 kB │ gzip:  3.19 kB",
           "dist/sqlite/assets/index-B-ZPQCUX.js   215.06 kB │ gzip: 68.02 kB",
-          "✓ built in 438ms"
+          "✓ built in 374ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -931,7 +931,7 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "a24cc31da4434fc0951df7e90da042a75fc2cafe9816bba3ecf42cc75ec56391",
+        "stdoutSha256": "f4e099e08fa4c389e60d59cc0991e012b850a3566ca4787dd2d27f2e9f2d4640",
         "stderrSha256": "9d28e9acd2fcd2375e70b25979519437da13218b7918c762ddfb465dbeeceee2",
         "stdoutTail": [
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
@@ -943,7 +943,7 @@
           "dist/sqlite/partitime-cost-attribution.json   28.74 kB │ gzip:   1.89 kB",
           "dist/sqlite/assets/index-FpRJjXB4.js         467.94 kB │ gzip: 118.42 kB │ map: 2,374.90 kB",
           "",
-          "✓ built in 180ms",
+          "✓ built in 220ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
@@ -971,12 +971,12 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "d739fa7aa027ae4b82beccdb3cd6269249883ee0cd041fef2fc721de4184ea86",
+        "stdoutSha256": "4c1a73b8e5b6bda07c69ab5f2782c38a3ec17431b072cc70ef7ed7ca29bb52ad",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.19 kB",
           "dist/convex/assets/index-BV5Pz4-N.js   20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 122ms",
+          "✓ built in 201ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 22 modules transformed.",
@@ -985,7 +985,7 @@
           "dist/sqlite/index.html                  0.47 kB │ gzip: 0.30 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.19 kB",
           "dist/sqlite/assets/index-qkvd2Q_p.js   20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 122ms"
+          "✓ built in 191ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1391,7 +1391,7 @@
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "5c979a3e29ec8de17f805cd5fff48603b434c72dae76b7e43dbdea9a8ea98b0f"
+      "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
     },
     "pushLatency": {
       "contract": {
@@ -1400,9 +1400,9 @@
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          3,
           2,
-          3,
+          2,
+          2,
           2,
           2,
           3,
