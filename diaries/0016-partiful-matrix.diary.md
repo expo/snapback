@@ -1320,10 +1320,10 @@ vanilla row remains an honest lower bound; the ledger does not pretend a delta
 isolates one framework perfectly.
 
 The biggest good surprise was the active Exact AOT/pruning work. Its latest
-clean source-linked build of the same Partitime gateway cell reached 276,431
-bytes minified and 79,129 gzip, down from the stable package's roughly 468/117 kB.
+clean source-linked build of the same Partitime gateway cell reached 267,819
+bytes minified and 78,258 gzip, down from the stable package's roughly 468/117 kB.
 That is substantial and makes the remaining bundle gap feel tractable, but it
-is still 62,948 minified and 11,883 gzip bytes over the frozen limits. The
+is still 54,336 minified and 11,012 gzip bytes over the frozen limits. The
 authored Contract surface is also still 1,095 lines against 348. Neither is
 papered over by the new instruments.
 

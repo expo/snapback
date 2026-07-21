@@ -59,8 +59,8 @@ sample aggregation and fail-closed rejection of missing launch stages. The
 amendment remains `pending-ratifier-confirmation`; no claim-grade calibration
 or holdout may run before owner ratification. The cumulative budget receipt is
 therefore 7 pass / 19 red, with 16 nonclaims. A source-linked Exact AOT/pruning
-checkpoint at `9874e9226…` measures the common Contract gateway bundle at
-276,431 minified / 79,129 gzip bytes, still 62,948 / 11,883 above the frozen
+checkpoint at `cd1f9d89c…` measures the common Contract gateway bundle at
+267,819 minified / 78,258 gzip bytes, still 54,336 / 11,012 above the frozen
 limits. Strict browser citizenship and native calibration/holdout receipts are
 absent, so this is instrumentation and measured remediation, not Step 4 exit.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21

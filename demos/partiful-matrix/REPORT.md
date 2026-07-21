@@ -1842,9 +1842,9 @@ collector; macOS Exact and Android React remain report-only because workload v1
 has no same-OS counterpart arm.
 
 The latest clean source-linked Exact AOT/runtime-pruning checkpoint
-(`9874e9226…`) emits 276,431 minified / 79,129 gzip bytes for the non-Snapback
+(`cd1f9d89c…`) emits 267,819 minified / 78,258 gzip bytes for the non-Snapback
 Contract cell. That is a large improvement from the stable package's roughly
-468/117 kB, but remains 62,948 / 11,883 bytes above the frozen limits and is
+468/117 kB, but remains 54,336 / 11,012 bytes above the frozen limits and is
 not stable-package evidence. Authored Contract source remains 1,095 lines
 against 348. The rerun budget receipt is therefore 7 pass / 19 red, including
 16 explicit nonclaims; no Step 4 claim is promoted.
