@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T04:09:58.362Z",
+  "recordedAt": "2026-07-21T04:33:08.426Z",
   "repository": {
-    "snapbackRevision": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
-    "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540"
+    "snapbackRevision": "b28e5dbf1676e441998d542f36a18e84e4ea1b17",
+    "exactRevision": "cc217eb8cefb5aeee38752297f3c1669bd9e5a40"
   },
   "inputs": {
     "protocol": {
@@ -19,13 +19,13 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
+      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
-      "sha256": "e9e826d053c28b5bd5a2e38a61f6801f1b64f980c41e5c6c455c806550e39aee"
+      "revision": "b28e5dbf1676e441998d542f36a18e84e4ea1b17",
+      "sha256": "2e7776a93aad055ce8a56494d8913557001fa8eef3e92f7e8c1d5e9778377863"
     },
     "nativeReceipts": [
       {
@@ -315,18 +315,18 @@
       "status": "pass",
       "reasonCode": "STEP4_BUDGET_FIRST_PUSH_P95_PASSED",
       "evidence": {
-        "actual": 6,
+        "actual": 5,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
           5,
-          5,
-          4,
-          6,
+          3,
           4,
           5,
-          5
+          5,
+          5,
+          4
         ],
         "pass": true
       }
@@ -896,7 +896,7 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "8d54beef2a6b413ba3aefca445518bb34af3be56d6f9375e8b28671d48c73f50",
+        "stdoutSha256": "0c63cbbcd2747173bee8f07a041b6b9038b6c7cfd3cbce35f09f6a6c47f51983",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
           "dist/convex-realtime/assets/convex-direct-B34_zLpf.js   69.67 kB │ gzip: 19.46 kB",
@@ -910,7 +910,7 @@
           "dist/sqlite/index.html                   0.41 kB │ gzip:  0.29 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css   10.21 kB │ gzip:  3.18 kB",
           "dist/sqlite/assets/index-B-ZPQCUX.js   215.06 kB │ gzip: 68.12 kB",
-          "✓ built in 332ms"
+          "✓ built in 338ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -931,8 +931,8 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "9ecce9c837afdfaf60331d57cc3643decb78436b0126ed3bfc42c7c91d07559f",
-        "stderrSha256": "a2ac7b670c93a0820695eebc8dbb079ab56cc24d37a7bba7c735de51366b08b0",
+        "stdoutSha256": "d687a5f067a41ae2008e00177061ccb6ad0ffcbbb2e2df0508ae0d7a34c233a9",
+        "stderrSha256": "2ba066df63b5d9d8a0c81f3937ce268d62f8ba22710f7842e0faadd10ab11e80",
         "stdoutTail": [
           "dist/sqlite/assets/exact-contract/connection-badge.contract.980738b960cbbe74.witness.json    0.32 kB │ gzip:   0.22 kB",
           "dist/sqlite/index.html                                                                       0.93 kB │ gzip:   0.58 kB",
@@ -943,23 +943,23 @@
           "dist/sqlite/assets/crash-B9u2qrj0.js                                                        17.42 kB │ gzip:   6.80 kB │ map:   112.14 kB",
           "dist/sqlite/assets/index-DaOMyrqJ.js                                                       861.92 kB │ gzip: 239.59 kB │ map: 4,243.15 kB",
           "",
-          "✓ built in 280ms",
+          "✓ built in 288ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
         "stderrTail": [
           "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:6 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:11 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:12 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:13 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:14 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:5 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:6 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:7 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
           "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:8 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:6 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:11 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:12 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:13 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:14 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])"
+          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
         ]
       },
       {
@@ -971,12 +971,12 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "2b6b36be9f39527f459fa6e272e476655ccd8975cbe2fb46ca9f6516db9968a9",
+        "stdoutSha256": "3b72c02991add540d278f548c6569347b35e3416dc837999654d3a5babca9475",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.18 kB",
           "dist/convex/assets/index-BV5Pz4-N.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 135ms",
+          "✓ built in 125ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 21 modules transformed.",
@@ -985,7 +985,7 @@
           "dist/sqlite/index.html                  0.47 kB │ gzip: 0.30 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.18 kB",
           "dist/sqlite/assets/index-qkvd2Q_p.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 133ms"
+          "✓ built in 117ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1439,22 +1439,22 @@
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
+      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
     },
     "pushLatency": {
       "contract": {
-        "actual": 6,
+        "actual": 5,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
           5,
-          5,
-          4,
-          6,
+          3,
           4,
           5,
-          5
+          5,
+          5,
+          4
         ],
         "pass": true
       }
