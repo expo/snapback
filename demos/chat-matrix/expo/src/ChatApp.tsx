@@ -189,6 +189,7 @@ function Header(props: {
           <Text style={styles.modelButtonText} numberOfLines={1}>{props.model}</Text>
         </Pressable>
         <Text testID="transport" style={styles.transport}>{props.transport}</Text>
+        <Text testID="stack-badge" style={styles.transport}>built with Expo</Text>
         <Pressable testID="new-chat" onPress={props.onNewChat} style={styles.newChat}>
           <Text style={styles.newChatText}>＋ New</Text>
         </Pressable>

@@ -1,0 +1,8 @@
+{
+  "name": "chat-matrix-exact-tui",
+  "private": true,
+  "scripts": {
+    "dev": "exact run tui",
+    "build": "exact build tui --release"
+  }
+}

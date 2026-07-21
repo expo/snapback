@@ -1,0 +1,44 @@
+use Screen from "@exact/tui-contract/screen.contract"
+use Panel from "@exact/tui-contract/panel.contract"
+use Log from "@exact/tui-contract/log.contract"
+use Tabs from "@exact/tui-contract/tabs.contract"
+use StatusBar from "@exact/tui-contract/status-bar.contract"
+use appendExchange from "./data.ts"
+use backendTabs from "./data.ts"
+
+// The chat-matrix UI on the Exact TUI target. The composer, backend tabs, and
+// transcript are real; the assistant is a scripted offline reply because the
+// TUI runtime deliberately has no network host call (LLP 0368) — recorded as
+// the platform boundary this cell exists to demonstrate.
+component ChatMatrixTui
+  state backend = "sqlite"
+  state draft = ""
+  state lines = ["chat-matrix · pick a backend, send a message", "offline cell: replies are scripted (no network host call in the TUI runtime)"]
+
+  derive tabs = backendTabs()
+
+  action chooseBackend(value) writes backend
+    backend = value
+
+  action changeDraft(value) writes draft
+    draft = value
+
+  action submit writes draft, lines
+    lines = appendExchange(lines, backend, draft.trim())
+    draft = ""
+
+  contract
+    has node testId="chat-root"
+    has node testId="thread"
+    has input label="Message"
+    has node testId="backend-tabs"
+
+  view
+    Screen(title="ChatMatrix · built with Exact + Contract (TUI)", testId="chat-root")
+      Tabs(tabs=tabs, active=backend, select=chooseBackend, testId="backend-tabs")
+      Panel(title=`conversation via ${backend}`, grow=1, testId="thread-panel")
+        Log(lines=lines, label="Conversation", follow=true, testId="thread")
+      row width="100%" height=1
+        text "▶ "
+        input value=draft placeholder="Message… (Enter sends)" label="Message" change=changeDraft submit=submit editable=true flex=1 height=1 testId="composer"
+      StatusBar(left=`backend: ${backend}`, right="built with Exact + Contract · Ctrl-\\ exit", testId="status")

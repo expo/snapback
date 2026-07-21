@@ -1,4 +1,4 @@
-# 0017 — chat-matrix: a 2×4 AI chat matrix (Exact vs Expo × Snapback/Convex/Supabase/SQLite)
+# 0017 — chat-matrix: an AI chat matrix (8 UI stacks × Snapback/Convex/Supabase/SQLite)
 
 ## 2026-07-20 — Build diary
 
@@ -166,3 +166,146 @@ declared.
 - Expo × anything beat Exact × anything on time-to-polished-keyboard today;
   Exact's counterweight is the contract block + Acto making verification a
   first-class artifact rather than a scraped DOM.
+
+## 2026-07-20 (later) — expanding to 8 stacks: SwiftUI, Flutter, React web, and three TUIs
+
+The matrix grew the same afternoon: SwiftUI (iOS + macOS), Flutter (iOS +
+web), a plain React web baseline, and three terminal UIs (Ratatui, Ink, and
+the Exact TUI target). All non-Expo cells go through the gateway's `/rpc`
+poll surface, so each new stack is a pure UI-authoring comparison. Every app
+now states its stack in the UI ("built with …") per request.
+
+### SwiftUI — the smoothest native cell of the day
+
+- `xcodegen` + `project.yml` patterned on partiful-matrix's SwiftUI cell:
+  both iOS and macOS targets **built on the first try**, and the app worked
+  on the first launch (snapback cell verified on-simulator, sqlite cell on
+  macOS, supabase after the badge rebuild — all via the gateway).
+- Keyboard avoidance cost **zero lines**: the composer sits in
+  `safeAreaInset(edge: .bottom)` and iOS moves the safe area with the
+  keyboard. Screenshot shows the composer riding directly atop the keyboard —
+  the thing Expo needed react-native-keyboard-controller for and Exact
+  hasn't built yet is simply the SwiftUI default.
+- `simctl launch` env delivery (`SIMCTL_CHILD_*`) works exactly as documented
+  — ProcessInfo sees the vars. Worth noting because Flutter's doesn't (below).
+- Whole app: ~500 lines of Swift across 5 files, no dependencies.
+
+### Flutter — solid, with one real environment trap
+
+- `flutter create` + one `main.dart` (~450 lines); `flutter analyze` clean on
+  the second pass. Web needs a conditional import (`dart:io` is a compile
+  error on web) — the `env_stub.dart if (dart.library.io) env_io.dart`
+  incantation is arcane but standard.
+- **Trap: `Platform.environment` on iOS does not see simctl-delivered env.**
+  `ps eww` shows `CHAT_AUTODEMO=1` on the Runner process, but Dart reports it
+  absent — so `SIMCTL_CHILD_*` hooks silently no-op. The portable hooks are
+  `--dart-define` at build time (native) and `Uri.base.queryParameters` (web).
+  Cost me three rebuild-relaunch cycles to isolate.
+- Keyboard: Scaffold's default `resizeToAvoidBottomInset` just works; the
+  composer tracks the keyboard with no extra code. Between SwiftUI, Flutter,
+  and Expo+keyboard-controller, keyboard avoidance is a solved problem
+  everywhere except Exact's native hosts.
+- Flutter web renders to canvas, so the CDP innerText probe used on every
+  other web cell is blind — verification fell back to screenshot plus
+  gateway side-effect. Fine for acceptance, but semantic-tree-based tooling
+  (the Acto thesis again) has nothing to grab.
+- iOS convex cell and web supabase cell verified end-to-end.
+
+### React web — the baseline earns its name
+
+Vite + React DOM + fetch/poll: 69 packages, typecheck clean, **verified
+end-to-end on the first browser load** (snapback cell, full reply). Fastest
+cell of the entire matrix to working. This is the reference point every
+richer stack should justify itself against.
+
+### Ratatui and Ink — terminals were easier than expected
+
+- Both TUIs completed the full AI loop on their first tmux run (Ratatui on
+  convex, Ink on snapback), including the streaming caret rendering.
+- **Ratatui** (~460 lines Rust): the mpsc worker-thread pattern (UI thread
+  never touches HTTP) fell out naturally; blocking reqwest on the worker,
+  60ms event poll on the UI thread. Most of the line count is layout/drawing
+  — the framework gives you nothing for free, but nothing fights you either.
+- **Ink** (~230 lines): the React mental model transfers wholesale — the
+  providers/hooks shape from the web baseline ported almost line-for-line
+  (`useEffect` + `setInterval` poll, `useInput` for keys). Bun runs the TSX
+  entry directly, no build step. Shortest path from "web React dev" to
+  "working TUI" by far.
+- Both got an `--autodemo` flag that sends a scripted message, exits when the
+  assistant reply completes, and prints the transcript — which makes TUI
+  acceptance a plain exit-code + stdout check, no pane-scraping needed.
+
+### Exact TUI — a real target with a real (intentional) boundary
+
+- Exact ships a TUI arm (LLP 0368): `exact-tui.json` manifest + a `.contract`
+  entry over `@exact/tui-contract` components (Screen/Panel/Log/Tabs/
+  StatusBar + patterns). Authoring the chat UI was genuinely pleasant and the
+  compiler caught my mistakes (TextField has no `submit` prop; the raw
+  `input` node does — same discipline as the GUI contract).
+- `exact run tui` compiled my app to a 973KB HBC on the first try, from a
+  project **outside** the exact repo. Two caveats: `exact contract meta`
+  (sidecar generation) must run from inside an Exact checkout
+  (exact-verify.json discovery), and the CLI help still says `macos` is the
+  only `run` platform — the README/RFC are ahead of the help text.
+- **The cell is offline by design**: the TUI runtime has no network host
+  call, so this chat app cannot reach the gateway. The cell renders the real
+  UI with a scripted reply that states the boundary. That's the honest
+  comparison row: 7 of 8 stacks can be an AI chat client today; the Exact
+  TUI target can't yet, by explicit LLP 0368 scoping.
+- Launching the host hit fleet drift: the exact checkout's vendored macOS
+  Hermes slice is currently missing (host rebuild panics in ibex build.rs;
+  `HERMES_LIB_DIR` pointed at snapback's slice is the workaround), and the
+  prebuilt `exact-host-tui` from this morning exits 1 silently — even for
+  the repo's own tui-blackjack example — so the launch failure is
+  environmental, not app-side.
+
+### ExactApp iOS host — still blocked upstream, now differently
+
+The first-time simulator build of ExactApp failed at the asset-catalog stage
+(`HDRFixtures.xcassets` has no `AppIcon` set — worked around with
+`ASSETCATALOG_COMPILER_APPICON_NAME=`), and the retry then failed at
+`ExactRuntimeShell.swift:4790: cannot find 'nativeHostIdentity' in scope` —
+the shared checkout drifted mid-build under concurrent fleet sessions. The
+Exact × iOS cell stays app-ready but host-blocked (ENG-23311 territory plus
+local checkout churn).
+
+### Round three: Bubble Tea, Textual, OpenTUI
+
+Three more terminal stacks, same product, same gateway. All three completed
+the AI loop on their first real run — at this point the portable `/rpc`
+surface has made new cells almost mechanical.
+
+- **Bubble Tea** (Go, ~430 lines): the Elm architecture is the strictest
+  model of the three — all effects live in `tea.Cmd` closures returning typed
+  messages, so the HTTP/poll wiring is more ceremony than Ink's
+  `useEffect`+`setInterval` but is impossible to get subtly wrong. Go compiled
+  clean on the first `go build`. Lip Gloss styling is pleasant. The toolchain
+  wasn't installed (`brew install go`) — heaviest setup of the TUI row.
+- **Textual** (Python, ~230 lines): the "web dev for terminals" pitch is
+  real — CSS stylesheet in the app class, widgets with ids, `set_interval`
+  polling, and it **rendered the assistant's markdown reply with headings
+  and bullets without being asked**. uv's PEP 723 script header made the
+  whole environment (`uv run chat.py`) a non-event: 16 packages in 15ms.
+  One convention difference: Tab moves focus in Textual, so backend cycling
+  lives on Ctrl-B here.
+- **OpenTUI** (React/TS, ~230 lines): API discovered entirely from the
+  package README in node_modules — `<box>/<text>/<input>` JSX, `useKeyboard`,
+  flexbox-style props. Closest sibling to Ink; younger (`<input>` has no
+  controlled-clear, I remounted it with a key to clear the composer), but the
+  renderer felt fast and the styling model (nested `<span>` with fg/bg) is
+  nicer than Ink's for inline color.
+- Comparative feel across the five networked TUIs: Ink and OpenTUI are the
+  shortest path for anyone who knows React; Textual is the most batteries-
+  included (markdown, CSS, focus system); Bubble Tea is the most disciplined;
+  Ratatui is the most manual but the most predictable. All five support the
+  same `--autodemo` exit-with-transcript acceptance hook now.
+
+### Updated verdict snapshots
+
+- Time-to-working-cell, fastest first: **React web**, **Ink**, **SwiftUI**,
+  **Flutter**, **Ratatui**, Expo (counting its earlier keyboard tuning),
+  Exact GUI, Exact TUI (blocked at the finish line).
+- Keyboard avoidance for free: SwiftUI and Flutter. Expo needed one library.
+  Exact still needs the primitive.
+- The gateway-poll architecture paid for itself today: four new stacks and
+  not one backend-specific line had to be written in any of them.
