@@ -217,9 +217,15 @@ async function boot() {
         rootId: hydrationManifest.rootId,
         manifest: hydrationManifest,
         onResult(result) {
-          hydrationResult = { ...result };
+          // @ref LLP 0063#workstream-7--complete-the-application-platform —
+          // production adoption evidence ends before live browser turns.
+          // The Exact runtime retains its result object while later responsive
+          // and live updates run. Freeze the completed adoption turn here so
+          // normal post-adoption updates cannot rewrite the production proof.
+          const adoptionSnapshot = structuredClone(result);
+          hydrationResult = adoptionSnapshot;
           (globalThis as { __exactContractHydrationResult?: unknown }).__exactContractHydrationResult = {
-            ...result,
+            ...adoptionSnapshot,
             mountPath: 'partitime-static-document',
           };
           resolveHydrationReported();

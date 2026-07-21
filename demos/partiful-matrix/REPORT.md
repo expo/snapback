@@ -1792,12 +1792,19 @@ full surface participant. Source-Exact runtimes with partition rotation retain
 the separately tested keyed provider.
 
 On the unchanged frozen workload, Contract × Snapback moved from 738,080 to
-659,495 minified bytes and from 188,851 to 165,829 deterministic-gzip bytes. A
-targeted browser rerun passes 4/4 including fallback-disabled push. The full
-Contract package test suite passes, as do Exact's 32-test keyed-query oracle,
-its 35-test mutation-projection oracle, npm package dry-run, and the production
-Snapback build. The remaining attribution is candid: the Snapback client root
-still contributes 158,644 rendered bytes, while the compiled Contract views
-and shared Exact runtime dominate every Contract cell. All four frozen byte
-thresholds therefore remain red; this is a second measured Snapback-owned
-remediation checkpoint, not Step 4 closure.
+659,528 minified bytes and from 188,851 to 165,860 deterministic-gzip bytes.
+Review reruns pass the full 43/43 browser matrix, the 19/19 product-UI gate,
+and the 9/9 immutable production-web gate, including fallback-disabled push.
+The production rerun first exposed a 7/9 evidence-only failure: the completed
+Exact adoption result was shallow-copied, so normal responsive/live updates
+could later mutate its shared `mismatches` array. The boot path now snapshots
+that result at the adoption callback; the same live updates still occur, but
+cannot rewrite the historical adoption witness.
+
+The full Contract package test suite passes, as do Exact's 32-test keyed-query
+oracle, its 35-test mutation-projection oracle, npm package dry-run, and the
+production Snapback build. The remaining attribution is candid: the Snapback
+client root still contributes 158,644 rendered bytes, while the compiled
+Contract views and shared Exact runtime dominate every Contract cell. All four
+frozen byte thresholds therefore remain red; this is a second measured
+Snapback-owned remediation checkpoint, not Step 4 closure.

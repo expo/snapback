@@ -1268,9 +1268,19 @@ distinction was more ergonomic than inventing app-local bridge glue: the
 package boundary got narrower and the demo got simpler.
 
 On the frozen production workload, Contract × Snapback fell from 738,080 to
-659,495 minified bytes and from 188,851 to 165,829 deterministic-gzip bytes.
-A targeted browser rerun passes 4/4, including fallback-disabled push. The
-package suites, Exact's 32-test keyed oracle, the 35-test mutation-projection
-oracle, and the production build pass. This is still not a budget exit: the
-Contract views/runtime dominate the common cells and the Snapback client root
-remains 158,644 rendered bytes in this cell.
+659,528 minified bytes and from 188,851 to 165,860 deterministic-gzip bytes.
+Review reruns pass 43/43 ordinary browser checks, 19/19 product-UI checks, and
+9/9 production-web checks, including fallback-disabled push. The package
+suites, Exact's 32-test keyed oracle, the 35-test mutation-projection oracle,
+and the production build pass. This is still not a budget exit: the Contract
+views/runtime dominate the common cells and the Snapback client root remains
+158,644 rendered bytes in this cell.
+
+The production rerun was worth doing separately. It first fell to 7/9 even
+when I put the old full surface back in an A/B run. Exact's adoption callback
+had passed, but Partitime kept only a shallow copy of the result; the normal
+post-adoption viewport and live-data turns later appended to the same
+`mismatches` array. That made the evidence look as though adoption itself had
+missed anchors. Deep-snapshotting the result in the callback restored the
+honest boundary: adoption remains immutable evidence, while responsive and
+live updates continue on the mounted tree.
