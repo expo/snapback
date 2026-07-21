@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-19
-reviewed-commit: HEAD
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # Agent principals and scoped grants

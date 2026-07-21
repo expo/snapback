@@ -9,13 +9,13 @@ id: meta.capabilities
 order: 2
 audience: agent-first
 capabilities: []
-authorities: [llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, src/server.rs, src/admin.rs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
+authorities: [llp/0041-packaged-dev-loop.rfc.md, llp/0061-agent-first-snapback-guide.rfc.md, llp/0064-native-client-surfaces.rfc.md, src/server.rs, src/admin.rs, packages/snapback-cli/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-react/index.mjs]
 examples: []
 status: current
 targets: [all]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # Capability index
@@ -68,6 +68,7 @@ with the Snapback label and `guide-gap` in the title.
 | clients.react | First-class React external-store hook over generated functions | react, hooks, useSyncExternalStore | local | shipped | `useSnapbackQuery` in packages/snapback-react/index.mjs | llp/0012, llp/0063 | clients/react.md |
 | clients.react-expo | React Expo Online surface; independent Android and iOS implementation evidence | react native, expo, android, ios, mobile | local | shipped | `profileId` in demos/partiful-matrix/tests/acceptance/native-react-expo.mjs | llp/0012, llp/0064 | clients/react-expo.md |
 | operating.server-lifecycle | Start/reuse/stop servers safely; ports; provenance | run server, ports, lifecycle | local | shipped | `startServer` in demos/_kit/server-process.mjs | llp/0010 | testing/acceptance.md |
+| operating.packaged-dev-loop | Install a native runtime; scaffold, generate, doctor, and watch/load through one CLI | install, new app, dev, watch, packaged runtime | local | partial | `runDev` in packages/snapback-cli/index.mjs | llp/0041 | getting-started/the-authoring-loop.md |
 | operating.inspect | Health and inspect projections | inspect, status, debug | local | shipped | route /inspect | llp/0017, llp/0031 | getting-started/the-authoring-loop.md |
 | operating.secrets-config | App secrets/config: declare, set, verify — write-only | secrets, config, api keys | local | shipped | route /_snapback/api/config/status | llp/0036 | operating/secrets-and-config.md |
 | operating.admin-console | Browser inspection surface | admin, console, dashboard | local | shipped | route /_snapback/admin | llp/0017 | operating/admin-console.md |
@@ -236,7 +237,8 @@ you never build around a feature because you didn't know it existed.
 - [Your first backend](./getting-started/your-first-backend.md) — schema,
   functions, handlers, seed, codegen, load, query.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
-  regenerate → acceptance test → inspect.
+  regenerate → acceptance test → inspect, including the packaged
+  `new`/`generate`/`dev`/`doctor` loop.
 
 ### Backend
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,
@@ -1283,7 +1285,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-19
-reviewed-commit: HEAD
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # Agent principals and scoped grants
@@ -2052,7 +2054,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # The Contract adapter
@@ -2663,7 +2665,7 @@ status: current
 targets: [local]
 maturity: partial
 reviewed: 2026-07-19
-reviewed-commit: HEAD
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # The artifact-driven app CLI
@@ -3409,14 +3411,14 @@ title: The authoring loop
 id: getting-started.the-authoring-loop
 order: 2
 audience: agent-first
-capabilities: [backend.codegen, testing.acceptance, operating.inspect]
-authorities: [llp/0010-agent-dx-and-acceptance.spec.md, packages/snapback-codegen/index.mjs, scripts/verify-local-proof]
-examples: [demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
+capabilities: [backend.codegen, operating.packaged-dev-loop, testing.acceptance, operating.inspect]
+authorities: [llp/0010-agent-dx-and-acceptance.spec.md, llp/0041-packaged-dev-loop.rfc.md, packages/snapback-cli/index.mjs, packages/snapback-codegen/index.mjs, scripts/snapback-package-cold-install.mjs, scripts/verify-local-proof]
+examples: [packages/snapback-cli/templates/todo-contract, demos/todo/tests/acceptance/headless.mjs, demos/todo/surfaces/headless/run.mjs]
 status: current
 targets: [local]
-maturity: shipped
-reviewed: 2026-07-17
-reviewed-commit: 0ef40d4a2c1856b841585474602878b6d96a3c59
+maturity: partial
+reviewed: 2026-07-20
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # The authoring loop
@@ -3431,6 +3433,25 @@ The cycle you repeat while building on Snapback:
 edit snapback/*.mjs  ->  regenerate  ->  run the acceptance suite  ->  inspect
 ```
 
+From an installed package, start with the same loop through the public CLI:
+
+```sh
+snapback doctor --json
+snapback new my-app --template todo-contract
+cd my-app
+bun install
+snapback dev snapback
+```
+
+`@snapback/cli` supplies the `snapback` command. On Apple-silicon macOS its
+optional `@snapback/runtime-darwin-arm64` package carries the prebuilt server
+and Hermes framework; `doctor` launches that relocated binary with ambient
+dynamic-loader overrides removed. Other host tuples currently report
+`SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks disguised
+as installs. Public registry publication is still pending, so these commands
+describe the packed/published surface but require the retained tarball closure
+until the registry gate lands.
+
 ## 1. Edit
 
 Change `schema.mjs`, `functions.mjs`, `handlers.mjs`, or `seed.json`
@@ -3441,6 +3462,22 @@ Change `schema.mjs`, `functions.mjs`, `handlers.mjs`, or `seed.json`
 ```sh
 node packages/snapback-codegen/index.mjs <app>/snapback
 ```
+
+Outside this repository, use the packaged equivalent:
+
+```sh
+snapback generate snapback
+```
+
+`snapback dev snapback` runs that generation first, starts or attaches to the
+native server via `.snapback/dev.ready.json`, loads the generated schema and
+functions, seeds only a newly created managed database, and watches source
+changes through one coalesced generation at a time. The attach path validates
+the database target before reading the managed owner-only token. A different
+target fails with `SNAPBACK_DEV_SERVER_TARGET_MISMATCH`. If initial attach/load
+fails, a server started by this command is stopped. If later generation
+succeeds but live load fails, the event state is `generated-but-not-loaded`;
+generation errors are the distinct `generation-failed` state.
 
 Codegen is deterministic and **fails closed** — on error it writes nothing
 and exits 1 with stable diagnostic codes on stderr, so there is never
@@ -3498,6 +3535,12 @@ failures everywhere carry stable `SNAPBACK_*` diagnostic codes
 - **Do not point a new suite at a server you didn't start.** Suites own
   their server lifecycle; see
   [testing/acceptance](../testing/acceptance.md).
+- **Do not parse server logs for readiness.** `snapback dev` consumes the
+  ready-file descriptor and verifies the live target; log text is not a
+  lifecycle protocol.
+- **Do not set `SNAPBACK_RUNTIME_BINARY` in ordinary installed projects.** It
+  is a contributor/test override. Installed apps should exercise the selected
+  platform runtime package so `doctor` verifies the artifact users receive.
 
 ---
 
@@ -4757,7 +4800,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: HEAD
+reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
 ---
 
 # Acceptance testing

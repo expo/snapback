@@ -50,7 +50,8 @@ you never build around a feature because you didn't know it existed.
 - [Your first backend](./getting-started/your-first-backend.md) — schema,
   functions, handlers, seed, codegen, load, query.
 - [The authoring loop](./getting-started/the-authoring-loop.md) — edit →
-  regenerate → acceptance test → inspect.
+  regenerate → acceptance test → inspect, including the packaged
+  `new`/`generate`/`dev`/`doctor` loop.
 
 ### Backend
 - [Queries](./backend/queries.md) — indexed snapshot reads, server scoping,

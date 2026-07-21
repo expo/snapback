@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "79142108562c7b5891af336214659bfe09f615ad"
+    "commit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7"
   },
   "nav": {
     ".": [
@@ -213,8 +213,8 @@
         "demos/_kit/tests/auth-handshake.mjs"
       ],
       "reviewed": "2026-07-19",
-      "reviewedCommit": "HEAD",
-      "sha256": "e0c6c0c1aa2eb2b30cda76aa23af446cb9890078e439cbf94bd54cb2fcc7b7ad",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "92d47555dae17bd9d9e6d578c2d8b067a3e95939dda7d5e02d1f7cfd8956ad79",
       "snippets": []
     },
     "auth.protecting-data": {
@@ -647,17 +647,19 @@
       "maturity": "shipped",
       "capabilities": [],
       "authorities": [
+        "llp/0041-packaged-dev-loop.rfc.md",
         "llp/0061-agent-first-snapback-guide.rfc.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "src/server.rs",
         "src/admin.rs",
+        "packages/snapback-cli/index.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs"
       ],
       "examples": [],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "506b622cd3",
-      "sha256": "a7195fef1df323b246b59b6e7e9608dbb43b4f2de681ef87bf05460a9b3d5623",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "33d4d42cf3ebdd07cbc5c715745707dd90925ba7521afef8d2eb0d3afb74351e",
       "snippets": []
     },
     "clients.app-cli": {
@@ -684,8 +686,8 @@
         "demos/todo/snapback/generated"
       ],
       "reviewed": "2026-07-19",
-      "reviewedCommit": "HEAD",
-      "sha256": "64bfedd0246483c1ca51a6f0a35acfaa6d35fedd2e35d57baf2f8e0c79e4176f",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "98642d7294b6072ac3866363be88ace6d3bcf7f3db562bfff8dfa66bb347e0bc",
       "snippets": []
     },
     "clients.contract-adapter": {
@@ -723,8 +725,8 @@
         "demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "29f59a9e1c5c547761b12d8b2b954e43bceadd0ed16e7d54da56cc2ab4523088",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "bd1dd3029335a5e2dc68d5982bb50f4d7053e695652ca7a05798bfa4f827aa95",
       "snippets": [
         {
           "lang": "contract",
@@ -940,24 +942,29 @@
       "targets": [
         "local"
       ],
-      "maturity": "shipped",
+      "maturity": "partial",
       "capabilities": [
         "backend.codegen",
+        "operating.packaged-dev-loop",
         "testing.acceptance",
         "operating.inspect"
       ],
       "authorities": [
         "llp/0010-agent-dx-and-acceptance.spec.md",
+        "llp/0041-packaged-dev-loop.rfc.md",
+        "packages/snapback-cli/index.mjs",
         "packages/snapback-codegen/index.mjs",
+        "scripts/snapback-package-cold-install.mjs",
         "scripts/verify-local-proof"
       ],
       "examples": [
+        "packages/snapback-cli/templates/todo-contract",
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
-      "sha256": "7fcaf74db00d65c80f1ae8c87305d3000185f21165ec2603e0b0f98cca176c31",
+      "reviewed": "2026-07-20",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "f289774422ec4437b4a637bb83024098f602dd976343a6177c5c0f8adca6f5ba",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1059,7 +1066,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "9d8a21c4840403855d254cf3f8f1ff2feafef2f4a7283f873bf38f38b751f223",
+      "sha256": "8befb72745dd14b01ce19751d0a3763b08eaa6f6811fc82fa0b3914bbe1be384",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1490,8 +1497,8 @@
         "demos/card-game/tests/acceptance/authority-scope.mjs"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "HEAD",
-      "sha256": "896d092a808bcb43997eebf3e90f8c314a4b50d82635fd5ce28fd1b50f3daeeb",
+      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
+      "sha256": "85a8f2e43bd82668106eec916f2fc68f60e886bd165041c7dc412f07927bf4a0",
       "snippets": [
         {
           "lang": "js",
@@ -1540,6 +1547,7 @@
       "operating.guide-mcp",
       "operating.host-ops",
       "operating.inspect",
+      "operating.packaged-dev-loop",
       "operating.secrets-config",
       "operating.served-guide",
       "operating.server-lifecycle",
@@ -1555,5 +1563,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "2d0c3427b320ae425cb1c88b4319ddf60564de8d412d24295799177788cb9600"
+  "contentHash": "e6db86df552e46c2fb384dd816b3d6e251eb0e1631559af023ebb1ca7260d2a9"
 }
