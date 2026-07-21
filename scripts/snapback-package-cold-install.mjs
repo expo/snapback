@@ -262,8 +262,11 @@ await build({
   const receipt = {
     schemaVersion: 'snapback.package-cold-install.v1',
     ok: true,
+    claimTreatment: 'checkpoint',
+    claimSatisfied: false,
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
+    publicationMode: ledger.mode,
     scopePreset: ledger.scopePreset,
     version: ledger.version,
     packages: ledger.packages.map((entry) => ({
@@ -289,6 +292,20 @@ await build({
       resolvedDependencyCount: Object.keys(tree.dependencies ?? {}).length,
       browserBundleBytes: Buffer.byteLength(browserBundle),
     },
+    nonclaims: [
+      {
+        id: 'public-registry-install',
+        reason: 'The proof installs immutable npm tarballs; the @snapback packages are not published in a public registry.',
+      },
+      {
+        id: 'separately-provisioned-clean-machine',
+        reason: 'The proof uses a fresh external directory on the development host, not a separately provisioned clean machine.',
+      },
+      {
+        id: 'non-darwin-arm64-runtime',
+        reason: 'The packaged native runtime profile is Apple-silicon macOS only.',
+      },
+    ],
   };
   const rendered = `${JSON.stringify(receipt, null, 2)}\n`;
   if (receiptPath) writeFileSync(resolve(receiptPath), rendered);
