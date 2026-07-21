@@ -1,0 +1,158 @@
+{
+  "schemaVersion": "partitime.final-exact-agent-operability.v1",
+  "claimId": "FINAL.EXACT_AGENT_OPERABILITY",
+  "auditCompleted": true,
+  "ok": true,
+  "claimSatisfied": true,
+  "outcome": "pass",
+  "skipPolicy": "forbidden",
+  "skipped": 0,
+  "recordedAt": "2026-07-21T12:05:39.100Z",
+  "repository": {
+    "snapbackRevision": "d368f7d2d77c19286350bbad9eb3a6db9845efb3",
+    "exactRevision": "ca9e94fd8f96a2552bf19c6915c44e83e9f8c2b8"
+  },
+  "inputs": {
+    "exactPlan": {
+      "repository": "exact",
+      "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
+      "sha256": "a309ea4a753d76df5b9cf1cac0f34f58daa8a32ce5cebe83cbda78233c67d5be"
+    },
+    "exactRegistryCheck": {
+      "repository": "exact",
+      "path": "scripts/check-agent-registry.mjs",
+      "sha256": "e38d5963408975c17c74c52af9e5008b8b986aa973e7a973ab550eff90917845"
+    },
+    "exactInspectionAcceptance": {
+      "repository": "exact",
+      "path": "packages/exact-devtools/src/agent/contract-inspection.test.ts",
+      "sha256": "6bb8a0ab8ce2e66c11a6bc000c9a7d546d049083a6b80be4e617c0a6f28abeac"
+    },
+    "partitimeAgentSession": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
+      "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
+    }
+  },
+  "summary": {
+    "passed": 5,
+    "red": 0,
+    "nonclaims": 0,
+    "total": 5
+  },
+  "requirements": [
+    {
+      "id": "exact-registry-check-registered",
+      "status": "pass",
+      "reasonCode": "FINAL_AGENT_REGISTRY_CHECK_REGISTERED",
+      "evidence": {
+        "registry": {
+          "repository": "exact",
+          "path": "exact-verify.json",
+          "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
+        },
+        "checkId": "agent-registry-completeness",
+        "command": "bun scripts/check-agent-registry.mjs"
+      }
+    },
+    {
+      "id": "registry-http-mcp-typed-client-parity",
+      "status": "pass",
+      "reasonCode": "FINAL_AGENT_TRANSPORT_PARITY_PASSED",
+      "evidence": {
+        "run": {
+          "command": "bun scripts/check-agent-registry.mjs --json",
+          "status": 0,
+          "stdoutSha256": "8dd50f07c035702b47f46e3fc3fe6dea874fe08ef045aeb6a5881eb1395a492f",
+          "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "operationCount": 45,
+          "requiredOperations": [
+            "exact_contract_bindings",
+            "exact_contract_mutation_outcomes",
+            "exact_contract_source_map",
+            "exact_contract_verify_claims"
+          ],
+          "errors": []
+        },
+        "registry": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/operations/registry.ts",
+          "sha256": "5bf1c8cada360268eb41f93b8c046122a3d2dde7772a3fa380c788d3a5b3b384"
+        },
+        "http": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/server.ts",
+          "sha256": "f8e8fafda61944fd0354198160cc442750a129b57feab4c77ea88c6f00f68d8b"
+        },
+        "mcp": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/mcp-server.ts",
+          "sha256": "6f261f08ca2b3c514e6174c5f49c42ae5bf8336f37d5552b197eaebbce300a29"
+        },
+        "typedClient": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/client.ts",
+          "sha256": "ef7995f9949277092b3723e1388e2dfa1e855b29bb15e375a3e975077c49db35"
+        }
+      }
+    },
+    {
+      "id": "failed-rsvp-end-to-end",
+      "status": "pass",
+      "reasonCode": "FINAL_AGENT_FAILED_RSVP_PASSED",
+      "evidence": {
+        "run": {
+          "command": "bun test packages/exact-devtools/src/agent/contract-inspection.test.ts",
+          "status": 0,
+          "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
+          "stderrSha256": "86eca1f2cea078f57cb38719fa51d7efb725cc49fcd00580932b00a51945eed4",
+          "passed": 8,
+          "failed": 0,
+          "fixture": "synthetic failing RSVP provider"
+        },
+        "implementation": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/contract-inspection.ts",
+          "sha256": "b22a15353658e2320afe41ed51fd1d509e8d3cb3aec21ec2dca829952cdf24f8"
+        },
+        "acceptance": {
+          "repository": "exact",
+          "path": "packages/exact-devtools/src/agent/contract-inspection.test.ts",
+          "sha256": "6bb8a0ab8ce2e66c11a6bc000c9a7d546d049083a6b80be4e617c0a6f28abeac"
+        },
+        "facts": [
+          "owning-action",
+          "mutation-descriptor",
+          "provider-receipt-and-error-class",
+          "affected-query-cell",
+          "current-render-branch",
+          "source-spans"
+        ]
+      }
+    },
+    {
+      "id": "one-causal-trace-surface",
+      "status": "pass",
+      "reasonCode": "FINAL_AGENT_ONE_TRACE_SURFACE_PASSED",
+      "evidence": {
+        "sharedOperation": "exact_causal_trace",
+        "parallelContractTraceOperations": [],
+        "operationInventorySha256": "2ab52f5ecc848d9f9359087885ea443293b2000718f4384de0decc2efa04a44b"
+      }
+    },
+    {
+      "id": "partitime-list-explanation",
+      "status": "pass",
+      "reasonCode": "FINAL_AGENT_PARTITIME_EXPLANATION_PASSED",
+      "evidence": {
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
+          "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
+        },
+        "question": "Why did the bound Partitime event list not update after createEvent?",
+        "reason": "ready: the attempt holds an authoritative value. Connection is 'disconnected': no active transport and no retry in progress.",
+        "activeSubscriptions": 1
+      }
+    }
+  ],
+  "conclusion": "Exact LLP 0373 phase-5 operations pass the failed-RSVP fixture and registry/HTTP/MCP/typed-client parity; Partitime retains an app-specific list explanation."
+}

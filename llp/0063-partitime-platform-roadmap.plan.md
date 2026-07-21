@@ -176,6 +176,15 @@ forbids skips. The current retained receipt truthfully records 2 passing
 desktop-Chrome rows and 19 red rows; it makes the residual gate executable but
 does not promote `STEP4.PRODUCTION_WEB`, `STEP4.BUDGETS`, or Step 4 exit.)
 
+**Revised (Exact agent-operability import):** 2026-07-21 (the cumulative
+`FINAL.EXACT_AGENT_OPERABILITY` witness now executes Exact LLP 0373's
+failed-RSVP acceptance fixture and registered operation-parity gate, binding
+the four Contract read operations across the registry, HTTP, MCP, and typed
+client while confirming mutation tracing remains on the single shared
+`exact_causal_trace` surface. It also retains Partitime's app-specific
+disconnected-list explanation. This closes the standalone evidence receipt;
+shared-manifest promotion and the immutable final aggregate remain separate.)
+
 ## Summary
 
 The Partitime experiment built one Partiful-shaped product as React, Contract,
