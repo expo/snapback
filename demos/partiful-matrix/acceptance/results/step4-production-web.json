@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T21:18:27.502Z",
+  "recordedAt": "2026-07-21T21:19:32.962Z",
   "repository": {
-    "snapbackRevision": "328a9a29b55f6ad2c2d4954497bd948f1a89fc43",
+    "snapbackRevision": "d316effc4cc4ee7f837b4845a8ec1e83c10c6d68",
     "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
   },
   "inputs": {
@@ -27,7 +27,7 @@
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "sha256": "492be570bc98d1d8404985b0f587e3f95d2b1948bb80f23c6b95e86fc4322edc"
+      "sha256": "b4ec3b86d679b7885dfbe3f0982a64207e980ba7dcbcdf4fed9e8c7b7f1c53e6"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
@@ -506,7 +506,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "sha256": "492be570bc98d1d8404985b0f587e3f95d2b1948bb80f23c6b95e86fc4322edc"
+          "sha256": "b4ec3b86d679b7885dfbe3f0982a64207e980ba7dcbcdf4fed9e8c7b7f1c53e6"
         },
         "issues": [
           "receipt-not-green"
@@ -702,24 +702,88 @@
           {
             "environment": "desktop-chrome",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "partitime-create-dialog"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run trapped focus inside the create-event dialog and restored it to the trigger after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+                "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7",
+                "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
+              }
             ],
-            "status": "red",
-            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-            "evidence": []
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.129"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
           },
           {
             "environment": "desktop-chrome",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "partitime-visible-event-copy"
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Chrome CDP run selected visible canonical event text with browser find and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
+                "sha256": "4462b0810f09b66bd87a60fe2ce6e6d20a455bbde029119ab8955f1215f281b6",
+                "result": "contract × snapback exposes visible content to browser find-on-page"
+              }
             ],
-            "status": "red",
-            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-            "evidence": []
+            "browser": {
+              "name": "Google Chrome",
+              "version": "Google Chrome 150.0.7871.129"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "matched": true,
+              "selection": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "usableAfterFind": true
+            }
           },
           {
             "environment": "desktop-firefox",
