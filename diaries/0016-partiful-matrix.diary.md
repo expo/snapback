@@ -1099,3 +1099,90 @@ them would need a declarative unique-key upsert or another portable operation,
 not this replace pattern. Compared with Convex or Supabase, the native replay
 requirement asks more of mutation authoring, but it also makes the offline
 claim mechanically inspectable instead of depending on app-authored optimism.
+
+## 2026-07-20 — Exact Native crossed both mobile lifecycle boundaries
+
+The decisive result was not that Rust could compile for two mobile targets; it
+was that one generated provider sequence survived both real host lifecycles.
+Exact now has small dedicated no-Hermes acceptance applications for iOS and
+Android. Each starts the retained Partitime owner, renders its status from the
+same C ABI bitmask, is backgrounded by the actual OS, and reconnects through the
+foreground callback. Both retained receipts reached `0x7ff`.
+
+The provider proof became better while turning it into a carrier. My first
+sequence called a rebase successful while one post mutation was still pending.
+That was useful intermediate state, but it was not convergence. The final
+carrier settles RSVP and post against authoritative rows and asserts an empty
+pending set. It then queues a generated create-event mutation specifically for
+the authority-rotation test. That separation makes the two facts crisp:
+reconnect converges, and an unrelated predecessor mutation remains durable but
+suspended when the authority instance changes under the same user id.
+
+Android exposed the most concrete native integration defect. The first APK
+packaged both libraries but the JNI wrapper's ELF dependency named an absolute
+workstation path, so the loader could not find the Rust carrier on-device.
+Giving the Rust shared object an explicit SONAME and telling CMake not to reuse
+the imported path as the dependency name fixed the actual boundary. Inspecting
+the packaged ELF graph caught something a host unit test could not.
+
+The iOS carrier was comparatively direct: XcodeGen declares the target, a build
+phase cross-compiles a universal simulator archive, Swift lifecycle callbacks
+call the C ABI, and launching Settings creates a reproducible background cycle.
+The Android module deliberately avoids the existing Hermes reference Activity;
+it is a small Kotlin/JNI release app so Contract-on-Hermes cannot accidentally
+stand in for Exact Native Parity.
+
+Snapback's side imports the evidence from an immutable Exact commit and
+reconstructs every source digest with `git show`; it does not trust a copied
+green JSON file. This cross-repository ceremony adds friction, but the ownership
+is much clearer than a monorepo-relative smoke test: Exact owns the carriers and
+their registry, Snapback owns the capability contract and cumulative claim.
+
+The limit is important. These are simulator/emulator roadmap proofs, not
+physical-device performance or complete mobile-product certification. Exact's
+renderer, IME, accessibility, pairing, and broader packaging gates remain open.
+
+## 2026-07-20 — The external loop stopped depending on repository topology
+
+The strongest Step 5 result is mundane in the best way: a fresh directory can
+now install seven tarballs, launch a relocated native Snapback/Hermes runtime,
+generate the real Partitime backend offline, scaffold a second app, start and
+load it through `snapback dev`, observe a source edit regenerate and hot-load,
+refuse a ready-file aimed at the wrong database, and stop without leaving a
+stale descriptor. The same closure bundles the headless, React, and Contract
+adapters for a browser. None of those operations reaches a sibling checkout or
+builds Hermes from source.
+
+The native distribution detail mattered. The existing macOS binary carried
+only checkout-absolute Hermes RPATHs, so copying it would have produced a
+plausible tarball that crashed on another machine. Adding
+`@loader_path/../Frameworks`, packaging the executable at `bin/snapback`, and
+running doctor with every `DYLD_*` override removed made relocatability an
+executed fact. The first platform package is deliberately only
+darwin-arm64—unsupported hosts get a stable capability error instead of an
+accidental source build.
+
+Ready-file attachment exposed a subtler boundary. A file-backed server mints
+its admin token beside the database, while the native CLI intentionally trusts
+only a token mechanically adjacent to the ready file. The wrapper now accepts
+the database-side carrier only after the descriptor's database and token paths
+both equal the project-managed targets and the token is an owner-only regular
+file; it then passes the token explicitly to the same native host operation.
+That keeps the lifecycle vocabulary shared without weakening the native CLI's
+general ready-file trust rule.
+
+The self-review caught two lifecycle bugs that the first happy-path proof did
+not: watched reload called the seed reset again, which would erase dev data on
+every source edit, and a failed initial attach/load could leave the process it
+had just started running. Seed application is now restricted to a genuinely new
+managed database, attach/load failure stops the managed child, and watched
+generation is single-flight with a coalesced pending edit. A package regression
+test pins the seed-once behavior; the cold proof still pins watch/load/stop.
+
+Compared with Convex or Supabase, Snapback still asks the package closure to
+carry a large native runtime and to coordinate generated manifests explicitly.
+The benefit is that local handler execution, offline codegen, and the exact
+server artifact are part of the install rather than a remote-service
+assumption. The remaining gap is operational, not hidden: npm is unauthenticated
+and the `@snapback` scope has not been published, so this is a tarball proof,
+not yet a public-registry or clean-machine release claim.

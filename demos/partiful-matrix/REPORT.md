@@ -1678,3 +1678,78 @@ This closes the local-executability prerequisite, not either OS claim. The
 remaining Exact Native work is still the retained Partitime replay corpus,
 release carrier integration, lifecycle behavior, artifact exclusion, and one
 independent receipt per OS.
+
+## 29. Exact Native iOS and Android Parity closure
+
+Exact revision `e94e50e5f2de05bba64be987ba105b61faf23750` closes the two
+Partitime-specific native profiles with separate registered receipts. The iOS
+carrier is a universal x86_64/arm64 release executable launched on an iPhone 17
+Pro iOS 26.3 simulator; the Android carrier is an optimized release APK with
+arm64-v8a and x86_64 Rust/JNI libraries launched on an API 36 emulator. Neither
+carrier contains Contract-on-Hermes, the Ibex runtime, or Snapback server
+implementation paths.
+
+Both carriers execute the generated initial queries and all three portable
+Partitime mutation plans through the retained Rust provider owner. The receipt
+sequence first proves visible optimistic RSVP/post state and a durable ordered
+SQLite queue across owner reconstruction. Reconnect replaces the authoritative
+base, replays remaining work, settles it, and verifies convergence. A separate
+generated create-event mutation is then left pending so rotation to a new
+authority instance with the same user can prove predecessor suspension without
+confusing it with convergence. A fresh successor-authority query publishes
+before the OS lifecycle cycle.
+
+The OS shells translate real background and foreground callbacks into provider
+state changes. Both receipts observe masks `0x1ff`, `0x3ff`, and `0x7ff` for
+launch/core parity, background quiescence, and foreground reconnection. The iOS
+artifact is 6,048,624 bytes with SHA-256
+`d10ef2754a1271d7ce77e5192ed1a7ca97373ed2688e719be0847f36125d53d7`;
+the Android APK is 9,429,886 bytes with SHA-256
+`fe2b60424234991ed5ea152d5546d102d4ce1498e54c55291c2f5bf366277fe8`.
+
+Snapback does not accept those files by assertion. Its import check reads the
+receipt from the immutable Exact commit, reconstructs every source-graph entry
+from the carrier's named source revision, validates the registered Exact check,
+and requires all twelve LLP 0064 Parity facts. The resulting
+`STEP2.CONTRACT_IOS_PARITY` and `STEP2.CONTRACT_ANDROID_PARITY` artifacts are
+independently content-addressed in the cumulative manifest.
+
+This is a roadmap graduation proof on a simulator and emulator. It does not
+claim Exact's broader physical-device, renderer, IME, TalkBack/accessibility,
+pairing, generic packaging, M4, or M6 gates.
+
+## 30. Step 5 packaged developer-loop checkpoint
+
+The external-directory proof now installs seven materialized tarballs rather
+than resolving repository workspaces: Contract, client, codegen, React,
+artifact-driven app CLI, the developer-loop CLI, and the Apple-silicon macOS
+runtime. It generates both local and remote-service Partitime artifacts while
+offline, verifies package-contained schemas and the 37-case data-tier corpus,
+runs app introspection, and produces a 549,540-byte browser adapter bundle with
+no Node builtin import.
+
+The new `@snapback/cli` then scaffolds `todo-contract`, regenerates it offline,
+launches the prebuilt server through `snapback dev`, loads schema/functions and
+seeds only the newly created database through the native host-operation surface,
+observes a functions edit and nondestructive reload, refuses a second attach
+whose database target differs, and stops the managed process without a stale
+ready file. An initial attach/load failure also stops the process it just
+started. The watch emits separate
+`generation-failed`, `generated-but-not-loaded`, and `generated-and-loaded`
+states, so a temporary live-server failure does not falsify successful offline
+generation.
+
+Relocatable Hermes loading is part of the proof rather than a package-layout
+assumption. `build.rs` now puts `@loader_path/../Frameworks` in the final
+binary's `LC_RPATH`; the platform package places the executable and framework
+at that relative layout; `snapback doctor` launches the copied binary with all
+ambient `DYLD_*` paths scrubbed. The current platform claim is deliberately
+only darwin-arm64.
+
+This remains a checkpoint, not Step 5 closure. A detached-worktree rerun binds
+the receipt to clean source revision `a75ddd514ecc7f8e0ae00f91384deef699587383`
+with `sourceDirty: false`; npm authentication is unavailable, the `@snapback`
+scope is unpublished, and the run is a clean directory on the development
+machine rather than a separately provisioned clean machine. The accepted
+query/projection and migration authorities, LLP 0065 acceptance, and full
+generated-pattern set also remain separate entry/exit gates.

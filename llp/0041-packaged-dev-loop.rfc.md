@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-20 (LLP 0063 Step 5 implementation checkpoint: `@snapback/cli` now owns `new`/`generate`/`dev`/`doctor`, delegates established host operations to the native CLI, and consumes the ready-file handshake with target fencing; `@snapback/runtime-darwin-arm64` carries a relocatable release binary plus Hermes framework, with Apple-silicon macOS as the first explicit platform slice; a tarball-only external proof from clean source revision `a75ddd51…` launches doctor with `DYLD_*` scrubbed, scaffolds and generates offline, starts/loads/watches/stops a managed server, seeds only a newly created database, and refuses a mismatched attach. Public npm publication and separately-provisioned clean-machine evidence remain open, so Status stays Draft); 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
 `reviews/0041-packaged-dev-loop.claude.md`: runtime-distribution design
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
@@ -64,6 +64,17 @@ The intended shape:
   bootstrap validates the repo layout: by launching the binary, not just
   checking files.
 
+The first implemented distribution slice uses two scoped packages so the
+already-occupied unscoped `snapback` registry name is irrelevant:
+`@snapback/cli` exposes the `snapback` bin, and its platform-selected optional
+dependency `@snapback/runtime-darwin-arm64` carries `bin/snapback` beside
+`Frameworks/hermesvm.framework`. The binary carries
+`@loader_path/../Frameworks` in `LC_RPATH`; contributor-checkout absolute
+RPATHs may coexist but are never the packaged binary's only loader path.
+Unsupported host tuples fail with `SNAPBACK_IBEX_HOST_UNSUPPORTED` rather than
+building Hermes during install. Additional platform packages remain required
+before a broader host-support claim.
+
 Unsupported host platforms are a declared capability fact, not a broken
 install.
 
@@ -81,6 +92,11 @@ workspace members versus what is genuinely new work:
 - `@snapback/client` — **new work**: promote the headless client currently
   living at `demos/_kit/client.mjs` into a real package.
 - `snapback` CLI/binary distribution — **new work**, per Runtime distribution.
+
+The first implementation realizes that last row as `@snapback/cli` plus the
+platform runtime package above. `@snapback/app-cli` remains the distinct
+artifact-driven application/agent command; it is not renamed into the
+developer-loop CLI.
 
 The packages may initially be private or prerelease, but demos must consume
 versioned artifacts instead of sibling-at-HEAD paths.
@@ -210,4 +226,13 @@ outside the root workspace and exercise independent consumer setups.
 
 ## Status
 
-Draft. This RFC packages existing strengths into a public paved road.
+Draft. The Apple-silicon macOS tarball closure and external-directory loop are
+implemented and retained by
+`scripts/snapback-package-cold-install.mjs`: packed runtime launch, `new`,
+offline `generate`, managed `dev`, ready-file attach, watched regeneration and
+load, mismatch refusal, stop cleanup, app-CLI introspection, and browser
+adapter bundling all pass. That is not yet the RFC exit. No `@snapback/*`
+package has been published to the public registry, npm authentication is not
+available in the recorded environment, the proof is a clean directory rather
+than an independently provisioned clean machine, and no non-darwin-arm64
+runtime package exists.
