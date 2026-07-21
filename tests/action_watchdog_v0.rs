@@ -1081,7 +1081,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
     // Hold a probe in native fetch and wait for its explicit rendezvous before
     // issuing the mutation. This proves the probe is active without relying
     // on a scheduler-sensitive sleep or millisecond threshold.
-    let held_verify = {
+    let mut held_verify = {
         let app = app.clone();
         tokio::spawn(async move {
             let response = app
@@ -1094,10 +1094,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
             body_json(response).await
         })
     };
-    tokio::time::timeout(Duration::from_secs(2), held_started)
-        .await
-        .expect("held probe reaches native fetch")
-        .expect("held probe fetch-start signal");
+    await_paused_action_fetch_start("held config probe", held_started, &mut held_verify).await;
 
     // Mid-probe, a mutation must not queue behind the probe run: the probe
     // holds no instance lock while it occupies its VM thread.
@@ -1143,7 +1140,7 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
     // Delete/recreate is a distinct entry identity even when it happens under
     // the same name. A staged probe for the deleted identity cannot attest the
     // replacement.
-    let recreate_verify = {
+    let mut recreate_verify = {
         let app = app.clone();
         tokio::spawn(async move {
             let response = app
@@ -1156,10 +1153,12 @@ async fn config_verify_probe_runs_detached_under_the_watchdog() {
             body_json(response).await
         })
     };
-    tokio::time::timeout(Duration::from_secs(2), recreate_started)
-        .await
-        .expect("recreated-entry probe reaches native fetch")
-        .expect("recreated-entry fetch-start signal");
+    await_paused_action_fetch_start(
+        "recreated-entry config probe",
+        recreate_started,
+        &mut recreate_verify,
+    )
+    .await;
     let unset = app
         .clone()
         .oneshot(post_json(
