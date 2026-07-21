@@ -44,6 +44,18 @@ bytes and from 203,427 to 188,851 deterministic-gzip bytes. The other Contract
 cells remain at roughly 468 kB minified and all four exceed the frozen
 thresholds; the retained budget receipt remains 5 pass / 21 red, so this is a
 measured Snapback-owned remediation rather than `STEP4.BUDGETS` or Step 4 exit.)
+**Revised (Step 4 capability-scoped Contract packaging checkpoint):**
+2026-07-21 (Partitime's Online Contract × Snapback arm now imports the
+package-owned keyed provider instead of the monolithic Contract surface. The
+entrypoint retains generated-artifact coherence checks, Exact-owned logical
+identity/dedup/refcounts, Snapback-owned physical live attempts, scoped local
+force-state controls, and late-delivery disposal. Coordinated auth/offline
+surfaces still use the full constructor. On the unchanged frozen workload the
+cell fell from 738,080/188,851 to 661,299/166,452 minified/deterministic-gzip
+bytes. Exact's 32-test keyed oracle, the 35-test mutation-projection oracle,
+the full Contract package suite, and the production build pass. The common
+Contract cells and this Snapback cell remain over their frozen thresholds;
+this is another measured WS8 remediation, not `STEP4.BUDGETS` or Step 4 exit.)
 **Revised (Step 5 public-name and registry-proof checkpoint):** 2026-07-21
 (`@snapback/cli` proved to be an unrelated public 3.x package at the deferred
 first-publication probe, so LLP 0021's explicit reopen caveat fired. The

@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Provider/runtime boundary for Contract applications backed by Snapback.",
   "files": [
+    "artifact-validation.mjs",
     "auth-coordinator.mjs",
     "auth-custody-indexeddb.mjs",
     "auth-invalidation.mjs",
@@ -25,6 +26,7 @@
   "exports": {
     ".": "./index.mjs",
     "./capabilities": "./capabilities.mjs",
+    "./artifact-validation": "./artifact-validation.mjs",
     "./auth-coordinator": "./auth-coordinator.mjs",
     "./auth-custody-indexeddb": "./auth-custody-indexeddb.mjs",
     "./auth-invalidation": "./auth-invalidation.mjs",

@@ -256,6 +256,18 @@ What the surface does for you:
     keyedQueryScopes: true,
   });
   ```
+
+  For an **Online-only** surface with no `authCoordinator`,
+  `agentAuthority`, or retained client store, import
+  `createKeyedSnapbackContractProvider` from
+  `@snapback/contract/keyed-provider` directly. Pass `artifactIndex`,
+  `schemaManifest`, and `functionManifest` with the Contract manifest so the
+  capability-scoped path keeps the same stale-artifact refusal. It also owns
+  Exact-compatible scoped/broadcast `forceQueryState` controls and does not
+  open a Snapback transport for a binding mounted under an active force. Do
+  not use this shortcut for coordinated auth or offline custody: use
+  `createSnapbackContractSurface({ keyedQueryScopes: true })` so the authority
+  participant owns boot, quiesce, partition rotation, and resume.
 - **Structural mutation outcomes** — Snapback preserves raw call, optimistic
   overlay, receipt, durable-version, correlation, and ambiguity facts. Exact
   projects those facts into attempt/overlay/evidence state; neither side lets

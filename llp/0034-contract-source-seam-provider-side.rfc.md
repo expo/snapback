@@ -819,6 +819,19 @@ canonical same-key sharing, different-scope and different-provider isolation,
 late predecessor suppression, authority rotation, structured invalid-args
 refusal, and HMR/root teardown.
 
+The capability-scoped packaging path is also first-class. An Online surface
+without coordinated authority custody or retained/offline state may construct
+`createKeyedSnapbackContractProvider` directly from
+`@snapback/contract/keyed-provider`. It runs the same generated-artifact
+coherence checks when the artifact identity or companions are supplied and
+exposes Exact-compatible broadcast/scoped `forceQueryState` controls without
+allocating a physical transport while a scope is forced. This does not replace
+the full surface's authority participant: a client with `authCoordinator`,
+`agentAuthority`, or a client store still enters through
+`createSnapbackContractSurface({ keyedQueryScopes: true })`, which owns boot,
+quiesce, partition rotation, and resume. Partitime's unauthenticated Online
+browser arm uses the direct path as the Workstream-8 tree-shaking witness.
+
 The demo's row-shape acceptance check also confirms the §10.3 note about the
 Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`
 fires through helper-declared shapes (the surface mirrors the generated

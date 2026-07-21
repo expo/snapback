@@ -1770,3 +1770,32 @@ is a meaningful provider-runtime reduction, but not a budget exit. The other
 Contract cells remain between 468,387 and 468,401 minified bytes, and all four
 Contract cells still exceed the frozen byte thresholds. The cumulative Step 4
 budget receipt therefore remains red with 5 passing and 21 red requirements.
+
+## 32. Step 4 capability-scoped Contract packaging checkpoint
+
+Partitime's Snapback Contract arm now consumes the package-owned keyed provider
+directly instead of reaching it through `createSnapbackContractSurface`. This
+is not demo-specific transport glue: Exact continues to own logical query
+identity, same-key sharing, refcounts, and predecessor fencing, while the
+Snapback package owns each physical live attempt, mutation transport, authority
+partition rotation, and disposal.
+
+The smaller entrypoint now shares the full adapter's generated-artifact
+coherence validator. It also implements Exact-compatible local force states:
+scoped and broadcast forces reach existing bindings, a binding mounted under
+force does not allocate a backend attempt, live updates are retained but
+suppressed, and releasing the governing force restores the newest cell. A
+stale generated bundle hash is refused before transport construction. The
+direct path is deliberately limited to Online surfaces without coordinated
+auth or retained/offline custody; those profiles continue to use the full
+surface so its authority participant owns boot, quiesce, rotation, and resume.
+
+On the unchanged frozen workload, Contract × Snapback moved from 738,080 to
+661,299 minified bytes and from 188,851 to 166,452 deterministic-gzip bytes.
+The full Contract package test suite passes, as do Exact's 32-test keyed-query
+oracle, its 35-test mutation-projection oracle, npm package dry-run, and the
+production Snapback build. The remaining attribution is candid: the Snapback
+client root still contributes 158,644 rendered bytes, while the compiled
+Contract views and shared Exact runtime dominate every Contract cell. All four
+frozen byte thresholds therefore remain red; this is a second measured
+Snapback-owned remediation checkpoint, not Step 4 closure.

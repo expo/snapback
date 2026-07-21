@@ -1236,3 +1236,36 @@ cells remain around 468 kB minified, so the compiled Contract views and runtime
 still dominate the frozen budget miss. The Step 4 receipt remains honestly red
 at 5/26 passing requirements; this change removes one Snapback-owned bucket but
 does not turn a partial reduction into a budget claim.
+
+## 2026-07-21 — the Online Contract arm stopped importing offline custody
+
+The next attribution pass found a similar boundary one layer up. Partitime's
+Snapback Contract arm only needs live keyed queries and mutations, but it
+constructed the monolithic Contract surface that also owns retained state,
+offline replay, derived overlays, ephemeral wiring, and coordinated authority
+custody. The package already had the correct transport owner in
+`keyed-provider.mjs`; the missing pieces were generated-artifact validation and
+the deterministic force-state seam used by product UI acceptance.
+
+Artifact coherence now lives in a small shared module used by both entrypoints.
+The keyed provider gained the same local-only force behavior Exact specifies:
+a scope mounted under force opens no transport, already-live delivery is
+suppressed but remembered, scoped and broadcast forces compose, and disposal
+restores the newest live cell. The test suite also proves stale generated hashes
+fail closed. Partitime can therefore import the package subpath directly while
+Exact still owns logical key identity/dedup/refcounts and Snapback still owns
+one physical live attempt and its disposal.
+
+The ownership limit matters. This direct path is for an Online client with no
+auth coordinator or retained store. A coordinated browser session, agent
+principal, or offline surface must keep using the full surface constructor so
+its boot/quiesce/partition-rotation/resume participant cannot be skipped. That
+distinction was more ergonomic than inventing app-local bridge glue: the
+package boundary got narrower and the demo got simpler.
+
+On the frozen production workload, Contract × Snapback fell from 738,080 to
+661,299 minified bytes and from 188,851 to 166,452 deterministic-gzip bytes.
+The full Contract package suite, Exact's 32-test keyed oracle, the 35-test
+mutation-projection oracle, and the production build pass. This is still not a
+budget exit: the Contract views/runtime dominate the common cells and the
+Snapback client root remains 158,644 rendered bytes in this cell.

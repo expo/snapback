@@ -150,6 +150,78 @@ assert.deepEqual(factoryOpens[0].options.args, { eventId: 'binding-scope' });
 factoryBinding.dispose();
 await factorySurface.dispose();
 
+// The capability-scoped entrypoint keeps the same fail-closed generated
+// artifact identity checks as the full surface.
+assert.throws(
+  () => createKeyedSnapbackContractProvider({
+    runtime,
+    client,
+    manifest: { ...manifest, bundleHash: 'old-bundle' },
+    functionManifest: { bundleHash: 'current-bundle' },
+    userId: 'artifact-user',
+  }),
+  (error) => error?.code === 'SNAPBACK_STALE_CONTRACT_DATA_BUNDLE_HASH',
+);
+
+// Exact-compatible force states are local-only, scope-aware, and restore the
+// newest suppressed live cell. A binding mounted while forced must not
+// allocate a Snapback transport until the force is released.
+const forceOpens = [];
+const forceSurface = createKeyedSnapbackContractProvider({
+  runtime,
+  client: {
+    liveQuery(name, options) {
+      const handle = {
+        rows: [{ _id: options.args.eventId, title: 'baseline' }],
+        connection: 'live',
+        dispose() {},
+      };
+      forceOpens.push({ name, options, handle });
+      return Promise.resolve(handle);
+    },
+    async mutate() {},
+  },
+  manifest,
+  userId: 'force-user',
+  keyedQueries: ['eventDetails'],
+});
+const forcedCell = { status: 'error', error: { message: 'forced' }, connection: 'disconnected' };
+const scopedForce = forceSurface.provider.forceQueryState(
+  'eventDetails',
+  forcedCell,
+  { scope: { eventId: 'event-a' } },
+);
+const forcedCells = [];
+const unforcedCells = [];
+const forcedSubscription = forceSurface.links.eventDetails({ eventId: 'event-a' })
+  .subscribe((cell) => forcedCells.push(cell));
+const unforcedSubscription = forceSurface.links.eventDetails({ eventId: 'event-b' })
+  .subscribe((cell) => unforcedCells.push(cell));
+await Promise.resolve();
+await Promise.resolve();
+assert.equal(forceOpens.length, 1, 'a scope mounted under force stays local-only');
+assert.equal(forceOpens[0].options.args.eventId, 'event-b');
+assert.deepEqual(forcedCells, [forcedCell]);
+assert.equal(unforcedCells.at(-1).value[0]._id, 'event-b');
+
+scopedForce.dispose();
+await Promise.resolve();
+await Promise.resolve();
+assert.equal(forceOpens.length, 2, 'releasing the force starts the deferred live source');
+assert.equal(forcedCells.at(-1).value[0]._id, 'event-a');
+
+const broadcastForce = forceSurface.provider.forceQueryState('eventDetails', forcedCell);
+assert.deepEqual(forcedCells.at(-1), forcedCell);
+assert.deepEqual(unforcedCells.at(-1), forcedCell);
+forceOpens[1].options.onUpdate([{ _id: 'event-a', title: 'suppressed newest' }]);
+assert.deepEqual(forcedCells.at(-1), forcedCell, 'live cells stay suppressed while forced');
+broadcastForce.dispose();
+assert.equal(forcedCells.at(-1).value[0].title, 'suppressed newest');
+assert.equal(unforcedCells.at(-1).value[0].title, 'baseline');
+forcedSubscription.dispose();
+unforcedSubscription.dispose();
+forceSurface.dispose();
+
 // The provider handoff is Exact DataProviderDiagnostic-compatible, carries a
 // source Exact can recover from a thrown refusal, and emits one report per
 // root/instance/cause rather than one entry per reactive tick.
