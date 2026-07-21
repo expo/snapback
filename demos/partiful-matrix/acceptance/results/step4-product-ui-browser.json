@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "faddb87bc23e5dc12d67520724d43d796d0e882c",
-    "exact": null
+    "snapback": "901d729bd4d00ff492e89e895ce37d4d4a70a814",
+    "exact": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -288,13 +288,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "9571ab08-e435-4659-a28d-d576825dabd1",
-          "url": "http://127.0.0.1:58928/?user=eve&event=event_sunset",
+          "identity": "f231cf2e-bac7-4c57-97e1-0a2e94f69eed",
+          "url": "http://127.0.0.1:61408/?user=eve&event=event_sunset",
           "navigations": 1
         },
         "after": {
-          "identity": "9571ab08-e435-4659-a28d-d576825dabd1",
-          "url": "http://127.0.0.1:58928/?user=eve",
+          "identity": "f231cf2e-bac7-4c57-97e1-0a2e94f69eed",
+          "url": "http://127.0.0.1:61408/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -415,19 +415,19 @@
             "sampleIndex": 3,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 4,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 6,
@@ -439,7 +439,7 @@
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
@@ -451,15 +451,15 @@
         "freshnessLatencyMs": {
           "samples": [
             3,
+            2,
             3,
-            4,
+            2,
             3,
             3,
-            4,
             2
           ],
           "median": 3,
-          "p95": 4
+          "p95": 3
         },
         "connectionBefore": "live",
         "established": [
@@ -467,36 +467,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30607e139f5bcbe5da81e829",
-            "subscriptionId": "sub_019f83eb30607e139f5bcbe5da81e829",
+            "bindingId": "sub_019f83f30d2f7833adc5d883d3b848dc",
+            "subscriptionId": "sub_019f83f30d2f7833adc5d883d3b848dc",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656481
+            "receivedAtMs": 1784625171760
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb306176c08e26c9501a3b613d",
-            "subscriptionId": "sub_019f83eb306176c08e26c9501a3b613d",
+            "bindingId": "sub_019f83f30d307f3381aa414d61cedce9",
+            "subscriptionId": "sub_019f83f30d307f3381aa414d61cedce9",
             "event": "established",
-            "transport": "push",
+            "transport": "poll",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656514
+            "receivedAtMs": 1784625171769
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30d07b828428a8c08d7cf7f7",
-            "subscriptionId": "sub_019f83eb30d07b828428a8c08d7cf7f7",
+            "bindingId": "sub_019f83f30d4079a3b069d7d9b7fe243d",
+            "subscriptionId": "sub_019f83f30d4079a3b069d7d9b7fe243d",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -505,30 +505,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656593
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f83eb30d173818e510052f34e4155",
-            "subscriptionId": "sub_019f83eb30d173818e510052f34e4155",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784624656595
+            "receivedAtMs": 1784625171777
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30d173818e51007c61e7500f",
-            "subscriptionId": "sub_019f83eb30d173818e51007c61e7500f",
+            "bindingId": "sub_019f83f30d417290b4a89bef128c94ab",
+            "subscriptionId": "sub_019f83f30d417290b4a89bef128c94ab",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -537,14 +521,30 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656596
+            "receivedAtMs": 1784625171777
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f83f30d417290b4a89c98ef782666",
+            "subscriptionId": "sub_019f83f30d417290b4a89c98ef782666",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784625171780
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30d173818e5100369475f933",
-            "subscriptionId": "sub_019f83eb30d173818e5100369475f933",
+            "bindingId": "sub_019f83f30d417290b4a89c784b13801a",
+            "subscriptionId": "sub_019f83f30d417290b4a89c784b13801a",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -553,14 +553,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656625
+            "receivedAtMs": 1784625171806
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30d07b828428a9314ef30c2d",
-            "subscriptionId": "sub_019f83eb30d07b828428a9314ef30c2d",
+            "bindingId": "sub_019f83f30d417290b4a89c5f9ec4763c",
+            "subscriptionId": "sub_019f83f30d417290b4a89c5f9ec4763c",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -569,14 +569,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656636
+            "receivedAtMs": 1784625171817
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb30d271f0b219a3b01856502f",
-            "subscriptionId": "sub_019f83eb30d271f0b219a3b01856502f",
+            "bindingId": "sub_019f83f30d417290b4a89c0a27aa7c95",
+            "subscriptionId": "sub_019f83f30d417290b4a89c0a27aa7c95",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -585,7 +585,7 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784624656647
+            "receivedAtMs": 1784625171828
           }
         ]
       }
@@ -615,13 +615,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "1c992db4-fb99-47cf-a74d-cf9b4cded4d8",
-          "url": "http://127.0.0.1:59113/events/event_sunset/?user=eve",
+          "identity": "73d60ef0-bac9-4093-bc0a-c3009511cbd1",
+          "url": "http://127.0.0.1:61561/events/event_sunset/?user=eve",
           "navigations": 1
         },
         "after": {
-          "identity": "1c992db4-fb99-47cf-a74d-cf9b4cded4d8",
-          "url": "http://127.0.0.1:59113/?user=eve",
+          "identity": "73d60ef0-bac9-4093-bc0a-c3009511cbd1",
+          "url": "http://127.0.0.1:61561/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -759,7 +759,7 @@
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 2,
@@ -783,7 +783,7 @@
             "sampleIndex": 5,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 6,
@@ -801,7 +801,7 @@
             "sampleIndex": 8,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 2
+            "latencyMs": 1
           }
         ],
         "freshnessLatencyMs": {
@@ -809,41 +809,41 @@
             2,
             2,
             2,
-            3,
             2,
             2,
-            2
+            2,
+            1
           ],
           "median": 2,
-          "p95": 3
+          "p95": 2
         },
         "connectionBefore": "●live",
         "established": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb3bff7080a49c0a72197d8db8",
-            "subscriptionId": "sub_019f83eb3bff7080a49c0a72197d8db8",
+            "bindingId": "sub_019f83f318587bb299ebe48cec3e6e28",
+            "subscriptionId": "sub_019f83f318587bb299ebe48cec3e6e28",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:535e96e1-1ad5-4274-95c4-6b803d37b534",
+              "rootId": "snapback-online-surface:a083bcf9-a173-466b-bf45-f243913d704d",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1784624659456,
+            "receivedAtMs": 1784625174617,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb3c1f7d009c873044483af792",
-            "subscriptionId": "sub_019f83eb3c1f7d009c873044483af792",
+            "bindingId": "sub_019f83f318767983b10b0994ca83e802",
+            "subscriptionId": "sub_019f83f318767983b10b0994ca83e802",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -852,12 +852,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:52f32f73-abed-47d0-8e47-237b90a354b7",
+              "rootId": "snapback-online-surface:dd3dc68a-3ae1-4e7f-b3d2-9ae01b6b28e8",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784624659509,
+            "receivedAtMs": 1784625174667,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -866,8 +866,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb3c1f7d009c873089fcb9b5bd",
-            "subscriptionId": "sub_019f83eb3c1f7d009c873089fcb9b5bd",
+            "bindingId": "sub_019f83f318777de1bd5ee9fe11c48c78",
+            "subscriptionId": "sub_019f83f318777de1bd5ee9fe11c48c78",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -876,12 +876,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:52f32f73-abed-47d0-8e47-237b90a354b7",
+              "rootId": "snapback-online-surface:dd3dc68a-3ae1-4e7f-b3d2-9ae01b6b28e8",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784624659510,
+            "receivedAtMs": 1784625174667,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -890,8 +890,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb3c2075f09cc0c42fac0e42cb",
-            "subscriptionId": "sub_019f83eb3c2075f09cc0c42fac0e42cb",
+            "bindingId": "sub_019f83f318777de1bd5ee9d9458e56d7",
+            "subscriptionId": "sub_019f83f318777de1bd5ee9d9458e56d7",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -900,12 +900,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:52f32f73-abed-47d0-8e47-237b90a354b7",
+              "rootId": "snapback-online-surface:dd3dc68a-3ae1-4e7f-b3d2-9ae01b6b28e8",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784624659510,
+            "receivedAtMs": 1784625174668,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"

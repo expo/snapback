@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "faddb87bc23e5dc12d67520724d43d796d0e882c",
-    "exact": null
+    "snapback": "901d729bd4d00ff492e89e895ce37d4d4a70a814",
+    "exact": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -276,32 +276,32 @@
             {
               "routeId": "/",
               "path": "index.html",
-              "htmlSha256": "0df3611fc70a0ed80e0f9ea5f64421570695521228809eeac23dab23ab55de99",
+              "htmlSha256": "71570c2cf62390e6d8529e9793fa8f54f156c683955a19085000ebc7d0485fbe",
               "nodes": 79
             },
             {
               "routeId": "/events/event_sunset/",
               "path": "events/event_sunset/index.html",
-              "htmlSha256": "702457c646bf622739d90543dd5fda36a9b804adb30a74fbdc2acd16baaf13bb",
+              "htmlSha256": "d7add250ec7e451ad24ac766354b479c278edb566be90affab0fce9aee360cb7",
               "nodes": 73
             },
             {
               "routeId": "/events/event_swim/",
               "path": "events/event_swim/index.html",
-              "htmlSha256": "713f2147120d5814b051a85500b5ab953670cb5decd0d0b889e802472fe61569",
+              "htmlSha256": "bc97fd1ca9f4149236f21530c0ab2e32cad11533224e1c2a8fa3e6c9bb1b4fe9",
               "nodes": 71
             },
             {
               "routeId": "/events/event_ceramics/",
               "path": "events/event_ceramics/index.html",
-              "htmlSha256": "d90897099109126a1c1e85d999ace994ce23858b5cf85cb59ed50d405f51ca23",
+              "htmlSha256": "228ca4d26054de4cf072deea9b1f89143fbd811d67b53df78f41836496fbd937",
               "nodes": 62
             }
           ]
         },
         "javascript": {
           "bytes": 659528,
-          "sha256": "adeb2fcb02dd29a0651bfa1e15288159e3641a225356be736558fa2565fa9ef2"
+          "sha256": "7a03e16ad62618615e88a64c990c3443ce2318f9ca6e788bd54bd8680970db13"
         }
       }
     },
@@ -436,10 +436,10 @@
       "details": {
         "pathname": "/partitime/events/event_sunset/",
         "resources": [
-          "/partitime/assets/index-nFsrSPI4.js"
+          "/partitime/assets/index-H9RybyBB.js"
         ],
         "scripts": [
-          "/partitime/assets/index-nFsrSPI4.js"
+          "/partitime/assets/index-H9RybyBB.js"
         ]
       }
     },
@@ -448,19 +448,19 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "a6bd8c14-5e25-49e0-916e-3cfa4853ab6c",
+          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
           "navigations": 1
         },
         "event": {
           "pathname": "/partitime/events/event_sunset/",
           "title": "Sunset Supper Club · Partitime",
-          "identity": "a6bd8c14-5e25-49e0-916e-3cfa4853ab6c",
+          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
           "navigations": 1
         },
         "after": {
           "pathname": "/partitime/",
           "title": "Partitime · plans worth leaving the chat for",
-          "identity": "a6bd8c14-5e25-49e0-916e-3cfa4853ab6c",
+          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
           "navigations": 1
         }
       }
@@ -471,7 +471,7 @@
       "details": {
         "title": "Sunset Supper Club · Partitime",
         "description": "A long table, tiny plates, and the last warm light of the day.",
-        "canonical": "http://127.0.0.1:59306/partitime/events/event_sunset/",
+        "canonical": "http://127.0.0.1:61736/partitime/events/event_sunset/",
         "themeColor": "#f4f0e8"
       }
     },
@@ -487,8 +487,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb677070c09843305cb6df214a",
-            "subscriptionId": "sub_019f83eb677070c09843305cb6df214a",
+            "bindingId": "sub_019f83f368f8757399f7bedc9cdc92ed",
+            "subscriptionId": "sub_019f83f368f8757399f7bedc9cdc92ed",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -497,12 +497,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:3729f99d-7fe6-447a-b5f0-b2a66195f7c3",
+              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784624670577,
+            "receivedAtMs": 1784625195275,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -511,8 +511,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb677070c098433091e6ed7e0e",
-            "subscriptionId": "sub_019f83eb677070c098433091e6ed7e0e",
+            "bindingId": "sub_019f83f368f97882a28b0d6f1134a6d8",
+            "subscriptionId": "sub_019f83f368f97882a28b0d6f1134a6d8",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -521,13 +521,13 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:3729f99d-7fe6-447a-b5f0-b2a66195f7c3",
+              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
               "bindingIds": [
-                "eventWall"
+                "guestList"
               ]
             },
-            "receivedAtMs": 1784624670577,
-            "queryName": "eventWall",
+            "receivedAtMs": 1784625195275,
+            "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
             }
@@ -535,8 +535,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83eb677177e2807731c47b7e0209",
-            "subscriptionId": "sub_019f83eb677177e2807731c47b7e0209",
+            "bindingId": "sub_019f83f368f97882a28b0d8281290ca3",
+            "subscriptionId": "sub_019f83f368f97882a28b0d8281290ca3",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -545,13 +545,13 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:3729f99d-7fe6-447a-b5f0-b2a66195f7c3",
+              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
               "bindingIds": [
-                "guestList"
+                "eventWall"
               ]
             },
-            "receivedAtMs": 1784624670577,
-            "queryName": "guestList",
+            "receivedAtMs": 1784625195275,
+            "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
             }

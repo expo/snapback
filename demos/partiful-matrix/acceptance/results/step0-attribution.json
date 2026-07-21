@@ -4,7 +4,7 @@
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
-  "measuredAt": "2026-07-21T09:06:05.356Z",
+  "measuredAt": "2026-07-21T09:14:02.747Z",
   "environment": {
     "os": "darwin-25.5.0-arm64",
     "cpu": "Apple M5 Max",
@@ -16,7 +16,7 @@
   "inputs": {
     "claimManifestSemanticSha256": "41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7",
     "protocolSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
-    "webReceiptSha256": "5c979a3e29ec8de17f805cd5fff48603b434c72dae76b7e43dbdea9a8ea98b0f",
+    "webReceiptSha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d",
     "thresholdFreezeSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
       "revision": "508956134f3517169735078272a846e5ac86ba5c",
@@ -374,21 +374,21 @@
     "react": {
       "samples": [
         3,
-        4,
-        2,
         3,
         3,
+        3,
         2,
-        3
+        3,
+        2
       ],
       "median": 3,
-      "p95": 4
+      "p95": 3
     },
     "contract": {
       "samples": [
-        3,
         2,
-        3,
+        2,
+        2,
         2,
         2,
         3,
@@ -400,12 +400,12 @@
     "vanilla": {
       "samples": [
         2,
-        2,
+        1,
         2,
         1,
         2,
-        2,
-        1
+        1,
+        2
       ],
       "median": 2,
       "p95": 2
@@ -427,7 +427,7 @@
     "contractSourceLines": 493,
     "snapbackBackendLines": 108,
     "requiredWebCheckCount": 43,
-    "firstPushFreshnessLatencyMsP95": 4
+    "firstPushFreshnessLatencyMsP95": 3
   },
   "thresholds": {
     "emittedMinifiedJsBytes": {
