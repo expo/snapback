@@ -446,11 +446,14 @@ async function startPreview(cell, snapbackUrl, gatewayUrl) {
   const port = await freePort();
   const surface = join(demoRoot, 'surfaces', cell.arm);
   const vite = join(surface, 'node_modules', '.bin', 'vite');
-  const config = configPath(cell.arm);
+  const previewConfigDir = mkdtempSync(join(tmpdir(), `partitime-preview-${cell.arm}-${cell.backend}-`));
+  const config = join(previewConfigDir, 'vite.config.mjs');
+  const base = cell.arm === 'contract' ? '/partitime/' : '/';
+  writeFileSync(config, `export default ${JSON.stringify({ root: surface, base, preview: { host: '127.0.0.1' } })};\n`);
   const child = spawn('bun', [
     '--bun', vite, 'preview', '--config', config, '--mode', cell.backend,
     '--host', '127.0.0.1', '--port', String(port), '--strictPort',
-    '--outDir', `dist/${cell.backend}`,
+    '--outDir', join(surface, 'dist', cell.backend),
   ], {
     cwd: surface,
     detached: true,
@@ -466,14 +469,24 @@ async function startPreview(cell, snapbackUrl, gatewayUrl) {
   child.stdout.on('data', (chunk) => { log += chunk; });
   child.stderr.on('data', (chunk) => { log += chunk; });
   const url = `http://127.0.0.1:${port}`;
+  const previewUrl = cell.arm === 'contract' ? `${url}/partitime/` : url;
   try {
-    await waitUrl(cell.arm === 'contract' ? `${url}/partitime/` : url, child, `${cellId(cell)} preview`);
+    await waitUrl(previewUrl, child, `${cellId(cell)} preview`);
+    if (cell.arm === 'contract') {
+      const html = await (await fetch(previewUrl, { signal: AbortSignal.timeout(5_000) })).text();
+      const moduleSource = html.match(/<script\b[^>]*\bsrc="([^"]+)"[^>]*>/)?.[1];
+      assert(moduleSource, `${cellId(cell)} preview did not name its client module`);
+      await waitUrl(new URL(moduleSource, previewUrl).href, child, `${cellId(cell)} preview client module`);
+    }
   } catch (error) {
     throw new Error(`${error.message}: ${log.slice(-3000)}`);
   }
   return {
-    url: cell.arm === 'contract' ? `${url}/partitime/` : url,
-    stop: () => stopChild(child, `${cellId(cell)} preview`),
+    url: previewUrl,
+    stop: async () => {
+      try { await stopChild(child, `${cellId(cell)} preview`); }
+      finally { rmSync(previewConfigDir, { recursive: true, force: true }); }
+    },
   };
 }
 
@@ -524,11 +537,23 @@ async function connectCdp(url) {
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       let networkBytes = 0;
       const runtimeExceptions = [];
+      const browserDiagnostics = [];
       on(sessionId, 'Network.loadingFinished', ({ encodedDataLength = 0 }) => { networkBytes += encodedDataLength; });
       on(sessionId, 'Network.webSocketFrameReceived', ({ response }) => { networkBytes += response?.payloadData?.length ?? 0; });
       on(sessionId, 'Network.webSocketFrameSent', ({ response }) => { networkBytes += response?.payloadData?.length ?? 0; });
+      on(sessionId, 'Network.loadingFailed', ({ errorText, blockedReason }) => {
+        browserDiagnostics.push(`network failed: ${errorText}${blockedReason ? ` (${blockedReason})` : ''}`);
+      });
+      on(sessionId, 'Network.responseReceived', ({ response }) => {
+        if (response?.status >= 400) browserDiagnostics.push(`HTTP ${response.status}: ${response.url}`);
+      });
       on(sessionId, 'Runtime.exceptionThrown', ({ exceptionDetails }) => {
         runtimeExceptions.push(exceptionDetails?.exception?.description ?? exceptionDetails?.text ?? 'unknown runtime exception');
+      });
+      on(sessionId, 'Runtime.consoleAPICalled', ({ type, args }) => {
+        if (type === 'error' || type === 'warning') {
+          browserDiagnostics.push(`${type}: ${args?.map((arg) => arg.value ?? arg.description ?? '').join(' ')}`);
+        }
       });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);
@@ -559,22 +584,35 @@ async function connectCdp(url) {
         clearBrowserCache: () => send('Network.clearBrowserCache', {}, sessionId),
         resetNetworkBytes: async () => { networkBytes = 0; },
         networkBytes: async () => networkBytes,
-        waitForLiveData: () => evaluate(`(async()=>{const deadline=Date.now()+30000;while(Date.now()<deadline){const value=globalThis.__partitimePerf?.snapshot?.();if(value?.liveAt!=null)return value;await new Promise(r=>setTimeout(r,25));}return{timeout:true,milestones:globalThis.__partitimePerf?.snapshot?.()??null,title:document.title,bodyText:document.body?.innerText?.slice(0,1000)??null,readyType:typeof globalThis.partifulMatrixReady}})()`),
+        waitForLiveData: async () => {
+          const result = await evaluate(`(async()=>{const deadline=Date.now()+30000;while(Date.now()<deadline){const value=globalThis.__partitimePerf?.snapshot?.();if(value?.liveAt!=null)return value;await new Promise(r=>setTimeout(r,25));}return{timeout:true,milestones:globalThis.__partitimePerf?.snapshot?.()??null,title:document.title,bodyText:document.body?.innerText?.slice(0,1000)??null,readyType:typeof globalThis.partifulMatrixReady}})()`);
+          return result?.timeout ? { ...result, runtimeExceptions: [...runtimeExceptions], browserDiagnostics: [...browserDiagnostics] } : result;
+        },
         collectGarbage: () => send('HeapProfiler.collectGarbage', {}, sessionId),
         heapUsage: () => send('Runtime.getHeapUsage', {}, sessionId),
         performanceMetrics: async () => (await send('Performance.getMetrics', {}, sessionId)).metrics,
         beginUpdate: () => evaluate('globalThis.__partitimePerf.beginUpdate()'),
-        click: (testId) => evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(`[data-testid="${testId}"]`)});if(!target)throw new Error('missing ${testId}');target.click();return true})()`),
+        click: async (testId) => {
+          const point = await evaluate(`(async()=>{const target=document.querySelector(${JSON.stringify(`[data-testid="${testId}"]`)});if(!target)throw new Error('missing ${testId}');target.scrollIntoView({block:'center',inline:'center'});await new Promise(requestAnimationFrame);const rect=target.getBoundingClientRect();return{x:rect.left+rect.width/2,y:rect.top+rect.height/2}})()`);
+          await send('Input.dispatchMouseEvent', { type: 'mouseMoved', x: point.x, y: point.y }, sessionId);
+          await send('Input.dispatchMouseEvent', { type: 'mousePressed', x: point.x, y: point.y, button: 'left', clickCount: 1 }, sessionId);
+          await send('Input.dispatchMouseEvent', { type: 'mouseReleased', x: point.x, y: point.y, button: 'left', clickCount: 1 }, sessionId);
+        },
         waitForEventPage: () => evaluate(`(async()=>{const deadline=Date.now()+15000;while(Date.now()<deadline){if(document.querySelector('[data-testid="event-page"]'))return globalThis.__partitimePerf.endUpdate();await new Promise(r=>setTimeout(r,25));}throw new Error('event update timed out')})()`),
-        diagnostic: () => evaluate(`({
-          href: location.href,
-          readyState: document.readyState,
-          eventPage: Boolean(document.querySelector('[data-testid="event-page"]')),
-          loadingText: document.querySelector('.event-page')?.textContent?.slice(0, 500) ?? null,
-          openControlPresent: Boolean(document.querySelector('[data-testid="open-event_swim"]')),
-          bodyText: document.body?.innerText?.slice(0, 1000) ?? null,
-          runtimeExceptions: ${JSON.stringify(runtimeExceptions)},
-        })`),
+        diagnostic: async () => ({
+          ...await evaluate(`({
+            href: location.href,
+            readyState: document.readyState,
+            eventPage: Boolean(document.querySelector('[data-testid="event-page"]')),
+            loadingText: document.querySelector('.event-page')?.textContent?.slice(0, 500) ?? null,
+            openControlPresent: Boolean(document.querySelector('[data-testid="open-event_swim"]')),
+            bootState: document.querySelector('#boot-status')?.getAttribute('data-state') ?? null,
+            matrixReadyType: typeof globalThis.partifulMatrixReady,
+            bodyText: document.body?.innerText?.slice(0, 1000) ?? null,
+          })`),
+          runtimeExceptions: [...runtimeExceptions],
+          browserDiagnostics: [...browserDiagnostics],
+        }),
       };
     },
   };
@@ -589,7 +627,8 @@ function observerSource() {
       const ready=document.querySelector('[data-testid="event-card-event_sunset"]');
       if(state.authoritativeAt==null&&ready&&ready.textContent?.trim())state.authoritativeAt=now;
       const connection=document.querySelector('[data-testid="connection"]')?.textContent?.toLowerCase()??'';
-      if(state.liveAt==null&&state.authoritativeAt!=null&&(/live|polling/.test(connection)))state.liveAt=now;
+      const bootReady=document.querySelector('#boot-status')?.getAttribute('data-state')==='ready';
+      if(state.liveAt==null&&state.authoritativeAt!=null&&bootReady&&(/live|polling/.test(connection)))state.liveAt=now;
     };
     const observer=new MutationObserver((records)=>{
       if(state.recording)for(const record of records){state.targets.add(record.target);state.patches+=record.type==='childList'?record.addedNodes.length+record.removedNodes.length:1;}
