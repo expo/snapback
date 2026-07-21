@@ -34,6 +34,17 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 budget-remediation checkpoint):** 2026-07-20 (Exact
+revision `8373085c9…` removes the ordinary production Contract runtime's
+reachability edges to the full opt-in Motion engine and dev-only HMR
+implementations. A source-linked, same-workload SQLite A/B build fell from
+862,920 to 795,180 minified bytes and from 240.01 to 221.00 kB reported gzip.
+The retained registry-dependency Step 4 rerun remains honestly red:
+`@ccheever/exact-*` 0.1.2 emits 801,605/203,392 bytes for Contract × Snapback
+and 467,583/116,792 for Contract × SQLite, above the frozen thresholds, while
+the Exact source improvement cannot enter the stable-package claim until it is
+published. Exact's registered budget ledger and manifest-mirror checks pass;
+this is partial routed remediation, not `STEP4.BUDGETS` or Step 4 exit.)
 **Revised (Exact Native per-OS parity closure):** 2026-07-20 (Exact revision
 `e94e50e5…` retains independently registered `exact-native/ios` and
 `exact-native/android` Partitime receipts. Dedicated no-Hermes release carriers
