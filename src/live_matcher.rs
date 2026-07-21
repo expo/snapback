@@ -631,6 +631,20 @@ pub(crate) fn compute_live_delta(
         return LiveDeltaOutcome::Replace;
     }
 
+    // Membership-gated (semi-join) queries: row classification below evaluates
+    // only `plan.filters` — never the membership predicate — and changes to
+    // the membership table itself are skipped by the `plan.table` check, so a
+    // delta can both over-deliver (a row the subscriber's membership excludes)
+    // and freeze visibility transitions (a membership-only commit nets zero
+    // ops). The conservative lane is the only honest answer until a certified
+    // semi-join evaluator exists. Belt-and-suspenders with the candidacy gate
+    // in `notify_live_subscriptions`.
+    // @ref LLP 0056#what-exists-what-this-adds — semi-join queries ride the
+    // conservative re-query/`live_replace` lane (LLP 0067 §F2a).
+    if !plan.membership_filters.is_empty() {
+        return LiveDeltaOutcome::Replace;
+    }
+
     // A commit can touch the same row more than once — a mutation plan may
     // `Insert(bind_id_as x)` then `Delete(x)`, so `changes` holds two entries
     // for one id. Only the LAST entry reflects the row's final committed
@@ -931,7 +945,9 @@ mod dependency_gate_tests {
 #[cfg(test)]
 mod delta_tests {
     use super::*;
-    use crate::manifest::{AuthInput, HandlerInput, OrderExpr, ValueExpr};
+    use crate::manifest::{
+        AuthInput, HandlerInput, MembershipPredicate, MembershipResourceRef, OrderExpr, ValueExpr,
+    };
     use std::collections::BTreeSet;
 
     fn input(args: Value) -> HandlerInput {
@@ -1459,6 +1475,56 @@ mod delta_tests {
                 &input,
                 &ids(&[]),
                 &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
+            ),
+            LiveDeltaOutcome::Replace
+        );
+    }
+
+    // @ref LLP 0056#what-exists-what-this-adds — semi-join queries ride the
+    // conservative re-query/`live_replace` lane, never incremental deltas.
+    // LLP 0067 §F2a recorded the pair of failures this guard closes: the delta
+    // classifier evaluates only ordinary filters (over-delivery to subscribers
+    // the membership predicate excludes) and skips membership-table changes
+    // (visibility transitions — including revocation — swallowed as zero ops).
+    #[test]
+    fn membership_gated_queries_fall_back_to_replace() {
+        let input = input(json!({}));
+        let mut gated = unfiltered_plan();
+        gated.membership_filters = vec![MembershipPredicate {
+            declaration: "todo_members".to_owned(),
+            resource: MembershipResourceRef::RowField("projectId".to_owned()),
+            roles: None,
+        }];
+
+        // The shape that previously slipped onto the delta lane: unordered,
+        // far below the cap, with a main-table change that matches the
+        // ordinary filters. Must fall back — classification cannot evaluate
+        // the membership predicate.
+        assert_eq!(
+            compute_live_delta(
+                &gated,
+                &input,
+                &ids(&[]),
+                &[change("a", ChangeOp::Insert, Some(row("a", "u1")))]
+            ),
+            LiveDeltaOutcome::Replace
+        );
+
+        // A membership-table-only commit (no main-table rows) previously
+        // netted zero ops and settled as `NoChange`, freezing both visibility
+        // directions. It must also land on the conservative lane.
+        assert_eq!(
+            compute_live_delta(
+                &gated,
+                &input,
+                &ids(&["existing"]),
+                &[ChangedRow {
+                    table: "todo_members".to_owned(),
+                    id: "m1".to_owned(),
+                    op: ChangeOp::Delete,
+                    row: None,
+                    changed_fields: Vec::new(),
+                }]
             ),
             LiveDeltaOutcome::Replace
         );

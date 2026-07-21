@@ -240,12 +240,18 @@ Scope of the membership-direction freezes: with
   *before* the delta loop (which excludes already-resynced ids), so this
   direction is preempted there; it remains reachable where no
   authorization-event resnapshot covers the subscription (e.g. dev-mode
-  apps such as Shindig). The filed issue needs a regression test for the
-  membership-table-only empty-to-visible transition per auth mode.
+  apps such as Shindig). The remaining follow-up is an end-to-end
+  regression test for the membership-table-only transitions (both
+  directions) per auth mode.
 
-This is authorization-relevant runtime behavior, out of scope for this
-Research document to fix; it is recorded here as a confirmed discrepancy,
-flagged for filing, and any selection/invalidation prototype must treat
+This is authorization-relevant runtime behavior. **Repaired 2026-07-21**,
+alongside this revision: delta candidacy and `compute_live_delta` now fail
+closed on non-empty `membership_filters` (belt-and-suspenders, with a unit
+regression covering the main-table and membership-table-only shapes), and
+the L4 debug convergence assertion also runs at `NoChange` settles, closing
+the oracle blind spot recorded above (LLP 0008 DK-3 hardening note;
+LLP 0056 §Delivery lanes). Any selection/invalidation prototype must still
+treat
 membership and authorization predicates as an explicit safety dependency:
 selection may only ever *narrow* delivery, never substitute for the
 membership/auth evaluation the conservative lane performs. `[confirmed
@@ -439,12 +445,13 @@ All `[inferred]`; benchmark-first, split by ownership.
    with corrected numbers propagated only after the replacement run is
    recorded. Until then the corpus's governing documents contradict this
    finding.
-2. **Surface F2a for repair before selection work.** File the
-   membership/`live_delta` boundary discrepancy per the repo's issue
-   conventions (it is independent of this document's proposals and
-   authorization-relevant today). Any selection prototype treats
-   membership/auth predicates as a safety dependency it may narrow but never
-   replace.
+2. **F2a repair — landed 2026-07-21** (fail-closed candidacy +
+   `compute_live_delta` guards, unit regressions, `NoChange` oracle
+   extension; LLP 0008/0056 updated). Remaining follow-up worth a tracked
+   issue: the end-to-end per-auth-mode regression matrix (both membership
+   visibility directions, dev and sessions modes, Shindig `eventDetails` as
+   the fixture). Any selection prototype treats membership/auth predicates
+   as a safety dependency it may narrow but never replace.
 3. **Snapback-side: measure before protocol work.** Re-run **both paths**
    (fallback and delta) on the corrected harness under the current
    protected-query profile, recording result-set size, auth profile,

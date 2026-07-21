@@ -11053,7 +11053,17 @@ impl LocalSnapback {
                 continue;
             }
             let delta_plan = match &function.runtime {
-                FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) if !changes.is_empty() => {
+                // @ref LLP 0056#what-exists-what-this-adds — membership-gated
+                // (semi-join) queries ride the conservative re-query/
+                // `live_replace` lane, never incremental deltas: the delta
+                // classifier evaluates only ordinary filters, so admitting a
+                // membership-gated plan here either over-delivers rows the
+                // subscriber's membership predicate excludes or swallows
+                // membership-table-only visibility transitions as `NoChange`
+                // (LLP 0067 §F2a records both directions).
+                FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
+                    if !changes.is_empty() && plan.membership_filters.is_empty() =>
+                {
                     Some(plan.clone())
                 }
                 _ => None,
@@ -11293,7 +11303,14 @@ impl LocalSnapback {
         if ops.is_empty() {
             // The matcher flagged the subscription as possibly affected, but no
             // committed row actually enters/leaves/updates its result. Nothing
-            // to deliver — no re-query needed either.
+            // to deliver — no re-query needed either. A `NoChange` settle is
+            // itself a claim ("this commit does not change the result"), so
+            // debug builds assert it against a fresh re-query: previously this
+            // early return sat before the L4 oracle's only call site, which is
+            // how the membership-gated freeze stayed invisible even in tests
+            // (LLP 0067 §F2a).
+            #[cfg(debug_assertions)]
+            self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
             return Ok(Some(DeltaFanout::NoChange));
         }
         // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort — a removal on an auth-scoped result takes the full obligation-backed snapshot path.
