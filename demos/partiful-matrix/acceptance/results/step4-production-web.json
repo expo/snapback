@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T04:11:02.281Z",
+  "recordedAt": "2026-07-21T08:18:33.684Z",
   "repository": {
-    "snapbackRevision": "76174b886f082e0078c3c372564f806abc737f13",
-    "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540"
+    "snapbackRevision": "aa8b736e734dd1c5904416f47af53326769e0b05",
+    "exactRevision": "c666f81d4b2b133ba132fae14c2adb9864b0bafa"
   },
   "inputs": {
     "protocol": {
@@ -19,7 +19,7 @@
     },
     "step0WebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
+      "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
     },
     "productionBrowserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
@@ -31,11 +31,11 @@
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-      "sha256": "af985ea9811814f4a22da9682ef70ebcb4979c169e581cd808a7915abd396d4d"
+      "sha256": "06ffe9a8d9913ed47f95fd7758f44b4332a86a33c6f7005bcc9c107f52eaa26b"
     },
     "exactVerifyRegistry": {
-      "path": "../exact-llp0063-full-20260720/exact-verify.json",
-      "sha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5"
+      "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
+      "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
     }
   },
   "summary": {
@@ -96,57 +96,45 @@
         },
         "staticExport": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-          "sha256": "af985ea9811814f4a22da9682ef70ebcb4979c169e581cd808a7915abd396d4d"
+          "sha256": "06ffe9a8d9913ed47f95fd7758f44b4332a86a33c6f7005bcc9c107f52eaa26b"
         },
         "pages": [
           {
             "routeId": "/",
             "path": "index.html",
-            "htmlSha256": "3829fbb2941186e73499e85555584a0e07515ff2b828906610236ed1dc4383e8",
+            "htmlSha256": "500c4da79030966a6a9580a8a5f1fe925b76aa5e4bac970ee6a3c5fe5e8aaaec",
             "nodes": 79
           },
           {
             "routeId": "/events/event_sunset/",
             "path": "events/event_sunset/index.html",
-            "htmlSha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01",
+            "htmlSha256": "fa1faa4e0038393c292d127c7c9f5d72219d4e7815fd056d7ce6c1adea5be890",
             "nodes": 73
           },
           {
             "routeId": "/events/event_swim/",
             "path": "events/event_swim/index.html",
-            "htmlSha256": "255dcc40ddc63de9b3db1a5c005fb90a8d9d56a4b8c60af6ac628cd132750523",
+            "htmlSha256": "a5f1a2ac1977aa8ecc31058ee101d28f4e25f326652f01d551969273217b0d9d",
             "nodes": 71
           },
           {
             "routeId": "/events/event_ceramics/",
             "path": "events/event_ceramics/index.html",
-            "htmlSha256": "2d1461d247c08184976a8681f72f208f351195d6b915a0fef5524f596503ac68",
+            "htmlSha256": "c432d6d580aa78d87b2c09c719a8ab36a815ca202de827dd27ff3f11f58a7a52",
             "nodes": 62
           }
         ],
         "javascript": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/crash-THelAGyF.js",
-              "minifiedBytes": 17420,
-              "deterministicGzipBytes": 6767,
-              "sha256": "857c76f68961605811714685bdf72d0a729b8ad50704f82b57b7f02462a325af"
-            },
-            {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-5xwG6cEH.js",
-              "minifiedBytes": 1299546,
-              "deterministicGzipBytes": 353187,
-              "sha256": "6396072ca74a5e59a9ba48b720e57377cc48389f75d5bc9bbccb9af86a806175"
-            },
-            {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/privacy-Dk5LIQos.js",
-              "minifiedBytes": 2257,
-              "deterministicGzipBytes": 1041,
-              "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-9RTzxTco.js",
+              "minifiedBytes": 738080,
+              "deterministicGzipBytes": 188851,
+              "sha256": "19529b5c7b1393b757fbcd5c1037b96c33d491fbf3da4e771e9ba5ec82941e10"
             }
           ],
-          "minifiedBytes": 1319223,
-          "deterministicGzipBytes": 360995
+          "minifiedBytes": 738080,
+          "deterministicGzipBytes": 188851
         }
       }
     },
@@ -157,7 +145,7 @@
       "evidence": {
         "step0Receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-          "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
+          "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
         },
         "checks": [
           "contract × snapback boots its identified cell",
@@ -238,7 +226,7 @@
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01"
+          "sha256": "fa1faa4e0038393c292d127c7c9f5d72219d4e7815fd056d7ce6c1adea5be890"
         }
       }
     },
@@ -263,11 +251,11 @@
         },
         "feedArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-          "sha256": "3829fbb2941186e73499e85555584a0e07515ff2b828906610236ed1dc4383e8"
+          "sha256": "500c4da79030966a6a9580a8a5f1fe925b76aa5e4bac970ee6a3c5fe5e8aaaec"
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01"
+          "sha256": "fa1faa4e0038393c292d127c7c9f5d72219d4e7815fd056d7ce6c1adea5be890"
         }
       }
     },
@@ -491,8 +479,8 @@
       "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
       "evidence": {
         "registry": {
-          "path": "../exact-llp0063-full-20260720/exact-verify.json",
-          "sha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5"
+          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
+          "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
         },
         "checks": [
           "contract-web-host-csr",
