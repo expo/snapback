@@ -5,8 +5,10 @@
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20
-**Related:** LLP 0004, LLP 0007, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063
+**Revised:** 2026-07-20 (clarify that this RFC's owner-only floor governs
+standard generated patterns; LLP 0074 separately owns an explicit query-only
+public-read profile)
+**Related:** LLP 0004, LLP 0007, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0074
 
 ## Summary
 
@@ -77,7 +79,7 @@ Every standard generated operation must name a visibility profile. Omission
 fails with `SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED` before artifacts
 are written.
 
-The only v1 profile is:
+The only v1 **standard-pattern** profile defined here is:
 
 ```js
 visibility: { kind: 'owner', field: 'ownerId' }
@@ -101,6 +103,9 @@ may project them to a common refusal when existence secrecy requires it.
 Public, role-based, membership-based, and tenant-based standard patterns are
 future profiles. They require their own explicit semantics and negative
 acceptance cases; a generator must not approximate them with the owner profile.
+LLP 0074's explicitly declared, query-only `public-read` relation profile is a
+separate authority: it neither creates a public CRUD pattern nor weakens this
+RFC's owner-only standard-operation floor.
 
 ### 3. Common pattern contracts
 
