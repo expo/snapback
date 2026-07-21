@@ -25,12 +25,24 @@ import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
+const usage = `usage: node scripts/snapback-package-cold-install.mjs
+  [--ledger <publish-ledger.json>] [--install-source <tarball|registry>]
+  [--receipt <receipt.json>] [--keep]
+
+Tarball mode is the default checkpoint. Registry mode requires a successful
+publish ledger and resolves every source import through its published npm
+identity.`;
+if (args.includes('--help') || args.includes('-h')) {
+  console.log(usage);
+  process.exit(0);
+}
 const valueAfter = (flag, fallback = null) => {
   const index = args.indexOf(flag);
   return index === -1 ? fallback : args[index + 1] ?? fallback;
 };
 const ledgerPath = resolve(valueAfter('--ledger', join(root, 'dist-publish', 'publish-ledger.json')));
 const receiptPath = valueAfter('--receipt');
+const installSource = valueAfter('--install-source', 'tarball');
 const keep = args.includes('--keep');
 
 function fail(message) {
@@ -54,6 +66,10 @@ function run(command, commandArgs, options = {}) {
 
 function sha256(path) {
   return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+if (!['tarball', 'registry'].includes(installSource)) {
+  fail(`--install-source must be tarball or registry (observed ${installSource})`);
 }
 
 async function provePackagedDevLoop({ cli, scaffoldRoot }) {
@@ -127,13 +143,42 @@ const ledger = JSON.parse(readFileSync(ledgerPath, 'utf8'));
 if (ledger.schemaVersion !== 'snapback.package-publication.v1') fail('unsupported publication ledger');
 const ledgerDirectory = dirname(ledgerPath);
 const dependencies = { react: '19.2.3', esbuild: '0.28.1' };
-const tarballs = [];
+const installTargets = [];
 for (const entry of ledger.packages ?? []) {
-  const tarball = join(ledgerDirectory, entry.tarball);
-  if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
-  if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
-  dependencies[entry.sourceName] = `file:${tarball}`;
-  tarballs.push(tarball);
+  if (installSource === 'tarball') {
+    if (entry.name !== entry.sourceName) {
+      fail(
+        `tarball mode cannot prove renamed package ${entry.sourceName} -> ${entry.name}; `
+        + 'its internal npm aliases require the registry, so use --install-source registry',
+      );
+    }
+    const tarball = join(ledgerDirectory, entry.tarball);
+    if (!existsSync(tarball)) fail(`tarball is missing: ${tarball}`);
+    if (sha256(tarball) !== entry.sha256) fail(`tarball digest mismatch: ${entry.tarball}`);
+    dependencies[entry.sourceName] = `file:${tarball}`;
+    installTargets.push(tarball);
+  } else {
+    if (ledger.mode !== 'publish') {
+      fail(`registry mode requires a publish ledger (observed ${ledger.mode})`);
+    }
+    if (!['published', 'skipped-already-published'].includes(entry.status)) {
+      fail(`registry mode requires published package status for ${entry.name} (observed ${entry.status})`);
+    }
+    const requested = `${entry.name}@${entry.version}`;
+    const registryRecord = JSON.parse(run('npm', [
+      'view', requested, 'name', 'version', 'dist.integrity', '--json',
+    ]));
+    if (registryRecord.name !== entry.name || registryRecord.version !== entry.version) {
+      fail(`registry identity mismatch for ${requested}: ${JSON.stringify(registryRecord)}`);
+    }
+    if (typeof registryRecord['dist.integrity'] !== 'string' || registryRecord['dist.integrity'].length === 0) {
+      fail(`registry integrity is missing for ${requested}`);
+    }
+    dependencies[entry.sourceName] = entry.name === entry.sourceName
+      ? entry.version
+      : `npm:${entry.name}@${entry.version}`;
+    entry.registryIntegrity = registryRecord['dist.integrity'] ?? null;
+  }
 }
 
 const expectedPackages = [
@@ -163,7 +208,8 @@ try {
     dependencies,
   }, null, 2)}\n`);
   // Materialize the real Partitime backend source into the external checkout.
-  // From this point onward the proof runs only against that copy and tarballs.
+  // From this point onward the proof runs only against that copy and installed
+  // package artifacts; it never imports from this repository.
   for (const file of ['schema.mjs', 'functions.mjs', 'seed.json']) {
     cpSync(join(root, 'demos', 'partiful-matrix', 'snapback', file), join(backendRoot, file));
   }
@@ -208,11 +254,11 @@ await build({
 `);
 
   run('git', ['init', '--quiet'], { cwd: appRoot });
-  run('npm', ['install', '--no-audit', '--no-fund', ...tarballs], { cwd: appRoot, timeout: 360_000 });
+  run('npm', ['install', '--no-audit', '--no-fund', ...installTargets], { cwd: appRoot, timeout: 360_000 });
   for (const name of expectedPackages) {
     const installPath = join(appRoot, 'node_modules', ...name.split('/'));
     if (!existsSync(installPath) || lstatSync(installPath).isSymbolicLink()) {
-      fail(`${name} is not a materialized tarball install`);
+      fail(`${name} is not a materialized ${installSource} install`);
     }
   }
 
@@ -244,7 +290,7 @@ await build({
     if (dependencies[name]) scaffoldManifest.dependencies[name] = dependencies[name];
   }
   writeFileSync(scaffoldManifestPath, `${JSON.stringify(scaffoldManifest, null, 2)}\n`);
-  run('npm', ['install', '--no-audit', '--no-fund', ...tarballs], { cwd: scaffoldRoot, timeout: 360_000 });
+  run('npm', ['install', '--no-audit', '--no-fund', ...installTargets], { cwd: scaffoldRoot, timeout: 360_000 });
   run(join(scaffoldRoot, 'node_modules', '.bin', 'snapback'), ['generate', 'snapback', '--json'], {
     cwd: scaffoldRoot,
     env: { ...process.env, npm_config_offline: 'true' },
@@ -267,6 +313,7 @@ await build({
     sourceRevision: ledger.revision,
     sourceDirty: ledger.sourceDirty,
     publicationMode: ledger.mode,
+    installSource,
     scopePreset: ledger.scopePreset,
     version: ledger.version,
     packages: ledger.packages.map((entry) => ({
@@ -275,9 +322,13 @@ await build({
       version: entry.version,
       tarball: entry.tarball,
       sha256: entry.sha256,
+      ...(entry.registryIntegrity ? { registryIntegrity: entry.registryIntegrity } : {}),
     })),
     checks: {
-      materializedTarballInstall: true,
+      materializedPackageInstall: true,
+      materializedTarballInstall: installSource === 'tarball',
+      materializedRegistryInstall: installSource === 'registry',
+      publicRegistryInstall: installSource === 'registry',
       noSiblingSourceCheckout: true,
       partitimeBackendBuilt: true,
       localCodegenOffline: true,
@@ -293,10 +344,10 @@ await build({
       browserBundleBytes: Buffer.byteLength(browserBundle),
     },
     nonclaims: [
-      {
+      ...(installSource === 'registry' ? [] : [{
         id: 'public-registry-install',
-        reason: 'The proof installs immutable npm tarballs; the @snapback packages are not published in a public registry.',
-      },
+        reason: 'This proof installs immutable npm tarballs; it does not install the package closure from a public registry.',
+      }]),
       {
         id: 'separately-provisioned-clean-machine',
         reason: 'The proof uses a fresh external directory on the development host, not a separately provisioned clean machine.',

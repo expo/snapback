@@ -34,6 +34,17 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 5 public-name and registry-proof checkpoint):** 2026-07-21
+(`@snapback/cli` proved to be an unrelated public 3.x package at the deferred
+first-publication probe, so LLP 0021's explicit reopen caveat fired. The
+publisher's provisional `@ccheever/snapback-*` mapping passes npm dry-run as
+the labeled `0.1.0-llp0063.1`/`llp0063` prerelease, and the external proof now
+has a registry mode that verifies public name, version, integrity, and publish
+ledger before installing through source-name npm aliases. The real publish
+stopped at npm's interactive OTP challenge before any version became visible.
+Public-registry install, separately provisioned clean-machine/multi-platform
+evidence, and the Step 5 semantic prerequisites therefore remain open; no
+claim is promoted.)
 **Revised (Step 4 budget-remediation checkpoint):** 2026-07-20 (Exact
 revision `8373085c9…` removes the ordinary production Contract runtime's
 reachability edges to the full opt-in Motion engine and dev-only HMR

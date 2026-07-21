@@ -9,8 +9,8 @@ examples: [packages/snapback-cli/templates/todo-contract, demos/todo/tests/accep
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-20
-reviewed-commit: 7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7
+reviewed: 2026-07-21
+reviewed-commit: e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1
 ---
 
 # The authoring loop
@@ -40,9 +40,11 @@ optional `@snapback/runtime-darwin-arm64` package carries the prebuilt server
 and Hermes framework; `doctor` launches that relocated binary with ambient
 dynamic-loader overrides removed. Other host tuples currently report
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks disguised
-as installs. Public registry publication is still pending, so these commands
-describe the packed/published surface but require the retained tarball closure
-until the registry gate lands.
+as installs. Public registry publication is still pending. The `@snapback/cli`
+npm identity belongs to an unrelated product, so release probes use labeled
+`@ccheever/snapback-*` prereleases while keeping the documented source imports
+through npm aliases. The retained proof distinguishes immutable-tarball and
+public-registry modes and will not treat one as evidence for the other.
 
 ## 1. Edit
 

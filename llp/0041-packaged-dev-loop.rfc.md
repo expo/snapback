@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-20 (LLP 0063 Step 5 implementation checkpoint: `@snapback/cli` now owns `new`/`generate`/`dev`/`doctor`, delegates established host operations to the native CLI, and consumes the ready-file handshake with target fencing; `@snapback/runtime-darwin-arm64` carries a relocatable release binary plus Hermes framework, with Apple-silicon macOS as the first explicit platform slice; a tarball-only external proof from clean source revision `a75ddd51…` launches doctor with `DYLD_*` scrubbed, scaffolds and generates offline, starts/loads/watches/stops a managed server, seeds only a newly created database, and refuses a mismatched attach. Public npm publication and separately-provisioned clean-machine evidence remain open, so Status stays Draft); 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-21 (the first-publication probe found that `@snapback/cli` is an unrelated public 3.x package, reopening LLP 0021's namespace decision exactly as its caveat required. The publisher's provisional `@ccheever/snapback-*` mapping passes npm dry-run as the labeled `0.1.0-llp0063.1`/`llp0063` prerelease. The cold-install proof now has distinct tarball and registry modes, refuses to describe renamed tarballs as an offline closure, and requires registry identity/version/integrity plus a successful publish ledger before registry installation. npm's interactive OTP challenge stopped the real publish before a version became visible, so public-registry, clean-machine, and multi-platform evidence remain open and Status stays Draft); 2026-07-20 (LLP 0063 Step 5 implementation checkpoint: `@snapback/cli` now owns `new`/`generate`/`dev`/`doctor`, delegates established host operations to the native CLI, and consumes the ready-file handshake with target fencing; `@snapback/runtime-darwin-arm64` carries a relocatable release binary plus Hermes framework, with Apple-silicon macOS as the first explicit platform slice; a tarball-only external proof from clean source revision `a75ddd51…` launches doctor with `DYLD_*` scrubbed, scaffolds and generates offline, starts/loads/watches/stops a managed server, seeds only a newly created database, and refuses a mismatched attach. Public npm publication and separately-provisioned clean-machine evidence remain open, so Status stays Draft); 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
 `reviews/0041-packaged-dev-loop.claude.md`: runtime-distribution design
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
@@ -80,9 +80,12 @@ install.
 
 ### Package boundaries
 
-The `@snapback/*` namespace is already decided (LLP 0021 / LLP 0032 P6;
-registry claiming deferred to first publish). What exists today as private
-workspace members versus what is genuinely new work:
+The source/import namespace is `@snapback/*`. LLP 0021's deferred registry
+probe reopened the public-name decision on 2026-07-21 because
+`@snapback/cli` is an unrelated public package. Until durable names are
+ratified, publication uses clearly labeled `@ccheever/snapback-*`
+prereleases; npm aliases preserve the source/import names. What exists today
+as private workspace members versus what is genuinely new work:
 
 - `@snapback/codegen` — exists; needs versioned publishing.
 - `@snapback/contract` — exists (the Contract adapter, which is also the
@@ -231,8 +234,9 @@ implemented and retained by
 `scripts/snapback-package-cold-install.mjs`: packed runtime launch, `new`,
 offline `generate`, managed `dev`, ready-file attach, watched regeneration and
 load, mismatch refusal, stop cleanup, app-CLI introspection, and browser
-adapter bundling all pass. That is not yet the RFC exit. No `@snapback/*`
-package has been published to the public registry, npm authentication is not
-available in the recorded environment, the proof is a clean directory rather
-than an independently provisioned clean machine, and no non-darwin-arm64
-runtime package exists.
+adapter bundling all pass. The same proof now has a fail-closed registry mode
+for the provisional `@ccheever/snapback-*` npm aliases. That is not yet the RFC
+exit: npm authentication exists, but the first real publish stopped at npm's
+interactive OTP challenge and no version is publicly visible. The proof is a
+clean directory rather than an independently provisioned clean machine, and no
+non-darwin-arm64 runtime package exists.

@@ -1186,3 +1186,28 @@ server artifact are part of the install rather than a remote-service
 assumption. The remaining gap is operational, not hidden: npm is unauthenticated
 and the `@snapback` scope has not been published, so this is a tarball proof,
 not yet a public-registry or clean-machine release claim.
+
+### 2026-07-21 — the first registry probe found a product-name collision
+
+npm authentication was available on the remote Mac, but the assumed coherent
+`@snapback/*` public namespace was not: `@snapback/cli` is already an unrelated
+public 3.x package. The caveat in LLP 0021 did useful work here. Rather than
+overwriting or coexisting confusingly with that identity, the publication
+script's provisional `@ccheever/snapback-*` mapping staged a clearly labeled
+`0.1.0-llp0063.1` prerelease under the non-`latest` `llp0063` tag.
+
+The first fallback tarball run also caught a subtle proof bug. Renamed package
+manifests correctly use npm aliases for their internal dependencies, which
+means a pre-publication fallback tarball is not an offline closure: npm must
+resolve those renamed identities from a registry. The cold-install proof now
+rejects that combination and has an explicit registry mode that checks each
+published name, version, integrity, and successful publish-ledger status before
+installing the source-name aliases. The original identity-tarball closure still
+passes end to end.
+
+No registry success is claimed yet. npm required an interactive OTP at the
+first real upload and no version became publicly visible. Compared with Convex
+or Supabase, a native-runtime package closure makes distribution identity and
+platform coverage unusually visible; the upside is that the failure stays a
+precise publication/clean-machine gap rather than appearing later as a user's
+Hermes build problem.

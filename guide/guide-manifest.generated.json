@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7"
+    "commit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1"
   },
   "nav": {
     ".": [
@@ -962,9 +962,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "f289774422ec4437b4a637bb83024098f602dd976343a6177c5c0f8adca6f5ba",
+      "reviewed": "2026-07-21",
+      "reviewedCommit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1",
+      "sha256": "5d94ca8684a282e7316c82a36c74b3f9ed52edc9ffe5e8c6b8ac6e517f088793",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1563,5 +1563,5 @@
     "routes": 68,
     "hostOps": 13
   },
-  "contentHash": "e6db86df552e46c2fb384dd816b3d6e251eb0e1631559af023ebb1ca7260d2a9"
+  "contentHash": "51dc5913a8be94504306fb98d2c2f50873a3e2d6e111126279ca0632ee5bba69"
 }
