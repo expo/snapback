@@ -1,13 +1,13 @@
 {
   "revision": {
-    "snapback": "3374e36275cfa50dd934b5cbda0881b1fec7d398",
-    "exact": "450e0c78f83ac54f63e9fd05623c769adfcdc5eb"
+    "snapback": "182da49ade81d5c97a412e510d2ebf7c4e016d6c",
+    "exact": "d8cdcce9af25b26334364b7df6753673051f24bc"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v24.18.0",
+    "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/definitely/not/chrome",
@@ -112,26 +112,26 @@
         "@exact/contract": {
           "requested": "npm:@ccheever/exact-contract@0.1.2",
           "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "6c1e27ae2953e8abf5e29d77293b6893cab0a1815c00b494618b22a445717e8a"
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
         },
         "@exact/devtools": {
           "requested": "npm:@ccheever/exact-devtools@0.1.2",
           "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
         },
         "@exact/facet-core": {
           "requested": "npm:@ccheever/exact-facet-core@0.1.2",
           "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "1a30e22149a7b866008bc26304245fb1918c94ba41d60d67a14393d84469f210"
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
         },
         "@exact/renderer": {
           "requested": "npm:@ccheever/exact-renderer@0.1.2",
           "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "60fa1c8fcfe4d0b948eaab6df280a0bfb27d7b7833c59e36a63ecc259371cd53"
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "0ecc189106724396b489b83e9e35bab93b3b15b936b9c98f34651456b23272df",
-    "reportSha256": "fbff66a9863a0df15e3ae6f17f5923161c3a06404f7c7fe227bf3a414554b5bf"
+    "diarySha256": "1ee2ca85a478207485a7fcd0b7492b4d59d6072da106729f0c258f1b61084cb9",
+    "reportSha256": "f5dcd95c625614935210056cc9a2b16675797b33393b7049364429a1cb27f620"
   },
   "testInventory": [
     {
@@ -239,14 +239,14 @@
   "cleanupErrorCount": 0,
   "witness": {
     "command": [
-      "/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node",
+      "/opt/homebrew/Cellar/node/25.9.0_3/bin/node",
       "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
       "--arm",
       "react",
       "--backend",
       "snapback",
       "--receipt",
-      "/Users/ccheever/projects/snapback/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-68532"
+      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-37867"
     ],
     "exitStatus": 1,
     "signal": null

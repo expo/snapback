@@ -63,7 +63,7 @@
       "witnessClass": "harness-integrity",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "576113e033450de2bdb43a92c4ce668c740c25b064010e6cc6d16ea75801f974"
+        "sha256": "5c5b63b2545ecbf267bc4468a514d8c2b21df5604bda20f8d15a2e08408764f3"
       }
     },
     {
@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+        "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+        "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+        "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+        "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
       }
     },
     {
@@ -127,7 +127,7 @@
       "witnessClass": "dependency-exclusion",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
-        "sha256": "28d65bc890ebaa61ea9948d4673607d102b1957580ac7c4c96c55f1cfd7dc5b4"
+        "sha256": "a64274b6bd8395ff98269cf04050883567acd95685bba8cfc591fe065b1f0a52"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "2e7776a93aad055ce8a56494d8913557001fa8eef3e92f7e8c1d5e9778377863"
+        "sha256": "528491edefbfbedab33c4b28e20d74262c34bd6e11c5b294c6ef74b82ced03b8"
       }
     }
   ],

@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T06:47:00.406Z",
+  "recordedAt": "2026-07-21T08:11:38.386Z",
   "repository": {
-    "snapbackRevision": "67400abc3325310e33f2687e504dada2a448a323",
-    "exactRevision": "8373085c9bd699a1789176874454da8294513df9"
+    "snapbackRevision": "182da49ade81d5c97a412e510d2ebf7c4e016d6c",
+    "exactRevision": "d8cdcce9af25b26334364b7df6753673051f24bc"
   },
   "inputs": {
     "protocol": {
@@ -19,12 +19,12 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+      "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "67400abc3325310e33f2687e504dada2a448a323",
+      "revision": "182da49ade81d5c97a412e510d2ebf7c4e016d6c",
       "sha256": "2e7776a93aad055ce8a56494d8913557001fa8eef3e92f7e8c1d5e9778377863"
     },
     "nativeReceipts": [
@@ -77,28 +77,28 @@
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 801605,
+            "actual": 738080,
             "threshold": 422417,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:supabase",
-            "actual": 467597,
+            "actual": 468401,
             "threshold": 213488,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 467583,
+            "actual": 468387,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 467583,
+            "actual": 468387,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
@@ -106,15 +106,15 @@
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 409231,
+          "react:snapback": 343880,
           "react:supabase": 215059,
           "react:convex": 215055,
           "react:sqlite": 215055,
-          "contract:snapback": 801605,
-          "contract:supabase": 467597,
-          "contract:convex": 467583,
-          "contract:sqlite": 467583,
-          "vanilla:snapback": 213593,
+          "contract:snapback": 738080,
+          "contract:supabase": 468401,
+          "contract:convex": 468387,
+          "contract:sqlite": 468387,
+          "vanilla:snapback": 148380,
           "vanilla:supabase": 20235,
           "vanilla:convex": 20231,
           "vanilla:sqlite": 20231
@@ -129,28 +129,28 @@
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 203392,
+            "actual": 188851,
             "threshold": 119451,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:supabase",
-            "actual": 116794,
+            "actual": 116834,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:convex",
-            "actual": 116794,
+            "actual": 116832,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
           },
           {
             "cell": "contract:sqlite",
-            "actual": 116792,
+            "actual": 116833,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
             "pass": false
@@ -158,15 +158,15 @@
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 117046,
+          "react:snapback": 101189,
           "react:supabase": 67872,
           "react:convex": 67870,
           "react:sqlite": 67871,
-          "contract:snapback": 203392,
-          "contract:supabase": 116794,
-          "contract:convex": 116794,
-          "contract:sqlite": 116792,
-          "vanilla:snapback": 55925,
+          "contract:snapback": 188851,
+          "contract:supabase": 116834,
+          "contract:convex": 116832,
+          "contract:sqlite": 116833,
+          "vanilla:snapback": 40167,
           "vanilla:supabase": 7240,
           "vanilla:convex": 7237,
           "vanilla:sqlite": 7238
@@ -315,18 +315,18 @@
       "status": "pass",
       "reasonCode": "STEP4_BUDGET_FIRST_PUSH_P95_PASSED",
       "evidence": {
-        "actual": 5,
+        "actual": 3,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          5,
+          2,
           3,
-          4,
-          5,
-          5,
-          5,
-          4
+          3,
+          2,
+          3,
+          3,
+          2
         ],
         "pass": true
       }
@@ -768,16 +768,16 @@
           "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
           "minifiedBytes": {
             "vanillaGatewayFloor": 20232,
-            "snapbackProviderClientLowerBound": 193361,
+            "snapbackProviderClientLowerBound": 128148,
             "reactFrameworkAndApplicationCombined": 194824,
-            "contractRuntimeAndApplicationCombined": 447356,
-            "contractSnapbackInteractionUnattributed": 140656
+            "contractRuntimeAndApplicationCombined": 448160,
+            "contractSnapbackInteractionUnattributed": 141540
           }
         },
         "vanillaCells": {
           "vanilla:snapback": {
-            "minifiedBytes": 213593,
-            "deterministicGzipBytes": 55925
+            "minifiedBytes": 148380,
+            "deterministicGzipBytes": 40167
           },
           "vanilla:supabase": {
             "minifiedBytes": 20235,
@@ -896,21 +896,21 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "1506479a1352e76362bc0bd1dfe8cbe59ded89123a1edef5d01acf6066dd25b9",
+        "stdoutSha256": "92dbb76a0d45175917a725abbbe4541e7e9cccf29506e2a6ee52d273ca72fff6",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
-          "dist/convex-realtime/assets/convex-direct-BvTPBzgh.js    1.24 kB │ gzip:  0.62 kB",
-          "dist/convex-realtime/assets/index-CD9kevLf.js          215.38 kB │ gzip: 68.12 kB",
-          "✓ built in 373ms",
+          "dist/convex-realtime/assets/convex-direct-B34_zLpf.js   69.67 kB │ gzip: 19.45 kB",
+          "dist/convex-realtime/assets/index-Bl9_t8ky.js          215.38 kB │ gzip: 68.12 kB",
+          "✓ built in 458ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 48 modules transformed.",
+          "✓ 49 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                   0.41 kB │ gzip:  0.29 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css   10.21 kB │ gzip:  3.19 kB",
           "dist/sqlite/assets/index-B-ZPQCUX.js   215.06 kB │ gzip: 68.02 kB",
-          "✓ built in 313ms"
+          "✓ built in 364ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -931,35 +931,35 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "1f238c0f6f92c242d209c343c64d2058844dc4a9a1a2173a801a4478d69f6461",
-        "stderrSha256": "fdd58dde2cab545aa02a6146cd08cdb14469430d880f1f28a2b162a4838062db",
+        "stdoutSha256": "f2aed6cdf168347853dc74d7dff5e2acb7d5e4f103bebd7186bf203be6968326",
+        "stderrSha256": "9d28e9acd2fcd2375e70b25979519437da13218b7918c762ddfb465dbeeceee2",
         "stdoutTail": [
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "vite v8.1.5 building client environment for sqlite...",
-          "\u001b[2K\rtransforming...✓ 159 modules transformed.",
+          "\u001b[2K\rtransforming...✓ 160 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                         0.93 kB │ gzip:   0.58 kB",
-          "dist/sqlite/partitime-cost-attribution.json   28.98 kB │ gzip:   1.95 kB",
-          "dist/sqlite/assets/index-6mCYms3N.js         467.58 kB │ gzip: 118.54 kB │ map: 2,406.97 kB",
+          "dist/sqlite/partitime-cost-attribution.json   29.73 kB │ gzip:   1.95 kB",
+          "dist/sqlite/assets/index-BlAUNvkV.js         468.38 kB │ gzip: 118.58 kB │ map: 2,407.08 kB",
           "",
-          "✓ built in 175ms",
+          "✓ built in 320ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
-          "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/dist/sqlite"
+          "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
         "stderrTail": [
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode supabase --outDir dist/supabase && bun scripts/prerender.mjs --mode supabase --out-dir dist/supabase",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex --outDir dist/convex && bun scripts/prerender.mjs --mode convex --out-dir dist/convex",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode convex-realtime --outDir dist/convex-realtime && bun scripts/prerender.mjs --mode convex-realtime --out-dir dist/convex-realtime",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
           "$ bun --bun node_modules/.bin/vite build --config vite.config.ts --mode sqlite --outDir dist/sqlite && bun scripts/prerender.mjs --mode sqlite --out-dir dist/sqlite",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
-          "[contract] /private/tmp/snapback-llp0063-merge-wt-20260720/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
         ]
       },
       {
@@ -971,21 +971,21 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "8ac0c91193f8589fbd2d99580bbf4eccc0c704bb872122d8b457aa677816eac4",
+        "stdoutSha256": "0bb3ce97b13002e665a435a5296efc6c364b868171856b8eb7b434cf4883d68e",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.19 kB",
           "dist/convex/assets/index-BV5Pz4-N.js   20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 116ms",
+          "✓ built in 143ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 21 modules transformed.",
+          "✓ 22 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
           "dist/sqlite/index.html                  0.47 kB │ gzip: 0.30 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.19 kB",
           "dist/sqlite/assets/index-qkvd2Q_p.js   20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 109ms"
+          "✓ built in 147ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1237,14 +1237,14 @@
       "react:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-cHKhckm2.js",
-            "minifiedBytes": 409231,
-            "deterministicGzipBytes": 117046,
-            "sha256": "b52a0546c29196c1eba3d337049d407bcfaf14134b58b3dd19a269d5b193953c"
+            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BawSjTKa.js",
+            "minifiedBytes": 343880,
+            "deterministicGzipBytes": 101189,
+            "sha256": "266742e30b3620e6801d6129becbac63232761f17785f959366865821406de34"
           }
         ],
-        "minifiedBytes": 409231,
-        "deterministicGzipBytes": 117046
+        "minifiedBytes": 343880,
+        "deterministicGzipBytes": 101189
       },
       "react:supabase": {
         "assets": [
@@ -1285,62 +1285,62 @@
       "contract:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-B0ZGXJzd.js",
-            "minifiedBytes": 801605,
-            "deterministicGzipBytes": 203392,
-            "sha256": "3284bb757c941706705da8058b89feb0df8d17954167f6d081d81646e790ae04"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-9RTzxTco.js",
+            "minifiedBytes": 738080,
+            "deterministicGzipBytes": 188851,
+            "sha256": "19529b5c7b1393b757fbcd5c1037b96c33d491fbf3da4e771e9ba5ec82941e10"
           }
         ],
-        "minifiedBytes": 801605,
-        "deterministicGzipBytes": 203392
+        "minifiedBytes": 738080,
+        "deterministicGzipBytes": 188851
       },
       "contract:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-DitEUrgd.js",
-            "minifiedBytes": 467597,
-            "deterministicGzipBytes": 116794,
-            "sha256": "909d0060c6197dc85d6b211f4d2f34bc2dd4f06ff66aa77d0796512638693cc8"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-BWsgtJLC.js",
+            "minifiedBytes": 468401,
+            "deterministicGzipBytes": 116834,
+            "sha256": "4d9eae04dcf51718daaafe514ad487eaae8e70c99d6569035e6cc4f3157503bf"
           }
         ],
-        "minifiedBytes": 467597,
-        "deterministicGzipBytes": 116794
+        "minifiedBytes": 468401,
+        "deterministicGzipBytes": 116834
       },
       "contract:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-BwQqE9Dk.js",
-            "minifiedBytes": 467583,
-            "deterministicGzipBytes": 116794,
-            "sha256": "8b3ef04dca3924ac716963ee9ad1dd6d385a8943173470ec17db08b9cf8128bb"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-BQmJtpGN.js",
+            "minifiedBytes": 468387,
+            "deterministicGzipBytes": 116832,
+            "sha256": "9d4a37533ce68dcb5d91b06f503fdcd96bdc13e82bc95e550db2e7283167f440"
           }
         ],
-        "minifiedBytes": 467583,
-        "deterministicGzipBytes": 116794
+        "minifiedBytes": 468387,
+        "deterministicGzipBytes": 116832
       },
       "contract:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-6mCYms3N.js",
-            "minifiedBytes": 467583,
-            "deterministicGzipBytes": 116792,
-            "sha256": "08aba4194455c52ae7daeb3d6aea979502c09cfb8589001db91ce8cbdf3442a3"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-BlAUNvkV.js",
+            "minifiedBytes": 468387,
+            "deterministicGzipBytes": 116833,
+            "sha256": "fb1e49aab834c028f2a4eaa6be121ba696674d0041c4e999a0b5a3b51fdf5296"
           }
         ],
-        "minifiedBytes": 467583,
-        "deterministicGzipBytes": 116792
+        "minifiedBytes": 468387,
+        "deterministicGzipBytes": 116833
       },
       "vanilla:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-ivIcc6hC.js",
-            "minifiedBytes": 213593,
-            "deterministicGzipBytes": 55925,
-            "sha256": "4114c32cd74647d6ddbf4fc6c3b9a52eaa7fe8ab5c0e7df4bc089b3805e8d6bd"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-B4Hw1Ij-.js",
+            "minifiedBytes": 148380,
+            "deterministicGzipBytes": 40167,
+            "sha256": "99d2594527aa538bf2689c6fd522c660a6eec557041cfe3ea21e8d2827777136"
           }
         ],
-        "minifiedBytes": 213593,
-        "deterministicGzipBytes": 55925
+        "minifiedBytes": 148380,
+        "deterministicGzipBytes": 40167
       },
       "vanilla:supabase": {
         "assets": [
@@ -1383,30 +1383,30 @@
       "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
       "minifiedBytes": {
         "vanillaGatewayFloor": 20232,
-        "snapbackProviderClientLowerBound": 193361,
+        "snapbackProviderClientLowerBound": 128148,
         "reactFrameworkAndApplicationCombined": 194824,
-        "contractRuntimeAndApplicationCombined": 447356,
-        "contractSnapbackInteractionUnattributed": 140656
+        "contractRuntimeAndApplicationCombined": 448160,
+        "contractSnapbackInteractionUnattributed": 141540
       }
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+      "sha256": "d062c2bf8dc31e40b2d5439799c53e888efc25338fb38d2104c027a6dd30d947"
     },
     "pushLatency": {
       "contract": {
-        "actual": 5,
+        "actual": 3,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          5,
+          2,
           3,
-          4,
-          5,
-          5,
-          5,
-          4
+          3,
+          2,
+          3,
+          3,
+          2
         ],
         "pass": true
       }
