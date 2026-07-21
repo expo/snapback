@@ -182,8 +182,8 @@ failed-RSVP acceptance fixture and registered operation-parity gate, binding
 the four Contract read operations across the registry, HTTP, MCP, and typed
 client while confirming mutation tracing remains on the single shared
 `exact_causal_trace` surface. It also retains Partitime's app-specific
-disconnected-list explanation. This closes the standalone evidence receipt;
-shared-manifest promotion and the immutable final aggregate remain separate.)
+disconnected-list explanation. The shared manifest now promotes the claim
+with the passing receipt; the immutable final aggregate remains separate.)
 
 ## Summary
 
