@@ -1,0 +1,451 @@
+{
+  "schemaVersion": "partitime.step4-agent-session.v1",
+  "ok": true,
+  "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540",
+  "question": "Why did the bound Partitime event list not update after createEvent?",
+  "answer": {
+    "state": "ready",
+    "connection": "disconnected",
+    "reason": "ready: the attempt holds an authoritative value. Connection is 'disconnected': no active transport and no retry in progress."
+  },
+  "observation": {
+    "beforeRows": 3,
+    "afterRows": 3,
+    "mutation": {
+      "ok": true,
+      "value": {
+        "mutationName": "createEvent",
+        "args": {
+          "title": "Unseen event"
+        },
+        "correlation": {
+          "rootId": "partitime-agent-session"
+        },
+        "id": "event_not_delivered"
+      }
+    },
+    "providerFixture": "Snapback manifest-compatible provider with an authoritative retained value and a disconnected transport"
+  },
+  "bindings": {
+    "subscriptions": [
+      {
+        "keyString": "[\"declared:partitime-agent-disconnected-fixture\",\"listEvents\",\"1\",\"{}\"]",
+        "key": {
+          "partition": "declared:partitime-agent-disconnected-fixture",
+          "descriptorId": "listEvents",
+          "compatibilityToken": "1",
+          "canonicalArgs": "{}"
+        },
+        "provider": "snapback",
+        "queryName": "listEvents",
+        "refCount": 1,
+        "fenced": false,
+        "hasUpstream": true,
+        "attempt": {
+          "status": "ready",
+          "connection": "disconnected",
+          "empty": false
+        },
+        "receiptBindings": [],
+        "recentReceipts": [],
+        "why": {
+          "state": "ready",
+          "connection": "disconnected",
+          "reason": "ready: the attempt holds an authoritative value. Connection is 'disconnected': no active transport and no retry in progress."
+        }
+      }
+    ],
+    "components": [
+      {
+        "component": "PartifulFeed",
+        "instanceId": "mount_1/ci_1",
+        "sourcePath": "/Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
+        "queries": [
+          {
+            "name": "events",
+            "span": {
+              "line": 24,
+              "col": 3,
+              "offset": 840,
+              "len": 29
+            },
+            "slot": {
+              "status": "ready",
+              "connection": "disconnected"
+            }
+          }
+        ],
+        "mutations": [
+          {
+            "name": "createMut",
+            "span": {
+              "line": 25,
+              "col": 3,
+              "offset": 872,
+              "len": 32
+            }
+          }
+        ],
+        "ephemerals": []
+      }
+    ],
+    "receiptsObserved": 0,
+    "degraded": false
+  },
+  "claimVerification": {
+    "components": [
+      {
+        "component": "PartifulFeed",
+        "instanceId": "mount_1/ci_1",
+        "sourcePath": "/Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract",
+        "contractId": "contract/PartifulFeed",
+        "clauseCount": 9,
+        "ok": true,
+        "verified": [
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "has",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "derive-depends: derive canCreate depends only on createForm",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "when: when events.loading then has",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "when: when events.error then has",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "when: when events.empty then has",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "ok": true,
+            "skipped": "no-live-agent",
+            "description": "when: when events.ready then has",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          }
+        ],
+        "interactionClauses": [
+          {
+            "kind": "press",
+            "description": "press: press routes to action openCreate",
+            "skipped": "interaction-not-executed"
+          },
+          {
+            "kind": "press",
+            "description": "press: press routes to action closeCreate",
+            "skipped": "interaction-not-executed"
+          },
+          {
+            "kind": "press",
+            "description": "press: press routes to action toggleVariant",
+            "skipped": "interaction-not-executed"
+          }
+        ],
+        "witness": [
+          {
+            "kind": "has",
+            "clause": "has node testId=\"feed\"",
+            "status": "pass"
+          },
+          {
+            "kind": "press",
+            "clause": "press button \"+ Make something happen\" -> openCreate",
+            "status": "pass",
+            "detail": "target present; action \"openCreate\" resolves (interaction not performed)"
+          },
+          {
+            "kind": "press",
+            "clause": "press button \"Close create event\" -> closeCreate",
+            "status": "violated",
+            "detail": "target selector matched no elements in the committed tree"
+          },
+          {
+            "kind": "press",
+            "clause": "press button \"Toggle color theme\" -> toggleVariant",
+            "status": "pass",
+            "detail": "target present; action \"toggleVariant\" resolves (interaction not performed)"
+          },
+          {
+            "kind": "derive-depends",
+            "clause": "derive canCreate depends only on createForm",
+            "status": "static",
+            "detail": "compiler-enforced clause; no live check"
+          },
+          {
+            "kind": "when",
+            "clause": "when events.loading then has node testId=\"feed-loading\"",
+            "status": "guard-false",
+            "detail": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "clause": "when events.error then has node testId=\"feed-error\"",
+            "status": "guard-false",
+            "detail": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "clause": "when events.empty then has node testId=\"feed-empty\"",
+            "status": "guard-false",
+            "detail": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "clause": "when events.ready then has node testId=\"feed-ready\"",
+            "status": "pass"
+          }
+        ],
+        "disagreement": {
+          "actionWrites": [
+            {
+              "action": "openCreate",
+              "declaredWrites": [
+                "creating"
+              ],
+              "observedWrites": [],
+              "undeclaredObserved": [],
+              "declaredNotObserved": [
+                "creating"
+              ],
+              "invocations": 0,
+              "violations": 0,
+              "agreement": true
+            },
+            {
+              "action": "closeCreate",
+              "declaredWrites": [
+                "creating"
+              ],
+              "observedWrites": [],
+              "undeclaredObserved": [],
+              "declaredNotObserved": [
+                "creating"
+              ],
+              "invocations": 0,
+              "violations": 0,
+              "agreement": true
+            },
+            {
+              "action": "toggleVariant",
+              "declaredWrites": [
+                "visualVariant"
+              ],
+              "observedWrites": [],
+              "undeclaredObserved": [],
+              "declaredNotObserved": [
+                "visualVariant"
+              ],
+              "invocations": 0,
+              "violations": 0,
+              "agreement": true
+            },
+            {
+              "action": "submit",
+              "declaredWrites": [
+                "creating"
+              ],
+              "observedWrites": [],
+              "undeclaredObserved": [],
+              "declaredNotObserved": [
+                "creating"
+              ],
+              "invocations": 0,
+              "violations": 0,
+              "agreement": true
+            },
+            {
+              "action": "open",
+              "declaredWrites": [],
+              "observedWrites": [],
+              "undeclaredObserved": [],
+              "declaredNotObserved": [],
+              "invocations": 0,
+              "violations": 0,
+              "agreement": true
+            }
+          ],
+          "bindings": {
+            "declaredQueries": [
+              {
+                "name": "events",
+                "slotStatus": "ready",
+                "slotConnection": "disconnected"
+              }
+            ],
+            "declaredMutations": [
+              "createMut"
+            ],
+            "activeLogicalSubscriptions": [
+              {
+                "queryName": "listEvents",
+                "provider": "snapback",
+                "refCount": 1
+              }
+            ],
+            "note": "Component query bindings resolve to provider manifest query names at subscribe time; the logical-subscription list is runtime-global, so the per-binding join is by manifest query name where one matches."
+          }
+        },
+        "degraded": true,
+        "degradedReason": "No live-tree agent was available to this run; live-tree clauses were not evaluated (monitor witness results below remain authoritative)."
+      }
+    ],
+    "degraded": false
+  },
+  "explicitClauseStatuses": [
+    {
+      "kind": "live-tree",
+      "description": "has",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "live-tree",
+      "description": "derive-depends: derive canCreate depends only on createForm",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "live-tree",
+      "description": "when: when events.loading then has",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "live-tree",
+      "description": "when: when events.error then has",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "live-tree",
+      "description": "when: when events.empty then has",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "live-tree",
+      "description": "when: when events.ready then has",
+      "status": "pass",
+      "skipped": "no-live-agent",
+      "message": "Live-tree evaluation skipped: no agent transport in this context."
+    },
+    {
+      "kind": "press",
+      "description": "press: press routes to action openCreate",
+      "status": "skipped",
+      "skipped": "interaction-not-executed",
+      "message": null
+    },
+    {
+      "kind": "press",
+      "description": "press: press routes to action closeCreate",
+      "status": "skipped",
+      "skipped": "interaction-not-executed",
+      "message": null
+    },
+    {
+      "kind": "press",
+      "description": "press: press routes to action toggleVariant",
+      "status": "skipped",
+      "skipped": "interaction-not-executed",
+      "message": null
+    },
+    {
+      "kind": "has",
+      "description": "has node testId=\"feed\"",
+      "status": "pass",
+      "skipped": null,
+      "message": null
+    },
+    {
+      "kind": "press",
+      "description": "press button \"+ Make something happen\" -> openCreate",
+      "status": "pass",
+      "skipped": null,
+      "message": "target present; action \"openCreate\" resolves (interaction not performed)"
+    },
+    {
+      "kind": "press",
+      "description": "press button \"Close create event\" -> closeCreate",
+      "status": "violated",
+      "skipped": null,
+      "message": "target selector matched no elements in the committed tree"
+    },
+    {
+      "kind": "press",
+      "description": "press button \"Toggle color theme\" -> toggleVariant",
+      "status": "pass",
+      "skipped": null,
+      "message": "target present; action \"toggleVariant\" resolves (interaction not performed)"
+    },
+    {
+      "kind": "derive-depends",
+      "description": "derive canCreate depends only on createForm",
+      "status": "static",
+      "skipped": null,
+      "message": "compiler-enforced clause; no live check"
+    },
+    {
+      "kind": "when",
+      "description": "when events.loading then has node testId=\"feed-loading\"",
+      "status": "guard-false",
+      "skipped": null,
+      "message": "guard evaluated false; inner clause not checked"
+    },
+    {
+      "kind": "when",
+      "description": "when events.error then has node testId=\"feed-error\"",
+      "status": "guard-false",
+      "skipped": null,
+      "message": "guard evaluated false; inner clause not checked"
+    },
+    {
+      "kind": "when",
+      "description": "when events.empty then has node testId=\"feed-empty\"",
+      "status": "guard-false",
+      "skipped": null,
+      "message": "guard evaluated false; inner clause not checked"
+    },
+    {
+      "kind": "when",
+      "description": "when events.ready then has node testId=\"feed-ready\"",
+      "status": "pass",
+      "skipped": null,
+      "message": null
+    }
+  ],
+  "inputs": [
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+      "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+    },
+    {
+      "path": "demos/partiful-matrix/snapback/generated/contract-data.manifest.json",
+      "sha256": "3842e1a893857db6a348f80ee1c38c9827e462944732f93c9fad58742577d98d"
+    }
+  ]
+}

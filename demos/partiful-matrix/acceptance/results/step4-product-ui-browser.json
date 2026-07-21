@@ -1,0 +1,911 @@
+{
+  "revision": {
+    "snapback": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
+    "exact": "207ed2203039e548daa964b115f8aca15b07a540"
+  },
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "environment": {
+    "node": "v24.18.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "chromeVersion": "Google Chrome 150.0.7871.129",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "packages": {
+    "react": {
+      "manifestSha256": "1354d4b42fe05b7b9b2938962cd312d936225f4d72c3790078939b39b5e5b95a",
+      "lockPath": "demos/partiful-matrix/surfaces/react/bun.lock",
+      "lockSha256": "20bb724eaa5f675b25e290bf66bc892d2eeb61e7382e7d6e1989cf59c8dfb239",
+      "dependencies": {
+        "@supabase/supabase-js": "^2.110.7",
+        "convex": "^1.28.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "@types/node": "^26.0.0",
+        "@types/react": "^19.1.8",
+        "@types/react-dom": "^19.1.6",
+        "@vitejs/plugin-react": "^4.6.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "@supabase/supabase-js": {
+          "requested": "^2.110.7",
+          "resolvedName": "@supabase/supabase-js",
+          "resolvedVersion": "2.110.7",
+          "manifestSha256": "11d42f0c4a030fe450aeb9e3dd0085afff5c46ae9d071f25cdd8d0923bd852c4"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "react": {
+          "requested": "^19.1.0",
+          "resolvedName": "react",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "51966ae9c8c377ff592b5d69c980966992101bc6791bf83a1e5c7ad9bcefa7f4"
+        },
+        "react-dom": {
+          "requested": "^19.1.0",
+          "resolvedName": "react-dom",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "447acd72cdb6a966d9db967729e286e7cbb4a09ea61fddd45e12c2a97fd4cfb6"
+        },
+        "@types/node": {
+          "requested": "^26.0.0",
+          "resolvedName": "@types/node",
+          "resolvedVersion": "26.1.1",
+          "manifestSha256": "83e7472f5b94b43acde2e60b39cef9adc278a1f2a5d7cc4b4c677e29da3e0ab9"
+        },
+        "@types/react": {
+          "requested": "^19.1.8",
+          "resolvedName": "@types/react",
+          "resolvedVersion": "19.2.17",
+          "manifestSha256": "36496fc09a9dcf31b0ca969ce5677c9ce9ebb5c89da9bd6212e0c89b6fae3f88"
+        },
+        "@types/react-dom": {
+          "requested": "^19.1.6",
+          "resolvedName": "@types/react-dom",
+          "resolvedVersion": "19.2.3",
+          "manifestSha256": "bf90986beaec5f757c164bf1d374f3038dc41b0b06673de4a55fd975d1e5deca"
+        },
+        "@vitejs/plugin-react": {
+          "requested": "^4.6.0",
+          "resolvedName": "@vitejs/plugin-react",
+          "resolvedVersion": "4.7.0",
+          "manifestSha256": "d608755568d9d654c34e9e2da06659df9122fa89d2604ee09cdeda457a20c035"
+        },
+        "typescript": {
+          "requested": "^5.9.3",
+          "resolvedName": "typescript",
+          "resolvedVersion": "5.9.3",
+          "manifestSha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+        },
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    },
+    "contract": {
+      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
+      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "dependencies": {
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "convex": "^1.28.0",
+        "vite": "^8.0.0"
+      },
+      "resolvedDependencies": {
+        "@exact/contract": {
+          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "resolvedName": "@ccheever/exact-contract",
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "6c1e27ae2953e8abf5e29d77293b6893cab0a1815c00b494618b22a445717e8a"
+        },
+        "@exact/devtools": {
+          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "resolvedName": "@ccheever/exact-devtools",
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
+        },
+        "@exact/facet-core": {
+          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "resolvedName": "@ccheever/exact-facet-core",
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "1a30e22149a7b866008bc26304245fb1918c94ba41d60d67a14393d84469f210"
+        },
+        "@exact/renderer": {
+          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "resolvedName": "@ccheever/exact-renderer",
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "60fa1c8fcfe4d0b948eaab6df280a0bfb27d7b7833c59e36a63ecc259371cd53"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "vite": {
+          "requested": "^8.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "8.1.5",
+          "manifestSha256": "2f482c846a1c5b9e5883b458b3e54a171a320c2e8d9b924c7383c4baef607b09"
+        }
+      }
+    },
+    "vanilla": {
+      "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
+      "lockPath": "bun.lock",
+      "lockSha256": "24ac6116f04740e816ec3ae8804c5f6dc255cdfbed408bcc8166b7f94869f9cc",
+      "dependencies": {
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
+    "bundleHash": "sha256:adce7dc6b39cd37f",
+    "diarySha256": "0829481aad33d6b0bd997e801913b0bda12e17590b962a5c36341e2241b11fb7",
+    "reportSha256": "92fefa697b861f439f93be8602e8e164b80ac321889e72b4ea96477a1477bf4b"
+  },
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "demos/_kit/chrome-process.mjs",
+      "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+      "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
+      "sha256": "10bff8b52e37dfefa5de2773d1944f5bf00f5d38bef6e2dcab6128b2a0c07a69"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+    }
+  ],
+  "testInventorySha256": "fcbc465c251f410b489d4763733b6e8aabdbcff52d84ef3d5fda9d683ff723f7",
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.v1",
+  "cells": [
+    "react:snapback",
+    "contract:snapback"
+  ],
+  "transportWitnessCells": [
+    "react:snapback",
+    "contract:snapback"
+  ],
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "title": "partitime / product UI browser parity",
+  "passed": 19,
+  "skipped": 0,
+  "failed": 0,
+  "total": 19,
+  "ok": true,
+  "results": [
+    {
+      "name": "react × snapback boots its identified cell",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "react × snapback renders the canonical feed",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "react × snapback opens details and observes RSVP",
+      "ok": true,
+      "details": {
+        "actor": "user_eve",
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
+      }
+    },
+    {
+      "name": "react × snapback traverses browser history without document reload",
+      "ok": true,
+      "details": {
+        "before": {
+          "identity": "d86201be-9424-42a7-b7bb-37dc7c9d3f52",
+          "url": "http://127.0.0.1:64999/?user=eve&event=event_sunset",
+          "navigations": 1
+        },
+        "after": {
+          "identity": "d86201be-9424-42a7-b7bb-37dc7c9d3f52",
+          "url": "http://127.0.0.1:64999/?user=eve",
+          "navigations": 1,
+          "event": null
+        },
+        "traversal": [
+          "feed",
+          "event",
+          "feed"
+        ]
+      }
+    },
+    {
+      "name": "react × snapback responds at compact width and changes theme on one tree",
+      "ok": true,
+      "details": {
+        "expanded": {
+          "fontSize": 98.56,
+          "background": "rgba(0, 0, 0, 0)",
+          "width": 1280
+        },
+        "compact": {
+          "fontSize": 54,
+          "background": "rgba(0, 0, 0, 0)",
+          "width": 390,
+          "identity": "retained"
+        },
+        "themed": {
+          "background": "rgb(21, 23, 29)",
+          "identity": "retained"
+        },
+        "treeIdentityRetained": true
+      }
+    },
+    {
+      "name": "react × snapback provides an accessible portal form and keyboard focus scope",
+      "ok": true,
+      "details": {
+        "semantics": {
+          "role": "dialog",
+          "modal": "true",
+          "labelledBy": "create-title-heading",
+          "describedBy": "create-description-copy",
+          "portal": true,
+          "portalDetached": true,
+          "overlayPosition": "fixed",
+          "descriptionTag": "TEXTAREA",
+          "activeTestId": "create-title"
+        },
+        "validation": {
+          "titleInvalid": "true",
+          "locationInvalid": "true",
+          "titleDescribedBy": "create-title-error",
+          "locationDescribedBy": "create-location-error",
+          "titleErrorRole": "alert",
+          "locationErrorRole": "alert",
+          "activeTestId": "create-title"
+        },
+        "trapped": {
+          "last": "create-submit",
+          "count": 6
+        },
+        "wrappedTo": "create-close",
+        "restored": {
+          "overlay": false,
+          "activeTestId": "new-event"
+        }
+      }
+    },
+    {
+      "name": "react × snapback honors reduced-motion preference",
+      "ok": true,
+      "details": {
+        "matches": true,
+        "animationDuration": "1e-06s",
+        "transitionDuration": "1e-06s",
+        "overlayTransition": "1e-06s"
+      }
+    },
+    {
+      "name": "react × snapback mounts a bounded virtual guest window",
+      "ok": true,
+      "details": {
+        "tag": "DIV",
+        "mounted": 3,
+        "totalText": "ADAdaHostingGRGraceGoingEVEveGoing",
+        "height": 300,
+        "overflowY": "auto"
+      }
+    },
+    {
+      "name": "react × snapback proves unsolicited push with polling fallback disabled",
+      "ok": true,
+      "details": {
+        "actor": "user_eve",
+        "mutationOrigin": "out-of-band SnapbackClient",
+        "pollFallback": "disabled",
+        "warmupCount": 2,
+        "sampleCount": 7,
+        "observations": [
+          {
+            "sampleIndex": 0,
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 1,
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 2,
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 3,
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 4,
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 5,
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 6,
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 7,
+            "before": "EVEveMaybe",
+            "after": "EVEveGoing",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 8,
+            "before": "EVEveGoing",
+            "after": "EVEveMaybe",
+            "latencyMs": 4
+          }
+        ],
+        "freshnessLatencyMs": {
+          "samples": [
+            4,
+            5,
+            4,
+            5,
+            4,
+            4,
+            4
+          ],
+          "median": 4,
+          "p95": 5
+        },
+        "connectionBefore": "live",
+        "established": [
+          {
+            "queryName": "listEvents",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc56377cb1be23996da0ff9b53",
+            "subscriptionId": "sub_019f82dc56377cb1be23996da0ff9b53",
+            "event": "established",
+            "transport": "push",
+            "scope": {},
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905912
+          },
+          {
+            "queryName": "listEvents",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc56387991b748fc8f3c27ec61",
+            "subscriptionId": "sub_019f82dc56387991b748fc8f3c27ec61",
+            "event": "established",
+            "transport": "poll",
+            "scope": {},
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905921
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc564470e3bedb29096c4a2eb4",
+            "subscriptionId": "sub_019f82dc564470e3bedb29096c4a2eb4",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905929
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc564470e3bedb294c034dd721",
+            "subscriptionId": "sub_019f82dc564470e3bedb294c034dd721",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905930
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc56457b20b8323c463af6ffa8",
+            "subscriptionId": "sub_019f82dc56457b20b8323c463af6ffa8",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905930
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc564470e3bedb2924f6e6e6e9",
+            "subscriptionId": "sub_019f82dc564470e3bedb2924f6e6e6e9",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905957
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc56457b20b8323c8132876c3c",
+            "subscriptionId": "sub_019f82dc56457b20b8323c8132876c3c",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905969
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc56457b20b8323c63a7840084",
+            "subscriptionId": "sub_019f82dc56457b20b8323c63a7840084",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784606905980
+          }
+        ]
+      }
+    },
+    {
+      "name": "contract × snapback boots its identified cell",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "contract × snapback renders the canonical feed",
+      "ok": true,
+      "details": null
+    },
+    {
+      "name": "contract × snapback opens details and observes RSVP",
+      "ok": true,
+      "details": {
+        "actor": "user_eve",
+        "before": "EveMaybe",
+        "after": "EveGoing",
+        "transition": "Going"
+      }
+    },
+    {
+      "name": "contract × snapback traverses browser history without document reload",
+      "ok": true,
+      "details": {
+        "before": {
+          "identity": "de8b3d38-080a-4168-b75c-3d3030a17d4b",
+          "url": "http://127.0.0.1:65177/events/event_sunset/?user=eve",
+          "navigations": 1
+        },
+        "after": {
+          "identity": "de8b3d38-080a-4168-b75c-3d3030a17d4b",
+          "url": "http://127.0.0.1:65177/?user=eve",
+          "navigations": 1,
+          "event": null
+        },
+        "traversal": [
+          "feed",
+          "event",
+          "feed"
+        ]
+      }
+    },
+    {
+      "name": "contract × snapback responds at compact width and changes theme on one tree",
+      "ok": true,
+      "details": {
+        "expanded": {
+          "fontSize": 66,
+          "background": "rgb(244, 240, 232)",
+          "width": 1280
+        },
+        "compact": {
+          "fontSize": 38,
+          "background": "rgb(244, 240, 232)",
+          "width": 390,
+          "identity": "retained"
+        },
+        "themed": {
+          "background": "rgb(21, 23, 29)",
+          "identity": "retained"
+        },
+        "treeIdentityRetained": true
+      }
+    },
+    {
+      "name": "contract × snapback provides an accessible portal form and keyboard focus scope",
+      "ok": true,
+      "details": {
+        "semantics": {
+          "role": "dialog",
+          "modal": "true",
+          "labelledBy": "create-title-heading",
+          "describedBy": "create-description-copy",
+          "portal": true,
+          "portalDetached": false,
+          "overlayPosition": "fixed",
+          "descriptionTag": "TEXTAREA",
+          "activeTestId": "create-close"
+        },
+        "validation": {
+          "titleInvalid": null,
+          "locationInvalid": null,
+          "titleDescribedBy": "create-title-error",
+          "locationDescribedBy": "create-location-error",
+          "titleErrorRole": "alert",
+          "locationErrorRole": "alert",
+          "activeTestId": "create-close"
+        },
+        "trapped": {
+          "last": "create-submit",
+          "count": 6
+        },
+        "wrappedTo": "create-close",
+        "restored": {
+          "overlay": false,
+          "activeTestId": "new-event"
+        }
+      }
+    },
+    {
+      "name": "contract × snapback honors reduced-motion preference",
+      "ok": true,
+      "details": {
+        "matches": true,
+        "animationDuration": "0s",
+        "transitionDuration": "0s",
+        "overlayTransition": "0s"
+      }
+    },
+    {
+      "name": "contract × snapback mounts a bounded virtual guest window",
+      "ok": true,
+      "details": {
+        "tag": "UL",
+        "mounted": 3,
+        "totalText": "AdaHostingGraceGoingEveGoing",
+        "height": 150,
+        "overflowY": "visible"
+      }
+    },
+    {
+      "name": "contract × snapback forces loading error empty and ready through its provider",
+      "ok": true,
+      "details": {
+        "provider": "Snapback ContractDataProvider.forceQueryState",
+        "observations": [
+          {
+            "state": "loading",
+            "testId": "feed-loading",
+            "observed": "Loading the plans…"
+          },
+          {
+            "state": "error",
+            "testId": "feed-error",
+            "observed": "Forced Partitime failure"
+          },
+          {
+            "state": "empty",
+            "testId": "feed-empty",
+            "observed": "No plans yet. Make something happen."
+          },
+          {
+            "state": "ready",
+            "testId": "feed-ready",
+            "observed": "🍊Sat, Aug 1, 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8, 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16, 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →"
+          }
+        ]
+      }
+    },
+    {
+      "name": "contract × snapback proves unsolicited push with polling fallback disabled",
+      "ok": true,
+      "details": {
+        "actor": "user_eve",
+        "mutationOrigin": "out-of-band SnapbackClient",
+        "pollFallback": "disabled",
+        "warmupCount": 2,
+        "sampleCount": 7,
+        "observations": [
+          {
+            "sampleIndex": 0,
+            "before": "EveGoing",
+            "after": "EveMaybe",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 1,
+            "before": "EveMaybe",
+            "after": "EveGoing",
+            "latencyMs": 5
+          },
+          {
+            "sampleIndex": 2,
+            "before": "EveGoing",
+            "after": "EveMaybe",
+            "latencyMs": 3
+          },
+          {
+            "sampleIndex": 3,
+            "before": "EveMaybe",
+            "after": "EveGoing",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 4,
+            "before": "EveGoing",
+            "after": "EveMaybe",
+            "latencyMs": 2
+          },
+          {
+            "sampleIndex": 5,
+            "before": "EveMaybe",
+            "after": "EveGoing",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 6,
+            "before": "EveGoing",
+            "after": "EveMaybe",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 7,
+            "before": "EveMaybe",
+            "after": "EveGoing",
+            "latencyMs": 4
+          },
+          {
+            "sampleIndex": 8,
+            "before": "EveGoing",
+            "after": "EveMaybe",
+            "latencyMs": 4
+          }
+        ],
+        "freshnessLatencyMs": {
+          "samples": [
+            3,
+            4,
+            2,
+            4,
+            4,
+            4,
+            4
+          ],
+          "median": 4,
+          "p95": 4
+        },
+        "connectionBefore": "●live",
+        "established": [
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc61f37e72ba5b921b6280cd7b",
+            "subscriptionId": "sub_019f82dc61f37e72ba5b921b6280cd7b",
+            "event": "established",
+            "transport": "push",
+            "scope": {},
+            "snapshotVersion": 12,
+            "lastDeltaVersion": 12,
+            "correlation": {
+              "rootId": "root_5bf3e210-c45c-40bb-94f5-1092ec95b61f",
+              "bindingIds": [
+                "listEvents"
+              ]
+            },
+            "receivedAtMs": 1784606908916,
+            "queryName": "listEvents"
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc62167f81be061fd4f12c46fc",
+            "subscriptionId": "sub_019f82dc62167f81be061fd4f12c46fc",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 12,
+            "lastDeltaVersion": 12,
+            "correlation": {
+              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "bindingIds": [
+                "eventDetails"
+              ]
+            },
+            "receivedAtMs": 1784606908973,
+            "queryName": "eventDetails"
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc62167f81be0620134a189d76",
+            "subscriptionId": "sub_019f82dc62167f81be0620134a189d76",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 12,
+            "lastDeltaVersion": 12,
+            "correlation": {
+              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "bindingIds": [
+                "guestList"
+              ]
+            },
+            "receivedAtMs": 1784606908974,
+            "queryName": "guestList"
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dc621779539ee44cebd2417641",
+            "subscriptionId": "sub_019f82dc621779539ee44cebd2417641",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 12,
+            "lastDeltaVersion": 12,
+            "correlation": {
+              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "bindingIds": [
+                "eventWall"
+              ]
+            },
+            "receivedAtMs": 1784606908974,
+            "queryName": "eventWall"
+          }
+        ]
+      }
+    }
+  ],
+  "expectedChecks": 19,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

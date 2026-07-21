@@ -1,0 +1,223 @@
+{
+  "schemaVersion": "partitime.step2-exact-native-import.v1",
+  "claimId": "STEP2.CONTRACT_ANDROID_PARITY",
+  "profileId": "exact-native/android",
+  "capabilityClass": "Parity",
+  "ok": true,
+  "outcome": "pass",
+  "exact": {
+    "receiptRevision": "e94e50e5f2de05bba64be987ba105b61faf23750",
+    "sourceRevision": "5a6ec229a3f742f580c2f9503cb32a617aee90ba",
+    "receiptPath": "docs/reports/exact-native/partitime-android.json",
+    "receiptSha256": "7bc8d51c61736a4bc5609088f47a62cd74e08e83f38fdfb49a5e9b25edcaf65f",
+    "registrySha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5",
+    "checkId": "exact-partitime-native-android"
+  },
+  "receipt": {
+    "schemaVersion": "exact.partitime.native-profile-receipt.v1",
+    "profileId": "exact-native/android",
+    "capabilityClass": "Parity",
+    "ok": true,
+    "recordedAt": "2026-07-21T00:46:38.223Z",
+    "sourceRevision": "5a6ec229a3f742f580c2f9503cb32a617aee90ba",
+    "sourceGraph": {
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "bytes": 4779,
+          "sha256": "43588e61ad6dbbf92a08389ed7381359c0b240609e6b8b47ef87132b532e1ba7"
+        },
+        {
+          "path": "Cargo.lock",
+          "bytes": 142165,
+          "sha256": "ec48cfd16127ace3b26941df636e4989a74d123723ddea64071ffffd45117b6f"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/Cargo.toml",
+          "bytes": 438,
+          "sha256": "71733df7431fb696f660abc4ff0ada9cac3c20753e23da587881260fdcc2c030"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/include/exact_partitime_carrier.h",
+          "bytes": 705,
+          "sha256": "d9ca8d159e3e16d37e0bbb8b833148f35b46752369c86a2d7748da68cc2543c4"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/src/lib.rs",
+          "bytes": 21106,
+          "sha256": "bdfdcc4c18be265148a7316db415874633d8caeffe460f0d39f4572a770704d4"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/owner.rs",
+          "bytes": 36891,
+          "sha256": "cc8732f946c114f50ee27e89a7b57bb19de85a08a5b43304e7bda2bb388cbdb8"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/provider.rs",
+          "bytes": 60816,
+          "sha256": "e5a92523f2b0daddca83d6519de286434b28f0d3f7e503188b5218b9f4be9797"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/provider/native_replay.rs",
+          "bytes": 13011,
+          "sha256": "bf218b09f82680e6170a85896926e18213d4febcbdab17b6215ca7ad4f6d2628"
+        },
+        {
+          "path": "packages/snapback-client-core/src/partitime_generated.rs",
+          "bytes": 14208,
+          "sha256": "ee04d5b1a093a63f9c1c34d96de513e209db28e522bc6860ac377fc808c1fad8"
+        },
+        {
+          "path": "packages/snapback-client-core/artifacts/partitime/functions.manifest.json",
+          "bytes": 16373,
+          "sha256": "fec57d9abf26d8928e0320972af29186950c1cf2f2f6e0342c10e6f07bad9e6e"
+        },
+        {
+          "path": "packages/snapback-client-core/artifacts/partitime/schema.manifest.json",
+          "bytes": 3533,
+          "sha256": "50c876c4f28c11df13a1a92a29901e8f208fbd7a18e4badd6eb177ff316aca40"
+        },
+        {
+          "path": "android/build-partitime-carrier.sh",
+          "bytes": 1955,
+          "sha256": "de931153b48f60a07a9d9977808fb9f4009d315c0c6b0d23792c3208c4c87a43"
+        },
+        {
+          "path": "android/ExactApp/settings.gradle.kts",
+          "bytes": 368,
+          "sha256": "d914af535c97db476349cf0ff075a567ca960fd295bbfd19452eb5338efc7e16"
+        },
+        {
+          "path": "android/ExactApp/partitimeAcceptance/build.gradle.kts",
+          "bytes": 2103,
+          "sha256": "bc6728aee19f09f6fd227ec1ec7e565797c225f75a24b3145b8eb05a3227b86e"
+        },
+        {
+          "path": "android/ExactApp/partitimeAcceptance/src/main/AndroidManifest.xml",
+          "bytes": 648,
+          "sha256": "6b4b80daa39e6bc0ee35c2cdc1e66d33c9dec73d06f6482cb008eac98cf04018"
+        },
+        {
+          "path": "android/ExactApp/partitimeAcceptance/src/main/cpp/CMakeLists.txt",
+          "bytes": 935,
+          "sha256": "e9a2da4cd4fd024664f92411288ec1671ba210c5cc2416e992b26b6b59806f11"
+        },
+        {
+          "path": "android/ExactApp/partitimeAcceptance/src/main/cpp/exact_partitime_acceptance.cpp",
+          "bytes": 1443,
+          "sha256": "05bf730503f0060fd7c68128434d60b43ea3007cb3dcb56893e5fb0d53c535fe"
+        },
+        {
+          "path": "android/ExactApp/partitimeAcceptance/src/main/java/com/exact/partitime/acceptance/ExactPartitimeNativeAcceptanceActivity.kt",
+          "bytes": 4533,
+          "sha256": "36ccee711945687d47e5b54963219754d6383b903840a1238cdf0799ecd25863"
+        }
+      ],
+      "sha256": "d8c5e46fac5dc9deef43c7cea2696da4afc1da233c01128bbdc10e8d969c07cc"
+    },
+    "artifact": {
+      "kind": "android-optimized-release-apk",
+      "path": "android/ExactApp/partitimeAcceptance/build/outputs/apk/release/partitimeAcceptance-release.apk",
+      "bytes": 9429886,
+      "sha256": "fe2b60424234991ed5ea152d5546d102d4ce1498e54c55291c2f5bf366277fe8",
+      "packagedNativeLibraries": [
+        "lib/arm64-v8a/libexact_partitime_acceptance.so",
+        "lib/arm64-v8a/libexact_partitime_carrier.so",
+        "lib/x86_64/libexact_partitime_acceptance.so",
+        "lib/x86_64/libexact_partitime_carrier.so"
+      ],
+      "exclusion": {
+        "passed": true,
+        "forbiddenPatterns": [
+          "/libhermes|hermesvm/i",
+          "/ibex[_:/.-]?runtime|vendor[/\\\\]ibex/i",
+          "/snapback[_:/.-]?server/i",
+          "/start[_:/.-]?snapback[_:/.-]?server/i"
+        ],
+        "inspectedPaths": [
+          "META-INF/com/android/build/gradle/app-metadata.properties",
+          "META-INF/version-control-info.textproto",
+          "classes.dex",
+          "lib/arm64-v8a/libexact_partitime_acceptance.so",
+          "lib/arm64-v8a/libexact_partitime_carrier.so",
+          "lib/x86_64/libexact_partitime_acceptance.so",
+          "lib/x86_64/libexact_partitime_carrier.so",
+          "kotlin/annotation/annotation.kotlin_builtins",
+          "kotlin/collections/collections.kotlin_builtins",
+          "kotlin/concurrent/atomics/atomics.kotlin_builtins",
+          "kotlin/coroutines/coroutines.kotlin_builtins",
+          "kotlin/internal/internal.kotlin_builtins",
+          "kotlin/kotlin.kotlin_builtins",
+          "kotlin/ranges/ranges.kotlin_builtins",
+          "kotlin/reflect/reflect.kotlin_builtins",
+          "AndroidManifest.xml",
+          "resources.arsc"
+        ]
+      }
+    },
+    "device": {
+      "kind": "Android Emulator",
+      "serial": "emulator-5554",
+      "product": "sdk_gphone64_arm64",
+      "model": "sdk_gphone64_arm64",
+      "api": "36"
+    },
+    "carrierReceipt": {
+      "schemaVersion": "exact.partitime.native-carrier.v1",
+      "profileId": "exact-native/android",
+      "capabilityClass": "Parity",
+      "platform": "android",
+      "coreMask": 511,
+      "completeMask": 2047,
+      "mask": 2047,
+      "transitions": [
+        {
+          "event": "launch",
+          "mask": 511,
+          "monotonicNanos": 1223175176415
+        },
+        {
+          "event": "background-quiesced",
+          "mask": 1023,
+          "monotonicNanos": 1224586930374
+        },
+        {
+          "event": "foreground-reconnected",
+          "mask": 2047,
+          "monotonicNanos": 1225604557916
+        }
+      ]
+    },
+    "facts": {
+      "releaseCarrierBuildAndLaunch": true,
+      "generatedFunctionInitialData": true,
+      "optimisticPendingThenSettlement": true,
+      "authorityRotationThenFreshAuthorizedQuery": true,
+      "backgroundAndForegroundLifecycle": true,
+      "offlineRetentionAndAuthoritativeReconnect": true,
+      "retainedReadsWhileOffline": true,
+      "deterministicLocalGeneratedHandler": true,
+      "durableOrderedQueueAcrossOwnerLifecycle": true,
+      "reconnectReplayRebaseAndConvergence": true,
+      "predecessorAuthorityQueueSuspension": true,
+      "snapbackServerImplementationExcluded": true
+    },
+    "command": "bun scripts/capture-exact-partitime-native.mjs --platform=android --check"
+  },
+  "validation": {
+    "factCount": 12,
+    "sourceCount": 18,
+    "sourceGraphSha256": "d8c5e46fac5dc9deef43c7cea2696da4afc1da233c01128bbdc10e8d969c07cc",
+    "lifecycleMasks": [
+      511,
+      1023,
+      2047
+    ]
+  },
+  "verifierInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs",
+      "sha256": "8c5880046a2745464c5e989795e81ef7254a791933133f598a1a124fa9b1fbbb"
+    }
+  ]
+}

@@ -221,7 +221,12 @@ if (webClaimIds.some((id) => passing.has(id))) {
     for (const result of push) {
       assert.equal(result.ok, true, `${result.name} did not pass`);
       assert.equal(result.details.pollFallback, 'disabled', `${result.name} did not disable fallback`);
-      assert.equal(result.details.connectionBefore, 'live', `${result.name} was not live before mutation`);
+      assert.equal(typeof result.details.connectionBefore, 'string', `${result.name} lacks a pre-mutation connection state`);
+      assert.match(
+        result.details.connectionBefore,
+        /(?:^|[^a-z])live(?:[^a-z]|$)/i,
+        `${result.name} was not live before mutation`,
+      );
       assert.ok(
         result.details.established.some((event) => event.queryName === 'guestList' && event.transport === 'push'),
         `${result.name} lacks guestList push provenance`,

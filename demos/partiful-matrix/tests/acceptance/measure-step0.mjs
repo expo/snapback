@@ -43,8 +43,7 @@ const sourceGroups = {
     'surfaces/vanilla/src/lifecycle.js',
   ],
   snapbackBackend: [
-    'snapback/schema.mjs', 'snapback/functions.mjs', 'snapback/handlers.mjs',
-    'snapback/seed.json',
+    'snapback/schema.mjs', 'snapback/functions.mjs', 'snapback/seed.json',
   ],
 };
 

@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "partitime.step2-exact-native-import.v1",
+  "claimId": "STEP2.CONTRACT_IOS_PARITY",
+  "profileId": "exact-native/ios",
+  "capabilityClass": "Parity",
+  "ok": true,
+  "outcome": "pass",
+  "exact": {
+    "receiptRevision": "e94e50e5f2de05bba64be987ba105b61faf23750",
+    "sourceRevision": "5a6ec229a3f742f580c2f9503cb32a617aee90ba",
+    "receiptPath": "docs/reports/exact-native/partitime-ios.json",
+    "receiptSha256": "7a617cd9a17b5764277fade30494c65be8aa38f7b44ac9aae11e551ac8662c5e",
+    "registrySha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5",
+    "checkId": "exact-partitime-native-ios"
+  },
+  "receipt": {
+    "schemaVersion": "exact.partitime.native-profile-receipt.v1",
+    "profileId": "exact-native/ios",
+    "capabilityClass": "Parity",
+    "ok": true,
+    "recordedAt": "2026-07-21T00:46:26.046Z",
+    "sourceRevision": "5a6ec229a3f742f580c2f9503cb32a617aee90ba",
+    "sourceGraph": {
+      "files": [
+        {
+          "path": "Cargo.toml",
+          "bytes": 4779,
+          "sha256": "43588e61ad6dbbf92a08389ed7381359c0b240609e6b8b47ef87132b532e1ba7"
+        },
+        {
+          "path": "Cargo.lock",
+          "bytes": 142165,
+          "sha256": "ec48cfd16127ace3b26941df636e4989a74d123723ddea64071ffffd45117b6f"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/Cargo.toml",
+          "bytes": 438,
+          "sha256": "71733df7431fb696f660abc4ff0ada9cac3c20753e23da587881260fdcc2c030"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/include/exact_partitime_carrier.h",
+          "bytes": 705,
+          "sha256": "d9ca8d159e3e16d37e0bbb8b833148f35b46752369c86a2d7748da68cc2543c4"
+        },
+        {
+          "path": "packages/exact-partitime-carrier/src/lib.rs",
+          "bytes": 21106,
+          "sha256": "bdfdcc4c18be265148a7316db415874633d8caeffe460f0d39f4572a770704d4"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/owner.rs",
+          "bytes": 36891,
+          "sha256": "cc8732f946c114f50ee27e89a7b57bb19de85a08a5b43304e7bda2bb388cbdb8"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/provider.rs",
+          "bytes": 60816,
+          "sha256": "e5a92523f2b0daddca83d6519de286434b28f0d3f7e503188b5218b9f4be9797"
+        },
+        {
+          "path": "packages/exact-snapback-provider/src/provider/native_replay.rs",
+          "bytes": 13011,
+          "sha256": "bf218b09f82680e6170a85896926e18213d4febcbdab17b6215ca7ad4f6d2628"
+        },
+        {
+          "path": "packages/snapback-client-core/src/partitime_generated.rs",
+          "bytes": 14208,
+          "sha256": "ee04d5b1a093a63f9c1c34d96de513e209db28e522bc6860ac377fc808c1fad8"
+        },
+        {
+          "path": "packages/snapback-client-core/artifacts/partitime/functions.manifest.json",
+          "bytes": 16373,
+          "sha256": "fec57d9abf26d8928e0320972af29186950c1cf2f2f6e0342c10e6f07bad9e6e"
+        },
+        {
+          "path": "packages/snapback-client-core/artifacts/partitime/schema.manifest.json",
+          "bytes": 3533,
+          "sha256": "50c876c4f28c11df13a1a92a29901e8f208fbd7a18e4badd6eb177ff316aca40"
+        },
+        {
+          "path": "ios/build-partitime-carrier.sh",
+          "bytes": 1394,
+          "sha256": "ead9d29bed7cb28ee1eb5a5d989896520661ff779349b563578f7510d59959d6"
+        },
+        {
+          "path": "ios/ExactApp/project.yml",
+          "bytes": 36671,
+          "sha256": "33a1d78c22294308aed5d2d280b22e74aeca1e719144b827fc91e46cd1259b6f"
+        },
+        {
+          "path": "ios/ExactApp/ExactPartitimeNativeAcceptance-Bridging-Header.h",
+          "bytes": 159,
+          "sha256": "8b59dcc5381bec7bc692a6262ec9bf5bfc49b0d9b306f7d017f226c8afc718f2"
+        },
+        {
+          "path": "ios/ExactApp/Info-ExactPartitimeNativeAcceptance.plist",
+          "bytes": 924,
+          "sha256": "4e58e516a4ea22610c9948e4883fdb20b517fb45b4f7512c751844b71ac6dd99"
+        },
+        {
+          "path": "ios/ExactApp/ExactApp/iOS/ExactPartitimeNativeAcceptanceIOS.swift",
+          "bytes": 5636,
+          "sha256": "329a202a37dcc463a4611203f8ccdf2e8586f9ecc6aa73f1af9c872525447c0c"
+        }
+      ],
+      "sha256": "b9241df42a0aeb284be207a524063d67be6b08558f11796b02e8a15fb20ceda6"
+    },
+    "artifact": {
+      "kind": "ios-simulator-release-app-executable",
+      "path": ".exact/build/partitime-ios/Build/Products/Release-iphonesimulator/ExactPartitimeNativeAcceptanceIOS.app/ExactPartitimeNativeAcceptanceIOS",
+      "bytes": 6048624,
+      "sha256": "d10ef2754a1271d7ce77e5192ed1a7ca97373ed2688e719be0847f36125d53d7",
+      "architectures": [
+        "x86_64",
+        "arm64"
+      ],
+      "exclusion": {
+        "passed": true,
+        "forbiddenPatterns": [
+          "/libhermes|hermesvm/i",
+          "/ibex[_:/.-]?runtime|vendor[/\\\\]ibex/i",
+          "/snapback[_:/.-]?server/i",
+          "/start[_:/.-]?snapback[_:/.-]?server/i"
+        ],
+        "inspectedPaths": [
+          "ExactPartitimeNativeAcceptanceIOS.app/ExactPartitimeNativeAcceptanceIOS"
+        ]
+      }
+    },
+    "device": {
+      "kind": "iOS Simulator",
+      "name": "iPhone 17 Pro",
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-3"
+    },
+    "carrierReceipt": {
+      "capabilityClass": "Parity",
+      "completeMask": 2047,
+      "coreMask": 511,
+      "mask": 2047,
+      "platform": "ios",
+      "profileId": "exact-native/ios",
+      "schemaVersion": "exact.partitime.native-carrier.v1",
+      "transitions": [
+        {
+          "event": "launch",
+          "mask": 511,
+          "monotonicSeconds": 4052.5074492500003
+        },
+        {
+          "event": "background-quiesced",
+          "mask": 1023,
+          "monotonicSeconds": 4053.6875865833335
+        },
+        {
+          "event": "foreground-reconnected",
+          "mask": 2047,
+          "monotonicSeconds": 4053.8608831250003
+        }
+      ]
+    },
+    "facts": {
+      "releaseCarrierBuildAndLaunch": true,
+      "generatedFunctionInitialData": true,
+      "optimisticPendingThenSettlement": true,
+      "authorityRotationThenFreshAuthorizedQuery": true,
+      "backgroundAndForegroundLifecycle": true,
+      "offlineRetentionAndAuthoritativeReconnect": true,
+      "retainedReadsWhileOffline": true,
+      "deterministicLocalGeneratedHandler": true,
+      "durableOrderedQueueAcrossOwnerLifecycle": true,
+      "reconnectReplayRebaseAndConvergence": true,
+      "predecessorAuthorityQueueSuspension": true,
+      "snapbackServerImplementationExcluded": true
+    },
+    "command": "bun scripts/capture-exact-partitime-native.mjs --platform=ios --check"
+  },
+  "validation": {
+    "factCount": 12,
+    "sourceCount": 16,
+    "sourceGraphSha256": "b9241df42a0aeb284be207a524063d67be6b08558f11796b02e8a15fb20ceda6",
+    "lifecycleMasks": [
+      511,
+      1023,
+      2047
+    ]
+  },
+  "verifierInventory": [
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs",
+      "sha256": "8c5880046a2745464c5e989795e81ef7254a791933133f598a1a124fa9b1fbbb"
+    }
+  ]
+}

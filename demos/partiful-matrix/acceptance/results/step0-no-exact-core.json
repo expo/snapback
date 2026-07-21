@@ -74,15 +74,15 @@
     },
     {
       "path": "packages/snapback-client/package.json",
-      "sha256": "601d04f99f31aedd1af051547a6e71aa650335ad3c915d56b484532d63252cc2"
+      "sha256": "5a10163b5cd43cb63e7b705656d8f7551c3d4110c0df91d0a4ffdeb34f8b386e"
     },
     {
       "path": "packages/snapback-codegen/package.json",
-      "sha256": "f8a07a716eae32d843645aefb5fe930910e47b37ff5d67f941e81bf41c209f91"
+      "sha256": "64fc5314ce9fffd406de0579b3d1436ca8e9b86eb18a55d7c6b5b9ec5f7f1d9e"
     },
     {
       "path": "packages/snapback-app-cli/package.json",
-      "sha256": "1bf614f19b9443d2b5f7e94ef1e206399d04752064b05c2a4281af8c193d165b"
+      "sha256": "fce27b3b5bafa29103c4883094ab0aee92c3cfa01befcaaba09458da0bd600bd"
     },
     {
       "path": "packages/snapback-client/package.test.mjs",

@@ -1,0 +1,92 @@
+{
+  "schemaVersion": "snapback.package-cold-install.v1",
+  "ok": true,
+  "claimTreatment": "checkpoint",
+  "claimSatisfied": false,
+  "sourceRevision": "a75ddd514ecc7f8e0ae00f91384deef699587383",
+  "sourceDirty": false,
+  "publicationMode": "dry-run",
+  "scopePreset": "identity",
+  "version": "0.1.0",
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "publishedName": "@snapback/runtime-darwin-arm64",
+      "version": "0.1.0",
+      "tarball": "snapback-runtime-darwin-arm64-0.1.0.tgz",
+      "sha256": "7dd7c106d2fe8c615fd42edc37973198025f102185f31d03eca26b3735b8044a"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "publishedName": "@snapback/contract",
+      "version": "0.1.0",
+      "tarball": "snapback-contract-0.1.0.tgz",
+      "sha256": "129d6d7a5e821c99879433d39d054930ffa773919796ebe23dae4626a11fc32e"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "publishedName": "@snapback/client",
+      "version": "0.1.0",
+      "tarball": "snapback-client-0.1.0.tgz",
+      "sha256": "a3dfb846ea186fb72260b6c6f01814d7beb0bb3abc02733f5c69b5b222e49c8a"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "publishedName": "@snapback/codegen",
+      "version": "0.1.0",
+      "tarball": "snapback-codegen-0.1.0.tgz",
+      "sha256": "89e0965d9e3e0d584ece4d1ee8f5e58a8efcd9fbee4f62893003149c47f3250c"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "publishedName": "@snapback/react",
+      "version": "0.1.0",
+      "tarball": "snapback-react-0.1.0.tgz",
+      "sha256": "6f020ddcea3ea840909de5b58e1bb2ef7657d46c2ce57c59fca303f43c15fc51"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "publishedName": "@snapback/app-cli",
+      "version": "0.1.0",
+      "tarball": "snapback-app-cli-0.1.0.tgz",
+      "sha256": "525323697027b20b343f8261f0045ce5ae942c3e113a2e2ba32e50169a09313a"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "publishedName": "@snapback/cli",
+      "version": "0.1.0",
+      "tarball": "snapback-cli-0.1.0.tgz",
+      "sha256": "12b6c47e696f49a38160365ab605fd991393a9bb6bb89fa69a27aa8c983e8770"
+    }
+  ],
+  "checks": {
+    "materializedTarballInstall": true,
+    "noSiblingSourceCheckout": true,
+    "partitimeBackendBuilt": true,
+    "localCodegenOffline": true,
+    "remoteCodegenOffline": true,
+    "bundledSchemasAndCorpus": true,
+    "repositoryRelativePublicationPaths": true,
+    "packagedCliIntrospection": true,
+    "packagedRuntimeDoctor": true,
+    "packagedScaffoldAndOfflineGenerate": true,
+    "packagedManagedDevReadyAttachWatchAndStop": true,
+    "browserAdapterBundle": true,
+    "resolvedDependencyCount": 9,
+    "browserBundleBytes": 549540
+  },
+  "nonclaims": [
+    {
+      "id": "public-registry-install",
+      "reason": "The proof installs immutable npm tarballs; the @snapback packages are not published in a public registry."
+    },
+    {
+      "id": "separately-provisioned-clean-machine",
+      "reason": "The proof uses a fresh external directory on the development host, not a separately provisioned clean machine."
+    },
+    {
+      "id": "non-darwin-arm64-runtime",
+      "reason": "The packaged native runtime profile is Apple-silicon macOS only."
+    }
+  ]
+}

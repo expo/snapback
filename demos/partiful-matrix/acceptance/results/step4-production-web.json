@@ -1,5 +1,5 @@
 {
-  "schemaVersion": "partitime.step4-production-web.v1",
+  "schemaVersion": "partitime.step4-production-web.v2",
   "claimId": "STEP4.PRODUCTION_WEB",
   "auditCompleted": true,
   "ok": false,
@@ -7,174 +7,482 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-20T17:14:48.254Z",
+  "recordedAt": "2026-07-21T04:11:02.281Z",
   "repository": {
-    "snapbackRevision": "730f32a35e71fa8b2014a5c63ae802ad634cc166",
-    "exactRevision": "07db274fcd201a7bd60f3a32e2832eca5753e0db"
+    "snapbackRevision": "76174b886f082e0078c3c372564f806abc737f13",
+    "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
       "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
     },
-    "retainedWebReceipt": {
+    "step0WebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
+      "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
     },
-    "surface": [
-      {
-        "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-        "sha256": "7c15e4a031b455e034e9e0934d1e268f9440a08a7844710b228db516cc78dea5"
-      },
-      {
-        "path": "demos/partiful-matrix/surfaces/contract/index.html",
-        "sha256": "eac422229566b6c192943a347ba895a5dc17d141661d11fb46996a72c7f02aad"
-      },
-      {
-        "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-        "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
-      },
-      {
-        "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-        "sha256": "c7b9f944ee64bee88b983850a56e797624c484635996a262c06ace986a706661"
-      },
-      {
-        "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-        "sha256": "97dec41613e6958e327d3c45b7ee1d9ad12193aba23ed809edace8672ef20acb"
-      }
-    ],
+    "productionBrowserReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+      "sha256": "9b22dab997b82c491d052488029d106c15e8bdd1ebe0424bb2dfe8188364a18c"
+    },
+    "citizenshipReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
+      "missing": true
+    },
+    "staticExport": {
+      "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
+      "sha256": "af985ea9811814f4a22da9682ef70ebcb4979c169e581cd808a7915abd396d4d"
+    },
     "exactVerifyRegistry": {
       "path": "../exact-llp0063-full-20260720/exact-verify.json",
-      "sha256": "9f34080be510a61ae1441383d22b6524788cb825e0ac767b8b8560834eb7e187"
+      "sha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5"
     }
   },
   "summary": {
-    "passed": 4,
-    "red": 7,
-    "nonclaims": 7,
-    "total": 11
+    "passed": 11,
+    "red": 1,
+    "nonclaims": 0,
+    "total": 12
   },
   "requirements": [
     {
       "id": "production-build-artifact",
       "status": "pass",
-      "reasonCode": "STEP4_WEB_PRODUCTION_BUILD_PRESENT",
+      "reasonCode": "STEP4_WEB_PRODUCTION_BUILD_PASSED",
       "evidence": {
-        "html": {
-          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-          "sha256": "7c15e4a031b455e034e9e0934d1e268f9440a08a7844710b228db516cc78dea5"
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+          "sha256": "9b22dab997b82c491d052488029d106c15e8bdd1ebe0424bb2dfe8188364a18c"
         },
+        "result": {
+          "export": {
+            "schemaVersion": "partitime.contract-static-export.v1",
+            "mode": "snapback",
+            "basePath": "/partitime/",
+            "canonicalOrigin": "https://partitime.example",
+            "nowMs": 1784548800000,
+            "renderer": "@exact/devtools/contract-static-html",
+            "pages": [
+              {
+                "routeId": "/",
+                "path": "index.html",
+                "htmlSha256": "fe43aef0d83dff99662ca79171ad51b1afef61b04a8adfd9408171bd644f0e6e",
+                "nodes": 79
+              },
+              {
+                "routeId": "/events/event_sunset/",
+                "path": "events/event_sunset/index.html",
+                "htmlSha256": "39ca8dbe078bab4ab1820c2b9d394e8ab31d577c564d718c4111dffdc729f678",
+                "nodes": 73
+              },
+              {
+                "routeId": "/events/event_swim/",
+                "path": "events/event_swim/index.html",
+                "htmlSha256": "c635a60b74fde8184b8b6c7b89a4310f606c31f8521fc1397958e946a42d0f9b",
+                "nodes": 71
+              },
+              {
+                "routeId": "/events/event_ceramics/",
+                "path": "events/event_ceramics/index.html",
+                "htmlSha256": "cfc2f42e2814951ee42bcf798621e6a18b061df4c5cdf7092a3bc399e82c30a7",
+                "nodes": 62
+              }
+            ]
+          },
+          "javascript": {
+            "bytes": 1299559,
+            "sha256": "870937063ee27735d1ec0c5748b2b28f5ba86862dae0594e5bf08b80c9cd3479"
+          }
+        },
+        "staticExport": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
+          "sha256": "af985ea9811814f4a22da9682ef70ebcb4979c169e581cd808a7915abd396d4d"
+        },
+        "pages": [
+          {
+            "routeId": "/",
+            "path": "index.html",
+            "htmlSha256": "3829fbb2941186e73499e85555584a0e07515ff2b828906610236ed1dc4383e8",
+            "nodes": 79
+          },
+          {
+            "routeId": "/events/event_sunset/",
+            "path": "events/event_sunset/index.html",
+            "htmlSha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01",
+            "nodes": 73
+          },
+          {
+            "routeId": "/events/event_swim/",
+            "path": "events/event_swim/index.html",
+            "htmlSha256": "255dcc40ddc63de9b3db1a5c005fb90a8d9d56a4b8c60af6ac628cd132750523",
+            "nodes": 71
+          },
+          {
+            "routeId": "/events/event_ceramics/",
+            "path": "events/event_ceramics/index.html",
+            "htmlSha256": "2d1461d247c08184976a8681f72f208f351195d6b915a0fef5524f596503ac68",
+            "nodes": 62
+          }
+        ],
         "javascript": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DaAFVqdJ.js",
-              "minifiedBytes": 728458,
-              "deterministicGzipBytes": 194052,
-              "sha256": "eafcb94afe7fe9de20099dc88c5c50de3c3094c6c39a2663c1eed64bb1b7dba3"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/crash-THelAGyF.js",
+              "minifiedBytes": 17420,
+              "deterministicGzipBytes": 6767,
+              "sha256": "857c76f68961605811714685bdf72d0a729b8ad50704f82b57b7f02462a325af"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-5xwG6cEH.js",
+              "minifiedBytes": 1299546,
+              "deterministicGzipBytes": 353187,
+              "sha256": "6396072ca74a5e59a9ba48b720e57377cc48389f75d5bc9bbccb9af86a806175"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/privacy-Dk5LIQos.js",
+              "minifiedBytes": 2257,
+              "deterministicGzipBytes": 1041,
+              "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
             }
           ],
-          "minifiedBytes": 728458,
-          "deterministicGzipBytes": 194052
+          "minifiedBytes": 1319223,
+          "deterministicGzipBytes": 360995
         }
       }
     },
     {
       "id": "browser-product-flow",
       "status": "pass",
-      "reasonCode": "STEP4_WEB_BROWSER_FLOW_INHERITED",
+      "reasonCode": "STEP4_WEB_BROWSER_FLOW_PASSED",
       "evidence": {
-        "receipt": {
+        "step0Receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-          "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
+          "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
         },
         "checks": [
           "contract × snapback boots its identified cell",
           "contract × snapback renders the canonical feed",
           "contract × snapback opens details and observes RSVP",
           "contract × snapback proves unsolicited push with polling fallback disabled"
-        ],
-        "caveat": "The retained runner starts Vite source-mode servers; it is product-flow evidence, not a browser execution of dist/."
+        ]
       }
     },
     {
       "id": "production-built-artifact-browser-execution",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_DIST_BROWSER_RECEIPT_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_DIST_BROWSER_EXECUTION_PASSED",
       "evidence": {
-        "productionArtifactPresent": true,
-        "retainedBrowserServerMode": "vite-source-mode",
-        "finding": "No retained receipt serves the immutable Contract dist/snapback artifact and executes the product flow against it."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
+          "sha256": "9b22dab997b82c491d052488029d106c15e8bdd1ebe0424bb2dfe8188364a18c"
+        },
+        "servedMode": "vite-preview-over-immutable-dist",
+        "checks": [
+          "Contract production build emits immutable route artifacts",
+          "Contract production feed is authoritative with JavaScript disabled",
+          "Contract production event deep link is authoritative with route metadata and JavaScript disabled",
+          "Contract production feed adopts every node without replacement, stale flash, or duplicate subscription",
+          "Contract production event adopts every node with exactly three live query subscriptions",
+          "Contract production assets and deep links honor the non-root base path",
+          "Contract production history traverses feed and event without document reload",
+          "Contract production client metadata tracks the active route",
+          "Contract production hydrated event receives unsolicited Snapback push with polling disabled"
+        ]
       }
     },
     {
       "id": "browser-history",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_HISTORY_MODEL_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HISTORY_PASSED",
       "evidence": {
-        "contractNavigation": "location.assign with search parameters",
-        "contractHistoryApiCount": 0,
-        "reactBrowserNavigationApiCount": 0,
-        "finding": "Contract navigation reloads; React detail navigation is component state only. Back/forward history behavior has no executable parity witness."
+        "before": {
+          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "navigations": 1
+        },
+        "event": {
+          "pathname": "/partitime/events/event_sunset/",
+          "title": "Sunset Supper Club · Partitime",
+          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "navigations": 1
+        },
+        "after": {
+          "pathname": "/partitime/",
+          "title": "Partitime · plans worth leaving the chat for",
+          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "navigations": 1
+        }
       }
     },
     {
       "id": "deep-links",
       "status": "pass",
-      "reasonCode": "STEP4_WEB_CONTRACT_QUERY_DEEP_LINK_FLOW_PASSED",
+      "reasonCode": "STEP4_WEB_DEEP_LINKS_PASSED",
       "evidence": {
-        "bootReadsEventParameter": true,
-        "navigationWritesEventParameter": true,
-        "browserCheck": "contract × snapback opens details and observes RSVP",
-        "caveat": "This passes the Contract query-parameter route used by Partitime; React parity and path routing remain outside this item."
+        "noJavaScriptEvent": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "basepath": {
+          "pathname": "/partitime/events/event_sunset/",
+          "resources": [
+            "/partitime/assets/index-BdmJDi7J.js",
+            "/partitime/assets/privacy-Dk5LIQos.js",
+            "/partitime/assets/crash-CpHuiYez.js"
+          ],
+          "scripts": [
+            "/partitime/assets/index-BdmJDi7J.js"
+          ]
+        },
+        "eventArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
+          "sha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01"
+        }
       }
     },
     {
       "id": "ssr-ssg-authority",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_PARTITIME_SSR_SSG_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_STATIC_AUTHORITY_PASSED",
       "evidence": {
-        "rootMarkup": "",
-        "hasHydrationManifest": false,
-        "finding": "The production Partitime HTML has an empty root and a CSR module script; it contains no authoritative route content."
+        "feed": {
+          "text": "🍊Sat, Aug 1 at 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8 at 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16 at 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →",
+          "title": "Partitime · plans worth leaving the chat for",
+          "canonical": "https://partitime.example/partitime/",
+          "manifest": true,
+          "clientBooted": false
+        },
+        "event": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "feedArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+          "sha256": "3829fbb2941186e73499e85555584a0e07515ff2b828906610236ed1dc4383e8"
+        },
+        "eventArtifact": {
+          "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
+          "sha256": "de9d3cea359c4553b2cb7e1a1a3c0adc66dfe79a9cc1479f4f0f2694390c0c01"
+        }
       }
     },
     {
       "id": "hydration-without-duplicates-or-stale-flash",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_PARTITIME_HYDRATION_WITNESS_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HYDRATION_ADOPTION_PASSED",
       "evidence": {
-        "mountCallCount": 2,
-        "hydrationCallCount": 0,
-        "finding": "Partitime mounts into an empty root. No server DOM adoption, duplicate-subscription count, or stale-flash assertion runs."
+        "feed": {
+          "hydration": {
+            "manifest": {
+              "rootId": 1347682305,
+              "routeId": "/",
+              "serverVerification": {
+                "adoptedNodeCount": 79,
+                "recreatedNodeCount": 0,
+                "hydrationMismatchCount": 0,
+                "adoptionFallbacks": [],
+                "serverHtmlHash": "fnv1a32:e0f4c87b",
+                "deferredMountTasks": 0,
+                "tasksReleasedBeforeAdoption": false,
+                "firstPaintHtmlHash": "fnv1a32:e0f4c87b",
+                "firstPaintByteIdentical": true
+              }
+            },
+            "result": {
+              "rootId": 1347682305,
+              "adoptedNodes": 79,
+              "recreatedNodes": 0,
+              "mismatches": []
+            },
+            "provider": {
+              "seededDeliveries": 1,
+              "underlyingSubscriptions": 1,
+              "bufferedLiveDeliveries": 1,
+              "releasedLiveDeliveries": 0,
+              "hydrationReleased": true
+            },
+            "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "preMountSizeClass": "expanded"
+          },
+          "witness": {
+            "sameRoot": true,
+            "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth leaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "rootReplacements": 0,
+            "childListMutations": 8,
+            "result": {
+              "rootId": 1347682305,
+              "adoptedNodes": 79,
+              "recreatedNodes": 0,
+              "mismatches": [],
+              "mountPath": "partitime-static-document"
+            }
+          }
+        },
+        "event": {
+          "hydration": {
+            "manifest": {
+              "rootId": 1347686401,
+              "routeId": "/events/event_sunset/",
+              "serverVerification": {
+                "adoptedNodeCount": 73,
+                "recreatedNodeCount": 0,
+                "hydrationMismatchCount": 0,
+                "adoptionFallbacks": [],
+                "serverHtmlHash": "fnv1a32:d161429f",
+                "deferredMountTasks": 0,
+                "tasksReleasedBeforeAdoption": false,
+                "firstPaintHtmlHash": "fnv1a32:d161429f",
+                "firstPaintByteIdentical": true
+              }
+            },
+            "result": {
+              "rootId": 1347686401,
+              "adoptedNodes": 73,
+              "recreatedNodes": 0,
+              "mismatches": []
+            },
+            "provider": {
+              "seededDeliveries": 3,
+              "underlyingSubscriptions": 3,
+              "bufferedLiveDeliveries": 3,
+              "releasedLiveDeliveries": 0,
+              "hydrationReleased": true
+            },
+            "adoptedText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "preMountSizeClass": "expanded"
+          },
+          "witness": {
+            "sameRoot": true,
+            "initialText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+            "finalText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nEve\nMaybe\nGrace\nGoing",
+            "rootReplacements": 0,
+            "result": {
+              "rootId": 1347686401,
+              "adoptedNodes": 73,
+              "recreatedNodes": 0,
+              "mismatches": [],
+              "mountPath": "partitime-static-document"
+            }
+          }
+        }
       }
     },
     {
       "id": "document-metadata",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_ROUTE_METADATA_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_ROUTE_METADATA_PASSED",
       "evidence": {
-        "title": "Partitime · Contract matrix",
-        "themeColor": "#f4f0e8",
-        "canonicalCount": 0,
-        "descriptionCount": 0,
-        "finding": "The build has fixed shell metadata but no per-route title/description/canonical witness."
+        "staticEvent": {
+          "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "https://partitime.example/partitime/events/event_sunset/",
+          "route": "/events/event_sunset/"
+        },
+        "clientRoute": {
+          "title": "Sunset Supper Club · Partitime",
+          "description": "A long table, tiny plates, and the last warm light of the day.",
+          "canonical": "http://127.0.0.1:65435/partitime/events/event_sunset/",
+          "themeColor": "#f4f0e8"
+        }
       }
     },
     {
       "id": "basepath",
-      "status": "red",
-      "reasonCode": "STEP4_WEB_BASEPATH_UNWITNESSED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_NON_ROOT_BASEPATH_PASSED",
       "evidence": {
-        "absoluteAssetReferences": 1,
-        "sourceAbsoluteEntryReferences": 1,
-        "basePathReferences": 0,
-        "finding": "The emitted asset URL is root-absolute and no non-root deployment/basePath acceptance exists."
+        "pathname": "/partitime/events/event_sunset/",
+        "resources": [
+          "/partitime/assets/index-BdmJDi7J.js",
+          "/partitime/assets/privacy-Dk5LIQos.js",
+          "/partitime/assets/crash-CpHuiYez.js"
+        ],
+        "scripts": [
+          "/partitime/assets/index-BdmJDi7J.js"
+        ]
+      }
+    },
+    {
+      "id": "hydrated-push-without-polling",
+      "status": "pass",
+      "reasonCode": "STEP4_WEB_HYDRATED_PUSH_PASSED",
+      "evidence": {
+        "before": "EveMaybe",
+        "after": "EveGoing",
+        "latencyMs": 5,
+        "pollFallback": "disabled",
+        "evidence": [
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dcb47874838ef696b2b4da9423",
+            "subscriptionId": "sub_019f82dcb47874838ef696b2b4da9423",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
+              "bindingIds": [
+                "eventDetails"
+              ]
+            },
+            "receivedAtMs": 1784606930061,
+            "queryName": "eventDetails"
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dcb47978e1949b050799dcea77",
+            "subscriptionId": "sub_019f82dcb47978e1949b050799dcea77",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
+              "bindingIds": [
+                "guestList"
+              ]
+            },
+            "receivedAtMs": 1784606930062,
+            "queryName": "guestList"
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f82dcb47978e1949b04e4e7309c24",
+            "subscriptionId": "sub_019f82dcb47978e1949b04e4e7309c24",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
+              "bindingIds": [
+                "eventWall"
+              ]
+            },
+            "receivedAtMs": 1784606930063,
+            "queryName": "eventWall"
+          }
+        ]
       }
     },
     {
@@ -184,7 +492,7 @@
       "evidence": {
         "registry": {
           "path": "../exact-llp0063-full-20260720/exact-verify.json",
-          "sha256": "9f34080be510a61ae1441383d22b6524788cb825e0ac767b8b8560834eb7e187"
+          "sha256": "4e880166f3839f298789c0bd75184032153dda091e6f5a0ebf2379d0951091a5"
         },
         "checks": [
           "contract-web-host-csr",
@@ -195,22 +503,24 @@
           "web-citizenship-desktop-chrome",
           "web-citizenship-ime-forms"
         ],
-        "missingChecks": [],
-        "caveat": "Registry presence establishes reusable upstream surfaces only; it does not make the Partitime integration rows pass."
+        "missingChecks": []
       }
     },
     {
       "id": "residual-browser-device-ime-forms-matrix",
       "status": "red",
-      "reasonCode": "STEP4_WEB_MANUAL_DEVICE_MATRIX_PENDING",
-      "claimTreatment": "nonclaim",
+      "reasonCode": "STEP4_WEB_CITIZENSHIP_MATRIX_MISSING_OR_RED",
       "evidence": {
-        "exactCheckId": "web-citizenship-ime-forms",
-        "manual": true,
-        "notes": "LLP 0211 §4.3 manual gating suite: IME composition, autofill/password-manager, focus-trap/restore, bfcache restore, and find-on-page across iOS Safari current/current-1, Android Chrome current, desktop Safari/Chrome/Firefox. The checked-in JSON artifact is a pending runbook placeholder, not a passed device-matrix report; the generated runbook enumerates the required rows and evidence shape. The current exact-verify runner skips manual checks in profile runs.",
-        "finding": "The governing Exact check is explicitly a pending manual release/support gate and Partitime has no passed device report."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
+          "missing": true
+        },
+        "issues": [
+          "receipt-missing"
+        ],
+        "rows": []
       }
     }
   ],
-  "conclusion": "The Contract × Snapback CSR product flow works, but Partitime has not earned the production-web claim."
+  "conclusion": "Partitime passes the immutable production-web, hydration, routing, metadata, and push gates; the residual citizenship matrix remains red."
 }

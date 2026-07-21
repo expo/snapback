@@ -1,0 +1,23 @@
+{
+  "schemaVersion": "snapback.standard-patterns-real-server.v1",
+  "ok": true,
+  "appId": "standard-patterns-app",
+  "users": 2,
+  "patterns": [
+    "owned-crud",
+    "owned-unique-lookup",
+    "owned-keyset-pagination"
+  ],
+  "checks": {
+    "serverDerivedOwner": true,
+    "trustedNow": true,
+    "trustedId": true,
+    "clientForgeryCannotOverrideTrustedValues": true,
+    "crossUserListRejected": true,
+    "crossUserGetRejected": true,
+    "crossUserUniqueLookupRejected": true,
+    "crossUserPaginationRejected": true,
+    "crossUserUpdateRejected": true,
+    "crossUserDeleteRejected": true
+  }
+}

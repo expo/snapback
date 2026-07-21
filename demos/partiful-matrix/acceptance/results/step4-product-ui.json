@@ -2,15 +2,15 @@
   "schemaVersion": "partitime.step4-product-ui.v1",
   "claimId": "STEP4.PRODUCT_UI",
   "auditCompleted": true,
-  "ok": false,
-  "claimSatisfied": false,
-  "outcome": "red",
+  "ok": true,
+  "claimSatisfied": true,
+  "outcome": "pass",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-20T17:14:44.638Z",
+  "recordedAt": "2026-07-21T04:09:40.328Z",
   "repository": {
-    "snapbackRevision": "730f32a35e71fa8b2014a5c63ae802ad634cc166",
-    "exactRevision": "07db274fcd201a7bd60f3a32e2832eca5753e0db"
+    "snapbackRevision": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
+    "exactRevision": "207ed2203039e548daa964b115f8aca15b07a540"
   },
   "inputs": {
     "protocol": {
@@ -19,151 +19,602 @@
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "a090e26d128dcbea1c3c70c37699144cc1807c05a6267667ffe9263a7931731f"
+      "sha256": "d4a01caa8f35d0b15d837f084f06301e0ca50fa93766fc0ac388701f7f90acb7"
+    },
+    "productUiBrowserReceipt": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+      "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+    },
+    "agentSession": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
+      "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
     },
     "surfaces": [
       {
         "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-        "sha256": "97dec41613e6958e327d3c45b7ee1d9ad12193aba23ed809edace8672ef20acb"
+        "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
       },
       {
         "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
-        "sha256": "cf92374677dbb275bae18ab637cf0d485ef0cd5df7c4431faf165f7de102633c"
+        "sha256": "481472460c5d3066978616cdf86dbd8eec487a2328c9cfe2e4e7094ca7388bab"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-        "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+        "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-        "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
+        "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-        "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+        "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+        "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+        "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+        "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
       }
     ]
   },
   "summary": {
-    "passed": 3,
-    "red": 14,
-    "nonclaims": 14,
+    "passed": 17,
+    "red": 0,
+    "nonclaims": 0,
     "total": 17
   },
   "requirements": [
     {
       "id": "styles-and-design-tokens",
-      "status": "red",
-      "reasonCode": "STEP4_UI_REUSABLE_STYLE_SYSTEM_UNWITNESSED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_REUSABLE_STYLE_SYSTEM_PASSED",
       "evidence": {
         "reactStylesheet": {
           "path": "demos/partiful-matrix/surfaces/react/src/styles.css",
-          "sha256": "cf92374677dbb275bae18ab637cf0d485ef0cd5df7c4431faf165f7de102633c"
+          "sha256": "481472460c5d3066978616cdf86dbd8eec487a2328c9cfe2e4e7094ca7388bab"
         },
-        "reactClassCount": 49,
-        "contractLiteralColorCount": 77,
-        "finding": "The app has styling, but no Partitime witness proves reusable Contract styles/classes and shared design tokens."
+        "recipes": {
+          "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+          "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+        },
+        "recipeUsages": 11,
+        "paletteHelpers": [
+          "backgroundFor",
+          "textFor",
+          "mutedFor",
+          "accentFor"
+        ]
       }
     },
     {
       "id": "responsive-and-container-aware-layout",
-      "status": "red",
-      "reasonCode": "STEP4_UI_CONTRACT_RESPONSIVE_PARITY_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_RESPONSIVE_PARITY_PASSED",
       "evidence": {
-        "reactMediaQueryCount": 1,
-        "contractResponsiveConstructCount": 0,
-        "finding": "React has a mobile breakpoint; the Contract tree uses fixed row layouts and has no responsive/container witness."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 98.56,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 54,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          },
+          {
+            "name": "contract × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 66,
+                "background": "rgb(244, 240, 232)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 38,
+                "background": "rgb(244, 240, 232)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          }
+        ],
+        "contractConstruct": "match size"
       }
     },
     {
       "id": "transitions-animation-and-reduced-motion",
-      "status": "red",
-      "reasonCode": "STEP4_UI_REDUCED_MOTION_PARITY_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_REDUCED_MOTION_PARITY_PASSED",
       "evidence": {
-        "reactTransitionCount": 2,
-        "reducedMotionRuleCount": 0,
-        "contractMotionConstructCount": 0
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback honors reduced-motion preference",
+            "ok": true,
+            "details": {
+              "matches": true,
+              "animationDuration": "1e-06s",
+              "transitionDuration": "1e-06s",
+              "overlayTransition": "1e-06s"
+            }
+          },
+          {
+            "name": "contract × snapback honors reduced-motion preference",
+            "ok": true,
+            "details": {
+              "matches": true,
+              "animationDuration": "0s",
+              "transitionDuration": "0s",
+              "overlayTransition": "0s"
+            }
+          }
+        ],
+        "reactReducedMotionRules": 1,
+        "contractPresenceDeclarations": 2
       }
     },
     {
       "id": "overlays-portals-menus-sheets-and-focus-management",
-      "status": "red",
-      "reasonCode": "STEP4_UI_OVERLAY_FOCUS_SURFACE_UNEXERCISED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_OVERLAY_FOCUS_SURFACE_PASSED",
       "evidence": {
-        "partitimeSurfaceMatches": 0,
-        "finding": "Partitime contains no executable overlay/portal/menu/sheet/focus-management case."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": true,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-title"
+              },
+              "validation": {
+                "titleInvalid": "true",
+                "locationInvalid": "true",
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-title"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          },
+          {
+            "name": "contract × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          }
+        ],
+        "contractPortal": {
+          "target": "root",
+          "presentation": "sheet",
+          "focusTrap": true,
+          "focusRestore": true
+        }
       }
     },
     {
       "id": "accessible-form-controls-and-validation-states",
-      "status": "red",
-      "reasonCode": "STEP4_UI_FORM_VALIDATION_ACCESSIBILITY_UNPROVEN",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_FORM_VALIDATION_ACCESSIBILITY_PASSED",
       "evidence": {
-        "reactAriaLabelCount": 4,
-        "contractInputLabelCount": 4,
-        "finding": "Both arms name inputs, but no screen-reader, validation-error association, IME, or focus-on-error witness exists for Partitime."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": true,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-title"
+              },
+              "validation": {
+                "titleInvalid": "true",
+                "locationInvalid": "true",
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-title"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          },
+          {
+            "name": "contract × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          }
+        ],
+        "controls": [
+          "input",
+          "textarea"
+        ],
+        "states": [
+          "required-error",
+          "described-by",
+          "alert",
+          "focus-wrap",
+          "focus-restore"
+        ]
       }
     },
     {
       "id": "virtualized-collections",
-      "status": "red",
-      "reasonCode": "STEP4_UI_VIRTUAL_COLLECTION_UNEXERCISED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_VIRTUAL_COLLECTION_PASSED",
       "evidence": {
-        "reactMatches": 0,
-        "contractMatches": 0
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback mounts a bounded virtual guest window",
+            "ok": true,
+            "details": {
+              "tag": "DIV",
+              "mounted": 3,
+              "totalText": "ADAdaHostingGRGraceGoingEVEveGoing",
+              "height": 300,
+              "overflowY": "auto"
+            }
+          },
+          {
+            "name": "contract × snapback mounts a bounded virtual guest window",
+            "ok": true,
+            "details": {
+              "tag": "UL",
+              "mounted": 3,
+              "totalText": "AdaHostingGraceGoingEveGoing",
+              "height": 150,
+              "overflowY": "visible"
+            }
+          }
+        ],
+        "contractPrimitive": "virtualList",
+        "reactControl": "VirtualGuestList"
       }
     },
     {
       "id": "query-backed-selectors-and-slot-local-transforms",
-      "status": "red",
-      "reasonCode": "STEP4_UI_SLOT_LOCAL_QUERY_TRANSFORM_UNWITNESSED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_SLOT_LOCAL_QUERY_TRANSFORM_PASSED",
       "evidence": {
         "contractQueryCount": 4,
         "appLocalRowHelpers": [
           "goingCount",
           "myStatus"
         ],
-        "finding": "Queries and app-local row helpers exist, but the Exact 0265 slot-local transform obligation has no Partitime witness."
+        "runtimeChecks": [
+          {
+            "name": "react × snapback mounts a bounded virtual guest window",
+            "ok": true,
+            "details": {
+              "tag": "DIV",
+              "mounted": 3,
+              "totalText": "ADAdaHostingGRGraceGoingEVEveGoing",
+              "height": 300,
+              "overflowY": "auto"
+            }
+          },
+          {
+            "name": "contract × snapback mounts a bounded virtual guest window",
+            "ok": true,
+            "details": {
+              "tag": "UL",
+              "mounted": 3,
+              "totalText": "AdaHostingGraceGoingEveGoing",
+              "height": 150,
+              "overflowY": "visible"
+            }
+          }
+        ]
       }
     },
     {
       "id": "typed-dom-custom-component-escape-hatch",
-      "status": "red",
-      "reasonCode": "STEP4_UI_TYPED_ESCAPE_HATCH_UNEXERCISED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_TYPED_CUSTOM_COMPONENT_PASSED",
       "evidence": {
-        "finding": "The Partitime workload never exercises a typed custom DOM/component escape while retaining Contract verification."
+        "component": {
+          "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+          "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
+        },
+        "typedProp": "value: string",
+        "consumers": [
+          "demos/partiful-matrix/surfaces/contract/feed.contract",
+          "demos/partiful-matrix/surfaces/contract/event.contract"
+        ],
+        "browserChecks": [
+          "contract × snapback boots its identified cell",
+          "contract × snapback renders the canonical feed",
+          "contract × snapback opens details and observes RSVP"
+        ]
       }
     },
     {
       "id": "same-product-claims-react-and-contract",
-      "status": "red",
-      "reasonCode": "STEP4_UI_PARITY_MATRIX_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_PARITY_MATRIX_PASSED",
       "evidence": {
-        "inheritedProductionBrowserChecks": [
-          "react × snapback boots its identified cell",
-          "react × snapback renders the canonical feed",
-          "react × snapback opens details and observes RSVP",
-          "contract × snapback boots its identified cell",
-          "contract × snapback renders the canonical feed",
-          "contract × snapback opens details and observes RSVP"
-        ],
-        "missingDimensions": [
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "dimensions": [
           "responsive",
           "keyboard",
           "focus",
           "reduced-motion",
           "screen-reader-oriented"
         ],
-        "finding": "The retained browser suite proves pointer-driven product flow, not the five mandatory parity dimensions."
+        "checks": [
+          {
+            "name": "react × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 98.56,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 54,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          },
+          {
+            "name": "contract × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 66,
+                "background": "rgb(244, 240, 232)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 38,
+                "background": "rgb(244, 240, 232)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          },
+          {
+            "name": "react × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": true,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-title"
+              },
+              "validation": {
+                "titleInvalid": "true",
+                "locationInvalid": "true",
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-title"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          },
+          {
+            "name": "contract × snapback provides an accessible portal form and keyboard focus scope",
+            "ok": true,
+            "details": {
+              "semantics": {
+                "role": "dialog",
+                "modal": "true",
+                "labelledBy": "create-title-heading",
+                "describedBy": "create-description-copy",
+                "portal": true,
+                "portalDetached": false,
+                "overlayPosition": "fixed",
+                "descriptionTag": "TEXTAREA",
+                "activeTestId": "create-close"
+              },
+              "validation": {
+                "titleInvalid": null,
+                "locationInvalid": null,
+                "titleDescribedBy": "create-title-error",
+                "locationDescribedBy": "create-location-error",
+                "titleErrorRole": "alert",
+                "locationErrorRole": "alert",
+                "activeTestId": "create-close"
+              },
+              "trapped": {
+                "last": "create-submit",
+                "count": 6
+              },
+              "wrappedTo": "create-close",
+              "restored": {
+                "overlay": false,
+                "activeTestId": "new-event"
+              }
+            }
+          },
+          {
+            "name": "react × snapback honors reduced-motion preference",
+            "ok": true,
+            "details": {
+              "matches": true,
+              "animationDuration": "1e-06s",
+              "transitionDuration": "1e-06s",
+              "overlayTransition": "1e-06s"
+            }
+          },
+          {
+            "name": "contract × snapback honors reduced-motion preference",
+            "ok": true,
+            "details": {
+              "matches": true,
+              "animationDuration": "0s",
+              "transitionDuration": "0s",
+              "overlayTransition": "0s"
+            }
+          }
+        ]
       }
     },
     {
@@ -182,23 +633,120 @@
     },
     {
       "id": "visual-variant-without-duplicate-tree",
-      "status": "red",
-      "reasonCode": "STEP4_UI_VISUAL_VARIANT_WITNESS_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_VISUAL_VARIANT_SINGLE_TREE_PASSED",
       "evidence": {
-        "finding": "No visual-variant input and single-tree structural witness is registered for either Partitime arm."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "checks": [
+          {
+            "name": "react × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 98.56,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 54,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          },
+          {
+            "name": "contract × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 66,
+                "background": "rgb(244, 240, 232)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 38,
+                "background": "rgb(244, 240, 232)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          }
+        ],
+        "assertion": "treeIdentityRetained"
       }
     },
     {
       "id": "theme-textarea-and-static-native-recipes",
-      "status": "red",
-      "reasonCode": "STEP4_UI_PRODUCT_RECIPE_SURFACES_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_PRODUCT_RECIPE_SURFACES_PASSED",
       "evidence": {
-        "reactTextareaCount": 0,
+        "reactTextareaCount": 1,
         "contractTextareaCount": 0,
-        "themeVariantCount": 0,
-        "finding": "Theme, textarea, and documented static/native recipe acceptance are absent from the workload."
+        "contractMultilineInputCount": 1,
+        "themeVariantChecks": [
+          {
+            "name": "react × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 98.56,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 54,
+                "background": "rgba(0, 0, 0, 0)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          },
+          {
+            "name": "contract × snapback responds at compact width and changes theme on one tree",
+            "ok": true,
+            "details": {
+              "expanded": {
+                "fontSize": 66,
+                "background": "rgb(244, 240, 232)",
+                "width": 1280
+              },
+              "compact": {
+                "fontSize": 38,
+                "background": "rgb(244, 240, 232)",
+                "width": 390,
+                "identity": "retained"
+              },
+              "themed": {
+                "background": "rgb(21, 23, 29)",
+                "identity": "retained"
+              },
+              "treeIdentityRetained": true
+            }
+          }
+        ],
+        "nativeRecipeAuthority": {
+          "path": "../exact-llp0063-full-20260720/docs/contract-web-paved-road.md",
+          "sha256": "ece4aafc4d65c2d78a5b12ba026a214d2d3b7be718556681bac542908418487d"
+        }
       }
     },
     {
@@ -228,7 +776,7 @@
           "status": 0,
           "signal": null,
           "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
-          "stderrSha256": "10dc7ad93f79552b821e93cf5b7a506f5e80da36c19863fb9e070d0fcc0eabc8",
+          "stderrSha256": "3fc32754d12096788648bfb0933d8e84a48648bb0c23894658631cea221e2074",
           "stdoutTail": [
             "bun test v1.3.12 (700fc117)"
           ],
@@ -244,7 +792,7 @@
             " 8 pass",
             " 0 fail",
             " 102 expect() calls",
-            "Ran 8 tests across 1 file. [474.00ms]"
+            "Ran 8 tests across 1 file. [777.00ms]"
           ]
         },
         "operations": [
@@ -257,34 +805,226 @@
     },
     {
       "id": "partitime-forced-loading-error-empty-ready",
-      "status": "red",
-      "reasonCode": "STEP4_UI_PARTITIME_FORCED_DATA_STATES_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_PARTITIME_FORCED_DATA_STATES_PASSED",
       "evidence": {
         "declaredAsyncBranches": 16,
-        "forcedStateFixtureCount": 0,
-        "finding": "The render branches exist, but Partitime has no command that forces all four states through the real Snapback provider."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
+          "sha256": "507aab2e2af02ecd680dfac177f2586e5407bc85a943b80eaafe321f92f69d2f"
+        },
+        "check": {
+          "name": "contract × snapback forces loading error empty and ready through its provider",
+          "ok": true,
+          "details": {
+            "provider": "Snapback ContractDataProvider.forceQueryState",
+            "observations": [
+              {
+                "state": "loading",
+                "testId": "feed-loading",
+                "observed": "Loading the plans…"
+              },
+              {
+                "state": "error",
+                "testId": "feed-error",
+                "observed": "Forced Partitime failure"
+              },
+              {
+                "state": "empty",
+                "testId": "feed-empty",
+                "observed": "No plans yet. Make something happen."
+              },
+              {
+                "state": "ready",
+                "testId": "feed-ready",
+                "observed": "🍊Sat, Aug 1, 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8, 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16, 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →"
+              }
+            ]
+          }
+        }
       }
     },
     {
       "id": "partitime-agent-explains-list-non-update",
-      "status": "red",
-      "reasonCode": "STEP4_UI_PARTITIME_AGENT_SESSION_MISSING",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_PARTITIME_AGENT_SESSION_PASSED",
       "evidence": {
         "upstreamOperation": "exact_contract_bindings",
-        "partitimeAgentBootHookCount": 0,
-        "finding": "The upstream explanation API exists, but no mounted Partitime Agent session asks and answers why a list did not update."
+        "receipt": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-agent-session.json",
+          "sha256": "1084deafd580cc25c88e96ed0aa2849c14766ac61a3a7b82354cc79d7c8c1c6c"
+        },
+        "question": "Why did the bound Partitime event list not update after createEvent?",
+        "answer": {
+          "state": "ready",
+          "connection": "disconnected",
+          "reason": "ready: the attempt holds an authoritative value. Connection is 'disconnected': no active transport and no retry in progress."
+        }
       }
     },
     {
       "id": "data-state-clauses-never-skip-silently",
-      "status": "red",
-      "reasonCode": "STEP4_UI_QUERY_RENDER_CLAUSES_UNREGISTERED",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_UI_QUERY_RENDER_CLAUSES_ACCOUNTED",
       "evidence": {
-        "partitimeQueryRenderClauseCount": 0,
-        "finding": "No Partitime query-state clauses or enforcement-status receipt exists; upstream interaction-clause reporting cannot substitute for this obligation."
+        "authoredDataStateClauseCount": 4,
+        "forcedStateCheck": {
+          "name": "contract × snapback forces loading error empty and ready through its provider",
+          "ok": true,
+          "details": {
+            "provider": "Snapback ContractDataProvider.forceQueryState",
+            "observations": [
+              {
+                "state": "loading",
+                "testId": "feed-loading",
+                "observed": "Loading the plans…"
+              },
+              {
+                "state": "error",
+                "testId": "feed-error",
+                "observed": "Forced Partitime failure"
+              },
+              {
+                "state": "empty",
+                "testId": "feed-empty",
+                "observed": "No plans yet. Make something happen."
+              },
+              {
+                "state": "ready",
+                "testId": "feed-ready",
+                "observed": "🍊Sat, Aug 1, 6:00 PMSunset Supper ClubBernal Hill · secret gardenHOSTED BY AdaView plan →🌊Sat, Aug 8, 3:30 PMNight Swim RadioOakland · Temescal poolHOSTED BY GraceView plan →🏺Sun, Aug 16, 4:00 PMBad Ceramics NightMission · Studio 14HOSTED BY EveView plan →"
+              }
+            ]
+          }
+        },
+        "explicitAgentStatuses": [
+          {
+            "kind": "live-tree",
+            "description": "has",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "live-tree",
+            "description": "derive-depends: derive canCreate depends only on createForm",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "live-tree",
+            "description": "when: when events.loading then has",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "live-tree",
+            "description": "when: when events.error then has",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "live-tree",
+            "description": "when: when events.empty then has",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "live-tree",
+            "description": "when: when events.ready then has",
+            "status": "pass",
+            "skipped": "no-live-agent",
+            "message": "Live-tree evaluation skipped: no agent transport in this context."
+          },
+          {
+            "kind": "press",
+            "description": "press: press routes to action openCreate",
+            "status": "skipped",
+            "skipped": "interaction-not-executed",
+            "message": null
+          },
+          {
+            "kind": "press",
+            "description": "press: press routes to action closeCreate",
+            "status": "skipped",
+            "skipped": "interaction-not-executed",
+            "message": null
+          },
+          {
+            "kind": "press",
+            "description": "press: press routes to action toggleVariant",
+            "status": "skipped",
+            "skipped": "interaction-not-executed",
+            "message": null
+          },
+          {
+            "kind": "has",
+            "description": "has node testId=\"feed\"",
+            "status": "pass",
+            "skipped": null,
+            "message": null
+          },
+          {
+            "kind": "press",
+            "description": "press button \"+ Make something happen\" -> openCreate",
+            "status": "pass",
+            "skipped": null,
+            "message": "target present; action \"openCreate\" resolves (interaction not performed)"
+          },
+          {
+            "kind": "press",
+            "description": "press button \"Close create event\" -> closeCreate",
+            "status": "violated",
+            "skipped": null,
+            "message": "target selector matched no elements in the committed tree"
+          },
+          {
+            "kind": "press",
+            "description": "press button \"Toggle color theme\" -> toggleVariant",
+            "status": "pass",
+            "skipped": null,
+            "message": "target present; action \"toggleVariant\" resolves (interaction not performed)"
+          },
+          {
+            "kind": "derive-depends",
+            "description": "derive canCreate depends only on createForm",
+            "status": "static",
+            "skipped": null,
+            "message": "compiler-enforced clause; no live check"
+          },
+          {
+            "kind": "when",
+            "description": "when events.loading then has node testId=\"feed-loading\"",
+            "status": "guard-false",
+            "skipped": null,
+            "message": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "description": "when events.error then has node testId=\"feed-error\"",
+            "status": "guard-false",
+            "skipped": null,
+            "message": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "description": "when events.empty then has node testId=\"feed-empty\"",
+            "status": "guard-false",
+            "skipped": null,
+            "message": "guard evaluated false; inner clause not checked"
+          },
+          {
+            "kind": "when",
+            "description": "when events.ready then has node testId=\"feed-ready\"",
+            "status": "pass",
+            "skipped": null,
+            "message": null
+          }
+        ]
       }
     },
     {
@@ -296,21 +1036,39 @@
           "files": [
             {
               "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-              "lines": 94,
-              "bytes": 5621,
-              "sha256": "1dfb6ee66f1ad5da43dcb61da8c57973ebc7050848687bbab35b04b894fa98bb"
+              "lines": 120,
+              "bytes": 9073,
+              "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-              "lines": 114,
-              "bytes": 6111,
-              "sha256": "34ab1a617ab9062751cd68a195e0146a9242405cb639df7c819e26d9ebda8855"
+              "lines": 131,
+              "bytes": 7216,
+              "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-              "lines": 80,
-              "bytes": 4336,
-              "sha256": "05a82326303f8f934b8a61d26839fcffbc0a057f968b1c30d5d898a01245fce7"
+              "lines": 332,
+              "bytes": 14433,
+              "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/ui.ts",
+              "lines": 55,
+              "bytes": 1536,
+              "sha256": "75a9f5fa44dca91c26dd2f4eb887f2a4d922da849e20ecd1d7174cddf8eadddd"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts",
+              "lines": 28,
+              "bytes": 1196,
+              "sha256": "1f615b148e55e1ea006693564552002045d5b629584c0e0b8fa626b2a1d25f3a"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/connection-badge.contract",
+              "lines": 11,
+              "bytes": 323,
+              "sha256": "131fa24461fbaf6d3818d48ceb792c976009195695946d5231bad33f09b7281f"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -320,9 +1078,9 @@
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/helpers.ts",
-              "lines": 18,
-              "bytes": 1066,
-              "sha256": "c7b9f944ee64bee88b983850a56e797624c484635996a262c06ace986a706661"
+              "lines": 36,
+              "bytes": 1631,
+              "sha256": "4916bc5b635171f46f583d01292ee16646a55549d18ab73f2213068c2a8da44a"
             },
             {
               "path": "demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts",
@@ -331,57 +1089,69 @@
               "sha256": "48f86f1b97800d24a1c1a23b839ecc05e54913ab8dc89c50243c5392b5ba6c33"
             }
           ],
-          "totalLines": 400
+          "totalLines": 807
         },
         "reactSource": {
           "files": [
             {
               "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-              "lines": 183,
-              "bytes": 10279,
-              "sha256": "97dec41613e6958e327d3c45b7ee1d9ad12193aba23ed809edace8672ef20acb"
+              "lines": 276,
+              "bytes": 15965,
+              "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
             },
             {
               "path": "demos/partiful-matrix/surfaces/react/src/main.tsx",
-              "lines": 23,
-              "bytes": 1007,
-              "sha256": "92407914fdf2f250582fac22194d1c29d2bc7beb06c371346215cd63ab0f123f"
+              "lines": 44,
+              "bytes": 1621,
+              "sha256": "27c1216d72977e9cecb9eb71c6123366f03226427c48fa5d35ca9faa1e775c92"
             },
             {
               "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
-              "lines": 125,
-              "bytes": 5490,
-              "sha256": "2273a7a6f58a0da8361f90ccaf52ae560720ae43b3d73d9e40ae1bafc13546e3"
+              "lines": 129,
+              "bytes": 5661,
+              "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
             }
           ],
-          "totalLines": 331
+          "totalLines": 449
         },
         "contractSnapbackBundle": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-DaAFVqdJ.js",
-              "minifiedBytes": 728458,
-              "deterministicGzipBytes": 194052,
-              "sha256": "eafcb94afe7fe9de20099dc88c5c50de3c3094c6c39a2663c1eed64bb1b7dba3"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/crash-CpHuiYez.js",
+              "minifiedBytes": 17420,
+              "deterministicGzipBytes": 6768,
+              "sha256": "d519c7424f316ac4ff28b11c6d1066c12ebc069b17c56498436929394b695f1c"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-BdmJDi7J.js",
+              "minifiedBytes": 1299559,
+              "deterministicGzipBytes": 353202,
+              "sha256": "870937063ee27735d1ec0c5748b2b28f5ba86862dae0594e5bf08b80c9cd3479"
+            },
+            {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/privacy-Dk5LIQos.js",
+              "minifiedBytes": 2257,
+              "deterministicGzipBytes": 1041,
+              "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
             }
           ],
-          "minifiedBytes": 728458,
-          "deterministicGzipBytes": 194052
+          "minifiedBytes": 1319236,
+          "deterministicGzipBytes": 361011
         },
         "reactSnapbackBundle": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-D3LIicg3.js",
-              "minifiedBytes": 405706,
-              "deterministicGzipBytes": 116312,
-              "sha256": "9e709ca9d6e85675511ed669e121ff58ab9ef621ccb1c0f49f45f7d018160e09"
+              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-cHKhckm2.js",
+              "minifiedBytes": 409231,
+              "deterministicGzipBytes": 117329,
+              "sha256": "b52a0546c29196c1eba3d337049d407bcfaf14134b58b3dd19a269d5b193953c"
             }
           ],
-          "minifiedBytes": 405706,
-          "deterministicGzipBytes": 116312
+          "minifiedBytes": 409231,
+          "deterministicGzipBytes": 117329
         }
       }
     }
   ],
-  "conclusion": "React × Snapback remains the polished-web default because mandatory product-surface parity is not closed."
+  "conclusion": "React and Contract pass the mandatory Partitime product-surface parity inventory with retained browser and Agent receipts."
 }
