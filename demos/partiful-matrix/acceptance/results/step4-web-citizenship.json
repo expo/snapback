@@ -4,23 +4,23 @@
   "ok": false,
   "outcome": "red",
   "claimEligible": false,
-  "recordedAt": "2026-07-21T21:19:28.398Z",
+  "recordedAt": "2026-07-21T21:31:16.972Z",
   "authority": [
     "Snapback LLP 0063 Step 4",
     "Exact LLP 0211 §4.3"
   ],
   "repository": {
-    "revision": "d316effc4cc4ee7f837b4845a8ec1e83c10c6d68",
+    "revision": "a3baead7228ca58b6fa478f2de80aeb87158a084",
     "dirty": true
   },
   "summary": {
     "required": 21,
-    "passed": 2,
-    "red": 19,
+    "passed": 4,
+    "red": 17,
     "skipped": 0
   },
-  "passed": 2,
-  "red": 19,
+  "passed": 4,
+  "red": 17,
   "skipped": 0,
   "environments": [
     {
@@ -402,24 +402,70 @@
     {
       "environment": "desktop-firefox",
       "assertion": "focus-trap-restore",
-      "acceptedFixtures": [
-        "partitime-create-dialog"
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "notes": "Fresh Mozilla Firefox WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+      "evidence": [
+        {
+          "kind": "machine-receipt",
+          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+          "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+          "result": "contract × snapback traps and restores focus in desktop firefox"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Mozilla Firefox",
+        "version": "Mozilla Firefox 152.0.1"
+      },
+      "os": {
+        "name": "desktop host",
+        "version": "darwin-25.5.0-arm64"
+      },
+      "channel": null,
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "input": "WebDriver key actions"
+      }
     },
     {
       "environment": "desktop-firefox",
       "assertion": "find-on-page",
-      "acceptedFixtures": [
-        "partitime-visible-event-copy"
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "Fresh Mozilla Firefox run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+      "evidence": [
+        {
+          "kind": "machine-receipt",
+          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+          "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+          "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Mozilla Firefox",
+        "version": "Mozilla Firefox 152.0.1"
+      },
+      "os": {
+        "name": "desktop host",
+        "version": "darwin-25.5.0-arm64"
+      },
+      "channel": null,
+      "details": {
+        "query": "Sunset Supper Club",
+        "anchor": "event-card-event_sunset",
+        "selection": "Sunset Supper Club",
+        "nativeFind": {
+          "hidden": false,
+          "present": true,
+          "status": "",
+          "value": "Sunset Supper Club"
+        },
+        "usableAfterFind": true,
+        "input": "Firefox native FindBar via privileged WebDriver"
+      }
     }
   ],
   "inventory": {
@@ -447,13 +493,18 @@
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
       "sha256": "4462b0810f09b66bd87a60fe2ce6e6d20a455bbde029119ab8955f1215f281b6",
       "bytes": 2647
+    },
+    {
+      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+      "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+      "bytes": 3332
     }
   ],
   "testInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-browser-citizenship.mjs",
-      "sha256": "7930a502da1b9f9cfcd786acc4e352956b9a89607c43704a5e7cb9607daeae96",
-      "bytes": 12997
+      "sha256": "82f5cca22110fb29ecbbb9d7cfe74a74788c33f0cf04a366ff8291097792fb1c",
+      "bytes": 16493
     }
   ],
   "nonClaims": [

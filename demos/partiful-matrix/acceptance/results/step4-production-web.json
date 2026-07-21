@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T21:19:32.962Z",
+  "recordedAt": "2026-07-21T21:31:43.616Z",
   "repository": {
-    "snapbackRevision": "d316effc4cc4ee7f837b4845a8ec1e83c10c6d68",
+    "snapbackRevision": "a3baead7228ca58b6fa478f2de80aeb87158a084",
     "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
   },
   "inputs": {
@@ -27,7 +27,7 @@
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "sha256": "b4ec3b86d679b7885dfbe3f0982a64207e980ba7dcbcdf4fed9e8c7b7f1c53e6"
+      "sha256": "7e91e770ecf68dda92fc227aed2567ce8f49197704478dbe91192b096886713f"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
@@ -506,7 +506,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "sha256": "b4ec3b86d679b7885dfbe3f0982a64207e980ba7dcbcdf4fed9e8c7b7f1c53e6"
+          "sha256": "7e91e770ecf68dda92fc227aed2567ce8f49197704478dbe91192b096886713f"
         },
         "issues": [
           "receipt-not-green"
@@ -788,24 +788,70 @@
           {
             "environment": "desktop-firefox",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "partitime-create-dialog"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+                "result": "contract × snapback traps and restores focus in desktop firefox"
+              }
             ],
-            "status": "red",
-            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-            "evidence": []
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "input": "WebDriver key actions"
+            }
           },
           {
             "environment": "desktop-firefox",
             "assertion": "find-on-page",
-            "acceptedFixtures": [
-              "partitime-visible-event-copy"
+            "fixture": "partitime-visible-event-copy",
+            "status": "pass",
+            "notes": "Fresh Mozilla Firefox run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
+                "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+                "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
+              }
             ],
-            "status": "red",
-            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-            "evidence": []
+            "browser": {
+              "name": "Mozilla Firefox",
+              "version": "Mozilla Firefox 152.0.1"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "query": "Sunset Supper Club",
+              "anchor": "event-card-event_sunset",
+              "selection": "Sunset Supper Club",
+              "nativeFind": {
+                "hidden": false,
+                "present": true,
+                "status": "",
+                "value": "Sunset Supper Club"
+              },
+              "usableAfterFind": true,
+              "input": "Firefox native FindBar via privileged WebDriver"
+            }
           }
         ]
       }
