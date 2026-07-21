@@ -20,7 +20,8 @@ class AppDelegate: ExpoAppDelegate {
       queue: .main
     ) { notification in
       guard let bridge = notification.userInfo?["bridge"] as? RCTBridge else { return }
-      let evaluationMs = bridge.performanceLogger.duration(for: .rctplScriptExecution)
+      // RCTPLScriptExecution is raw value 1 in React Native's RCTPLTag NS_ENUM.
+      let evaluationMs = bridge.performanceLogger.duration(for: RCTPLTag(rawValue: 1))
       Self.reportNativeLaunchStage(hermesEvaluationMs: evaluationMs)
     }
     let delegate = ReactNativeDelegate()
