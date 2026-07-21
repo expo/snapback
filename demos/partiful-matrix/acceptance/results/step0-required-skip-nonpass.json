@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "182da49ade81d5c97a412e510d2ebf7c4e016d6c",
-    "exact": "d8cdcce9af25b26334364b7df6753673051f24bc"
+    "snapback": "faddb87bc23e5dc12d67520724d43d796d0e882c",
+    "exact": null
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "1ee2ca85a478207485a7fcd0b7492b4d59d6072da106729f0c258f1b61084cb9",
-    "reportSha256": "f5dcd95c625614935210056cc9a2b16675797b33393b7049364429a1cb27f620"
+    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
+    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
   },
   "testInventory": [
     {
@@ -193,7 +193,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -220,7 +220,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "fcbc465c251f410b489d4763733b6e8aabdbcff52d84ef3d5fda9d683ff723f7",
+  "testInventorySha256": "df8ca05e3413fb48dfd73e2e028f0c4f0bbc1a53baec9a8f07ae55411e814fdd",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -246,7 +246,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-37867"
+      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-58037"
     ],
     "exitStatus": 1,
     "signal": null
