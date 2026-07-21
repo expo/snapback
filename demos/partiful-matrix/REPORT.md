@@ -1872,9 +1872,12 @@ That receipt is red and cannot enter calibration or holdout.
 The browser gate is similarly explicit. Its collector enumerates the 21 rows
 required by Exact LLP 0211: five behaviors on iOS Safari current,
 current−1, and Android Chrome current, plus focus and find-on-page on desktop
-Safari, Chrome, and Firefox. Current desktop Chrome 150 passes both of its rows
-against Contract × Snapback. The cumulative receipt is 2/21 pass, 19 red, and
+Safari, Chrome, and Firefox. Current desktop Chrome 150 and Firefox 152 pass
+both of their rows against Contract × Snapback. The cumulative receipt is 4/21
+pass, 17 red, and
 zero skipped. The machine inventory has desktop Safari 26.5.2, Chrome
 150.0.7871.129, Firefox 152.0.1, Android Chrome 134, and only one iOS 26.2
-runtime. No mobile version is relabeled as current, no desktop result stands in
-for mobile IME/autofill/bfcache, and neither Step 4 claim is promoted.
+runtime. Safari's WebDriver is present, but Allow Remote Automation is disabled
+and enabling it requires the machine owner's administrator password. No mobile
+version is relabeled as current, no desktop result stands in for mobile
+IME/autofill/bfcache, and neither Step 4 claim is promoted.

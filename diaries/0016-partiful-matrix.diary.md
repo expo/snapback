@@ -1371,10 +1371,19 @@ after its content hash correctly rejected my first attempt to extend it. A
 separate Chrome probe now proves actual browser find on visible event text,
 while the retained product-UI receipt proves dialog focus trap and restoration.
 
-That leaves current desktop Chrome at 2/2 but the cumulative matrix at 2/21.
-The machine has current desktop Safari, Chrome, and Firefox, but only one iOS
-26.2 runtime; the Android emulator's Chrome 134 is stale. Desktop automation
-cannot substitute for real mobile IME, password-manager/autofill, or bfcache
-behavior. Compared with React ecosystem test farms this is operationally
-heavier, but the strictness is useful: it distinguishes “the DOM looks
-compatible” from “the named shipping browser actually behaved correctly.”
+That leaves current desktop Chrome and Firefox at 2/2 each, but the cumulative
+matrix at 4/21. Firefox was a useful test-design correction: JavaScript
+`element.click()` does not give its button focus, so an early probe falsely
+reported broken restoration. WebDriver's real element click proved the trap,
+reverse/forward wrap, Escape dismissal, and restoration; Firefox's privileged
+WebDriver context then invoked and inspected its native FindBar rather than
+substituting `window.find`.
+
+The machine has current desktop Safari, Chrome, and Firefox, but Safari's Allow
+Remote Automation setting is disabled and `safaridriver --enable` requires the
+owner's administrator password. It also has only one iOS 26.2 runtime, and the
+Android emulator's Chrome 134 is stale. Desktop automation cannot substitute
+for real mobile IME, password-manager/autofill, or bfcache behavior. Compared
+with React ecosystem test farms this is operationally heavier, but the
+strictness is useful: it distinguishes “the DOM looks compatible” from “the
+named shipping browser actually behaved correctly.”

@@ -11,6 +11,8 @@ const demoRoot = resolve(here, '..', '..');
 const defaultOut = resolve(demoRoot, 'acceptance', 'results', 'step4-web-citizenship.json');
 const defaultFocusReceipt = resolve(demoRoot, 'acceptance', 'results', 'step4-product-ui-browser.json');
 const defaultFindReceipt = resolve(demoRoot, 'acceptance', 'results', 'step4-web-citizenship-desktop-chrome-find.json');
+const defaultSafariReceipt = resolve(demoRoot, 'acceptance', 'results', 'step4-web-citizenship-desktop-safari.json');
+const defaultFirefoxReceipt = resolve(demoRoot, 'acceptance', 'results', 'step4-web-citizenship-desktop-firefox.json');
 
 const assertions = {
   'ime-composition': 'Composing text stays local, commits once, and remains visible.',
@@ -51,6 +53,8 @@ const option = (name) => {
 const outPath = resolve(option('out') ?? defaultOut);
 const focusPath = resolve(option('focus-receipt') ?? defaultFocusReceipt);
 const findPath = resolve(option('find-receipt') ?? defaultFindReceipt);
+const safariPath = resolve(option('safari-receipt') ?? defaultSafariReceipt);
+const firefoxPath = resolve(option('firefox-receipt') ?? defaultFirefoxReceipt);
 const manualPath = option('manual-evidence') ? resolve(option('manual-evidence')) : null;
 const allowRed = process.argv.includes('--allow-red');
 
@@ -183,7 +187,59 @@ function rowsFromDesktopChrome(focusReceiptPath, findReceiptPath) {
   ].map((row) => validatePassingRow(row, 'desktop Chrome machine receipts'));
 }
 
-const candidates = [...rowsFromDesktopChrome(focusPath, findPath), ...rowsFromManualEvidence(manualPath)];
+function rowsFromDesktopWebDriver(path, browser) {
+  const label = `desktop ${browser}`;
+  const receipt = validateMachineReceipt(path, `${label} receipt`);
+  if (receipt === null) return [];
+  if (receipt.schemaVersion !== 'partitime.desktop-webdriver-citizenship.v1' || receipt.browser !== browser) {
+    throw new Error(`${label} receipt has the wrong schema or browser identity`);
+  }
+  if (receipt.claimEligible !== true || receipt.repository?.dirty !== false) {
+    throw new Error(`${label} receipt is not claim-eligible clean-checkout evidence`);
+  }
+  if (!Array.isArray(receipt.cells) || !receipt.cells.includes('contract:snapback')) {
+    throw new Error(`${label} receipt does not identify Contract × Snapback`);
+  }
+  const installedVersion = browser === 'safari'
+    ? appVersion('/Applications/Safari.app')
+    : command('/Applications/Firefox.app/Contents/MacOS/firefox', ['--version']);
+  if (!nonempty(installedVersion) || receipt.environment?.browserVersion !== installedVersion) {
+    throw new Error(`${label} evidence does not match the currently installed browser version`);
+  }
+  const focusName = `contract × snapback traps and restores focus in desktop ${browser}`;
+  const findName = `contract × snapback exposes visible content to desktop ${browser} find-on-page`;
+  const find = (name) => receipt.results?.find((result) => result.name === name && result.ok === true);
+  const focus = find(focusName);
+  const browserFind = find(findName);
+  if (!focus || !browserFind) throw new Error(`${label} receipt is missing a required citizenship check`);
+  const evidence = identity(path);
+  const browserLabel = browser === 'safari' ? 'Safari' : 'Mozilla Firefox';
+  return [
+    {
+      environment: `desktop-${browser}`, assertion: 'focus-trap-restore', fixture: 'partitime-create-dialog', status: 'pass',
+      notes: `Fresh ${browserLabel} WebDriver run trapped focus inside the create-event dialog and restored it after Escape.`,
+      evidence: [{ kind: 'machine-receipt', ref: evidence.path, sha256: evidence.sha256, result: focusName }],
+      browser: { name: browserLabel, version: receipt.environment.browserVersion },
+      os: { name: 'desktop host', version: receipt.environment.os }, channel: null,
+      details: focus.details,
+    },
+    {
+      environment: `desktop-${browser}`, assertion: 'find-on-page', fixture: 'partitime-visible-event-copy', status: 'pass',
+      notes: `Fresh ${browserLabel} run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.`,
+      evidence: [{ kind: 'machine-receipt', ref: evidence.path, sha256: evidence.sha256, result: findName }],
+      browser: { name: browserLabel, version: receipt.environment.browserVersion },
+      os: { name: 'desktop host', version: receipt.environment.os }, channel: null,
+      details: browserFind.details,
+    },
+  ].map((row) => validatePassingRow(row, `${label} machine receipt`));
+}
+
+const candidates = [
+  ...rowsFromDesktopChrome(focusPath, findPath),
+  ...rowsFromDesktopWebDriver(safariPath, 'safari'),
+  ...rowsFromDesktopWebDriver(firefoxPath, 'firefox'),
+  ...rowsFromManualEvidence(manualPath),
+];
 const byKey = new Map();
 for (const row of candidates) {
   const key = `${row.environment}:${row.assertion}`;
@@ -230,7 +286,8 @@ const report = {
     android: { chrome: androidChromeVersion() },
     ios: { current: null, currentMinusOne: null },
   },
-  inputs: [focusPath, findPath, manualPath].filter((path) => path && existsSync(path)).map(identity),
+  inputs: [focusPath, findPath, safariPath, firefoxPath, manualPath]
+    .filter((path) => path && existsSync(path)).map(identity),
   testInventory: [identity(fileURLToPath(import.meta.url))],
   nonClaims: red === 0 ? [] : [
     'This receipt does not pass the strict browser citizenship gate.',

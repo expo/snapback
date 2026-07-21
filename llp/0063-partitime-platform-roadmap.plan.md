@@ -43,8 +43,10 @@ acceptance launch remains red: it loaded 7,109,789 script bytes across 460
 modules and spent 6,414.54 ms evaluating them, then produced no first frame
 within 15 seconds, so no first-authoritative-data observation exists. The
 strict citizenship collector enumerates 21 mandatory browser/behavior rows;
-current desktop Chrome supplies clean focus and find-on-page evidence, while
-the other 19 rows remain red. The available Apple host has only iOS 26.2 and
+current desktop Chrome and Firefox supply clean focus and find-on-page
+evidence, while the other 17 rows remain red. Safari's installed driver cannot
+create a session until the machine owner enables Allow Remote Automation. The
+available Apple host has only iOS 26.2 and
 no current-minus-one runtime, and the local Android Chrome 134 is not current.
 Neither native nor browser evidence promotes a Step 4 claim.)
 **Revised (Step 4 performance-instrument checkpoint):** 2026-07-21 (A dated
@@ -1185,13 +1187,13 @@ focus, bfcache, or find-on-page evidence is red, never N/A or inferred from a
 Chromium canary.
 
 The executable citizenship inventory now contains 21 required rows. A fresh
-desktop Chrome 150 run proves the Contract × Snapback dialog focus trap/restore
-and actual browser find over visible event copy without changing the retained
-Step 0 harness. The cumulative receipt is therefore 2 pass / 19 red / 0
-skipped. Desktop Safari and Firefox, iOS Safari current and current−1, and
-Android Chrome current still need admitted versioned evidence; the single iOS
-26.2 simulator and Android Chrome 134 emulator do not satisfy those channel
-requirements.
+desktop Chrome 150 and Firefox 152 runs prove the Contract × Snapback dialog
+focus trap/restore and each engine's native find over visible event copy
+without changing the retained Step 0 harness. The cumulative receipt is
+therefore 4 pass / 17 red / 0 skipped. Desktop Safari, iOS Safari current and
+current−1, and Android Chrome current still need admitted versioned evidence;
+Safari remote automation is disabled, while the single iOS 26.2 simulator and
+Android Chrome 134 emulator do not satisfy the mobile channel requirements.
 
 The remote native probe now separates compilation from runtime cost. React
 Expo's Release/Simulator app compiles after using React Native's imported raw

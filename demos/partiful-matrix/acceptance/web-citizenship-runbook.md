@@ -84,3 +84,26 @@ node demos/partiful-matrix/tests/acceptance/step4-browser-citizenship.mjs \
 
 That partial run must never be described as satisfying the mobile, Safari, or
 Firefox rows.
+
+## Desktop Safari and Firefox
+
+The named-engine WebDriver probe exercises real Tab/Shift-Tab/Escape focus
+behavior and each browser's native find implementation. Firefox requires
+`geckodriver`; its privileged context is used only to invoke and inspect the
+native Firefox FindBar, not to search DOM text directly.
+
+```sh
+node demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs \
+  --browser firefox \
+  --receipt demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json
+
+node demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs \
+  --browser safari \
+  --receipt demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json
+```
+
+Safari must have Develop → Allow Remote Automation enabled by the machine
+owner. `safaridriver --enable` requests an administrator password; the gate
+does not bypass that setting or convert its absence into a skip. Only green,
+clean-checkout receipts matching the currently installed browser version are
+admitted by the cumulative collector.
