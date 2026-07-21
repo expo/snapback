@@ -7,6 +7,7 @@
       "dependencies": {
         "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
         "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
         "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
         "convex": "^1.28.0",
       },

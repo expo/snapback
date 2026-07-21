@@ -1211,3 +1211,28 @@ or Supabase, a native-runtime package closure makes distribution identity and
 platform coverage unusually visible; the upside is that the failure stays a
 precise publication/clean-machine gap rather than appearing later as a user's
 Hermes build problem.
+
+## 2026-07-21 — agent custody left the ordinary browser bundle
+
+Partitime's cost attribution found an avoidable Snapback edge: the framework-
+neutral browser client imported the entire agent credential-custody module only
+to run `instanceof AgentAuthorityFence` when constructing a client. Partitime
+does not configure agent custody in the browser, but the static import still
+made that optional implementation reachable in every Snapback web cell.
+
+A small package-private WeakSet now gives real `AgentAuthorityFence` instances
+nominal identity without importing their implementation from the client root.
+The focused package test proves a prototype-spoofed object is rejected, and the
+full Contract agent-authority suite still passes durable rotation, tuple cuts,
+and terminal blanking. In the unchanged Contract × Snapback production build,
+`agent-authority.mjs` disappeared from the attribution manifest. The cell fell
+from 802,409 to 738,080 minified bytes and from 203,427 to 188,851 bytes under
+the deterministic gzip measurement.
+
+This felt like the right kind of tree-shaking work: capability absence now has
+a visible cost consequence without weakening the capability's security model.
+It is also a useful limit on the result. The Contract × SQLite/Supabase/Convex
+cells remain around 468 kB minified, so the compiled Contract views and runtime
+still dominate the frozen budget miss. The Step 4 receipt remains honestly red
+at 5/26 passing requirements; this change removes one Snapback-owned bucket but
+does not turn a partial reduction into a budget claim.

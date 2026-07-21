@@ -34,6 +34,16 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
+(the package root no longer retains the full agent-custody implementation just
+to validate an optional `agentAuthority` constructor value. A package-private
+WeakSet brand preserves nominal validation and rejects prototype spoofing while
+allowing ordinary browser builds to tree-shake `agent-authority.mjs`. The
+same-workload Contract × Snapback rerun fell from 802,409 to 738,080 minified
+bytes and from 203,427 to 188,851 deterministic-gzip bytes. The other Contract
+cells remain at roughly 468 kB minified and all four exceed the frozen
+thresholds; the retained budget receipt remains 5 pass / 21 red, so this is a
+measured Snapback-owned remediation rather than `STEP4.BUDGETS` or Step 4 exit.)
 **Revised (Step 5 public-name and registry-proof checkpoint):** 2026-07-21
 (`@snapback/cli` proved to be an unrelated public 3.x package at the deferred
 first-publication probe, so LLP 0021's explicit reopen caveat fired. The

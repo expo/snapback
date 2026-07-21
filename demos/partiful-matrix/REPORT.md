@@ -1753,3 +1753,20 @@ scope is unpublished, and the run is a clean directory on the development
 machine rather than a separately provisioned clean machine. The accepted
 query/projection and migration authorities, LLP 0065 acceptance, and full
 generated-pattern set also remain separate entry/exit gates.
+
+## 31. Step 4 browser-client reachability checkpoint
+
+The ordinary Snapback browser client previously retained the complete agent
+credential-custody implementation because its constructor used
+`instanceof AgentAuthorityFence` to validate an optional capability. A
+package-private WeakSet brand now preserves nominal validation without that
+static production edge. Real fences still pass the complete Contract
+agent-authority suite, while a prototype-spoofed object is rejected.
+
+On the unchanged frozen workload, Contract × Snapback moved from 802,409 to
+738,080 minified bytes and from 203,427 to 188,851 deterministic-gzip bytes;
+the attribution manifest gives `agent-authority.mjs` zero rendered bytes. This
+is a meaningful provider-runtime reduction, but not a budget exit. The other
+Contract cells remain between 468,387 and 468,401 minified bytes, and all four
+Contract cells still exceed the frozen byte thresholds. The cumulative Step 4
+budget receipt therefore remains red with 5 passing and 21 red requirements.

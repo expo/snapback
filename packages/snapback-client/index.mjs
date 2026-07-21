@@ -23,7 +23,7 @@ import {
   validateAuthorizationInvalidationConnection,
   validateScopeId,
 } from '@snapback/contract/auth-invalidation';
-import { AgentAuthorityFence } from './agent-authority.mjs';
+import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
 
 export {
   AgentAuthorityFence,
@@ -1016,7 +1016,7 @@ export class SnapbackClient {
     if (authCoordinator && agentAuthority) {
       throw new TypeError('AuthCoordinator and AgentAuthorityFence are mutually exclusive');
     }
-    if (agentAuthority !== null && !(agentAuthority instanceof AgentAuthorityFence)) {
+    if (agentAuthority !== null && !isAgentAuthorityFence(agentAuthority)) {
       throw new TypeError('agentAuthority must be an AgentAuthorityFence');
     }
     if ((authCoordinator || agentAuthority) && bearerToken !== null) {

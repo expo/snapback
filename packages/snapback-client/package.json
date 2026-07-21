@@ -5,6 +5,7 @@
   "description": "Versioned framework-neutral Snapback app-data client and scoped agent authority fence.",
   "files": [
     "README.md",
+    "agent-authority-brand.mjs",
     "agent-authority.mjs",
     "external-store.d.mts",
     "external-store.mjs",
