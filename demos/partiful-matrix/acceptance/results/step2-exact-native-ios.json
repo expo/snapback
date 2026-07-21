@@ -188,7 +188,7 @@
   "verifierInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step2-exact-native.mjs",
-      "sha256": "8c5880046a2745464c5e989795e81ef7254a791933133f598a1a124fa9b1fbbb"
+      "sha256": "ffabd4499a550f39159f1955a430d2993edaadaae9c207a8224b5b1487c72135"
     }
   ]
 }

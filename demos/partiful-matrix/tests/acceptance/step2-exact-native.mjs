@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { writeMachineReport } from '../../../_kit/harness.mjs';
 
-// @ref LLP 0064 §§4-6 — Exact owns execution of each no-Hermes carrier;
+// @ref LLP 0064#4-exact-native-parity-surface — Exact owns execution of each no-Hermes carrier;
 // Snapback independently imports a committed receipt, verifies its complete
 // Parity fact set, and reconstructs the source graph from the named Exact tree.
 
