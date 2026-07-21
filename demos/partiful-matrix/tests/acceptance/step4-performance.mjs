@@ -149,9 +149,10 @@ async function measureWebCell(cdp, cell, previewUrl) {
   const warm = [];
   for (let index = 0; index < warmups + samples; index += 1) {
     const measured = index >= warmups;
-    const coldSample = await measureNavigation(cdp, cell, previewUrl, { warm: false });
+    const turn = measured ? `sample-${index - warmups + 1}` : `warmup-${index + 1}`;
+    const coldSample = await measureNavigation(cdp, cell, previewUrl, { warm: false, turn });
     if (measured) cold.push(coldSample);
-    const warmSample = await measureNavigation(cdp, cell, previewUrl, { warm: true });
+    const warmSample = await measureNavigation(cdp, cell, previewUrl, { warm: true, turn });
     if (measured) warm.push(warmSample);
   }
   return {
@@ -172,7 +173,7 @@ async function measureWebCell(cdp, cell, previewUrl) {
   };
 }
 
-async function measureNavigation(cdp, cell, previewUrl, { warm }) {
+async function measureNavigation(cdp, cell, previewUrl, { warm, turn }) {
   const page = await cdp.newPage();
   try {
     await page.setCacheDisabled(!warm);
@@ -199,7 +200,13 @@ async function measureNavigation(cdp, cell, previewUrl, { warm }) {
     const taskSeconds = metric(afterMetrics, 'TaskDuration') - metric(beforeMetrics, 'TaskDuration');
     await page.beginUpdate();
     await page.click('open-event_swim');
-    const update = await page.waitForEventPage();
+    let update;
+    try {
+      update = await page.waitForEventPage();
+    } catch (error) {
+      const diagnostic = await page.diagnostic();
+      throw new Error(`${cellId(cell)} ${turn} ${warm ? 'warm' : 'cold'} update failed: ${error instanceof Error ? error.message : String(error)}; ${JSON.stringify(diagnostic)}`);
+    }
     return {
       startupMs: milestones.firstUiAt,
       firstAuthoritativeDataMs: milestones.authoritativeAt,
@@ -516,9 +523,13 @@ async function connectCdp(url) {
       const { targetId } = await send('Target.createTarget', { url: 'about:blank' });
       const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true });
       let networkBytes = 0;
+      const runtimeExceptions = [];
       on(sessionId, 'Network.loadingFinished', ({ encodedDataLength = 0 }) => { networkBytes += encodedDataLength; });
       on(sessionId, 'Network.webSocketFrameReceived', ({ response }) => { networkBytes += response?.payloadData?.length ?? 0; });
       on(sessionId, 'Network.webSocketFrameSent', ({ response }) => { networkBytes += response?.payloadData?.length ?? 0; });
+      on(sessionId, 'Runtime.exceptionThrown', ({ exceptionDetails }) => {
+        runtimeExceptions.push(exceptionDetails?.exception?.description ?? exceptionDetails?.text ?? 'unknown runtime exception');
+      });
       await send('Page.enable', {}, sessionId);
       await send('Runtime.enable', {}, sessionId);
       await send('Network.enable', {}, sessionId);
@@ -555,6 +566,15 @@ async function connectCdp(url) {
         beginUpdate: () => evaluate('globalThis.__partitimePerf.beginUpdate()'),
         click: (testId) => evaluate(`(()=>{const target=document.querySelector(${JSON.stringify(`[data-testid="${testId}"]`)});if(!target)throw new Error('missing ${testId}');target.click();return true})()`),
         waitForEventPage: () => evaluate(`(async()=>{const deadline=Date.now()+15000;while(Date.now()<deadline){if(document.querySelector('[data-testid="event-page"]'))return globalThis.__partitimePerf.endUpdate();await new Promise(r=>setTimeout(r,25));}throw new Error('event update timed out')})()`),
+        diagnostic: () => evaluate(`({
+          href: location.href,
+          readyState: document.readyState,
+          eventPage: Boolean(document.querySelector('[data-testid="event-page"]')),
+          loadingText: document.querySelector('.event-page')?.textContent?.slice(0, 500) ?? null,
+          openControlPresent: Boolean(document.querySelector('[data-testid="open-event_swim"]')),
+          bodyText: document.body?.innerText?.slice(0, 1000) ?? null,
+          runtimeExceptions: ${JSON.stringify(runtimeExceptions)},
+        })`),
       };
     },
   };
