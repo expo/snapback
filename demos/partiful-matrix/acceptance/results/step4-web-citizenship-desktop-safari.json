@@ -1,0 +1,86 @@
+{
+  "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_SAFARI",
+  "recordedAt": "2026-07-21T21:51:54.730Z",
+  "repository": {
+    "revision": "8fe7376d41db94dd6e936409260164319365a8f2",
+    "dirty": false
+  },
+  "claimEligible": true,
+  "cells": [
+    "contract:snapback"
+  ],
+  "browser": "safari",
+  "environment": {
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "browserVersion": "26.5.2",
+    "driver": "/usr/bin/safaridriver",
+    "driverVersion": "Included with Safari 26.5.2 (21624.2.5.11.8)",
+    "cpu": "Apple M5 Max"
+  },
+  "artifacts": [
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554",
+      "bytes": 15025
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692",
+      "bytes": 4550
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee",
+      "bytes": 9073
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363",
+      "bytes": 7216
+    }
+  ],
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387",
+      "bytes": 10475
+    },
+    {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "41138bb2e42ea0746453aecb613b774a00102d2a11741348332584eed13b19c3",
+      "bytes": 32485
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
+      "sha256": "225907898e564401650367e7686784438f32077338b0a14f15e5d4080755cf1b",
+      "bytes": 15159
+    }
+  ],
+  "missingPrerequisites": [],
+  "title": "Partitime / desktop safari citizenship",
+  "passed": 0,
+  "skipped": 0,
+  "failed": 2,
+  "total": 2,
+  "ok": false,
+  "results": [
+    {
+      "name": "contract × snapback traps and restores focus in desktop safari",
+      "ok": false,
+      "error": "focus scope mismatch: {\"initial\":\"create-close\",\"reverseWrapped\":\"create-submit\",\"forwardWrapped\":\"create-close\",\"afterEscape\":{\"overlay\":false,\"active\":null}}",
+      "diagnostic": null
+    },
+    {
+      "name": "contract × snapback exposes visible content to desktop safari find-on-page",
+      "ok": false,
+      "error": "native browser find did not expose the visible query: {\"found\":{\"anchor\":null,\"selection\":\"\"},\"nativeFind\":null}",
+      "diagnostic": null
+    }
+  ],
+  "expectedChecks": 2,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
