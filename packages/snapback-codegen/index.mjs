@@ -5272,8 +5272,27 @@ function writeGeneratedOutput(outDir, {
   for (const module of contractModules) {
     writeFileSync(join(contractOutDir, module.file), module.source);
   }
-  writeFileSync(join(outDir, 'package.json'), stableJson(packageJson) + '\n');
+  writeFileSync(join(outDir, 'package.json'), generatedPackageJson(packageJson) + '\n');
   writeFileSync(join(outDir, 'artifacts.json'), stableJson(artifactIndex) + '\n');
+}
+
+// Package export condition order is semantic: catch-all `default` must follow
+// `types`, and type-aware tools should see `types` before runtime conditions.
+// Keep every other object key recursively sorted for deterministic artifacts.
+function generatedPackageJson(value) {
+  const ordered = JSON.parse(stableJson(value));
+  for (const [subpath, target] of Object.entries(ordered.exports ?? {})) {
+    if (!target || typeof target !== 'object' || Array.isArray(target)) continue;
+    const conditions = {};
+    for (const condition of ['types', 'import', 'require', 'default']) {
+      if (Object.hasOwn(target, condition)) conditions[condition] = target[condition];
+    }
+    for (const condition of Object.keys(target)) {
+      if (!Object.hasOwn(conditions, condition)) conditions[condition] = target[condition];
+    }
+    ordered.exports[subpath] = conditions;
+  }
+  return JSON.stringify(ordered, null, 2);
 }
 
 function replaceDirectory(tmpDir, outDir) {

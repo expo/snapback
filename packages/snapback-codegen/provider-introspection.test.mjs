@@ -122,6 +122,8 @@ export const editTodo = defineMutation({
   );
   const generatedPackage = JSON.parse(readFileSync(join(backend, 'generated', 'package.json'), 'utf8'));
   assert.equal(generatedPackage.exports['./provider-introspection'], './provider-introspection.json');
+  assert.deepEqual(Object.keys(generatedPackage.exports['.']), ['types', 'import']);
+  assert.deepEqual(Object.keys(generatedPackage.exports['./provider-bindings']), ['types', 'default']);
   assert.equal(generatedPackage.exports['./provider-bindings'].types, './provider-bindings.d.ts');
   assert.equal(generatedPackage.exports['./provider-bindings'].default, './provider-bindings.json');
   const generatedIndex = JSON.parse(readFileSync(join(backend, 'generated', 'artifacts.json'), 'utf8'));
