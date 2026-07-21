@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:06:15.851Z",
+  "recordedAt": "2026-07-21T09:08:21.548Z",
   "repository": {
-    "snapbackRevision": "faddb87bc23e5dc12d67520724d43d796d0e882c",
+    "snapbackRevision": "b7ea370a502416be77ea921116275c22ffd82d4f",
     "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "inputs": {

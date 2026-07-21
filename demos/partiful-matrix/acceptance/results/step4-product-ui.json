@@ -7,9 +7,9 @@
   "outcome": "pass",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:06:16.278Z",
+  "recordedAt": "2026-07-21T09:08:22.043Z",
   "repository": {
-    "snapbackRevision": "faddb87bc23e5dc12d67520724d43d796d0e882c",
+    "snapbackRevision": "b7ea370a502416be77ea921116275c22ffd82d4f",
     "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
   },
   "inputs": {
@@ -776,7 +776,7 @@
           "status": 0,
           "signal": null,
           "stdoutSha256": "0ed06aa8100148775dbe9f318723c025524ec39d955695e4cbba28f10eca37e8",
-          "stderrSha256": "61e9f04b95ea196084718a1be1e63c129f6edf65eac50fc2b01b419bbbaaff6d",
+          "stderrSha256": "afb19feaeb9176eb2e93fbf7b0e38cfa6a2beccac92f1260a480128f43cd00fb",
           "stdoutTail": [
             "bun test v1.3.12 (700fc117)"
           ],
@@ -792,7 +792,7 @@
             " 8 pass",
             " 0 fail",
             " 102 expect() calls",
-            "Ran 8 tests across 1 file. [416.00ms]"
+            "Ran 8 tests across 1 file. [438.00ms]"
           ]
         },
         "operations": [
