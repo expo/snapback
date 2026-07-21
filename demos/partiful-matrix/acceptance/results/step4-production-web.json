@@ -7,15 +7,15 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T09:14:31.804Z",
+  "recordedAt": "2026-07-21T21:18:27.502Z",
   "repository": {
-    "snapbackRevision": "2bd5d361c7025b23311c15f795f0c1dfcf045801",
-    "exactRevision": "7b2c2b378488f242150682f117de0077bad2cb96"
+    "snapbackRevision": "328a9a29b55f6ad2c2d4954497bd948f1a89fc43",
+    "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      "sha256": "6e1c4eb6642d252cef50401f7b081acf8897d182d84c20eaa7349ca20250dad1"
     },
     "step0WebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
@@ -27,7 +27,7 @@
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "missing": true
+      "sha256": "492be570bc98d1d8404985b0f587e3f95d2b1948bb80f23c6b95e86fc4322edc"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
@@ -506,12 +506,244 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "missing": true
+          "sha256": "492be570bc98d1d8404985b0f587e3f95d2b1948bb80f23c6b95e86fc4322edc"
         },
         "issues": [
-          "receipt-missing"
+          "receipt-not-green"
         ],
-        "rows": []
+        "rows": [
+          {
+            "environment": "ios-safari-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "ios-safari-current-1",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "ime-composition",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "autofill-password-manager",
+            "acceptedFixtures": [
+              "partitime-create-form"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "bfcache-restore",
+            "acceptedFixtures": [
+              "partitime-feed-event-bfcache"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "android-chrome-current",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-safari",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-safari",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-chrome",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-chrome",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-firefox",
+            "assertion": "focus-trap-restore",
+            "acceptedFixtures": [
+              "partitime-create-dialog"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          },
+          {
+            "environment": "desktop-firefox",
+            "assertion": "find-on-page",
+            "acceptedFixtures": [
+              "partitime-visible-event-copy"
+            ],
+            "status": "red",
+            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+            "evidence": []
+          }
+        ]
       }
     }
   ],

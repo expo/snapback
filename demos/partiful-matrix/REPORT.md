@@ -1841,10 +1841,40 @@ the same external request timestamp. Missing or incomparable stages fail the
 collector; macOS Exact and Android React remain report-only because workload v1
 has no same-OS counterpart arm.
 
-The latest source-linked Exact AOT/runtime-pruning checkpoint
-(`e49e1d238…`) emits 294,831 minified / 84,473 gzip bytes for the non-Snapback
+The latest clean source-linked Exact AOT/runtime-pruning checkpoint
+(`9874e9226…`) emits 276,431 minified / 79,129 gzip bytes for the non-Snapback
 Contract cell. That is a large improvement from the stable package's roughly
-468/117 kB, but remains 81,348 / 17,227 bytes above the frozen limits and is
+468/117 kB, but remains 62,948 / 11,883 bytes above the frozen limits and is
 not stable-package evidence. Authored Contract source remains 1,095 lines
 against 348. The rerun budget receipt is therefore 7 pass / 19 red, including
 16 explicit nonclaims; no Step 4 claim is promoted.
+
+## 34. Step 4 remote-native and browser-citizenship checkpoint
+
+The authorized macOS 26.5.1 / Xcode 26.3 host can compile both iOS comparison
+carriers. React Expo's Release/Simulator build succeeded after correcting the
+Swift importer boundary for React Native's script-execution performance tag
+and installing the nested app's transitive Snapback workspace dependency. The
+resulting startup bundle is about 2.0 MB. Exact's ordinary iOS target initially
+failed with duplicate `@main` declarations because its generated project also
+compiled the dedicated Partitime acceptance app entry point. Exact revision
+`268175d33…` excludes that file from the ordinary iOS and macOS targets; the
+regenerated project and iOS app then build successfully.
+
+Compilation is not runtime acceptance. The Exact native run launched the app
+and loaded 7,109,789 script bytes across 460 modules, including 6,231,550 bytes
+of module source. Fetch took 182.76 ms, graph construction 17.48 ms, module
+source loading 180.27 ms, bootstrap 32.10 ms, and Hermes evaluation 6,414.54
+ms. The app did not render a first frame within the 15-second boundary, so the
+Acto phase could not establish native reachability or first authoritative data.
+That receipt is red and cannot enter calibration or holdout.
+
+The browser gate is similarly explicit. Its collector enumerates the 21 rows
+required by Exact LLP 0211: five behaviors on iOS Safari current,
+current−1, and Android Chrome current, plus focus and find-on-page on desktop
+Safari, Chrome, and Firefox. Current desktop Chrome 150 passes both of its rows
+against Contract × Snapback. The cumulative receipt is 2/21 pass, 19 red, and
+zero skipped. The machine inventory has desktop Safari 26.5.2, Chrome
+150.0.7871.129, Firefox 152.0.1, Android Chrome 134, and only one iOS 26.2
+runtime. No mobile version is relabeled as current, no desktop result stands in
+for mobile IME/autofill/bfcache, and neither Step 4 claim is promoted.

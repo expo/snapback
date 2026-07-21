@@ -34,6 +34,19 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 native/browser evidence checkpoint):** 2026-07-21 (On the
+authorized Xcode 26.3 host, the React Expo iOS Release/Simulator carrier and
+the Exact iOS app both compile. Exact project generation now excludes the
+dedicated Partitime acceptance `@main` from the ordinary app targets at Exact
+`268175d33…`, removing a real duplicate-entry-point failure. The native Exact
+acceptance launch remains red: it loaded 7,109,789 script bytes across 460
+modules and spent 6,414.54 ms evaluating them, then produced no first frame
+within 15 seconds, so no first-authoritative-data observation exists. The
+strict citizenship collector enumerates 21 mandatory browser/behavior rows;
+current desktop Chrome supplies clean focus and find-on-page evidence, while
+the other 19 rows remain red. The available Apple host has only iOS 26.2 and
+no current-minus-one runtime, and the local Android Chrome 134 is not current.
+Neither native nor browser evidence promotes a Step 4 claim.)
 **Revised (Step 4 performance-instrument checkpoint):** 2026-07-21 (A dated
 prospective amendment and executable collectors now define the eleven missing
 web/build metrics, four native-carrier metrics, four-layer per-module cost
@@ -44,8 +57,8 @@ sample aggregation and fail-closed rejection of missing launch stages. The
 amendment remains `pending-ratifier-confirmation`; no claim-grade calibration
 or holdout may run before owner ratification. The cumulative budget receipt is
 therefore 7 pass / 19 red, with 16 nonclaims. A source-linked Exact AOT/pruning
-checkpoint at `e49e1d238…` measures the common Contract gateway bundle at
-294,831 minified / 84,473 gzip bytes, still 81,348 / 17,227 above the frozen
+checkpoint at `9874e9226…` measures the common Contract gateway bundle at
+276,431 minified / 79,129 gzip bytes, still 62,948 / 11,883 above the frozen
 limits. Strict browser citizenship and native calibration/holdout receipts are
 absent, so this is instrumentation and measured remediation, not Step 4 exit.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
@@ -1170,6 +1183,25 @@ holdout. The browser citizenship matrix remains a separate cumulative Step 4
 gate: missing iOS/Android/current-minus-one, IME, autofill/password-manager,
 focus, bfcache, or find-on-page evidence is red, never N/A or inferred from a
 Chromium canary.
+
+The executable citizenship inventory now contains 21 required rows. A fresh
+desktop Chrome 150 run proves the Contract × Snapback dialog focus trap/restore
+and actual browser find over visible event copy without changing the retained
+Step 0 harness. The cumulative receipt is therefore 2 pass / 19 red / 0
+skipped. Desktop Safari and Firefox, iOS Safari current and current−1, and
+Android Chrome current still need admitted versioned evidence; the single iOS
+26.2 simulator and Android Chrome 134 emulator do not satisfy those channel
+requirements.
+
+The remote native probe now separates compilation from runtime cost. React
+Expo's Release/Simulator app compiles after using React Native's imported raw
+performance-tag value and installing the nested workspace dependency. Exact's
+iOS app also compiles after its generated target source lists exclude the
+dedicated Partitime acceptance entry point. The subsequent Exact acceptance
+launch is red: 7,109,789 script bytes, 460 modules, 6,231,550 module-source
+bytes, and 6,414.54 ms evaluation led to no rendered frame within 15 seconds.
+Without a frame or first-authoritative-data stage, that run is diagnostic
+evidence, not an admissible native performance sample.
 
 ## Sequence
 

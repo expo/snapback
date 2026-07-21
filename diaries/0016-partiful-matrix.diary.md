@@ -1319,11 +1319,11 @@ runtime, provider runtime, generated app data, or application code. The
 vanilla row remains an honest lower bound; the ledger does not pretend a delta
 isolates one framework perfectly.
 
-The biggest good surprise was the active Exact AOT/pruning work. A
-source-linked build of the same Partitime gateway cell reached 294,831 bytes
-minified and 84,473 gzip, down from the stable package's roughly 468/117 kB.
+The biggest good surprise was the active Exact AOT/pruning work. Its latest
+clean source-linked build of the same Partitime gateway cell reached 276,431
+bytes minified and 79,129 gzip, down from the stable package's roughly 468/117 kB.
 That is substantial and makes the remaining bundle gap feel tractable, but it
-is still 81,348 minified and 17,227 gzip bytes over the frozen limits. The
+is still 62,948 minified and 11,883 gzip bytes over the frozen limits. The
 authored Contract surface is also still 1,095 lines against 348. Neither is
 papered over by the new instruments.
 
@@ -1341,3 +1341,40 @@ ceremony caught real category errors: total heap versus subscription delta,
 React JS effects versus Hermes evaluation, dev-server payload versus a native
 binary, and calibration data leaking into holdout thresholds. The amendment is
 still pending owner ratification, so no performance claim has been promoted.
+
+### Remote Xcode separated “builds” from “works”
+
+The authorized Xcode 26.3 host was useful precisely because it made two very
+different facts visible. Both iOS carriers compile now. React Expo needed the
+actual Swift importer shape of React Native's performance logger—the C enum
+arrives as a raw value rather than a named Swift case—and the nested app had to
+declare the transitive Snapback Contract workspace package explicitly. Exact
+had a more conventional generated-project bug: its normal app targets also
+compiled the Partitime acceptance file, producing two `@main` declarations.
+Excluding that file in `project.yml` fixed the ordinary iOS build without
+weakening the acceptance carrier.
+
+The Exact runtime result was much less flattering. It launched and loaded a
+7,109,789-byte script graph with 460 modules, then spent 6,414.54 ms in Hermes
+evaluation and never produced a frame within 15 seconds. That is the sharpest
+performance evidence from this pass. It does not mean Contract or Snapback is
+fundamentally unsound, but it does mean the native carrier cannot be described
+as merely awaiting polish: its current startup graph or boot path blocks the
+acceptance workload before user-visible output.
+
+### Browser citizenship became a ledger, not a checklist
+
+Exact LLP 0211's release profile expands to 21 concrete rows for this workload.
+The new collector makes every missing row red and requires exact browser/OS
+versions plus durable evidence. I kept the frozen Step 0 harness unchanged
+after its content hash correctly rejected my first attempt to extend it. A
+separate Chrome probe now proves actual browser find on visible event text,
+while the retained product-UI receipt proves dialog focus trap and restoration.
+
+That leaves current desktop Chrome at 2/2 but the cumulative matrix at 2/21.
+The machine has current desktop Safari, Chrome, and Firefox, but only one iOS
+26.2 runtime; the Android emulator's Chrome 134 is stale. Desktop automation
+cannot substitute for real mobile IME, password-manager/autofill, or bfcache
+behavior. Compared with React ecosystem test farms this is operationally
+heavier, but the strictness is useful: it distinguishes “the DOM looks
+compatible” from “the named shipping browser actually behaved correctly.”
