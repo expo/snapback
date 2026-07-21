@@ -180,8 +180,8 @@ export const readProto = defineQuery({ table: '__proto__' });
       schema: baseSchema,
       functions: `
 import { defineQuery } from '../../_kit/define.mjs';
-export const ListThings = defineQuery({ table: 'things' });
-export const listThings = defineQuery({ table: 'things' });
+export const LISTTHINGS = defineQuery({ table: 'things' });
+export const listthings = defineQuery({ table: 'things' });
 `,
     });
     const result = await generate(backend);
