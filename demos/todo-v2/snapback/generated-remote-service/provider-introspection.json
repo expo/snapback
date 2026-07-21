@@ -508,8 +508,8 @@
   },
   "schemaVersion": "provider-introspection.v1",
   "source": {
-    "implementationHash": "sha256:079506d11d508ce6",
-    "inputsHash": "3a0b2ffaa9db2e00d5f622231e4b6e1896c0b18900e7a473998003d43f10f79b",
-    "schemaHash": "sha256:8ac28b71ce6df6d1"
+    "implementationHash": "sha256:022a1f6f0993c1e4",
+    "inputsHash": "eb72206ac16d06b7ad2f28880676071b86a0fc865cb7645b896d8f82f0b8f4f1",
+    "schemaHash": "sha256:8752b3c3dc6e25f9"
   }
 }

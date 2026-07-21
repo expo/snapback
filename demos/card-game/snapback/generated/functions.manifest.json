@@ -1,7 +1,7 @@
 {
   "appId": "card-game",
   "artifactKind": "functionManifest",
-  "bundleHash": "snapback.v1:sessions:function:sha256:f0b304901893a1d75e8eec27846bd7dc3605d21068aef051f1d895c9d6f99e12",
+  "bundleHash": "snapback.v1:sessions:function:sha256:dcd0078e1b1c4797849144a3870b2d76ac35cb4c3b10a179ea15fd2f6b7c37a9",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -178,7 +178,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:734c6e08c78537ee38b3811a5923bf78a7b42901c1195a6a0cf32eb0cc2346fe",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:b4178d0ce97030129c69acc276b949891220e2388b76796faef6923f86267f9b",
   "schemaVersion": "snapback.v1",
   "unsupportedDependencyDiagnostics": []
 }
