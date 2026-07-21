@@ -5,7 +5,7 @@
 **Systems:** Runtime, Codegen, Wire Protocol, Client SDK, Client integration, Conformance, Packaging, Security, Contract/Exact, Cloudflare
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-09
-**Revised:** 2026-07-15 (registers LLP 0060 D6's three private hosted marker
+**Revised:** 2026-07-21 (fan-out ratio marked superseded per the `37f1a2f` benchmark corrections — LLP 0035's 2026-07-21 note). 2026-07-15 (registers LLP 0060 D6's three private hosted marker
 envelopes in D4's generated/registered/drift-gated schema inventory without
 moving their hosted semantics or rollout ownership). 2026-07-15 (integrates ENG-24556's independently managed `remote-service-sqlite-ibex` target: Rust-owned capability/profile schemas, generated todo-v2 operation schemas, host-private-only HTTPS/credential policy, and commit-addressed data-tier/corpus identity; this is authority publication, not live-service evidence). 2026-07-13 (ENG-24605 corrects D1's authority boundary: handler identity is always the current server-prepared credential projection, never a replay-ledger answer; queued mutations carry a dedicated opaque authority descriptor checked before first or duplicate settlement, and the descriptor remains outside the ledger). 2026-07-12 (ENG-24567/ENG-24571: closed-IR queries and read-your-writes overlays now share explicit materialization/write/`In` limits across targets, while durable settlement uses explicit persisted acknowledgements and hard refusal budgets); 2026-07-12 (ENG-24493–ENG-24496 harden Increment 5's client edge: invalid durable formats fail closed without rewriting bytes, same-origin localStorage transactions serialize under Web Locks, subscription observers cannot strand cleanup, and failed optimistic reducers are retired before later live delivery). 2026-07-12 (ENG-24350 closes seven host/derived-evaluator value-model divergences with explicit portable semantics, paired D5 cases, and recursive JSON-transport canonicalization at the optimistic evaluator boundary; ENG-24298 closes two remaining non-JS HTTP seams with
 Rust-owned, generated `connection.open.input` and `mutation.output` schemas;
@@ -315,8 +315,8 @@ plan objects are miserable to author, and JS `ctx.db` handlers had just
 become possible. Both were correct. Neither is a judgment about the
 *execution* properties of a declarative tier, which are uniformly
 superior where the tier suffices: host-plan queries are the analyzable
-subset that makes `live_delta` membership maintenance ~5,200× cheaper
-(DK-3); host-plan write plans are what LLP 0043 computes sound optimistic
+subset that makes `live_delta` membership maintenance far cheaper (DK-3;
+the original ~5,200× figure is superseded per LLP 0035's 2026-07-21 note); host-plan write plans are what LLP 0043 computes sound optimistic
 overlays from; IR mutations are simulable for dry-run without an engine;
 and IR is the only handler form that can ever execute on a client that
 has no JS engine, or update on Cloudflare without a deploy. This RFC
@@ -802,7 +802,8 @@ The flags are the mechanism; the class is the claim.
   rather than hoped-small work, and the corpus doubles as the place to
   pin worst cases.
 - **`live_delta` reach grows carefully:** richer analyzable filters
-  extend the op-log path's ~5,200× fan-out advantage to more
+  extend the op-log path's fan-out advantage (originally reported ~5,200×;
+  superseded per LLP 0035's 2026-07-21 note) to more
   subscriptions, under the matcher≡SQL invariant (D2). Unanalyzable
   stays `live_replace` — correct-by-fallback, as today.
 - **WASM density on first-party infra** (wasmtime pooling, fuel caps)

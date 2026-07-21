@@ -437,14 +437,13 @@ soundness gate). Medium-to-low confidence in the Contract IR change's cost
 
 All `[inferred]`; benchmark-first, split by ownership.
 
-1. **Reconcile the corpus's superseded benchmark figures now**, separately
-   from any remeasurement: LLP 0000, LLP 0008 (body and Revised header),
-   LLP 0035, dependent documents, and the `src/live_matcher.rs` doc comment
-   still present the pre-`37f1a2f` ceilings and the ~5 200× ratio as
-   current facts; they should be qualified as superseded fixture results,
-   with corrected numbers propagated only after the replacement run is
-   recorded. Until then the corpus's governing documents contradict this
-   finding.
+1. **Corpus reconciliation — landed 2026-07-21**: LLP 0000, LLP 0008
+   (body + Revised header), LLP 0035 (a prominent superseded-fixtures
+   note), LLP 0034, LLP 0038, LLP 0051, and the `src/live_matcher.rs` doc
+   comment now qualify every pre-`37f1a2f` ceiling and the ~5 200× ratio
+   as superseded fixture results, preserved as history. (LLP 0032's dated
+   plan-ledger entries are left as history by design.) Corrected numbers
+   propagate only after the replacement run is recorded.
 2. **F2a repair — landed 2026-07-21** (fail-closed candidacy +
    `compute_live_delta` guards, unit regressions, `NoChange` oracle
    extension; LLP 0008/0056 updated). Remaining follow-up worth a tracked

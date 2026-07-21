@@ -386,7 +386,8 @@ deletion.
    ([LLP 0035](../llp/0035-local-target-benchmarks.research.md) §M3): once
    DK-4 (warm VM) made fan-out row-bound, whole-result `live_replace` still
    capped live delivery at ~5–6 affected subscribers/commit, and a
-   matcher-computed op-log delta was ~5 200× cheaper. So row-level diffs
+   matcher-computed op-log delta was ~5 200× cheaper (a fixture-derived
+   figure since superseded — LLP 0035's 2026-07-21 note). So row-level diffs
    shipped as an **additive `live_delta` wire kind** beside `live_replace`
    (the fallback and default), for the analyzable subset — an unordered
    single-table filtered **HostPlan** query, where the predicate is the whole

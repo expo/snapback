@@ -590,8 +590,10 @@ pub(crate) enum LiveDeltaOutcome {
 }
 
 /// Compute the op-log delta for one live subscription from a commit's changed
-/// rows, without re-running the query (the DK-3 lever measured at ~5 200×
-/// cheaper than a re-query in LLP 0035 §M3).
+/// rows, without re-running the query (the DK-3 lever; LLP 0035 §M3's
+/// original ~5 200× figure came from fixtures later corrected in `37f1a2f`
+/// as understating affected-delivery cost — the corrected ratio is
+/// unmeasured, and the bench smoke gate asserts only a ≥2× margin per run).
 ///
 /// Inputs:
 /// - `plan` + `input`: the subscription's captured analyzable predicate (from
