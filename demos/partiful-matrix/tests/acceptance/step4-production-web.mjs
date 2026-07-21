@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import assert from 'node:assert/strict';
+import { existsSync } from 'node:fs';
 
 import {
   acceptanceRoot,
@@ -32,7 +33,9 @@ const protocolPath = 'demos/partiful-matrix/acceptance/comparison-protocol.v1.js
 const step0Receipt = readJson(step0ReceiptPath);
 validateRetainedWebReceipt(step0Receipt);
 const productionReceipt = readJson(productionReceiptPath);
-const citizenshipReceipt = readJson(citizenshipReceiptPath);
+const citizenshipReceipt = existsSync(`${acceptanceRoot}/results/step4-web-citizenship.json`)
+  ? readJson(citizenshipReceiptPath)
+  : null;
 const staticExport = readJson(staticExportPath);
 
 assert.equal(productionReceipt.ok, true, 'retained production-web browser receipt is not green');
@@ -44,8 +47,14 @@ assert.equal(productionReceipt.cleanupErrorCount, 0, 'production-web browser cle
 for (const entry of productionReceipt.testInventory ?? []) {
   assert.deepEqual(identity(entry.path), entry, `production-web input drifted: ${entry.path}`);
 }
-assert.equal(citizenshipReceipt.ok, true, 'web citizenship release matrix is not green');
-assert.equal(citizenshipReceipt.skipped, 0, 'web citizenship release matrix contains skips');
+const citizenshipIssues = citizenshipReceipt === null
+  ? ['receipt-missing']
+  : [
+      ...(citizenshipReceipt.ok === true ? [] : ['receipt-not-green']),
+      ...(citizenshipReceipt.skipped === 0 ? [] : ['receipt-contains-skips']),
+      ...(Array.isArray(citizenshipReceipt.rows) && citizenshipReceipt.rows.length > 0 ? [] : ['receipt-has-no-rows']),
+    ];
+const citizenshipPassed = citizenshipIssues.length === 0;
 
 const result = (name) => retainedResult(productionReceipt, name);
 const build = result('Contract production build emits immutable route artifacts');
@@ -124,10 +133,18 @@ const requirements = [
       checks: upstreamChecks,
       missingChecks: missingUpstreamChecks,
     }),
-  requirement('residual-browser-device-ime-forms-matrix', 'pass', 'STEP4_WEB_CITIZENSHIP_MATRIX_PASSED', {
-    receipt: identity(citizenshipReceiptPath),
-    rows: citizenshipReceipt.rows,
-  }),
+  requirement(
+    'residual-browser-device-ime-forms-matrix',
+    citizenshipPassed ? 'pass' : 'red',
+    citizenshipPassed ? 'STEP4_WEB_CITIZENSHIP_MATRIX_PASSED' : 'STEP4_WEB_CITIZENSHIP_MATRIX_MISSING_OR_RED',
+    {
+      receipt: citizenshipReceipt === null
+        ? { path: citizenshipReceiptPath, missing: true }
+        : identity(citizenshipReceiptPath),
+      issues: citizenshipIssues,
+      rows: citizenshipReceipt?.rows ?? [],
+    },
+  ),
 ];
 
 const report = finalizeReport({
@@ -138,12 +155,16 @@ const report = finalizeReport({
     protocol: identity(protocolPath),
     step0WebReceipt: identity(step0ReceiptPath),
     productionBrowserReceipt: identity(productionReceiptPath),
-    citizenshipReceipt: identity(citizenshipReceiptPath),
+    citizenshipReceipt: citizenshipReceipt === null
+      ? { path: citizenshipReceiptPath, missing: true }
+      : identity(citizenshipReceiptPath),
     staticExport: identity(staticExportPath),
     exactVerifyRegistry: exactIdentity(exactVerifyPath),
   },
   details: {
-    conclusion: 'Partitime passes the immutable production-web, hydration, routing, metadata, push, and residual citizenship gates.',
+    conclusion: citizenshipPassed
+      ? 'Partitime passes the immutable production-web, hydration, routing, metadata, push, and residual citizenship gates.'
+      : 'Partitime passes the immutable production-web, hydration, routing, metadata, and push gates; the residual citizenship matrix remains red.',
   },
 });
 
