@@ -1,0 +1,255 @@
+#!/usr/bin/env node
+
+// @ref LLP 0063#workstream-6--reduce-snapbacks-declaration-and-runtime-tax —
+// the runtime/CLI/Contract/React/client/codegen/app-CLI closure must install from a public
+// registry without sibling checkouts or repository-only resolution.
+// @ref LLP 0041#acceptance — publication is staged from immutable tarballs;
+// dry-run is the default and a real publish is double-confirmed.
+
+import { execFileSync, spawnSync } from 'node:child_process';
+import {
+  cpSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
+import { createHash } from 'node:crypto';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const packages = [
+  'snapback-runtime-darwin-arm64',
+  'snapback-contract',
+  'snapback-client',
+  'snapback-codegen',
+  'snapback-react',
+  'snapback-app-cli',
+  'snapback-cli',
+];
+
+const usage = `usage: node scripts/snapback-publish.mjs [--version <semver>]
+  [--scope-preset <identity|ccheever>] [--tag <tag>] [--out <dir>]
+  [--publish] [--otp <code>] [--allow-dirty]
+
+Default mode packs and runs npm publish --dry-run only. A real publish requires
+both --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really.`;
+
+function fail(message, code = 1) {
+  console.error(`snapback-publish: ${message}`);
+  process.exit(code);
+}
+
+function parseArgs(argv) {
+  const options = {
+    version: '0.1.0',
+    scopePreset: 'identity',
+    tag: 'latest',
+    out: join(root, 'dist-publish'),
+    publish: false,
+    otp: null,
+    allowDirty: false,
+  };
+  for (let index = 0; index < argv.length; index += 1) {
+    const arg = argv[index];
+    const take = () => {
+      const value = argv[++index];
+      if (!value || value.startsWith('--')) fail(`${arg} requires a value\n${usage}`, 2);
+      return value;
+    };
+    if (arg === '--version') options.version = take();
+    else if (arg === '--scope-preset') options.scopePreset = take();
+    else if (arg === '--tag') options.tag = take();
+    else if (arg === '--out') options.out = resolve(take());
+    else if (arg === '--otp') options.otp = take();
+    else if (arg === '--publish') options.publish = true;
+    else if (arg === '--allow-dirty') options.allowDirty = true;
+    else if (arg === '--help' || arg === '-h') {
+      console.log(usage);
+      process.exit(0);
+    } else fail(`unknown argument ${arg}\n${usage}`, 2);
+  }
+  if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/.test(options.version)) {
+    fail(`invalid version ${options.version}`, 2);
+  }
+  if (!['identity', 'ccheever'].includes(options.scopePreset)) {
+    fail(`unsupported scope preset ${options.scopePreset}`, 2);
+  }
+  return options;
+}
+
+function run(command, args, options = {}) {
+  return spawnSync(command, args, {
+    cwd: options.cwd ?? root,
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    timeout: options.timeout ?? 180_000,
+  });
+}
+
+function publishedName(sourceName, preset) {
+  if (preset === 'identity') return sourceName;
+  return `@ccheever/snapback-${sourceName.slice('@snapback/'.length)}`;
+}
+
+function sha256(path) {
+  return createHash('sha256').update(readFileSync(path)).digest('hex');
+}
+
+function sourceDirty() {
+  return run('git', ['status', '--porcelain']).stdout.trim().length > 0;
+}
+
+function versionExists(name, version) {
+  const result = run('npm', ['view', `${name}@${version}`, 'version', '--json']);
+  if (result.status === 0) return true;
+  if (/E404|404 Not Found/.test(`${result.stdout}\n${result.stderr}`)) return false;
+  fail(`registry probe failed for ${name}@${version}:\n${result.stderr}`);
+}
+
+function stage(options) {
+  const out = resolve(options.out);
+  mkdirSync(out, { recursive: true });
+  const stageRoot = mkdtempSync(join(out, '.stage-'));
+  const nameMap = new Map();
+  for (const directory of packages) {
+    const sourceManifest = JSON.parse(
+      readFileSync(join(root, 'packages', directory, 'package.json'), 'utf8'),
+    );
+    nameMap.set(sourceManifest.name, publishedName(sourceManifest.name, options.scopePreset));
+  }
+
+  const rows = [];
+  try {
+    for (const directory of packages) {
+      const sourceDir = join(root, 'packages', directory);
+      const sourceManifest = JSON.parse(readFileSync(join(sourceDir, 'package.json'), 'utf8'));
+      if (sourceManifest.private === true) fail(`${sourceManifest.name} is still private`);
+      if (!Array.isArray(sourceManifest.files) || sourceManifest.files.length === 0) {
+        fail(`${sourceManifest.name} must declare an explicit files list`);
+      }
+      const stageDir = join(stageRoot, directory);
+      mkdirSync(stageDir, { recursive: true });
+      const prepareScript = directory === 'snapback-codegen'
+        ? 'prepare-runtime-artifacts.mjs'
+        : directory === 'snapback-runtime-darwin-arm64'
+          ? 'prepare-runtime.mjs'
+          : null;
+      if (prepareScript) {
+        const prepared = run('node', [prepareScript], { cwd: sourceDir, timeout: 300_000 });
+        if (prepared.status !== 0) {
+          fail(`could not prepare ${sourceManifest.name} runtime artifacts:\n${prepared.stderr || prepared.stdout}`);
+        }
+      }
+      for (const entry of sourceManifest.files) {
+        const source = join(sourceDir, entry);
+        if (!existsSync(source)) fail(`${sourceManifest.name} files entry is missing: ${entry}`);
+        cpSync(source, join(stageDir, entry), { recursive: true });
+      }
+      const manifest = structuredClone(sourceManifest);
+      manifest.name = nameMap.get(sourceManifest.name);
+      manifest.version = options.version;
+      delete manifest.private;
+      delete manifest.scripts;
+      for (const section of ['dependencies', 'optionalDependencies']) {
+        for (const [dependency, value] of Object.entries(manifest[section] ?? {})) {
+          if (!nameMap.has(dependency)) {
+            if (/^(?:workspace:|file:|link:)/.test(String(value))) {
+              fail(`${sourceManifest.name} has unpublished ${section}.${dependency}=${value}`);
+            }
+            continue;
+          }
+          const mapped = nameMap.get(dependency);
+          manifest[section][dependency] = mapped === dependency
+            ? options.version
+            : `npm:${mapped}@${options.version}`;
+        }
+      }
+      writeFileSync(join(stageDir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+      const packed = run('npm', ['pack', stageDir, '--pack-destination', out, '--json']);
+      if (packed.status !== 0) fail(`npm pack failed for ${manifest.name}:\n${packed.stderr}`);
+      const record = JSON.parse(packed.stdout)[0];
+      const tarballPath = join(out, record.filename);
+      const packedManifest = JSON.parse(execFileSync(
+        'tar', ['-xzOf', tarballPath, 'package/package.json'], { encoding: 'utf8' },
+      ));
+      if (packedManifest.name !== manifest.name || packedManifest.version !== options.version) {
+        fail(`packed identity drift for ${sourceManifest.name}`);
+      }
+      rows.push({
+        sourceName: sourceManifest.name,
+        name: manifest.name,
+        version: options.version,
+        tarball: record.filename,
+        sha256: sha256(tarballPath),
+        files: record.entryCount,
+        unpackedSize: record.unpackedSize,
+        status: 'packed',
+      });
+    }
+    return rows;
+  } finally {
+    rmSync(stageRoot, { recursive: true, force: true });
+  }
+}
+
+const options = parseArgs(process.argv.slice(2));
+if (options.publish && process.env.SNAPBACK_PUBLISH_CONFIRM !== 'yes-really') {
+  fail('real publish requires --publish and SNAPBACK_PUBLISH_CONFIRM=yes-really');
+}
+const dirty = sourceDirty();
+if (options.publish && dirty && !options.allowDirty) fail('refusing to publish a dirty source tree');
+const revision = run('git', ['rev-parse', 'HEAD']).stdout.trim();
+const rows = stage(options);
+const ledger = {
+  schemaVersion: 'snapback.package-publication.v1',
+  mode: options.publish ? 'publish' : 'dry-run',
+  revision,
+  sourceDirty: dirty,
+  version: options.version,
+  tag: options.tag,
+  scopePreset: options.scopePreset,
+  packages: rows,
+};
+const ledgerPath = join(options.out, 'publish-ledger.json');
+
+if (options.publish) {
+  const who = run('npm', ['whoami']);
+  if (who.status !== 0) fail(`npm authentication required:\n${who.stderr}`);
+  for (const row of rows) {
+    if (versionExists(row.name, row.version)) {
+      row.status = 'skipped-already-published';
+      continue;
+    }
+    const args = [
+      'publish', join(options.out, row.tarball),
+      '--access', 'public', '--tag', options.tag,
+    ];
+    if (options.otp) args.push('--otp', options.otp);
+    const result = run('npm', args);
+    if (result.status !== 0) {
+      writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
+      fail(`publish failed for ${row.name}; rerun resumes safely:\n${result.stderr}`);
+    }
+    row.status = 'published';
+  }
+} else {
+  for (const row of rows) {
+    const result = run('npm', [
+      'publish', join(options.out, row.tarball), '--dry-run',
+      '--access', 'public', '--tag', options.tag, '--json',
+    ]);
+    if (result.status !== 0) fail(`publish dry-run failed for ${row.name}:\n${result.stderr}`);
+    row.status = 'dry-run-ok';
+  }
+}
+
+writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
+for (const row of rows) {
+  console.log(`${row.status.padEnd(27)} ${row.name}@${row.version} ${row.tarball} ${row.sha256}`);
+}
+console.log(`ledger: ${ledgerPath}`);
+if (!options.publish) console.log('DRY RUN complete — nothing was published.');

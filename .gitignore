@@ -5,3 +5,4 @@ node_modules/
 .agent-local-secrets.md
 *.swp
 /cloudflare/.wrangler/
+/dist-publish/

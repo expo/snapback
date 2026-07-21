@@ -35,7 +35,7 @@ import {
   resolveFileReadCapability,
   resolveHandlerSourceCapability,
 } from './file-read-capability.mjs';
-import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '../snapback-contract/capabilities.mjs';
+import { SNAPBACK_CONTRACT_RECEIPT_CAPABILITY } from '@snapback/contract/capabilities';
 import {
   generatedByHeader,
   jsonLiteral,
@@ -255,15 +255,27 @@ export function crossCheckContractQueryBinding(name, binding) {
 //   diagnostics.
 // @ref LLP 0032#decision-docket — DK-7 / P3(c) emit-time validation (defense in depth).
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+// A source checkout reads the Rust-derived public artifacts in place so tests
+// always see the newest committed bytes. Published packages carry the same
+// tree under runtime-artifacts/; in an install, REPO_ROOT is node_modules and
+// has no repository-level schemas directory.
+const TOOLCHAIN_ARTIFACT_ROOT = existsSync(join(REPO_ROOT, 'schemas'))
+  ? REPO_ROOT
+  : join(dirname(fileURLToPath(import.meta.url)), 'runtime-artifacts');
+const DEFINITION_PACKAGE_IMPORTS = new Map([
+  ['@snapback/codegen/define', join(dirname(fileURLToPath(import.meta.url)), 'define.mjs')],
+  ['@snapback/codegen/standard-patterns', join(dirname(fileURLToPath(import.meta.url)), 'standard-patterns.mjs')],
+]);
+const CONTRACT_CAPABILITIES_PATH = fileURLToPath(import.meta.resolve('@snapback/contract/capabilities'));
 
 function loadCommittedSchema(schemaFile) {
-  const path = join(REPO_ROOT, 'schemas', schemaFile);
+  const path = join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', schemaFile);
   if (!existsSync(path)) {
     return { missing: `committed schema not found at ${path}` };
   }
   try {
     const bytes = resolveFileReadCapability(path, {
-      allowedRoots: [REPO_ROOT],
+      allowedRoots: [TOOLCHAIN_ARTIFACT_ROOT],
       allowSymlink: false,
       codePrefix: 'CODEGEN_COMMITTED_SCHEMA',
     }).read();
@@ -1438,7 +1450,7 @@ export async function generateInProcess(backendDir, options = {}) {
   }
   let contractCapabilitiesSource = Buffer.alloc(0);
   try {
-    contractCapabilitiesSource = resolveFileReadCapability(join(packageDir(), '..', 'snapback-contract', 'capabilities.mjs'), {
+    contractCapabilitiesSource = resolveFileReadCapability(CONTRACT_CAPABILITIES_PATH, {
       allowedRoots: [REPO_ROOT],
       codePrefix: 'CODEGEN_CONTRACT_CAPABILITY_SOURCE',
     }).read();
@@ -1693,6 +1705,7 @@ export async function generateInProcess(backendDir, options = {}) {
   const remoteServicePublication = remoteServiceInputs
     ? buildRemoteServicePublication({
         outDir,
+        publicationRoot: applicationRepositoryRoot(backendRoot),
         appId,
         targetProfile,
         schemaManifest,
@@ -2628,6 +2641,7 @@ function jsonSchemaForValidator(validator) {
 
 function buildRemoteServicePublication({
   outDir,
+  publicationRoot,
   appId,
   targetProfile,
   schemaManifest,
@@ -2657,9 +2671,9 @@ function buildRemoteServicePublication({
     return null;
   }
 
-  const schemaArtifact = generatedJsonArtifact(outDir, 'schema.manifest.json', schemaManifest, err);
-  const functionsArtifact = generatedJsonArtifact(outDir, 'functions.manifest.json', functionManifest, err);
-  const capabilityArtifact = generatedJsonArtifact(outDir, 'capability.manifest.json', capabilityManifest, err);
+  const schemaArtifact = generatedJsonArtifact(outDir, 'schema.manifest.json', schemaManifest, publicationRoot, err);
+  const functionsArtifact = generatedJsonArtifact(outDir, 'functions.manifest.json', functionManifest, publicationRoot, err);
+  const capabilityArtifact = generatedJsonArtifact(outDir, 'capability.manifest.json', capabilityManifest, publicationRoot, err);
   const operationSchemaByName = new Map(operationSchemas.map((schema) => [schema.file.replace(/\.args\.schema\.json$/, ''), schema]));
   const functionByName = new Map(functionManifest.functions.map((fn) => [fn.name, fn]));
   const operations = [];
@@ -2670,7 +2684,7 @@ function buildRemoteServicePublication({
       err('REMOTE_SERVICE_OPERATION_INVALID', 'publication', `${name} is not a generated mutation with an auth requirement and argument schema`, { function: name });
       continue;
     }
-    const argumentsArtifact = generatedJsonArtifact(outDir, `operations/${argsSchema.file}`, argsSchema.value, err);
+    const argumentsArtifact = generatedJsonArtifact(outDir, `operations/${argsSchema.file}`, argsSchema.value, publicationRoot, err);
     operations.push({
       name,
       functionId: fn.id,
@@ -2705,7 +2719,7 @@ function buildRemoteServicePublication({
       supportsRotation: true,
     },
   };
-  const authArtifact = generatedJsonArtifact(outDir, 'remote-auth-capability.manifest.json', authValue, err);
+  const authArtifact = generatedJsonArtifact(outDir, 'remote-auth-capability.manifest.json', authValue, publicationRoot, err);
   const wireSchemas = dict();
   for (const [name, artifact] of Object.entries(inputs.wireSchemas)) {
     wireSchemas[name] = artifact.reference;
@@ -2723,10 +2737,10 @@ function buildRemoteServicePublication({
     wireSchemas,
     operations,
   };
-  const dataArtifact = generatedJsonArtifact(outDir, 'remote-data-capability.manifest.json', dataValue, err);
+  const dataArtifact = generatedJsonArtifact(outDir, 'remote-data-capability.manifest.json', dataValue, publicationRoot, err);
   if (!authArtifact || !dataArtifact) return null;
 
-  const profilePath = repositoryRelativePath(join(outDir, 'remote-service.profile.json'), err);
+  const profilePath = repositoryRelativePath(join(outDir, 'remote-service.profile.json'), publicationRoot, err);
   if (!profilePath) return null;
   const profileValue = {
     artifactKind: 'remoteServiceProfile',
@@ -2765,7 +2779,7 @@ function buildRemoteServicePublication({
       corpusManifest: inputs.corpusManifest.reference,
     },
   };
-  const profileArtifact = generatedJsonArtifact(outDir, 'remote-service.profile.json', profileValue, err);
+  const profileArtifact = generatedJsonArtifact(outDir, 'remote-service.profile.json', profileValue, publicationRoot, err);
   if (!profileArtifact) return null;
   return {
     artifacts: [
@@ -2776,8 +2790,8 @@ function buildRemoteServicePublication({
   };
 }
 
-function generatedJsonArtifact(outDir, file, value, err) {
-  const path = repositoryRelativePath(join(outDir, file), err);
+function generatedJsonArtifact(outDir, file, value, publicationRoot, err) {
+  const path = repositoryRelativePath(join(outDir, file), publicationRoot, err);
   if (!path) return null;
   const source = `${stableJson(value)}\n`;
   return {
@@ -2788,13 +2802,27 @@ function generatedJsonArtifact(outDir, file, value, err) {
   };
 }
 
-function repositoryRelativePath(path, err) {
-  const repoRelative = relative(REPO_ROOT, path);
+function repositoryRelativePath(path, publicationRoot, err) {
+  const repoRelative = relative(publicationRoot, path);
   if (!isPathInside(repoRelative)) {
     err('REMOTE_SERVICE_PUBLICATION_PATH_INVALID', 'publication', 'remote service publication output must live inside the repository', { path });
     return null;
   }
   return repoRelative.split(sep).join('/');
+}
+
+function applicationRepositoryRoot(backendRoot) {
+  let candidate = resolve(backendRoot);
+  for (;;) {
+    if (existsSync(join(candidate, '.git'))) return candidate;
+    const parent = dirname(candidate);
+    if (parent === candidate) break;
+    candidate = parent;
+  }
+  // The conventional app layout is <app>/snapback. A non-git consumer still
+  // gets stable app-relative publication paths instead of package-install
+  // paths from node_modules.
+  return dirname(resolve(backendRoot));
 }
 
 // JS-handler query results are typed only when declared (LLP 0032 P3): a
@@ -4843,7 +4871,8 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
             if (args.path.startsWith('node:')) {
               return { errors: [problem('CODEGEN_AMBIENT_IMPORT_UNHASHABLE', `${args.importer || entryPath} imports ${args.path}; codegen definitions receive no host builtin capabilities`, { path: args.importer || entryPath, specifier: args.path })] };
             }
-            if (!isLocalModuleSpecifier(args.path)) {
+            const definitionPackagePath = DEFINITION_PACKAGE_IMPORTS.get(args.path);
+            if (!definitionPackagePath && !isLocalModuleSpecifier(args.path)) {
               return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} imports bare specifier ${JSON.stringify(args.path)}; use a deterministic relative or file URL`, { path: args.importer || entryPath, specifier: args.path })] };
             }
             if (/[?#]/.test(args.path)) {
@@ -4851,11 +4880,11 @@ async function buildDefinitionBundle(entryPath, backendDir, diagnostics, subsyst
             }
             let candidate;
             try {
-              candidate = args.path.startsWith('file:')
+              candidate = definitionPackagePath ?? (args.path.startsWith('file:')
                 ? fileURLToPath(args.path)
                 : isAbsolute(args.path)
                   ? args.path
-                  : resolve(args.resolveDir || dirname(args.importer), args.path);
+                  : resolve(args.resolveDir || dirname(args.importer), args.path));
             } catch (error) {
               return { errors: [problem('CODEGEN_AMBIGUOUS_IMPORT', `${args.importer || entryPath} has invalid local import ${JSON.stringify(args.path)}: ${error.message}`, { path: args.importer || entryPath, specifier: args.path })] };
             }
@@ -5166,6 +5195,10 @@ function moduleIdentityLabel(path, backendDir) {
   }
   const appRelative = relative(appRoot, path);
   if (isPathInside(appRelative)) return `app:${appRelative.split(sep).join('/')}`;
+  const toolchainRelative = relative(packageDir(), path);
+  if (isPathInside(toolchainRelative)) {
+    return `toolchain:@snapback/codegen/${toolchainRelative.split(sep).join('/')}`;
+  }
   const repoRelative = relative(REPO_ROOT, path);
   if (isPathInside(repoRelative)) return `repo:${repoRelative.split(sep).join('/')}`;
   const normalized = path.split(sep).join('/');
@@ -5333,10 +5366,10 @@ function loadRemoteServiceInputs(backendRoot, appId, targetProfile, err) {
 }
 
 function loadRepositoryArtifact(path, err) {
-  const absolutePath = resolve(REPO_ROOT, path);
+  const absolutePath = resolve(TOOLCHAIN_ARTIFACT_ROOT, path);
   try {
     const source = resolveFileReadCapability(absolutePath, {
-      allowedRoots: [REPO_ROOT],
+      allowedRoots: [TOOLCHAIN_ARTIFACT_ROOT],
       allowSymlink: false,
       codePrefix: 'REMOTE_SERVICE_PUBLICATION_INPUT',
     }).read();
@@ -5361,7 +5394,7 @@ function packageDir() {
 // (SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_) and embedded — this
 // module asserts nothing about server capabilities on its own.
 function canonicalCapabilityManifestPath(targetConfig) {
-  return join(packageDir(), '..', '..', 'schemas', targetConfig.capabilityManifest);
+  return join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', targetConfig.capabilityManifest);
 }
 
 function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
@@ -5370,7 +5403,7 @@ function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
   let sourceBytes;
   try {
     sourceBytes = resolveFileReadCapability(path, {
-      allowedRoots: [REPO_ROOT],
+      allowedRoots: [TOOLCHAIN_ARTIFACT_ROOT],
       allowSymlink: false,
       codePrefix: 'CODEGEN_CAPABILITY_MANIFEST',
     }).read();

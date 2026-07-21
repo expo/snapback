@@ -1,7 +1,27 @@
 {
   "name": "@snapback/contract",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
+  "description": "Provider/runtime boundary for Contract applications backed by Snapback.",
+  "files": [
+    "auth-coordinator.mjs",
+    "auth-custody-indexeddb.mjs",
+    "auth-invalidation.mjs",
+    "authorized-lease.mjs",
+    "build-preset.mjs",
+    "capabilities.mjs",
+    "client-store.mjs",
+    "derived-overlay.mjs",
+    "diagnostics.mjs",
+    "exact-conformance.mjs",
+    "exact-package.mjs",
+    "exact-project-check.mjs",
+    "index.mjs",
+    "keyed-provider.mjs",
+    "package-export-path.mjs",
+    "query-authorization.mjs",
+    "render-first.mjs"
+  ],
   "exports": {
     ".": "./index.mjs",
     "./capabilities": "./capabilities.mjs",
@@ -17,7 +37,11 @@
     "./build-preset": "./build-preset.mjs",
     "./exact-conformance": "./exact-conformance.mjs",
     "./exact-package": "./exact-package.mjs",
-    "./exact-project-check": "./exact-project-check.mjs"
+    "./exact-project-check": "./exact-project-check.mjs",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-invalidation.test.mjs && node query-authorization.test.mjs && node authorized-lease.test.mjs && node authorized-retained-store.test.mjs && node client-store-authority.test.mjs && node client-store-queue-authorization.test.mjs && node auth-coordinator-contract.test.mjs && node agent-authority-contract.test.mjs && node session-queue-axis.test.mjs && node unsolicited-protocol-echo.test.mjs && node authorized-contract.test.mjs && node cold-offline-authorized-retention.test.mjs && node index.test.mjs && node keyed-provider.test.mjs && node build-preset.test.mjs && node exact-package.test.mjs && node exact-conformance.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node lifecycle-generation-exhaustion.test.mjs && node render-first.test.mjs && node derived-overlay.test.mjs && node derived-overlay-duplicate-reapply.test.mjs && node derived-overlay-reconcile-failure.test.mjs && node offline-replay.test.mjs && node retained-identity.test.mjs"

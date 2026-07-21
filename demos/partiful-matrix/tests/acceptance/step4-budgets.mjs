@@ -77,6 +77,11 @@ const sourceGroups = {
     'demos/partiful-matrix/surfaces/contract/provider.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts',
+    'demos/partiful-matrix/surfaces/contract/connection-badge.contract',
+    'demos/partiful-matrix/surfaces/contract/production-hydration.ts',
+    'demos/partiful-matrix/surfaces/contract/ui.ts',
+    'demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts',
+    'demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs',
   ],
   vanilla: [
     'demos/partiful-matrix/surfaces/vanilla/src/main.js',
@@ -86,7 +91,6 @@ const sourceGroups = {
   snapbackBackend: [
     'demos/partiful-matrix/snapback/schema.mjs',
     'demos/partiful-matrix/snapback/functions.mjs',
-    'demos/partiful-matrix/snapback/handlers.mjs',
     'demos/partiful-matrix/snapback/seed.json',
   ],
 };

@@ -456,6 +456,32 @@ if (!structuralOnly && passing.has('STEP0.COMPLETE')) {
   }
 }
 
+for (const [id, platform] of [
+  ['STEP2.CONTRACT_IOS_PARITY', 'ios'],
+  ['STEP2.CONTRACT_ANDROID_PARITY', 'android'],
+]) {
+  if (!passing.has(id)) continue;
+  const report = reportFor(id);
+  assert.equal(report.schemaVersion, 'partitime.step2-exact-native-import.v1');
+  assert.equal(report.claimId, id);
+  assert.equal(report.profileId, `exact-native/${platform}`);
+  assert.equal(report.capabilityClass, 'Parity');
+  assert.equal(report.ok, true, `${id} import did not pass`);
+  assert.equal(report.outcome, 'pass');
+  assert.match(report.exact.receiptRevision, /^[a-f0-9]{40}$/);
+  assert.match(report.exact.sourceRevision, /^[a-f0-9]{40}$/);
+  assert.equal(report.exact.checkId, `exact-partitime-native-${platform}`);
+  assert.equal(report.receipt.profileId, report.profileId);
+  assert.equal(report.receipt.ok, true);
+  assert.equal(report.receipt.carrierReceipt.mask, 0x7ff);
+  assert.equal(report.validation.factCount, 12);
+  assert.ok(report.validation.sourceCount > 0);
+  assert.equal(report.validation.sourceGraphSha256, report.receipt.sourceGraph.sha256);
+  assert.deepEqual(report.validation.lifecycleMasks, [0x1ff, 0x3ff, 0x7ff]);
+  assert.ok(Object.values(report.receipt.facts).every(Boolean), `${id} contains a failed Parity fact`);
+  validateInventory(report.verifierInventory, `${id} verifier`);
+}
+
 const stepZero = manifest.claims.filter(({ step }) => step === 0);
 if (requirePassing) {
   assert.equal(structuralOnly, false, '--require-passing may not be combined with --structural-only');

@@ -8,6 +8,13 @@ use statusLabel from "./helpers.ts"
 use goingCount from "./helpers.ts"
 use myStatus from "./helpers.ts"
 use openFeed from "./helpers.ts"
+use backgroundFor from "./ui.ts"
+use textFor from "./ui.ts"
+use mutedFor from "./ui.ts"
+use accentFor from "./ui.ts"
+use surfaceStyle from "./ui.ts"
+use fieldStyle from "./ui.ts"
+use ConnectionBadge from "./connection-badge.contract"
 
 component PartifulEvent
   props
@@ -15,6 +22,7 @@ component PartifulEvent
     userId: string
     userName: string = "Someone"
     backendName: string = "backend"
+    visualVariant: string = "warm"
 
   state draft = ""
   query event = eventDetails({ eventId: eventId })
@@ -40,11 +48,11 @@ component PartifulEvent
     action post writes draft
 
   view
-    column width="100%" minHeight="100vh" padding=38 background="#f4f0e8" gap=0 testId="event-page"
+    column width="100%" minHeight="100vh" padding=38 background=backgroundFor(visualVariant) gap=0 testId="event-page"
       row align="center" paddingBottom=22
         button press=back testId="back" background="transparent" flex=1
-          text "← All plans" size=11 color="#171512"
-        text `CONTRACT · ${backendName}` size=10 color="#ff4d24" testId="matrix-label"
+          text "← All plans" size=11 color=textFor(visualVariant)
+        text `CONTRACT · ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
       async event
         loading
           text "Loading the plan…" size=14 color="#5f594f"
@@ -54,18 +62,27 @@ component PartifulEvent
           text "That plan is gone." size=18 color="#171512"
         ready rows
           each ev in rows key=ev._id
-            row gap=34 align="center" padding=42 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
-              text ev.emoji size=66 background="rgba(255,255,255,0.22)" padding=30 radius=999
-              column gap=10 flex=1
-                text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                text ev.title size=52 weight=800 color="#171512" lineHeight=0.9
-                text ev.description size=14 color="#473b31"
-              text event.connection size=10 color="#473b31" testId="connection"
+            match size
+              case "expanded"
+                row gap=34 align="center" padding=42 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
+                  text ev.emoji size=66 background="rgba(255,255,255,0.22)" padding=30 radius=999
+                  column gap=10 flex=1
+                    text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
+                    text ev.title size=52 weight=800 color="#171512" lineHeight=0.9
+                    text ev.description size=14 color="#473b31"
+                  ConnectionBadge(value=event.connection)
+              else
+                column gap=18 padding=28 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
+                  text ev.emoji size=48 background="rgba(255,255,255,0.22)" padding=20 radius=999
+                  text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
+                  text ev.title size=40 weight=800 color="#171512" lineHeight=0.95
+                  text ev.description size=14 color="#473b31"
+                  ConnectionBadge(value=event.connection)
             column gap=8 padding=32 borderWidth=1 borderColor="rgba(23,21,18,0.25)"
-              text "MEET HERE" size=10 color="#665e54"
-              text ev.location size=27 weight=800 color="#171512"
-      row align="start" borderWidth=1 borderColor="rgba(23,21,18,0.25)"
-        column gap=16 padding=32 flex=2 borderWidth=1 borderColor="rgba(23,21,18,0.18)" testId="wall"
+              text "MEET HERE" size=10 color=mutedFor(visualVariant)
+              text ev.location size=27 weight=800 color=textFor(visualVariant)
+      row align="start" borderWidth=1 borderColor="rgba(127,120,110,0.35)" style=surfaceStyle(visualVariant, "surface")
+        column gap=16 padding=32 flex=2 borderWidth=1 borderColor="rgba(127,120,110,0.25)" testId="wall"
           row align="baseline"
             text "THE WALL" size=10 color="#665e54" flex=1
           async wall
@@ -82,9 +99,9 @@ component PartifulEvent
                     text item.authorName size=12 weight=800 color="#171512" width=90
                     text item.message size=13 color="#3f3a34" flex=1
           row gap=8
-            input label=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-input" padding=12 flex=1 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.3)" color="#171512"
-            button press=post testId="wall-send" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background="#171512"
-              text "Send ↗" size=12 color="#ffffff"
+            input label=`Say something as ${userName}…` value=draft change=setDraft submit=post testId="wall-input" padding=12 flex=1 borderWidth=1 style=fieldStyle(visualVariant, false)
+            button press=post testId="wall-send" disabled=!canPost opacity=canPost ? 1 : 0.45 paddingTop=12 paddingBottom=12 paddingLeft=18 paddingRight=18 background=textFor(visualVariant)
+              text "Send ↗" size=12 color=backgroundFor(visualVariant)
         column gap=14 padding=32 flex=1 testId="guest-list"
           async guests
             loading
@@ -108,7 +125,7 @@ component PartifulEvent
                       text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? "#ffffff" : "#171512"
                     button press=respond("cant") testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
                       text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? "#ffffff" : "#171512"
-                each guest in guestRows key=guest._id
+                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 testId="virtual-guest-list"
                   row gap=10 align="center" paddingTop=8 paddingBottom=8 testId=`guest-${guest.userId}`
-                    text guest.guestName size=13 weight=700 color="#171512" flex=1
-                    text statusLabel(guest.status) size=9 color="#665e54"
+                    text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
+                    text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)

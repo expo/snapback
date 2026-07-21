@@ -13,6 +13,20 @@ const IGNORED_TEST_DIRS = new Set(['.git', 'coverage', 'dist', 'node_modules']);
 
 const inventories = [
   {
+    id: '@snapback/runtime-darwin-arm64',
+    packageDir: 'packages/snapback-runtime-darwin-arm64',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
+    id: '@snapback/cli',
+    packageDir: 'packages/snapback-cli',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@snapback/client',
     packageDir: 'packages/snapback-client',
     testDir: '.',
@@ -163,7 +177,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 62, 'reviewed package/admin test count changed');
+assert.equal(total, 64, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

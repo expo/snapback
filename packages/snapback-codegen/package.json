@@ -1,8 +1,24 @@
 {
   "name": "@snapback/codegen",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
   "description": "Snapback codegen: executes source-authored schema/function definitions and emits the generated manifests, typed API, and Contract binding modules.",
+  "files": [
+    "contract-emitter.mjs",
+    "data-tier-corpus.mjs",
+    "define.d.ts",
+    "define.mjs",
+    "file-read-capability.mjs",
+    "generate-worker.mjs",
+    "index.mjs",
+    "provider-bindings.schema.json",
+    "provider-introspection.mjs",
+    "provider-introspection.schema.json",
+    "prepare-runtime-artifacts.mjs",
+    "runtime-artifacts",
+    "standard-patterns.d.ts",
+    "standard-patterns.mjs"
+  ],
   "exports": {
     ".": "./index.mjs",
     "./define": {
@@ -16,9 +32,11 @@
     "./standard-patterns": {
       "types": "./standard-patterns.d.ts",
       "default": "./standard-patterns.mjs"
-    }
+    },
+    "./package.json": "./package.json"
   },
   "dependencies": {
+    "@snapback/contract": "workspace:*",
     "acorn": "^8.17.0",
     "esbuild": "^0.28.1",
     "typescript": "5.9.3"
@@ -26,7 +44,11 @@
   "engines": {
     "node": ">=24.0.0"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "prepack": "node prepare-runtime-artifacts.mjs",
     "test": "node identifier-validation.test.mjs && node authoring-validation.test.mjs && node standard-patterns.test.mjs && node rbac-authoring.test.mjs && ../../node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler rbac-authoring-types.fixture.ts standard-patterns-types.fixture.ts && node function-id.test.mjs && node auth-artifacts.test.mjs && node protected-query-profile.test.mjs && node retainability-profile.test.mjs && node dependency-graph.test.mjs && node contract-binding-reads.test.mjs && node receipt-capability.test.mjs && node provider-introspection.test.mjs && node operation-schemas.test.mjs && node remote-service-publication.test.mjs && node data-tier-corpus.test.mjs && node auth-crypto-vectors.test.mjs"
   }
 }

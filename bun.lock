@@ -30,13 +30,31 @@
         "@snapback/client": "workspace:*",
       },
     },
+    "packages/snapback-cli": {
+      "name": "@snapback/cli",
+      "version": "0.1.0",
+      "bin": {
+        "snapback": "./cli.mjs",
+      },
+      "dependencies": {
+        "@snapback/codegen": "workspace:*",
+      },
+      "optionalDependencies": {
+        "@snapback/runtime-darwin-arm64": "workspace:*",
+      },
+    },
     "packages/snapback-client": {
       "name": "@snapback/client",
       "version": "0.1.0",
+      "dependencies": {
+        "@snapback/contract": "workspace:*",
+      },
     },
     "packages/snapback-codegen": {
       "name": "@snapback/codegen",
+      "version": "0.1.0",
       "dependencies": {
+        "@snapback/contract": "workspace:*",
         "acorn": "^8.17.0",
         "esbuild": "^0.28.1",
         "typescript": "5.9.3",
@@ -44,6 +62,7 @@
     },
     "packages/snapback-contract": {
       "name": "@snapback/contract",
+      "version": "0.1.0",
     },
     "packages/snapback-react": {
       "name": "@snapback/react",
@@ -54,6 +73,10 @@
       "peerDependencies": {
         "react": ">=18.0.0 <20.0.0",
       },
+    },
+    "packages/snapback-runtime-darwin-arm64": {
+      "name": "@snapback/runtime-darwin-arm64",
+      "version": "0.1.0",
     },
   },
   "packages": {
@@ -195,6 +218,8 @@
 
     "@snapback/app-cli": ["@snapback/app-cli@workspace:packages/snapback-app-cli"],
 
+    "@snapback/cli": ["@snapback/cli@workspace:packages/snapback-cli"],
+
     "@snapback/client": ["@snapback/client@workspace:packages/snapback-client"],
 
     "@snapback/codegen": ["@snapback/codegen@workspace:packages/snapback-codegen"],
@@ -202,6 +227,8 @@
     "@snapback/contract": ["@snapback/contract@workspace:packages/snapback-contract"],
 
     "@snapback/react": ["@snapback/react@workspace:packages/snapback-react"],
+
+    "@snapback/runtime-darwin-arm64": ["@snapback/runtime-darwin-arm64@workspace:packages/snapback-runtime-darwin-arm64"],
 
     "@speed-highlight/core": ["@speed-highlight/core@1.2.17", "", {}, "sha512-Z92FwKpCtfaW1V0jTU/fh3QzYEZN8wDwrzRIBoADCJfn4mJCNcJN/XegifX7BDrQ8/h9Xh/JnbyMchL0FqXrkg=="],
 

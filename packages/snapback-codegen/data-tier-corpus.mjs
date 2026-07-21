@@ -19,7 +19,8 @@
 //
 // @ref LLP 0051#d5-conformance-the-corpus-becomes-the-data-tier-contract
 
-import { dirname, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
+import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -33,9 +34,12 @@ import { serializeMutationPlan } from './index.mjs';
 import { decodeUtf8Source, resolveFileReadCapability } from './file-read-capability.mjs';
 
 const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
-const dataTierProfilePath = fileURLToPath(new URL('../../schemas/data-tier.profile.json', import.meta.url));
+const TOOLCHAIN_ARTIFACT_ROOT = existsSync(join(REPO_ROOT, 'schemas'))
+  ? REPO_ROOT
+  : join(dirname(fileURLToPath(import.meta.url)), 'runtime-artifacts');
+const dataTierProfilePath = join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', 'data-tier.profile.json');
 const dataTierProfileBytes = resolveFileReadCapability(dataTierProfilePath, {
-  allowedRoots: [REPO_ROOT],
+  allowedRoots: [TOOLCHAIN_ARTIFACT_ROOT],
   allowSymlink: false,
   codePrefix: 'DATA_TIER_PROFILE',
 }).read();

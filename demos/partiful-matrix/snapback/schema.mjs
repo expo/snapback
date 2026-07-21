@@ -1,4 +1,4 @@
-import { defineSchema, defineTable, v } from '../../_kit/define.mjs';
+import { defineSchema, defineTable, v } from '@snapback/codegen/define';
 
 export default defineSchema({
   events: defineTable({

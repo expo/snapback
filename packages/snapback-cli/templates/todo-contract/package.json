@@ -1,0 +1,16 @@
+{
+  "name": "snapback-todo-contract",
+  "private": true,
+  "type": "module",
+  "packageManager": "bun@1.3.12",
+  "scripts": {
+    "generate": "snapback generate snapback",
+    "dev": "snapback dev snapback",
+    "test": "node acceptance.mjs"
+  },
+  "dependencies": {
+    "@snapback/cli": "__SNAPBACK_VERSION__",
+    "@snapback/client": "__SNAPBACK_VERSION__",
+    "@snapback/codegen": "__SNAPBACK_VERSION__"
+  }
+}

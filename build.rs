@@ -64,6 +64,12 @@ fn main() {
     ];
 
     let mut emitted = false;
+    // @ref LLP 0041#runtime-distribution — published runtime packages place
+    // the executable at bin/snapback and Hermes at Frameworks/hermesvm.framework.
+    // Keep one relocatable loader-relative search path in every macOS binary;
+    // checkout-absolute paths below remain useful for contributor builds but
+    // cannot be the only LC_RPATH carried into a packaged artifact.
+    emit_macos_rpath(Path::new("@loader_path/../Frameworks"));
     for dir in &candidates {
         if framework_present(dir) {
             emit_macos_rpath(dir);

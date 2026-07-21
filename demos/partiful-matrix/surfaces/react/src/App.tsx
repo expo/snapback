@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { useSnapbackQuery } from '../../../../../packages/snapback-react/index.mjs';
 
@@ -19,6 +20,29 @@ import { configuredBackend } from './provider';
 
 type View = { kind: 'feed' } | { kind: 'event'; id: string };
 
+function viewFromLocation(): View {
+  const eventId = new URLSearchParams(location.search).get('event');
+  return eventId ? { kind: 'event', id: eventId } : { kind: 'feed' };
+}
+
+function useBrowserView() {
+  const [view, setView] = useState<View>(viewFromLocation);
+  useEffect(() => {
+    const onPopState = () => setView(viewFromLocation());
+    addEventListener('popstate', onPopState);
+    return () => removeEventListener('popstate', onPopState);
+  }, []);
+  const navigate = (next: View) => {
+    const params = new URLSearchParams(location.search);
+    if (next.kind === 'event') params.set('event', next.id);
+    else params.delete('event');
+    const search = params.toString();
+    history.pushState({}, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+    setView(next);
+  };
+  return [view, navigate] as const;
+}
+
 function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<string, unknown>, persona: Persona) {
   const snapshot = useSnapbackQuery<Row>({
     provider,
@@ -32,18 +56,22 @@ function useRows<Row>(provider: MatrixProvider, name: QueryName, args: Record<st
 
 export function App({ provider, initialPersona }: { provider: MatrixProvider; initialPersona: Persona }) {
   const [persona, setPersona] = useState<Persona>(initialPersona);
-  const [view, setView] = useState<View>({ kind: 'feed' });
+  const [view, navigate] = useBrowserView();
+  const [variant, setVariant] = useState<'warm' | 'night'>(() => new URLSearchParams(location.search).get('theme') === 'night' ? 'night' : 'warm');
   return (
-    <div className="app-shell">
+    <div className={`app-shell variant-${variant}`} data-testid="product-shell">
       <header className="nav">
-        <button className="brand" data-testid="home" onClick={() => setView({ kind: 'feed' })}>
+        <button className="brand" data-testid="home" onClick={() => navigate({ kind: 'feed' })}>
           <span className="brand-mark">p</span><span>parti<span>time</span></span>
         </button>
         <div className="experiment-badge"><strong>REACT</strong><i />{configuredBackend}</div>
+        <button className="theme-toggle" data-testid="theme-toggle" aria-label="Toggle color theme" onClick={() => setVariant((current) => current === 'warm' ? 'night' : 'warm')}>
+          {variant === 'warm' ? 'Night' : 'Warm'}
+        </button>
         <div className="persona-switcher" data-testid="persona-switcher">
           {PERSONAS.map((item) => (
             <button key={item.id} data-testid={`persona-${item.id}`} className={persona.id === item.id ? 'persona active' : 'persona'}
-              onClick={() => { setPersona(item); setView({ kind: 'feed' }); }} title={`Browse as ${item.name}`}>
+              onClick={() => { setPersona(item); navigate({ kind: 'feed' }); }} title={`Browse as ${item.name}`}>
               {item.initials}
             </button>
           ))}
@@ -51,8 +79,8 @@ export function App({ provider, initialPersona }: { provider: MatrixProvider; in
       </header>
       <main key={`${persona.id}:${view.kind}:${view.kind === 'event' ? view.id : ''}`}>
         {view.kind === 'feed'
-          ? <Feed provider={provider} persona={persona} onOpen={(id) => setView({ kind: 'event', id })} />
-          : <EventPage provider={provider} persona={persona} eventId={view.id} onBack={() => setView({ kind: 'feed' })} />}
+          ? <Feed provider={provider} persona={persona} onOpen={(id) => navigate({ kind: 'event', id })} />
+          : <EventPage provider={provider} persona={persona} eventId={view.id} onBack={() => navigate({ kind: 'feed' })} />}
       </main>
     </div>
   );
@@ -67,6 +95,7 @@ function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona
   const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ title: '', emoji: '🪩', location: '', description: '' });
+  const closeCreating = useCallback(() => setCreating(false), []);
   const submit = async () => {
     if (!draft.title.trim() || !draft.location.trim()) return;
     setBusy(true);
@@ -93,18 +122,7 @@ function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona
           <ConnectionBadge value={connection} />
         </div>
       </section>
-      {creating && (
-        <section className="create-panel" data-testid="create-panel">
-          <div><span className="step">01</span><h2>What’s the plan?</h2><p>Keep it loose. You can fill in the poetry later.</p></div>
-          <div className="create-grid">
-            <input aria-label="Emoji" data-testid="create-emoji" className="emoji-input" value={draft.emoji} onChange={(e) => setDraft({ ...draft, emoji: e.target.value })} />
-            <input aria-label="Event title" data-testid="create-title" placeholder="Sunday noodles" value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
-            <input aria-label="Location" data-testid="create-location" placeholder="Where are we meeting?" value={draft.location} onChange={(e) => setDraft({ ...draft, location: e.target.value })} />
-            <input aria-label="Description" data-testid="create-description" placeholder="A sentence to set the mood" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} />
-            <button className="primary submit" data-testid="create-submit" disabled={busy || !draft.title.trim() || !draft.location.trim()} onClick={submit}>{busy ? 'Making it…' : 'Send the invite ↗'}</button>
-          </div>
-        </section>
-      )}
+      <CreateEventDialog open={creating} busy={busy} draft={draft} setDraft={setDraft} onClose={closeCreating} onSubmit={submit} />
       <section className="feed-section">
         <div className="section-heading"><div><span className="step">02</span><h2>On the horizon</h2></div><span>{events.length} PLANS</span></div>
         <div className="event-grid" data-testid="feed">
@@ -112,6 +130,67 @@ function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona
         </div>
       </section>
     </>
+  );
+}
+
+function CreateEventDialog({ open, busy, draft, setDraft, onClose, onSubmit }: {
+  open: boolean;
+  busy: boolean;
+  draft: { title: string; emoji: string; location: string; description: string };
+  setDraft(value: { title: string; emoji: string; location: string; description: string }): void;
+  onClose(): void;
+  onSubmit(): Promise<void>;
+}) {
+  const panel = useRef<HTMLElement>(null);
+  const titleInput = useRef<HTMLInputElement>(null);
+  const locationInput = useRef<HTMLInputElement>(null);
+  const [touched, setTouched] = useState({ title: false, location: false });
+  const titleError = !draft.title.trim() ? 'Event title is required.' : '';
+  const locationError = !draft.location.trim() ? 'Location is required.' : '';
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    requestAnimationFrame(() => titleInput.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key !== 'Tab' || !panel.current) return;
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    addEventListener('keydown', onKeyDown);
+    return () => {
+      removeEventListener('keydown', onKeyDown);
+      queueMicrotask(() => { if (opener?.isConnected) opener.focus(); });
+    };
+  }, [open, onClose]);
+  if (!open) return null;
+  const submit = async () => {
+    setTouched({ title: true, location: true });
+    if (titleError) { titleInput.current?.focus(); return; }
+    if (locationError) { locationInput.current?.focus(); return; }
+    await onSubmit();
+  };
+  return createPortal(
+    <div className="create-overlay" data-testid="create-overlay">
+      <button className="create-backdrop" aria-label="Close create event" data-testid="create-backdrop" onClick={onClose} />
+      <section ref={panel} className="create-panel" data-testid="create-panel" role="dialog" aria-modal="true" aria-labelledby="create-title-heading" aria-describedby="create-description-copy">
+        <div><span className="step">01</span><h2 id="create-title-heading">What’s the plan?</h2><p id="create-description-copy">A title and location are required.</p></div>
+        <button className="dialog-close" data-testid="create-close" aria-label="Close create event" onClick={onClose}>Close</button>
+        <div className="create-grid">
+          <input aria-label="Emoji" data-testid="create-emoji" className="emoji-input" value={draft.emoji} onChange={(e) => setDraft({ ...draft, emoji: e.target.value })} />
+          <label>Event title<input ref={titleInput} aria-invalid={Boolean(touched.title && titleError)} aria-describedby={touched.title && titleError ? 'create-title-error' : undefined} data-testid="create-title" placeholder="Sunday noodles" value={draft.title} onBlur={() => setTouched({ ...touched, title: true })} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
+          {touched.title && titleError && <span id="create-title-error" role="alert" data-testid="create-title-error">{titleError}</span>}
+          <label>Location<input ref={locationInput} aria-invalid={Boolean(touched.location && locationError)} aria-describedby={touched.location && locationError ? 'create-location-error' : undefined} data-testid="create-location" placeholder="Where are we meeting?" value={draft.location} onBlur={() => setTouched({ ...touched, location: true })} onChange={(e) => setDraft({ ...draft, location: e.target.value })} /></label>
+          {touched.location && locationError && <span id="create-location-error" role="alert" data-testid="create-location-error">{locationError}</span>}
+          <label className="description-field">Description<textarea aria-label="Description" data-testid="create-description" rows={4} placeholder="A sentence to set the mood" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
+          <button className="primary submit" data-testid="create-submit" disabled={busy} aria-disabled={busy} onClick={() => void submit()}>{busy ? 'Making it…' : 'Send the invite ↗'}</button>
+        </div>
+      </section>
+    </div>, document.body,
   );
 }
 
@@ -174,10 +253,24 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
           <div className="rsvp-actions" data-testid="rsvp-actions">
             {mine?.status === 'host' ? <div className="host-note">You’re hosting this one ✦</div> : ['going', 'maybe', 'cant'].map((status) => <button key={status} disabled={busy} className={mine?.status === status ? 'selected' : ''} data-testid={`rsvp-${status}`} onClick={() => respond(status as Exclude<RsvpStatus, 'host'>)}>{statusLabel(status)}</button>)}
           </div>
-          <div className="guest-list">{guests.map((guest) => <div className="guest" key={guest._id} data-testid={`guest-${guest.userId}`}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}</div>
+          <VirtualGuestList guests={guests} />
           <div className="provider-note"><span>{configuredBackend}</span>{provider.transport === 'push' ? 'streamed live' : 'refreshed every second'}</div>
         </aside>
       </div>
     </section>
   );
+}
+
+function VirtualGuestList({ guests }: { guests: readonly RsvpRow[] }) {
+  const itemHeight = 52;
+  const viewportHeight = 300;
+  const [scrollTop, setScrollTop] = useState(0);
+  const start = Math.max(0, Math.floor(scrollTop / itemHeight) - 1);
+  const visibleCount = Math.ceil(viewportHeight / itemHeight) + 2;
+  const visible = guests.slice(start, start + visibleCount);
+  return <div className="guest-list virtual-guests" data-testid="virtual-guest-list" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+    <div style={{ height: guests.length * itemHeight, position: 'relative' }}>
+      {visible.map((guest, index) => <div className="guest" key={guest._id} data-testid={`guest-${guest.userId}`} style={{ position: 'absolute', top: (start + index) * itemHeight, left: 0, right: 0, height: itemHeight }}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}
+    </div>
+  </div>;
 }

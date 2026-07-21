@@ -1,16 +1,29 @@
 {
   "name": "@snapback/client",
   "version": "0.1.0",
-  "private": true,
   "type": "module",
   "description": "Versioned framework-neutral Snapback app-data client and scoped agent authority fence.",
+  "files": [
+    "README.md",
+    "agent-authority.mjs",
+    "external-store.d.mts",
+    "external-store.mjs",
+    "index.mjs"
+  ],
   "exports": {
     ".": "./index.mjs",
     "./agent-authority": "./agent-authority.mjs",
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
-    }
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@snapback/contract": "workspace:*"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "scripts": {
     "test": "node package.test.mjs && node external-store.test.mjs"

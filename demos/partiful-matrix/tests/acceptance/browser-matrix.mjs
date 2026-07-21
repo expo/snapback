@@ -24,14 +24,25 @@ const option = (name) => { const at = process.argv.indexOf(`--${name}`); return 
 const selectedArm = option('arm');
 const selectedBackend = option('backend');
 const receiptFile = option('receipt');
-const arms = selectedArm ? [selectedArm] : ['react', 'contract', 'vanilla'];
-const backends = selectedBackend ? [selectedBackend] : ['snapback', 'supabase', 'convex', 'sqlite'];
+const productUi = process.argv.includes('--product-ui');
+const productionWeb = process.argv.includes('--production-web');
+const arms = productionWeb ? ['contract'] : selectedArm ? [selectedArm] : productUi ? ['react', 'contract'] : ['react', 'contract', 'vanilla'];
+const backends = productionWeb ? ['snapback'] : selectedBackend ? [selectedBackend] : productUi ? ['snapback'] : ['snapback', 'supabase', 'convex', 'sqlite'];
 const cells = arms.flatMap((arm) => backends.map((backend) => ({ arm, backend })));
 
 const vanillaCells = cells.filter(({ arm }) => arm === 'vanilla');
 const snapbackCells = cells.filter(({ backend }) => backend === 'snapback');
-const suite = createSuite('partiful matrix / twelve browser cells', {
-  expectedChecks: (cells.length * 3) + vanillaCells.length + snapbackCells.length,
+const productUiChecks = productUi
+  ? (cells.length * 5) + cells.filter(({ arm, backend }) => arm === 'contract' && backend === 'snapback').length
+  : 0;
+const expectedChecks = productionWeb ? 9 : (cells.length * 3) + vanillaCells.length + snapbackCells.length + productUiChecks;
+const suiteTitle = productionWeb
+  ? 'partitime / production Contract web'
+  : productUi
+  ? 'partitime / product UI browser parity'
+  : 'partiful matrix / twelve browser cells';
+const suite = createSuite(suiteTitle, {
+  expectedChecks,
 });
 const cleanups = [];
 if (!existsSync(chromeBin) || !existsSync(serverBin)) {
@@ -41,10 +52,10 @@ if (!existsSync(chromeBin) || !existsSync(serverBin)) {
   ];
   const report = {
     ...runIdentity(),
-    title: 'partiful matrix / twelve browser cells',
+    title: suiteTitle,
     passed: 0,
     total: 0,
-    expectedChecks: (cells.length * 3) + vanillaCells.length + snapbackCells.length,
+    expectedChecks,
     ok: false,
     outcome: 'skip',
     skipClass: 'required-prerequisite-missing',
@@ -160,6 +171,57 @@ async function startViteAttempt({ arm, backend }, snapbackUrl, gatewayUrl, { dis
   return { url, stop: () => stopChild(child, `${arm}/${backend} Vite`) };
 }
 
+function buildProductionContract(snapbackUrl, gatewayUrl) {
+  const surface = join(demoRoot, 'surfaces', 'contract');
+  execFileSync('bun', ['run', 'build:snapback'], {
+    cwd: surface,
+    env: {
+      ...process.env,
+      PARTITIME_BASE_PATH: '/partitime/',
+      PARTITIME_CANONICAL_ORIGIN: 'https://partitime.example',
+      PARTITIME_DISABLE_POLL_FALLBACK: '1',
+      SNAPBACK_PARTIFUL_MATRIX_API: snapbackUrl,
+      PARTIFUL_MATRIX_GATEWAY: gatewayUrl,
+    },
+    stdio: 'pipe',
+    maxBuffer: 20 * 1024 * 1024,
+  });
+}
+
+async function startProductionPreview(snapbackUrl, gatewayUrl) {
+  const port = await freePort();
+  const surface = join(demoRoot, 'surfaces', 'contract');
+  const vite = join(surface, 'node_modules', '.bin', 'vite');
+  let log = '';
+  const child = spawn('bun', [
+    '--bun', vite, 'preview', '--config', join(surface, 'vite.config.ts'),
+    '--mode', 'snapback', '--host', '127.0.0.1', '--port', String(port), '--strictPort',
+    '--outDir', 'dist/snapback',
+  ], {
+    cwd: surface,
+    detached: true,
+    env: {
+      ...process.env,
+      PARTITIME_BASE_PATH: '/partitime/',
+      SNAPBACK_PARTIFUL_MATRIX_API: snapbackUrl,
+      PARTIFUL_MATRIX_GATEWAY: gatewayUrl,
+      PARTITIME_DISABLE_POLL_FALLBACK: '1',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  cleanups.push(() => stopChild(child, 'Contract production preview'));
+  child.stdout.on('data', (chunk) => { log += chunk; });
+  child.stderr.on('data', (chunk) => { log += chunk; });
+  const url = `http://127.0.0.1:${port}`;
+  try {
+    await waitUrl(`${url}/partitime/`, child, 'Contract production preview');
+  } catch (error) {
+    await stopChild(child, 'Contract production preview startup');
+    throw new Error(`${error.message}\n${log.slice(-4000)}`);
+  }
+  return { url, stop: () => stopChild(child, 'Contract production preview') };
+}
+
 const reportIdentity = {
   ...runIdentity(),
   demo: 'partiful-matrix',
@@ -179,6 +241,17 @@ await runAcceptance(suite, async () => {
   cleanups.push(() => chrome.stop());
   const cdp = await connectCdp(chrome.ws);
   cleanups.push(() => cdp.close());
+
+  if (productionWeb) {
+    buildProductionContract(snapbackUrl, gatewayUrl);
+    const preview = await startProductionPreview(snapbackUrl, gatewayUrl);
+    try {
+      await runProductionWebChecks({ suite, cdp, previewUrl: preview.url, outOfBandClient });
+    } finally {
+      await preview.stop();
+    }
+    return;
+  }
 
   for (const cell of cells) {
     const health = gateway.preflight.backends?.[cell.backend];
@@ -204,7 +277,6 @@ await runAcceptance(suite, async () => {
       await suite.check(`${cell.arm} × ${cell.backend} opens details and observes RSVP`, async () => {
         await page.click('open-event_sunset');
         if (cell.arm === 'contract') {
-          await page.waitForNavigation();
           await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('event boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
         }
         const event = await page.pollText('event-page', 'Sunset Supper Club', 15_000);
@@ -238,6 +310,9 @@ await runAcceptance(suite, async () => {
           return { eventScope, feedScope, startupMilestones };
         });
       }
+      if (productUi) {
+        await runProductUiChecks({ suite, page, cell });
+      }
     } finally {
       try { await page.close(); }
       finally { await vite.stop(); }
@@ -253,7 +328,6 @@ await runAcceptance(suite, async () => {
           await witnessPage.pollText('event-card-event_sunset', 'Sunset Supper Club', 15_000);
           await witnessPage.click('open-event_sunset');
           if (cell.arm === 'contract') {
-            await witnessPage.waitForNavigation();
             await waitForMatrixBoot(witnessPage);
           }
           await witnessPage.pollText('event-page', 'Sunset Supper Club', 15_000);
@@ -316,6 +390,139 @@ await runAcceptance(suite, async () => {
   reportExtra: reportIdentity,
 });
 
+async function runProductionWebChecks({ suite: activeSuite, cdp, previewUrl, outOfBandClient }) {
+  const distRoot = join(demoRoot, 'surfaces', 'contract', 'dist', 'snapback');
+  const staticExport = JSON.parse(readFileSync(join(distRoot, 'static-export.json'), 'utf8'));
+  const baseUrl = `${previewUrl}/partitime/`;
+  const eventUrl = `${baseUrl}events/event_sunset/`;
+
+  await activeSuite.check('Contract production build emits immutable route artifacts', async () => {
+    const asset = readFileSync(join(distRoot, 'assets', readFileSync(join(distRoot, 'index.html'), 'utf8').match(/assets\/([^"']+\.js)/)?.[1] ?? 'missing'));
+    if (staticExport.pages.length !== 4 || asset.byteLength === 0) throw new Error(`incomplete production artifact: ${JSON.stringify(staticExport)}`);
+    return {
+      export: staticExport,
+      javascript: { bytes: asset.byteLength, sha256: createHash('sha256').update(asset).digest('hex') },
+    };
+  });
+
+  await activeSuite.check('Contract production feed is authoritative with JavaScript disabled', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.setScriptExecutionDisabled(true);
+      await page.navigate(baseUrl);
+      await sleep(500);
+      const state = await page.eval(`(()=>({text:document.querySelector('[data-testid="feed-ready"]')?.textContent??'',title:document.title,canonical:document.querySelector('link[rel="canonical"]')?.href,manifest:!!document.querySelector('[data-exact-contract-hydration]'),clientBooted:typeof window.partifulMatrixReady!=="undefined"}))()`);
+      if (!state.text.includes('Sunset Supper Club') || !state.manifest || state.clientBooted) throw new Error(`feed is not a no-JS document: ${JSON.stringify(state)}`);
+      return state;
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production event deep link is authoritative with route metadata and JavaScript disabled', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.setScriptExecutionDisabled(true);
+      await page.navigate(eventUrl);
+      await sleep(500);
+      const state = await page.eval(`(()=>({text:document.querySelector('[data-testid="event-page"]')?.textContent??'',title:document.title,description:document.querySelector('meta[name="description"]')?.content,canonical:document.querySelector('link[rel="canonical"]')?.href,route:document.getElementById('exact-root')?.dataset.partitimeStaticRoute}))()`);
+      if (!state.text.includes('Sunset Supper Club') || state.title !== 'Sunset Supper Club · Partitime' || !state.description || !state.canonical.endsWith('/partitime/events/event_sunset/') || state.route !== '/events/event_sunset/') {
+        throw new Error(`event no-JS document or metadata is incomplete: ${JSON.stringify(state)}`);
+      }
+      return state;
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production feed adopts every node without replacement, stale flash, or duplicate subscription', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(baseUrl);
+      const boot = await waitForMatrixBoot(page);
+      const witness = await page.eval(`(()=>({sameRoot:window.__partitimeStaticWitness.root===document.getElementById('exact-root'),initialText:window.__partitimeStaticWitness.initialText,finalText:document.getElementById('exact-root').innerText,rootReplacements:window.__partitimeStaticWitness.rootReplacements,childListMutations:window.__partitimeStaticWitness.childListMutations,result:window.__exactContractHydrationResult}))()`);
+      if (!boot.hydration || boot.hydration.result?.recreatedNodes !== 0 || boot.hydration.result?.mismatches?.length !== 0 || boot.hydration.provider?.underlyingSubscriptions !== 1 || !witness.sameRoot || witness.rootReplacements !== 0 || !witness.initialText.includes('Sunset Supper Club') || boot.hydration.adoptedText !== witness.initialText) {
+        throw new Error(`feed adoption violated authority or subscription invariants: ${JSON.stringify({ boot, witness })}`);
+      }
+      return { hydration: boot.hydration, witness };
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production event adopts every node with exactly three live query subscriptions', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(eventUrl);
+      const boot = await waitForMatrixBoot(page);
+      const witness = await page.eval(`(()=>({sameRoot:window.__partitimeStaticWitness.root===document.getElementById('exact-root'),initialText:window.__partitimeStaticWitness.initialText,finalText:document.getElementById('exact-root').innerText,rootReplacements:window.__partitimeStaticWitness.rootReplacements,result:window.__exactContractHydrationResult}))()`);
+      if (boot.hydration?.result?.recreatedNodes !== 0 || boot.hydration?.result?.mismatches?.length !== 0 || boot.hydration?.provider?.underlyingSubscriptions !== 3 || !witness.sameRoot || witness.rootReplacements !== 0 || !witness.initialText.includes('Sunset Supper Club') || boot.hydration.adoptedText !== witness.initialText) {
+        throw new Error(`event adoption violated authority or subscription invariants: ${JSON.stringify({ boot, witness })}`);
+      }
+      return { hydration: boot.hydration, witness };
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production assets and deep links honor the non-root base path', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(eventUrl);
+      await waitForMatrixBoot(page);
+      const state = await page.eval(`(()=>({pathname:location.pathname,resources:performance.getEntriesByType('resource').map(x=>new URL(x.name).pathname).filter(x=>x.endsWith('.js')),scripts:[...document.scripts].filter(x=>x.src).map(x=>new URL(x.src).pathname)}))()`);
+      if (state.pathname !== '/partitime/events/event_sunset/' || state.scripts.length !== 1 || state.scripts.some((path) => !path.startsWith('/partitime/assets/')) || state.resources.some((path) => !path.startsWith('/partitime/assets/'))) {
+        throw new Error(`basePath escaped: ${JSON.stringify(state)}`);
+      }
+      return state;
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production history traverses feed and event without document reload', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(baseUrl);
+      await waitForMatrixBoot(page);
+      const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity=crypto.randomUUID();return {identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length}})()`);
+      await page.click('open-event_sunset');
+      await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+      const event = await page.eval(`({pathname:location.pathname,title:document.title,identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length})`);
+      await page.eval('history.back()');
+      await page.pollText('feed', 'Sunset Supper Club', 15_000);
+      const after = await page.eval(`({pathname:location.pathname,title:document.title,identity:window.__partitimeDocumentIdentity,navigations:performance.getEntriesByType('navigation').length})`);
+      if (event.pathname !== '/partitime/events/event_sunset/' || after.pathname !== '/partitime/' || event.identity !== before.identity || after.identity !== before.identity || event.navigations !== before.navigations || after.navigations !== before.navigations) {
+        throw new Error(`history traversal reloaded or selected the wrong document: ${JSON.stringify({ before, event, after })}`);
+      }
+      return { before, event, after };
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production client metadata tracks the active route', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(baseUrl);
+      await waitForMatrixBoot(page);
+      await page.click('open-event_sunset');
+      await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+      const metadata = await page.eval(`({title:document.title,description:document.querySelector('meta[name="description"]')?.content,canonical:document.querySelector('link[rel="canonical"]')?.href,themeColor:document.querySelector('meta[name="theme-color"]')?.content})`);
+      if (metadata.title !== 'Sunset Supper Club · Partitime' || !metadata.description?.includes('long table') || !metadata.canonical?.endsWith('/partitime/events/event_sunset/') || !metadata.themeColor) {
+        throw new Error(`runtime route metadata is incomplete: ${JSON.stringify(metadata)}`);
+      }
+      return metadata;
+    } finally { await page.close(); }
+  });
+
+  await activeSuite.check('Contract production hydrated event receives unsolicited Snapback push with polling disabled', async () => {
+    const page = await cdp.newPage();
+    try {
+      await page.navigate(eventUrl);
+      await waitForMatrixBoot(page);
+      const before = await page.pollText('guest-user_eve', 'Eve', 15_000);
+      const next = before?.includes('Going') ? { status: 'maybe', label: 'Maybe' } : { status: 'going', label: 'Going' };
+      const startedAtMs = Date.now();
+      await outOfBandClient.mutate(api.rsvp, { args: { eventId: 'event_sunset', guestName: 'Eve', status: next.status }, userId: 'user_eve' });
+      const after = await page.pollText('guest-user_eve', next.label, 5_000);
+      const evidence = await page.transportEvidence();
+      if (!after?.includes(next.label) || after === before || !evidence.some((entry) => entry.queryName === 'guestList' && entry.event === 'established' && entry.transport === 'push') || evidence.some((entry) => entry.pollFallbackEnabled !== false)) {
+        throw new Error(`hydrated live delivery lacks push provenance: ${JSON.stringify({ before, after, evidence })}`);
+      }
+      return { before, after, latencyMs: Date.now() - startedAtMs, pollFallback: 'disabled', evidence };
+    } finally { await page.close(); }
+  });
+}
+
 function skipRemoteCell(cell, health) {
   const details = {
     skipClass: 'remote-dependency',
@@ -336,6 +543,121 @@ function skipRemoteCell(cell, health) {
 
 async function waitForMatrixBoot(page) {
   return page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
+}
+
+async function runProductUiChecks({ suite: activeSuite, page, cell }) {
+  const label = `${cell.arm} × ${cell.backend}`;
+  await activeSuite.check(`${label} traverses browser history without document reload`, async () => {
+    const before = await page.eval(`(()=>{window.__partitimeDocumentIdentity??=crypto.randomUUID();return {identity:window.__partitimeDocumentIdentity,url:location.href,navigations:performance.getEntriesByType('navigation').length}})()`);
+    await page.click('back');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('feed', 'Sunset Supper Club', 15_000);
+    await page.eval('history.back()');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+    await page.eval('history.forward()');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('feed', 'Sunset Supper Club', 15_000);
+    const after = await page.eval(`({identity:window.__partitimeDocumentIdentity,url:location.href,navigations:performance.getEntriesByType('navigation').length,event:new URLSearchParams(location.search).get('event')})`);
+    if (after.identity !== before.identity || after.navigations !== before.navigations || after.event !== null) {
+      throw new Error(`history traversal reloaded or ended on the wrong route: ${JSON.stringify({ before, after })}`);
+    }
+    return { before, after, traversal: ['feed', 'event', 'feed'] };
+  });
+
+  await activeSuite.check(`${label} responds at compact width and changes theme on one tree`, async () => {
+    await page.setViewport(1280, 900);
+    await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,100))})()`);
+    const expanded = await page.eval(`(()=>{const shell=document.querySelector('[data-testid="product-shell"]');const title=document.querySelector('[data-testid="hero-title"]')??document.querySelector('.hero h1');if(!shell||!title)throw new Error('responsive surface missing');shell.__partitimeIdentity='retained';return {fontSize:parseFloat(getComputedStyle(title).fontSize),background:getComputedStyle(shell).backgroundColor,width:shell.getBoundingClientRect().width}})()`);
+    await page.setViewport(390, 844);
+    await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,100))})()`);
+    const compact = await page.eval(`(()=>{const shell=document.querySelector('[data-testid="product-shell"]');const title=document.querySelector('[data-testid="hero-title"]')??document.querySelector('.hero h1');return {fontSize:parseFloat(getComputedStyle(title).fontSize),background:getComputedStyle(shell).backgroundColor,width:shell.getBoundingClientRect().width,identity:shell.__partitimeIdentity}})()`);
+    if (!(compact.width < expanded.width) || !(compact.fontSize < expanded.fontSize)) {
+      throw new Error(`responsive styles did not adapt: ${JSON.stringify({ expanded, compact })}`);
+    }
+    await page.click('theme-toggle');
+    const themed = await page.eval(`(()=>{const shell=document.querySelector('[data-testid="product-shell"]');return {background:getComputedStyle(shell).backgroundColor,identity:shell.__partitimeIdentity}})()`);
+    if (themed.identity !== 'retained' || themed.background === compact.background) {
+      throw new Error(`theme replaced the tree or did not change the palette: ${JSON.stringify({ compact, themed })}`);
+    }
+    return { expanded, compact, themed, treeIdentityRetained: true };
+  });
+
+  await activeSuite.check(`${label} provides an accessible portal form and keyboard focus scope`, async () => {
+    await page.eval(`document.querySelector('[data-testid="new-event"]')?.focus()`);
+    await page.click('new-event');
+    await page.pollText('create-panel', 'plan', 5_000);
+    await page.eval('new Promise(r=>requestAnimationFrame(r))');
+    const semantics = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const overlay=document.querySelector('[data-testid="create-overlay"]');const shell=document.querySelector('[data-testid="product-shell"]');const description=document.querySelector('[data-testid="create-description"]');const box=overlay?.getBoundingClientRect();return {role:panel?.getAttribute('role'),modal:panel?.getAttribute('aria-modal'),labelledBy:panel?.getAttribute('aria-labelledby'),describedBy:panel?.getAttribute('aria-describedby'),portal:!!overlay&&(!shell?.contains(overlay)||(getComputedStyle(overlay).position==='fixed'&&box?.width>=innerWidth&&box?.height>=innerHeight)),portalDetached:!!overlay&&!shell?.contains(overlay),overlayPosition:overlay?getComputedStyle(overlay).position:null,descriptionTag:description?.tagName,activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
+    if (semantics.role !== 'dialog' || semantics.modal !== 'true' || !semantics.labelledBy || !semantics.describedBy || !semantics.portal || semantics.descriptionTag !== 'TEXTAREA') {
+      throw new Error(`dialog semantics or portal lowering are incomplete: ${JSON.stringify(semantics)}`);
+    }
+    await page.click('create-submit');
+    await page.eval('new Promise(r=>setTimeout(r,0))');
+    const validation = await page.eval(`(()=>{const title=document.querySelector('[data-testid="create-title"]');const location=document.querySelector('[data-testid="create-location"]');const titleError=document.querySelector('[data-testid="create-title-error"]');const locationError=document.querySelector('[data-testid="create-location-error"]');return {titleInvalid:title?.getAttribute('aria-invalid'),locationInvalid:location?.getAttribute('aria-invalid'),titleDescribedBy:title?.getAttribute('aria-describedby'),locationDescribedBy:location?.getAttribute('aria-describedby'),titleErrorRole:titleError?.getAttribute('role'),locationErrorRole:locationError?.getAttribute('role'),activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
+    if (!validation.titleDescribedBy || !validation.locationDescribedBy || validation.titleErrorRole !== 'alert' || validation.locationErrorRole !== 'alert') {
+      throw new Error(`validation errors are not accessibly associated: ${JSON.stringify(validation)}`);
+    }
+    const trapped = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const nodes=[...panel.querySelectorAll('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];nodes.at(-1)?.focus();return {last:nodes.at(-1)?.getAttribute('data-testid'),count:nodes.length}})()`);
+    await page.key('Tab');
+    const wrappedTo = await page.eval(`document.activeElement?.getAttribute('data-testid')`);
+    if (!wrappedTo || !['create-close', 'create-emoji', 'create-title'].includes(wrappedTo)) {
+      throw new Error(`focus trap did not wrap: ${JSON.stringify({ trapped, wrappedTo })}`);
+    }
+    await page.key('Escape');
+    await page.eval('new Promise(r=>setTimeout(r,0))');
+    const restored = await page.eval(`({overlay:!!document.querySelector('[data-testid="create-overlay"]'),activeTestId:document.activeElement?.getAttribute('data-testid')})`);
+    if (restored.overlay || restored.activeTestId !== 'new-event') {
+      throw new Error(`Escape dismissal did not restore opener focus: ${JSON.stringify(restored)}`);
+    }
+    return { semantics, validation, trapped, wrappedTo, restored };
+  });
+
+  await activeSuite.check(`${label} honors reduced-motion preference`, async () => {
+    await page.emulateReducedMotion(true);
+    await page.click('new-event');
+    await page.pollText('create-panel', 'plan', 5_000);
+    const motion = await page.eval(`(()=>{const overlay=document.querySelector('[data-testid="create-overlay"]');const panel=document.querySelector('[data-testid="create-panel"]');const style=getComputedStyle(panel);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,animationDuration:style.animationDuration,transitionDuration:style.transitionDuration,overlayTransition:getComputedStyle(overlay).transitionDuration}})()`);
+    if (!motion.matches || [motion.animationDuration, motion.transitionDuration, motion.overlayTransition].some((value)=>value && parseFloat(value) > 0.001)) {
+      throw new Error(`reduced motion left an active transition: ${JSON.stringify(motion)}`);
+    }
+    await page.key('Escape');
+    await page.emulateReducedMotion(false);
+    return motion;
+  });
+
+  await activeSuite.check(`${label} mounts a bounded virtual guest window`, async () => {
+    await page.click('open-event_sunset');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+    const virtual = await page.eval(`(()=>{const list=document.querySelector('[data-testid="virtual-guest-list"]');const mounted=[...list.querySelectorAll('[data-testid^="guest-"]')];return {tag:list?.tagName,mounted:mounted.length,totalText:list?.textContent?.trim(),height:list?.getBoundingClientRect().height,overflowY:getComputedStyle(list).overflowY}})()`);
+    if (!virtual.tag || virtual.mounted < 1 || virtual.mounted > 10 || virtual.height > 360) {
+      throw new Error(`virtual guest window is absent or unbounded: ${JSON.stringify(virtual)}`);
+    }
+    await page.click('back');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('feed', 'Sunset Supper Club', 15_000);
+    return virtual;
+  });
+
+  if (cell.arm === 'contract' && cell.backend === 'snapback') {
+    await activeSuite.check(`${label} forces loading error empty and ready through its provider`, async () => {
+      const observations = [];
+      for (const [state, testId, text] of [
+        ['loading', 'feed-loading', 'Loading'],
+        ['error', 'feed-error', 'Forced Partitime failure'],
+        ['empty', 'feed-empty', 'No plans yet'],
+        ['ready', 'feed-ready', 'Sunset Supper Club'],
+      ]) {
+        await page.eval(`window.partifulMatrixDebug.forceFeedState(${JSON.stringify(state)})`);
+        const observed = await page.pollText(testId, text, 5_000);
+        if (!observed?.includes(text)) throw new Error(`forced ${state} state did not render: ${observed}`);
+        observations.push({ state, testId, observed });
+      }
+      await page.eval('window.partifulMatrixDebug.restoreFeedState()');
+      return { provider: 'Snapback ContractDataProvider.forceQueryState', observations };
+    });
+  }
 }
 
 async function stopChild(child, label) {
@@ -478,6 +800,17 @@ async function connectCdp(url) {
       navigate: (pageUrl) => send('Page.navigate', { url: pageUrl }, sessionId),
       close: () => send('Target.closeTarget', { targetId }),
       waitForNavigation: () => sleep(300),
+      setScriptExecutionDisabled: (value) => send('Emulation.setScriptExecutionDisabled', { value }, sessionId),
+      setViewport: (width, height) => send('Emulation.setDeviceMetricsOverride', {
+        width, height, deviceScaleFactor: 1, mobile: width < 600,
+      }, sessionId),
+      emulateReducedMotion: (enabled) => send('Emulation.setEmulatedMedia', {
+        features: [{ name: 'prefers-reduced-motion', value: enabled ? 'reduce' : 'no-preference' }],
+      }, sessionId),
+      key: async (key) => {
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key }, sessionId);
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key }, sessionId);
+      },
       eval: evalRaw,
       click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
       text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),

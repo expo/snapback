@@ -11,7 +11,7 @@
 import {
   canonicalAgentAuthorityKey,
   deriveServiceAuthorityInstanceId,
-} from '../snapback-contract/auth-coordinator.mjs';
+} from '@snapback/contract/auth-coordinator';
 
 const UUID_V7 = /^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 

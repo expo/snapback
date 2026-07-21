@@ -1010,12 +1010,11 @@ export async function createSnapbackContractSurface({
     // scope and authority-instance scope fence different durable material.
     let coordinatedSessionsMode = coordinator?.authority?.authMode === 'sessions';
     if (retainedQueryEligible && !retainedIdentityComplete) {
-      const diagnostic = publishDiagnostic(
+      publishDiagnostic(
         'SNAPBACK_RETAINED_IDENTITY_INCOMPLETE',
         'Offline retention requires appId, databaseId, targetProfileId, and versionStreamId; retained rows and queued writes are disabled.',
-        { identity: storeIdentity },
+        { identity: storeIdentity, severity: 'warning' },
       );
-      diagnostic.severity = 'warning';
     }
     let storeAuthFingerprint = snapbackAuthFingerprint(activeUserId ?? null);
     const storeQueryKey = retainedQueryKey(queryName, queryArgs);
@@ -1091,12 +1090,11 @@ export async function createSnapbackContractSurface({
       try {
         authorizedLeaseFacts = validateAuthorizedLeaseCapability(authSession.authorizedLease);
       } catch (error) {
-        const diagnostic = publishDiagnostic(
+        publishDiagnostic(
           'SNAPBACK_AUTHORIZED_LEASE_CLIENT_UNSUPPORTED',
           error instanceof Error ? error.message : String(error),
-          { query: queryName },
+          { query: queryName, severity: 'warning' },
         );
-        diagnostic.severity = 'warning';
       }
     }
     const functionDescriptor = functionManifest?.functions?.find?.(
@@ -1153,7 +1151,7 @@ export async function createSnapbackContractSurface({
         )
       );
     if (coordinatedSessionsMode && retainedQueryEligible && !retainedReadsEnabled) {
-      const diagnostic = publishDiagnostic(
+      publishDiagnostic(
         'SNAPBACK_AUTHORIZED_RETENTION_UNAVAILABLE',
         'Session retention requires a userId-only retainable live query, exact item-6/item-8 negotiation, and complete activation identity.',
         {
@@ -1162,9 +1160,9 @@ export async function createSnapbackContractSurface({
           activationIdentityComplete,
           retainedReadsAvailable: authSession?.availability?.retainedReads?.available === true
             || durableAuthorizedQuery,
+          severity: 'warning',
         },
       );
-      diagnostic.severity = 'warning';
     }
     if (clientStore) {
       if (

@@ -1,0 +1,11 @@
+component ConnectionBadge
+  props
+    value: string = "connecting"
+
+  contract
+    has node testId="connection"
+
+  view
+    row role="status" label=`Connection: ${value}` testId="connection" gap=6 align="center"
+      text "●" size=8 color=value == "live" ? "#1f7a49" : "#936f24"
+      text value size=10 color="#675f55"

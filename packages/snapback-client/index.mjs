@@ -13,23 +13,23 @@
 //   poll fallback, reconnect-by-fresh-subscribe, and the Exact LLP 0284 §2.2
 //   connection axis.
 
-import { retainedQueryKey } from '../snapback-contract/client-store.mjs';
+import { retainedQueryKey } from '@snapback/contract/client-store';
 import {
   createLiveQueryAuthorizationFence,
   createLiveQueryInstanceAllocator,
   createLiveQueryNamespace,
-} from '../snapback-contract/query-authorization.mjs';
+} from '@snapback/contract/query-authorization';
 import {
   validateAuthorizationInvalidationConnection,
   validateScopeId,
-} from '../snapback-contract/auth-invalidation.mjs';
+} from '@snapback/contract/auth-invalidation';
 import { AgentAuthorityFence } from './agent-authority.mjs';
 
 export {
   AgentAuthorityFence,
   createMemoryAgentAuthorityCustodyStorage,
 } from './agent-authority.mjs';
-export { deriveServiceAuthorityInstanceId } from '../snapback-contract/auth-coordinator.mjs';
+export { deriveServiceAuthorityInstanceId } from '@snapback/contract/auth-coordinator';
 export {
   assertExternalStoreCompatibility,
   createExternalQueryStore,

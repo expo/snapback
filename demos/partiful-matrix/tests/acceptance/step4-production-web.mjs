@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import assert from 'node:assert/strict';
+
 import {
   acceptanceRoot,
   exactIdentity,
@@ -8,7 +10,6 @@ import {
   measureJavaScriptBundle,
   readExactText,
   readJson,
-  readText,
   requirement,
   retainedResult,
   validateRetainedWebReceipt,
@@ -16,27 +17,46 @@ import {
 } from './step4-closure-helpers.mjs';
 
 // @ref LLP 0063#workstream-3--contract-as-a-complete-product-surface-language —
-// the production-web claim requires Partitime integration evidence for every
-// named surface; generic Exact capability registrations are recorded separately.
+// production-web authority comes from the immutable-artifact browser run and
+// the residual real-browser/device release matrix, not source inspection.
 
 const output = `${acceptanceRoot}/results/step4-production-web.json`;
-const webReceiptPath = 'demos/partiful-matrix/acceptance/results/step0-web.json';
+const step0ReceiptPath = 'demos/partiful-matrix/acceptance/results/step0-web.json';
+const productionReceiptPath = 'demos/partiful-matrix/acceptance/results/step4-production-web-browser.json';
+const citizenshipReceiptPath = 'demos/partiful-matrix/acceptance/results/step4-web-citizenship.json';
+const staticExportPath = 'demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json';
+const feedHtmlPath = 'demos/partiful-matrix/surfaces/contract/dist/snapback/index.html';
+const eventHtmlPath = 'demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html';
 const protocolPath = 'demos/partiful-matrix/acceptance/comparison-protocol.v1.json';
-const contractHtmlPath = 'demos/partiful-matrix/surfaces/contract/dist/snapback/index.html';
-const contractSourceHtmlPath = 'demos/partiful-matrix/surfaces/contract/index.html';
-const contractMainPath = 'demos/partiful-matrix/surfaces/contract/main.ts';
-const contractHelpersPath = 'demos/partiful-matrix/surfaces/contract/helpers.ts';
-const reactAppPath = 'demos/partiful-matrix/surfaces/react/src/App.tsx';
 
-const webReceipt = readJson(webReceiptPath);
-validateRetainedWebReceipt(webReceipt);
+const step0Receipt = readJson(step0ReceiptPath);
+validateRetainedWebReceipt(step0Receipt);
+const productionReceipt = readJson(productionReceiptPath);
+const citizenshipReceipt = readJson(citizenshipReceiptPath);
+const staticExport = readJson(staticExportPath);
 
-const contractHtml = readText(contractHtmlPath);
-const contractSourceHtml = readText(contractSourceHtmlPath);
-const contractMain = readText(contractMainPath);
-const contractHelpers = readText(contractHelpersPath);
-const reactApp = readText(reactAppPath);
-const contractBundle = measureJavaScriptBundle('demos/partiful-matrix/surfaces/contract/dist/snapback');
+assert.equal(productionReceipt.ok, true, 'retained production-web browser receipt is not green');
+assert.equal(productionReceipt.passed, 9, 'production-web browser pass count drifted');
+assert.equal(productionReceipt.total, 9, 'production-web browser check count drifted');
+assert.equal(productionReceipt.failed, 0, 'production-web browser receipt contains failures');
+assert.equal(productionReceipt.skipped, 0, 'production-web browser receipt contains skips');
+assert.equal(productionReceipt.cleanupErrorCount, 0, 'production-web browser cleanup failed');
+for (const entry of productionReceipt.testInventory ?? []) {
+  assert.deepEqual(identity(entry.path), entry, `production-web input drifted: ${entry.path}`);
+}
+assert.equal(citizenshipReceipt.ok, true, 'web citizenship release matrix is not green');
+assert.equal(citizenshipReceipt.skipped, 0, 'web citizenship release matrix contains skips');
+
+const result = (name) => retainedResult(productionReceipt, name);
+const build = result('Contract production build emits immutable route artifacts');
+const noJsFeed = result('Contract production feed is authoritative with JavaScript disabled');
+const noJsEvent = result('Contract production event deep link is authoritative with route metadata and JavaScript disabled');
+const feedHydration = result('Contract production feed adopts every node without replacement, stale flash, or duplicate subscription');
+const eventHydration = result('Contract production event adopts every node with exactly three live query subscriptions');
+const basepath = result('Contract production assets and deep links honor the non-root base path');
+const history = result('Contract production history traverses feed and event without document reload');
+const metadata = result('Contract production client metadata tracks the active route');
+const push = result('Contract production hydrated event receives unsolicited Snapback push with polling disabled');
 
 const exactVerifyPath = 'exact-verify.json';
 const exactVerify = JSON.parse(readExactText(exactVerifyPath));
@@ -51,107 +71,79 @@ const upstreamChecks = [
   'web-citizenship-ime-forms',
 ];
 const missingUpstreamChecks = upstreamChecks.filter((id) => !exactCheckIds.has(id));
-const manualImeCheck = exactVerify.checks.find(({ id }) => id === 'web-citizenship-ime-forms');
-const deepLinkBootPresent = contractMain.includes("params.get('event')");
-const deepLinkNavigationPresent = contractHelpers.includes("params.set('event', eventId)");
-
-const browserFlow = [
-  retainedResult(webReceipt, 'contract × snapback boots its identified cell').name,
-  retainedResult(webReceipt, 'contract × snapback renders the canonical feed').name,
-  retainedResult(webReceipt, 'contract × snapback opens details and observes RSVP').name,
-  retainedResult(webReceipt, 'contract × snapback proves unsolicited push with polling fallback disabled').name,
-];
 
 const requirements = [
-  requirement('production-build-artifact', 'pass', 'STEP4_WEB_PRODUCTION_BUILD_PRESENT', {
-    html: identity(contractHtmlPath),
-    javascript: contractBundle,
+  requirement('production-build-artifact', 'pass', 'STEP4_WEB_PRODUCTION_BUILD_PASSED', {
+    receipt: identity(productionReceiptPath),
+    result: build.details,
+    staticExport: identity(staticExportPath),
+    pages: staticExport.pages,
+    javascript: measureJavaScriptBundle('demos/partiful-matrix/surfaces/contract/dist/snapback'),
   }),
-  requirement('browser-product-flow', 'pass', 'STEP4_WEB_BROWSER_FLOW_INHERITED', {
-    receipt: identity(webReceiptPath),
-    checks: browserFlow,
-    caveat: 'The retained runner starts Vite source-mode servers; it is product-flow evidence, not a browser execution of dist/.',
+  requirement('browser-product-flow', 'pass', 'STEP4_WEB_BROWSER_FLOW_PASSED', {
+    step0Receipt: identity(step0ReceiptPath),
+    checks: [
+      retainedResult(step0Receipt, 'contract × snapback boots its identified cell').name,
+      retainedResult(step0Receipt, 'contract × snapback renders the canonical feed').name,
+      retainedResult(step0Receipt, 'contract × snapback opens details and observes RSVP').name,
+      retainedResult(step0Receipt, 'contract × snapback proves unsolicited push with polling fallback disabled').name,
+    ],
   }),
-  requirement('production-built-artifact-browser-execution', 'red', 'STEP4_WEB_DIST_BROWSER_RECEIPT_MISSING', {
-    productionArtifactPresent: true,
-    retainedBrowserServerMode: 'vite-source-mode',
-    finding: 'No retained receipt serves the immutable Contract dist/snapback artifact and executes the product flow against it.',
-  }, 'nonclaim'),
-  requirement('browser-history', 'red', 'STEP4_WEB_HISTORY_MODEL_INCOMPLETE', {
-    contractNavigation: 'location.assign with search parameters',
-    contractHistoryApiCount: (contractHelpers.match(/history\.(?:pushState|replaceState)|popstate/g) ?? []).length,
-    reactBrowserNavigationApiCount: (
-      reactApp.match(/(?:window\.|globalThis\.)?location\.(?:assign|replace|href)|history\.(?:pushState|replaceState)|popstate/g) ?? []
-    ).length,
-    finding: 'Contract navigation reloads; React detail navigation is component state only. Back/forward history behavior has no executable parity witness.',
-  }, 'nonclaim'),
-  requirement('deep-links', deepLinkBootPresent && deepLinkNavigationPresent ? 'pass' : 'red',
-    deepLinkBootPresent && deepLinkNavigationPresent
-      ? 'STEP4_WEB_CONTRACT_QUERY_DEEP_LINK_FLOW_PASSED'
-      : 'STEP4_WEB_CONTRACT_QUERY_DEEP_LINK_FLOW_MISSING', {
-    bootReadsEventParameter: deepLinkBootPresent,
-    navigationWritesEventParameter: deepLinkNavigationPresent,
-    browserCheck: 'contract × snapback opens details and observes RSVP',
-    caveat: 'This passes the Contract query-parameter route used by Partitime; React parity and path routing remain outside this item.',
+  requirement('production-built-artifact-browser-execution', 'pass', 'STEP4_WEB_DIST_BROWSER_EXECUTION_PASSED', {
+    receipt: identity(productionReceiptPath),
+    servedMode: 'vite-preview-over-immutable-dist',
+    checks: productionReceipt.results.map(({ name }) => name),
   }),
-  requirement('ssr-ssg-authority', 'red', 'STEP4_WEB_PARTITIME_SSR_SSG_MISSING', {
-    rootMarkup: contractHtml.match(/<div id="exact-root">([\s\S]*?)<\/div>/)?.[1] ?? null,
-    hasHydrationManifest: contractHtml.includes('exact-hydration-manifest'),
-    finding: 'The production Partitime HTML has an empty root and a CSR module script; it contains no authoritative route content.',
-  }, 'nonclaim'),
-  requirement('hydration-without-duplicates-or-stale-flash', 'red', 'STEP4_WEB_PARTITIME_HYDRATION_WITNESS_MISSING', {
-    mountCallCount: (contractMain.match(/\bmount\(/g) ?? []).length,
-    hydrationCallCount: (contractMain.match(/\bhydrat|\badopt/gi) ?? []).length,
-    finding: 'Partitime mounts into an empty root. No server DOM adoption, duplicate-subscription count, or stale-flash assertion runs.',
-  }, 'nonclaim'),
-  requirement('document-metadata', 'red', 'STEP4_WEB_ROUTE_METADATA_INCOMPLETE', {
-    title: contractHtml.match(/<title>(.*?)<\/title>/)?.[1] ?? null,
-    themeColor: contractHtml.match(/<meta name="theme-color" content="([^"]+)"/)?.[1] ?? null,
-    canonicalCount: (contractHtml.match(/rel="canonical"/g) ?? []).length,
-    descriptionCount: (contractHtml.match(/name="description"/g) ?? []).length,
-    finding: 'The build has fixed shell metadata but no per-route title/description/canonical witness.',
-  }, 'nonclaim'),
-  requirement('basepath', 'red', 'STEP4_WEB_BASEPATH_UNWITNESSED', {
-    absoluteAssetReferences: (contractHtml.match(/(?:src|href)="\//g) ?? []).length,
-    sourceAbsoluteEntryReferences: (contractSourceHtml.match(/(?:src|href)="\//g) ?? []).length,
-    basePathReferences: (contractMain.match(/basePath/g) ?? []).length,
-    finding: 'The emitted asset URL is root-absolute and no non-root deployment/basePath acceptance exists.',
-  }, 'nonclaim'),
+  requirement('browser-history', 'pass', 'STEP4_WEB_HISTORY_PASSED', history.details),
+  requirement('deep-links', 'pass', 'STEP4_WEB_DEEP_LINKS_PASSED', {
+    noJavaScriptEvent: noJsEvent.details,
+    basepath: basepath.details,
+    eventArtifact: identity(eventHtmlPath),
+  }),
+  requirement('ssr-ssg-authority', 'pass', 'STEP4_WEB_STATIC_AUTHORITY_PASSED', {
+    feed: noJsFeed.details,
+    event: noJsEvent.details,
+    feedArtifact: identity(feedHtmlPath),
+    eventArtifact: identity(eventHtmlPath),
+  }),
+  requirement('hydration-without-duplicates-or-stale-flash', 'pass', 'STEP4_WEB_HYDRATION_ADOPTION_PASSED', {
+    feed: feedHydration.details,
+    event: eventHydration.details,
+  }),
+  requirement('document-metadata', 'pass', 'STEP4_WEB_ROUTE_METADATA_PASSED', {
+    staticEvent: noJsEvent.details,
+    clientRoute: metadata.details,
+  }),
+  requirement('basepath', 'pass', 'STEP4_WEB_NON_ROOT_BASEPATH_PASSED', basepath.details),
+  requirement('hydrated-push-without-polling', 'pass', 'STEP4_WEB_HYDRATED_PUSH_PASSED', push.details),
   requirement('exact-production-web-capabilities-registered', missingUpstreamChecks.length === 0 ? 'pass' : 'red',
     missingUpstreamChecks.length === 0
       ? 'STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED'
       : 'STEP4_WEB_UPSTREAM_EXACT_CHECKS_MISSING', {
-    registry: exactIdentity(exactVerifyPath),
-    checks: upstreamChecks,
-    missingChecks: missingUpstreamChecks,
-    caveat: 'Registry presence establishes reusable upstream surfaces only; it does not make the Partitime integration rows pass.',
+      registry: exactIdentity(exactVerifyPath),
+      checks: upstreamChecks,
+      missingChecks: missingUpstreamChecks,
+    }),
+  requirement('residual-browser-device-ime-forms-matrix', 'pass', 'STEP4_WEB_CITIZENSHIP_MATRIX_PASSED', {
+    receipt: identity(citizenshipReceiptPath),
+    rows: citizenshipReceipt.rows,
   }),
-  requirement('residual-browser-device-ime-forms-matrix', 'red', 'STEP4_WEB_MANUAL_DEVICE_MATRIX_PENDING', {
-    exactCheckId: manualImeCheck?.id ?? null,
-    manual: manualImeCheck?.manual ?? null,
-    notes: manualImeCheck?.notes ?? null,
-    finding: 'The governing Exact check is explicitly a pending manual release/support gate and Partitime has no passed device report.',
-  }, 'nonclaim'),
 ];
 
 const report = finalizeReport({
-  schemaVersion: 'partitime.step4-production-web.v1',
+  schemaVersion: 'partitime.step4-production-web.v2',
   claimId: 'STEP4.PRODUCTION_WEB',
   requirements,
   inputs: {
     protocol: identity(protocolPath),
-    retainedWebReceipt: identity(webReceiptPath),
-    surface: [
-      identity(contractHtmlPath),
-      identity(contractSourceHtmlPath),
-      identity(contractMainPath),
-      identity(contractHelpersPath),
-      identity(reactAppPath),
-    ],
+    step0WebReceipt: identity(step0ReceiptPath),
+    productionBrowserReceipt: identity(productionReceiptPath),
+    citizenshipReceipt: identity(citizenshipReceiptPath),
+    staticExport: identity(staticExportPath),
     exactVerifyRegistry: exactIdentity(exactVerifyPath),
   },
   details: {
-    conclusion: 'The Contract × Snapback CSR product flow works, but Partitime has not earned the production-web claim.',
+    conclusion: 'Partitime passes the immutable production-web, hydration, routing, metadata, push, and residual citizenship gates.',
   },
 });
 

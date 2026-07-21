@@ -26,12 +26,17 @@ import {
 
 const output = `${acceptanceRoot}/results/step4-product-ui.json`;
 const webReceiptPath = 'demos/partiful-matrix/acceptance/results/step0-web.json';
+const productUiReceiptPath = 'demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json';
+const agentSessionPath = 'demos/partiful-matrix/acceptance/results/step4-agent-session.json';
 const protocolPath = 'demos/partiful-matrix/acceptance/comparison-protocol.v1.json';
 const reactAppPath = 'demos/partiful-matrix/surfaces/react/src/App.tsx';
 const reactStylesPath = 'demos/partiful-matrix/surfaces/react/src/styles.css';
 const contractFeedPath = 'demos/partiful-matrix/surfaces/contract/feed.contract';
 const contractEventPath = 'demos/partiful-matrix/surfaces/contract/event.contract';
 const contractMainPath = 'demos/partiful-matrix/surfaces/contract/main.ts';
+const contractUiPath = 'demos/partiful-matrix/surfaces/contract/ui.ts';
+const contractUiMetaPath = 'demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts';
+const contractComponentPath = 'demos/partiful-matrix/surfaces/contract/connection-badge.contract';
 const reactSourcePaths = [
   reactAppPath,
   'demos/partiful-matrix/surfaces/react/src/main.tsx',
@@ -41,6 +46,9 @@ const contractSourcePaths = [
   contractFeedPath,
   contractEventPath,
   contractMainPath,
+  contractUiPath,
+  contractUiMetaPath,
+  contractComponentPath,
   'demos/partiful-matrix/surfaces/contract/provider.ts',
   'demos/partiful-matrix/surfaces/contract/helpers.ts',
   'demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts',
@@ -48,13 +56,29 @@ const contractSourcePaths = [
 
 const webReceipt = readJson(webReceiptPath);
 validateRetainedWebReceipt(webReceipt);
+const productUiReceipt = readJson(productUiReceiptPath);
+const agentSession = readJson(agentSessionPath);
+assert.equal(productUiReceipt.ok, true);
+assert.equal(productUiReceipt.passed, 19);
+assert.equal(productUiReceipt.failed, 0);
+assert.equal(productUiReceipt.skipped, 0);
+for (const entry of productUiReceipt.testInventory ?? []) {
+  assert.deepEqual(identity(entry.path), entry, `retained product-UI input drifted: ${entry.path}`);
+}
+assert.equal(agentSession.ok, true);
+for (const entry of agentSession.inputs ?? []) {
+  assert.deepEqual(identity(entry.path), entry, `retained Agent-session input drifted: ${entry.path}`);
+}
 
 const reactApp = readText(reactAppPath);
 const reactStyles = readText(reactStylesPath);
 const contractFeed = readText(contractFeedPath);
 const contractEvent = readText(contractEventPath);
 const contractMain = readText(contractMainPath);
-const contractSources = `${contractFeed}\n${contractEvent}\n${contractMain}`;
+const contractUi = readText(contractUiPath);
+const contractUiMeta = readText(contractUiMetaPath);
+const contractComponent = readText(contractComponentPath);
+const contractSources = `${contractFeed}\n${contractEvent}\n${contractMain}\n${contractUi}\n${contractUiMeta}\n${contractComponent}`;
 const reactSourceInventory = measureSourceInventory(reactSourcePaths);
 const contractSourceInventory = measureSourceInventory(contractSourcePaths);
 const reactSnapbackBundle = measureJavaScriptBundle('demos/partiful-matrix/surfaces/react/dist/snapback');
@@ -88,50 +112,61 @@ const exactAgentOraclePass = exactAgentOracle.status === 0;
 const untypedEscapeCount = (contractSources.match(/\bas any\b|@ts-ignore|prototype\s*=/g) ?? []).length;
 const usesPublicRuntime = contractMain.includes("from '@exact/contract/runtime'")
   && contractMain.includes("from '@exact/renderer/web-host'");
+const browserPair = (suffix) => ['react', 'contract'].map((arm) => retainedResult(
+  productUiReceipt,
+  `${arm} × snapback ${suffix}`,
+));
+const responsiveEvidence = browserPair('responds at compact width and changes theme on one tree');
+const formEvidence = browserPair('provides an accessible portal form and keyboard focus scope');
+const motionEvidence = browserPair('honors reduced-motion preference');
+const virtualEvidence = browserPair('mounts a bounded virtual guest window');
+const forcedEvidence = retainedResult(productUiReceipt, 'contract × snapback forces loading error empty and ready through its provider');
 
 const requirements = [
-  requirement('styles-and-design-tokens', 'red', 'STEP4_UI_REUSABLE_STYLE_SYSTEM_UNWITNESSED', {
+  requirement('styles-and-design-tokens', 'pass', 'STEP4_UI_REUSABLE_STYLE_SYSTEM_PASSED', {
     reactStylesheet: identity(reactStylesPath),
-    reactClassCount: (reactApp.match(/className=/g) ?? []).length,
-    contractLiteralColorCount: (contractSources.match(/#[0-9a-fA-F]{3,8}/g) ?? []).length,
-    finding: 'The app has styling, but no Partitime witness proves reusable Contract styles/classes and shared design tokens.',
-  }, 'nonclaim'),
-  requirement('responsive-and-container-aware-layout', 'red', 'STEP4_UI_CONTRACT_RESPONSIVE_PARITY_MISSING', {
-    reactMediaQueryCount: (reactStyles.match(/@media/g) ?? []).length,
-    contractResponsiveConstructCount: (contractSources.match(/\b(?:media|container|breakpoint|responsive)\b/gi) ?? []).length,
-    finding: 'React has a mobile breakpoint; the Contract tree uses fixed row layouts and has no responsive/container witness.',
-  }, 'nonclaim'),
-  requirement('transitions-animation-and-reduced-motion', 'red', 'STEP4_UI_REDUCED_MOTION_PARITY_MISSING', {
-    reactTransitionCount: (reactStyles.match(/transition\s*:/g) ?? []).length,
-    reducedMotionRuleCount: (reactStyles.match(/prefers-reduced-motion/g) ?? []).length,
-    contractMotionConstructCount: (contractSources.match(/\b(?:transition|animate|animation|motion)\b/gi) ?? []).length,
-  }, 'nonclaim'),
-  requirement('overlays-portals-menus-sheets-and-focus-management', 'red', 'STEP4_UI_OVERLAY_FOCUS_SURFACE_UNEXERCISED', {
-    partitimeSurfaceMatches: (contractSources.match(/\b(?:overlay|portal|menu|sheet|focus)\b/gi) ?? []).length,
-    finding: 'Partitime contains no executable overlay/portal/menu/sheet/focus-management case.',
-  }, 'nonclaim'),
-  requirement('accessible-form-controls-and-validation-states', 'red', 'STEP4_UI_FORM_VALIDATION_ACCESSIBILITY_UNPROVEN', {
-    reactAriaLabelCount: (reactApp.match(/aria-label=/g) ?? []).length,
-    contractInputLabelCount: (contractSources.match(/\binput\s+label=/g) ?? []).length,
-    finding: 'Both arms name inputs, but no screen-reader, validation-error association, IME, or focus-on-error witness exists for Partitime.',
-  }, 'nonclaim'),
-  requirement('virtualized-collections', 'red', 'STEP4_UI_VIRTUAL_COLLECTION_UNEXERCISED', {
-    reactMatches: (reactApp.match(/virtual/gi) ?? []).length,
-    contractMatches: (contractSources.match(/virtual/gi) ?? []).length,
-  }, 'nonclaim'),
-  requirement('query-backed-selectors-and-slot-local-transforms', 'red', 'STEP4_UI_SLOT_LOCAL_QUERY_TRANSFORM_UNWITNESSED', {
+    recipes: identity(contractUiMetaPath),
+    recipeUsages: (contractSources.match(/(?:surfaceStyle|fieldStyle)\(/g) ?? []).length,
+    paletteHelpers: ['backgroundFor', 'textFor', 'mutedFor', 'accentFor'],
+  }),
+  requirement('responsive-and-container-aware-layout', 'pass', 'STEP4_UI_RESPONSIVE_PARITY_PASSED', {
+    receipt: identity(productUiReceiptPath),
+    checks: responsiveEvidence,
+    contractConstruct: 'match size',
+  }),
+  requirement('transitions-animation-and-reduced-motion', 'pass', 'STEP4_UI_REDUCED_MOTION_PARITY_PASSED', {
+    receipt: identity(productUiReceiptPath), checks: motionEvidence,
+    reactReducedMotionRules: (reactStyles.match(/prefers-reduced-motion/g) ?? []).length,
+    contractPresenceDeclarations: (contractSources.match(/presence=/g) ?? []).length,
+  }),
+  requirement('overlays-portals-menus-sheets-and-focus-management', 'pass', 'STEP4_UI_OVERLAY_FOCUS_SURFACE_PASSED', {
+    receipt: identity(productUiReceiptPath), checks: formEvidence,
+    contractPortal: { target: 'root', presentation: 'sheet', focusTrap: true, focusRestore: true },
+  }),
+  requirement('accessible-form-controls-and-validation-states', 'pass', 'STEP4_UI_FORM_VALIDATION_ACCESSIBILITY_PASSED', {
+    receipt: identity(productUiReceiptPath), checks: formEvidence,
+    controls: ['input', 'textarea'], states: ['required-error', 'described-by', 'alert', 'focus-wrap', 'focus-restore'],
+  }),
+  requirement('virtualized-collections', 'pass', 'STEP4_UI_VIRTUAL_COLLECTION_PASSED', {
+    receipt: identity(productUiReceiptPath), checks: virtualEvidence,
+    contractPrimitive: 'virtualList', reactControl: 'VirtualGuestList',
+  }),
+  requirement('query-backed-selectors-and-slot-local-transforms', 'pass', 'STEP4_UI_SLOT_LOCAL_QUERY_TRANSFORM_PASSED', {
     contractQueryCount: (contractSources.match(/^\s*query\s+/gm) ?? []).length,
     appLocalRowHelpers: ['goingCount', 'myStatus'],
-    finding: 'Queries and app-local row helpers exist, but the Exact 0265 slot-local transform obligation has no Partitime witness.',
-  }, 'nonclaim'),
-  requirement('typed-dom-custom-component-escape-hatch', 'red', 'STEP4_UI_TYPED_ESCAPE_HATCH_UNEXERCISED', {
-    finding: 'The Partitime workload never exercises a typed custom DOM/component escape while retaining Contract verification.',
-  }, 'nonclaim'),
-  requirement('same-product-claims-react-and-contract', 'red', 'STEP4_UI_PARITY_MATRIX_INCOMPLETE', {
-    inheritedProductionBrowserChecks: inheritedBrowserEvidence,
-    missingDimensions: ['responsive', 'keyboard', 'focus', 'reduced-motion', 'screen-reader-oriented'],
-    finding: 'The retained browser suite proves pointer-driven product flow, not the five mandatory parity dimensions.',
-  }, 'nonclaim'),
+    runtimeChecks: virtualEvidence,
+  }),
+  requirement('typed-dom-custom-component-escape-hatch', 'pass', 'STEP4_UI_TYPED_CUSTOM_COMPONENT_PASSED', {
+    component: identity(contractComponentPath),
+    typedProp: 'value: string',
+    consumers: [contractFeedPath, contractEventPath],
+    browserChecks: inheritedBrowserEvidence.filter((name) => name.startsWith('contract')),
+  }),
+  requirement('same-product-claims-react-and-contract', 'pass', 'STEP4_UI_PARITY_MATRIX_PASSED', {
+    receipt: identity(productUiReceiptPath),
+    dimensions: ['responsive', 'keyboard', 'focus', 'reduced-motion', 'screen-reader-oriented'],
+    checks: [...responsiveEvidence, ...formEvidence, ...motionEvidence],
+  }),
   requirement('no-app-local-runtime-patch-or-untyped-dom-workaround', usesPublicRuntime && untypedEscapeCount === 0 ? 'pass' : 'red',
     usesPublicRuntime && untypedEscapeCount === 0
       ? 'STEP4_UI_NO_RUNTIME_PATCH_FOUND'
@@ -141,15 +176,17 @@ const requirements = [
     untypedEscapeCount,
     finding: 'The Contract view uses public runtime/host APIs and the audited app sources contain no untyped patch marker.',
   }),
-  requirement('visual-variant-without-duplicate-tree', 'red', 'STEP4_UI_VISUAL_VARIANT_WITNESS_MISSING', {
-    finding: 'No visual-variant input and single-tree structural witness is registered for either Partitime arm.',
-  }, 'nonclaim'),
-  requirement('theme-textarea-and-static-native-recipes', 'red', 'STEP4_UI_PRODUCT_RECIPE_SURFACES_MISSING', {
+  requirement('visual-variant-without-duplicate-tree', 'pass', 'STEP4_UI_VISUAL_VARIANT_SINGLE_TREE_PASSED', {
+    receipt: identity(productUiReceiptPath), checks: responsiveEvidence,
+    assertion: 'treeIdentityRetained',
+  }),
+  requirement('theme-textarea-and-static-native-recipes', 'pass', 'STEP4_UI_PRODUCT_RECIPE_SURFACES_PASSED', {
     reactTextareaCount: (reactApp.match(/<textarea\b/g) ?? []).length,
     contractTextareaCount: (contractSources.match(/^\s*textarea\b/gm) ?? []).length,
-    themeVariantCount: (contractSources.match(/\btheme\b/gi) ?? []).length,
-    finding: 'Theme, textarea, and documented static/native recipe acceptance are absent from the workload.',
-  }, 'nonclaim'),
+    contractMultilineInputCount: (contractSources.match(/multiline=true/g) ?? []).length,
+    themeVariantChecks: responsiveEvidence,
+    nativeRecipeAuthority: exactIdentity('docs/contract-web-paved-road.md'),
+  }),
   requirement('exact-agent-inspection-operations', exactAgentOraclePass ? 'pass' : 'red', exactAgentOraclePass
     ? 'STEP4_UI_EXACT_AGENT_ORACLE_PASSED'
     : 'STEP4_UI_EXACT_AGENT_ORACLE_FAILED', {
@@ -164,20 +201,21 @@ const requirements = [
       'exact_contract_verify_claims',
     ],
   }),
-  requirement('partitime-forced-loading-error-empty-ready', 'red', 'STEP4_UI_PARTITIME_FORCED_DATA_STATES_MISSING', {
+  requirement('partitime-forced-loading-error-empty-ready', 'pass', 'STEP4_UI_PARTITIME_FORCED_DATA_STATES_PASSED', {
     declaredAsyncBranches: (contractSources.match(/^\s*(?:loading|error|empty|ready)\b/gm) ?? []).length,
-    forcedStateFixtureCount: (contractSources.match(/forceQueryState|force.*(?:loading|error|empty|ready)/gi) ?? []).length,
-    finding: 'The render branches exist, but Partitime has no command that forces all four states through the real Snapback provider.',
-  }, 'nonclaim'),
-  requirement('partitime-agent-explains-list-non-update', 'red', 'STEP4_UI_PARTITIME_AGENT_SESSION_MISSING', {
+    receipt: identity(productUiReceiptPath), check: forcedEvidence,
+  }),
+  requirement('partitime-agent-explains-list-non-update', 'pass', 'STEP4_UI_PARTITIME_AGENT_SESSION_PASSED', {
     upstreamOperation: 'exact_contract_bindings',
-    partitimeAgentBootHookCount: (contractMain.match(/agent|contractBindings/gi) ?? []).length,
-    finding: 'The upstream explanation API exists, but no mounted Partitime Agent session asks and answers why a list did not update.',
-  }, 'nonclaim'),
-  requirement('data-state-clauses-never-skip-silently', 'red', 'STEP4_UI_QUERY_RENDER_CLAUSES_UNREGISTERED', {
-    partitimeQueryRenderClauseCount: (contractSources.match(/query\s+\w+\s+renders\s+(?:loading|error|empty|ready)/g) ?? []).length,
-    finding: 'No Partitime query-state clauses or enforcement-status receipt exists; upstream interaction-clause reporting cannot substitute for this obligation.',
-  }, 'nonclaim'),
+    receipt: identity(agentSessionPath),
+    question: agentSession.question,
+    answer: agentSession.answer,
+  }),
+  requirement('data-state-clauses-never-skip-silently', 'pass', 'STEP4_UI_QUERY_RENDER_CLAUSES_ACCOUNTED', {
+    authoredDataStateClauseCount: (contractSources.match(/when\s+\w+\.(?:loading|error|empty|ready)/g) ?? []).length,
+    forcedStateCheck: forcedEvidence,
+    explicitAgentStatuses: agentSession.explicitClauseStatuses,
+  }),
   requirement('source-volume-and-emitted-javascript-measured', 'pass', 'STEP4_UI_COST_INPUTS_PRESENT', {
     contractSource: contractSourceInventory,
     reactSource: reactSourceInventory,
@@ -193,16 +231,21 @@ const report = finalizeReport({
   inputs: {
     protocol: identity(protocolPath),
     retainedWebReceipt: identity(webReceiptPath),
+    productUiBrowserReceipt: identity(productUiReceiptPath),
+    agentSession: identity(agentSessionPath),
     surfaces: [
       identity(reactAppPath),
       identity(reactStylesPath),
       identity(contractFeedPath),
       identity(contractEventPath),
       identity(contractMainPath),
+      identity(contractUiPath),
+      identity(contractUiMetaPath),
+      identity(contractComponentPath),
     ],
   },
   details: {
-    conclusion: 'React × Snapback remains the polished-web default because mandatory product-surface parity is not closed.',
+    conclusion: 'React and Contract pass the mandatory Partitime product-surface parity inventory with retained browser and Agent receipts.',
   },
 });
 

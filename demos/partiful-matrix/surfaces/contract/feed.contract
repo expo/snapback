@@ -2,77 +2,103 @@ use listEvents from "./data/provider.generated.ts"
 use createEvent from "./data/provider.generated.ts"
 use fmtWhen from "./helpers.ts"
 use openEvent from "./helpers.ts"
+use backgroundFor from "./ui.ts"
+use textFor from "./ui.ts"
+use mutedFor from "./ui.ts"
+use accentFor from "./ui.ts"
+use surfaceStyle from "./ui.ts"
+use fieldStyle from "./ui.ts"
+use requiredMessage from "./ui.ts"
+use ConnectionBadge from "./connection-badge.contract"
 
 component PartifulFeed
   props
     userName: string = "Someone"
     backendName: string = "backend"
+    initialVariant: string = "warm"
 
   state creating = false
-  state draftTitle = ""
-  state draftEmoji = "🪩"
-  state draftLocation = ""
-  state draftDescription = ""
+  state visualVariant = initialVariant
+  use createForm = form({ title: "", emoji: "🪩", location: "", description: "" }, { title: value => requiredMessage(value, "Event title"), location: value => requiredMessage(value, "Location") })
 
   query events = listEvents({})
   mutation createMut = createEvent
-  derive canCreate = draftTitle.trim() != "" && draftLocation.trim() != ""
+  derive canCreate = createForm.canSubmit
 
-  action toggleCreate writes creating
-    creating = !creating
-  action setTitle(value) writes draftTitle
-    draftTitle = value
-  action setEmoji(value) writes draftEmoji
-    draftEmoji = value
-  action setLocation(value) writes draftLocation
-    draftLocation = value
-  action setDescription(value) writes draftDescription
-    draftDescription = value
-  action submit writes creating, draftTitle, draftLocation, draftDescription mutates createMut
-    createMut({ title: draftTitle.trim(), emoji: draftEmoji, description: draftDescription.trim(), location: draftLocation.trim(), startsAt: now() + 259200000, hostName: userName, accent: "tangerine" })
+  action openCreate writes creating
+    creating = true
+  action closeCreate writes creating
     creating = false
-    draftTitle = ""
-    draftLocation = ""
-    draftDescription = ""
+    createForm.reset()
+  action toggleVariant writes visualVariant
+    visualVariant = visualVariant == "warm" ? "night" : "warm"
+  action submit writes creating mutates createMut
+    if createForm.submit()
+      createMut({ title: createForm.field("title").value.trim(), emoji: createForm.field("emoji").value, description: createForm.field("description").value.trim(), location: createForm.field("location").value.trim(), startsAt: now() + 259200000, hostName: userName, accent: "tangerine" })
+      createForm.reset()
+      creating = false
   action open(eventId)
     openEvent(eventId)
 
   contract
     has node testId="feed"
-    press button "+ Make something happen" -> toggleCreate
-    derive canCreate depends only on draftTitle, draftLocation
+    press button "+ Make something happen" -> openCreate
+    press button "Close create event" -> closeCreate
+    press button "Toggle color theme" -> toggleVariant
+    derive canCreate depends only on createForm
+    when events.loading then has node testId="feed-loading"
+    when events.error then has node testId="feed-error"
+    when events.empty then has node testId="feed-empty"
+    when events.ready then has node testId="feed-ready"
 
   view
-    column width="100%" minHeight="100vh" background="#f4f0e8"
-      row align="center" paddingTop=20 paddingBottom=20 paddingLeft=52 paddingRight=52 borderWidth=1 borderColor="rgba(23,21,18,0.14)"
-        text "p" size=23 weight=800 color="#ffffff" background="#ff4d24" paddingLeft=10 paddingRight=10 paddingTop=3 paddingBottom=3 radius=999
-        text "  partitime" size=18 weight=800 color="#171512" flex=1
-        text `CONTRACT  ·  ${backendName}` size=10 color="#ff4d24" testId="matrix-label"
+    column width="100%" minHeight="100vh" background=backgroundFor(visualVariant) testId="product-shell"
+      row align="center" paddingTop=20 paddingBottom=20 paddingLeft=52 paddingRight=52 borderWidth=1 borderColor="rgba(127,120,110,0.35)"
+        text "p" size=23 weight=800 color="#ffffff" background=accentFor(visualVariant) paddingLeft=10 paddingRight=10 paddingTop=3 paddingBottom=3 radius=999
+        text "  partitime" size=18 weight=800 color=textFor(visualVariant) flex=1
+        button press=toggleVariant label="Toggle color theme" testId="theme-toggle" background="transparent" padding=9
+          text visualVariant == "warm" ? "Night" : "Warm" size=10 color=textFor(visualVariant)
+        text `CONTRACT  ·  ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
       column gap=20 paddingTop=74 paddingBottom=70 paddingLeft=70 paddingRight=70 borderWidth=1 borderColor="rgba(23,21,18,0.14)"
-        text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 color="#5f594f"
-        text "Make a plan worth\nleaving the chat for." size=66 weight=800 color="#171512" lineHeight=0.9 testId="hero-title"
-        text "Small gatherings, good people, no algorithmic sludge." size=16 color="#5f594f"
+        text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 color=mutedFor(visualVariant)
+        match size
+          case "expanded"
+            text "Make a plan worth\nleaving the chat for." size=66 weight=800 color=textFor(visualVariant) lineHeight=0.9 testId="hero-title"
+          case "regular"
+            text "Make a plan worth leaving the chat for." size=48 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+          else
+            text "Make a plan worth leaving the chat for." size=38 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+        text "Small gatherings, good people, no algorithmic sludge." size=16 color=mutedFor(visualVariant)
         row gap=18 align="center"
-          button press=toggleCreate testId="new-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background="#171512"
-            text creating ? "Never mind" : "+ Make something happen" size=14 weight=700 color="#ffffff"
-          text events.connection size=10 color="#6a6258" testId="connection"
+          button press=openCreate label="+ Make something happen" testId="new-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background=textFor(visualVariant)
+            text "+ Make something happen" size=14 weight=700 color=backgroundFor(visualVariant)
+          ConnectionBadge(value=events.connection)
       when creating
-        row gap=36 padding=34 background="#dce3bf" align="center" testId="create-panel"
-          column gap=6 width=260
-            text "01 · WHAT'S THE PLAN?" size=10 color="#5f594f"
-            text "Keep it loose." size=27 weight=800 color="#171512"
-          column gap=10 flex=1 maxWidth=720
+        stack portalTarget="root" portalLevel=100 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" testId="create-overlay"
+          button press=closeCreate label="Close create event" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="create-backdrop"
+          section role="dialog" label="Create an event" labelledBy="create-title-heading" describedBy="create-description-copy" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeCreate presence="entered" testId="create-panel" zIndex=1 width="100%" maxWidth=720 padding=34 gap=18 style=surfaceStyle(visualVariant, "panel")
+            row align="center"
+              column gap=6 flex=1
+                text "01 · WHAT'S THE PLAN?" size=10 color=mutedFor(visualVariant)
+                text "Keep it loose." nativeID="create-title-heading" size=27 weight=800 color=textFor(visualVariant)
+                text "A title and location are required." nativeID="create-description-copy" size=12 color=mutedFor(visualVariant)
+              button press=closeCreate label="Close create event" testId="create-close" background="transparent" padding=10
+                text "Close" size=12 color=textFor(visualVariant)
             row gap=10
-              input value=draftEmoji change=setEmoji testId="create-emoji" width=62 padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" size=22
-              input label="Event title" value=draftTitle change=setTitle testId="create-title" flex=1 padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
-            input label="Location" value=draftLocation change=setLocation testId="create-location" padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
-            input label="Description" value=draftDescription change=setDescription testId="create-description" padding=12 background="#fffaf2" borderWidth=1 borderColor="rgba(23,21,18,0.35)" color="#171512"
-            button press=submit testId="create-submit" disabled=!canCreate opacity=canCreate ? 1 : 0.45 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background="#171512"
-              text "Send the invite ↗" size=14 weight=700 color="#ffffff"
-      column gap=24 padding=54 testId="feed"
+              input label="Emoji" value=createForm.field("emoji").value change=createForm.field("emoji").change testId="create-emoji" width=62 padding=12 borderWidth=1 size=22 style=fieldStyle(visualVariant, false)
+              input label="Event title" value=createForm.field("title").value change=createForm.field("title").change describedBy=createForm.field("title").error ? "create-title-error" : null testId="create-title" flex=1 padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("title").error != null)
+            when createForm.field("title").touched && createForm.field("title").error
+              text createForm.field("title").error nativeID="create-title-error" role="alert" live="polite" testId="create-title-error" size=12 color="#c43b2f"
+            input label="Location" value=createForm.field("location").value change=createForm.field("location").change describedBy=createForm.field("location").error ? "create-location-error" : null testId="create-location" padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("location").error != null)
+            when createForm.field("location").touched && createForm.field("location").error
+              text createForm.field("location").error nativeID="create-location-error" role="alert" live="polite" testId="create-location-error" size=12 color="#c43b2f"
+            input label="Description" value=createForm.field("description").value change=createForm.field("description").change multiline=true numberOfLines=4 testId="create-description" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
+            button press=submit testId="create-submit" disabled=createForm.submitting opacity=canCreate ? 1 : 0.7 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background=textFor(visualVariant)
+              text "Send the invite ↗" size=14 weight=700 color=backgroundFor(visualVariant)
+      column gap=24 padding=54 testId="feed" style=surfaceStyle(visualVariant, "surface")
         row align="baseline"
-          text "02 · ON THE HORIZON" size=10 color="#5f594f" flex=1
-          text backendName size=10 color="#ff4d24"
+          text "02 · ON THE HORIZON" size=10 color=mutedFor(visualVariant) flex=1
+          text backendName size=10 color=accentFor(visualVariant)
         async events
           loading
             text "Loading the plans…" size=14 color="#5f594f" testId="feed-loading"
@@ -81,14 +107,14 @@ component PartifulFeed
           empty
             text "No plans yet. Make something happen." size=14 color="#5f594f" testId="feed-empty"
           ready rows
-            column gap=12
+            column gap=12 testId="feed-ready"
               each event in rows key=event._id
-                row gap=22 align="center" padding=22 background="#faf7f0" borderWidth=1 borderColor="rgba(23,21,18,0.18)" testId=`event-card-${event._id}`
+                row gap=22 align="center" padding=22 borderWidth=1 testId=`event-card-${event._id}` style=surfaceStyle(visualVariant, "surface")
                   text event.emoji size=48 background="#f6a25d" padding=24 width=110 radius=4
                   column gap=6 flex=1
-                    text fmtWhen(event.startsAt) size=10 color="#ff4d24"
-                    text event.title size=25 weight=800 color="#171512"
-                    text event.location size=13 color="#625b52"
-                    text `HOSTED BY ${event.hostName}` size=9 color="#625b52"
-                  button press=open(event._id) testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background="#171512"
-                    text "View plan →" size=12 weight=700 color="#ffffff"
+                    text fmtWhen(event.startsAt) size=10 color=accentFor(visualVariant)
+                    text event.title size=25 weight=800 color=textFor(visualVariant)
+                    text event.location size=13 color=mutedFor(visualVariant)
+                    text `HOSTED BY ${event.hostName}` size=9 color=mutedFor(visualVariant)
+                  button press=open(event._id) label=`View ${event.title}` testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background=textFor(visualVariant)
+                    text "View plan →" size=12 weight=700 color=backgroundFor(visualVariant)
