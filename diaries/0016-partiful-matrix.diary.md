@@ -1788,3 +1788,34 @@ The combined candidate subsequently passed the immutable production browser
 corpus 9/9: static routes and JavaScript-disabled authority, byte-identical
 hydration adoption with zero recreated nodes, non-root base paths, history and
 metadata, exactly three event subscriptions, and unsolicited Snapback push.
+
+## 2026-07-22 — the remaining memory miss is the unfinished production artifact
+
+After the safe host and environment reductions, the corrected Contract ×
+Supabase quick baseline is 1,564,980 post-GC warm bytes against 1,394,100,
+with update fan-out and patches already green at 6/8. Paired heap snapshots
+put the Contract/React JavaScript delta mainly in compiled code, object shapes,
+arrays, and closures—not in the one active query subscription. The generated
+feed makes that concrete: it retains 97 expression closures, 87 lazy view
+registration factories, and a parallel compact runtime-IR skeleton containing
+158 objects and 97 arrays.
+
+Three tempting reductions clarified the design boundary. One effect per
+static ownership subtree measured 1,554,740 bytes, but it replaces Contract's
+per-element/text dependency graph with union tracking. Compact interpreted
+view-value plans combined with that grouping measured 1,545,280 bytes, but
+undo the compiled-expression side of Exact LLP 0185. Prototype-backed mounted
+units preserved the model but only reached 1,560,208 bytes. None was retained:
+the two larger wins spend Contract's intended update semantics for less than
+20 KB, and the representation-only win is too small for its added machinery.
+
+This changes the shape of the remaining work. The missing 170,880 bytes are
+not a Snapback subscription leak and are unlikely to disappear through more
+DOM-wrapper polishing. LLP 0185's production artifact matrix already says
+production ships closures but not runtime IR; the implementation has not yet
+reached that state. The next credible memory slice is to generate structural
+and hydration identity into the AOT artifact, link child/branch closures
+directly, and stop retaining the duplicate production view tree while keeping
+fine-grained effects, compiled expressions, source attribution, and on-demand
+authorized editable IR. Until that larger S2 slice is implemented and
+remeasured, the memory claim remains red.

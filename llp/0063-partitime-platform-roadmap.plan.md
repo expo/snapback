@@ -87,6 +87,21 @@ snapshot attributes the rest mainly to V8 code and mounted compiled
 view/host-model state. This is diagnostic evidence only; no threshold or claim
 is promoted, and a new Exact release plus full calibration/holdout reruns remain
 required.)
+**Revised (Step 4 subscription-memory design boundary):** 2026-07-22 (The
+1,564,980-byte Contract × Supabase warm baseline remains 170,880 bytes above
+the frozen 1,394,100 limit with update fan-out/patches green at 6/8. Paired
+snapshots and generated-artifact inventory locate the remainder in compiled
+code and duplicate view representation: the feed retains 97 expression
+closures, 87 view factories, and a runtime-IR skeleton with 158 objects and 97
+arrays. Binding-subtree aggregation reached 1,554,740 bytes but weakened
+fine-grained dependency ownership; compact interpreted view-value plans
+combined with it reached 1,545,280 but violated Exact LLP 0185's compiled
+expression contract; prototype-backed mounted units preserved semantics but
+reached only 1,560,208. All three prototypes were rejected. The admitted next
+target is LLP 0185 §4.3's unfinished production artifact: generated closures
+and structural/hydration identity without duplicate runtime view IR, while
+editable IR remains an authorized on-demand artifact. No threshold or claim
+is promoted.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table
