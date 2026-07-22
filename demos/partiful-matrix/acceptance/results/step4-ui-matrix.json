@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-22T10:34:00.210Z",
+  "generatedAt": "2026-07-22T10:54:07.524Z",
   "revisions": {
-    "snapback": "ca0c8470bddb65c41880fd79afde0d8292813293",
+    "snapback": "9be2e66fb6916e7806c03bc934ce164274d38689",
     "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "oq9": {
@@ -20,6 +20,8 @@
       "role": "automated harness cell (primary CI driver — CDP)",
       "status": "pass",
       "reason": null,
+      "revisionMatches": true,
+      "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims.json",
       "sha256": "2459187a80418f5c153c3db97f87e0c6d02a1f9aff121b9ec7aacd187296edf3",
       "environment": "chrome",
@@ -207,6 +209,8 @@
       "role": "automated harness cell (WebDriver)",
       "status": "red",
       "reason": "claim-receipt-not-passing",
+      "revisionMatches": true,
+      "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-safari.json",
       "sha256": "51829de60f123f1e581008f1d646ed5a1e035dce8a16f218668e2d71361707d9",
       "environment": "safari",
@@ -347,6 +351,8 @@
       "role": "automated harness cell (WebDriver)",
       "status": "pass",
       "reason": null,
+      "revisionMatches": true,
+      "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-firefox.json",
       "sha256": "763a0a9b0f7324521e07b863a00be40f5ee19f4cb064176bc01817076536ffeb",
       "environment": "firefox",
@@ -534,6 +540,8 @@
       "role": "automated where simulator-reachable; LLP 0211 §4.3-style manual checklist for soft-keyboard/IME/autofill/bfcache rows",
       "status": "red",
       "reason": "claim-receipt-not-passing",
+      "revisionMatches": true,
+      "receiptComplete": true,
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-ios-safari.json",
       "sha256": "f029b7be3beab8b4a0693154a7f319c0a97035db44fd988c015b62eaa8b1053c",
       "environment": "ios-safari",
@@ -806,11 +814,11 @@
   "inputs": {
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs",
-      "sha256": "ebc50674331e07d45da9931084cafd4acdeb09f82578d3f6a4d85c14f274d2de"
+      "sha256": "dfc5e73d3e3265a4014fbeffb499cf44f2752361994fa62b43d17e19b966d7fa"
     },
     "manualGateHelper": {
       "path": "demos/partiful-matrix/tests/acceptance/step4-closure-helpers.mjs",
-      "sha256": "539c66274ce7c356eb3d29edaab187e19a970bf150bcf2a15a053368dc5ab7a9"
+      "sha256": "e86009a4a55bfa0f23927d4ce967a5684984bc82f988483ab2c01dbd605ddd2f"
     }
   },
   "documentedSupportLimitations": [
@@ -836,7 +844,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -845,8 +853,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "status": "pass",
+          "reason": null
         }
       ]
     },
@@ -862,7 +870,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -872,7 +880,7 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         }
       ],
       "manualDeviceGate": {
@@ -892,7 +900,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -901,8 +909,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "status": "pass",
+          "reason": null
         }
       ],
       "manualDeviceGate": {
@@ -922,7 +930,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -932,7 +940,7 @@
         {
           "browserId": "safari-ios-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         }
       ]
     },
@@ -948,7 +956,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -957,8 +965,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "status": "pass",
+          "reason": null
         }
       ],
       "manualDeviceGate": {
@@ -978,7 +986,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "reason": "claim-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -987,8 +995,8 @@
         },
         {
           "browserId": "safari-ios-latest",
-          "status": "red",
-          "reason": "claim-receipt-not-passing"
+          "status": "pass",
+          "reason": null
         }
       ],
       "visualApproval": {
