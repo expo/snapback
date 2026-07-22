@@ -53,9 +53,14 @@ carrier and registration symbols; full development introspection remains
 green. The same external quick probe reaches 1,608,104 warm bytes, another
 12,536-byte reduction, while preserving 6/8 update fan-out/patches. LLP 0192's
 zero-code invariant is now closed, but the memory cell remains 214,004 bytes
-above threshold. The retained snapshot attributes the rest mainly to V8 code
-and eager compiled view/host-model state, so the next work is lazy/compact
-hidden-view AOT registration. This is diagnostic evidence only;
+above threshold. Exact `1ca3e83f…` next made AOT view-plan allocation
+demand-driven, and `2c207091…` stopped cloning the complete immutable mount
+environment for every ordinary descendant. Those checkpoints reach 1,606,532
+and 1,600,228 warm bytes respectively, retain 6/8 update fan-out/patches, and
+leave the memory cell 206,128 bytes above threshold. The first environment
+probe timed out without a receipt and is excluded; the quoted value is its
+clean rerun. The retained snapshot attributes the rest mainly to V8 code and
+mounted compiled view/host-model state. This is diagnostic evidence only;
 no threshold or claim is promoted, and a new Exact release plus full
 calibration/holdout reruns remain required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22

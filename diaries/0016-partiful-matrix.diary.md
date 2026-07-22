@@ -1666,3 +1666,29 @@ changing Contract's core tradeoff. Development keeps a much richer explicit
 reactive graph; production now pays zero for the inspector. The remaining work
 is the representation of authored views—especially unopened regions and their
 mount environments—not the fact that Contract supports introspection.
+
+## 2026-07-22 — unopened plans and repeated environments were real, but small
+
+The next two changes tested the retained-heap theory directly. Generated AOT
+view registrations now keep each plan behind a first-mount factory, so closed
+conditional/resource/component regions retain their compiled identity without
+materializing their plan arrays. A runtime fixture proves registration and
+lookup invoke no factory, first mount invokes exactly one, repeat mount reuses
+it, and untouched siblings remain untouched. That moved the Supabase warm heap
+from 1,608,104 to 1,606,532 bytes.
+
+The sibling walkers also used to spread the full `MountEnv` for every node even
+after leaving the component root. Exact now creates one immutable false-root
+projection per boundary and reuses it through ordinary descendants; component,
+keyed-repetition, pager, and other actual context changes still project a new
+environment. The first browser attempt timed out before any cell receipt and is
+discarded. Its clean rerun measured 1,600,228 warm bytes with update fan-out and
+patches still 6/8, a further 6,304-byte reduction.
+
+Both optimizations are worth keeping—the lazy plan also reduced the Supabase
+artifact to 209,768 minified bytes across its two chunks, still below the
+213,488-byte gate—but neither is the missing 200 KB. The remaining miss is
+206,128 bytes. Compared with React, Contract is still retaining substantially
+more compiled/mounted host representation, and the next investigation should
+measure the large `instance.ts`/effect-supervisor/host-node footprint rather
+than continuing to polish unopened overlay plans.
