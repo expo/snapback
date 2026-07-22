@@ -1,0 +1,1128 @@
+{
+  "revision": {
+    "snapback": "c1dd1d2154736b425d2ae3569771d6451b905a0e",
+    "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
+  },
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "environment": {
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "chromeVersion": "Google Chrome 150.0.7871.130",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "packages": {
+    "react": {
+      "manifestSha256": "1354d4b42fe05b7b9b2938962cd312d936225f4d72c3790078939b39b5e5b95a",
+      "lockPath": "demos/partiful-matrix/surfaces/react/bun.lock",
+      "lockSha256": "20bb724eaa5f675b25e290bf66bc892d2eeb61e7382e7d6e1989cf59c8dfb239",
+      "dependencies": {
+        "@supabase/supabase-js": "^2.110.7",
+        "convex": "^1.28.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "@types/node": "^26.0.0",
+        "@types/react": "^19.1.8",
+        "@types/react-dom": "^19.1.6",
+        "@vitejs/plugin-react": "^4.6.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "@supabase/supabase-js": {
+          "requested": "^2.110.7",
+          "resolvedName": "@supabase/supabase-js",
+          "resolvedVersion": "2.110.7",
+          "manifestSha256": "11d42f0c4a030fe450aeb9e3dd0085afff5c46ae9d071f25cdd8d0923bd852c4"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "react": {
+          "requested": "^19.1.0",
+          "resolvedName": "react",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "51966ae9c8c377ff592b5d69c980966992101bc6791bf83a1e5c7ad9bcefa7f4"
+        },
+        "react-dom": {
+          "requested": "^19.1.0",
+          "resolvedName": "react-dom",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "447acd72cdb6a966d9db967729e286e7cbb4a09ea61fddd45e12c2a97fd4cfb6"
+        },
+        "@types/node": {
+          "requested": "^26.0.0",
+          "resolvedName": "@types/node",
+          "resolvedVersion": "26.1.1",
+          "manifestSha256": "83e7472f5b94b43acde2e60b39cef9adc278a1f2a5d7cc4b4c677e29da3e0ab9"
+        },
+        "@types/react": {
+          "requested": "^19.1.8",
+          "resolvedName": "@types/react",
+          "resolvedVersion": "19.2.17",
+          "manifestSha256": "36496fc09a9dcf31b0ca969ce5677c9ce9ebb5c89da9bd6212e0c89b6fae3f88"
+        },
+        "@types/react-dom": {
+          "requested": "^19.1.6",
+          "resolvedName": "@types/react-dom",
+          "resolvedVersion": "19.2.3",
+          "manifestSha256": "bf90986beaec5f757c164bf1d374f3038dc41b0b06673de4a55fd975d1e5deca"
+        },
+        "@vitejs/plugin-react": {
+          "requested": "^4.6.0",
+          "resolvedName": "@vitejs/plugin-react",
+          "resolvedVersion": "4.7.0",
+          "manifestSha256": "d608755568d9d654c34e9e2da06659df9122fa89d2604ee09cdeda457a20c035"
+        },
+        "typescript": {
+          "requested": "^5.9.3",
+          "resolvedName": "typescript",
+          "resolvedVersion": "5.9.3",
+          "manifestSha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+        },
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    },
+    "contract": {
+      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
+      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "dependencies": {
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "convex": "^1.28.0",
+        "vite": "^8.0.0"
+      },
+      "resolvedDependencies": {
+        "@exact/contract": {
+          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "resolvedName": "@ccheever/exact-contract",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+        },
+        "@exact/devtools": {
+          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "resolvedName": "@ccheever/exact-devtools",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+        },
+        "@exact/facet-core": {
+          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "resolvedName": "@ccheever/exact-facet-core",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+        },
+        "@exact/renderer": {
+          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "resolvedName": "@ccheever/exact-renderer",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "vite": {
+          "requested": "^8.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "8.1.5",
+          "manifestSha256": "2f482c846a1c5b9e5883b458b3e54a171a320c2e8d9b924c7383c4baef607b09"
+        }
+      }
+    },
+    "vanilla": {
+      "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
+      "lockPath": "bun.lock",
+      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
+      "dependencies": {
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
+    "bundleHash": "sha256:adce7dc6b39cd37f",
+    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
+    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+  },
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "demos/_kit/chrome-process.mjs",
+      "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "f28a38e7f7255c38492e6d1318685dc86fdc0520cbf00701e171396713f90dc8"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "62b8182caf18d892b3ed2beaddf935e819c5d701cd97144fed1a3e374a063f4f"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
+      "sha256": "10bff8b52e37dfefa5de2773d1944f5bf00f5d38bef6e2dcab6128b2a0c07a69"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+      "sha256": "8d63f7db82f5a4953699413beddf6213d0292447b9177f7664622a88aa225b67"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+    }
+  ],
+  "testInventorySha256": "c29ee379eee309228d047db9cea64ffedf40266965d039639d6b72fa13ad0919",
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.v1",
+  "cells": [
+    "contract:snapback"
+  ],
+  "transportWitnessCells": [
+    "contract:snapback"
+  ],
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      },
+      "convex": {
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+      }
+    }
+  },
+  "title": "partitime / product UI browser parity",
+  "passed": 1,
+  "skipped": 0,
+  "failed": 0,
+  "total": 1,
+  "ok": true,
+  "results": [
+    {
+      "name": "STEP4.UI.VISUAL contract × snapback implements every representative state",
+      "ok": true,
+      "details": {
+        "claimId": "STEP4.UI.VISUAL",
+        "cell": "contract:snapback",
+        "scope": "13-cell isolated capture shard with pending human approvals",
+        "states": [
+          {
+            "state": "feed-empty",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 464,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-empty",
+                "missing": false,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
+                "height": 320,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event",
+                "missing": false,
+                "x": 71,
+                "y": 368,
+                "width": 225.078125,
+                "height": 45,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/feed-empty.png",
+              "sha256": "a790f98a1eeb6916e760ed7ceaa71350385cb59f9603fe819a96a12cd7dc0c42",
+              "bytes": 54648,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "feed-populated",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 458,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_sunset",
+                "missing": false,
+                "x": 54,
+                "y": 574,
+                "width": 382.65625,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_swim",
+                "missing": false,
+                "x": 448.65625,
+                "y": 574,
+                "width": 382.671875,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-card-event_ceramics",
+                "missing": false,
+                "x": 843.328125,
+                "y": 574,
+                "width": 382.65625,
+                "height": 314,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/feed-populated.png",
+              "sha256": "2c6979a152edc8a06c72a813a4983da37b07b63cde6f4b927e46761f1d0571cb",
+              "bytes": 86092,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "feed-loading-skeleton",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "feed",
+                "missing": false,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 594,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "feed-loading",
+                "missing": false,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
+                "height": 450,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/feed-loading-skeleton.png",
+              "sha256": "faab983c1928180716f5ca73136ee9871877eddf886450ec0a59a855de656af7",
+              "bytes": 45580,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "event-detail-going",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 863,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-going",
+                "missing": false,
+                "x": 851.671875,
+                "y": 554,
+                "width": 48.359375,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 381,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 293,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/event-detail-going.png",
+              "sha256": "643f3d3f9c09bedb2b21bd0d529d8f701bb0b1cadf24ca319f7b4512c7d9b71e",
+              "bytes": 58621,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "event-detail-maybe",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 863,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-maybe",
+                "missing": false,
+                "x": 905.03125,
+                "y": 554,
+                "width": 51.9375,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 381,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 293,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/event-detail-maybe.png",
+              "sha256": "0e45aa292b6146748276576c80f72f86be0ba47fc478e70f24e1c9f66a0e94cd",
+              "bytes": 58564,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "event-detail-error",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-page",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 1035,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-error",
+                "missing": false,
+                "x": 38,
+                "y": 91,
+                "width": 1204,
+                "height": 172,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-retry",
+                "missing": false,
+                "x": 69,
+                "y": 195,
+                "width": 1142,
+                "height": 37,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/event-detail-error.png",
+              "sha256": "33e92aaec4e0a4a0f2c26fec5c242ec025534ece1edc1415bc77564d6237ff74",
+              "bytes": 70411,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "guest-list-sheet-open",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "guest-list-trigger",
+                "missing": false,
+                "x": 851.671875,
+                "y": 510,
+                "width": 357.328125,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list-sheet",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 620,
+                "height": 261,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "guest-list",
+                "missing": false,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
+                "height": 381,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "guest-list-sheet",
+                  "rect": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 620,
+                    "bottom": 261,
+                    "width": 620,
+                    "height": 261
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/guest-list-sheet-open.png",
+              "sha256": "f6269db720333509f852c31896b179f470becab1eb68f09d07b5994db1e7e105",
+              "bytes": 40335,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "wall-composer-active",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall-composer",
+                "missing": false,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
+                "height": 91,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-message",
+                "missing": false,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-submit",
+                "missing": false,
+                "x": 72,
+                "y": 664,
+                "width": 714.671875,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.45
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/wall-composer-active.png",
+              "sha256": "792abd20a48a558f696b0bf9b52760b6058f55dcc8373dce9f422dc853c10bb4",
+              "bytes": 58889,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "wall-optimistic-pending",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "wall",
+                "missing": false,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 355,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "wall-pending-row",
+                "missing": false,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
+                "height": 46,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.68
+              },
+              {
+                "id": "wall-pending-status",
+                "missing": false,
+                "x": 738.21875,
+                "y": 627,
+                "width": 47.453125,
+                "height": 16,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/wall-optimistic-pending.png",
+              "sha256": "53d82232bf11f6ef99a3ca104d0d7e5b77accaca99d14173ad8bae0f47b268f1",
+              "bytes": 62520,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "create-event-form-default",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 285,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title",
+                "missing": false,
+                "x": 106,
+                "y": 123,
+                "width": 580,
+                "height": 52,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-when",
+                "missing": false,
+                "x": 34,
+                "y": 185,
+                "width": 652,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-location",
+                "missing": false,
+                "x": 34,
+                "y": 239,
+                "width": 652,
+                "height": 44,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-description",
+                "missing": false,
+                "x": 34,
+                "y": 293,
+                "width": 652,
+                "height": 62,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 34,
+                "y": 365,
+                "width": 652,
+                "height": 43,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.7
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/create-event-form-default.png",
+              "sha256": "7756b7af79a011ae69762d2a082444fefe91254581b3146e90a29af2bd16d783",
+              "bytes": 56870,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "create-event-form-validation-error",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "create-event-form",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 360,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "form-error-summary",
+                "missing": false,
+                "x": 34,
+                "y": 123,
+                "width": 652,
+                "height": 15,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-title-error",
+                "missing": false,
+                "x": 34,
+                "y": 210,
+                "width": 652,
+                "height": 15,
+                "display": "block",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "create-event-submit",
+                "missing": false,
+                "x": 34,
+                "y": 440,
+                "width": 652,
+                "height": 43,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 0.7
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/create-event-form-validation-error.png",
+              "sha256": "0833b6211661331fd0bd63c2a4a64fc2610557377795bf9578ec0ce31d4302c0",
+              "bytes": 62733,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "options-menu-open",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "event-options-trigger",
+                "missing": false,
+                "x": 1152.453125,
+                "y": 38,
+                "width": 89.546875,
+                "height": 31,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-menu",
+                "missing": false,
+                "x": 1022,
+                "y": 77,
+                "width": 220,
+                "height": 129,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "event-options-first-item",
+                "missing": false,
+                "x": 1031,
+                "y": 86,
+                "width": 202,
+                "height": 37,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": {
+                "rightDelta": 0,
+                "verticalGap": 8
+              },
+              "contained": [
+                {
+                  "id": "event-options-menu",
+                  "rect": {
+                    "left": 1022,
+                    "top": 77,
+                    "right": 1242,
+                    "bottom": 206,
+                    "width": 220,
+                    "height": 129
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/options-menu-open.png",
+              "sha256": "f89e7c57b50d7dedabadc5038ae82baad7bb2cbf6f7d2fae361075cf83a3fa9a",
+              "bytes": 62844,
+              "approval": "pending-human-review"
+            }
+          },
+          {
+            "state": "rsvp-confirm-dialog-open",
+            "theme": "dark",
+            "viewport": "expanded",
+            "specVersion": "partitime.visual.v1",
+            "structural": [
+              {
+                "id": "rsvp-trigger",
+                "missing": false,
+                "x": 851.671875,
+                "y": 598,
+                "width": 357.328125,
+                "height": 32,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm-dialog",
+                "missing": false,
+                "x": 0,
+                "y": 0,
+                "width": 460,
+                "height": 184,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-confirm",
+                "missing": false,
+                "x": 362.875,
+                "y": 115,
+                "width": 67.125,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              },
+              {
+                "id": "rsvp-cancel",
+                "missing": false,
+                "x": 290.046875,
+                "y": 115,
+                "width": 62.828125,
+                "height": 39,
+                "display": "flex",
+                "visibility": "visible",
+                "opacity": 1
+              }
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "rsvp-confirm-dialog",
+                  "rect": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 460,
+                    "bottom": 184,
+                    "width": 460,
+                    "height": 184
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": {
+              "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/dark/expanded/rsvp-confirm-dialog-open.png",
+              "sha256": "4710af0edaf6f330be7041b63a8e6bf6e2ce914837cfaca73f94ceb6eb1ba993",
+              "bytes": 57120,
+              "approval": "pending-human-review"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "expectedChecks": 1,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
