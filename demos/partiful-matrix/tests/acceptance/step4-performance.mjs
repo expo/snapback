@@ -82,15 +82,13 @@ try {
   if (runWeb) {
     const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partitime-perf-' });
     cleanups.push(() => chrome.stop());
-    const cdp = await connectCdp(chrome.ws);
-    cleanups.push(() => cdp.close());
     for (const cell of cells) {
       const health = gateway.preflight.backends?.[cell.backend];
       assert(health?.ok === true, `backend preflight failed for ${cell.backend}: ${JSON.stringify(health)}`);
       buildMeasurementCell(cell, snapbackUrl, gateway.url);
       const preview = await startPreview(cell, snapbackUrl, gateway.url);
       try {
-        cellReceipts[cellId(cell)] = await measureWebCell(cdp, cell, preview.url);
+        cellReceipts[cellId(cell)] = await measureWebCell(chrome.ws, cell, preview.url);
       } finally {
         await preview.stop();
       }
@@ -144,15 +142,15 @@ report.ok = report.claimEligible && (
 writeMachineReport(relative(repoRoot, output), report);
 console.log(JSON.stringify(report));
 
-async function measureWebCell(cdp, cell, previewUrl) {
+async function measureWebCell(cdpUrl, cell, previewUrl) {
   const cold = [];
   const warm = [];
   for (let index = 0; index < warmups + samples; index += 1) {
     const measured = index >= warmups;
     const turn = measured ? `sample-${index - warmups + 1}` : `warmup-${index + 1}`;
-    const coldSample = await measureNavigation(cdp, cell, previewUrl, { warm: false, turn });
+    const coldSample = await measureNavigation(cdpUrl, cell, previewUrl, { warm: false, turn });
     if (measured) cold.push(coldSample);
-    const warmSample = await measureNavigation(cdp, cell, previewUrl, { warm: true, turn });
+    const warmSample = await measureNavigation(cdpUrl, cell, previewUrl, { warm: true, turn });
     if (measured) warm.push(warmSample);
   }
   return {
@@ -173,9 +171,14 @@ async function measureWebCell(cdp, cell, previewUrl) {
   };
 }
 
-async function measureNavigation(cdp, cell, previewUrl, { warm, turn }) {
-  const page = await cdp.newPage();
+async function measureNavigation(cdpUrl, cell, previewUrl, { warm, turn }) {
+  // A fresh browser-level socket per navigation prevents stale flattened
+  // target sessions from accumulating across the 216-navigation full matrix.
+  // Socket setup occurs before every in-page performance clock begins.
+  const cdp = await connectCdp(cdpUrl);
+  let page;
   try {
+    page = await cdp.newPage();
     await page.setCacheDisabled(!warm);
     if (!warm) await page.clearBrowserCache();
     if (warm) {
@@ -223,7 +226,11 @@ async function measureNavigation(cdp, cell, previewUrl, { warm, turn }) {
       update,
     };
   } finally {
-    await page.close();
+    try {
+      if (page) await page.close();
+    } finally {
+      cdp.close();
+    }
   }
 }
 
@@ -539,12 +546,12 @@ async function connectCdp(url) {
     socket.addEventListener('open', resolveOpen, { once: true });
     socket.addEventListener('error', () => reject(new Error('CDP connection failed')), { once: true });
   });
-  const send = (method, params = {}, sessionId = null) => new Promise((resolveSend, reject) => {
+  const send = (method, params = {}, sessionId = null, timeoutMs = 60_000) => new Promise((resolveSend, reject) => {
     const id = nextId++;
     const timer = setTimeout(() => {
       pending.delete(id);
       reject(new Error(`CDP timeout: ${method}`));
-    }, 60_000);
+    }, timeoutMs);
     pending.set(id, { resolve: resolveSend, reject, timer });
     socket.send(JSON.stringify(sessionId ? { id, method, params, sessionId } : { id, method, params }));
   });
@@ -603,7 +610,18 @@ async function connectCdp(url) {
           }
           throw new Error(`navigation timed out: ${pageUrl}`);
         },
-        close: () => send('Target.closeTarget', { targetId }),
+        close: async () => {
+          try {
+            const result = await send('Target.closeTarget', { targetId }, null, 5_000);
+            assert.notEqual(result.success, false, `Chrome refused to close target ${targetId}`);
+          } catch (error) {
+            // Chrome can destroy an attached target before delivering the
+            // closeTarget response. Verify absence rather than turning that
+            // successful cleanup race into a failed performance sample.
+            const { targetInfos = [] } = await send('Target.getTargets', {}, null, 5_000);
+            if (targetInfos.some((target) => target.targetId === targetId)) throw error;
+          }
+        },
         setCacheDisabled: (cacheDisabled) => send('Network.setCacheDisabled', { cacheDisabled }, sessionId),
         clearBrowserCache: () => send('Network.clearBrowserCache', {}, sessionId),
         resetNetworkBytes: async () => { networkBytes = 0; },
