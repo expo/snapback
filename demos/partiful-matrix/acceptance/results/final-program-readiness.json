@@ -1,0 +1,921 @@
+{
+  "schemaVersion": "partitime.final-program-readiness.v1",
+  "claimId": "FINAL.IMMUTABLE_REVISION_SET",
+  "ok": false,
+  "disposition": "not-ready",
+  "manifest": {
+    "path": "demos/partiful-matrix/acceptance/claims.v1.json",
+    "semanticSha256": "b459217907cbc2a1fb4f42c12bad959cdc98285543ba8e55cf6df2fb9afe6d0e",
+    "claimCount": 46,
+    "statusCounts": {
+      "failing": 9,
+      "passing": 32,
+      "pending": 5
+    },
+    "selfReferenceRule": "The final claim artifact and mutable statuses are excluded from the semantic digest; a later unreferenced cross-repository receipt binds the final full manifest bytes."
+  },
+  "artifactValidation": {
+    "checked": 45,
+    "allMatch": true,
+    "artifacts": [
+      {
+        "claimId": "STEP0.V0_DIAGNOSTICS",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.V0_RESET_SEED",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.V0_ATOMIC_SUBSCRIBE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.V0_DELIVERY_CONTROL",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.V0_CAPABILITY_GAPS",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.V0_ARTIFACT_FRESHNESS",
+        "path": "demos/partiful-matrix/acceptance/results/step0-v0-core.json",
+        "expectedSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "actualSha256": "2bc7607b0089ebf4db065ea46bacb98a8747ccbb8c5ffb3e71096fb2458a304a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.REQUIRED_SKIP_NONPASS",
+        "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
+        "expectedSha256": "350a90b6264a673dffba3e07d53009fae7008efd6754cadb4f2579831391daf5",
+        "actualSha256": "350a90b6264a673dffba3e07d53009fae7008efd6754cadb4f2579831391daf5",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.WEB_RENDERING",
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "expectedSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "actualSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.WEB_RSVP_CONVERGENCE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "expectedSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "actualSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.SNAPBACK_PUSH_PROVENANCE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "expectedSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "actualSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.VANILLA_LIFECYCLE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-vanilla-lifecycle.json",
+        "expectedSha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a",
+        "actualSha256": "b8b5d3e52b2e485bd32997aa13fc78dbb29f7aa85332113c659ad8c1d0ab888a",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.PACKAGE_PROVENANCE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
+        "expectedSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "actualSha256": "0472fed9a8ae98bff9dd83561048cef279daa3678f739f978191882359dbc66e",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.NATIVE_BASELINE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
+        "expectedSha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301",
+        "actualSha256": "9ba187d0b51c3d983065b09af21c4d901f0bb66c732110759f19466e8337c301",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.PROVIDER_ROW_SHAPE_SCOPE",
+        "path": "demos/partiful-matrix/README.md",
+        "expectedSha256": "41b94401888396345f8013a4ec694dbc35fd73cb08081aa3da18737474c1e254",
+        "actualSha256": "41b94401888396345f8013a4ec694dbc35fd73cb08081aa3da18737474c1e254",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.NO_EXACT_CORE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-no-exact-core.json",
+        "expectedSha256": "a64274b6bd8395ff98269cf04050883567acd95685bba8cfc591fe065b1f0a52",
+        "actualSha256": "a64274b6bd8395ff98269cf04050883567acd95685bba8cfc591fe065b1f0a52",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.SHARED_MANIFEST",
+        "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
+        "expectedSha256": "ed9204b1ae3fa0351078fddc798101811ea1076424bab98ed4356f89d211c10b",
+        "actualSha256": "ed9204b1ae3fa0351078fddc798101811ea1076424bab98ed4356f89d211c10b",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.COMPARISON_PROTOCOL",
+        "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+        "expectedSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
+        "actualSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.ATTRIBUTION_BASELINE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+        "expectedSha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa",
+        "actualSha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa",
+        "ok": true
+      },
+      {
+        "claimId": "STEP0.COMPLETE",
+        "path": "demos/partiful-matrix/acceptance/results/step0-complete.json",
+        "expectedSha256": "6b580348e92a9818effaccdf81866c4682122314ffa78df80dc01ceda11090e2",
+        "actualSha256": "6b580348e92a9818effaccdf81866c4682122314ffa78df80dc01ceda11090e2",
+        "ok": true
+      },
+      {
+        "claimId": "STEP1.KEYED_SCOPES",
+        "path": "demos/partiful-matrix/acceptance/results/step1-keyed-scopes.json",
+        "expectedSha256": "159723599ae11652032c66a55ccd848091bd6503b8b51ba45cfa8454e99e460f",
+        "actualSha256": "159723599ae11652032c66a55ccd848091bd6503b8b51ba45cfa8454e99e460f",
+        "ok": true
+      },
+      {
+        "claimId": "STEP1.MUTATION_PROJECTION",
+        "path": "demos/partiful-matrix/acceptance/results/step1-mutation-projection.json",
+        "expectedSha256": "506bb02afaf7bbeabdb0a24ddc6028b297f511f3bbc88a2bf4615fef5eb65fa1",
+        "actualSha256": "506bb02afaf7bbeabdb0a24ddc6028b297f511f3bbc88a2bf4615fef5eb65fa1",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.REACT_WEB",
+        "path": "demos/partiful-matrix/acceptance/results/step2-react.json",
+        "expectedSha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc",
+        "actualSha256": "f5228776e0eb6165429cdd9dc6b6a927cd930fd1604d788e37a6c070fc52c8fc",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.VANILLA",
+        "path": "demos/partiful-matrix/acceptance/results/step2-vanilla.json",
+        "expectedSha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b",
+        "actualSha256": "488cd558195323cef1d7f3b31bb6df7bf29b3edb2498c775db5c91185976cf9b",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.REACT_EXPO_IOS_ONLINE",
+        "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-ios.json",
+        "expectedSha256": "e2b6e4f80978ff8c0e4992037f64869d38684683fb21d5e17bc3d03803acfd11",
+        "actualSha256": "e2b6e4f80978ff8c0e4992037f64869d38684683fb21d5e17bc3d03803acfd11",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.REACT_EXPO_ANDROID_ONLINE",
+        "path": "demos/partiful-matrix/acceptance/results/step2-react-expo-android.json",
+        "expectedSha256": "9f9509f6b80ccde05264001cf2390abfbf86961c9019833f569590aa7dfa9390",
+        "actualSha256": "9f9509f6b80ccde05264001cf2390abfbf86961c9019833f569590aa7dfa9390",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.CONTRACT_IOS_PARITY",
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-ios.json",
+        "expectedSha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5",
+        "actualSha256": "906e822d325fc6f310c750a7a0f7a861f634e6387db3b56d90aa42ea758f7fa5",
+        "ok": true
+      },
+      {
+        "claimId": "STEP2.CONTRACT_ANDROID_PARITY",
+        "path": "demos/partiful-matrix/acceptance/results/step2-exact-native-android.json",
+        "expectedSha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c",
+        "actualSha256": "e4bae6ff7140e4223423e5368fbe763eebea0a567197d62797885981028c2b4c",
+        "ok": true
+      },
+      {
+        "claimId": "STEP3.PROVIDER_BOUNDARY",
+        "path": "demos/partiful-matrix/acceptance/results/step3-provider-boundary.json",
+        "expectedSha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1",
+        "actualSha256": "1dcb0f17b3a93ca20b7dea5174d687a5426a92061a792f1f5aabea8708b858c1",
+        "ok": true
+      },
+      {
+        "claimId": "STEP3.DIAGNOSTICS",
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "expectedSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "actualSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "ok": true
+      },
+      {
+        "claimId": "STEP3.REACT_CONTRACT_PARITY",
+        "path": "demos/partiful-matrix/acceptance/results/step3-diagnostics-parity.json",
+        "expectedSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "actualSha256": "7291890ced2f86b49b7dd3833fd52fdd5b2aeaede1ed59727718ab8745cb2079",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.RESPONSIVE",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.KEYBOARD",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.FOCUS",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.REDUCED-MOTION",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.A11Y",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.UI.VISUAL",
+        "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+        "expectedSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "actualSha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.PRODUCT_UI",
+        "path": "demos/partiful-matrix/acceptance/results/step4-product-ui.json",
+        "expectedSha256": "2cbd2e9828670cc79a315e2eccce631d1d4dae5a0dce83af92b669a214bb4dec",
+        "actualSha256": "2cbd2e9828670cc79a315e2eccce631d1d4dae5a0dce83af92b669a214bb4dec",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.PRODUCTION_WEB",
+        "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+        "expectedSha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1",
+        "actualSha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1",
+        "ok": true
+      },
+      {
+        "claimId": "STEP4.BUDGETS",
+        "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+        "expectedSha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90",
+        "actualSha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90",
+        "ok": true
+      },
+      {
+        "claimId": "STEP5.PACKAGED_LOOP",
+        "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+        "expectedSha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56",
+        "actualSha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56",
+        "ok": true
+      },
+      {
+        "claimId": "STEP5.DECLARATION_REDUCTION",
+        "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
+        "expectedSha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68",
+        "actualSha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68",
+        "ok": true
+      },
+      {
+        "claimId": "STEP6.CHAT",
+        "path": "demos/partiful-matrix/acceptance/results/step6-chat-entry-status.json",
+        "expectedSha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4",
+        "actualSha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4",
+        "ok": true
+      },
+      {
+        "claimId": "STEP6.DOCUMENTS",
+        "path": "demos/partiful-matrix/acceptance/results/step6-documents-entry-status.json",
+        "expectedSha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b",
+        "actualSha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b",
+        "ok": true
+      },
+      {
+        "claimId": "STEP6.COMMERCE",
+        "path": "demos/partiful-matrix/acceptance/results/step6-commerce-entry-status.json",
+        "expectedSha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c",
+        "actualSha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c",
+        "ok": true
+      },
+      {
+        "claimId": "FINAL.EXACT_AGENT_OPERABILITY",
+        "path": "demos/partiful-matrix/acceptance/results/final-exact-agent-operability.json",
+        "expectedSha256": "e3732b745da6548a24c92eab5bc7d1be784e08f543a2d1539da13f8152e804ca",
+        "actualSha256": "e3732b745da6548a24c92eab5bc7d1be784e08f543a2d1539da13f8152e804ca",
+        "ok": true
+      }
+    ]
+  },
+  "immutableRevisionSet": {
+    "snapbackRevision": null,
+    "exactRevision": null,
+    "complete": false
+  },
+  "outcomes": {
+    "web-only": {
+      "mandatoryClaimCount": 24,
+      "prerequisiteCount": 23,
+      "passingPrerequisiteCount": 10,
+      "nonPassing": [
+        {
+          "id": "STEP4.UI.RESPONSIVE",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.KEYBOARD",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.FOCUS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.REDUCED-MOTION",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.A11Y",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.VISUAL",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.PRODUCTION_WEB",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+            "sha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1"
+          }
+        },
+        {
+          "id": "STEP4.BUDGETS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+            "sha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90"
+          }
+        },
+        {
+          "id": "STEP5.PACKAGED_LOOP",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+            "sha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56"
+          }
+        },
+        {
+          "id": "STEP5.DECLARATION_REDUCTION",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
+            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+          }
+        },
+        {
+          "id": "STEP6.CHAT",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-chat-entry-status.json",
+            "sha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4"
+          }
+        },
+        {
+          "id": "STEP6.DOCUMENTS",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-documents-entry-status.json",
+            "sha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b"
+          }
+        },
+        {
+          "id": "STEP6.COMMERCE",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-commerce-entry-status.json",
+            "sha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c"
+          }
+        }
+      ],
+      "prerequisitesPass": false
+    },
+    "online-native": {
+      "mandatoryClaimCount": 26,
+      "prerequisiteCount": 25,
+      "passingPrerequisiteCount": 12,
+      "nonPassing": [
+        {
+          "id": "STEP4.UI.RESPONSIVE",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.KEYBOARD",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.FOCUS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.REDUCED-MOTION",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.A11Y",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.VISUAL",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.PRODUCTION_WEB",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+            "sha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1"
+          }
+        },
+        {
+          "id": "STEP4.BUDGETS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+            "sha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90"
+          }
+        },
+        {
+          "id": "STEP5.PACKAGED_LOOP",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+            "sha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56"
+          }
+        },
+        {
+          "id": "STEP5.DECLARATION_REDUCTION",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
+            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+          }
+        },
+        {
+          "id": "STEP6.CHAT",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-chat-entry-status.json",
+            "sha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4"
+          }
+        },
+        {
+          "id": "STEP6.DOCUMENTS",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-documents-entry-status.json",
+            "sha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b"
+          }
+        },
+        {
+          "id": "STEP6.COMMERCE",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-commerce-entry-status.json",
+            "sha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c"
+          }
+        }
+      ],
+      "prerequisitesPass": false
+    },
+    "full-north-star": {
+      "mandatoryClaimCount": 26,
+      "prerequisiteCount": 25,
+      "passingPrerequisiteCount": 12,
+      "nonPassing": [
+        {
+          "id": "STEP4.UI.RESPONSIVE",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.KEYBOARD",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.FOCUS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.REDUCED-MOTION",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.A11Y",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.UI.VISUAL",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-ui-matrix.json",
+            "sha256": "d05b3cf6f1aa03ee0d3ced7c530fdfeff01dde4d1bc1d3d9c2b14dca98b4b089"
+          }
+        },
+        {
+          "id": "STEP4.PRODUCTION_WEB",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-production-web.json",
+            "sha256": "c67fd4ae015ff865c1b41038b1c51bce2b179d6e34237394ca205a9ada971fc1"
+          }
+        },
+        {
+          "id": "STEP4.BUDGETS",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step4-budgets.json",
+            "sha256": "07f0d5ccf7d5a294a2f9bd6ee55057b982664686926bf99ae33d8a70b6431c90"
+          }
+        },
+        {
+          "id": "STEP5.PACKAGED_LOOP",
+          "status": "failing",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-packaged-loop.json",
+            "sha256": "26847988beb5afe0cfc076627e5adb33b10966f9ad69b2e8802a2d43020a6a56"
+          }
+        },
+        {
+          "id": "STEP5.DECLARATION_REDUCTION",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
+            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+          }
+        },
+        {
+          "id": "STEP6.CHAT",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-chat-entry-status.json",
+            "sha256": "911ec67041b34017e838bfb0400f49af79c450bf886cf537134a6acda7f012b4"
+          }
+        },
+        {
+          "id": "STEP6.DOCUMENTS",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-documents-entry-status.json",
+            "sha256": "f2018421afe51f4d4dcb4b2c92b2fd9396a9a7f62f5407a53e99d657d26c945b"
+          }
+        },
+        {
+          "id": "STEP6.COMMERCE",
+          "status": "pending",
+          "artifact": {
+            "path": "demos/partiful-matrix/acceptance/results/step6-commerce-entry-status.json",
+            "sha256": "fb121fb7d930e450e7be525a236d05db20a22c64ec3805b49200ee87765d880c"
+          }
+        }
+      ],
+      "prerequisitesPass": false
+    }
+  },
+  "blockers": [
+    {
+      "kind": "missing-final-snapback-revision"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.RESPONSIVE",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.FOCUS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.A11Y",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.UI.VISUAL",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.PRODUCTION_WEB",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP4.BUDGETS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP5.PACKAGED_LOOP",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP5.DECLARATION_REDUCTION",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP6.CHAT",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP6.DOCUMENTS",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "web-only",
+      "claimId": "STEP6.COMMERCE",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.RESPONSIVE",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.FOCUS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.A11Y",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.UI.VISUAL",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.PRODUCTION_WEB",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP4.BUDGETS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP5.PACKAGED_LOOP",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP5.DECLARATION_REDUCTION",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP6.CHAT",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP6.DOCUMENTS",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "online-native",
+      "claimId": "STEP6.COMMERCE",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.RESPONSIVE",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.FOCUS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.A11Y",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.UI.VISUAL",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.PRODUCTION_WEB",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP4.BUDGETS",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP5.PACKAGED_LOOP",
+      "status": "failing"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP5.DECLARATION_REDUCTION",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP6.CHAT",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP6.DOCUMENTS",
+      "status": "pending"
+    },
+    {
+      "kind": "mandatory-claim-not-passing",
+      "outcome": "full-north-star",
+      "claimId": "STEP6.COMMERCE",
+      "status": "pending"
+    }
+  ],
+  "rule": "Every frozen mandatory claim must pass on one immutable two-repository revision set; no outcome may infer or waive a missing claim."
+}
