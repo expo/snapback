@@ -39,7 +39,7 @@
       "registeredCommand": "bun test scripts/__tests__/check-snapback-partitime-manifest.test.ts && bun scripts/check-snapback-partitime-manifest.mjs",
       "registry": {
         "path": "exact-verify.json",
-        "sha256": "152b8aee53a1e9d58ad2dde82dbad993198af648f66a467b0166425a197ab66c"
+        "sha256": "a497d4085edbb05eb8ad4a5ec76e57069725c26e75878abb0a994d1ec830f42b"
       },
       "resultSchemaVersion": "partitime.exact-manifest-mirror-validation.v1"
     },
@@ -59,11 +59,11 @@
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "19ef616c4e60a13741657d66367285fd2c2df8544e409c7b56c624f5cb3e00d0"
+      "sha256": "d5a8f455b075357d49efa760ba0df2750a7d0e3d18294986309ce48c361bc1ff"
     }
   },
   "exact": {
-    "revision": "5e522730da8a344a288c57707550028edbfe420f",
+    "revision": "a7b3f1be669d0b82f117e4a4433527ef30ae5ba6",
     "dirty": false
   },
   "inputs": {
