@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_SAFARI",
-  "recordedAt": "2026-07-21T21:51:54.730Z",
+  "recordedAt": "2026-07-22T01:51:15.321Z",
   "repository": {
-    "revision": "8fe7376d41db94dd6e936409260164319365a8f2",
+    "revision": "b6b130bab99b2bb6c08971af7fc4984d9d10e3c3",
     "dirty": false
   },
   "claimEligible": true,
@@ -55,32 +55,21 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
-      "sha256": "225907898e564401650367e7686784438f32077338b0a14f15e5d4080755cf1b",
-      "bytes": 15159
+      "sha256": "1c142a4fb8606ef5c8d5c57c0bff2307981b9bf8f06855203c27ae53f78a9994",
+      "bytes": 15582
     }
   ],
   "missingPrerequisites": [],
   "title": "Partitime / desktop safari citizenship",
   "passed": 0,
   "skipped": 0,
-  "failed": 2,
-  "total": 2,
+  "failed": 0,
+  "total": 0,
   "ok": false,
-  "results": [
-    {
-      "name": "contract × snapback traps and restores focus in desktop safari",
-      "ok": false,
-      "error": "focus scope mismatch: {\"initial\":\"create-close\",\"reverseWrapped\":\"create-submit\",\"forwardWrapped\":\"create-close\",\"afterEscape\":{\"overlay\":false,\"active\":null}}",
-      "diagnostic": null
-    },
-    {
-      "name": "contract × snapback exposes visible content to desktop safari find-on-page",
-      "ok": false,
-      "error": "native browser find did not expose the visible query: {\"found\":{\"anchor\":null,\"selection\":\"\"},\"nativeFind\":null}",
-      "diagnostic": null
-    }
-  ],
+  "results": [],
   "expectedChecks": 2,
+  "shortfall": "zero checks ran",
+  "setupError": "safari WebDriver POST /session failed: Could not create a session: The Safari instance is already paired with another WebDriver session.",
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }
