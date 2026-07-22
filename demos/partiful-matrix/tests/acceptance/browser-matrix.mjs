@@ -288,7 +288,7 @@ await runAcceptance(suite, async () => {
       await page.navigate(`${vite.url}/?user=eve`);
       if (phase4Only) {
         await waitForMatrixBoot(page);
-        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url });
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url, cdp });
         continue;
       }
       await suite.check(`${cell.arm} × ${cell.backend} boots its identified cell`, async () => {
@@ -340,7 +340,7 @@ await runAcceptance(suite, async () => {
       }
       if (productUi) {
         await runProductUiChecks({ suite, page, cell });
-        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url });
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url, cdp });
       }
     } finally {
       try { await page.close(); }
@@ -712,7 +712,7 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   }
 }
 
-async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl }) {
+async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl, cdp }) {
   const cellId = `${cell.arm}:${cell.backend}`;
   const label = `${cell.arm} × ${cell.backend}`;
 
@@ -737,71 +737,79 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl 
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
-    await page.setViewport(1280, 800);
-    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
-    await page.focus('create-event');
-    await page.key('Enter');
-    if (cell.arm === 'contract') await waitForMatrixBoot(page, 'keyboard create-route boot');
-    await page.pollText('create-panel', 'plan', 5_000);
-    await tabTo(page, (state) => state.testId === 'event-title');
-    await page.insertText('Keyboard Picnic');
-    await tabTo(page, (state) => state.testId === 'event-location');
-    await page.insertText('Dolores Park');
-    await tabTo(page, (state) => state.testId === 'create-event-submit');
-    await page.key('Enter');
-    const created = await page.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
-    if (!created?.includes('Keyboard Picnic')) throw new Error(`keyboard create flow did not land its outcome: ${created}`);
+    const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      await taskPage.focus('create-event');
+      await taskPage.key('Enter');
+      if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard create-route boot');
+      await taskPage.pollText('create-panel', 'plan', 5_000);
+      await tabTo(taskPage, (state) => state.testId === 'event-title');
+      await taskPage.insertText('Keyboard Picnic');
+      await tabTo(taskPage, (state) => state.testId === 'event-location');
+      await taskPage.insertText('Dolores Park');
+      await tabTo(taskPage, (state) => state.testId === 'create-event-submit');
+      await taskPage.key('Enter');
+      const outcome = await taskPage.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
+      if (!outcome?.includes('Keyboard Picnic')) throw new Error(`keyboard create flow did not land its outcome: ${outcome}`);
+      return 'Keyboard Picnic';
+    });
 
-    // Reset to the canonical route after proving the create outcome so the
-    // remaining keyboard sub-flow is independent of the newly created row.
-    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
-    await page.focus('open-event_sunset');
-    await page.key('Enter');
-    if (cell.arm === 'contract') await waitForMatrixBoot(page, 'keyboard open-event boot');
-    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+    const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
+      await taskPage.focus('open-event_sunset');
+      await taskPage.key('Enter');
+      if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard open-event boot');
+      await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
+      await taskPage.focus('event-options-trigger');
+      await taskPage.key('Enter');
+      await taskPage.pollText('event-options-menu', 'Copy invite link', 5_000);
+      await taskPage.eval('new Promise(r=>requestAnimationFrame(r))');
+      const first = await taskPage.active();
+      await taskPage.key('ArrowDown');
+      const second = await taskPage.active();
+      if (!first?.insideMenu || !second?.insideMenu || second.testId === first.testId || second.text === first.text) throw new Error(`menu arrow navigation failed: ${JSON.stringify({ first, second })}`);
+      await taskPage.key('Escape');
+      await assertFocused(taskPage, 'event-options-trigger', 'menu Escape');
+      return { first, second };
+    });
 
-    await page.focus('event-options-trigger');
-    await page.key('Enter');
-    await page.pollText('event-options-menu', 'Copy invite link', 5_000);
-    await page.eval('new Promise(r=>requestAnimationFrame(r))');
-    const menuFirst = await page.active();
-    await page.key('ArrowDown');
-    const menuSecond = await page.active();
-    if (!menuFirst?.insideMenu || !menuSecond?.insideMenu || menuSecond.testId === menuFirst.testId || menuSecond.text === menuFirst.text) {
-      throw new Error(`menu arrow navigation failed: ${JSON.stringify({ menuFirst, menuSecond })}`);
-    }
-    await page.key('Escape');
-    await assertFocused(page, 'event-options-trigger', 'menu Escape');
+    const rsvp = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.focus('rsvp-going');
+      await taskPage.key('Space');
+      const outcome = await taskPage.pollText('guest-user_eve', 'Going', 5_000);
+      if (!outcome?.includes('Going')) throw new Error(`Space did not activate RSVP: ${outcome}`);
+      return outcome;
+    });
 
-    await page.focus('rsvp-going');
-    await page.key('Space');
-    const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
-    if (!rsvp?.includes('Going')) throw new Error(`Space did not activate RSVP: ${rsvp}`);
+    const guest = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.focus('guest-list-trigger');
+      await taskPage.key('Enter');
+      await taskPage.pollText('guest-list-sheet', 'Guest list', 5_000);
+      await tabTo(taskPage, (state) => state.role === 'listbox' || (state.testId?.startsWith('guest-sheet-') && state.role === 'option'));
+      const first = await taskPage.active();
+      const firstDescendant = await taskPage.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+      await taskPage.key('ArrowDown');
+      const second = await taskPage.active();
+      const secondDescendant = await taskPage.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+      const moved = first.role === 'listbox'
+        ? firstDescendant && secondDescendant && firstDescendant !== secondDescendant
+        : second.testId !== first.testId && second.role === 'option';
+      if (!moved) throw new Error(`guest-list arrow navigation failed: ${JSON.stringify({ first, second, firstDescendant, secondDescendant })}`);
+      await taskPage.key('Escape');
+      await assertFocused(taskPage, 'guest-list-trigger', 'guest sheet Escape');
+      return { first, second, firstDescendant, secondDescendant };
+    });
 
-    await page.focus('guest-list-trigger');
-    await page.key('Enter');
-    await page.pollText('guest-list-sheet', 'Guest list', 5_000);
-    await tabTo(page, (state) => state.role === 'listbox' || (state.testId?.startsWith('guest-sheet-') && state.role === 'option'));
-    const guestFirst = await page.active();
-    const guestFirstDescendant = await page.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
-    await page.key('ArrowDown');
-    const guestSecond = await page.active();
-    const guestSecondDescendant = await page.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
-    const moved = guestFirst.role === 'listbox'
-      ? guestFirstDescendant && guestSecondDescendant && guestFirstDescendant !== guestSecondDescendant
-      : guestSecond.testId !== guestFirst.testId && guestSecond.role === 'option';
-    if (!moved) throw new Error(`guest-list arrow navigation failed: ${JSON.stringify({ guestFirst, guestSecond, guestFirstDescendant, guestSecondDescendant })}`);
-    await page.key('Escape');
-    await assertFocused(page, 'guest-list-trigger', 'guest sheet Escape');
+    const wall = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
+      await taskPage.focus('wall-message');
+      await taskPage.insertText('Keyboard picnic');
+      await taskPage.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
+      await taskPage.key('Enter');
+      const pending = await taskPage.eval(`(async()=>{const d=Date.now()+2000;while(!window.__phase4PendingWitness?.witness.seen&&Date.now()<d)await new Promise(r=>setTimeout(r,20));const result=window.__phase4PendingWitness?.witness??null;window.__phase4PendingWitness?.observer.disconnect();delete window.__phase4PendingWitness;return result})()`);
+      const posted = await taskPage.pollText('wall', 'Keyboard picnic', 5_000);
+      if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
+      return { pending, posted: 'Keyboard picnic' };
+    });
 
-    await page.focus('wall-message');
-    await page.insertText('Keyboard picnic');
-    await page.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
-    await page.key('Enter');
-    const pending = await page.eval(`(async()=>{const d=Date.now()+2000;while(!window.__phase4PendingWitness?.witness.seen&&Date.now()<d)await new Promise(r=>setTimeout(r,20));const result=window.__phase4PendingWitness?.witness??null;window.__phase4PendingWitness?.observer.disconnect();delete window.__phase4PendingWitness;return result})()`);
-    const posted = await page.pollText('wall', 'Keyboard picnic', 5_000);
-    if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
-    return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, menuFirst, menuSecond, guestFirst, guestSecond, guestFirstDescendant, guestSecondDescendant, rsvp, pending, posted: 'Keyboard picnic', created: 'Keyboard Picnic' };
+    return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, created, menu, rsvp, guest, wall };
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.FOCUS', `${label} traps and restores every overlay`, async () => {
@@ -898,6 +906,17 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl 
 async function phase4Claim(activeSuite, claimId, title, check) {
   if (selectedPhase4Claim && selectedPhase4Claim !== claimId) return;
   return activeSuite.check(`${claimId} ${title}`, check);
+}
+
+async function withPhase4KeyboardPage(cdp, cell, baseUrl, pathname, run) {
+  const taskPage = await cdp.newPage();
+  try {
+    await taskPage.setViewport(1280, 800);
+    await loadPhase4Route(taskPage, cell, baseUrl, pathname, { user: 'eve' });
+    return await run(taskPage);
+  } finally {
+    await taskPage.close();
+  }
 }
 
 async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {

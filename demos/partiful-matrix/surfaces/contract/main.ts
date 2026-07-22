@@ -83,51 +83,6 @@ function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
   const el = document.getElementById('boot-status'); if (el) { el.textContent = message; el.dataset.state = state; }
 }
 
-function installPartitimeListboxSemantics(root: HTMLElement): () => void {
-  const decorate = (listbox: HTMLElement) => {
-    listbox.tabIndex = 0;
-    const options = [...listbox.querySelectorAll<HTMLElement>('[role="option"]')];
-    if (options.length === 0) return;
-    const idPrefix = listbox.dataset.testid ?? 'partitime-listbox';
-    for (const [index, option] of options.entries()) {
-      // The current packaged DOM host does not yet project Contract's
-      // nativeID attribute for non-interactive row nodes. Supply stable DOM
-      // ids at the application adapter boundary so aria-activedescendant is
-      // valid without turning options into nested buttons.
-      if (!option.id) option.id = `${idPrefix}-option-${index}`;
-    }
-    const activeId = listbox.getAttribute('aria-activedescendant');
-    const active = options.find((option) => option.id === activeId) ?? options[0]!;
-    listbox.setAttribute('aria-activedescendant', active.id);
-    for (const option of options) option.setAttribute('aria-selected', option === active ? 'true' : 'false');
-  };
-  const decorateTarget = (event: Event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    const listbox = target?.closest<HTMLElement>('[role="listbox"]');
-    if (listbox) decorate(listbox);
-  };
-  const decorateAll = () => {
-    for (const listbox of root.querySelectorAll<HTMLElement>('[role="listbox"]')) decorate(listbox);
-  };
-  const decorateAfterActivation = (event: Event) => {
-    const target = event.target instanceof HTMLElement ? event.target : null;
-    if (target?.dataset.testid === 'guest-list-trigger' || target?.closest('[role="listbox"]')) {
-      requestAnimationFrame(decorateAll);
-    }
-  };
-  decorateAll();
-  root.addEventListener('focusin', decorateTarget);
-  root.addEventListener('keydown', decorateTarget, true);
-  root.addEventListener('keydown', decorateAfterActivation);
-  root.addEventListener('click', decorateAfterActivation);
-  return () => {
-    root.removeEventListener('focusin', decorateTarget);
-    root.removeEventListener('keydown', decorateTarget, true);
-    root.removeEventListener('keydown', decorateAfterActivation);
-    root.removeEventListener('click', decorateAfterActivation);
-  };
-}
-
 function normalizedBasePath(): string {
   const rooted = __PARTITIME_BASE_PATH__.startsWith('/') ? __PARTITIME_BASE_PATH__ : `/${__PARTITIME_BASE_PATH__}`;
   return rooted.endsWith('/') ? rooted : `${rooted}/`;
@@ -325,13 +280,11 @@ async function boot() {
   // clears the global slot. The provider records its close event during disposal,
   // and the acceptance harness reads that retained evidence afterward.
   const evidenceSource = surface;
-  const disposeListboxSemantics = installPartitimeListboxSemantics(root);
   active = {
     provider: surface.provider,
     transportEvidence: surface.transportEvidence,
     hydrationEvidence: () => hydrationProvider?.evidence() ?? null,
     async dispose() {
-      disposeListboxSemantics();
       mounted?.dispose();
       mounted = null;
       host?.dispose();
