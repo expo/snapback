@@ -285,11 +285,35 @@ function measureProductionBuild(cell) {
 
 async function measureIncrementalBuilds(cell) {
   const surface = join(demoRoot, 'surfaces', cell.arm);
-  const viteEntry = join(surface, 'node_modules', 'vite', 'dist', 'node', 'index.js');
-  const { build } = await import(pathToFileURL(viteEntry).href);
-  const probeDir = mkdtempSync(join(tmpdir(), `partitime-watch-${cell.arm}-${cell.backend}-`));
+  const probeDir = mkdtempSync(cell.arm === 'contract'
+    ? join(surface, `.partitime-watch-${cell.backend}-`)
+    : join(tmpdir(), `partitime-watch-${cell.arm}-${cell.backend}-`));
   const probe = join(probeDir, 'probe.txt');
   writeFileSync(probe, '0\n');
+  if (cell.arm === 'contract') {
+    try {
+      const worker = join(here, 'step4-incremental-build-worker.mjs');
+      const outDir = join(probeDir, 'dist');
+      const child = spawnSync('bun', [
+        worker,
+        '--surface', surface,
+        '--config', configPath(cell.arm),
+        '--backend', cell.backend,
+        '--out-dir', outDir,
+        '--probe', probe,
+        '--warmups', String(warmups),
+        '--samples', String(samples),
+      ], { cwd: surface, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+      assert.equal(child.status, 0, `${cellId(cell)} incremental build worker failed: ${(child.stderr ?? '').slice(-4000)}`);
+      const events = JSON.parse((child.stdout ?? '').trim());
+      assert.equal(events.length, samples, `${cellId(cell)} incremental worker returned ${events.length} samples`);
+      return events;
+    } finally {
+      rmSync(probeDir, { recursive: true, force: true });
+    }
+  }
+  const viteEntry = join(surface, 'node_modules', 'vite', 'dist', 'node', 'index.js');
+  const { build } = await import(pathToFileURL(viteEntry).href);
   let rebuildSequence = 0;
   const plugin = {
     name: 'partitime-incremental-build-probe',
@@ -620,16 +644,24 @@ async function connectCdp(url) {
 
 function observerSource() {
   return `(()=>{
-    const state={firstUiAt:null,authoritativeAt:null,liveAt:null,recording:false,targets:new Set(),patches:0};
+    const state={firstUiAt:null,authoritativeAt:null,liveAt:null,bootReadyAt:null,recording:false,targets:new Set(),patches:0};
     const scan=()=>{
       const now=performance.now();
-      if(state.firstUiAt==null&&document.querySelector('[data-testid="product-shell"]'))state.firstUiAt=now;
+      if(state.firstUiAt==null&&document.querySelector('[data-testid="product-shell"],#root>.app-shell'))state.firstUiAt=now;
       const ready=document.querySelector('[data-testid="event-card-event_sunset"]');
       if(state.authoritativeAt==null&&ready&&ready.textContent?.trim())state.authoritativeAt=now;
       const connection=document.querySelector('[data-testid="connection"]')?.textContent?.toLowerCase()??'';
-      const bootReady=document.querySelector('#boot-status')?.getAttribute('data-state')==='ready';
-      if(state.liveAt==null&&state.authoritativeAt!=null&&bootReady&&(/live|polling/.test(connection)))state.liveAt=now;
+      if(state.liveAt==null&&state.authoritativeAt!=null&&state.bootReadyAt!=null&&(/live|polling/.test(connection)))state.liveAt=Math.max(now,state.bootReadyAt);
     };
+    let matrixReady;
+    Object.defineProperty(globalThis,'partifulMatrixReady',{
+      configurable:true,
+      get:()=>matrixReady,
+      set:(value)=>{
+        matrixReady=value;
+        Promise.resolve(value).then(()=>{if(state.bootReadyAt==null)state.bootReadyAt=performance.now();scan();},()=>{});
+      },
+    });
     const observer=new MutationObserver((records)=>{
       if(state.recording)for(const record of records){state.targets.add(record.target);state.patches+=record.type==='childList'?record.addedNodes.length+record.removedNodes.length:1;}
       scan();
@@ -637,7 +669,7 @@ function observerSource() {
     const start=()=>{observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});scan();};
     document.readyState==='loading'?addEventListener('DOMContentLoaded',start,{once:true}):start();
     globalThis.__partitimePerf={
-      snapshot:()=>({firstUiAt:state.firstUiAt,authoritativeAt:state.authoritativeAt,liveAt:state.liveAt}),
+      snapshot:()=>({firstUiAt:state.firstUiAt,authoritativeAt:state.authoritativeAt,liveAt:state.liveAt,bootReadyAt:state.bootReadyAt}),
       beginUpdate:()=>{state.recording=true;state.targets.clear();state.patches=0;return true;},
       endUpdate:()=>{state.recording=false;return{fanout:state.targets.size,patches:state.patches};},
     };
