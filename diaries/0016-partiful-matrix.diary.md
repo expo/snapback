@@ -1755,3 +1755,17 @@ That is 13,604 bytes below the nested-environment checkpoint and leaves 177,480
 bytes above threshold. The result confirms that closure/context duplication is
 material, while the remaining miss is still mainly executable/runtime state
 rather than one giant host object.
+
+## 2026-07-22 — asking for attribute objects created attribute objects
+
+The paired heap comparison also showed 178 more retained native `Attr`
+wrappers on the Contract page. The direct host's stale-attribute loop used
+`element.attributes`, which asks the browser to materialize object wrappers,
+then immediately threw those objects away after reading their names.
+
+The host now uses `getAttributeNames()`. Stale removal, hydration adoption, and
+presentation output are unchanged, and the direct-host suite passes. The same
+external quick probe measured 1,567,664 post-GC warm bytes with 6/8 update
+fan-out/patches, 3,916 bytes below shared event dispatch and still 173,564
+bytes over threshold. This was small but clean: browser object APIs can create
+retained wrapper cost even when application semantics only need strings.
