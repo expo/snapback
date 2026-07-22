@@ -104,6 +104,14 @@ node demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.
 
 Safari must have Develop → Allow Remote Automation enabled by the machine
 owner. `safaridriver --enable` requests an administrator password; the gate
-does not bypass that setting or convert its absence into a skip. Only green,
-clean-checkout receipts matching the currently installed browser version are
-admitted by the cumulative collector.
+does not bypass that setting or convert its absence into a skip. Because Safari
+does not focus buttons on mouse click, its focus probe explicitly focuses the
+opener and uses a WebDriver Enter key before testing trap, wrap, Escape, and
+restoration; activation still comes from the browser's keyboard path, not a
+JavaScript click.
+
+Desktop receipts must be complete, clean-checkout, zero-skip, zero-cleanup
+runs matching the currently installed browser version. The cumulative
+collector admits each passing check independently from such a receipt and
+keeps every failed or missing check red. A passing Safari focus result therefore
+cannot conceal a failing Safari native-find result.

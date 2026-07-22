@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T21:31:43.616Z",
+  "recordedAt": "2026-07-22T01:56:06.813Z",
   "repository": {
-    "snapbackRevision": "a3baead7228ca58b6fa478f2de80aeb87158a084",
+    "snapbackRevision": "9d477bc51cadff5e87538ddf3cadefbc18b1982e",
     "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
   },
   "inputs": {
@@ -27,7 +27,7 @@
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-      "sha256": "7e91e770ecf68dda92fc227aed2567ce8f49197704478dbe91192b096886713f"
+      "sha256": "dea9055b32445d9ec73936ff0629516699f77e5b7e5cb89dd2cdb39b75919248"
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
@@ -506,7 +506,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
-          "sha256": "7e91e770ecf68dda92fc227aed2567ce8f49197704478dbe91192b096886713f"
+          "sha256": "dea9055b32445d9ec73936ff0629516699f77e5b7e5cb89dd2cdb39b75919248"
         },
         "issues": [
           "receipt-not-green"
@@ -680,13 +680,33 @@
           {
             "environment": "desktop-safari",
             "assertion": "focus-trap-restore",
-            "acceptedFixtures": [
-              "partitime-create-dialog"
+            "fixture": "partitime-create-dialog",
+            "status": "pass",
+            "notes": "Fresh Safari WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+            "evidence": [
+              {
+                "kind": "machine-receipt",
+                "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+                "sha256": "83a0da6b5af7fa7484991c6a9a91a133a0098bb72e984aa6bfec8399c90a89e1",
+                "result": "contract × snapback traps and restores focus in desktop safari"
+              }
             ],
-            "status": "red",
-            "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-            "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-            "evidence": []
+            "browser": {
+              "name": "Safari",
+              "version": "26.5.2"
+            },
+            "os": {
+              "name": "desktop host",
+              "version": "darwin-25.5.0-arm64"
+            },
+            "channel": null,
+            "details": {
+              "initial": "create-close",
+              "reverseWrapped": "create-submit",
+              "forwardWrapped": "create-close",
+              "restored": "new-event",
+              "input": "WebDriver key actions"
+            }
           },
           {
             "environment": "desktop-safari",
@@ -709,13 +729,13 @@
               {
                 "kind": "machine-receipt",
                 "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-                "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7",
+                "sha256": "8895e81420e2823737455dcdc5fa7d22adf13119efea4b43f7799f212c639beb",
                 "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
               }
             ],
             "browser": {
               "name": "Google Chrome",
-              "version": "Google Chrome 150.0.7871.129"
+              "version": "Google Chrome 150.0.7871.130"
             },
             "os": {
               "name": "desktop host",
@@ -764,13 +784,13 @@
               {
                 "kind": "machine-receipt",
                 "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-                "sha256": "4462b0810f09b66bd87a60fe2ce6e6d20a455bbde029119ab8955f1215f281b6",
+                "sha256": "07e96623c7abc09086804d96531411b5a8913c7d8aec4f13759f670c400ab122",
                 "result": "contract × snapback exposes visible content to browser find-on-page"
               }
             ],
             "browser": {
               "name": "Google Chrome",
-              "version": "Google Chrome 150.0.7871.129"
+              "version": "Google Chrome 150.0.7871.130"
             },
             "os": {
               "name": "desktop host",
@@ -795,7 +815,7 @@
               {
                 "kind": "machine-receipt",
                 "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-                "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+                "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
                 "result": "contract × snapback traps and restores focus in desktop firefox"
               }
             ],
@@ -826,7 +846,7 @@
               {
                 "kind": "machine-receipt",
                 "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-                "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+                "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
                 "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
               }
             ],

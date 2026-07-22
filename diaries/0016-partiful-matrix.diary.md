@@ -1387,3 +1387,71 @@ for real mobile IME, password-manager/autofill, or bfcache behavior. Compared
 with React ecosystem test farms this is operationally heavier, but the
 strictness is useful: it distinguishes “the DOM looks compatible” from “the
 named shipping browser actually behaved correctly.”
+
+## 2026-07-21 — ratification turned the performance checklist into a red benchmark
+
+Charlie ratified `partitime-ws8-prospective-2026-07-21`, so the performance
+collector could finally cross the line from quick canary to claim-grade
+sampling. The clean calibration retained two warmups and seven observations
+for cold/warm startup, authoritative/live data, idle CPU/network, heap per
+logical subscription, update fan-out/patches, and fresh/incremental builds in
+all twelve cells. I committed that artifact before running holdout, and the
+holdout named the calibration commit rather than rereading a moving worktree.
+
+Getting there exposed several harness problems that small canaries had hidden.
+The Contract preview's development plugin middleware returned a client-module
+404 under a real script request even though a generic curl looked green, so
+the production artifact now uses a minimal preview-only Vite configuration.
+The external observer also needed to capture the page's boot promise before
+application code assigned it; otherwise static SSR copy could be mistaken for
+settled live data. Chrome became unreliable when one browser process and one
+flattened CDP session accumulated every navigation, so each cell now owns an
+isolated Chrome process and each navigation owns a short-lived control socket.
+None of those changes relax a product milestone; they remove unrelated harness
+state from the measurement.
+
+The Supabase leg made shared-environment cost visible in a less pleasant way.
+Another legitimate demo already held most direct/session database slots, so
+Partitime could not assume it owned that pool. Public-fixture reads now prefer
+the transaction pooler and disable prepared statements, while explicit
+ephemeral-schema runs keep the direct endpoint for DDL and teardown. This is
+more operational ceremony than a local React-plus-SQLite benchmark, but it is
+closer to how React plus Supabase actually behaves in a shared development
+machine and it kept the collector from killing unrelated work.
+
+The result is useful precisely because it is red: 29 of 44 Contract holdout
+rows pass and 15 fail. Snapback's Contract cell mainly misses heap. The polling
+cells add warm-start, idle, and heap misses; SQLite also shows a large update
+mutation window, and Convex/SQLite narrowly miss production-build limits. The
+instrument no longer lets “we have not measured this” sound like “probably
+fine.” It also did not change the frozen byte thresholds or promote any claim.
+
+Contract and Exact have a split story. The stable package still produces
+659,515/165,844 minified/gzip bytes with Snapback and roughly 468/117 kB in the
+other cells, so the shipping integration remains far too large. Separately,
+Exact's source-linked Phase 3c pruning reached 210,609/61,806 for the unchanged
+SQLite fixture, below its frozen byte limits. That makes the common-runtime
+problem look tractable, but it is not a stable-package victory yet, and it does
+nothing by itself for Snapback's additional provider-client weight or the
+1,095-line authored Contract surface.
+
+Safari improved after the owner enabled Allow Remote Automation. The first
+probe was falsely red because Safari does not focus a button after a mouse
+click; focusing the opener and activating it with a real Enter key produced an
+honest trap/wrap/Escape/restore pass. Native find remains red. WebDriver's
+Command-F did not expose the query as a DOM selection, and trying to bridge
+through macOS accessibility triggered Safari's automation-safety UI and made
+the session unstable. I kept the red row instead of substituting
+`window.find`. With refreshed Chrome 150 and Firefox 152 receipts, the strict
+matrix is now 5/21: all four Chrome/Firefox rows, Safari focus, Safari find red,
+and all fifteen mobile rows still red.
+
+Compared with React plus Convex or Supabase, the Contract path still asks for
+more metrology and packaging discipline than an application team would want
+to own. The good part is that the generated surface gave the collector stable
+product IDs, boot readiness, and explicit provider modes. The bad part is that
+runtime reachability and carrier boundaries remain large enough to dominate
+both bytes and heap. This pass made those tradeoffs concrete rather than
+fundamental: the source-linked runtime can fit, but the stable distribution,
+Snapback interaction cost, native first frame, and mobile citizenship still
+need real work.

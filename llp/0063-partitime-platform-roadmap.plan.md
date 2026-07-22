@@ -44,25 +44,29 @@ modules and spent 6,414.54 ms evaluating them, then produced no first frame
 within 15 seconds, so no first-authoritative-data observation exists. The
 strict citizenship collector enumerates 21 mandatory browser/behavior rows;
 current desktop Chrome and Firefox supply clean focus and find-on-page
-evidence, while the other 17 rows remain red. Safari's installed driver cannot
-create a session until the machine owner enables Allow Remote Automation. The
-available Apple host has only iOS 26.2 and
-no current-minus-one runtime, and the local Android Chrome 134 is not current.
-Neither native nor browser evidence promotes a Step 4 claim.)
+evidence. After the machine owner enabled Allow Remote Automation, Safari
+26.5.2 also supplied a clean focus-trap/restore pass; its native find row stays
+red because the WebDriver Command-F run did not expose the visible query. The
+cumulative receipt is therefore 5 pass / 16 red / 0 skipped. The available
+Apple host has only iOS 26.2 and no current-minus-one runtime, and the local
+Android Chrome 134 is not current. Neither native nor browser evidence
+promotes a Step 4 claim.)
 **Revised (Step 4 performance-instrument checkpoint):** 2026-07-21 (A dated
 prospective amendment and executable collectors now define the eleven missing
 web/build metrics, four native-carrier metrics, four-layer per-module cost
 ledgers, and calibration-versus-committed-holdout isolation. Quick, explicitly
 nonclaim canaries pass navigation/data/idle/memory/update and fresh/incremental
 build collection; a synthetic native receipt test proves same-host structured
-sample aggregation and fail-closed rejection of missing launch stages. The
-amendment remains `pending-ratifier-confirmation`; no claim-grade calibration
-or holdout may run before owner ratification. The cumulative budget receipt is
-therefore 7 pass / 19 red, with 16 nonclaims. A source-linked Exact AOT/pruning
-checkpoint at `cd1f9d89c…` measures the common Contract gateway bundle at
-267,819 minified / 78,258 gzip bytes, still 54,336 / 11,012 above the frozen
-limits. Strict browser citizenship and native calibration/holdout receipts are
-absent, so this is instrumentation and measured remediation, not Step 4 exit.)
+sample aggregation and fail-closed rejection of missing launch stages. Charlie
+Cheever ratified amendment `partitime-ws8-prospective-2026-07-21` with the
+recorded statement “I ratify partitime-ws8-prospective-2026-07-21.” A clean
+2-warmup/7-sample calibration now covers all twelve web and build cells, and a
+separate holdout bound to committed calibration `149c2646…` passes 29 of 44
+Contract rows. Fifteen rows remain red, led by Contract heap, polling idle
+cost, warm startup, SQLite update fan-out/patches, and two production-build
+rows. The red Exact native launch still prevents native calibration/holdout.
+The cumulative budget receipt remains 7 pass / 19 red, with 16 nonclaims, so
+the ratified measurement is a real red result rather than Step 4 exit.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
 (the package root no longer retains the full agent-custody implementation just
 to validate an optional `agentAuthority` constructor value. A package-private
@@ -1178,22 +1182,27 @@ valid sample, separate two warmups from seven reported observations, and make
 holdout consume thresholds from an explicitly named committed calibration
 revision. Production builds emit a four-layer, non-executable module ledger.
 
-This machinery does not itself satisfy WS8. Until the named owner ratifies the
-amendment, both calibration and holdout remain structurally ineligible. After
-ratification, a calibration artifact must land before the independently run
-holdout. The browser citizenship matrix remains a separate cumulative Step 4
-gate: missing iOS/Android/current-minus-one, IME, autofill/password-manager,
-focus, bfcache, or find-on-page evidence is red, never N/A or inferred from a
-Chromium canary.
+This machinery does not itself satisfy WS8. Charlie Cheever ratified amendment
+`partitime-ws8-prospective-2026-07-21` on 2026-07-21. A clean calibration at
+Snapback `250f2860…` retained seven cold, seven warm, seven production-build,
+and seven incremental-build samples for every cell. The calibration artifact
+was committed at `149c2646…`; the separately invoked holdout named that exact
+revision and retained the same full sample counts. Its 44 Contract rows pass
+29 and fail 15, so the prospective category is measured but red. The browser
+citizenship matrix remains a separate cumulative Step 4 gate: missing
+iOS/Android/current-minus-one, IME, autofill/password-manager, focus, bfcache,
+or find-on-page evidence is red, never N/A or inferred from a Chromium canary.
 
-The executable citizenship inventory now contains 21 required rows. A fresh
+The executable citizenship inventory now contains 21 required rows. Fresh
 desktop Chrome 150 and Firefox 152 runs prove the Contract × Snapback dialog
 focus trap/restore and each engine's native find over visible event copy
-without changing the retained Step 0 harness. The cumulative receipt is
-therefore 4 pass / 17 red / 0 skipped. Desktop Safari, iOS Safari current and
-current−1, and Android Chrome current still need admitted versioned evidence;
-Safari remote automation is disabled, while the single iOS 26.2 simulator and
-Android Chrome 134 emulator do not satisfy the mobile channel requirements.
+without changing the retained Step 0 harness. Safari 26.5.2 remote automation
+is enabled and its keyboard-origin focus run proves trap, wrap, Escape, and
+restoration; its native find row remains red. The cumulative receipt is
+therefore 5 pass / 16 red / 0 skipped. iOS Safari current and current−1 and
+Android Chrome current still need admitted versioned evidence; the single iOS
+26.2 simulator and Android Chrome 134 emulator do not satisfy the mobile
+channel requirements.
 
 The remote native probe now separates compilation from runtime cost. React
 Expo's Release/Simulator app compiles after using React Native's imported raw

@@ -1257,10 +1257,11 @@ The report should not be read as a general backend benchmark for these reasons:
    bindings remain absent.
 6. **Polling parity is not realtime parity.** The frozen matrix exercised only
    Snapback push; the two provider-native follow-ups are separate instruments.
-7. **No claim-grade performance benchmark yet.** The dated Step 4 amendment
-   and executable web/build/native collectors now exist, but only quick
-   nonclaim canaries have run; owner ratification, committed calibration, and
-   independent holdout receipts remain absent.
+7. **The prospective performance benchmark is claim-grade but red.** The
+   dated Step 4 amendment is ratified, and committed calibration plus an
+   independent 44-row holdout now exist. Twenty-nine Contract rows pass and
+   fifteen fail; native calibration remains unavailable because the Exact iOS
+   carrier has no first frame or authoritative-data stage.
 8. **No clean-machine timing study.** Setup effort is qualitative.
 9. **Specific package versions.** React 19, Vite 7/8, Exact 0.1.2, Bun 1.3.12,
    and the installed Convex version shaped results.
@@ -1275,10 +1276,10 @@ The report should not be read as a general backend benchmark for these reasons:
     framework-free app.
 14. **Bundled Vanilla path.** Vite remained in the loop; direct unbundled ESM
     compatibility was not tested.
-15. **Startup milestones are prospective, not baseline evidence.** The new
-    external web observer and native launch-stage receipts measure boot,
-    first-data, and interactive milestones, but they were added after Step 0
-    and cannot become claims without the dated-amendment/holdout procedure.
+15. **Startup milestones are prospective, not Step 0 baseline evidence.** The
+    external web observer now has ratified calibration and holdout receipts,
+    but it was added after Step 0 and remains a separately governed Step 4
+    category. The red holdout cannot be used to rewrite frozen thresholds.
 16. **Browser-controller substitution.** The in-app browser plugin failed
     during setup, so rendered verification used the repository's established
     Chrome/CDP acceptance harness. The application proof is executable, but no
@@ -1819,8 +1820,9 @@ collectors instead of permanent placeholder prose. The dated 2026-07-21
 amendment freezes definitions, two warmups plus seven-sample cohorts, an
 all-valid-samples policy, React-relative margins, absolute idle ceilings, and
 a committed-calibration boundary before holdout. It does not alter any Step 0
-threshold. The amendment is still pending the named owner's confirmation, so
-full calibration and holdout structurally refuse to run.
+threshold. Charlie Cheever ratified
+`partitime-ws8-prospective-2026-07-21` with the recorded statement “I ratify
+partitime-ws8-prospective-2026-07-21.”
 
 The web collector builds and previews every production cell, installs a
 pre-document observer outside the measured bundle, and records cold/warm
@@ -1841,13 +1843,24 @@ the same external request timestamp. Missing or incomparable stages fail the
 collector; macOS Exact and Android React remain report-only because workload v1
 has no same-OS counterpart arm.
 
-The latest clean source-linked Exact AOT/runtime-pruning checkpoint
-(`cd1f9d89c…`) emits 267,819 minified / 78,258 gzip bytes for the non-Snapback
-Contract cell. That is a large improvement from the stable package's roughly
-468/117 kB, but remains 54,336 / 11,012 bytes above the frozen limits and is
-not stable-package evidence. Authored Contract source remains 1,095 lines
-against 348. The rerun budget receipt is therefore 7 pass / 19 red, including
-16 explicit nonclaims; no Step 4 claim is promoted.
+A clean all-cell calibration at Snapback `250f2860…` retained seven cold,
+seven warm, seven production-build, and seven incremental-build samples for
+every one of the twelve cells. That artifact was committed at `149c2646…`.
+The independent holdout names that exact revision and passes 29 of 44 Contract
+rows. The fifteen failures are Contract × Snapback heap; Supabase warm startup,
+idle CPU/network, and heap; Convex warm startup, idle CPU/network, heap, and
+production build; and SQLite warm startup, heap, update fan-out, DOM patches,
+and production build. This is a measured red result, not a missing instrument.
+
+Exact's separate source-linked Phase 3c work has now taken the unchanged
+SQLite fixture to 210,609 minified / 61,806 deterministic-gzip bytes at Exact
+`6240b1acb…`, below the 213,483 / 67,246 frozen byte limits. That is important
+evidence that the common Contract runtime can fit, but it is not yet the
+stable-package dependency used by this Snapback receipt. The retained stable
+cells remain 659,515/165,844 bytes for Contract × Snapback and about
+468/117 kB for the other Contract cells; authored Contract source remains
+1,095 lines against 348. The rerun budget receipt is therefore 7 pass / 19
+red, with 16 explicit nonclaims; no Step 4 claim is promoted.
 
 ## 34. Step 4 remote-native and browser-citizenship checkpoint
 
@@ -1873,11 +1886,12 @@ The browser gate is similarly explicit. Its collector enumerates the 21 rows
 required by Exact LLP 0211: five behaviors on iOS Safari current,
 current−1, and Android Chrome current, plus focus and find-on-page on desktop
 Safari, Chrome, and Firefox. Current desktop Chrome 150 and Firefox 152 pass
-both of their rows against Contract × Snapback. The cumulative receipt is 4/21
-pass, 17 red, and
-zero skipped. The machine inventory has desktop Safari 26.5.2, Chrome
-150.0.7871.129, Firefox 152.0.1, Android Chrome 134, and only one iOS 26.2
-runtime. Safari's WebDriver is present, but Allow Remote Automation is disabled
-and enabling it requires the machine owner's administrator password. No mobile
-version is relabeled as current, no desktop result stands in for mobile
+both of their rows against Contract × Snapback. After the owner enabled Allow
+Remote Automation, Safari 26.5.2 passed keyboard-origin focus trap, wrap,
+Escape dismissal, and restoration to `new-event`; its Command-F row remains
+red because the native query did not appear in the DOM selection witness. The
+cumulative receipt is 5/21 pass, 16 red, and zero skipped. The machine
+inventory has desktop Safari 26.5.2, Chrome 150.0.7871.130, Firefox 152.0.1,
+Android Chrome 134, and only one iOS 26.2 runtime. No mobile version is
+relabeled as current, no desktop result stands in for mobile
 IME/autofill/bfcache, and neither Step 4 claim is promoted.
