@@ -106,7 +106,15 @@ await runAcceptance(suite, async () => {
   await session.wait(`window.partifulMatrixReady && document.querySelector('[data-testid="feed-ready"]')?.textContent?.includes('Sunset Supper Club')`, 30_000);
 
   await suite.check(`contract × snapback traps and restores focus in desktop ${browser}`, async () => {
-    await session.click('[data-testid="new-event"]');
+    if (browser === 'safari') {
+      // Safari intentionally does not focus buttons on mouse click. Give the
+      // opener keyboard focus and activate it with Enter so focusRestore is
+      // tested against the browser's real keyboard-originating focus state.
+      await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
+      await session.keys([press('\uE007')]);
+    } else {
+      await session.click('[data-testid="new-event"]');
+    }
     await session.wait(`document.querySelector('[data-testid="create-overlay"]') && document.activeElement?.dataset?.testid === 'create-close'`, 10_000);
     const initial = await session.execute(`return document.activeElement?.dataset?.testid ?? null`);
     await session.keys([keyDown('\uE008'), press('\uE004'), keyUp('\uE008')]);
