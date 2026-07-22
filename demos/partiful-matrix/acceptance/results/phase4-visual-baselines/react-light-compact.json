@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
     "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -13,6 +13,7 @@
     "browser": "chrome",
     "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "browserVersion": "Google Chrome 150.0.7871.130",
+    "iosSimulator": null,
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -188,7 +189,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
+      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
+      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
+      "sha256": "da0677066ae5aee0bb48f2e29bba0c2c5c4d5c83ddc6785526e645c58c7485f7"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -227,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "a5558ac10aad4de5eac4cac150413824ac5bea68c0a9f33296e9b4dc26dcb966",
+  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -698,8 +707,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/guest-list-sheet-open.png",
-              "sha256": "3ab984c9a3cdd4c1521f9577c7a4733ea50ce6bfc73d9e6e2ca2ae8de33261db",
-              "bytes": 22473,
+              "sha256": "bf723533fca0210e96db4f8ab4ef6af61bc8a99e9d0cb75ba571d34417cf9476",
+              "bytes": 22453,
               "approval": "pending-human-review"
             }
           },
@@ -966,8 +975,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/create-event-form-validation-error.png",
-              "sha256": "4a6a66aa5356c3a54196e71658cf7988053b96ebfbf8beea102f9880d11a6cab",
-              "bytes": 47823,
+              "sha256": "7ab5022df853460f7e3090a1eb61726f341aa19e6c7896f2373e591b1d1df328",
+              "bytes": 47820,
               "approval": "pending-human-review"
             }
           },

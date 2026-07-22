@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
-    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
+    "exact": "9a3058588e964d64262df46f658a42e3ab457840"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -13,6 +13,7 @@
     "browser": "chrome",
     "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "browserVersion": "Google Chrome 150.0.7871.130",
+    "iosSimulator": null,
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -188,7 +189,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
+      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
+      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
+      "sha256": "da0677066ae5aee0bb48f2e29bba0c2c5c4d5c83ddc6785526e645c58c7485f7"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -227,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "a5558ac10aad4de5eac4cac150413824ac5bea68c0a9f33296e9b4dc26dcb966",
+  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -315,19 +324,19 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 7
+            "latencyMs": 6
           },
           {
             "sampleIndex": 1,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 6
+            "latencyMs": 5
           },
           {
             "sampleIndex": 2,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 3,
@@ -339,25 +348,25 @@
             "sampleIndex": 4,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 5
           },
           {
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 6,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 4
+            "latencyMs": 5
           },
           {
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 6
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
@@ -368,16 +377,16 @@
         ],
         "freshnessLatencyMs": {
           "samples": [
+            4,
             5,
             5,
             4,
             5,
-            4,
-            6,
+            3,
             4
           ],
-          "median": 5,
-          "p95": 6
+          "median": 4,
+          "p95": 5
         },
         "connectionBefore": "live",
         "established": [
@@ -385,36 +394,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f891214167720981a4ce912439b42",
-            "subscriptionId": "sub_019f891214167720981a4ce912439b42",
+            "bindingId": "sub_019f895273d17e41a828b97f98ba887c",
+            "subscriptionId": "sub_019f895273d17e41a828b97f98ba887c",
             "event": "established",
-            "transport": "push",
+            "transport": "poll",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091223
+            "receivedAtMs": 1784715310059
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f891214177622946a1c91e0a86723",
-            "subscriptionId": "sub_019f891214177622946a1c91e0a86723",
+            "bindingId": "sub_019f895273d17e41a828b99f202ccbbe",
+            "subscriptionId": "sub_019f895273d17e41a828b99f202ccbbe",
             "event": "established",
-            "transport": "poll",
+            "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091232
+            "receivedAtMs": 1784715310060
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912142878829636dec7c70ae755",
-            "subscriptionId": "sub_019f8912142878829636dec7c70ae755",
+            "bindingId": "sub_019f895273ee7c82a21c45b67ab47bf3",
+            "subscriptionId": "sub_019f895273ee7c82a21c45b67ab47bf3",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -423,14 +432,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091241
+            "receivedAtMs": 1784715310063
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912142976719de08737a655e47a",
-            "subscriptionId": "sub_019f8912142976719de08737a655e47a",
+            "bindingId": "sub_019f895273ef7fa3a46b3f1d9182fbe9",
+            "subscriptionId": "sub_019f895273ef7fa3a46b3f1d9182fbe9",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -439,14 +448,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091242
+            "receivedAtMs": 1784715310070
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912142a7422953d58ed677b447d",
-            "subscriptionId": "sub_019f8912142a7422953d58ed677b447d",
+            "bindingId": "sub_019f895273f071b2ad07aaf358964b2f",
+            "subscriptionId": "sub_019f895273f071b2ad07aaf358964b2f",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -455,14 +464,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091247
+            "receivedAtMs": 1784715310072
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912142a7422953d58a5b3d5fd31",
-            "subscriptionId": "sub_019f8912142a7422953d58a5b3d5fd31",
+            "bindingId": "sub_019f895273ef7fa3a46b3ec6471b16e6",
+            "subscriptionId": "sub_019f895273ef7fa3a46b3ec6471b16e6",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -471,30 +480,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091271
-          },
-          {
-            "queryName": "guestList",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8912142b73b3a02c1304033f016c",
-            "subscriptionId": "sub_019f8912142b73b3a02c1304033f016c",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784711091283
+            "receivedAtMs": 1784715310099
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912142a7422953d58c013e52661",
-            "subscriptionId": "sub_019f8912142a7422953d58c013e52661",
+            "bindingId": "sub_019f895273ef7fa3a46b3f3dd561934c",
+            "subscriptionId": "sub_019f895273ef7fa3a46b3f3dd561934c",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -503,7 +496,23 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784711091294
+            "receivedAtMs": 1784715310111
+          },
+          {
+            "queryName": "guestList",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f895273f071b2ad07ab3fbe61160f",
+            "subscriptionId": "sub_019f895273f071b2ad07ab3fbe61160f",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784715310123
           }
         ]
       }
@@ -523,9 +532,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveMaybe",
-        "after": "EVEveGoing",
-        "transition": "Going"
+        "before": "EVEveGoing",
+        "after": "EVEveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -543,9 +552,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveMaybe",
-        "after": "EVEveGoing",
-        "transition": "Going"
+        "before": "EVEveGoing",
+        "after": "EVEveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -563,9 +572,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -638,13 +647,13 @@
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 3
+            "latencyMs": 2
           },
           {
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 2
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
@@ -659,8 +668,8 @@
             2,
             3,
             2,
-            3,
             2,
+            3,
             2
           ],
           "median": 2,
@@ -671,28 +680,28 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912ad8c7f51bb9139e116558cc0",
-            "subscriptionId": "sub_019f8912ad8c7f51bb9139e116558cc0",
+            "bindingId": "sub_019f89530c797360ba5a12bdfef73007",
+            "subscriptionId": "sub_019f89530c797360ba5a12bdfef73007",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:45e206ce-07f9-4ba0-ba9c-d17c35a46cee",
+              "rootId": "snapback-online-surface:631927a1-bfaf-41d5-912d-6886be90725d",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1784711130509,
+            "receivedAtMs": 1784715349113,
             "queryName": "listEvents",
             "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912adb47041b9d4e9ad0f0d8d33",
-            "subscriptionId": "sub_019f8912adb47041b9d4e9ad0f0d8d33",
+            "bindingId": "sub_019f89530c9c76d39bb75dece994a357",
+            "subscriptionId": "sub_019f89530c9c76d39bb75dece994a357",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -701,12 +710,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5271e35c-57df-45f0-b2ff-8c4669825b74",
+              "rootId": "snapback-online-surface:06ef6303-207a-45cb-b9fe-865f0f2472d5",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784711130568,
+            "receivedAtMs": 1784715349168,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -715,8 +724,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912adb47041b9d4e9ee695511d5",
-            "subscriptionId": "sub_019f8912adb47041b9d4e9ee695511d5",
+            "bindingId": "sub_019f89530c9c76d39bb75e2f53f41e04",
+            "subscriptionId": "sub_019f89530c9c76d39bb75e2f53f41e04",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -725,12 +734,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5271e35c-57df-45f0-b2ff-8c4669825b74",
+              "rootId": "snapback-online-surface:06ef6303-207a-45cb-b9fe-865f0f2472d5",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784711130569,
+            "receivedAtMs": 1784715349169,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -739,8 +748,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912adb47041b9d4ea08a1eab763",
-            "subscriptionId": "sub_019f8912adb47041b9d4ea08a1eab763",
+            "bindingId": "sub_019f89530c9d77f1bde4cc33a3549e67",
+            "subscriptionId": "sub_019f89530c9d77f1bde4cc33a3549e67",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -749,12 +758,12 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "snapback-online-surface:5271e35c-57df-45f0-b2ff-8c4669825b74",
+              "rootId": "snapback-online-surface:06ef6303-207a-45cb-b9fe-865f0f2472d5",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784711130569,
+            "receivedAtMs": 1784715349169,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -778,9 +787,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveGoing",
-        "after": "EveMaybe",
-        "transition": "Maybe"
+        "before": "EveMaybe",
+        "after": "EveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -798,9 +807,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveGoing",
-        "after": "EveMaybe",
-        "transition": "Maybe"
+        "before": "EveMaybe",
+        "after": "EveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -818,9 +827,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EveMaybe",
-        "after": "EveGoing",
-        "transition": "Going"
+        "before": "EveGoing",
+        "after": "EveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -870,11 +879,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 88.5,
-          "boot-started": 88.5,
-          "provider-ready": 95.3999999910593,
+          "module-evaluated": 88.19999998807907,
+          "boot-started": 88.29999999701977,
+          "provider-ready": 95.29999999701977,
           "ui-mounted": 96.59999999403954,
-          "first-authoritative-snapshot": 107
+          "first-authoritative-snapshot": 106.5
         }
       }
     },
@@ -910,7 +919,7 @@
             "sampleIndex": 3,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 2
+            "latencyMs": 3
           },
           {
             "sampleIndex": 4,
@@ -934,7 +943,7 @@
             "sampleIndex": 7,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 2
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
@@ -946,15 +955,15 @@
         "freshnessLatencyMs": {
           "samples": [
             2,
+            3,
             2,
             2,
             2,
-            2,
-            2,
+            3,
             2
           ],
           "median": 2,
-          "p95": 2
+          "p95": 3
         },
         "connectionBefore": "live",
         "established": [
@@ -962,22 +971,22 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912d2567821a530ebcf4f5b90aa",
-            "subscriptionId": "sub_019f8912d2567821a530ebcf4f5b90aa",
+            "bindingId": "sub_019f895330fd79a196cbacb81a7e3aca",
+            "subscriptionId": "sub_019f895330fd79a196cbacb81a7e3aca",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1784711139927
+            "receivedAtMs": 1784715358462
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912d2767a2289b5738bb16394ff",
-            "subscriptionId": "sub_019f8912d2767a2289b5738bb16394ff",
+            "bindingId": "sub_019f8953311e70c0b0b03741e0543028",
+            "subscriptionId": "sub_019f8953311e70c0b0b03741e0543028",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -986,30 +995,14 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1784711139959
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f8912d27771a2b55e84c9a087c0b2",
-            "subscriptionId": "sub_019f8912d27771a2b55e84c9a087c0b2",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 22,
-            "lastDeltaVersion": 22,
-            "correlation": null,
-            "receivedAtMs": 1784711139971
+            "receivedAtMs": 1784715358495
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f8912d27771a2b55e84f545ea7350",
-            "subscriptionId": "sub_019f8912d27771a2b55e84f545ea7350",
+            "bindingId": "sub_019f8953311f7600b628898b087ca299",
+            "subscriptionId": "sub_019f8953311f7600b628898b087ca299",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -1018,7 +1011,23 @@
             "snapshotVersion": 22,
             "lastDeltaVersion": 22,
             "correlation": null,
-            "receivedAtMs": 1784711139983
+            "receivedAtMs": 1784715358507
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f8953311f7600b628896caa30f939",
+            "subscriptionId": "sub_019f8953311f7600b628896caa30f939",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 22,
+            "lastDeltaVersion": 22,
+            "correlation": null,
+            "receivedAtMs": 1784715358520
           }
         ]
       }
@@ -1038,9 +1047,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveMaybe",
-        "after": "EVEveGoing",
-        "transition": "Going"
+        "before": "EVEveGoing",
+        "after": "EVEveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -1070,11 +1079,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 86,
-          "boot-started": 86.1000000089407,
-          "provider-ready": 86.29999999701977,
-          "ui-mounted": 87.20000000298023,
-          "first-authoritative-snapshot": 180.40000000596046
+          "module-evaluated": 90.19999998807907,
+          "boot-started": 90.3999999910593,
+          "provider-ready": 90.5,
+          "ui-mounted": 91.3999999910593,
+          "first-authoritative-snapshot": 202.59999999403954
         }
       }
     },
@@ -1093,9 +1102,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveMaybe",
-        "after": "EVEveGoing",
-        "transition": "Going"
+        "before": "EVEveGoing",
+        "after": "EVEveMaybe",
+        "transition": "Maybe"
       }
     },
     {
@@ -1125,11 +1134,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 95,
-          "boot-started": 95.20000000298023,
-          "provider-ready": 95.29999999701977,
-          "ui-mounted": 96.29999999701977,
-          "first-authoritative-snapshot": 195
+          "module-evaluated": 89.19999998807907,
+          "boot-started": 89.29999999701977,
+          "provider-ready": 89.29999999701977,
+          "ui-mounted": 90.3999999910593,
+          "first-authoritative-snapshot": 186.09999999403954
         }
       }
     },
@@ -1148,9 +1157,9 @@
       "ok": true,
       "details": {
         "actor": "user_eve",
-        "before": "EVEveGoing",
-        "after": "EVEveMaybe",
-        "transition": "Maybe"
+        "before": "EVEveMaybe",
+        "after": "EVEveGoing",
+        "transition": "Going"
       }
     },
     {
@@ -1180,11 +1189,11 @@
           "eventId": null
         },
         "startupMilestones": {
-          "module-evaluated": 87.5,
-          "boot-started": 87.70000000298023,
-          "provider-ready": 87.70000000298023,
-          "ui-mounted": 88.79999999701977,
-          "first-authoritative-snapshot": 98.09999999403954
+          "module-evaluated": 85.40000000596046,
+          "boot-started": 85.59999999403954,
+          "provider-ready": 85.70000000298023,
+          "ui-mounted": 86.70000000298023,
+          "first-authoritative-snapshot": 96.40000000596046
         }
       }
     }

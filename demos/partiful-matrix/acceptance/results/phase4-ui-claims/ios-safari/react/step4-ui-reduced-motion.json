@@ -1,0 +1,299 @@
+{
+  "revision": {
+    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
+    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+  },
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+  "environment": {
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "browser": "ios-safari",
+    "browserBinary": "/System/Cryptexes/App/usr/bin/safaridriver",
+    "browserVersion": "Included with Safari 26.5.2 (21624.2.5.11.8)",
+    "iosSimulator": {
+      "udid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+      "name": "Codex-Partitime-iOS-Safari-2694",
+      "state": "Booted",
+      "runtime": "com.apple.CoreSimulator.SimRuntime.iOS-26-5",
+      "accessibility": {
+        "fullKeyboardAccessEnabled": true,
+        "reduceMotionEnabled": true
+      }
+    },
+    "chrome": null,
+    "chromeVersion": null,
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "packages": {
+    "react": {
+      "manifestSha256": "1354d4b42fe05b7b9b2938962cd312d936225f4d72c3790078939b39b5e5b95a",
+      "lockPath": "demos/partiful-matrix/surfaces/react/bun.lock",
+      "lockSha256": "20bb724eaa5f675b25e290bf66bc892d2eeb61e7382e7d6e1989cf59c8dfb239",
+      "dependencies": {
+        "@supabase/supabase-js": "^2.110.7",
+        "convex": "^1.28.0",
+        "react": "^19.1.0",
+        "react-dom": "^19.1.0",
+        "@types/node": "^26.0.0",
+        "@types/react": "^19.1.8",
+        "@types/react-dom": "^19.1.6",
+        "@vitejs/plugin-react": "^4.6.0",
+        "typescript": "^5.9.3",
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "@supabase/supabase-js": {
+          "requested": "^2.110.7",
+          "resolvedName": "@supabase/supabase-js",
+          "resolvedVersion": "2.110.7",
+          "manifestSha256": "11d42f0c4a030fe450aeb9e3dd0085afff5c46ae9d071f25cdd8d0923bd852c4"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "react": {
+          "requested": "^19.1.0",
+          "resolvedName": "react",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "51966ae9c8c377ff592b5d69c980966992101bc6791bf83a1e5c7ad9bcefa7f4"
+        },
+        "react-dom": {
+          "requested": "^19.1.0",
+          "resolvedName": "react-dom",
+          "resolvedVersion": "19.2.7",
+          "manifestSha256": "447acd72cdb6a966d9db967729e286e7cbb4a09ea61fddd45e12c2a97fd4cfb6"
+        },
+        "@types/node": {
+          "requested": "^26.0.0",
+          "resolvedName": "@types/node",
+          "resolvedVersion": "26.1.1",
+          "manifestSha256": "83e7472f5b94b43acde2e60b39cef9adc278a1f2a5d7cc4b4c677e29da3e0ab9"
+        },
+        "@types/react": {
+          "requested": "^19.1.8",
+          "resolvedName": "@types/react",
+          "resolvedVersion": "19.2.17",
+          "manifestSha256": "36496fc09a9dcf31b0ca969ce5677c9ce9ebb5c89da9bd6212e0c89b6fae3f88"
+        },
+        "@types/react-dom": {
+          "requested": "^19.1.6",
+          "resolvedName": "@types/react-dom",
+          "resolvedVersion": "19.2.3",
+          "manifestSha256": "bf90986beaec5f757c164bf1d374f3038dc41b0b06673de4a55fd975d1e5deca"
+        },
+        "@vitejs/plugin-react": {
+          "requested": "^4.6.0",
+          "resolvedName": "@vitejs/plugin-react",
+          "resolvedVersion": "4.7.0",
+          "manifestSha256": "d608755568d9d654c34e9e2da06659df9122fa89d2604ee09cdeda457a20c035"
+        },
+        "typescript": {
+          "requested": "^5.9.3",
+          "resolvedName": "typescript",
+          "resolvedVersion": "5.9.3",
+          "manifestSha256": "822ef7ca6452205657b6288b066481ecf508bfbf43455d715cf7d3ec457561e6"
+        },
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    },
+    "contract": {
+      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
+      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "dependencies": {
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "convex": "^1.28.0",
+        "vite": "^8.0.0"
+      },
+      "resolvedDependencies": {
+        "@exact/contract": {
+          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "resolvedName": "@ccheever/exact-contract",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+        },
+        "@exact/devtools": {
+          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "resolvedName": "@ccheever/exact-devtools",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+        },
+        "@exact/facet-core": {
+          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "resolvedName": "@ccheever/exact-facet-core",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+        },
+        "@exact/renderer": {
+          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "resolvedName": "@ccheever/exact-renderer",
+          "resolvedVersion": "0.1.2",
+          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+        },
+        "convex": {
+          "requested": "^1.28.0",
+          "resolvedName": "convex",
+          "resolvedVersion": "1.42.3",
+          "manifestSha256": "c8a1da2881ddaadee73147a551a37a7ebe4163f04e48601fef13db51c460183b"
+        },
+        "vite": {
+          "requested": "^8.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "8.1.5",
+          "manifestSha256": "2f482c846a1c5b9e5883b458b3e54a171a320c2e8d9b924c7383c4baef607b09"
+        }
+      }
+    },
+    "vanilla": {
+      "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
+      "lockPath": "bun.lock",
+      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
+      "dependencies": {
+        "vite": "^7.0.0"
+      },
+      "resolvedDependencies": {
+        "vite": {
+          "requested": "^7.0.0",
+          "resolvedName": "vite",
+          "resolvedVersion": "7.3.6",
+          "manifestSha256": "e5ed0f85215f871fe22a48987dcd77fcfbe14064a53c0c9f7f48186a6b7e2cf0"
+        }
+      }
+    }
+  },
+  "artifacts": {
+    "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
+    "bundleHash": "sha256:adce7dc6b39cd37f",
+    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
+    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+  },
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387"
+    },
+    {
+      "path": "demos/_kit/chrome-process.mjs",
+      "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
+    },
+    {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
+      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
+      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
+      "sha256": "da0677066ae5aee0bb48f2e29bba0c2c5c4d5c83ddc6785526e645c58c7485f7"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
+      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
+      "sha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
+      "sha256": "10bff8b52e37dfefa5de2773d1944f5bf00f5d38bef6e2dcab6128b2a0c07a69"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
+      "sha256": "8d63f7db82f5a4953699413beddf6213d0292447b9177f7664622a88aa225b67"
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
+      "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
+    }
+  ],
+  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
+  "demo": "partiful-matrix",
+  "claimSetVersion": "partitime.web.v1",
+  "cells": [
+    "react:snapback"
+  ],
+  "transportWitnessCells": [
+    "react:snapback"
+  ],
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "title": "partitime / product UI browser parity",
+  "passed": 0,
+  "skipped": 0,
+  "failed": 1,
+  "total": 1,
+  "ok": false,
+  "results": [
+    {
+      "name": "STEP4.UI.REDUCED-MOTION react × snapback preserves non-motion outcomes",
+      "ok": false,
+      "error": "reduced-motion end state disappeared: {\"rsvp\":\"EVEveGoing\",\"pending\":null}",
+      "diagnostic": null
+    }
+  ],
+  "expectedChecks": 1,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

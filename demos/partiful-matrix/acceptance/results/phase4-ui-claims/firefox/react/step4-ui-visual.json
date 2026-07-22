@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
     "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -13,6 +13,7 @@
     "browser": "firefox",
     "browserBinary": "/Applications/Firefox.app/Contents/MacOS/firefox",
     "browserVersion": "Mozilla Firefox 152.0.1",
+    "iosSimulator": null,
     "chrome": null,
     "chromeVersion": null,
     "cpu": "Apple M5 Max",
@@ -188,7 +189,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
+      "sha256": "0fc23114400a4b5cbda00bdcef5107effb94bc897666f80e69300e36ef07f6e0"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs",
+      "sha256": "3c28ca31224a6d1d0653a0b6ffcdecb009f566b3eaa635ff8001faa2ab8c8050"
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs",
+      "sha256": "da0677066ae5aee0bb48f2e29bba0c2c5c4d5c83ddc6785526e645c58c7485f7"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -227,7 +236,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "a5558ac10aad4de5eac4cac150413824ac5bea68c0a9f33296e9b4dc26dcb966",
+  "testInventorySha256": "00821057bdc5dba85d6a8cd2e25140da626f229d2962f53d652aac784b10739d",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -778,14 +787,14 @@
             "structural": [
               {
                 "display": "grid",
-                "height": 383.7999877929687,
+                "height": 383.816650390625,
                 "id": "create-event-form",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 447.73333740234375,
+                "width": 447.75,
                 "x": 566.1500244140625,
-                "y": 213.8999938964844
+                "y": 213.8333282470703
               },
               {
                 "display": "block",
@@ -794,9 +803,9 @@
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 364.4166870117187,
+                "width": 364.4500122070313,
                 "x": 649.4500122070312,
-                "y": 232.75
+                "y": 232.6833343505859
               },
               {
                 "display": "block",
@@ -805,9 +814,9 @@
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 364.4166870117187,
+                "width": 364.4500122070313,
                 "x": 649.4500122070312,
-                "y": 305.1333312988281
+                "y": 305.08331298828125
               },
               {
                 "display": "block",
@@ -816,20 +825,20 @@
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 73.38334655761719,
+                "width": 73.40000915527344,
                 "x": 566.1500244140625,
-                "y": 377.5333251953125
+                "y": 377.48333740234375
               },
               {
                 "display": "block",
-                "height": 85.2833251953125,
+                "height": 85.30000305175781,
                 "id": "event-description",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 447.73333740234375,
+                "width": 447.75,
                 "x": 566.1500244140625,
-                "y": 449.933349609375
+                "y": 449.8833312988281
               },
               {
                 "display": "block",
@@ -838,9 +847,9 @@
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 172.5500030517578,
-                "x": 841.3333129882812,
-                "y": 545.13330078125
+                "width": 172.54998779296875,
+                "x": 841.3499755859375,
+                "y": 545.0999755859375
               }
             ],
             "relations": {
@@ -862,47 +871,47 @@
             "structural": [
               {
                 "display": "grid",
-                "height": 457.7166748046875,
+                "height": 457.183349609375,
                 "id": "create-event-form",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 448.25,
-                "x": 566.066650390625,
-                "y": 176.13333129882812
+                "width": 447.73333740234375,
+                "x": 566.1500244140625,
+                "y": 177.1999969482422
               },
               {
                 "display": "block",
-                "height": 36.73333740234375,
+                "height": 36.69999694824219,
                 "id": "form-error-summary",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 448.25,
-                "x": 566.066650390625,
-                "y": 176.13333129882812
+                "width": 447.73333740234375,
+                "x": 566.1500244140625,
+                "y": 177.1999969482422
               },
               {
                 "display": "block",
-                "height": 16.883331298828125,
+                "height": 16.866668701171875,
                 "id": "event-title-error",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 364.8500061035156,
-                "x": 649.4666748046875,
-                "y": 295.2833251953125
+                "width": 364.4166870117187,
+                "x": 649.4500122070312,
+                "y": 296.2166748046875
               },
               {
                 "display": "block",
-                "height": 52.616668701171875,
+                "height": 52.56666564941406,
                 "id": "create-event-submit",
                 "missing": false,
                 "opacity": 1,
                 "visibility": "visible",
-                "width": 172.75,
-                "x": 841.566650390625,
-                "y": 581.2333374023438
+                "width": 172.5500030517578,
+                "x": 841.3333129882812,
+                "y": 581.8333129882812
               }
             ],
             "relations": {
