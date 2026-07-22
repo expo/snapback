@@ -38,6 +38,7 @@ const convexRealtimePath = 'demos/partiful-matrix/acceptance/results/convex-real
 const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json';
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
 const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json';
+const nativePerformanceInvalidationPath = 'demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
@@ -56,6 +57,7 @@ const convexRealtime = readJson(convexRealtimePath);
 const contractConvexRealtime = readJson(contractConvexRealtimePath);
 const performanceAmendment = readJson(performanceAmendmentPath);
 const performanceInvalidation = readJson(performanceInvalidationPath);
+const nativePerformanceInvalidation = readJson(nativePerformanceInvalidationPath);
 const optionalReceipt = (path) => existsSync(resolve(repoRoot, path)) ? readJson(path) : null;
 const performanceCalibration = optionalReceipt(performanceCalibrationPath);
 const performanceHoldout = optionalReceipt(performanceHoldoutPath);
@@ -71,6 +73,12 @@ const protocolInvalidation = protocol.amendments.find(({ id }) => id === perform
 assert(protocolInvalidation, `protocol does not register ${performanceInvalidation.amendmentId}`);
 assert.equal(protocolInvalidation.path, performanceInvalidationPath);
 assert.equal(protocolInvalidation.status, performanceInvalidation.status);
+const protocolNativeInvalidation = protocol.amendments.find(
+  ({ id }) => id === nativePerformanceInvalidation.amendmentId,
+);
+assert(protocolNativeInvalidation, `protocol does not register ${nativePerformanceInvalidation.amendmentId}`);
+assert.equal(protocolNativeInvalidation.path, nativePerformanceInvalidationPath);
+assert.equal(protocolNativeInvalidation.status, nativePerformanceInvalidation.status);
 const performanceInvalidationIdentity = identity(performanceInvalidationPath);
 const webPerformanceReceiptsCurrent = [performanceCalibration, performanceHoldout].every((receipt) =>
   receipt?.methodId === performanceInvalidation.replacement.methodId
@@ -83,6 +91,20 @@ const webPerformanceStatus = webPerformanceGovernanceRatified && webPerformanceR
   : webPerformanceGovernanceRatified
     ? 'ratified-but-v2-receipts-missing'
     : performanceInvalidation.status;
+const nativePerformanceInvalidationIdentity = identity(nativePerformanceInvalidationPath);
+const nativePerformanceReceiptsCurrent = [nativePerformanceCalibration, nativePerformanceHoldout].every(
+  (receipt) => receipt?.methodId === nativePerformanceInvalidation.replacement.methodId
+    && receipt?.thresholdSetId === nativePerformanceInvalidation.replacement.thresholdSetId
+    && receipt?.laneId === nativePerformanceInvalidation.replacement.laneId
+    && JSON.stringify(receipt?.invalidation) === JSON.stringify(nativePerformanceInvalidationIdentity),
+);
+const nativePerformanceGovernanceRatified = performanceAmendment.status === 'ratified'
+  && nativePerformanceInvalidation.status === 'ratified';
+const nativePerformanceStatus = nativePerformanceGovernanceRatified && nativePerformanceReceiptsCurrent
+  ? 'ratified'
+  : nativePerformanceGovernanceRatified
+    ? 'ratified-but-v2-receipts-missing'
+    : nativePerformanceInvalidation.status;
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
 assert.equal(frozen.methodId, protocol.protocolId);
@@ -251,7 +273,7 @@ const webPerformanceInstrument = (id, formulaKey, metricName) => {
 
 const nativePerformanceInstrument = (id, metricName) => {
   const { pass, rows } = evaluateHoldoutMetric({
-    amendmentStatus: performanceAmendment.status,
+    amendmentStatus: nativePerformanceStatus,
     calibration: nativePerformanceCalibration,
     holdout: nativePerformanceHoldout,
     metricName,
@@ -263,7 +285,8 @@ const nativePerformanceInstrument = (id, metricName) => {
     metricName,
     formula: protocol.thresholdFormulas.nativeCarrierCostP95,
     amendment: identity(performanceAmendmentPath),
-    amendmentStatus: performanceAmendment.status,
+    invalidation: nativePerformanceInvalidationIdentity,
+    amendmentStatus: nativePerformanceStatus,
     calibration: nativePerformanceCalibration ? identity(nativePerformanceCalibrationPath) : null,
     holdout: nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
     rows,
@@ -360,8 +383,10 @@ const requirements = [
     costAttribution,
   }),
   requirement('prospective-category-amendments-and-holdout-validation', webPerformanceStatus === 'ratified'
+    && nativePerformanceStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', webPerformanceStatus === 'ratified'
+    && nativePerformanceStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true
     ? 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_PASSED'
@@ -371,14 +396,16 @@ const requirements = [
     amendmentFieldPresent: Array.isArray(protocol.amendments),
     amendment: identity(performanceAmendmentPath),
     invalidation: identity(performanceInvalidationPath),
+    nativeInvalidation: nativePerformanceInvalidationIdentity,
     amendmentStatus: webPerformanceStatus,
+    nativeAmendmentStatus: nativePerformanceStatus,
     holdoutValidationArtifacts: [
       performanceHoldout ? identity(performanceHoldoutPath) : null,
       nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
     ],
-    finding: webPerformanceStatus === 'ratified'
-      ? 'The dated amendment is ratified; holdout rows remain red until both web/build and native receipts are independently green.'
-      : 'The v1 artifacts are preserved, but the proposed v2 invalidation amendment still needs owner ratification before replacement calibration or claim promotion.',
+    finding: webPerformanceStatus === 'ratified' && nativePerformanceStatus === 'ratified'
+      ? 'Both corrected methods are ratified; holdout rows remain red until web/build and paired release-native receipts are independently green.'
+      : 'The invalid artifacts remain preserved, but both proposed v2 corrections require owner ratification before replacement calibration or claim promotion.',
   }, 'nonclaim'),
   requirement('native-realtime-follow-up-matrix-before-ranking', 'pass', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_COMPLETE', {
     existingNativeWorkload: protocol.workloadVersion,

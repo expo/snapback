@@ -1569,3 +1569,37 @@ control immediately separated browser custody from framework behavior. The
 worst part was that a metric named “per active subscription” was actually total
 target heap divided by one; even after fixing the extra document, it remains a
 strict whole-page runtime budget rather than an isolated provider allocation.
+
+## 2026-07-22 — the native red result belonged to the development lane
+
+The 7.1 MB / 6.4 s Exact launch is real, but its comparison label was not. The
+React carrier was a Release/Simulator Hermes app; Exact was the Debug host
+loading Vite's development module table with Acto explicitly eager. Exact's
+own startup plan says not to use that pairing as a headline and keeps the
+agent-on inspection smoke separate from the agent-off first-frame budget.
+
+A local module-table probe made the distortion concrete. With Acto disabled,
+the Partitime Exact graph was 261 modules, 2.92 MB of transformed module source,
+and 2.31 MB of compact startup source. Enabling Acto raised it to 511 modules,
+6.34 MB of module source, and 4.87 MB of startup source. That does not make the
+agent-off graph a release artifact—the production lane still needs a normal
+tree-shaken bundle compiled to HBC—but it explains why optimizing the old
+number as if it were carrier cost would reward removal of the observer rather
+than improvement of the product.
+
+I preserved the old receipt as development-carrier diagnostic evidence and
+proposed a second invalidation amendment. The replacement lane is paired on the
+same simulator and requires Release configuration, production-bundled Hermes
+HBC, no agent or debug overlay before first frame, a native-host frame mark, and
+a structured product-owned authoritative-data mark. The collector now refuses
+claim-grade receipts that do not attest all of those facts. The amendment is
+still proposed, and Exact does not yet ship the qualifying iOS bundle path, so
+the native claim remains honestly red.
+
+Compared with React Native, this is less a runtime result than a packaging
+lesson. Expo already has a conventional release-HBC lane. Exact has strong
+development observability and a static startup envelope, but Partitime exposed
+the missing bridge from that machinery to a benchmarkable production iOS
+artifact. Acto remains valuable; it simply cannot be charged to every user's
+first frame and then compared with a carrier where the equivalent inspector is
+off.

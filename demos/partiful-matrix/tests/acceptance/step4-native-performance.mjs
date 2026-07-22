@@ -18,6 +18,11 @@ const repoRoot = resolve(here, '../../../..');
 const demoRoot = resolve(here, '../..');
 const amendmentPath = resolve(demoRoot, 'acceptance/performance-amendment.2026-07-21.json');
 const amendment = JSON.parse(readFileSync(amendmentPath, 'utf8'));
+const invalidationPath = resolve(
+  demoRoot,
+  'acceptance/native-performance-invalidation-amendment.2026-07-22.json',
+);
+const invalidation = JSON.parse(readFileSync(invalidationPath, 'utf8'));
 const option = (name) => {
   const at = process.argv.indexOf(`--${name}`);
   return at < 0 ? null : process.argv[at + 1];
@@ -35,7 +40,14 @@ const calibrationRevision = option('calibration-revision');
 if (cohort === 'holdout' && !quick) {
   assert.match(calibrationRevision ?? '', /^[a-f0-9]{40}$/, 'holdout requires --calibration-revision <committed sha>');
 }
-if (!quick) assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
+if (!quick) {
+  assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
+  assert.equal(
+    invalidation.status,
+    'ratified',
+    'native lane invalidation amendment must be ratified before claim-eligible sampling',
+  );
+}
 
 const input = JSON.parse(readFileSync(inputPath, 'utf8'));
 assert.equal(input.schemaVersion, 'partitime.native-performance-inputs.v1');
@@ -78,12 +90,16 @@ const claimEligible = !quick
 const report = {
   schemaVersion: 'partitime.step4-native-performance.v1',
   claimId: 'STEP4.BUDGETS.NATIVE_PERFORMANCE',
+  methodId: invalidation.replacement.methodId,
+  thresholdSetId: invalidation.replacement.thresholdSetId,
+  laneId: invalidation.replacement.laneId,
   cohort,
   quick,
   claimEligible,
   recordedAt: new Date().toISOString(),
   amendment: identity(amendmentPath),
   sampling: { warmups, samples: sampleCount, outlierPolicy: amendment.sampling.outlierPolicy },
+  invalidation: identity(invalidationPath),
   platform: 'ios',
   hostIdentity: input.hostIdentity,
   sourceReceipts,
@@ -110,7 +126,7 @@ function extractReactSample({ receipt, expectedCell }) {
   assert.equal(receipt.ok, true, `${expectedCell} raw receipt is not green`);
   const measured = receipt.performance?.sample;
   assert(measured, `${expectedCell} lacks performance.sample; rerun native-react-expo.mjs with --performance-only`);
-  assert.equal(measured.definitionVersion, 'partitime.native-launch-stage.v1');
+  validateLane(measured, expectedCell);
   return finiteMetrics(measured, expectedCell);
 }
 
@@ -118,9 +134,14 @@ function extractExactSample({ receipt, expectedCell }) {
   assert.equal(receipt.ok, true, `${expectedCell} raw receipt is not green`);
   const direct = receipt.performance?.sample;
   if (direct) {
-    assert.equal(direct.definitionVersion, 'partitime.native-launch-stage.v1');
+    validateLane(direct, expectedCell);
     return finiteMetrics(direct, expectedCell);
   }
+  assert.equal(
+    quick,
+    true,
+    `${expectedCell} claim sampling requires a direct v2 release-lane performance sample`,
+  );
   const cell = receipt.cells?.find(({ cell: id }) => id === 'exact-contract:ios:snapback');
   const load = cell?.acto?.receipt?.target?.hostStatus?.load;
   const launchRequestedAtMs = cell?.launch?.requestedAtMs;
@@ -133,6 +154,23 @@ function extractExactSample({ receipt, expectedCell }) {
     coldLaunchMs: firstFrameAtMs - launchRequestedAtMs,
     firstAuthoritativeDataMs: Date.parse(load.finishedAt) - launchRequestedAtMs,
   }, expectedCell);
+}
+
+function validateLane(sample, label) {
+  if (quick && sample.definitionVersion === 'partitime.native-launch-stage.v1') {
+    return;
+  }
+  assert.equal(sample.definitionVersion, invalidation.replacement.methodId, `${label} method drifted`);
+  assert.deepEqual(sample.lane, {
+    laneId: invalidation.replacement.laneId,
+    buildConfiguration: 'Release',
+    simulatorBuild: true,
+    artifactMode: 'hermes-hbc',
+    agentLoadedBeforeFirstFrame: false,
+    debugOverlayEnabled: false,
+    firstFrameObserver: 'native-host',
+    authoritativeDataObserver: 'structured-product-marker',
+  }, `${label} did not attest the paired release lane`);
 }
 
 function finiteMetrics(value, label) {
@@ -176,6 +214,10 @@ function validateHoldout(revision, aggregateValues) {
   assert.equal(calibration.cohort, 'calibration');
   assert.equal(calibration.claimEligible, true);
   assert.deepEqual(calibration.amendment, identity(amendmentPath));
+  assert.deepEqual(calibration.invalidation, identity(invalidationPath));
+  assert.equal(calibration.methodId, invalidation.replacement.methodId);
+  assert.equal(calibration.thresholdSetId, invalidation.replacement.thresholdSetId);
+  assert.equal(calibration.laneId, invalidation.replacement.laneId);
   const rows = Object.entries(calibration.thresholds).map(([metricName, threshold]) => {
     const actualP95 = aggregateValues[metricName]?.p95;
     return {

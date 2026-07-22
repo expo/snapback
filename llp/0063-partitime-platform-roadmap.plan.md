@@ -34,6 +34,22 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
+(The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
+React Expo Release/Simulator with Exact's Debug host, development module-table
+source, and eager Acto graph. Exact LLP 0145#build-lanes and #fairness-rules
+explicitly forbid that as a headline comparison; Exact LLP 0128#native-agent-bootstrap-is-lazy-by-default-explicit-when-requested assigns
+agent-off startup budgets and agent inspection to separate lanes. Proposed
+amendment `partitime-ws8-native-lane-invalidation-2026-07-22` preserves the
+diagnostic but version-bumps the native method to a same-host paired
+Release/Simulator Hermes-HBC, agent-off lane. A local nonclaim composition
+probe at Exact `a3e9cd71f…` measured 2,311,002 startup-source bytes / 261
+modules agent-off versus 4,868,548 / 511 agent-on; that explains much of the
+old graph but is still development source, not release evidence. Claim-grade
+collection now refuses non-v2 raw receipts and still requires native-host first
+frame plus a structured first-authoritative-data marker. The amendment is not
+ratified and Exact does not yet emit the qualifying production-bundled iOS HBC
+carrier, so native calibration, holdout, and claim promotion remain blocked.)
 **Revised (Step 4 performance-custody correction proposal):** 2026-07-22
 (The warm web collector primed and measured in the same browser target, so
 Chrome's back/forward cache retained the priming document while
