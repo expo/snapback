@@ -631,7 +631,10 @@ async function connectCdp(url) {
           const deadline = Date.now() + 30_000;
           while (Date.now() < deadline) {
             try {
-              if (await evaluate(`document.readyState === 'complete'`)) return;
+              // Product milestones below are the ratified readiness signal.
+              // Do not let an unrelated late load-event resource prevent the
+              // observer from evaluating an already-interactive document.
+              if (await evaluate(`document.readyState !== 'loading'`)) return;
             } catch { /* execution context was replaced during navigation */ }
             await sleep(25);
           }
