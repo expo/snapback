@@ -10,11 +10,12 @@ const here = dirname(fileURLToPath(import.meta.url));
 const demoRoot = resolve(here, '..', '..');
 const repoRoot = resolve(demoRoot, '..', '..');
 const browserHarness = join(here, 'browser-matrix.mjs');
-const resultsRoot = join(demoRoot, 'acceptance', 'results', 'phase4-ui-claims');
-const aggregatePath = join(demoRoot, 'acceptance', 'results', 'step4-ui-claims.json');
 const exactRevision = option('exact-revision') ?? process.env.PARTITIME_EXACT_REVISION;
 const selectedArm = option('arm');
 const selectedClaim = option('claim');
+const selectedBrowser = option('browser') ?? 'chrome';
+const resultsRoot = join(demoRoot, 'acceptance', 'results', 'phase4-ui-claims', ...(selectedBrowser === 'chrome' ? [] : [selectedBrowser]));
+const aggregatePath = join(demoRoot, 'acceptance', 'results', selectedBrowser === 'chrome' ? 'step4-ui-claims.json' : `step4-ui-claims-${selectedBrowser}.json`);
 
 const arms = selectedArm ? [selectedArm] : ['react', 'contract'];
 const claims = selectedClaim ? [selectedClaim] : [
@@ -29,6 +30,7 @@ const claims = selectedClaim ? [selectedClaim] : [
 if (!exactRevision) throw new Error('authoritative Phase 4 evidence requires --exact-revision or PARTITIME_EXACT_REVISION');
 if (arms.some((arm) => !['react', 'contract'].includes(arm))) throw new Error(`unknown arm: ${selectedArm}`);
 if (claims.some((claim) => !claim.startsWith('STEP4.UI.'))) throw new Error(`unknown claim: ${selectedClaim}`);
+if (!['chrome', 'firefox', 'safari'].includes(selectedBrowser)) throw new Error(`unknown browser: ${selectedBrowser}`);
 
 mkdirSync(resultsRoot, { recursive: true });
 const runs = [];
@@ -41,6 +43,7 @@ for (const arm of arms) {
       '--product-ui',
       '--phase4-only',
       '--phase4-claim', claimId,
+      '--browser', selectedBrowser,
       '--arm', arm,
       '--receipt', receiptPath,
     ], {
@@ -84,7 +87,8 @@ const report = {
     snapback: gitRevision(repoRoot),
     exact: exactRevision,
   },
-  isolation: 'Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, Chrome profile, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.',
+  browser: selectedBrowser,
+  isolation: `Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ${selectedBrowser} process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.`,
   arms,
   claims,
   expectedRuns: arms.length * claims.length,
