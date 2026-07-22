@@ -1783,3 +1783,8 @@ measured 1,564,980 post-GC warm bytes with 6/8 update fan-out/patches, 2,684
 bytes below the attribute-name checkpoint and still 170,880 bytes above the
 corrected threshold. Like the `Attr` result, this is a small browser-wrapper
 win rather than the missing core-runtime reduction.
+
+The combined candidate subsequently passed the immutable production browser
+corpus 9/9: static routes and JavaScript-disabled authority, byte-identical
+hydration adoption with zero recreated nodes, non-root base paths, history and
+metadata, exactly three event subscriptions, and unsolicited Snapback push.

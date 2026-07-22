@@ -77,6 +77,9 @@ props. That probe reaches 1,571,580 warm bytes with 6/8 unchanged, a further
 than materializing a live `CSSStyleDeclaration` per element; narrow reactive
 patches keep their CSSOM path. That probe reaches 1,564,980 warm bytes with 6/8
 unchanged, a further 2,684-byte reduction and a remaining 170,880-byte miss.
+The complete immutable production-browser corpus remains green at 9/9 on the
+latest candidate, including static authority, byte-identical adoption, zero
+recreated nodes, history/metadata, three subscriptions, and unsolicited push.
 The first sibling-environment probe timed out without a receipt; the first
 nested-environment probe failed in an unrelated Vite SSR transport fetch before
 app load. Both are excluded and the quoted values are clean reruns. The retained
