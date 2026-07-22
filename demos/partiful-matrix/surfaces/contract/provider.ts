@@ -8,6 +8,7 @@ import {
 } from '@exact/contract/runtime';
 
 import type { Backend } from '../../shared/model';
+import { createPollingDeliveryTracker } from '../../shared/poll-recovery.mjs';
 
 const descriptor = (name: string) => ({
   name, args: {}, result: { kind: 'list' as const, row: { shape: 'unknown' as const } },
@@ -47,14 +48,18 @@ export class GatewayContractProvider implements ContractDataProvider {
     let disposed = false;
     let previous: T | undefined;
     let timer: number | undefined;
+    const deliveryTracker = createPollingDeliveryTracker();
     observer({ status: 'pending', connection: 'connecting' });
     const poll = async () => {
       if (timer !== undefined) this.#timers.delete(timer);
       try {
         const value = await this.#call<T>('query', queryName, args);
         previous = value;
-        observer({ status: 'ready', value, empty: Array.isArray(value) && value.length === 0, connection: 'polling' });
+        if (deliveryTracker.accept(value)) {
+          observer({ status: 'ready', value, empty: Array.isArray(value) && value.length === 0, connection: 'polling' });
+        }
       } catch (error) {
+        deliveryTracker.fail();
         observer({ status: 'error', error: { message: error instanceof Error ? error.message : String(error) }, ...(previous === undefined ? {} : { previous }), connection: 'disconnected' });
       } finally {
         if (!disposed) { timer = window.setTimeout(poll, 1000); this.#timers.add(timer); }

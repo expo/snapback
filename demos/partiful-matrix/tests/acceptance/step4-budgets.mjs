@@ -19,6 +19,7 @@ import {
   validateRetainedWebReceipt,
   writeStep4Report,
 } from './step4-closure-helpers.mjs';
+import { evaluateHoldoutMetric } from './step4-budget-holdout.mjs';
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — every WS8
 // category receives a machine row; missing prospective instruments remain red
@@ -59,6 +60,11 @@ const performanceHoldout = optionalReceipt(performanceHoldoutPath);
 const nativePerformanceCalibration = optionalReceipt(nativePerformanceCalibrationPath);
 const nativePerformanceHoldout = optionalReceipt(nativePerformanceHoldoutPath);
 validateRetainedWebReceipt(webReceipt);
+
+const protocolAmendment = protocol.amendments.find(({ id }) => id === performanceAmendment.amendmentId);
+assert(protocolAmendment, `protocol does not register ${performanceAmendment.amendmentId}`);
+assert.equal(protocolAmendment.path, performanceAmendmentPath);
+assert.equal(protocolAmendment.status, performanceAmendment.status);
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
 assert.equal(frozen.methodId, protocol.protocolId);
@@ -197,15 +203,14 @@ const pushRow = {
 pushRow.pass = pushRow.actual <= pushRow.threshold && pushRow.samples.length === protocol.sampling.stochasticMeasurements.samples;
 
 const webPerformanceInstrument = (id, formulaKey, metricName) => {
-  const rows = performanceHoldout?.holdoutValidation?.rows
-    ?.filter((row) => row.metricName === metricName) ?? [];
   const expectedCells = backends.map((backend) => `contract:${backend}`);
-  const pass = performanceAmendment.status === 'ratified'
-    && performanceCalibration?.claimEligible === true
-    && performanceHoldout?.claimEligible === true
-    && performanceHoldout?.holdoutValidation?.ok === true
-    && rows.length === expectedCells.length
-    && expectedCells.every((cell) => rows.some((row) => row.cell === cell && row.pass === true));
+  const { pass, rows, perCellMeasurementsPresent } = evaluateHoldoutMetric({
+    amendmentStatus: performanceAmendment.status,
+    calibration: performanceCalibration,
+    holdout: performanceHoldout,
+    metricName,
+    expectedCells,
+  });
   return requirement(
     id,
     pass ? 'pass' : 'red',
@@ -219,22 +224,20 @@ const webPerformanceInstrument = (id, formulaKey, metricName) => {
       calibration: performanceCalibration ? identity(performanceCalibrationPath) : null,
       holdout: performanceHoldout ? identity(performanceHoldoutPath) : null,
       rows,
-      perCellMeasurementsPresent: rows.length === expectedCells.length,
+      perCellMeasurementsPresent,
     },
     pass ? undefined : 'nonclaim',
   );
 };
 
 const nativePerformanceInstrument = (id, metricName) => {
-  const rows = nativePerformanceHoldout?.holdoutValidation?.rows
-    ?.filter((row) => row.metricName === metricName) ?? [];
-  const pass = performanceAmendment.status === 'ratified'
-    && nativePerformanceCalibration?.claimEligible === true
-    && nativePerformanceHoldout?.claimEligible === true
-    && nativePerformanceHoldout?.holdoutValidation?.ok === true
-    && rows.length === 1
-    && rows[0].cell === 'exact-contract:ios:snapback'
-    && rows[0].pass === true;
+  const { pass, rows } = evaluateHoldoutMetric({
+    amendmentStatus: performanceAmendment.status,
+    calibration: nativePerformanceCalibration,
+    holdout: nativePerformanceHoldout,
+    metricName,
+    expectedCells: ['exact-contract:ios:snapback'],
+  });
   return requirement(id, pass ? 'pass' : 'red', pass
     ? 'STEP4_BUDGET_NATIVE_PERFORMANCE_PASSED'
     : 'STEP4_BUDGET_NATIVE_PERFORMANCE_NOT_GREEN', {
@@ -415,7 +418,7 @@ const report = finalizeReport({
       },
     },
     frozenThresholds: frozen.thresholds,
-    conclusion: 'Initial Contract byte/source budgets are red and the remaining WS8 instruments missed the Step 4 prospective-amendment deadline.',
+    conclusion: 'Contract byte budgets pass. Authored source, red web holdout rows, and the missing native holdout keep the aggregate budget claim red.',
   },
 });
 
