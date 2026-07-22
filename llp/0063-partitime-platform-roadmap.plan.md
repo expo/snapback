@@ -72,14 +72,18 @@ dispatcher across elements and reading replacement handlers from current
 props. That probe reaches 1,571,580 warm bytes with 6/8 unchanged, a further
 13,604-byte reduction. Exact `9b92f9713…` then stopped materializing browser
 `Attr` wrappers merely to enumerate stale attribute names. That probe reaches
-1,567,664 warm bytes with 6/8 unchanged, a further 3,916-byte reduction and a
-remaining 173,564-byte miss. The first sibling-environment probe timed out
-without a receipt; the first nested-environment probe failed in an unrelated
-Vite SSR transport fetch before app load. Both are excluded and the quoted
-values are clean reruns. The retained snapshot attributes the rest mainly to
-V8 code and mounted compiled view/host-model state. This is diagnostic evidence
-only; no threshold or claim is promoted, and a new Exact release plus full
-calibration/holdout reruns remain required.)
+1,567,664 warm bytes with 6/8 unchanged, a further 3,916-byte reduction. Exact
+`041c0b53f…` next writes the validated initial style map as one attribute rather
+than materializing a live `CSSStyleDeclaration` per element; narrow reactive
+patches keep their CSSOM path. That probe reaches 1,564,980 warm bytes with 6/8
+unchanged, a further 2,684-byte reduction and a remaining 170,880-byte miss.
+The first sibling-environment probe timed out without a receipt; the first
+nested-environment probe failed in an unrelated Vite SSR transport fetch before
+app load. Both are excluded and the quoted values are clean reruns. The retained
+snapshot attributes the rest mainly to V8 code and mounted compiled
+view/host-model state. This is diagnostic evidence only; no threshold or claim
+is promoted, and a new Exact release plus full calibration/holdout reruns remain
+required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table

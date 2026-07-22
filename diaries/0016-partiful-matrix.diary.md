@@ -1769,3 +1769,17 @@ external quick probe measured 1,567,664 post-GC warm bytes with 6/8 update
 fan-out/patches, 3,916 bytes below shared event dispatch and still 173,564
 bytes over threshold. This was small but clean: browser object APIs can create
 retained wrapper cost even when application semantics only need strings.
+
+## 2026-07-22 — initial style application did not need a CSSOM wrapper
+
+The direct host also requested `element.style` for every full presentation and
+set each validated property independently. Exact now serializes that same
+ordered style map into one `style` attribute. Values have already passed the
+shared inline-style safety check, and narrow reactive style patches still use
+CSSOM, so update semantics stay unchanged.
+
+The direct-host suite passes. The external Contract × Supabase quick probe
+measured 1,564,980 post-GC warm bytes with 6/8 update fan-out/patches, 2,684
+bytes below the attribute-name checkpoint and still 170,880 bytes above the
+corrected threshold. Like the `Attr` result, this is a small browser-wrapper
+win rather than the missing core-runtime reduction.
