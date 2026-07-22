@@ -1,0 +1,62 @@
+{
+  "$schema": "partitime-visual-spec/v1",
+  "specVersion": "partitime.visual.v1",
+  "owner": "LLP 0373 Phase 4; assertion machinery LLP 0187",
+  "oracle": "Shared product intent. React and Contract are evaluated independently; React pixels are never the Contract baseline.",
+  "cellExpansion": "states x themes x viewports x arms",
+  "arms": ["react", "contract"],
+  "themes": [
+    { "id": "light", "scheme": "light", "body": "#f4f0e8", "text": "#171512" },
+    { "id": "dark", "scheme": "dark", "body": "#171512", "text": "#f4f0e8" }
+  ],
+  "viewports": [
+    { "id": "compact", "width": 390, "height": 844, "sizeClass": "compact", "feedColumns": 1 },
+    { "id": "regular", "width": 768, "height": 1024, "sizeClass": "regular", "feedColumns": 2 },
+    { "id": "expanded", "width": 1280, "height": 800, "sizeClass": "expanded", "feedColumns": 3 }
+  ],
+  "globalRequirements": [
+    "No required node is clipped, zero-sized, overlapped, or outside the safe viewport.",
+    "Focus indicators are visible and are not obscured by overlays.",
+    "Text and interactive controls satisfy the active Facet theme rather than arm-local constants.",
+    "A viewport change across a size-class boundary updates structure without document reload or lost route state.",
+    "Reduced-motion and ordinary-motion modes settle to the same semantic and visual end state."
+  ],
+  "states": [
+    { "id": "feed-empty", "route": "/", "requires": ["feed", "feed-empty", "create-event"], "acceptance": "The empty explanation and create action form one clear primary column; no event-card placeholder remains." },
+    { "id": "feed-populated", "route": "/", "requires": ["feed", "event-card-event_sunset", "event-card-event_swim", "event-card-event_ceramics"], "acceptance": "Every event card exposes title, time, place, host, and open action; card grid uses the viewport's declared column count." },
+    { "id": "feed-loading-skeleton", "route": "/", "requires": ["feed", "feed-loading"], "acceptance": "Skeletons reserve the populated-card geometry and do not present stale event content." },
+    { "id": "event-detail-going", "route": "/events/event_sunset/", "requires": ["event-page", "rsvp-going", "guest-list", "wall"], "acceptance": "Going is the unambiguous selected RSVP state; event, guest, and wall regions remain visible in product order." },
+    { "id": "event-detail-maybe", "route": "/events/event_sunset/", "requires": ["event-page", "rsvp-maybe", "guest-list", "wall"], "acceptance": "Maybe is the unambiguous selected RSVP state with the same stable layout as Going." },
+    { "id": "event-detail-error", "route": "/events/event_sunset/", "requires": ["event-page", "event-error", "event-retry"], "acceptance": "The scoped error explains the failed region and offers a visible retry without erasing route identity." },
+    { "id": "guest-list-sheet-open", "route": "/events/event_sunset/", "requires": ["guest-list-trigger", "guest-list-sheet", "guest-list"], "acceptance": "The sheet is topmost, contained in the safe viewport, labelled, scrollable when needed, and keeps the trigger visually identifiable." },
+    { "id": "wall-composer-active", "route": "/events/event_sunset/", "requires": ["wall-composer", "wall-message", "wall-submit"], "acceptance": "Label, input, validation/status region, and submitter are aligned as one semantic form and remain usable with the soft keyboard." },
+    { "id": "wall-optimistic-pending", "route": "/events/event_sunset/", "requires": ["wall", "wall-pending-row", "wall-pending-status"], "acceptance": "The optimistic row is visually pending but fully readable; existing rows do not jump or lose their anchor." },
+    { "id": "create-event-form-default", "route": "/events/new/", "requires": ["create-event-form", "event-title", "event-when", "event-location", "event-description", "create-event-submit"], "acceptance": "All fields have visible labels and a coherent reading order; the primary submitter is visible without overlapping browser chrome." },
+    { "id": "create-event-form-validation-error", "route": "/events/new/", "requires": ["create-event-form", "form-error-summary", "event-title-error", "create-event-submit"], "acceptance": "The summary and field error are programmatically and visually linked; entered values remain present and focus target is visible." },
+    { "id": "options-menu-open", "route": "/events/event_sunset/", "requires": ["event-options-trigger", "event-options-menu", "event-options-first-item"], "acceptance": "The menu is anchored to its trigger, fully visible, uses one clear selected/focused row, and does not shift page layout." },
+    { "id": "rsvp-confirm-dialog-open", "route": "/events/event_sunset/", "requires": ["rsvp-trigger", "rsvp-confirm-dialog", "rsvp-confirm", "rsvp-cancel"], "acceptance": "The dialog is centred or platform-appropriately placed above a clear scrim, labelled, focus-contained, and exposes balanced confirm/cancel actions." }
+  ],
+  "interactionAppendix": {
+    "keyboard": [
+      "Tab order follows semantic order; Shift-Tab reverses it.",
+      "Enter/Space activate buttons; Enter activates links; Escape dismisses the top overlay.",
+      "Menus and listboxes support Arrow keys, Home/End, selection, and focus restoration."
+    ],
+    "focus": [
+      "Opening an overlay focuses its declared initial target and traps focus.",
+      "Every dismissal path restores focus to the trigger or declared eligible fallback.",
+      "Route and HMR teardown never focus a detached node or document body."
+    ],
+    "reducedMotion": [
+      { "class": "decorative", "policy": "instant" },
+      { "class": "spatial-overlay", "policy": "short opacity-only transition or instant" },
+      { "class": "state-feedback", "policy": "non-motion status remains perceivable" },
+      { "class": "essential", "policy": "retained only when the host classifies it essential" }
+    ]
+  },
+  "approval": {
+    "requiredCells": 156,
+    "formula": "13 states * 2 themes * 3 viewports * 2 arms",
+    "recordFields": ["arm", "state", "theme", "viewport", "imagePath", "imageSha256", "specVersion", "reviewer", "reviewedAt", "approved"]
+  }
+}

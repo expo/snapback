@@ -17,6 +17,8 @@ const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
 const demoRoot = resolve(here, '..', '..');
 const protocol = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'comparison-protocol.v1.json'), 'utf8'));
+const phase4VisualSpec = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'visual-spec.v1.json'), 'utf8'));
+const axeSource = readFileSync(join(repoRoot, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
@@ -25,17 +27,37 @@ const selectedArm = option('arm');
 const selectedBackend = option('backend');
 const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
+const phase4Only = process.argv.includes('--phase4-only');
+const selectedPhase4Claim = option('phase4-claim');
 const productionWeb = process.argv.includes('--production-web');
+const phase4ClaimIds = new Set([
+  'STEP4.UI.RESPONSIVE',
+  'STEP4.UI.KEYBOARD',
+  'STEP4.UI.FOCUS',
+  'STEP4.UI.REDUCED-MOTION',
+  'STEP4.UI.A11Y',
+  'STEP4.UI.VISUAL',
+]);
+if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
+  throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
+}
 const arms = productionWeb ? ['contract'] : selectedArm ? [selectedArm] : productUi ? ['react', 'contract'] : ['react', 'contract', 'vanilla'];
 const backends = productionWeb ? ['snapback'] : selectedBackend ? [selectedBackend] : productUi ? ['snapback'] : ['snapback', 'supabase', 'convex', 'sqlite'];
 const cells = arms.flatMap((arm) => backends.map((backend) => ({ arm, backend })));
 
 const vanillaCells = cells.filter(({ arm }) => arm === 'vanilla');
 const snapbackCells = cells.filter(({ backend }) => backend === 'snapback');
-const productUiChecks = productUi
+const productUiChecks = productUi && !phase4Only
   ? (cells.length * 5) + cells.filter(({ arm, backend }) => arm === 'contract' && backend === 'snapback').length
   : 0;
-const expectedChecks = productionWeb ? 9 : (cells.length * 3) + vanillaCells.length + snapbackCells.length + productUiChecks;
+const phase4ClaimsPerCell = selectedPhase4Claim ? 1 : 6;
+const phase4A11yDelta = productUi && !phase4Only && (!selectedPhase4Claim || selectedPhase4Claim === 'STEP4.UI.A11Y') && cells.some(({ arm }) => arm === 'react') && cells.some(({ arm }) => arm === 'contract') ? 1 : 0;
+const phase4UiChecks = productUi ? (cells.length * phase4ClaimsPerCell) + phase4A11yDelta : 0;
+const expectedChecks = productionWeb
+  ? 9
+  : phase4Only
+    ? phase4UiChecks
+    : (cells.length * 3) + vanillaCells.length + snapbackCells.length + productUiChecks + phase4UiChecks;
 const suiteTitle = productionWeb
   ? 'partitime / production Contract web'
   : productUi
@@ -45,6 +67,7 @@ const suite = createSuite(suiteTitle, {
   expectedChecks,
 });
 const cleanups = [];
+const phase4A11y = new Map();
 if (!existsSync(chromeBin) || !existsSync(serverBin)) {
   const missing = [
     ...(!existsSync(chromeBin) ? [{ prerequisite: 'chrome', path: chromeBin }] : []),
@@ -263,6 +286,11 @@ await runAcceptance(suite, async () => {
     const page = await cdp.newPage();
     try {
       await page.navigate(`${vite.url}/?user=eve`);
+      if (phase4Only) {
+        await waitForMatrixBoot(page);
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url });
+        continue;
+      }
       await suite.check(`${cell.arm} × ${cell.backend} boots its identified cell`, async () => {
         const boot = await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
         if (boot.arm !== undefined && boot.arm !== cell.arm) throw new Error(`wrong arm: ${boot.arm}`);
@@ -312,6 +340,7 @@ await runAcceptance(suite, async () => {
       }
       if (productUi) {
         await runProductUiChecks({ suite, page, cell });
+        await runPhase4UiClaimChecks({ suite, page, cell, baseUrl: vite.url });
       }
     } finally {
       try { await page.close(); }
@@ -383,6 +412,18 @@ await runAcceptance(suite, async () => {
         }
       });
     }
+  }
+  if (phase4A11yDelta === 1) {
+    await suite.check('STEP4.UI.A11Y axe delta keeps Contract at or below the React control', async () => {
+      const react = phase4A11y.get('react:snapback');
+      const contract = phase4A11y.get('contract:snapback');
+      if (!react || !contract) throw new Error(`axe measurements are incomplete: ${JSON.stringify([...phase4A11y])}`);
+      const newCriticalSerious = contract.criticalSerious.filter((item) => !react.criticalSerious.some((baseline) => baseline.id === item.id));
+      if (newCriticalSerious.length > 0 || contract.criticalSerious.length > react.criticalSerious.length) {
+        throw new Error(`Contract adds critical/serious axe violations: ${JSON.stringify({ react, contract, newCriticalSerious })}`);
+      }
+      return { claimId: 'STEP4.UI.A11Y', oracle: 'react-control-delta', react, contract, newCriticalSerious };
+    });
   }
 }, {
   cleanups,
@@ -542,8 +583,12 @@ function skipRemoteCell(cell, health) {
   }
 }
 
-async function waitForMatrixBoot(page) {
-  return page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
+async function waitForMatrixBoot(page, label = 'matrix boot') {
+  try {
+    return await page.eval(`(async()=>{const d=Date.now()+30000;while(!window.partifulMatrixReady){if(Date.now()>d)throw new Error('boot timeout');await new Promise(r=>setTimeout(r,50));}return await window.partifulMatrixReady;})()`);
+  } catch (error) {
+    throw new Error(`${label}: ${error.message}`);
+  }
 }
 
 async function runProductUiChecks({ suite: activeSuite, page, cell }) {
@@ -585,8 +630,8 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   });
 
   await activeSuite.check(`${label} provides an accessible portal form and keyboard focus scope`, async () => {
-    await page.eval(`document.querySelector('[data-testid="new-event"]')?.focus()`);
-    await page.click('new-event');
+    await page.eval(`document.querySelector('[data-testid="create-event"]')?.focus()`);
+    await page.click('create-event');
     await page.pollText('create-panel', 'plan', 5_000);
     await page.eval('new Promise(r=>requestAnimationFrame(r))');
     const semantics = await page.eval(`(()=>{const panel=document.querySelector('[data-testid="create-panel"]');const overlay=document.querySelector('[data-testid="create-overlay"]');const shell=document.querySelector('[data-testid="product-shell"]');const description=document.querySelector('[data-testid="event-description"]');const box=overlay?.getBoundingClientRect();return {role:panel?.getAttribute('role'),modal:panel?.getAttribute('aria-modal'),labelledBy:panel?.getAttribute('aria-labelledby'),describedBy:panel?.getAttribute('aria-describedby'),portal:!!overlay&&(!shell?.contains(overlay)||(getComputedStyle(overlay).position==='fixed'&&box?.width>=innerWidth&&box?.height>=innerHeight)),portalDetached:!!overlay&&!shell?.contains(overlay),overlayPosition:overlay?getComputedStyle(overlay).position:null,descriptionTag:description?.tagName,activeTestId:document.activeElement?.getAttribute('data-testid')}})()`);
@@ -608,7 +653,7 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
     await page.key('Escape');
     await page.eval('new Promise(r=>setTimeout(r,0))');
     const restored = await page.eval(`({overlay:!!document.querySelector('[data-testid="create-overlay"]'),activeTestId:document.activeElement?.getAttribute('data-testid')})`);
-    if (restored.overlay || restored.activeTestId !== 'new-event') {
+    if (restored.overlay || restored.activeTestId !== 'create-event') {
       throw new Error(`Escape dismissal did not restore opener focus: ${JSON.stringify(restored)}`);
     }
     return { semantics, validation, trapped, wrappedTo, restored };
@@ -616,7 +661,7 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
 
   await activeSuite.check(`${label} honors reduced-motion preference`, async () => {
     await page.emulateReducedMotion(true);
-    await page.click('new-event');
+    await page.click('create-event');
     await page.pollText('create-panel', 'plan', 5_000);
     const motion = await page.eval(`(()=>{const overlay=document.querySelector('[data-testid="create-overlay"]');const panel=document.querySelector('[data-testid="create-panel"]');const style=getComputedStyle(panel);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,animationDuration:style.animationDuration,transitionDuration:style.transitionDuration,overlayTransition:getComputedStyle(overlay).transitionDuration}})()`);
     if (!motion.matches || [motion.animationDuration, motion.transitionDuration, motion.overlayTransition].some((value)=>value && parseFloat(value) > 0.001)) {
@@ -628,6 +673,13 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
   });
 
   await activeSuite.check(`${label} mounts a bounded virtual guest window`, async () => {
+    // The preceding responsive assertion intentionally leaves the page at the
+    // compact breakpoint. This assertion is about bounded mounting rather than
+    // compact layout, so restore the fixture's canonical desktop viewport before
+    // navigating. Keeping the two concerns separate also makes the virtual-list
+    // witness reproducible across authoring arms.
+    await page.setViewport(1280, 900);
+    await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))})()`);
     await page.click('open-event_sunset');
     if (cell.arm === 'contract') await waitForMatrixBoot(page);
     await page.pollText('event-page', 'Sunset Supper Club', 15_000);
@@ -659,6 +711,258 @@ async function runProductUiChecks({ suite: activeSuite, page, cell }) {
       return { provider: 'Snapback ContractDataProvider.forceQueryState', observations };
     });
   }
+}
+
+async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl }) {
+  const cellId = `${cell.arm}:${cell.backend}`;
+  const label = `${cell.arm} × ${cell.backend}`;
+
+  await phase4Claim(activeSuite, 'STEP4.UI.RESPONSIVE', `${label} matches compact regular and expanded structure`, async () => {
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity=crypto.randomUUID();return window.__phase4ResponsiveIdentity})()`);
+    const observations = [];
+    for (const viewport of [
+      { id: 'compact', width: 390, height: 844, columns: 1 },
+      { id: 'regular', width: 768, height: 1024, columns: 2 },
+      { id: 'expanded', width: 1280, height: 800, columns: 3 },
+    ]) {
+      await page.setViewport(viewport.width, viewport.height);
+      await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,120))})()`);
+      const observed = await page.eval(`(()=>{const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')];const xs=[...new Set(cards.map(node=>Math.round(node.getBoundingClientRect().x)))];return {count:cards.length,columns:xs.length,xs,width:innerWidth,identity:window.__phase4ResponsiveIdentity,path:location.pathname,cardRects:cards.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})}})()`);
+      if (observed.count !== 3 || observed.columns !== viewport.columns || observed.width !== viewport.width || observed.identity !== identity || observed.path !== '/') {
+        throw new Error(`${viewport.id} structure drifted: ${JSON.stringify(observed)}`);
+      }
+      observations.push({ ...viewport, ...observed });
+    }
+    return { claimId: 'STEP4.UI.RESPONSIVE', cell: cellId, observations, documentIdentityRetained: true };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
+    await page.setViewport(1280, 800);
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    await page.focus('create-event');
+    await page.key('Enter');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page, 'keyboard create-route boot');
+    await page.pollText('create-panel', 'plan', 5_000);
+    await tabTo(page, (state) => state.testId === 'event-title');
+    await page.insertText('Keyboard Picnic');
+    await tabTo(page, (state) => state.testId === 'event-location');
+    await page.insertText('Dolores Park');
+    await tabTo(page, (state) => state.testId === 'create-event-submit');
+    await page.key('Enter');
+    const created = await page.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
+    if (!created?.includes('Keyboard Picnic')) throw new Error(`keyboard create flow did not land its outcome: ${created}`);
+
+    // Reset to the canonical route after proving the create outcome so the
+    // remaining keyboard sub-flow is independent of the newly created row.
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    await page.focus('open-event_sunset');
+    await page.key('Enter');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page, 'keyboard open-event boot');
+    await page.pollText('event-page', 'Sunset Supper Club', 15_000);
+
+    await page.focus('event-options-trigger');
+    await page.key('Enter');
+    await page.pollText('event-options-menu', 'Copy invite link', 5_000);
+    await page.eval('new Promise(r=>requestAnimationFrame(r))');
+    const menuFirst = await page.active();
+    await page.key('ArrowDown');
+    const menuSecond = await page.active();
+    if (!menuFirst?.insideMenu || !menuSecond?.insideMenu || menuSecond.testId === menuFirst.testId || menuSecond.text === menuFirst.text) {
+      throw new Error(`menu arrow navigation failed: ${JSON.stringify({ menuFirst, menuSecond })}`);
+    }
+    await page.key('Escape');
+    await assertFocused(page, 'event-options-trigger', 'menu Escape');
+
+    await page.focus('rsvp-going');
+    await page.key('Space');
+    const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
+    if (!rsvp?.includes('Going')) throw new Error(`Space did not activate RSVP: ${rsvp}`);
+
+    await page.focus('guest-list-trigger');
+    await page.key('Enter');
+    await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+    await tabTo(page, (state) => state.role === 'listbox' || (state.testId?.startsWith('guest-sheet-') && state.role === 'option'));
+    const guestFirst = await page.active();
+    const guestFirstDescendant = await page.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+    await page.key('ArrowDown');
+    const guestSecond = await page.active();
+    const guestSecondDescendant = await page.eval(`document.activeElement?.getAttribute('aria-activedescendant')??null`);
+    const moved = guestFirst.role === 'listbox'
+      ? guestFirstDescendant && guestSecondDescendant && guestFirstDescendant !== guestSecondDescendant
+      : guestSecond.testId !== guestFirst.testId && guestSecond.role === 'option';
+    if (!moved) throw new Error(`guest-list arrow navigation failed: ${JSON.stringify({ guestFirst, guestSecond, guestFirstDescendant, guestSecondDescendant })}`);
+    await page.key('Escape');
+    await assertFocused(page, 'guest-list-trigger', 'guest sheet Escape');
+
+    await page.focus('wall-message');
+    await page.insertText('Keyboard picnic');
+    await page.eval(`(()=>{const witness={seen:false,text:null};const inspect=()=>{const node=document.querySelector('[data-testid="wall-pending-status"]');if(node){witness.seen=true;witness.text=node.textContent}};const observer=new MutationObserver(inspect);observer.observe(document.body,{childList:true,subtree:true,characterData:true});inspect();window.__phase4PendingWitness={witness,observer};return true})()`);
+    await page.key('Enter');
+    const pending = await page.eval(`(async()=>{const d=Date.now()+2000;while(!window.__phase4PendingWitness?.witness.seen&&Date.now()<d)await new Promise(r=>setTimeout(r,20));const result=window.__phase4PendingWitness?.witness??null;window.__phase4PendingWitness?.observer.disconnect();delete window.__phase4PendingWitness;return result})()`);
+    const posted = await page.pollText('wall', 'Keyboard picnic', 5_000);
+    if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
+    return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, menuFirst, menuSecond, guestFirst, guestSecond, guestFirstDescendant, guestSecondDescendant, rsvp, pending, posted: 'Keyboard picnic', created: 'Keyboard Picnic' };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.FOCUS', `${label} traps and restores every overlay`, async () => {
+    const observations = [];
+    await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    await page.focus('create-event'); await page.click('create-event');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    await page.pollText('create-panel', 'plan', 5_000);
+    observations.push({ overlay: 'create', opened: await waitForOverlayFocus(page, 'dialog', 'create') });
+    await page.key('Escape'); observations.push({ overlay: 'create', dismissed: await assertFocused(page, 'create-event', 'create Escape') });
+
+    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+    await page.focus('event-options-trigger'); await page.click('event-options-trigger');
+    await page.pollText('event-options-menu', 'Copy invite link', 5_000);
+    observations.push({ overlay: 'menu', opened: await waitForOverlayFocus(page, 'menu', 'menu') });
+    await page.key('Escape'); observations.push({ overlay: 'menu', dismissed: await assertFocused(page, 'event-options-trigger', 'menu Escape') });
+
+    await page.focus('guest-list-trigger'); await page.click('guest-list-trigger');
+    await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+    observations.push({ overlay: 'guest-sheet', opened: await waitForOverlayFocus(page, 'dialog', 'guest sheet') });
+    await page.click('guest-sheet-close'); observations.push({ overlay: 'guest-sheet', dismissed: await assertFocused(page, 'guest-list-trigger', 'guest explicit close') });
+    await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+    await page.click('guest-list-sheet-backdrop'); observations.push({ overlay: 'guest-sheet-scrim', dismissed: await assertFocused(page, 'guest-list-trigger', 'guest scrim') });
+
+    await page.focus('rsvp-trigger'); await page.click('rsvp-trigger');
+    await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000);
+    observations.push({ overlay: 'rsvp', opened: await waitForOverlayFocus(page, 'dialog', 'RSVP dialog') });
+    await page.click('rsvp-cancel'); observations.push({ overlay: 'rsvp-cancel', dismissed: await assertFocused(page, 'rsvp-trigger', 'RSVP cancel') });
+    await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000);
+    await page.click('rsvp-confirm'); observations.push({ overlay: 'rsvp-confirm', dismissed: await assertFocused(page, 'rsvp-trigger', 'RSVP confirm') });
+
+    await page.click('back');
+    if (cell.arm === 'contract') await waitForMatrixBoot(page);
+    observations.push({ route: 'event-to-feed', focused: await assertFocused(page, 'create-event', 'route back') });
+    if (observations.some((entry) => entry.opened?.tag === 'BODY')) throw new Error(`an overlay opened with focus on body: ${JSON.stringify(observations)}`);
+    return { claimId: 'STEP4.UI.FOCUS', cell: cellId, observations };
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.REDUCED-MOTION', `${label} preserves non-motion outcomes`, async () => {
+    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+    await page.emulateReducedMotion(true);
+    try {
+      await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000);
+      const overlayMotion = await page.eval(`(()=>{const nodes=['guest-list-sheet','guest-list-sheet-overlay'].map(id=>document.querySelector('[data-testid="'+id+'"]')).filter(Boolean);return {matches:matchMedia('(prefers-reduced-motion: reduce)').matches,nodes:nodes.map(node=>{const s=getComputedStyle(node);return {animationDuration:s.animationDuration,transitionDuration:s.transitionDuration}})}})()`);
+      if (!overlayMotion.matches || overlayMotion.nodes.some((entry) => parseFloat(entry.animationDuration) > 0.001 || parseFloat(entry.transitionDuration) > 0.001)) throw new Error(`reduced overlay motion remains: ${JSON.stringify(overlayMotion)}`);
+      await page.key('Escape');
+      await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); await page.click('rsvp-confirm');
+      const rsvp = await page.pollText('guest-user_eve', 'Going', 5_000);
+      await page.focus('wall-message'); await page.insertText('Reduced motion status'); await page.key('Enter');
+      const pending = await page.pollText('wall-pending-status', 'Sending', 1_500);
+      if (!rsvp?.includes('Going') || !pending?.includes('Sending')) throw new Error(`reduced-motion end state disappeared: ${JSON.stringify({ rsvp, pending })}`);
+      return { claimId: 'STEP4.UI.REDUCED-MOTION', cell: cellId, overlayMotion, semanticEndState: { rsvp: 'Going', pending: 'Sending…' } };
+    } finally {
+      await page.emulateReducedMotion(false);
+    }
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.A11Y', `${label} satisfies semantic clauses and records axe`, async () => {
+    const audits = [];
+    for (const scenario of [
+      { path: '/', params: { user: 'eve' }, open: null },
+      { path: '/events/event_sunset/', params: { user: 'eve' }, open: 'guest-list-trigger' },
+      { path: '/events/new/', params: { user: 'eve' }, open: null },
+    ]) {
+      await loadPhase4Route(page, cell, baseUrl, scenario.path, scenario.params);
+      if (scenario.open) { await page.click(scenario.open); await page.pollText('guest-list-sheet', 'Guest list', 5_000); }
+      const semantics = await page.eval(`(()=>{const widgets=[...document.querySelectorAll('button,input,textarea,a,[role="menuitem"],[role="option"],[role="listbox"],[role="dialog"]')];const name=node=>node.getAttribute('aria-label')||node.getAttribute('aria-labelledby')?.split(/\\s+/).map(id=>document.getElementById(id)?.textContent??'').join(' ').trim()||[...(node.labels??[])].map(label=>label.textContent??'').join(' ').trim()||node.textContent?.trim()||node.getAttribute('title')||'';const unnamed=widgets.filter(node=>!name(node)).map(node=>({tag:node.tagName,role:node.getAttribute('role'),testId:node.getAttribute('data-testid')}));const headings=[...document.querySelectorAll('h1,h2,h3,h4,h5,h6,[aria-level]')].map(node=>Number(node.getAttribute('aria-level')||node.tagName.slice(1)));const skipped=headings.some((level,index)=>index>0&&level>headings[index-1]+1);return {main:document.querySelectorAll('main').length,unnamed,headings,skipped,listboxes:document.querySelectorAll('[role="listbox"]').length,dialogs:[...document.querySelectorAll('[role="dialog"]')].map(node=>({modal:node.getAttribute('aria-modal'),name:name(node)})),rsvpStates:[...document.querySelectorAll('[data-testid^="rsvp-"][role="radio"]')].map(node=>({id:node.getAttribute('data-testid'),checked:node.getAttribute('aria-checked')}))}})()`);
+      if (semantics.main !== 1 || semantics.unnamed.length > 0 || semantics.skipped || (scenario.path.includes('/events/') && !scenario.path.includes('/new/') && semantics.listboxes < 1) || semantics.dialogs.some((dialog) => !dialog.name || dialog.modal !== 'true')) {
+        throw new Error(`semantic S2 clauses failed at ${scenario.path}: ${JSON.stringify(semantics)}`);
+      }
+      await page.eval(`${axeSource}\n;true`);
+      const axe = await page.eval(`axe.run(document,{resultTypes:['violations'],runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21a','wcag21aa']}}).then(result=>({violations:result.violations.map(v=>({id:v.id,impact:v.impact,nodes:v.nodes.length,help:v.help}))}))`);
+      audits.push({ scenario, semantics, axe });
+    }
+    const criticalSerious = audits.flatMap((audit) => audit.axe.violations).filter((violation) => violation.impact === 'critical' || violation.impact === 'serious');
+    const measurement = { claimId: 'STEP4.UI.A11Y', cell: cellId, axeVersion: '4.12.1', criticalSerious, totalViolations: audits.reduce((sum, audit) => sum + audit.axe.violations.length, 0), audits };
+    phase4A11y.set(cellId, measurement);
+    return measurement;
+  });
+
+  await phase4Claim(activeSuite, 'STEP4.UI.VISUAL', `${label} implements every representative state`, async () => {
+    const states = [];
+    for (const state of phase4VisualSpec.states) {
+      await prepareVisualState({ page, cell, baseUrl, state: state.id });
+      const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
+      const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
+      if (invalid.length > 0) throw new Error(`${state.id} violates required visibility: ${JSON.stringify(invalid)}`);
+      states.push({ state: state.id, specVersion: phase4VisualSpec.specVersion, structural });
+    }
+    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: 'representative-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
+  });
+}
+
+async function phase4Claim(activeSuite, claimId, title, check) {
+  if (selectedPhase4Claim && selectedPhase4Claim !== claimId) return;
+  return activeSuite.check(`${claimId} ${title}`, check);
+}
+
+async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
+  const url = new URL(pathname.replace(/^\//, ''), `${baseUrl}/`);
+  for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
+  await page.navigate(url.href);
+  const boot = await waitForMatrixBoot(page);
+  if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
+  await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  return boot;
+}
+
+async function tabTo(page, predicate, limit = 16) {
+  for (let index = 0; index < limit; index += 1) {
+    const state = await page.active();
+    if (predicate(state)) return state;
+    await page.key('Tab');
+  }
+  const state = await page.active();
+  throw new Error(`Tab traversal did not reach the requested target: ${JSON.stringify(state)}`);
+}
+
+async function assertFocused(page, testId, label) {
+  const deadline = Date.now() + 5_000;
+  let state = null;
+  while (Date.now() < deadline) {
+    state = await page.active();
+    if (state?.testId === testId) return state;
+    await sleep(50);
+  }
+  throw new Error(`${label} did not restore focus to ${testId}: ${JSON.stringify(state)}`);
+}
+
+async function waitForOverlayFocus(page, kind, label) {
+  const deadline = Date.now() + 5_000;
+  let state = null;
+  while (Date.now() < deadline) {
+    state = await page.active();
+    if ((kind === 'menu' && state?.insideMenu) || (kind === 'dialog' && state?.insideDialog)) return state;
+    await sleep(50);
+  }
+  throw new Error(`${label} did not move focus into its overlay: ${JSON.stringify(state)}`);
+}
+
+async function prepareVisualState({ page, cell, baseUrl, state }) {
+  const event = () => loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
+  if (state === 'feed-empty') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve', uiState: 'feed-empty' });
+  if (state === 'feed-loading-skeleton') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve', uiState: 'feed-loading' });
+  if (state === 'feed-populated') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+  if (state === 'event-detail-error') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve', uiState: 'event-error' });
+  if (state === 'create-event-form-default') return loadPhase4Route(page, cell, baseUrl, '/events/new/', { user: 'eve' });
+  if (state === 'create-event-form-validation-error') {
+    await loadPhase4Route(page, cell, baseUrl, '/events/new/', { user: 'eve' });
+    await page.click('create-event-submit');
+    return;
+  }
+  await event();
+  if (state === 'event-detail-going') { await page.click('rsvp-going'); await page.pollText('guest-user_eve', 'Going', 5_000); return; }
+  if (state === 'event-detail-maybe') { await page.click('rsvp-maybe'); await page.pollText('guest-user_eve', 'Maybe', 5_000); return; }
+  if (state === 'guest-list-sheet-open') { await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000); return; }
+  if (state === 'wall-composer-active') { await page.focus('wall-message'); return; }
+  if (state === 'wall-optimistic-pending') { await page.focus('wall-message'); await page.insertText('Visual pending message'); await page.key('Enter'); await page.pollText('wall-pending-status', 'Sending', 1_500); return; }
+  if (state === 'options-menu-open') { await page.click('event-options-trigger'); await page.pollText('event-options-menu', 'Copy invite link', 5_000); return; }
+  if (state === 'rsvp-confirm-dialog-open') { await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); }
 }
 
 async function stopChild(child, label) {
@@ -796,7 +1100,16 @@ async function connectCdp(url) {
   });
   return { close: () => socket.close(), newPage: async () => {
     const { targetId } = await send('Target.createTarget', { url: 'about:blank' }); const { sessionId } = await send('Target.attachToTarget', { targetId, flatten: true }); await send('Page.enable', {}, sessionId); await send('Runtime.enable', {}, sessionId);
-    const evalRaw = async (expression) => { const result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId); if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text); return result.result?.value; };
+    const evalRaw = async (expression) => {
+      let result;
+      try {
+        result = await send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true, userGesture: true }, sessionId);
+      } catch (error) {
+        throw new Error(`${error.message}; expression=${String(expression).replace(/\s+/g, ' ').slice(0, 180)}`);
+      }
+      if (result.exceptionDetails) throw new Error(result.exceptionDetails.exception?.description || result.exceptionDetails.text);
+      return result.result?.value;
+    };
     const selector = (id) => `[data-testid="${id}"]`;
     return {
       navigate: (pageUrl) => send('Page.navigate', { url: pageUrl }, sessionId),
@@ -810,10 +1123,17 @@ async function connectCdp(url) {
         features: [{ name: 'prefers-reduced-motion', value: enabled ? 'reduce' : 'no-preference' }],
       }, sessionId),
       key: async (key) => {
-        await send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key }, sessionId);
-        await send('Input.dispatchKeyEvent', { type: 'keyUp', key, code: key }, sessionId);
+        const keyCodes = { Enter: 13, Space: 32, Tab: 9, Escape: 27, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40, Home: 36, End: 35 };
+        const virtualKeyCode = keyCodes[key] ?? 0;
+        const resolved = key === 'Space' ? { key: ' ', code: 'Space', text: ' ' } : key === 'Enter' ? { key, code: key, text: '\r' } : { key, code: key };
+        const codes = virtualKeyCode ? { windowsVirtualKeyCode: virtualKeyCode, nativeVirtualKeyCode: virtualKeyCode } : {};
+        await send('Input.dispatchKeyEvent', { type: 'keyDown', ...resolved, ...codes }, sessionId);
+        await send('Input.dispatchKeyEvent', { type: 'keyUp', ...resolved, text: undefined, ...codes }, sessionId);
       },
+      insertText: (text) => send('Input.insertText', { text }, sessionId),
       eval: evalRaw,
+      focus: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!(el instanceof HTMLElement))throw new Error('missing focus target ${id}');el.focus();return el===document.activeElement})()`),
+      active: () => evalRaw(`(()=>{const el=document.activeElement;return {tag:el?.tagName??null,testId:el?.getAttribute('data-testid')??null,role:el?.getAttribute('role')??null,text:el?.textContent?.trim()??null,insideMenu:!!el?.closest('[role="menu"]'),insideDialog:!!el?.closest('[role="dialog"]')}})()`),
       click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
       text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),
       pollText: (id, pattern, timeout) => evalRaw(`(async()=>{const d=Date.now()+${timeout};let v=null;while(Date.now()<d){v=document.querySelector('${selector(id)}')?.textContent?.trim()??null;if(v&&new RegExp(${JSON.stringify(pattern)},'i').test(v))return v;await new Promise(r=>setTimeout(r,100));}return v})()`),
