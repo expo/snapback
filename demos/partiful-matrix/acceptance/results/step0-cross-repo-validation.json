@@ -2,10 +2,10 @@
   "schemaVersion": "partitime.cross-repo-step0-validation.v1",
   "ok": true,
   "manifestId": "partitime-cumulative-gates-v1",
-  "manifestSha256": "c09b1170fa687f481428874ebd27cd36b721f4e59a7fbd4fb02e16c66432188e",
+  "manifestSha256": "30849cc99c3dd6daf655b6559cb3359fc283b23b27dfc3fb4ca9a9cadedbc071",
   "stepZeroClaimCount": 19,
   "exact": {
-    "revision": "d339e39cf50cc4a225d9538428c738c38e044516",
+    "revision": "150362065c7023d6838706a2d8c7ec6fa1cdcef0",
     "dirty": false
   },
   "sharedContractExactRevision": "a7b3f1be669d0b82f117e4a4433527ef30ae5ba6",
@@ -64,7 +64,7 @@
       "validationOk": true,
       "manifestId": "partitime-cumulative-gates-v1",
       "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-      "digest": "c09b1170fa687f481428874ebd27cd36b721f4e59a7fbd4fb02e16c66432188e",
+      "digest": "30849cc99c3dd6daf655b6559cb3359fc283b23b27dfc3fb4ca9a9cadedbc071",
       "claims": 46,
       "stepZero": {
         "passing": 19
@@ -76,7 +76,7 @@
       "schemaVersion": "partitime.exact-manifest-mirror-validation.v1",
       "ok": true,
       "authority": "demos/partiful-matrix/acceptance/claims.v1.json",
-      "digest": "c09b1170fa687f481428874ebd27cd36b721f4e59a7fbd4fb02e16c66432188e",
+      "digest": "30849cc99c3dd6daf655b6559cb3359fc283b23b27dfc3fb4ca9a9cadedbc071",
       "schemaSha256": "3038ec48951acfd1b27c449d8234911a9387722be004e4a6bb19748c847baf00",
       "protocolSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
       "manifestId": "partitime-cumulative-gates-v1",
@@ -90,7 +90,7 @@
       "schemaVersion": "partitime.exact-step0-aggregate-validation.v1",
       "ok": true,
       "manifestId": "partitime-cumulative-gates-v1",
-      "manifestDigest": "c09b1170fa687f481428874ebd27cd36b721f4e59a7fbd4fb02e16c66432188e",
+      "manifestDigest": "30849cc99c3dd6daf655b6559cb3359fc283b23b27dfc3fb4ca9a9cadedbc071",
       "aggregateSha256": "6b580348e92a9818effaccdf81866c4682122314ffa78df80dc01ceda11090e2",
       "manifestSemanticSha256": "b459217907cbc2a1fb4f42c12bad959cdc98285543ba8e55cf6df2fb9afe6d0e",
       "prerequisiteCount": 18,
@@ -101,14 +101,14 @@
     "manifest": {
       "source": {
         "path": "demos/partiful-matrix/acceptance/claims.v1.json",
-        "sha256": "c09b1170fa687f481428874ebd27cd36b721f4e59a7fbd4fb02e16c66432188e"
+        "sha256": "30849cc99c3dd6daf655b6559cb3359fc283b23b27dfc3fb4ca9a9cadedbc071"
       },
       "exactPath": "vendor/snapback-partitime/claims.v1.json"
     },
     "lock": {
       "source": {
         "path": "demos/partiful-matrix/acceptance/claims.v1.sha256",
-        "sha256": "aef86b17e91415d194b4d4a15fbbc3f8fb93406d82f3b60d41ad4a7c60dfd214"
+        "sha256": "5153b21cf6ec5912b9e74abf4a9e1fd018e68e08fbd2c8861bc33fed483d8dcf"
       },
       "exactPath": "vendor/snapback-partitime/claims.v1.sha256"
     },
