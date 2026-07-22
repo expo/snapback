@@ -80,7 +80,14 @@ const debug = {
 (globalThis as { partifulMatrixDebug?: typeof debug }).partifulMatrixDebug = debug;
 
 function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
-  const el = document.getElementById('boot-status'); if (el) { el.textContent = message; el.dataset.state = state; }
+  const el = document.getElementById('boot-status');
+  if (!el || (el.dataset.state === 'ready' && state !== 'error')) return;
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — once
+  // mounted UI owns progress, route remounts must not churn the hidden boot
+  // sentinel. A later failure may still surface it.
+  if (el.textContent === message && el.dataset.state === state) return;
+  el.textContent = message;
+  el.dataset.state = state;
 }
 
 function normalizedBasePath(): string {

@@ -1495,3 +1495,35 @@ native boot path remain specific Snapback/Exact integration concerns. Compared
 with React plus Supabase or Convex, the installed Contract arm is finally in
 the same browser-byte neighborhood, while still demanding substantially more
 evidence machinery to establish that result.
+
+## 2026-07-22 — the update-cost regression was in the production DOM host
+
+The independent holdout evaluator made four previously hidden categories
+honest, and update economy was the sharpest finding. Exact 0.1.5 reduced the
+Contract cells' subscription heap by roughly thirty percent, but route
+navigation jumped from the earlier 0.1.2 observations of 7/15 DOM targets and
+patches in most cells (18/237 for SQLite) to 57/531 for Snapback, 24/202 for
+Supabase and Convex, and 56/1,133 for SQLite. That looked like a possible cost
+of the production AOT compiler until a focused trace showed the renderer was
+recursively reapplying every unchanged element's attributes and styles after
+each commit.
+
+The repair belongs in Exact's lightweight production DOM host: retain the last
+applied props identity, parent identity, and image color scheme, but continue
+walking the tree so changed descendants and structural order still reconcile.
+A MutationObserver regression now pins a text-only update to one character
+mutation and no ancestor attribute or child mutations. Partitime also stopped
+rewriting its already-hidden boot sentinel during client-side route remounts;
+once mounted UI owns progress, only a later error may make that sentinel write
+again.
+
+An unpublished four-cell quick run now records 6/9 targets/patches for
+Snapback, Supabase, and Convex, and 9/16 for SQLite. All four fit the unchanged
+9/19 frozen limits, and the SQLite bundle remains green at 211,203 minified /
+62,050 deterministic-gzip bytes. This is strong diagnostic evidence, not a
+claim promotion: the Exact change still needs a release and the full
+calibration/holdout cohorts. Compared with React, whose quick SQLite turn was
+9/18, Contract is now in the same update-cost neighborhood. The experience is
+reassuringly mundane—this was neither a Snapback transport flaw nor a
+fundamental Contract-language problem, just a production-host fast path that
+the original functional 9/9 browser corpus did not measure.

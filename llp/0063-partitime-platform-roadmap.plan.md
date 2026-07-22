@@ -34,6 +34,19 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 update-economy remediation checkpoint):** 2026-07-22
+(The independently evaluated 0.1.5 holdout exposed a production-renderer
+regression rather than a Snapback transport or Contract-language limit: the
+lightweight Exact DOM host reapplied every unchanged descendant's presentation
+on each commit. Exact `1209d3fb9…` now skips those writes by last-applied host
+input identity, with a MutationObserver regression; Partitime also stops
+rewriting its hidden boot sentinel after mounted UI owns progress. An
+unpublished four-cell quick probe moves Contract update fan-out/patches from
+57/531, 24/202, 24/202, and 56/1,133 to 6/9, 6/9, 6/9, and 9/16 for
+Snapback, Supabase, Convex, and SQLite. The SQLite bundle remains below its
+frozen limits at 211,203/62,050 minified/deterministic-gzip bytes. This is a
+diagnostic remediation checkpoint only: a new Exact release and full committed
+calibration/holdout reruns remain required, and no claim is promoted.)
 **Revised (Step 4 stable Exact runtime checkpoint):** 2026-07-21 (Exact
 revision `9999f109…` was published as the complete 15-package
 `@ccheever/exact-*` 0.1.5 closure under `latest`; every public registry
