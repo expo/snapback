@@ -1,8 +1,8 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-22T10:14:18.815Z",
+  "generatedAt": "2026-07-22T10:34:00.210Z",
   "revisions": {
-    "snapback": "7ca6bf3a73e881e03155dfd864fd76b465334b98",
+    "snapback": "ca0c8470bddb65c41880fd79afde0d8292813293",
     "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "oq9": {
@@ -206,10 +206,141 @@
       "browserId": "safari-macos-latest",
       "role": "automated harness cell (WebDriver)",
       "status": "red",
-      "reason": "required-artifact-missing",
+      "reason": "claim-receipt-not-passing",
       "path": "demos/partiful-matrix/acceptance/results/step4-ui-claims-safari.json",
-      "sha256": null,
-      "claimResults": []
+      "sha256": "51829de60f123f1e581008f1d646ed5a1e035dce8a16f218668e2d71361707d9",
+      "environment": "safari",
+      "revisions": {
+        "snapback": "ca0c8470bddb65c41880fd79afde0d8292813293",
+        "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
+      },
+      "claimResults": [
+        {
+          "claimId": "STEP4.UI.RESPONSIVE",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-responsive.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-responsive.json",
+              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+            }
+          ]
+        },
+        {
+          "claimId": "STEP4.UI.KEYBOARD",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-keyboard.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-keyboard.json",
+              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+            }
+          ]
+        },
+        {
+          "claimId": "STEP4.UI.FOCUS",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-focus.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-focus.json",
+              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+            }
+          ]
+        },
+        {
+          "claimId": "STEP4.UI.REDUCED-MOTION",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-reduced-motion.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-reduced-motion.json",
+              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+            }
+          ]
+        },
+        {
+          "claimId": "STEP4.UI.A11Y",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-a11y.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-a11y.json",
+              "receiptSha256": "3f9259ed0da1825fb01d56c66431f339c887a7bb30459e4f468946f079d4696b"
+            }
+          ],
+          "delta": {
+            "ok": false,
+            "reason": "both arm receipts are required for the delta oracle"
+          }
+        },
+        {
+          "claimId": "STEP4.UI.VISUAL",
+          "status": "red",
+          "cells": [
+            {
+              "arm": "react",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/react/step4-ui-visual.json",
+              "receiptSha256": "8493becd98ec21a89b5460a9f688a7108782045d1c8d2c7b19d6a7325b286f90"
+            },
+            {
+              "arm": "contract",
+              "ok": false,
+              "exitCode": 2,
+              "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/safari/contract/step4-ui-visual.json",
+              "receiptSha256": "1db62be47a0d585028e5d85c23bb817d3526ca77a45737fb76d91e51acd1b07e"
+            }
+          ],
+          "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
+        }
+      ]
     },
     {
       "browserId": "firefox-macos-latest",
@@ -705,7 +836,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -731,7 +862,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -761,7 +892,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -791,7 +922,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -817,7 +948,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
@@ -847,7 +978,7 @@
         {
           "browserId": "safari-macos-latest",
           "status": "red",
-          "reason": "required-artifact-missing"
+          "reason": "claim-receipt-not-passing"
         },
         {
           "browserId": "firefox-macos-latest",
