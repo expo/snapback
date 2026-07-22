@@ -1603,3 +1603,40 @@ the missing bridge from that machinery to a benchmarkable production iOS
 artifact. Acto remains valuable; it simply cannot be charged to every user's
 first frame and then compared with a carrier where the equivalent inspector is
 off.
+
+## 2026-07-22 — the next 97 KB was a production introspection gate
+
+The corrected one-page heap was still useful because it made a production-only
+Contract bug visible. The signal runtime guarded its introspection graph with
+`'env' in import.meta`; that shape looked defensive in Node, but it prevented
+Vite from replacing the production constant. In an ordinary browser there is
+no `process` fallback, so the runtime selected its development default and
+registered metadata for every signal, computed, and effect.
+
+Exact now uses a safe existence check around direct
+`import.meta.env.PROD`/`DEV` reads, returns before production registration, and
+does not look up computed metadata when cause recording is off. Focused
+introspection and update-economy tests still pass, the three TypeScript
+profiles pass, and an unminified release-artifact test proves the three
+per-node registration calls are absent. On the same Contract × Supabase quick
+workload, post-GC heap moves from 1,717,728 to 1,620,640 bytes while the route
+turn stays at 6 mutation targets and 8 patches.
+
+The retained snapshot also kept us from overfitting the wrong idea. Installing
+ten browser listeners on every element looked expensive in allocation
+sampling, but selectively installing them did not improve the measured heap;
+I discarded that change. The remaining 226,540-byte miss is dominated by V8
+code and eager compiled view representation: the snapshot has 137 mount
+environments, 139 mounted `hostNodes`/`dispose` units, and the hidden create
+view's registered AOT/IR even though the overlay is closed. The shared signal
+module also still carries dead introspection code, so LLP 0192's stronger
+zero-code promise is not yet met.
+
+Compared with React plus Supabase, this is where Contract's compiler strategy
+shows its current tradeoff most clearly. React leaves much of a closed branch
+as lazy function code; Contract eagerly materializes more authored structure
+so updates and tooling have explicit identities. That is not a fundamental
+language failure, but it is a real production representation problem. The next
+useful changes are a development-only introspection module boundary and
+lazy/compact registration for unopened view regions—not provider or Snapback
+subscription surgery.

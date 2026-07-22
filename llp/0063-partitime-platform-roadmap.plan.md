@@ -34,6 +34,25 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 subscription-memory remediation checkpoint):** 2026-07-22
+(A paired Chrome retained-heap diagnostic localized the remaining Contract ×
+Supabase miss after the bfcache correction. Exact's production signal gate
+used `'env' in import.meta`, which prevented Vite from replacing the release
+constant; a browser without `process` then selected the development default
+and retained per-node reactive introspection metadata. Exact `ec60ee53a…` uses
+safe direct Vite environment reads, returns before production
+signal/computed/effect registration, skips production metadata lookup, and
+adds a release-artifact regression for the three call sites. The external
+quick probe moves from 1,717,728 to 1,620,640 post-GC bytes while keeping
+update fan-out/patches at 6/8. This is a real roughly 97 KB improvement but
+remains 226,540 bytes above the frozen 1,394,100 limit. The retained snapshot
+attributes the rest mainly to V8 code and eager compiled view/host-model
+state; Exact LLP 0192's zero-code rule also remains open because the dead
+introspection implementation is still reachable in the shared signal module.
+The next work is a development-only introspection module boundary and
+lazy/compact hidden-view AOT registration. This is diagnostic evidence only;
+no threshold or claim is promoted, and a new Exact release plus full
+calibration/holdout reruns remain required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table
