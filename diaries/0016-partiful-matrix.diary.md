@@ -1730,3 +1730,28 @@ measurement. The identical clean rerun measured 1,585,184 post-GC warm bytes
 and kept update fan-out/patches at 6/8. That saves another 3,564 bytes and leaves
 191,084 bytes above threshold. The allocation was real and worth removing, but
 its size confirms that context-object cloning is no longer the dominant miss.
+
+## 2026-07-22 — direct event dispatch was duplicated per element
+
+Paired quick-run heap snapshots made the next representation cost much less
+speculative. Against React, Contract retained 320 additional native listener
+wrappers and 724 additional JS closures overall. The admitted direct DOM host
+installed nine arrow-function listeners on every element (plus input/change on
+controls), so every passive layout and text container captured the same host
+node repeatedly.
+
+The first experiment attached listeners only when current props named a
+matching handler. That reduced the native listener topology but expanded the
+host's event decision code enough to make the frozen V8-heap metric 1,684 bytes
+worse, so it was not kept. The narrower retained change preserves the direct
+listener topology—and therefore native `currentTarget` and propagation—while
+storing a private DOM-to-host identity and sharing one dispatcher function.
+Replacement handlers are still read from current `originalProps`.
+
+Eight direct-host tests, production reachability, hydration and plugin suites,
+and all TypeScript profiles pass. The external Contract × Supabase quick probe
+measured 1,571,580 post-GC warm bytes with update fan-out/patches still 6/8.
+That is 13,604 bytes below the nested-environment checkpoint and leaves 177,480
+bytes above threshold. The result confirms that closure/context duplication is
+material, while the remaining miss is still mainly executable/runtime state
+rather than one giant host object.

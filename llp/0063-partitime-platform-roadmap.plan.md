@@ -65,7 +65,12 @@ still 6/8, a further 11,480-byte reduction. Exact `6d9dfe08e…` then extended
 immutable environment reuse through ordinary nested AOT host containers while
 preserving the projections for component roots, portals, and dismiss layers.
 Its clean rerun reaches 1,585,184 warm bytes with 6/8 unchanged, a further
-3,564-byte reduction and a remaining 191,084-byte miss. The first sibling-
+3,564-byte reduction. Paired Contract/React heap snapshots then localized a
+direct-host event closure matrix. Exact `6311e91b9…` preserves direct native
+listeners and browser `currentTarget`/propagation semantics while sharing one
+dispatcher across elements and reading replacement handlers from current
+props. That probe reaches 1,571,580 warm bytes with 6/8 unchanged, a further
+13,604-byte reduction and a remaining 177,480-byte miss. The first sibling-
 environment probe timed out without a receipt; the first nested-environment
 probe failed in an unrelated Vite SSR transport fetch before app load. Both are
 excluded and the quoted values are clean reruns. The retained snapshot
