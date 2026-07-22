@@ -1,0 +1,198 @@
+{
+  "$schema": "partitime-step4-ui-claims/v1",
+  "generatedAt": "2026-07-22T02:50:14.962Z",
+  "revisions": {
+    "snapback": "f99b34e156091b4995c6d80b864e4c6a0ce54fcb",
+    "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
+  },
+  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, Chrome profile, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
+  "arms": [
+    "react",
+    "contract"
+  ],
+  "claims": [
+    "STEP4.UI.RESPONSIVE",
+    "STEP4.UI.KEYBOARD",
+    "STEP4.UI.FOCUS",
+    "STEP4.UI.REDUCED-MOTION",
+    "STEP4.UI.A11Y",
+    "STEP4.UI.VISUAL"
+  ],
+  "expectedRuns": 12,
+  "completedRuns": 12,
+  "claimResults": [
+    {
+      "claimId": "STEP4.UI.RESPONSIVE",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-responsive.json",
+          "receiptSha256": "9b79d1b7d9b76d63025773418eaa61bbc0f3de83107f912707d81fa06d223d79"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-responsive.json",
+          "receiptSha256": "de523f1a43dc7962ff83075586aa9cde0f05f09c45d0c5256b6ed10387e727d2"
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.KEYBOARD",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-keyboard.json",
+          "receiptSha256": "89a87e35091b02a841f85a8addc91a3fe5ef557a063b9297ed517dbb481e8f47"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-keyboard.json",
+          "receiptSha256": "9f8cadfea634838636c16d8c7478cfcba09a6cb4095eb48d321320d2d75aba24"
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.FOCUS",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-focus.json",
+          "receiptSha256": "86a5547654f6e1242eb1407da285c5f7df2850af9e10963d036dd73fd656a511"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-focus.json",
+          "receiptSha256": "d44e77c3c1f4c8bf424091cbee9dd127a2d9203a98b984eeefe68572079c215e"
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.REDUCED-MOTION",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-reduced-motion.json",
+          "receiptSha256": "e2a277e81af6b3ee63f00af133591a0d278a5517970c38f5f8155ad0245a11f9"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-reduced-motion.json",
+          "receiptSha256": "563ca67b5d439c937cabd9786ce1cce4656abc5d1a8a6491bd393368e97f36bd"
+        }
+      ]
+    },
+    {
+      "claimId": "STEP4.UI.A11Y",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-a11y.json",
+          "receiptSha256": "9502bcb82a14ddb641963dcbf610c3ee534d0fcafe7348c0afdbbc439b5736cc"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-a11y.json",
+          "receiptSha256": "d4d19beb7875010692faaf442973cacb46f5659f12fa4043bc785d37bf893e96"
+        }
+      ],
+      "delta": {
+        "oracle": "zero new critical/serious; Contract total violations <= React control",
+        "react": {
+          "criticalSerious": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 5,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 6,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 6,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            }
+          ],
+          "totalViolations": 3
+        },
+        "contract": {
+          "criticalSerious": [
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 5,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 3,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            },
+            {
+              "id": "color-contrast",
+              "impact": "serious",
+              "nodes": 6,
+              "help": "Elements must meet minimum color contrast ratio thresholds"
+            }
+          ],
+          "totalViolations": 3
+        },
+        "newCriticalSerious": [],
+        "ok": true
+      }
+    },
+    {
+      "claimId": "STEP4.UI.VISUAL",
+      "status": "pass",
+      "cells": [
+        {
+          "arm": "react",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-visual.json",
+          "receiptSha256": "4cd6a981f506557dff438ec80f80514864a2db066e80e2889f4107ab6d0629d7"
+        },
+        {
+          "arm": "contract",
+          "ok": true,
+          "exitCode": 0,
+          "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-visual.json",
+          "receiptSha256": "bf0697e762ede2979099f59dd3b9da59a0826d3231ef8f0764f28bab4d385f21"
+        }
+      ],
+      "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"
+    }
+  ],
+  "ok": true
+}
