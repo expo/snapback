@@ -4,23 +4,23 @@
   "ok": false,
   "outcome": "red",
   "claimEligible": false,
-  "recordedAt": "2026-07-21T21:31:16.972Z",
+  "recordedAt": "2026-07-22T01:55:33.718Z",
   "authority": [
     "Snapback LLP 0063 Step 4",
     "Exact LLP 0211 §4.3"
   ],
   "repository": {
-    "revision": "a3baead7228ca58b6fa478f2de80aeb87158a084",
-    "dirty": true
+    "revision": "616c388c9757ad0e97116198226bc085b6e745b4",
+    "dirty": false
   },
   "summary": {
     "required": 21,
-    "passed": 4,
-    "red": 17,
+    "passed": 5,
+    "red": 16,
     "skipped": 0
   },
-  "passed": 4,
-  "red": 17,
+  "passed": 5,
+  "red": 16,
   "skipped": 0,
   "environments": [
     {
@@ -294,13 +294,33 @@
     {
       "environment": "desktop-safari",
       "assertion": "focus-trap-restore",
-      "acceptedFixtures": [
-        "partitime-create-dialog"
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "notes": "Fresh Safari WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
+      "evidence": [
+        {
+          "kind": "machine-receipt",
+          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+          "sha256": "83a0da6b5af7fa7484991c6a9a91a133a0098bb72e984aa6bfec8399c90a89e1",
+          "result": "contract × snapback traps and restores focus in desktop safari"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Safari",
+        "version": "26.5.2"
+      },
+      "os": {
+        "name": "desktop host",
+        "version": "darwin-25.5.0-arm64"
+      },
+      "channel": null,
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "input": "WebDriver key actions"
+      }
     },
     {
       "environment": "desktop-safari",
@@ -323,13 +343,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7",
+          "sha256": "8895e81420e2823737455dcdc5fa7d22adf13119efea4b43f7799f212c639beb",
           "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
         }
       ],
       "browser": {
         "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.129"
+        "version": "Google Chrome 150.0.7871.130"
       },
       "os": {
         "name": "desktop host",
@@ -378,13 +398,13 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-          "sha256": "4462b0810f09b66bd87a60fe2ce6e6d20a455bbde029119ab8955f1215f281b6",
+          "sha256": "07e96623c7abc09086804d96531411b5a8913c7d8aec4f13759f670c400ab122",
           "result": "contract × snapback exposes visible content to browser find-on-page"
         }
       ],
       "browser": {
         "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.129"
+        "version": "Google Chrome 150.0.7871.130"
       },
       "os": {
         "name": "desktop host",
@@ -409,7 +429,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+          "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
           "result": "contract × snapback traps and restores focus in desktop firefox"
         }
       ],
@@ -440,7 +460,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+          "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
           "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
         }
       ],
@@ -472,7 +492,7 @@
     "host": "darwin-25.5.0-arm64",
     "desktop": {
       "safari": "26.5.2",
-      "chrome": "Google Chrome 150.0.7871.129",
+      "chrome": "Google Chrome 150.0.7871.130",
       "firefox": "Mozilla Firefox 152.0.1"
     },
     "android": {
@@ -486,25 +506,30 @@
   "inputs": [
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "c6b349841adf053e389496a8b4a2fa52d7bb2dc8d5b9bc9c627ec9d11d7f80d7",
-      "bytes": 29259
+      "sha256": "8895e81420e2823737455dcdc5fa7d22adf13119efea4b43f7799f212c639beb",
+      "bytes": 29221
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-      "sha256": "4462b0810f09b66bd87a60fe2ce6e6d20a455bbde029119ab8955f1215f281b6",
+      "sha256": "07e96623c7abc09086804d96531411b5a8913c7d8aec4f13759f670c400ab122",
       "bytes": 2647
     },
     {
+      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+      "sha256": "83a0da6b5af7fa7484991c6a9a91a133a0098bb72e984aa6bfec8399c90a89e1",
+      "bytes": 2826
+    },
+    {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-      "sha256": "83a7c9b5b517f500d5d90beeec975f715c64c5ab44cfb58ef586db8d2f5c660b",
+      "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
       "bytes": 3332
     }
   ],
   "testInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-browser-citizenship.mjs",
-      "sha256": "82f5cca22110fb29ecbbb9d7cfe74a74788c33f0cf04a366ff8291097792fb1c",
-      "bytes": 16493
+      "sha256": "de59be62d94f82b65fdcf7e03858c55886ac3caa28ae6eed8213406dfd5dcc94",
+      "bytes": 17344
     }
   ],
   "nonClaims": [
