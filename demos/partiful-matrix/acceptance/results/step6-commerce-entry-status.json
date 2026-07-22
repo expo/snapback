@@ -1,0 +1,113 @@
+{
+  "schemaVersion": "partitime.step6-pressure-profile-entry-status.v1",
+  "claimId": "STEP6.COMMERCE",
+  "profile": "commerce",
+  "admittedProfile": "commerce-payments-v1+trusted-single-tenant-app-complete.v1",
+  "ok": false,
+  "disposition": "entry-blocked",
+  "claimStatus": "pending",
+  "authorityGatePass": false,
+  "authorities": [
+    {
+      "path": "llp/0014-cloudflare-strategy.rfc.md",
+      "sha256": "280a9325ba52470c3804f089fd8a5b566031025064bd023a4fae32a2370e88f7",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0069-payment-provider-boundary.rfc.md",
+      "sha256": "1ab2b08f8e104164b4b10ea63c16c3d9c02d9e375b34d9e070f309537d330249",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0070-durable-background-work.rfc.md",
+      "sha256": "4dcf4077f9bfb576edacc0883f7a6bd843d6c71180c67f12293bd9b45022082c",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0071-application-abuse-moderation-and-audit.rfc.md",
+      "sha256": "7af925d2afc06f47f57a724ee802a2a2fc047bfc580ffe623a20f70e1842d2b2",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+      "sha256": "442710457f269dc9dad2f26b66922e282c92e13d6258bd5e4b219187da53df89",
+      "status": "Draft",
+      "acceptedForGate": false
+    }
+  ],
+  "requiredPressures": [
+    {
+      "pressure": "anonymous and SEO rendering",
+      "witnessed": false
+    },
+    {
+      "pressure": "inventory contention",
+      "witnessed": false
+    },
+    {
+      "pressure": "real sandbox payments",
+      "witnessed": false
+    },
+    {
+      "pressure": "signed idempotent webhooks",
+      "witnessed": false
+    },
+    {
+      "pressure": "durable jobs",
+      "witnessed": false
+    },
+    {
+      "pressure": "caching",
+      "witnessed": false
+    },
+    {
+      "pressure": "auditability",
+      "witnessed": false
+    }
+  ],
+  "evidence": {
+    "adjacentEvidence": null,
+    "productReceipt": null,
+    "hostedMinimumReceipt": null
+  },
+  "blockers": [
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0014-cloudflare-strategy.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0069-payment-provider-boundary.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0070-durable-background-work.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0071-application-abuse-moderation-and-audit.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "missing-admitted-product-receipt",
+      "profile": "commerce-payments-v1+trusted-single-tenant-app-complete.v1"
+    },
+    {
+      "kind": "missing-hosted-minimum-receipt",
+      "profile": "trusted-single-tenant-app-complete.v1"
+    }
+  ],
+  "rule": "Draft authorities, adjacent demos, local stubs, and documentation are never promoted to production-vertical evidence."
+}

@@ -1,0 +1,144 @@
+{
+  "schemaVersion": "partitime.step6-pressure-profile-entry-status.v1",
+  "claimId": "STEP6.CHAT",
+  "profile": "chat",
+  "admittedProfile": "team-chat-trusted-single-tenant.v1",
+  "ok": false,
+  "disposition": "entry-blocked",
+  "claimStatus": "pending",
+  "authorityGatePass": false,
+  "authorities": [
+    {
+      "path": "llp/0014-cloudflare-strategy.rfc.md",
+      "sha256": "280a9325ba52470c3804f089fd8a5b566031025064bd023a4fae32a2370e88f7",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0044-asset-storage-pipeline.rfc.md",
+      "sha256": "d8851fc96938f5a5bcf81a52d704a9ff27c1d7d26d4ffb26cdb61e7abfa9de42",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0045-notifications-outbox.rfc.md",
+      "sha256": "3892a5d720294bca5dd7a6cf88dd760084454b42a6eb9de4cb66b7f10cc52d0d",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0070-durable-background-work.rfc.md",
+      "sha256": "4dcf4077f9bfb576edacc0883f7a6bd843d6c71180c67f12293bd9b45022082c",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0071-application-abuse-moderation-and-audit.rfc.md",
+      "sha256": "7af925d2afc06f47f57a724ee802a2a2fc047bfc580ffe623a20f70e1842d2b2",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+      "sha256": "442710457f269dc9dad2f26b66922e282c92e13d6258bd5e4b219187da53df89",
+      "status": "Draft",
+      "acceptedForGate": false
+    },
+    {
+      "path": "llp/0073-portable-full-text-search.rfc.md",
+      "sha256": "611dec6afbc9bb7143bea25a7031d92e3ce62fbfc1413f3d285c50bbfa74c8c9",
+      "status": "Draft",
+      "acceptedForGate": false
+    }
+  ],
+  "requiredPressures": [
+    {
+      "pressure": "high-fan-out protected rooms",
+      "witnessed": false
+    },
+    {
+      "pressure": "unread counts",
+      "witnessed": false
+    },
+    {
+      "pressure": "cursor pagination",
+      "witnessed": false
+    },
+    {
+      "pressure": "authorized full-text search",
+      "witnessed": false
+    },
+    {
+      "pressure": "attachments",
+      "witnessed": false
+    },
+    {
+      "pressure": "notifications",
+      "witnessed": false
+    },
+    {
+      "pressure": "moderation and audit",
+      "witnessed": false
+    },
+    {
+      "pressure": "membership changes",
+      "witnessed": false
+    }
+  ],
+  "evidence": {
+    "adjacentEvidence": {
+      "path": "demos/chat-matrix/tests/acceptance/results-loop.json",
+      "sha256": "8b68b29157df58d4cd7dc6e5b17bb3f6e322ba91ba3bc67064d0905475e43a04",
+      "qualifiesForClaim": false,
+      "finding": "The retained 5/5 receipt is an AI-conversation four-backend loop, not the protected team-chat product profile."
+    },
+    "productReceipt": null,
+    "hostedMinimumReceipt": null
+  },
+  "blockers": [
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0014-cloudflare-strategy.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0044-asset-storage-pipeline.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0045-notifications-outbox.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0070-durable-background-work.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0071-application-abuse-moderation-and-audit.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "authority-not-ratified",
+      "path": "llp/0073-portable-full-text-search.rfc.md",
+      "status": "Draft"
+    },
+    {
+      "kind": "missing-admitted-product-receipt",
+      "profile": "team-chat-trusted-single-tenant.v1"
+    },
+    {
+      "kind": "missing-hosted-minimum-receipt",
+      "profile": "trusted-single-tenant-app-complete.v1"
+    }
+  ],
+  "rule": "Draft authorities, adjacent demos, local stubs, and documentation are never promoted to production-vertical evidence."
+}
