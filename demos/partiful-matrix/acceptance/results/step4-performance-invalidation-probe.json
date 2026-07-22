@@ -1,0 +1,409 @@
+{
+  "schemaVersion": "partitime.step4-performance.v1",
+  "claimId": "STEP4.BUDGETS.PROSPECTIVE_PERFORMANCE",
+  "cohort": "calibration",
+  "claimEligible": false,
+  "quick": true,
+  "recordedAt": "2026-07-22T09:43:18.427Z",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "methodId": "partitime-method-rubric-v1",
+  "amendment": {
+    "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+    "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+  },
+  "sampling": {
+    "warmups": 0,
+    "samples": 1,
+    "idleWindowMs": 200
+  },
+  "repository": {
+    "snapbackRevision": "48de2b173269eb2b44e136c493836baa0d1a12d5",
+    "exactRevision": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1",
+    "calibrationRevision": null
+  },
+  "environment": {
+    "node": "v25.9.0",
+    "os": "darwin-25.5.0-arm64",
+    "chrome": "Google Chrome 150.0.7871.130",
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472
+  },
+  "backendHealth": {
+    "ok": true,
+    "backends": {
+      "snapback": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "sqlite": {
+        "ok": true,
+        "remote": false,
+        "fixtureRows": 3
+      },
+      "supabase": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      },
+      "convex": {
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
+      }
+    }
+  },
+  "cleanupErrors": [],
+  "cells": {
+    "react:supabase": {
+      "cell": "react:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 149.59999999403954,
+            "firstAuthoritativeDataMs": 266.79999999701977,
+            "firstLiveDataMs": 266.79999999701977,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 45.564999999999976,
+              "networkBytes": 8841,
+              "networkBytesPerSecond": 44205
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1268068,
+            "memoryPerActiveSubscriptionBytes": 1268068,
+            "update": {
+              "fanout": 7,
+              "patches": 14
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 43.8999999910593,
+            "firstAuthoritativeDataMs": 141.59999999403954,
+            "firstLiveDataMs": 141.59999999403954,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 2.9799999999999964,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1267364,
+            "memoryPerActiveSubscriptionBytes": 1267364,
+            "update": {
+              "fanout": 9,
+              "patches": 18
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            149.59999999403954
+          ],
+          "median": 149.59999999403954,
+          "p95": 149.59999999403954
+        },
+        "warmStartupMs": {
+          "samples": [
+            43.8999999910593
+          ],
+          "median": 43.8999999910593,
+          "p95": 43.8999999910593
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            266.79999999701977
+          ],
+          "median": 266.79999999701977,
+          "p95": 266.79999999701977
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            266.79999999701977
+          ],
+          "median": 266.79999999701977,
+          "p95": 266.79999999701977
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            2.9799999999999964
+          ],
+          "median": 2.9799999999999964,
+          "p95": 2.9799999999999964
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1267364
+          ],
+          "median": 1267364,
+          "p95": 1267364
+        },
+        "updateFanoutCount": {
+          "samples": [
+            9
+          ],
+          "median": 9,
+          "p95": 9
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            18
+          ],
+          "median": 18,
+          "p95": 18
+        }
+      }
+    },
+    "contract:supabase": {
+      "cell": "contract:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 51.5,
+            "firstAuthoritativeDataMs": 51.5,
+            "firstLiveDataMs": 135.8999999910593,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 0.5350000000000146,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1755508,
+            "memoryPerActiveSubscriptionBytes": 1755508,
+            "update": {
+              "fanout": 23,
+              "patches": 195
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 53.900000005960464,
+            "firstAuthoritativeDataMs": 53.900000005960464,
+            "firstLiveDataMs": 135.70000000298023,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 0.5600000000000049,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 1755252,
+            "memoryPerActiveSubscriptionBytes": 1755252,
+            "update": {
+              "fanout": 23,
+              "patches": 195
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            51.5
+          ],
+          "median": 51.5,
+          "p95": 51.5
+        },
+        "warmStartupMs": {
+          "samples": [
+            53.900000005960464
+          ],
+          "median": 53.900000005960464,
+          "p95": 53.900000005960464
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            51.5
+          ],
+          "median": 51.5,
+          "p95": 51.5
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            135.8999999910593
+          ],
+          "median": 135.8999999910593,
+          "p95": 135.8999999910593
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.5600000000000049
+          ],
+          "median": 0.5600000000000049,
+          "p95": 0.5600000000000049
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            1755252
+          ],
+          "median": 1755252,
+          "p95": 1755252
+        },
+        "updateFanoutCount": {
+          "samples": [
+            23
+          ],
+          "median": 23,
+          "p95": 23
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            195
+          ],
+          "median": 195,
+          "p95": 195
+        }
+      }
+    },
+    "vanilla:supabase": {
+      "cell": "vanilla:supabase",
+      "transport": "poll",
+      "samples": {
+        "cold": [
+          {
+            "startupMs": 137.09999999403954,
+            "firstAuthoritativeDataMs": 237.79999999701977,
+            "firstLiveDataMs": 237.79999999701977,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 44.34499999999997,
+              "networkBytes": 8937,
+              "networkBytesPerSecond": 44685
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 621344,
+            "memoryPerActiveSubscriptionBytes": 621344,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ],
+        "warm": [
+          {
+            "startupMs": 30.799999997019768,
+            "firstAuthoritativeDataMs": 130,
+            "firstLiveDataMs": 130,
+            "idle": {
+              "windowMs": 200,
+              "cpuTaskMsPerSecond": 0.4999999999999796,
+              "networkBytes": 0,
+              "networkBytesPerSecond": 0
+            },
+            "activeLogicalSubscriptions": 1,
+            "heapUsedBytes": 614900,
+            "memoryPerActiveSubscriptionBytes": 614900,
+            "update": {
+              "fanout": 1,
+              "patches": 8
+            }
+          }
+        ]
+      },
+      "aggregate": {
+        "coldStartupMs": {
+          "samples": [
+            137.09999999403954
+          ],
+          "median": 137.09999999403954,
+          "p95": 137.09999999403954
+        },
+        "warmStartupMs": {
+          "samples": [
+            30.799999997019768
+          ],
+          "median": 30.799999997019768,
+          "p95": 30.799999997019768
+        },
+        "firstAuthoritativeDataMs": {
+          "samples": [
+            237.79999999701977
+          ],
+          "median": 237.79999999701977,
+          "p95": 237.79999999701977
+        },
+        "firstLiveDataMs": {
+          "samples": [
+            237.79999999701977
+          ],
+          "median": 237.79999999701977,
+          "p95": 237.79999999701977
+        },
+        "idleCpuTaskMsPerSecond": {
+          "samples": [
+            0.4999999999999796
+          ],
+          "median": 0.4999999999999796,
+          "p95": 0.4999999999999796
+        },
+        "idleNetworkBytesPerSecond": {
+          "samples": [
+            0
+          ],
+          "median": 0,
+          "p95": 0
+        },
+        "memoryPerActiveSubscriptionBytes": {
+          "samples": [
+            614900
+          ],
+          "median": 614900,
+          "p95": 614900
+        },
+        "updateFanoutCount": {
+          "samples": [
+            1
+          ],
+          "median": 1,
+          "p95": 1
+        },
+        "domOrHostPatchCount": {
+          "samples": [
+            8
+          ],
+          "median": 8,
+          "p95": 8
+        }
+      }
+    }
+  },
+  "buildCells": {},
+  "thresholds": {
+    "contract:supabase": {
+      "coldStartupMs": 164,
+      "warmStartupMs": 48,
+      "firstAuthoritativeDataMs": 293,
+      "firstLiveDataMs": 293,
+      "idleCpuTaskMsPerSecond": 3.1289999999999965,
+      "idleNetworkBytesPerSecond": 0,
+      "memoryPerActiveSubscriptionBytes": 1394100,
+      "updateFanoutCount": 9,
+      "domOrHostPatchCount": 19
+    }
+  },
+  "holdoutValidation": null,
+  "ok": false
+}

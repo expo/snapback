@@ -1527,3 +1527,45 @@ calibration/holdout cohorts. Compared with React, whose quick SQLite turn was
 reassuringly mundane—this was neither a Snapback transport flaw nor a
 fundamental Contract-language problem, just a production-host fast path that
 the original functional 9/9 browser corpus did not measure.
+
+## 2026-07-22 — “warm memory” was measuring a second page
+
+The polling failures initially looked coupled: Contract completed three
+one-second gateway requests inside the three-second idle window while React
+completed two, with CPU moving by almost exactly the same ratio. The timer and
+provider implementations were equivalent. The actual difference was the
+production handoff: static Contract rows were rendered as `live` before the
+underlying provider had converged, so the collector called the initial request
+idle work. The seed now stays authoritative but `connecting`; only the real
+provider may advance the connection axis to `polling` or `live`. This is a
+better product truth independent of the benchmark.
+
+The heap miss had a separate custody bug. Warm cache priming navigated the same
+Chrome target twice, and bfcache retained the first application document. The
+metric said one active logical subscription but `Runtime.getHeapUsage` included
+state from the measured page and the cached page. React grew from about 1.27 MB
+cold to 1.65 MB warm, vanilla from 0.62 to 0.85 MB, and Contract from 1.75 to
+2.48 MB. Priming a sibling target, closing it, and measuring in a fresh target
+keeps the shared HTTP cache warm while making cold and warm heaps converge in
+all three arms. Because the old threshold came from that invalid baseline, I
+preserved both original receipts and registered a proposed versioned
+invalidation amendment rather than silently refreshing the numbers.
+
+Removing bad measurement state did not make the candidate magically green.
+Against the corrected React diagnostic near 1.27 MB, the installed Contract
+feed is about 1.76 MB. Allocation profiles pointed to production representation
+rather than the query object: unopened Event Contract IR/AOT closures,
+serialized and parsed hydration ledgers, and ordinary feed runtime state. The
+event route is now a real lazy chunk, the consumed JSON script leaves the DOM,
+and Exact releases the parsed manifest after the adoption turn. With the
+unpublished Exact fix the feed reaches roughly 1.72 MB. That is meaningful but
+still red, which is a useful distinction: the bfcache jump was an instrument
+bug; the remaining runtime gap is real work.
+
+Compared with React plus Supabase, Contract's production hydration gives a
+faster authoritative first paint, but its current AOT representation costs more
+live heap. The best part of the debugging experience was that the three-arm
+control immediately separated browser custody from framework behavior. The
+worst part was that a metric named “per active subscription” was actually total
+target heap divided by one; even after fixing the extra document, it remains a
+strict whole-page runtime budget rather than an isolated provider allocation.

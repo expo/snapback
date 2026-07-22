@@ -37,6 +37,7 @@ const supabaseRealtimePath = 'demos/partiful-matrix/acceptance/results/supabase-
 const convexRealtimePath = 'demos/partiful-matrix/acceptance/results/convex-realtime-web.json';
 const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json';
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
+const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
@@ -54,6 +55,7 @@ const supabaseRealtime = readJson(supabaseRealtimePath);
 const convexRealtime = readJson(convexRealtimePath);
 const contractConvexRealtime = readJson(contractConvexRealtimePath);
 const performanceAmendment = readJson(performanceAmendmentPath);
+const performanceInvalidation = readJson(performanceInvalidationPath);
 const optionalReceipt = (path) => existsSync(resolve(repoRoot, path)) ? readJson(path) : null;
 const performanceCalibration = optionalReceipt(performanceCalibrationPath);
 const performanceHoldout = optionalReceipt(performanceHoldoutPath);
@@ -65,6 +67,22 @@ const protocolAmendment = protocol.amendments.find(({ id }) => id === performanc
 assert(protocolAmendment, `protocol does not register ${performanceAmendment.amendmentId}`);
 assert.equal(protocolAmendment.path, performanceAmendmentPath);
 assert.equal(protocolAmendment.status, performanceAmendment.status);
+const protocolInvalidation = protocol.amendments.find(({ id }) => id === performanceInvalidation.amendmentId);
+assert(protocolInvalidation, `protocol does not register ${performanceInvalidation.amendmentId}`);
+assert.equal(protocolInvalidation.path, performanceInvalidationPath);
+assert.equal(protocolInvalidation.status, performanceInvalidation.status);
+const performanceInvalidationIdentity = identity(performanceInvalidationPath);
+const webPerformanceReceiptsCurrent = [performanceCalibration, performanceHoldout].every((receipt) =>
+  receipt?.methodId === performanceInvalidation.replacement.methodId
+  && receipt?.thresholdSetId === performanceInvalidation.replacement.thresholdSetId
+  && JSON.stringify(receipt?.invalidation) === JSON.stringify(performanceInvalidationIdentity));
+const webPerformanceGovernanceRatified = performanceAmendment.status === 'ratified'
+  && performanceInvalidation.status === 'ratified';
+const webPerformanceStatus = webPerformanceGovernanceRatified && webPerformanceReceiptsCurrent
+  ? 'ratified'
+  : webPerformanceGovernanceRatified
+    ? 'ratified-but-v2-receipts-missing'
+    : performanceInvalidation.status;
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
 assert.equal(frozen.methodId, protocol.protocolId);
@@ -205,7 +223,7 @@ pushRow.pass = pushRow.actual <= pushRow.threshold && pushRow.samples.length ===
 const webPerformanceInstrument = (id, formulaKey, metricName) => {
   const expectedCells = backends.map((backend) => `contract:${backend}`);
   const { pass, rows, perCellMeasurementsPresent } = evaluateHoldoutMetric({
-    amendmentStatus: performanceAmendment.status,
+    amendmentStatus: webPerformanceStatus,
     calibration: performanceCalibration,
     holdout: performanceHoldout,
     metricName,
@@ -220,7 +238,8 @@ const webPerformanceInstrument = (id, formulaKey, metricName) => {
       formula: protocol.thresholdFormulas[formulaKey] ?? null,
       requiredSampling: protocol.sampling.stochasticMeasurements,
       amendment: identity(performanceAmendmentPath),
-      amendmentStatus: performanceAmendment.status,
+      invalidation: identity(performanceInvalidationPath),
+      amendmentStatus: webPerformanceStatus,
       calibration: performanceCalibration ? identity(performanceCalibrationPath) : null,
       holdout: performanceHoldout ? identity(performanceHoldoutPath) : null,
       rows,
@@ -340,9 +359,9 @@ const requirements = [
     capabilityToggles: performanceAmendment.attribution.capabilityToggles,
     costAttribution,
   }),
-  requirement('prospective-category-amendments-and-holdout-validation', performanceAmendment.status === 'ratified'
+  requirement('prospective-category-amendments-and-holdout-validation', webPerformanceStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
-    && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', performanceAmendment.status === 'ratified'
+    && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', webPerformanceStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true
     ? 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_PASSED'
@@ -351,14 +370,15 @@ const requirements = [
     deadline: protocol.futureCategoriesDeadline,
     amendmentFieldPresent: Array.isArray(protocol.amendments),
     amendment: identity(performanceAmendmentPath),
-    amendmentStatus: performanceAmendment.status,
+    invalidation: identity(performanceInvalidationPath),
+    amendmentStatus: webPerformanceStatus,
     holdoutValidationArtifacts: [
       performanceHoldout ? identity(performanceHoldoutPath) : null,
       nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
     ],
-    finding: performanceAmendment.status === 'ratified'
+    finding: webPerformanceStatus === 'ratified'
       ? 'The dated amendment is ratified; holdout rows remain red until both web/build and native receipts are independently green.'
-      : 'The dated amendment and executable collectors exist, but owner ratification is still pending and no claim is promoted.',
+      : 'The v1 artifacts are preserved, but the proposed v2 invalidation amendment still needs owner ratification before replacement calibration or claim promotion.',
   }, 'nonclaim'),
   requirement('native-realtime-follow-up-matrix-before-ranking', 'pass', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_COMPLETE', {
     existingNativeWorkload: protocol.workloadVersion,
@@ -411,6 +431,7 @@ const report = finalizeReport({
       pushLatency: { contract: pushRow },
       performance: {
         amendment: identity(performanceAmendmentPath),
+        invalidation: identity(performanceInvalidationPath),
         calibration: performanceCalibration ? identity(performanceCalibrationPath) : null,
         holdout: performanceHoldout ? identity(performanceHoldoutPath) : null,
         nativeCalibration: nativePerformanceCalibration ? identity(nativePerformanceCalibrationPath) : null,

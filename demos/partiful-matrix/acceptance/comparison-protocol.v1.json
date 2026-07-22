@@ -61,6 +61,12 @@
       "date": "2026-07-21",
       "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
       "status": "ratified"
+    },
+    {
+      "id": "partitime-ws8-warm-prime-invalidation-2026-07-22",
+      "date": "2026-07-22",
+      "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json",
+      "status": "proposed"
     }
   ],
   "changePolicy": {

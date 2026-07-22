@@ -19,7 +19,6 @@ import functionsManifest from '../../snapback/generated/functions.manifest.json'
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import feedApp from './feed.contract';
-import eventApp from './event.contract';
 import {
   configureGeneratedProviderLinks,
   resetGeneratedProviderLinks,
@@ -135,7 +134,11 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
     const validation = validateContractHydrationManifest(JSON.parse(script.textContent ?? 'null'));
-    return validation.ok && validation.manifest.routeId === expectedRouteId ? validation.manifest : null;
+    if (!validation.ok || validation.manifest.routeId !== expectedRouteId) return null;
+    // The parsed manifest owns the adoption turn from here. Leaving the
+    // serialized copy in the live DOM retains the same node/path ledger twice.
+    script.remove();
+    return validation.manifest;
   } catch {
     return null;
   }
@@ -245,7 +248,13 @@ async function boot() {
     setThemeViewportWidth(hydrationManifest.capabilities.viewport?.width ?? innerWidth);
     setThemeReducedMotion(hydrationManifest.capabilities.reducedMotion ?? false);
     preMountSizeClass = readContractSizeClass();
-    const component = eventId === null ? feedApp : eventApp;
+    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+    // feed's one-subscription memory instrument must not retain the unopened
+    // event route's generated IR and AOT closures. Keep the startup route
+    // eager and load the event carrier only when navigation selects it.
+    const component = eventId === null
+      ? feedApp
+      : (await import('./event.contract')).default;
     const props = eventId === null
       ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
       : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
@@ -270,7 +279,7 @@ async function boot() {
     host = installContractWebHost({ container: root });
     mounted = eventId === null
       ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant } })
-      : mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
+      : mount((await import('./event.contract')).default, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
   }
 
   // Preserve the mounted provider as the evidence source even after disposeActive

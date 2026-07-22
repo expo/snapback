@@ -1,0 +1,71 @@
+{
+  "schemaVersion": "partitime.performance-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-warm-prime-invalidation-2026-07-22",
+  "date": "2026-07-22",
+  "status": "proposed",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 remediation",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": null,
+  "ratificationStatement": null,
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "appliesToWorkloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "invalidates": {
+    "methodId": "partitime-ws8-performance-v1",
+    "thresholdSetId": "partitime-ws8-performance-thresholds-v1",
+    "calibrationArtifact": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+      "sha256": "174f49ddb193129d873074fd54e1769f23e0dbec1bf0531440cd7f9b3503ecc9"
+    },
+    "holdoutArtifact": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+      "sha256": "e6fae9dbe1cab487a1b481bb063b0281ca597b5d37c43888abd409414dfa53ea"
+    }
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-performance-v2",
+    "thresholdSetId": "partitime-ws8-performance-thresholds-v2",
+    "scope": "All twelve web/build cells rerun prospectively under the unchanged workload, sampling counts, formulas, hardware profile, and holdout isolation. The old artifacts remain historical and cannot validate v2.",
+    "warmPrimeRule": "Prime the same cell in a sibling browser target, close that target, then measure in a fresh target in the same browser profile. This preserves the shared warm HTTP cache without retaining a second application document in the measured target's back/forward cache.",
+    "thresholdPolicy": "Recompute every v2 threshold from the rerun React controls using the already-ratified formulas. Corrected values may move in either direction; equality continues to pass."
+  },
+  "cause": {
+    "class": "provably-invalid-instrument-baseline",
+    "finding": "The v1 collector performed the cache-prime navigation in the measurement target and then navigated that target again. Chrome retained the priming document in back/forward cache, while Runtime.getHeapUsage covered the target heap. The metric declared one active page and one logical subscription but included retained state from two application documents.",
+    "notAProductOptimization": "The correction changes target custody only. It does not disable bfcache, change application lifecycle behavior, alter polling cadence, remove a feature, or loosen a formula.",
+    "originalReceiptEvidence": {
+      "contractSupabaseColdBytes": 1753804,
+      "contractSupabaseWarmBytes": 2481048,
+      "reactSupabaseColdBytes": 1267428,
+      "reactSupabaseWarmBytes": 1651648,
+      "vanillaSupabaseColdBytes": 617548,
+      "vanillaSupabaseWarmBytes": 848128
+    },
+    "correctedDiagnostic": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-invalidation-probe.json",
+      "sha256": "8adc5eeeea547617ce4989921f17e59c08288a3d39c0fcdf3732dfa29b28ac65",
+      "claimEligible": false,
+      "quick": true,
+      "reactSupabaseColdBytes": 1268068,
+      "reactSupabaseWarmBytes": 1267364,
+      "contractSupabaseColdBytes": 1755508,
+      "contractSupabaseWarmBytes": 1755252,
+      "vanillaSupabaseColdBytes": 621344,
+      "vanillaSupabaseWarmBytes": 614900,
+      "interpretation": "The diagnostic is not a replacement calibration. It isolates the custody correction: cold and warm heaps converge for all three arms once the priming target is closed."
+    }
+  },
+  "requiredValidation": {
+    "preserveOriginalArtifacts": true,
+    "rerunComparisonArmsAndControls": [
+      "react:snapback", "react:supabase", "react:convex", "react:sqlite",
+      "contract:snapback", "contract:supabase", "contract:convex", "contract:sqlite",
+      "vanilla:snapback", "vanilla:supabase", "vanilla:convex", "vanilla:sqlite"
+    ],
+    "calibrationWarmups": 2,
+    "calibrationSamples": 7,
+    "holdoutWarmups": 2,
+    "holdoutSamples": 7,
+    "holdoutMustReadCommittedCalibration": true,
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}

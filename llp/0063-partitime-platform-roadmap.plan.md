@@ -34,6 +34,24 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 performance-custody correction proposal):** 2026-07-22
+(The warm web collector primed and measured in the same browser target, so
+Chrome's back/forward cache retained the priming document while
+`Runtime.getHeapUsage` was described as one page and one active logical
+subscription. The preserved v1 receipt shows cold/warm heap jumps in all three
+arms; a retained nonclaim three-arm probe using a closed sibling priming target
+makes cold and warm heap converge. Proposed amendment
+`partitime-ws8-warm-prime-invalidation-2026-07-22` preserves the original
+artifacts, version-bumps the web performance method and threshold set, and
+requires all twelve controls/candidates plus committed holdout to rerun. It is
+not ratified, so full v2 collection and claim promotion fail closed. Candidate
+work also makes seeded rows honestly `connecting` until the provider converges,
+removes the consumed serialized hydration manifest, defers the unopened event
+route, and Exact `a3e9cd71f…` releases the parsed manifest after adoption. The
+published-runtime Contract x Supabase diagnostic drops to 1,755,252 bytes with
+cold/warm parity; the unpublished Exact release reaches roughly 1,720,000.
+The corrected React diagnostic is 1,267,364, so Contract memory still needs
+real runtime work even after invalid measurement state is removed.)
 **Revised (Step 4 update-economy remediation checkpoint):** 2026-07-22
 (The independently evaluated 0.1.5 holdout exposed a production-renderer
 regression rather than a Snapback transport or Contract-language limit: the

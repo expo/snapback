@@ -27,8 +27,10 @@ const here = dirname(new URL(import.meta.url).pathname);
 const repoRoot = resolve(here, '../../../..');
 const demoRoot = resolve(here, '../..');
 const amendmentPath = join(demoRoot, 'acceptance', 'performance-amendment.2026-07-21.json');
+const invalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-22.json');
 const protocolPath = join(demoRoot, 'acceptance', 'comparison-protocol.v1.json');
 const amendment = JSON.parse(readFileSync(amendmentPath, 'utf8'));
+const invalidation = JSON.parse(readFileSync(invalidationPath, 'utf8'));
 const protocol = JSON.parse(readFileSync(protocolPath, 'utf8'));
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
 const exactRoot = resolve(process.env.EXACT_ROOT ?? join(repoRoot, '..', 'exact'));
@@ -65,7 +67,12 @@ if (cohort === 'holdout' && !quick) {
 }
 assert.equal(amendment.appliesToProtocolId, protocol.protocolId);
 assert.equal(amendment.appliesToWorkloadVersion, protocol.workloadVersion);
-if (!quick) assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
+assert.equal(invalidation.appliesToProtocolId, protocol.protocolId);
+assert.equal(invalidation.appliesToWorkloadVersion, protocol.workloadVersion);
+if (!quick) {
+  assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
+  assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v2 claim-eligible sampling');
+}
 assert(existsSync(serverBin), `missing Snapback server: ${serverBin}`);
 assert(existsSync(chromeBin), `missing Chrome: ${chromeBin}`);
 
@@ -144,8 +151,10 @@ const report = {
   quick,
   recordedAt: new Date().toISOString(),
   workloadVersion: protocol.workloadVersion,
-  methodId: protocol.protocolId,
+  methodId: invalidation.replacement.methodId,
+  thresholdSetId: invalidation.replacement.thresholdSetId,
   amendment: fileIdentity(amendmentPath),
+  invalidation: fileIdentity(invalidationPath),
   sampling: { warmups, samples, idleWindowMs },
   repository: {
     snapbackRevision: gitRevision(repoRoot),
@@ -205,14 +214,24 @@ async function measureNavigation(cdpUrl, cell, previewUrl, { warm, turn }) {
   // Socket setup occurs before every in-page performance clock begins.
   const cdp = await connectCdp(cdpUrl);
   let page;
+  let cachePrimePage;
   try {
+    if (warm) {
+      // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — warm
+      // means a primed HTTP cache, not a second application document retained
+      // in this measurement target's back/forward cache. Prime and close a
+      // sibling target so heap and idle instruments still cover one page and
+      // the declared one active logical subscription.
+      cachePrimePage = await cdp.newPage();
+      await cachePrimePage.setCacheDisabled(false);
+      await cachePrimePage.navigate(previewUrl);
+      await cachePrimePage.waitForLiveData();
+      await cachePrimePage.close();
+      cachePrimePage = null;
+    }
     page = await cdp.newPage();
     await page.setCacheDisabled(!warm);
     if (!warm) await page.clearBrowserCache();
-    if (warm) {
-      await page.navigate(previewUrl);
-      await page.waitForLiveData();
-    }
     await page.resetNetworkBytes();
     const measuredUrl = new URL(previewUrl);
     measuredUrl.searchParams.set('perf', `${Date.now()}-${Math.random().toString(16).slice(2)}`);
@@ -257,7 +276,11 @@ async function measureNavigation(cdpUrl, cell, previewUrl, { warm, turn }) {
     try {
       if (page) await page.close();
     } finally {
-      cdp.close();
+      try {
+        if (cachePrimePage) await cachePrimePage.close();
+      } finally {
+        cdp.close();
+      }
     }
   }
 }
@@ -441,6 +464,9 @@ function validateHoldout(revision, webCells, builds) {
   assert.equal(calibration.cohort, 'calibration');
   assert.equal(calibration.claimEligible, true);
   assert.deepEqual(calibration.amendment, fileIdentity(amendmentPath));
+  assert.deepEqual(calibration.invalidation, fileIdentity(invalidationPath));
+  assert.equal(calibration.methodId, invalidation.replacement.methodId);
+  assert.equal(calibration.thresholdSetId, invalidation.replacement.thresholdSetId);
   const rows = [];
   for (const [cell, threshold] of Object.entries(calibration.thresholds)) {
     const actual = { ...webCells[cell]?.aggregate, ...builds[cell]?.aggregate };
