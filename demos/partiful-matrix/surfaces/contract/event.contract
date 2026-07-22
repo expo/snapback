@@ -182,7 +182,7 @@ component PartifulEvent
                   button press=requestRespond("going") label="Change RSVP" testId="rsvp-trigger" padding=10 background=textFor(visualVariant)
                     text "Change RSVP…" size=10 color=backgroundFor(visualVariant)
                 virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="virtual-guest-list"
-                  row gap=10 align="center" paddingTop=8 paddingBottom=8 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` nativeID=`guest-option-${guest._id}` testId=`guest-${guest.userId}`
+                  button gap=10 align="center" paddingTop=8 paddingBottom=8 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-${guest.userId}` background="transparent" borderWidth=0
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when guestSheetOpen
@@ -202,7 +202,7 @@ component PartifulEvent
                 text "Nobody yet." size=12 color=mutedFor(visualVariant)
               ready sheetRows
                 virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="guest-sheet-list"
-                  row gap=10 align="center" paddingTop=10 paddingBottom=10 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` nativeID=`guest-sheet-option-${guest._id}` testId=`guest-sheet-${guest.userId}`
+                  button gap=10 align="center" paddingTop=10 paddingBottom=10 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` accessibilitySelected=false testId=`guest-sheet-${guest.userId}` background="transparent" borderWidth=0
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""

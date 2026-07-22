@@ -37,15 +37,10 @@ export function navigatePartitimeCollection(key: string): void {
   if (!owner) return;
   const items = [...owner.querySelectorAll<HTMLElement>('[role="menuitem"],[role="option"]')];
   if (items.length === 0) return;
-  if (owner.getAttribute('role') === 'listbox') {
-    const idPrefix = owner.dataset.testid ?? 'partitime-listbox';
-    for (const [index, item] of items.entries()) {
-      if (!item.id) item.id = `${idPrefix}-option-${index}`;
-    }
-  }
   const activeDescendant = owner.getAttribute('aria-activedescendant');
   const activeOption = activeDescendant ? document.getElementById(activeDescendant) : null;
-  const current = Math.max(0, items.indexOf(owner.getAttribute('role') === 'listbox' ? activeOption as HTMLElement : active!));
+  const focusedOption = active?.getAttribute('role') === 'option' ? active : null;
+  const current = Math.max(0, items.indexOf(owner.getAttribute('role') === 'listbox' ? (focusedOption ?? activeOption as HTMLElement) : active!));
   const next = key === 'Home'
     ? 0
     : key === 'End'
@@ -55,10 +50,8 @@ export function navigatePartitimeCollection(key: string): void {
         : (current - 1 + items.length) % items.length;
   if (owner.getAttribute('role') === 'listbox') {
     const option = items[next];
-    if (!option?.id) return;
-    owner.setAttribute('aria-activedescendant', option.id);
-    for (const item of items) item.setAttribute('aria-selected', item === option ? 'true' : 'false');
-    option.scrollIntoView({ block: 'nearest' });
+    option?.focus();
+    option?.scrollIntoView({ block: 'nearest' });
   } else {
     items[next]?.focus();
   }
