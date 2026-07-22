@@ -61,12 +61,17 @@ leave the memory cell 206,128 bytes above threshold. Exact `eef07dd7d…` then
 gave the admitted direct-DOM host a narrow structural node, shared its empty
 canonical records and unused event map, and left the full native factory
 unchanged. That probe reaches 1,588,748 warm bytes with update fan-out/patches
-still 6/8, a further 11,480-byte reduction and a remaining 194,648-byte miss.
-The first environment probe timed out without a receipt and is excluded; the
-quoted value is its clean rerun. The retained snapshot attributes the rest
-mainly to V8 code and mounted compiled view/host-model state. This is diagnostic
-evidence only; no threshold or claim is promoted, and a new Exact release plus
-full calibration/holdout reruns remain required.)
+still 6/8, a further 11,480-byte reduction. Exact `6d9dfe08e…` then extended
+immutable environment reuse through ordinary nested AOT host containers while
+preserving the projections for component roots, portals, and dismiss layers.
+Its clean rerun reaches 1,585,184 warm bytes with 6/8 unchanged, a further
+3,564-byte reduction and a remaining 191,084-byte miss. The first sibling-
+environment probe timed out without a receipt; the first nested-environment
+probe failed in an unrelated Vite SSR transport fetch before app load. Both are
+excluded and the quoted values are clean reruns. The retained snapshot
+attributes the rest mainly to V8 code and mounted compiled view/host-model
+state. This is diagnostic evidence only; no threshold or claim is promoted,
+and a new Exact release plus full calibration/holdout reruns remain required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table

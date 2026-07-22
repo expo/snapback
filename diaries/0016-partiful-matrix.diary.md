@@ -1713,3 +1713,20 @@ corrected React-relative threshold. Host representation is therefore a real
 part of the retained-heap cost, but slimming its obviously unused fields is not
 enough to close the claim; compiled code and mounted-instance/effect state are
 still the larger target.
+
+## 2026-07-22 — ordinary nested containers needed no new mount context
+
+The sibling-environment change did not cover a second repetitive allocation:
+every AOT element still spread the complete immutable `MountEnv` before
+mounting its children, even when it was already below the component root and
+no portal or dismiss boundary changed any field. Exact now passes that context
+through by identity. Root transitions, portal repetition resets, and dismiss
+layer ancestry still receive explicit projections, and focused identity,
+runtime, reactivity, and codegen tests plus all TypeScript profiles pass.
+
+The first external probe never loaded the app because Vite's SSR module
+transport disconnected while fetching an unchanged dependency; it is not a
+measurement. The identical clean rerun measured 1,585,184 post-GC warm bytes
+and kept update fan-out/patches at 6/8. That saves another 3,564 bytes and leaves
+191,084 bytes above threshold. The allocation was real and worth removing, but
+its size confirms that context-object cloning is no longer the dominant miss.
