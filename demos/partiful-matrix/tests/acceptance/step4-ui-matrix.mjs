@@ -6,15 +6,29 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  inspectPartitimeManualDeviceGate,
+  validateCitizenshipReceipt,
+} from './step4-closure-helpers.mjs';
+
 const here = dirname(fileURLToPath(import.meta.url));
 const demoRoot = resolve(here, '..', '..');
 const repoRoot = resolve(demoRoot, '..', '..');
+const generatorPath = fileURLToPath(import.meta.url);
+const closureHelpersPath = join(here, 'step4-closure-helpers.mjs');
 const exactRoot = resolve(option('exact-root') ?? process.env.EXACT_ROOT ?? join(repoRoot, '..', 'exact'));
 const resultsRoot = join(demoRoot, 'acceptance', 'results');
 const outputPath = join(resultsRoot, 'step4-ui-matrix.json');
 const oq9Path = join(exactRoot, 'tests', 'partitime-ui', 'oq9-resolution.json');
 const visualPath = join(resultsRoot, 'phase4-visual-baselines', 'index.json');
-const manualPath = join(resultsRoot, 'step4-ui-manual-device.json');
+const manualPath = join(resultsRoot, 'step4-web-citizenship.json');
+const manualDeviceRequiredRowIds = [
+  'ios-safari-current:autofill-password-manager',
+  'ios-safari-current:bfcache-restore',
+  'ios-safari-current:find-on-page',
+  'ios-safari-current:focus-trap-restore',
+  'ios-safari-current:ime-composition',
+];
 const claims = [
   'STEP4.UI.RESPONSIVE',
   'STEP4.UI.KEYBOARD',
@@ -83,6 +97,10 @@ const report = {
   engines: engineCells,
   manualDeviceGate: manual,
   visualApproval,
+  inputs: {
+    generator: { path: relative(repoRoot, generatorPath), sha256: digest(generatorPath) },
+    manualGateHelper: { path: relative(repoRoot, closureHelpersPath), sha256: digest(closureHelpersPath) },
+  },
   documentedSupportLimitations: oq9.browserMatrix.explicitlyDeferredFromV1,
   claimResults,
   ok: claimResults.every((claim) => claim.status === 'pass'),
@@ -114,8 +132,28 @@ function inspectEngine(cell) {
 function inspectManual() {
   if (!existsSync(manualPath)) return { status: 'red', reason: 'required-real-device-artifact-missing', path: relative(repoRoot, manualPath), sha256: null, rows: [] };
   const receipt = readJson(manualPath);
-  const pass = receipt.ok === true && receipt.status === 'pass' && Array.isArray(receipt.rows) && receipt.rows.length > 0 && receipt.rows.every((row) => row.status === 'pass');
-  return { status: pass ? 'pass' : 'red', reason: pass ? null : 'manual-device-rows-not-passing', path: relative(repoRoot, manualPath), sha256: digest(manualPath), rows: receipt.rows ?? [] };
+  try {
+    validateCitizenshipReceipt(
+      receipt,
+      'docs/reports/web-citizenship-ime-forms.json',
+      'scripts/check-web-citizenship-ime-forms.mjs',
+      'demos/partiful-matrix/tests/acceptance/step4-web-citizenship.mjs',
+    );
+  } catch (error) {
+    return {
+      status: 'red',
+      reason: 'governed-device-receipt-invalid',
+      validationError: error instanceof Error ? error.message : String(error),
+      path: relative(repoRoot, manualPath),
+      sha256: digest(manualPath),
+      rows: [],
+    };
+  }
+  return {
+    ...inspectPartitimeManualDeviceGate(receipt, manualDeviceRequiredRowIds),
+    path: relative(repoRoot, manualPath),
+    sha256: digest(manualPath),
+  };
 }
 
 function readJson(path) { return JSON.parse(readFileSync(path, 'utf8')); }

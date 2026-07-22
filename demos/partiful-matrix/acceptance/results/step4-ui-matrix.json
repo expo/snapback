@@ -1,14 +1,14 @@
 {
   "$schema": "partitime-step4-ui-matrix/v1",
-  "generatedAt": "2026-07-22T09:11:26.662Z",
+  "generatedAt": "2026-07-22T09:23:29.137Z",
   "revisions": {
-    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "snapback": "c4c8969f56e1a60d2fe5ac5729d53f03dd8c1d28",
     "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "oq9": {
     "path": "tests/partitime-ui/oq9-resolution.json",
-    "sha256": "c2899af5aeee03efe7154aff5ea77c73944620d0744340795dca581fce256216",
-    "status": "proposed-resolution (phase-4 entry input; ratified by the orchestrator when the owner amendments land)"
+    "sha256": "c6dbdf7cc586f38cb50936c5285d4931bc0bec4ffb6991640d9e00f3700ca0c1",
+    "status": "ratified"
   },
   "policy": {
     "skip": "forbidden",
@@ -410,10 +410,80 @@
   ],
   "manualDeviceGate": {
     "status": "red",
-    "reason": "required-real-device-artifact-missing",
-    "path": "demos/partiful-matrix/acceptance/results/step4-ui-manual-device.json",
-    "sha256": null,
-    "rows": []
+    "reason": "required-ios-device-rows-not-passing",
+    "requiredRowIds": [
+      "ios-safari-current:autofill-password-manager",
+      "ios-safari-current:bfcache-restore",
+      "ios-safari-current:find-on-page",
+      "ios-safari-current:focus-trap-restore",
+      "ios-safari-current:ime-composition"
+    ],
+    "duplicateIds": [],
+    "rows": [
+      {
+        "id": "ios-safari-current:autofill-password-manager",
+        "environment": "ios-safari-current",
+        "assertion": "autofill-password-manager",
+        "acceptedFixtures": [
+          "facet-form-fixture"
+        ],
+        "status": "red",
+        "issues": [
+          "evidence-missing"
+        ]
+      },
+      {
+        "id": "ios-safari-current:bfcache-restore",
+        "environment": "ios-safari-current",
+        "assertion": "bfcache-restore",
+        "acceptedFixtures": [
+          "multi-route-bfcache"
+        ],
+        "status": "red",
+        "issues": [
+          "evidence-missing"
+        ]
+      },
+      {
+        "id": "ios-safari-current:find-on-page",
+        "environment": "ios-safari-current",
+        "assertion": "find-on-page",
+        "acceptedFixtures": [
+          "caltrain-contract-search"
+        ],
+        "status": "red",
+        "issues": [
+          "evidence-missing"
+        ]
+      },
+      {
+        "id": "ios-safari-current:focus-trap-restore",
+        "environment": "ios-safari-current",
+        "assertion": "focus-trap-restore",
+        "acceptedFixtures": [
+          "facet-overlay-fixture"
+        ],
+        "status": "red",
+        "issues": [
+          "evidence-missing"
+        ]
+      },
+      {
+        "id": "ios-safari-current:ime-composition",
+        "environment": "ios-safari-current",
+        "assertion": "ime-composition",
+        "acceptedFixtures": [
+          "caltrain-contract-search",
+          "facet-form-fixture"
+        ],
+        "status": "red",
+        "issues": [
+          "evidence-missing"
+        ]
+      }
+    ],
+    "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
+    "sha256": "9c13c23e44142eb9ed129ee695171855208e17c6ef889cf21470fad790db8136"
   },
   "visualApproval": {
     "status": "red",
@@ -423,6 +493,16 @@
     "requiredArtifactCount": 156,
     "path": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/index.json",
     "sha256": "cfef0dda5ce63b010e6d7eccabc025abf279051c78af8c90aaf650989a182663"
+  },
+  "inputs": {
+    "generator": {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ui-matrix.mjs",
+      "sha256": "ebc50674331e07d45da9931084cafd4acdeb09f82578d3f6a4d85c14f274d2de"
+    },
+    "manualGateHelper": {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-closure-helpers.mjs",
+      "sha256": "539c66274ce7c356eb3d29edaab187e19a970bf150bcf2a15a053368dc5ab7a9"
+    }
   },
   "documentedSupportLimitations": [
     {
@@ -488,7 +568,7 @@
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-real-device-artifact-missing"
+        "reason": "required-ios-device-rows-not-passing"
       }
     },
     {
@@ -518,7 +598,7 @@
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-real-device-artifact-missing"
+        "reason": "required-ios-device-rows-not-passing"
       }
     },
     {
@@ -574,7 +654,7 @@
       ],
       "manualDeviceGate": {
         "status": "red",
-        "reason": "required-real-device-artifact-missing"
+        "reason": "required-ios-device-rows-not-passing"
       }
     },
     {

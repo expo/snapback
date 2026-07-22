@@ -196,6 +196,38 @@ export function validateCitizenshipReceipt(receipt, reportPath, validatorPath, g
   });
 }
 
+export function inspectPartitimeManualDeviceGate(receipt, requiredRowIds) {
+  const rows = Array.isArray(receipt?.rows) ? receipt.rows : [];
+  const duplicateIds = rows
+    .map(({ id }) => id)
+    .filter((id, index, ids) => ids.indexOf(id) !== index);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const requiredRows = requiredRowIds.map((id) => byId.get(id) ?? {
+    id,
+    status: 'red',
+    issues: ['required-row-missing'],
+  });
+  const valid = receipt?.schemaVersion === 'partitime.step4-web-citizenship.v1'
+    && receipt?.auditCompleted === true
+    && receipt?.skipPolicy === 'forbidden'
+    && receipt?.skipped === 0
+    && duplicateIds.length === 0
+    && Array.isArray(receipt?.structuralFailures)
+    && receipt.structuralFailures.length === 0
+    && requiredRows.every((row) => row.status === 'pass'
+      && Array.isArray(row.issues)
+      && row.issues.length === 0
+      && Array.isArray(row.evidence)
+      && row.evidence.length > 0);
+  return {
+    status: valid ? 'pass' : 'red',
+    reason: valid ? null : 'required-ios-device-rows-not-passing',
+    requiredRowIds,
+    duplicateIds,
+    rows: requiredRows,
+  };
+}
+
 export function retainedResult(receipt, name) {
   const result = receipt.results.find((entry) => entry.name === name);
   assert(result, `retained Step 0 result is missing: ${name}`);
