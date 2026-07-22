@@ -46,11 +46,12 @@ for (const arm of arms) {
     ], {
       cwd: repoRoot,
       env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
-      stdio: 'inherit',
+      encoding: 'utf8',
+      maxBuffer: 20 * 1024 * 1024,
     });
     let receipt = null;
     try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
-    runs.push({
+    const run = {
       arm,
       claimId,
       exitCode: execution.status,
@@ -58,7 +59,10 @@ for (const arm of arms) {
       receiptSha256: receipt ? digest(receiptPath) : null,
       receipt,
       ok: execution.status === 0 && receipt?.ok === true && receipt?.passed === 1 && receipt?.total === 1,
-    });
+    };
+    runs.push(run);
+    console.log(`  ${run.ok ? '✓' : '✗'} ${arm} ${claimId}`);
+    if (!run.ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
   }
 }
 
