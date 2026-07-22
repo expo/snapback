@@ -78,6 +78,14 @@ export function App({ provider, initialPersona }: { provider: MatrixProvider; in
   const [persona, setPersona] = useState<Persona>(initialPersona);
   const [view, navigate] = useBrowserView();
   const [variant, setVariant] = useState<'warm' | 'night'>(() => new URLSearchParams(location.search).get('theme') === 'night' ? 'night' : 'warm');
+  useEffect(() => {
+    document.body.dataset.partitimeTheme = variant;
+    return () => { delete document.body.dataset.partitimeTheme; };
+  }, [variant]);
+  const returnToFeed = () => {
+    navigate({ kind: 'feed' });
+    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="create-event"]')?.focus()));
+  };
   return (
     <div className={`app-shell variant-${variant}`} data-testid="product-shell">
       <header className="nav">
@@ -100,7 +108,7 @@ export function App({ provider, initialPersona }: { provider: MatrixProvider; in
       <main key={`${persona.id}:${view.kind === 'event' ? `event:${view.id}` : 'feed'}`}>
         {view.kind !== 'event'
           ? <Feed provider={provider} persona={persona} creating={view.kind === 'create'} onCreateOpen={() => navigate({ kind: 'create' })} onCreateClose={() => navigate({ kind: 'feed' })} onOpen={(id) => navigate({ kind: 'event', id })} />
-          : <EventPage provider={provider} persona={persona} eventId={view.id} onBack={() => navigate({ kind: 'feed' })} />}
+          : <EventPage provider={provider} persona={persona} eventId={view.id} onBack={returnToFeed} />}
       </main>
     </div>
   );
@@ -119,6 +127,7 @@ function Feed({ provider, persona, creating, onCreateOpen, onCreateClose, onOpen
   onOpen(id: string): void;
 }) {
   const { rows: events, connection } = useRows<EventRow>(provider, 'listEvents', {}, persona);
+  const uiState = new URLSearchParams(location.search).get('uiState');
   const [busy, setBusy] = useState(false);
   const [draft, setDraft] = useState({ title: '', emoji: '🪩', when: 'Next Saturday, 6:00 PM', location: '', description: '' });
   const closeCreating = useCallback(() => onCreateClose(), [onCreateClose]);
@@ -145,7 +154,7 @@ function Feed({ provider, persona, creating, onCreateOpen, onCreateClose, onOpen
         <h1>Make a plan worth<br /><em>leaving the chat for.</em></h1>
         <p>Small gatherings, good people, no algorithmic sludge.</p>
         <div className="hero-actions">
-          <button className="primary" data-testid="new-event" onClick={creating ? onCreateClose : onCreateOpen}>{creating ? 'Never mind' : '+ Make something happen'}</button>
+          <button className="primary" data-testid="create-event" onClick={creating ? onCreateClose : onCreateOpen}>{creating ? 'Never mind' : '+ Make something happen'}</button>
           <ConnectionBadge value={connection} />
         </div>
       </section>
@@ -153,7 +162,11 @@ function Feed({ provider, persona, creating, onCreateOpen, onCreateClose, onOpen
       <section className="feed-section">
         <div className="section-heading"><div><span className="step">02</span><h2>On the horizon</h2></div><span>{events.length} PLANS</span></div>
         <div className="event-grid" data-testid="feed">
-          {events.map((event, index) => <EventCard key={event._id} event={event} index={index} onOpen={() => onOpen(event._id)} />)}
+          {uiState === 'feed-loading'
+            ? [0, 1, 2].map((index) => <article className="event-card skeleton-card" data-testid={index === 0 ? 'feed-loading' : undefined} aria-busy="true" key={index}><div className="skeleton-block" /><div className="skeleton-lines"><i /><i /><i /></div></article>)
+            : uiState === 'feed-empty' || events.length === 0
+              ? <section className="feed-empty" data-testid="feed-empty"><h3>No plans yet.</h3><p>Make something happen when the group chat needs a destination.</p></section>
+              : events.map((event, index) => <EventCard key={event._id} event={event} index={index} onOpen={() => onOpen(event._id)} />)}
         </div>
       </section>
     </>
@@ -181,7 +194,7 @@ function CreateEventDialog({ open, busy, draft, setDraft, onClose, onSubmit }: {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab' || !panel.current) return;
-      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -241,7 +254,7 @@ function FocusOverlay({ open, title, description, testId, panelClassName = '', i
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab' || !panel.current) return;
-      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')];
       if (focusable.length === 0) return;
       const first = focusable[0];
       const last = focusable[focusable.length - 1];
@@ -259,7 +272,7 @@ function FocusOverlay({ open, title, description, testId, panelClassName = '', i
   const descriptionId = `${testId}-description`;
   return createPortal(
     <div className="product-overlay" data-testid={`${testId}-overlay`}>
-      <button className="create-backdrop" aria-label={`Close ${title}`} onClick={onClose} />
+      <button className="create-backdrop" data-testid={`${testId}-backdrop`} aria-label={`Close ${title}`} onClick={onClose} />
       <section ref={panel} className={`product-overlay-panel ${panelClassName}`} data-testid={testId} role="dialog" aria-modal="true" aria-labelledby={headingId} aria-describedby={descriptionId}>
         <h2 id={headingId}>{title}</h2>
         <p id={descriptionId}>{description}</p>
@@ -357,16 +370,16 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
           <div className="block-heading"><span>WHO’S IN</span><strong>{going}</strong></div>
           <button className="guest-list-trigger" data-testid="guest-list-trigger" onClick={() => setGuestSheetOpen(true)}>Open guest list</button>
           <div className="rsvp-actions" data-testid="rsvp-actions">
-            {mine?.status === 'host' ? <div className="host-note">You’re hosting this one ✦</div> : ['going', 'maybe', 'cant'].map((status) => <button key={status} disabled={busy} className={mine?.status === status ? 'selected' : ''} data-testid={`rsvp-${status}`} onClick={() => respond(status as Exclude<RsvpStatus, 'host'>)}>{statusLabel(status)}</button>)}
+            {mine?.status === 'host' ? <div className="host-note">You’re hosting this one ✦</div> : <div role="radiogroup" aria-label="RSVP" className="rsvp-choice-group">{['going', 'maybe', 'cant'].map((status) => <button role="radio" aria-checked={mine?.status === status} key={status} disabled={busy} className={mine?.status === status ? 'selected' : ''} data-testid={`rsvp-${status}`} onClick={() => respond(status as Exclude<RsvpStatus, 'host'>)}>{statusLabel(status)}</button>)}</div>}
           </div>
           {mine?.status !== 'host' && <button className="rsvp-confirm-trigger" data-testid="rsvp-trigger" onClick={() => setPendingRsvp(mine?.status === 'going' ? 'maybe' : 'going')}>Confirm an RSVP change…</button>}
-          <VirtualGuestList guests={guests} />
+          <VirtualGuestList guests={guests} idPrefix="guest-panel" testId="virtual-guest-list" itemTestPrefix="guest" />
           <div className="provider-note"><span>{configuredBackend}</span>{provider.transport === 'push' ? 'streamed live' : 'refreshed every second'}</div>
         </aside>
       </div>
       <FocusOverlay open={guestSheetOpen} title="Guest list" description={`${going} people are going.`} testId="guest-list-sheet" panelClassName="guest-sheet" initialFocusTestId="guest-sheet-close" onClose={() => setGuestSheetOpen(false)}>
         <button data-testid="guest-sheet-close" onClick={() => setGuestSheetOpen(false)}>Close guest list</button>
-        <VirtualGuestList guests={guests} />
+        <VirtualGuestList guests={guests} idPrefix="guest-sheet" testId="guest-sheet-list" itemTestPrefix="guest-sheet" />
       </FocusOverlay>
       <FocusOverlay open={pendingRsvp !== null} title="Confirm RSVP" description={`Change your RSVP to ${pendingRsvp ? statusLabel(pendingRsvp) : ''}?`} testId="rsvp-confirm-dialog" initialFocusTestId="rsvp-confirm" onClose={() => setPendingRsvp(null)}>
         <div className="confirm-actions"><button data-testid="rsvp-cancel" onClick={() => setPendingRsvp(null)}>Cancel</button><button data-testid="rsvp-confirm" onClick={() => void confirmRsvp()}>Confirm</button></div>
@@ -375,16 +388,24 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
   );
 }
 
-function VirtualGuestList({ guests }: { guests: readonly RsvpRow[] }) {
+function VirtualGuestList({ guests, idPrefix = 'guest-panel', testId = 'virtual-guest-list', itemTestPrefix = 'guest' }: { guests: readonly RsvpRow[]; idPrefix?: string; testId?: string; itemTestPrefix?: string }) {
   const itemHeight = 52;
   const viewportHeight = 300;
   const [scrollTop, setScrollTop] = useState(0);
   const start = Math.max(0, Math.floor(scrollTop / itemHeight) - 1);
   const visibleCount = Math.ceil(viewportHeight / itemHeight) + 2;
   const visible = guests.slice(start, start + visibleCount);
-  return <div className="guest-list virtual-guests" data-testid="virtual-guest-list" onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
+  const active = Math.min(guests.length - 1, Math.max(0, Math.round(scrollTop / itemHeight)));
+  const move = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key) || guests.length === 0) return;
+    event.preventDefault();
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? guests.length - 1 : Math.min(guests.length - 1, Math.max(0, active + (event.key === 'ArrowDown' ? 1 : -1)));
+    setScrollTop(next * itemHeight);
+    event.currentTarget.scrollTop = next * itemHeight;
+  };
+  return <div className="guest-list virtual-guests" data-testid={testId} role="listbox" aria-label="Event guests" aria-activedescendant={guests[active] ? `${idPrefix}-${guests[active]._id}` : undefined} tabIndex={0} onKeyDown={move} onScroll={(event) => setScrollTop(event.currentTarget.scrollTop)}>
     <div style={{ height: guests.length * itemHeight, position: 'relative' }}>
-      {visible.map((guest, index) => <div className="guest" key={guest._id} data-testid={`guest-${guest.userId}`} style={{ position: 'absolute', top: (start + index) * itemHeight, left: 0, right: 0, height: itemHeight }}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}
+      {visible.map((guest, index) => <div className="guest" id={`${idPrefix}-${guest._id}`} role="option" aria-selected={start + index === active} key={guest._id} data-testid={`${itemTestPrefix}-${guest.userId}`} style={{ position: 'absolute', top: (start + index) * itemHeight, left: 0, right: 0, height: itemHeight }}><b>{guest.guestName.slice(0, 2).toUpperCase()}</b><span>{guest.guestName}</span><em>{statusLabel(guest.status)}</em></div>)}
     </div>
   </div>;
 }

@@ -19,6 +19,7 @@ component PartifulFeed
     backendName: string = "backend"
     initialVariant: string = "warm"
     initialCreating: boolean = false
+    initialUiState: string = "ready"
 
   state creating = initialCreating
   state visualVariant = initialVariant
@@ -57,7 +58,7 @@ component PartifulFeed
     when events.ready then has node testId="feed-ready"
 
   view
-    column width="100%" minHeight="100vh" background=backgroundFor(visualVariant) testId="product-shell"
+    main width="100%" minHeight="100vh" background=backgroundFor(visualVariant) testId="product-shell"
       row align="center" paddingTop=20 paddingBottom=20 paddingLeft=52 paddingRight=52 borderWidth=1 borderColor="rgba(127,120,110,0.35)"
         text "p" size=23 weight=800 color="#ffffff" background=accentFor(visualVariant) paddingLeft=10 paddingRight=10 paddingTop=3 paddingBottom=3 radius=999
         text "  partitime" size=18 weight=800 color=textFor(visualVariant) flex=1
@@ -68,14 +69,14 @@ component PartifulFeed
         text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 color=mutedFor(visualVariant)
         match size
           case "expanded"
-            text "Make a plan worth\nleaving the chat for." size=66 weight=800 color=textFor(visualVariant) lineHeight=0.9 testId="hero-title"
+            text "Make a plan worth\nleaving the chat for." headingLevel=1 size=66 weight=800 color=textFor(visualVariant) lineHeight=0.9 testId="hero-title"
           case "regular"
-            text "Make a plan worth leaving the chat for." size=48 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+            text "Make a plan worth leaving the chat for." headingLevel=1 size=48 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
           else
-            text "Make a plan worth leaving the chat for." size=38 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+            text "Make a plan worth leaving the chat for." headingLevel=1 size=38 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
         text "Small gatherings, good people, no algorithmic sludge." size=16 color=mutedFor(visualVariant)
         row gap=18 align="center"
-          button press=openCreate label="+ Make something happen" testId="new-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background=textFor(visualVariant)
+          button press=openCreate label="+ Make something happen" testId="create-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background=textFor(visualVariant)
             text "+ Make something happen" size=14 weight=700 color=backgroundFor(visualVariant)
           ConnectionBadge(value=events.connection)
       when creating
@@ -85,7 +86,7 @@ component PartifulFeed
             row align="center"
               column gap=6 flex=1
                 text "01 · WHAT'S THE PLAN?" size=10 color=mutedFor(visualVariant)
-                text "Keep it loose." nativeID="create-title-heading" size=27 weight=800 color=textFor(visualVariant)
+                text "Keep it loose." nativeID="create-title-heading" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)
                 text "A title and location are required." nativeID="create-description-copy" size=12 color=mutedFor(visualVariant)
               button press=closeCreate label="Close create event" testId="create-close" background="transparent" padding=10
                 text "Close" size=12 color=textFor(visualVariant)
@@ -106,23 +107,45 @@ component PartifulFeed
                 text "Send the invite ↗" size=14 weight=700 color=backgroundFor(visualVariant)
       column gap=24 padding=54 testId="feed" style=surfaceStyle(visualVariant, "surface")
         row align="baseline"
-          text "02 · ON THE HORIZON" size=10 color=mutedFor(visualVariant) flex=1
+          text "02 · ON THE HORIZON" headingLevel=2 size=10 color=mutedFor(visualVariant) flex=1
           text backendName size=10 color=accentFor(visualVariant)
-        async events
-          loading
-            text "Loading the plans…" size=14 color="#5f594f" testId="feed-loading"
-          error err
-            text err.message size=14 color="#aa2c20" testId="feed-error"
-          empty
-            text "No plans yet. Make something happen." size=14 color="#5f594f" testId="feed-empty"
-          ready rows
-            match size
-              case "expanded"
-                EventGrid(rows=rows, cols=3, visualVariant=visualVariant, open=open)
-              case "regular"
-                EventGrid(rows=rows, cols=2, visualVariant=visualVariant, open=open)
-              else
-                EventGrid(rows=rows, cols=1, visualVariant=visualVariant, open=open)
+        when initialUiState == "feed-loading"
+          match size
+            case "expanded"
+              SkeletonGrid(cols=3, visualVariant=visualVariant)
+            case "regular"
+              SkeletonGrid(cols=2, visualVariant=visualVariant)
+            else
+              SkeletonGrid(cols=1, visualVariant=visualVariant)
+        else
+          when initialUiState == "feed-empty"
+            section label="No plans yet" gap=10 minHeight=320 padding=40 testId="feed-empty"
+              text "No plans yet." headingLevel=2 size=28 weight=800 color=textFor(visualVariant)
+              text "Make something happen when the group chat needs a destination." size=14 color=mutedFor(visualVariant)
+          else
+            async events
+              loading
+                match size
+                  case "expanded"
+                    SkeletonGrid(cols=3, visualVariant=visualVariant)
+                  case "regular"
+                    SkeletonGrid(cols=2, visualVariant=visualVariant)
+                  else
+                    SkeletonGrid(cols=1, visualVariant=visualVariant)
+              error err
+                text err.message size=14 color="#aa2c20" testId="feed-error"
+              empty
+                section label="No plans yet" gap=10 minHeight=320 padding=40 testId="feed-empty"
+                  text "No plans yet." headingLevel=2 size=28 weight=800 color=textFor(visualVariant)
+                  text "Make something happen when the group chat needs a destination." size=14 color=mutedFor(visualVariant)
+              ready rows
+                match size
+                  case "expanded"
+                    EventGrid(rows=rows, cols=3, visualVariant=visualVariant, open=open)
+                  case "regular"
+                    EventGrid(rows=rows, cols=2, visualVariant=visualVariant, open=open)
+                  else
+                    EventGrid(rows=rows, cols=1, visualVariant=visualVariant, open=open)
 
 component EventGrid
   props
@@ -143,3 +166,19 @@ component EventGrid
             text `HOSTED BY ${event.hostName}` size=9 color=mutedFor(visualVariant)
           button press=open(event._id) label=`View ${event.title}` testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background=textFor(visualVariant)
             text "View plan →" size=12 weight=700 color=backgroundFor(visualVariant)
+
+component SkeletonGrid
+  props
+    cols: number
+    visualVariant: string
+
+  view
+    column width="100%" testId="feed-loading"
+      text "Loading the plans…" role="status" live="polite" position="absolute" width=1 height=1 opacity=0 size=1
+      grid cols=cols gap=12 width="100%"
+        each index in [0, 1, 2] key=index
+          column gap=18 minHeight=450 padding=22 borderWidth=1 opacity=0.72 style=surfaceStyle(visualVariant, "surface")
+            skeleton width="100%" height=235 radius=4
+            skeleton width="84%" height=16 radius=4
+            skeleton width="64%" height=16 radius=4
+            skeleton width="48%" height=16 radius=4

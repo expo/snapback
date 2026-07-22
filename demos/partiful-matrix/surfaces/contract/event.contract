@@ -8,6 +8,7 @@ use statusLabel from "./helpers.ts"
 use goingCount from "./helpers.ts"
 use myStatus from "./helpers.ts"
 use openFeed from "./helpers.ts"
+use navigatePartitimeCollection from "./helpers.ts"
 use backgroundFor from "./ui.ts"
 use textFor from "./ui.ts"
 use mutedFor from "./ui.ts"
@@ -52,6 +53,8 @@ component PartifulEvent
     optionsOpen = !optionsOpen
   action closeOptions writes optionsOpen
     optionsOpen = false
+  action navigateCollection(key)
+    navigatePartitimeCollection(key)
   action requestRespond(status) writes pendingRsvp
     pendingRsvp = status
   action cancelRespond writes pendingRsvp
@@ -62,14 +65,11 @@ component PartifulEvent
   action setDraft(value) writes draft
     draft = value
   action post writes draft, pendingMessage mutates postMut
-    pendingMessage = draft.trim()
-    postMut({ eventId: eventId, authorName: userName, message: draft.trim() })
+    let message = draft.trim()
+    pendingMessage = message
     draft = ""
-  action clearPending writes pendingMessage
+    let result = await postMut({ eventId: eventId, authorName: userName, message: message })
     pendingMessage = ""
-
-  task settlePending when [pendingMessage]
-    after(900, clearPending)
 
   contract
     has node testId="event-page"
@@ -79,7 +79,7 @@ component PartifulEvent
     action post writes draft, pendingMessage
 
   view
-    column width="100%" minHeight="100vh" padding=38 background=backgroundFor(visualVariant) gap=0 testId="event-page"
+    main width="100%" minHeight="100vh" padding=38 background=backgroundFor(visualVariant) gap=0 testId="event-page"
       row align="center" paddingBottom=22 gap=12
         button press=back testId="back" background="transparent" flex=1
           text "← All plans" size=11 color=textFor(visualVariant)
@@ -87,7 +87,7 @@ component PartifulEvent
           text "Event options" size=11 color=textFor(visualVariant)
         text `CONTRACT · ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
       when optionsOpen
-        column role="menu" label="Event options" focusRestore=true dismiss=closeOptions anchor="event-options-trigger" anchorPlacement="bottom-end" anchorStrategy="fixed" anchorOffset=8 portalTarget="overlay" portalLevel=80 presence="entered" testId="event-options-menu" padding=8 background=backgroundFor(visualVariant) borderWidth=1 borderColor="rgba(23,21,18,0.35)"
+        column role="menu" label="Event options" keydown=navigateCollection focusTrap=true focusRestore=true dismiss=closeOptions anchor="event-options-trigger" anchorPlacement="bottom-end" anchorStrategy="fixed" anchorOffset=8 portalTarget="overlay" portalLevel=80 presence="entered" testId="event-options-menu" width=220 padding=8 background=backgroundFor(visualVariant) borderWidth=1 borderColor="rgba(23,21,18,0.35)"
           button press=closeOptions role="menuitem" label="Copy invite link" testId="event-options-first-item" padding=11 background="transparent"
             text "Copy invite link" size=12 color=textFor(visualVariant)
           button press=closeOptions role="menuitem" label="Add to calendar" padding=11 background="transparent"
@@ -115,14 +115,14 @@ component PartifulEvent
                   text ev.emoji size=66 background="rgba(255,255,255,0.22)" padding=30 radius=999
                   column gap=10 flex=1
                     text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                    text ev.title size=52 weight=800 color="#171512" lineHeight=0.9
+                    text ev.title headingLevel=1 size=52 weight=800 color="#171512" lineHeight=0.9
                     text ev.description size=14 color="#473b31"
                   ConnectionBadge(value=event.connection)
               else
                 column gap=18 padding=28 background="#f6a25d" borderWidth=1 borderColor="rgba(23,21,18,0.35)"
                   text ev.emoji size=48 background="rgba(255,255,255,0.22)" padding=20 radius=999
                   text `${fmtWhen(ev.startsAt)} · HOSTED BY ${ev.hostName}` size=10 color="#473b31"
-                  text ev.title size=40 weight=800 color="#171512" lineHeight=0.95
+                  text ev.title headingLevel=1 size=40 weight=800 color="#171512" lineHeight=0.95
                   text ev.description size=14 color="#473b31"
                   ConnectionBadge(value=event.connection)
             column gap=8 padding=32 borderWidth=1 borderColor="rgba(23,21,18,0.25)"
@@ -172,22 +172,22 @@ component PartifulEvent
                 when myStatus(guestRows, userId) == "host"
                   text "You're hosting this one ✦" size=12 color="#171512" background="#dce3bf" padding=12
                 else
-                  row gap=5
-                    button press=respond("going") testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                  row gap=5 role="radiogroup" label="RSVP"
+                    button press=respond("going") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "going" label="Going" testId="rsvp-going" padding=9 background=myStatus(guestRows, userId) == "going" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
                       text "Going" size=10 color=myStatus(guestRows, userId) == "going" ? "#ffffff" : "#171512"
-                    button press=respond("maybe") testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                    button press=respond("maybe") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "maybe" label="Maybe" testId="rsvp-maybe" padding=9 background=myStatus(guestRows, userId) == "maybe" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
                       text "Maybe" size=10 color=myStatus(guestRows, userId) == "maybe" ? "#ffffff" : "#171512"
-                    button press=respond("cant") testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
+                    button press=respond("cant") role="radio" accessibilityChecked=myStatus(guestRows, userId) == "cant" label="Can't go" testId="rsvp-cant" padding=9 background=myStatus(guestRows, userId) == "cant" ? "#ff4d24" : "transparent" borderWidth=1 borderColor="rgba(23,21,18,0.3)"
                       text "Can't" size=10 color=myStatus(guestRows, userId) == "cant" ? "#ffffff" : "#171512"
                   button press=requestRespond("going") label="Change RSVP" testId="rsvp-trigger" padding=10 background=textFor(visualVariant)
                     text "Change RSVP…" size=10 color=backgroundFor(visualVariant)
-                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 testId="virtual-guest-list"
-                  row gap=10 align="center" paddingTop=8 paddingBottom=8 testId=`guest-${guest.userId}`
+                virtualList items=guestRows as="guest" key=guest._id estimateSize=50 viewportSize=300 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="virtual-guest-list"
+                  row gap=10 align="center" paddingTop=8 paddingBottom=8 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` nativeID=`guest-option-${guest._id}` testId=`guest-${guest.userId}`
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when guestSheetOpen
         stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" testId="guest-sheet-overlay"
-          button press=closeGuestSheet label="Close guest list" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="guest-sheet-backdrop"
+          button press=closeGuestSheet label="Close guest list" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="guest-list-sheet-backdrop"
           section role="dialog" label="Guest list" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeGuestSheet presence="entered" testId="guest-list-sheet" zIndex=1 width="100%" maxWidth=620 padding=30 gap=16 style=surfaceStyle(visualVariant, "panel")
             row align="center"
               text "Guest list" headingLevel=2 size=27 weight=800 color=textFor(visualVariant) flex=1
@@ -201,8 +201,8 @@ component PartifulEvent
               empty
                 text "Nobody yet." size=12 color=mutedFor(visualVariant)
               ready sheetRows
-                virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 testId="guest-sheet-list"
-                  row gap=10 align="center" paddingTop=10 paddingBottom=10 testId=`guest-sheet-${guest.userId}`
+                virtualList items=sheetRows as="guest" key=guest._id estimateSize=50 viewportSize=420 overscan=50 role="listbox" label="Event guests" keydown=navigateCollection testId="guest-sheet-list"
+                  row gap=10 align="center" paddingTop=10 paddingBottom=10 role="option" label=`${guest.guestName}, ${statusLabel(guest.status)}` nativeID=`guest-sheet-option-${guest._id}` testId=`guest-sheet-${guest.userId}`
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""
