@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "c1dd1d2154736b425d2ae3569771d6451b905a0e",
+    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
     "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -10,6 +10,9 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.130",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -181,7 +184,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "f28a38e7f7255c38492e6d1318685dc86fdc0520cbf00701e171396713f90dc8"
+      "sha256": "7023c3ccd52be0db2f24e46811ddc10ffd910ebaeea9fb917424552703036303"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -220,7 +223,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "c29ee379eee309228d047db9cea64ffedf40266965d039639d6b72fa13ad0919",
+  "testInventorySha256": "2ff2ef558fa1b7dec7949d6773b6c3ef1b1d98efc65ea3083685460e83a97e5f",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -961,8 +964,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/create-event-form-validation-error.png",
-              "sha256": "6eeaf2e55875f612304bee7992605af6cde18bf3b8be84178bb9ab8e4b5970cf",
-              "bytes": 45383,
+              "sha256": "9bc889e5fc6f2f587588a9848beb1f9c54580b74ad2f9c2070808e24ddfb5206",
+              "bytes": 45376,
               "approval": "pending-human-review"
             }
           },
@@ -987,7 +990,7 @@
                 "id": "event-options-menu",
                 "missing": false,
                 "x": 162.84375,
-                "y": 154,
+                "y": 155,
                 "width": 210,
                 "height": 150,
                 "display": "grid",
@@ -998,7 +1001,7 @@
                 "id": "event-options-first-item",
                 "missing": false,
                 "x": 171.84375,
-                "y": 163,
+                "y": 164,
                 "width": 192,
                 "height": 44,
                 "display": "block",
@@ -1014,16 +1017,16 @@
               "cardOverlaps": [],
               "menuAnchor": {
                 "rightDelta": 0,
-                "verticalGap": 0
+                "verticalGap": 1
               },
               "contained": [
                 {
                   "id": "event-options-menu",
                   "rect": {
                     "left": 162.84375,
-                    "top": 154,
+                    "top": 155,
                     "right": 372.84375,
-                    "bottom": 304,
+                    "bottom": 305,
                     "width": 210,
                     "height": 150
                   },
@@ -1033,8 +1036,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/options-menu-open.png",
-              "sha256": "41715dacb617affd887f15dbbbcdb4ecd3698ad04f174c6d58ffad7a6ba22617",
-              "bytes": 56068,
+              "sha256": "c514f0b95ccc2b102c4c51231ceeeffb9fcf1850d8f6a853e5d2683343acc315",
+              "bytes": 56085,
               "approval": "pending-human-review"
             }
           },
@@ -1113,8 +1116,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/rsvp-confirm-dialog-open.png",
-              "sha256": "42250cb3d061b60976c2e332aca50802646a3c3b88621398c931792d5d592084",
-              "bytes": 40283,
+              "sha256": "013927dccbe8529de96a6485a185872f9c1f0e0b53d3ae2c73c347ed621f08f8",
+              "bytes": 40287,
               "approval": "pending-human-review"
             }
           }

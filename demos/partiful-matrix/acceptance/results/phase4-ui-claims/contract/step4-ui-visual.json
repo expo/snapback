@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "f99b34e156091b4995c6d80b864e4c6a0ce54fcb",
+    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
     "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -10,6 +10,9 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.130",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -181,15 +184,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "3105f5cbd028104af286e347a5c0576d7915e8b272f794ded207dd0fc566ab20"
+      "sha256": "7023c3ccd52be0db2f24e46811ddc10ffd910ebaeea9fb917424552703036303"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "7d87dad5d2b6ebcd16591e97dfbe010aae0fe4ef0347b6c90b6879b8e8be36b1"
+      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
-      "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
+      "sha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
@@ -201,11 +204,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "78ee23a14a91025b6ebab94af117a426bdd85af6bf82025cd9db5fbd52e964c5"
+      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "9f18858c7235085fa290793f52d825285cca56e4753cd373ae7521f6417d8256"
+      "sha256": "62b8182caf18d892b3ed2beaddf935e819c5d701cd97144fed1a3e374a063f4f"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -213,14 +216,14 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
-      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+      "sha256": "8d63f7db82f5a4953699413beddf6213d0292447b9177f7664622a88aa225b67"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "94619c75ccf3241667a5e7fdde4a002e9d0b42dcb1b7cce8fd8731c3e7bb46f3",
+  "testInventorySha256": "2ff2ef558fa1b7dec7949d6773b6c3ef1b1d98efc65ea3083685460e83a97e5f",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -269,16 +272,20 @@
       "details": {
         "claimId": "STEP4.UI.VISUAL",
         "cell": "contract:snapback",
-        "scope": "representative-state structural preflight; full 156-cell baseline lane remains separately approval-gated",
+        "scope": "13-state structural preflight; full 156-cell baseline lane remains separately approval-gated",
         "states": [
           {
             "state": "feed-empty",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "feed",
                 "missing": false,
-                "width": 756,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
                 "height": 464,
                 "display": "flex",
                 "visibility": "visible",
@@ -287,7 +294,9 @@
               {
                 "id": "feed-empty",
                 "missing": false,
-                "width": 648,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
                 "height": 320,
                 "display": "flex",
                 "visibility": "visible",
@@ -296,23 +305,39 @@
               {
                 "id": "create-event",
                 "missing": false,
+                "x": 71,
+                "y": 368,
                 "width": 225.078125,
                 "height": 45,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "feed-populated",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "feed",
                 "missing": false,
-                "width": 756,
-                "height": 784,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 458,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -320,7 +345,9 @@
               {
                 "id": "event-card-event_sunset",
                 "missing": false,
-                "width": 318,
+                "x": 54,
+                "y": 574,
+                "width": 382.65625,
                 "height": 314,
                 "display": "flex",
                 "visibility": "visible",
@@ -329,7 +356,9 @@
               {
                 "id": "event-card-event_swim",
                 "missing": false,
-                "width": 318,
+                "x": 448.65625,
+                "y": 574,
+                "width": 382.671875,
                 "height": 314,
                 "display": "flex",
                 "visibility": "visible",
@@ -338,23 +367,39 @@
               {
                 "id": "event-card-event_ceramics",
                 "missing": false,
-                "width": 318,
+                "x": 843.328125,
+                "y": 574,
+                "width": 382.65625,
                 "height": 314,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "feed-loading-skeleton",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "feed",
                 "missing": false,
-                "width": 756,
-                "height": 1056,
+                "x": 0,
+                "y": 484,
+                "width": 1280,
+                "height": 594,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -362,23 +407,39 @@
               {
                 "id": "feed-loading",
                 "missing": false,
-                "width": 648,
-                "height": 912,
+                "x": 54,
+                "y": 574,
+                "width": 1172,
+                "height": 450,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "event-detail-going",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "event-page",
                 "missing": false,
-                "width": 756,
-                "height": 904.953125,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 863,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -386,6 +447,8 @@
               {
                 "id": "rsvp-going",
                 "missing": false,
+                "x": 851.671875,
+                "y": 554,
                 "width": 48.359375,
                 "height": 32,
                 "display": "flex",
@@ -395,7 +458,9 @@
               {
                 "id": "guest-list",
                 "missing": false,
-                "width": 280,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
                 "height": 381,
                 "display": "flex",
                 "visibility": "visible",
@@ -404,23 +469,39 @@
               {
                 "id": "wall",
                 "missing": false,
-                "width": 398,
-                "height": 309,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 293,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "event-detail-maybe",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "event-page",
                 "missing": false,
-                "width": 756,
-                "height": 904.953125,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 863,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -428,6 +509,8 @@
               {
                 "id": "rsvp-maybe",
                 "missing": false,
+                "x": 905.03125,
+                "y": 554,
                 "width": 51.9375,
                 "height": 32,
                 "display": "flex",
@@ -437,7 +520,9 @@
               {
                 "id": "guest-list",
                 "missing": false,
-                "width": 280,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
                 "height": 381,
                 "display": "flex",
                 "visibility": "visible",
@@ -446,23 +531,39 @@
               {
                 "id": "wall",
                 "missing": false,
-                "width": 398,
-                "height": 309,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 293,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "event-detail-error",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "event-page",
                 "missing": false,
-                "width": 756,
-                "height": 1076.953125,
+                "x": 0,
+                "y": 0,
+                "width": 1280,
+                "height": 1035,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -470,7 +571,9 @@
               {
                 "id": "event-error",
                 "missing": false,
-                "width": 680,
+                "x": 38,
+                "y": 91,
+                "width": 1204,
                 "height": 172,
                 "display": "flex",
                 "visibility": "visible",
@@ -479,22 +582,38 @@
               {
                 "id": "event-retry",
                 "missing": false,
-                "width": 618,
+                "x": 69,
+                "y": 195,
+                "width": 1142,
                 "height": 37,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "guest-list-sheet-open",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "guest-list-trigger",
                 "missing": false,
-                "width": 216,
+                "x": 851.671875,
+                "y": 510,
+                "width": 357.328125,
                 "height": 32,
                 "display": "flex",
                 "visibility": "visible",
@@ -503,6 +622,8 @@
               {
                 "id": "guest-list-sheet",
                 "missing": false,
+                "x": 0,
+                "y": 0,
                 "width": 620,
                 "height": 261,
                 "display": "flex",
@@ -512,22 +633,51 @@
               {
                 "id": "guest-list",
                 "missing": false,
-                "width": 280,
+                "x": 819.671875,
+                "y": 443,
+                "width": 421.328125,
                 "height": 381,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "guest-list-sheet",
+                  "rect": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 620,
+                    "bottom": 261,
+                    "width": 620,
+                    "height": 261
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
           },
           {
             "state": "wall-composer-active",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "wall-composer",
                 "missing": false,
-                "width": 332,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
                 "height": 91,
                 "display": "flex",
                 "visibility": "visible",
@@ -536,7 +686,9 @@
               {
                 "id": "wall-message",
                 "missing": false,
-                "width": 332,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
                 "height": 44,
                 "display": "block",
                 "visibility": "visible",
@@ -545,23 +697,39 @@
               {
                 "id": "wall-submit",
                 "missing": false,
-                "width": 332,
+                "x": 72,
+                "y": 664,
+                "width": 714.671875,
                 "height": 39,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 0.45
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "wall-optimistic-pending",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "wall",
                 "missing": false,
-                "width": 398,
-                "height": 371,
+                "x": 39,
+                "y": 443,
+                "width": 780.671875,
+                "height": 355,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
@@ -569,7 +737,9 @@
               {
                 "id": "wall-pending-row",
                 "missing": false,
-                "width": 332,
+                "x": 72,
+                "y": 612,
+                "width": 714.671875,
                 "height": 46,
                 "display": "flex",
                 "visibility": "visible",
@@ -578,21 +748,37 @@
               {
                 "id": "wall-pending-status",
                 "missing": false,
+                "x": 738.21875,
+                "y": 627,
                 "width": 47.453125,
                 "height": 16,
                 "display": "block",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "create-event-form-default",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "create-event-form",
                 "missing": false,
+                "x": 34,
+                "y": 123,
                 "width": 652,
                 "height": 285,
                 "display": "flex",
@@ -602,6 +788,8 @@
               {
                 "id": "event-title",
                 "missing": false,
+                "x": 106,
+                "y": 123,
                 "width": 580,
                 "height": 52,
                 "display": "block",
@@ -611,6 +799,8 @@
               {
                 "id": "event-when",
                 "missing": false,
+                "x": 34,
+                "y": 185,
                 "width": 652,
                 "height": 44,
                 "display": "block",
@@ -620,6 +810,8 @@
               {
                 "id": "event-location",
                 "missing": false,
+                "x": 34,
+                "y": 239,
                 "width": 652,
                 "height": 44,
                 "display": "block",
@@ -629,6 +821,8 @@
               {
                 "id": "event-description",
                 "missing": false,
+                "x": 34,
+                "y": 293,
                 "width": 652,
                 "height": 62,
                 "display": "block",
@@ -638,21 +832,37 @@
               {
                 "id": "create-event-submit",
                 "missing": false,
+                "x": 34,
+                "y": 365,
                 "width": 652,
                 "height": 43,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 0.7
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "create-event-form-validation-error",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "create-event-form",
                 "missing": false,
+                "x": 34,
+                "y": 123,
                 "width": 652,
                 "height": 360,
                 "display": "flex",
@@ -662,6 +872,8 @@
               {
                 "id": "form-error-summary",
                 "missing": false,
+                "x": 34,
+                "y": 123,
                 "width": 652,
                 "height": 15,
                 "display": "block",
@@ -671,6 +883,8 @@
               {
                 "id": "event-title-error",
                 "missing": false,
+                "x": 34,
+                "y": 210,
                 "width": 652,
                 "height": 15,
                 "display": "block",
@@ -680,21 +894,37 @@
               {
                 "id": "create-event-submit",
                 "missing": false,
+                "x": 34,
+                "y": 440,
                 "width": 652,
                 "height": 43,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 0.7
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": []
+            },
+            "artifact": null
           },
           {
             "state": "options-menu-open",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "event-options-trigger",
                 "missing": false,
+                "x": 1152.453125,
+                "y": 38,
                 "width": 89.546875,
                 "height": 31,
                 "display": "flex",
@@ -704,6 +934,8 @@
               {
                 "id": "event-options-menu",
                 "missing": false,
+                "x": 1022,
+                "y": 77,
                 "width": 220,
                 "height": 129,
                 "display": "flex",
@@ -713,22 +945,54 @@
               {
                 "id": "event-options-first-item",
                 "missing": false,
+                "x": 1031,
+                "y": 86,
                 "width": 202,
                 "height": 37,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": {
+                "rightDelta": 0,
+                "verticalGap": 8
+              },
+              "contained": [
+                {
+                  "id": "event-options-menu",
+                  "rect": {
+                    "left": 1022,
+                    "top": 77,
+                    "right": 1242,
+                    "bottom": 206,
+                    "width": 220,
+                    "height": 129
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
           },
           {
             "state": "rsvp-confirm-dialog-open",
+            "theme": "light",
+            "viewport": "expanded",
             "specVersion": "partitime.visual.v1",
             "structural": [
               {
                 "id": "rsvp-trigger",
                 "missing": false,
-                "width": 216,
+                "x": 851.671875,
+                "y": 598,
+                "width": 357.328125,
                 "height": 32,
                 "display": "flex",
                 "visibility": "visible",
@@ -737,6 +1001,8 @@
               {
                 "id": "rsvp-confirm-dialog",
                 "missing": false,
+                "x": 0,
+                "y": 0,
                 "width": 460,
                 "height": 184,
                 "display": "flex",
@@ -746,6 +1012,8 @@
               {
                 "id": "rsvp-confirm",
                 "missing": false,
+                "x": 362.875,
+                "y": 115,
                 "width": 67.125,
                 "height": 39,
                 "display": "flex",
@@ -755,13 +1023,38 @@
               {
                 "id": "rsvp-cancel",
                 "missing": false,
+                "x": 290.046875,
+                "y": 115,
                 "width": 62.828125,
                 "height": 39,
                 "display": "flex",
                 "visibility": "visible",
                 "opacity": 1
               }
-            ]
+            ],
+            "relations": {
+              "viewport": {
+                "width": 1280,
+                "height": 800
+              },
+              "cardOverlaps": [],
+              "menuAnchor": null,
+              "contained": [
+                {
+                  "id": "rsvp-confirm-dialog",
+                  "rect": {
+                    "left": 0,
+                    "top": 0,
+                    "right": 460,
+                    "bottom": 184,
+                    "width": 460,
+                    "height": 184
+                  },
+                  "inside": true
+                }
+              ]
+            },
+            "artifact": null
           }
         ]
       }

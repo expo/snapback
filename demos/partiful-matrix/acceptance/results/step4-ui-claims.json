@@ -1,11 +1,12 @@
 {
   "$schema": "partitime-step4-ui-claims/v1",
-  "generatedAt": "2026-07-22T02:50:14.962Z",
+  "generatedAt": "2026-07-22T08:20:39.534Z",
   "revisions": {
-    "snapback": "f99b34e156091b4995c6d80b864e4c6a0ce54fcb",
+    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
     "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
-  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, Chrome profile, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
+  "browser": "chrome",
+  "isolation": "Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, chrome process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.",
   "arms": [
     "react",
     "contract"
@@ -30,14 +31,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-responsive.json",
-          "receiptSha256": "9b79d1b7d9b76d63025773418eaa61bbc0f3de83107f912707d81fa06d223d79"
+          "receiptSha256": "d29a740d635469d00fc759308ea95d92b04355d057ed8cb5194372066ae7d112"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-responsive.json",
-          "receiptSha256": "de523f1a43dc7962ff83075586aa9cde0f05f09c45d0c5256b6ed10387e727d2"
+          "receiptSha256": "e1ae0bdaa24c32205340b2aa6020b8e20000de5b58a704beea874ea74bddf577"
         }
       ]
     },
@@ -50,14 +51,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-keyboard.json",
-          "receiptSha256": "89a87e35091b02a841f85a8addc91a3fe5ef557a063b9297ed517dbb481e8f47"
+          "receiptSha256": "a78f15428b376db221772f6e161d831e7547a6d0bd153b3d097b995c8d2569b7"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-keyboard.json",
-          "receiptSha256": "9f8cadfea634838636c16d8c7478cfcba09a6cb4095eb48d321320d2d75aba24"
+          "receiptSha256": "dcc6320bf253d4adb678d6767d38fd1b31d035727c19b8b5d9d27670fc164bcd"
         }
       ]
     },
@@ -70,14 +71,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-focus.json",
-          "receiptSha256": "86a5547654f6e1242eb1407da285c5f7df2850af9e10963d036dd73fd656a511"
+          "receiptSha256": "f0368ba7bc7b346cb6d9d0578acc98a2fbfcbd86f350d39a3f0b7d9d16c32850"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-focus.json",
-          "receiptSha256": "d44e77c3c1f4c8bf424091cbee9dd127a2d9203a98b984eeefe68572079c215e"
+          "receiptSha256": "2f4ff38b9b5b8626d69919ce094babed905a219f1f0db68de2006b0394482c61"
         }
       ]
     },
@@ -90,14 +91,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-reduced-motion.json",
-          "receiptSha256": "e2a277e81af6b3ee63f00af133591a0d278a5517970c38f5f8155ad0245a11f9"
+          "receiptSha256": "bdef32c1a09fb35023ed3c8d95b429b5637f35896f8a1a2303c238b51130d306"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-reduced-motion.json",
-          "receiptSha256": "563ca67b5d439c937cabd9786ce1cce4656abc5d1a8a6491bd393368e97f36bd"
+          "receiptSha256": "7ee0bf2b0850620b429459e808920a075cc694319d4f3be1d5be082dc88107fd"
         }
       ]
     },
@@ -110,14 +111,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-a11y.json",
-          "receiptSha256": "9502bcb82a14ddb641963dcbf610c3ee534d0fcafe7348c0afdbbc439b5736cc"
+          "receiptSha256": "e4cdc76ad1bcf24789016ea4ab804ba50d0699561909bbcea00b9709c4d5cbc0"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-a11y.json",
-          "receiptSha256": "d4d19beb7875010692faaf442973cacb46f5659f12fa4043bc785d37bf893e96"
+          "receiptSha256": "8eebacc939a4199e7b102c8bddfd7ede903e179029dc94caa8e6512d6436af80"
         }
       ],
       "delta": {
@@ -139,7 +140,7 @@
             {
               "id": "color-contrast",
               "impact": "serious",
-              "nodes": 6,
+              "nodes": 5,
               "help": "Elements must meet minimum color contrast ratio thresholds"
             }
           ],
@@ -181,14 +182,14 @@
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/react/step4-ui-visual.json",
-          "receiptSha256": "4cd6a981f506557dff438ec80f80514864a2db066e80e2889f4107ab6d0629d7"
+          "receiptSha256": "5da0e34fca5f549ec6bbe1d3064556b5ba6b95f751b37812748626a967d08d8f"
         },
         {
           "arm": "contract",
           "ok": true,
           "exitCode": 0,
           "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-ui-claims/contract/step4-ui-visual.json",
-          "receiptSha256": "bf0697e762ede2979099f59dd3b9da59a0826d3231ef8f0764f28bab4d385f21"
+          "receiptSha256": "9cd594cb97eac5a377d00430677b4ed8ca514ee12104c998099228fdbc51460a"
         }
       ],
       "scope": "13-state structural preflight only; the 156-cell approved-baseline lane remains separate and approval-gated"

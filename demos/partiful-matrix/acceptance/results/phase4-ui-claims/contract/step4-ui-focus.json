@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "f99b34e156091b4995c6d80b864e4c6a0ce54fcb",
+    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
     "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -10,6 +10,9 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.130",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -181,15 +184,15 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "3105f5cbd028104af286e347a5c0576d7915e8b272f794ded207dd0fc566ab20"
+      "sha256": "7023c3ccd52be0db2f24e46811ddc10ffd910ebaeea9fb917424552703036303"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "7d87dad5d2b6ebcd16591e97dfbe010aae0fe4ef0347b6c90b6879b8e8be36b1"
+      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
-      "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
+      "sha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
@@ -201,11 +204,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "78ee23a14a91025b6ebab94af117a426bdd85af6bf82025cd9db5fbd52e964c5"
+      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "9f18858c7235085fa290793f52d825285cca56e4753cd373ae7521f6417d8256"
+      "sha256": "62b8182caf18d892b3ed2beaddf935e819c5d701cd97144fed1a3e374a063f4f"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -213,14 +216,14 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
-      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+      "sha256": "8d63f7db82f5a4953699413beddf6213d0292447b9177f7664622a88aa225b67"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "94619c75ccf3241667a5e7fdde4a002e9d0b42dcb1b7cce8fd8731c3e7bb46f3",
+  "testInventorySha256": "2ff2ef558fa1b7dec7949d6773b6c3ef1b1d98efc65ea3083685460e83a97e5f",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [

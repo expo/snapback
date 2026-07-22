@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "c1dd1d2154736b425d2ae3569771d6451b905a0e",
+    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
     "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -10,6 +10,9 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+    "browserVersion": "Google Chrome 150.0.7871.130",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
     "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
@@ -181,7 +184,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "f28a38e7f7255c38492e6d1318685dc86fdc0520cbf00701e171396713f90dc8"
+      "sha256": "7023c3ccd52be0db2f24e46811ddc10ffd910ebaeea9fb917424552703036303"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -220,7 +223,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "c29ee379eee309228d047db9cea64ffedf40266965d039639d6b72fa13ad0919",
+  "testInventorySha256": "2ff2ef558fa1b7dec7949d6773b6c3ef1b1d98efc65ea3083685460e83a97e5f",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -894,8 +897,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/create-event-form-default.png",
-              "sha256": "5d25a36fcd7af072ef5a32a0171eaf1762c09fdd130649e81beff6874bd1b0df",
-              "bytes": 43111,
+              "sha256": "02d85063cb930722e8f3f9ecf9eb51fcb29c62e6d46acb3951a2f274e358077d",
+              "bytes": 43113,
               "approval": "pending-human-review"
             }
           },
@@ -961,8 +964,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/create-event-form-validation-error.png",
-              "sha256": "4a6a66aa5356c3a54196e71658cf7988053b96ebfbf8beea102f9880d11a6cab",
-              "bytes": 47823,
+              "sha256": "53f5e3faa54491e6dfd7d09f0579e5a821c17b8f7d5771f8d674d36df244f76b",
+              "bytes": 47799,
               "approval": "pending-human-review"
             }
           },
@@ -987,7 +990,7 @@
                 "id": "event-options-menu",
                 "missing": false,
                 "x": 162.84375,
-                "y": 154,
+                "y": 155,
                 "width": 210,
                 "height": 150,
                 "display": "grid",
@@ -998,7 +1001,7 @@
                 "id": "event-options-first-item",
                 "missing": false,
                 "x": 171.84375,
-                "y": 163,
+                "y": 164,
                 "width": 192,
                 "height": 44,
                 "display": "block",
@@ -1014,16 +1017,16 @@
               "cardOverlaps": [],
               "menuAnchor": {
                 "rightDelta": 0,
-                "verticalGap": 0
+                "verticalGap": 1
               },
               "contained": [
                 {
                   "id": "event-options-menu",
                   "rect": {
                     "left": 162.84375,
-                    "top": 154,
+                    "top": 155,
                     "right": 372.84375,
-                    "bottom": 304,
+                    "bottom": 305,
                     "width": 210,
                     "height": 150
                   },
@@ -1033,8 +1036,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/options-menu-open.png",
-              "sha256": "dedb47e5554a8094db47ed80b7e86d450a587f5b88d20e0e58a3c6f5e0cbfa46",
-              "bytes": 60788,
+              "sha256": "47a9e3d9875569e9df8d74eec08bd911cf6101f4786de8537ebfaa3f7d6ee5a2",
+              "bytes": 60839,
               "approval": "pending-human-review"
             }
           },
@@ -1113,8 +1116,8 @@
             },
             "artifact": {
               "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/rsvp-confirm-dialog-open.png",
-              "sha256": "bc6f47c05f2797384e6de2ff028a7e529b241257ddd05fcf6db8311da90c19a8",
-              "bytes": 42758,
+              "sha256": "66091025a86f0ebd8a58c2400eca277888cb2eab494729a7bd9986abe965a3e8",
+              "bytes": 42759,
               "approval": "pending-human-review"
             }
           }
