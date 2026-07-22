@@ -3,9 +3,10 @@
   "ok": true,
   "claimTreatment": "checkpoint",
   "claimSatisfied": false,
-  "sourceRevision": "a75ddd514ecc7f8e0ae00f91384deef699587383",
-  "sourceDirty": false,
+  "sourceRevision": "751ec0f0fffabb6121e88e8d2e87ce52cae06eca",
+  "sourceDirty": true,
   "publicationMode": "dry-run",
+  "installSource": "tarball",
   "scopePreset": "identity",
   "version": "0.1.0",
   "packages": [
@@ -14,28 +15,28 @@
       "publishedName": "@snapback/runtime-darwin-arm64",
       "version": "0.1.0",
       "tarball": "snapback-runtime-darwin-arm64-0.1.0.tgz",
-      "sha256": "7dd7c106d2fe8c615fd42edc37973198025f102185f31d03eca26b3735b8044a"
+      "sha256": "8e77436a02d1bb4432cdf6f518b538b0cc4c6ab42b0a98bcba0b4cd79960ba0a"
     },
     {
       "sourceName": "@snapback/contract",
       "publishedName": "@snapback/contract",
       "version": "0.1.0",
       "tarball": "snapback-contract-0.1.0.tgz",
-      "sha256": "129d6d7a5e821c99879433d39d054930ffa773919796ebe23dae4626a11fc32e"
+      "sha256": "df914239b65035ce6a59b83e1df7100eedc99e83733a6758d0c4466abc54a8f9"
     },
     {
       "sourceName": "@snapback/client",
       "publishedName": "@snapback/client",
       "version": "0.1.0",
       "tarball": "snapback-client-0.1.0.tgz",
-      "sha256": "a3dfb846ea186fb72260b6c6f01814d7beb0bb3abc02733f5c69b5b222e49c8a"
+      "sha256": "da5200f500f2261e2009c5093dbb05fdde7c3a32a83ad6eda2e4a553474699a3"
     },
     {
       "sourceName": "@snapback/codegen",
       "publishedName": "@snapback/codegen",
       "version": "0.1.0",
       "tarball": "snapback-codegen-0.1.0.tgz",
-      "sha256": "89e0965d9e3e0d584ece4d1ee8f5e58a8efcd9fbee4f62893003149c47f3250c"
+      "sha256": "965df0148b25760f6de983bfbe11e2abf044fc993be5dd788775666860f45083"
     },
     {
       "sourceName": "@snapback/react",
@@ -60,7 +61,10 @@
     }
   ],
   "checks": {
+    "materializedPackageInstall": true,
     "materializedTarballInstall": true,
+    "materializedRegistryInstall": false,
+    "publicRegistryInstall": false,
     "noSiblingSourceCheckout": true,
     "partitimeBackendBuilt": true,
     "localCodegenOffline": true,
@@ -73,12 +77,12 @@
     "packagedManagedDevReadyAttachWatchAndStop": true,
     "browserAdapterBundle": true,
     "resolvedDependencyCount": 9,
-    "browserBundleBytes": 549540
+    "browserBundleBytes": 419064
   },
   "nonclaims": [
     {
       "id": "public-registry-install",
-      "reason": "The proof installs immutable npm tarballs; the @snapback packages are not published in a public registry."
+      "reason": "This proof installs immutable npm tarballs; it does not install the package closure from a public registry."
     },
     {
       "id": "separately-provisioned-clean-machine",
