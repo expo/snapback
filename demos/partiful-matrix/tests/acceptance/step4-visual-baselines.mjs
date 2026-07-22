@@ -46,7 +46,13 @@ for (const arm of arms) {
     try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
     const states = receipt?.results?.[0]?.details?.states ?? [];
     const expectedCells = spec.states.length;
-    const artifacts = states.map((state) => state.artifact).filter(Boolean);
+    const artifacts = states.map(({ state, theme: stateTheme, viewport: stateViewport, specVersion, artifact }) => artifact ? {
+      state,
+      theme: stateTheme,
+      viewport: stateViewport,
+      specVersion,
+      ...artifact,
+    } : null).filter(Boolean);
     const identitiesMatch = states.every((state) => state.theme === theme.id && state.viewport === viewport.id);
     const ok = execution.status === 0 && receipt?.ok === true && states.length === expectedCells && artifacts.length === expectedCells && identitiesMatch;
     console.log(`  ${ok ? '✓' : '✗'} ${shardId} ${artifacts.length}/${expectedCells} visual cells`);
