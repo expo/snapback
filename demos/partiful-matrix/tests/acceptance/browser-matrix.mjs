@@ -1,7 +1,7 @@
 import { spawn } from 'node:child_process';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { arch, cpus, platform, release, tmpdir, totalmem } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,6 +29,7 @@ const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
 const phase4Only = process.argv.includes('--phase4-only');
 const selectedPhase4Claim = option('phase4-claim');
+const captureVisualDir = option('capture-visual-dir');
 const productionWeb = process.argv.includes('--production-web');
 const phase4ClaimIds = new Set([
   'STEP4.UI.RESPONSIVE',
@@ -40,6 +41,9 @@ const phase4ClaimIds = new Set([
 ]);
 if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
   throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
+}
+if (captureVisualDir && selectedPhase4Claim !== 'STEP4.UI.VISUAL') {
+  throw new Error('--capture-visual-dir requires --phase4-claim STEP4.UI.VISUAL');
 }
 const arms = productionWeb ? ['contract'] : selectedArm ? [selectedArm] : productUi ? ['react', 'contract'] : ['react', 'contract', 'vanilla'];
 const backends = productionWeb ? ['snapback'] : selectedBackend ? [selectedBackend] : productUi ? ['snapback'] : ['snapback', 'supabase', 'convex', 'sqlite'];
@@ -893,14 +897,31 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
 
   await phase4Claim(activeSuite, 'STEP4.UI.VISUAL', `${label} implements every representative state`, async () => {
     const states = [];
-    for (const state of phase4VisualSpec.states) {
-      await prepareVisualState({ page, cell, baseUrl, state: state.id });
-      const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
+    const themes = captureVisualDir ? phase4VisualSpec.themes : [phase4VisualSpec.themes[0]];
+    const viewports = captureVisualDir ? phase4VisualSpec.viewports : [phase4VisualSpec.viewports.at(-1)];
+    for (const theme of themes) for (const viewport of viewports) for (const state of phase4VisualSpec.states) {
+      await page.setViewport(viewport.width, viewport.height);
+      await prepareVisualState({ page, cell, baseUrl, state: state.id, theme: theme.id });
+      await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+      const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
       const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
-      if (invalid.length > 0) throw new Error(`${state.id} violates required visibility: ${JSON.stringify(invalid)}`);
-      states.push({ state: state.id, specVersion: phase4VisualSpec.specVersion, structural });
+      if (invalid.length > 0) throw new Error(`${state.id}/${theme.id}/${viewport.id} violates required visibility: ${JSON.stringify(invalid)}`);
+      const relations = await page.eval(`(()=>{const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')].map(node=>{const r=node.getBoundingClientRect();return {id:node.getAttribute('data-testid'),left:r.left,top:r.top,right:r.right,bottom:r.bottom}});const overlaps=[];for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){const a=cards[i],b=cards[j];if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlaps.push([a.id,b.id])}const trigger=rect('event-options-trigger'),menu=rect('event-options-menu');const contained=['event-options-menu','guest-list-sheet','rsvp-confirm-dialog'].map(id=>({id,rect:rect(id)})).filter(x=>x.rect).map(x=>({...x,inside:x.rect.left>=0&&x.rect.top>=0&&x.rect.right<=innerWidth&&x.rect.bottom<=innerHeight}));return {viewport:{width:innerWidth,height:innerHeight},cardOverlaps:overlaps,menuAnchor:trigger&&menu?{rightDelta:Math.abs(trigger.right-menu.right),verticalGap:menu.top-trigger.bottom}:null,contained}})()`);
+      if (relations.cardOverlaps.length > 0 || relations.contained.some((entry) => !entry.inside) || (state.id === 'options-menu-open' && (!relations.menuAnchor || relations.menuAnchor.rightDelta > 2 || relations.menuAnchor.verticalGap < 0 || relations.menuAnchor.verticalGap > 16))) {
+        throw new Error(`${state.id}/${theme.id}/${viewport.id} violates visual relations: ${JSON.stringify(relations)}`);
+      }
+      let artifact = null;
+      if (captureVisualDir) {
+        const artifactPath = resolve(repoRoot, captureVisualDir, cell.arm, theme.id, viewport.id, `${state.id}.png`);
+        mkdirSync(dirname(artifactPath), { recursive: true });
+        const viewportOnly = ['guest-list-sheet-open', 'create-event-form-default', 'create-event-form-validation-error', 'options-menu-open', 'rsvp-confirm-dialog-open'].includes(state.id);
+        writeFileSync(artifactPath, Buffer.from(await page.screenshot({ fullPage: !viewportOnly }), 'base64'));
+        const image = readFileSync(artifactPath);
+        artifact = { path: relative(repoRoot, artifactPath), sha256: createHash('sha256').update(image).digest('hex'), bytes: image.byteLength, approval: 'pending-human-review' };
+      }
+      states.push({ state: state.id, theme: theme.id, viewport: viewport.id, specVersion: phase4VisualSpec.specVersion, structural, relations, artifact });
     }
-    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: 'representative-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
+    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: captureVisualDir ? '78-cell per-arm capture with pending human approvals' : '13-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
   });
 }
 
@@ -962,15 +983,16 @@ async function waitForOverlayFocus(page, kind, label) {
   throw new Error(`${label} did not move focus into its overlay: ${JSON.stringify(state)}`);
 }
 
-async function prepareVisualState({ page, cell, baseUrl, state }) {
-  const event = () => loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve' });
-  if (state === 'feed-empty') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve', uiState: 'feed-empty' });
-  if (state === 'feed-loading-skeleton') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve', uiState: 'feed-loading' });
-  if (state === 'feed-populated') return loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
-  if (state === 'event-detail-error') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { user: 'eve', uiState: 'event-error' });
-  if (state === 'create-event-form-default') return loadPhase4Route(page, cell, baseUrl, '/events/new/', { user: 'eve' });
+async function prepareVisualState({ page, cell, baseUrl, state, theme = 'light' }) {
+  const params = { user: 'eve', theme: theme === 'dark' ? 'night' : 'warm' };
+  const event = () => loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', params);
+  if (state === 'feed-empty') return loadPhase4Route(page, cell, baseUrl, '/', { ...params, uiState: 'feed-empty' });
+  if (state === 'feed-loading-skeleton') return loadPhase4Route(page, cell, baseUrl, '/', { ...params, uiState: 'feed-loading' });
+  if (state === 'feed-populated') return loadPhase4Route(page, cell, baseUrl, '/', params);
+  if (state === 'event-detail-error') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'event-error' });
+  if (state === 'create-event-form-default') return loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
   if (state === 'create-event-form-validation-error') {
-    await loadPhase4Route(page, cell, baseUrl, '/events/new/', { user: 'eve' });
+    await loadPhase4Route(page, cell, baseUrl, '/events/new/', params);
     await page.click('create-event-submit');
     return;
   }
@@ -979,7 +1001,7 @@ async function prepareVisualState({ page, cell, baseUrl, state }) {
   if (state === 'event-detail-maybe') { await page.click('rsvp-maybe'); await page.pollText('guest-user_eve', 'Maybe', 5_000); return; }
   if (state === 'guest-list-sheet-open') { await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000); return; }
   if (state === 'wall-composer-active') { await page.focus('wall-message'); return; }
-  if (state === 'wall-optimistic-pending') { await page.focus('wall-message'); await page.insertText('Visual pending message'); await page.key('Enter'); await page.pollText('wall-pending-status', 'Sending', 1_500); return; }
+  if (state === 'wall-optimistic-pending') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'wall-pending' });
   if (state === 'options-menu-open') { await page.click('event-options-trigger'); await page.pollText('event-options-menu', 'Copy invite link', 5_000); return; }
   if (state === 'rsvp-confirm-dialog-open') { await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); }
 }
@@ -1138,6 +1160,15 @@ async function connectCdp(url) {
       setViewport: (width, height) => send('Emulation.setDeviceMetricsOverride', {
         width, height, deviceScaleFactor: 1, mobile: width < 600,
       }, sessionId),
+      screenshot: async ({ fullPage = false } = {}) => {
+        const params = { format: 'png', fromSurface: true, captureBeyondViewport: fullPage };
+        if (fullPage) {
+          const metrics = await send('Page.getLayoutMetrics', {}, sessionId);
+          const size = metrics.cssContentSize ?? metrics.contentSize;
+          params.clip = { x: 0, y: 0, width: Math.ceil(size.width), height: Math.ceil(size.height), scale: 1 };
+        }
+        return (await send('Page.captureScreenshot', params, sessionId)).data;
+      },
       emulateReducedMotion: (enabled) => send('Emulation.setEmulatedMedia', {
         features: [{ name: 'prefers-reduced-motion', value: enabled ? 'reduce' : 'no-preference' }],
       }, sessionId),
