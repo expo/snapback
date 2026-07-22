@@ -57,12 +57,16 @@ above threshold. Exact `1ca3e83f…` next made AOT view-plan allocation
 demand-driven, and `2c207091…` stopped cloning the complete immutable mount
 environment for every ordinary descendant. Those checkpoints reach 1,606,532
 and 1,600,228 warm bytes respectively, retain 6/8 update fan-out/patches, and
-leave the memory cell 206,128 bytes above threshold. The first environment
-probe timed out without a receipt and is excluded; the quoted value is its
-clean rerun. The retained snapshot attributes the rest mainly to V8 code and
-mounted compiled view/host-model state. This is diagnostic evidence only;
-no threshold or claim is promoted, and a new Exact release plus full
-calibration/holdout reruns remain required.)
+leave the memory cell 206,128 bytes above threshold. Exact `eef07dd7d…` then
+gave the admitted direct-DOM host a narrow structural node, shared its empty
+canonical records and unused event map, and left the full native factory
+unchanged. That probe reaches 1,588,748 warm bytes with update fan-out/patches
+still 6/8, a further 11,480-byte reduction and a remaining 194,648-byte miss.
+The first environment probe timed out without a receipt and is excluded; the
+quoted value is its clean rerun. The retained snapshot attributes the rest
+mainly to V8 code and mounted compiled view/host-model state. This is diagnostic
+evidence only; no threshold or claim is promoted, and a new Exact release plus
+full calibration/holdout reruns remain required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table

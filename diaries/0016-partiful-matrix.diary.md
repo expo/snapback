@@ -1692,3 +1692,24 @@ artifact to 209,768 minified bytes across its two chunks, still below the
 more compiled/mounted host representation, and the next investigation should
 measure the large `instance.ts`/effect-supervisor/host-node footprint rather
 than continuing to polish unopened overlay plans.
+
+## 2026-07-22 — the direct DOM host was carrying native-shaped baggage
+
+The admitted browser host still allocated the full renderer element shape for
+every Contract node, including paragraph, inherited-layout, safe-area, and
+kernel-encoding fields that the direct DOM path never reads. Each node also
+owned three empty canonical records and an event map even though authored
+`originalProps` remains the browser path's semantic and event authority.
+
+Exact now has a narrow direct-DOM element factory, shares the empty
+props/style/transition values and unused event map, and leaves the full native
+factory intact. Direct-host semantics, production reachability, runtime
+coverage, and all three TypeScript profiles pass.
+
+The external Contract × Supabase quick probe measured 1,588,748 post-GC warm
+bytes with update fan-out and patches unchanged at 6/8. That is 11,480 bytes
+below the shared-environment checkpoint, but still 194,648 bytes above the
+corrected React-relative threshold. Host representation is therefore a real
+part of the retained-heap cost, but slimming its obviously unused fields is not
+enough to close the claim; compiled code and mounted-instance/effect state are
+still the larger target.
