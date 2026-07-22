@@ -94,17 +94,26 @@ function eventIdFromLocation(params: URLSearchParams): string | null {
     ? location.pathname.slice(base.length)
     : location.pathname.replace(/^\//, '');
   const match = relative.match(/^events\/([^/]+)\/?$/);
+  if (match?.[1] === 'new') return null;
   return match ? decodeURIComponent(match[1]!) : params.get('event');
 }
 
-function routeIdFor(eventId: string | null): string {
-  return eventId === null ? '/' : `/events/${encodeURIComponent(eventId)}/`;
+function isCreateRoute(): boolean {
+  const base = normalizedBasePath();
+  const relative = location.pathname.startsWith(base)
+    ? location.pathname.slice(base.length)
+    : location.pathname.replace(/^\//, '');
+  return /^events\/new\/?$/.test(relative);
 }
 
-function updateDocumentMetadata(eventId: string | null): void {
+function routeIdFor(eventId: string | null, createRoute: boolean): string {
+  return createRoute ? '/events/new/' : eventId === null ? '/' : `/events/${encodeURIComponent(eventId)}/`;
+}
+
+function updateDocumentMetadata(eventId: string | null, createRoute: boolean): void {
   const event = eventId === null ? null : seed.tables.events.find((row) => row._id === eventId) ?? null;
-  document.title = event ? `${event.title} · Partitime` : 'Partitime · plans worth leaving the chat for';
-  const description = event?.description ?? 'Small gatherings, good people, and plans worth leaving the chat for.';
+  document.title = createRoute ? 'Create an event · Partitime' : event ? `${event.title} · Partitime` : 'Partitime · plans worth leaving the chat for';
+  const description = createRoute ? 'Create a Partitime event.' : event?.description ?? 'Small gatherings, good people, and plans worth leaving the chat for.';
   let descriptionNode = document.querySelector<HTMLMetaElement>('meta[name="description"]');
   if (!descriptionNode) {
     descriptionNode = document.createElement('meta');
@@ -118,7 +127,7 @@ function updateDocumentMetadata(eventId: string | null): void {
     canonical.rel = 'canonical';
     document.head.appendChild(canonical);
   }
-  canonical.href = new URL(`${normalizedBasePath()}${eventId === null ? '' : `events/${encodeURIComponent(eventId)}/`}`, location.origin).href;
+  canonical.href = new URL(`${normalizedBasePath()}${createRoute ? 'events/new/' : eventId === null ? '' : `events/${encodeURIComponent(eventId)}/`}`, location.origin).href;
 }
 
 function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolean): ContractHydrationManifest | null {
@@ -138,15 +147,16 @@ async function boot() {
   const params = new URLSearchParams(location.search);
   const requested = params.get('user');
   const persona = PERSONAS.find((item) => item.id === requested || item.userId === requested) ?? PERSONAS[0];
+  const createRoute = isCreateRoute();
   const eventId = eventIdFromLocation(params);
-  const routeId = routeIdFor(eventId);
+  const routeId = routeIdFor(eventId, createRoute);
   const visualVariant = params.get('theme') === 'night' ? 'night' : 'warm';
   const hydrationManifest = staticHydrationManifest(
     routeId,
     persona.userId === PERSONAS[0]!.userId && visualVariant === 'warm',
   );
   status(`Connecting Contract to ${__MATRIX_BACKEND__}…`);
-  updateDocumentMetadata(eventId);
+  updateDocumentMetadata(eventId, createRoute);
 
   let surface: {
     links: GeneratedProviderLinks;
@@ -240,8 +250,8 @@ async function boot() {
     preMountSizeClass = readContractSizeClass();
     const component = eventId === null ? feedApp : eventApp;
     const props = eventId === null
-      ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
-      : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
+      ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant, initialCreating: createRoute }
+      : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant, initialUiState: params.get('uiState') ?? 'ready' };
     mounted = mount(component, {
       rootId: hydrationManifest.rootId,
       props,
@@ -262,8 +272,8 @@ async function boot() {
     root.replaceChildren();
     host = installContractWebHost({ container: root });
     mounted = eventId === null
-      ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant } })
-      : mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
+      ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant, initialCreating: createRoute } })
+      : mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant, initialUiState: params.get('uiState') ?? 'ready' } });
   }
 
   // Preserve the mounted provider as the evidence source even after disposeActive
@@ -288,7 +298,7 @@ async function boot() {
     backend: __MATRIX_BACKEND__,
     authoring: 'contract',
     transport: __MATRIX_BACKEND__ === 'snapback' || __MATRIX_BACKEND__ === 'convex-realtime' ? 'push' : 'poll',
-    screen: eventId ? 'event' : 'feed',
+    screen: createRoute ? 'create' : eventId ? 'event' : 'feed',
     eventId,
     routeId,
     hydration: hydrationManifest ? {
@@ -332,7 +342,17 @@ function mountCurrentRoute() {
   return ready;
 }
 
-const onRouteChange = () => { void mountCurrentRoute(); };
+const onRouteChange = (event: Event) => {
+  const focusTestId = event instanceof CustomEvent && typeof event.detail?.focusTestId === 'string'
+    ? event.detail.focusTestId
+    : null;
+  void mountCurrentRoute().then(() => {
+    if (!focusTestId) return;
+    requestAnimationFrame(() => {
+      document.querySelector<HTMLElement>(`[data-testid="${focusTestId}"]`)?.focus();
+    });
+  });
+};
 addEventListener('popstate', onRouteChange);
 addEventListener('partitime:navigate', onRouteChange);
 const ready = mountCurrentRoute();

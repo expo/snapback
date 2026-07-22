@@ -18,10 +18,10 @@ function basePath(): string {
   return normalized.endsWith('/') ? normalized : `${normalized}/`;
 }
 
-function navigate(pathname: string, params: URLSearchParams): void {
+function navigate(pathname: string, params: URLSearchParams, focusTestId?: string): void {
   const search = params.toString();
   history.pushState({}, '', `${pathname}${search ? `?${search}` : ''}${location.hash}`);
-  dispatchEvent(new CustomEvent('partitime:navigate'));
+  dispatchEvent(new CustomEvent('partitime:navigate', { detail: { focusTestId } }));
 }
 
 export function openEvent(eventId: string): void {
@@ -29,8 +29,14 @@ export function openEvent(eventId: string): void {
   params.delete('event');
   navigate(`${basePath()}events/${encodeURIComponent(eventId)}/`, params);
 }
+export function openCreateRoute(): void {
+  const params = new URLSearchParams(location.search);
+  params.delete('event');
+  params.delete('uiState');
+  navigate(`${basePath()}events/new/`, params);
+}
 export function openFeed(): void {
   const params = new URLSearchParams(location.search);
   params.delete('event');
-  navigate(basePath(), params);
+  navigate(basePath(), params, 'new-event');
 }

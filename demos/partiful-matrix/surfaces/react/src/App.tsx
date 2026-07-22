@@ -18,9 +18,23 @@ import {
 } from '../../../shared/model';
 import { configuredBackend } from './provider';
 
-type View = { kind: 'feed' } | { kind: 'event'; id: string };
+type View = { kind: 'feed' } | { kind: 'create' } | { kind: 'event'; id: string };
+
+function basePathFromLocation(): string {
+  const marker = '/events/';
+  const at = location.pathname.indexOf(marker);
+  const base = at >= 0 ? location.pathname.slice(0, at + 1) : location.pathname;
+  return base.endsWith('/') ? base : `${base}/`;
+}
 
 function viewFromLocation(): View {
+  const base = basePathFromLocation();
+  const relative = location.pathname.startsWith(base)
+    ? location.pathname.slice(base.length)
+    : location.pathname.replace(/^\//, '');
+  const route = relative.match(/^events\/([^/]+)\/?$/);
+  if (route?.[1] === 'new') return { kind: 'create' };
+  if (route?.[1]) return { kind: 'event', id: decodeURIComponent(route[1]) };
   const eventId = new URLSearchParams(location.search).get('event');
   return eventId ? { kind: 'event', id: eventId } : { kind: 'feed' };
 }
@@ -34,10 +48,16 @@ function useBrowserView() {
   }, []);
   const navigate = (next: View) => {
     const params = new URLSearchParams(location.search);
-    if (next.kind === 'event') params.set('event', next.id);
-    else params.delete('event');
+    params.delete('event');
+    params.delete('uiState');
     const search = params.toString();
-    history.pushState({}, '', `${location.pathname}${search ? `?${search}` : ''}${location.hash}`);
+    const base = basePathFromLocation();
+    const pathname = next.kind === 'event'
+      ? `${base}events/${encodeURIComponent(next.id)}/`
+      : next.kind === 'create'
+        ? `${base}events/new/`
+        : base;
+    history.pushState({}, '', `${pathname}${search ? `?${search}` : ''}${location.hash}`);
     setView(next);
   };
   return [view, navigate] as const;
@@ -77,9 +97,9 @@ export function App({ provider, initialPersona }: { provider: MatrixProvider; in
           ))}
         </div>
       </header>
-      <main key={`${persona.id}:${view.kind}:${view.kind === 'event' ? view.id : ''}`}>
-        {view.kind === 'feed'
-          ? <Feed provider={provider} persona={persona} onOpen={(id) => navigate({ kind: 'event', id })} />
+      <main key={`${persona.id}:${view.kind === 'event' ? `event:${view.id}` : 'feed'}`}>
+        {view.kind !== 'event'
+          ? <Feed provider={provider} persona={persona} creating={view.kind === 'create'} onCreateOpen={() => navigate({ kind: 'create' })} onCreateClose={() => navigate({ kind: 'feed' })} onOpen={(id) => navigate({ kind: 'event', id })} />
           : <EventPage provider={provider} persona={persona} eventId={view.id} onBack={() => navigate({ kind: 'feed' })} />}
       </main>
     </div>
@@ -90,18 +110,25 @@ function ConnectionBadge({ value }: { value: Connection }) {
   return <span className={`connection ${value}`} data-testid="connection"><b />{value === 'polling' ? 'polling · 1s' : value}</span>;
 }
 
-function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona: Persona; onOpen(id: string): void }) {
+function Feed({ provider, persona, creating, onCreateOpen, onCreateClose, onOpen }: {
+  provider: MatrixProvider;
+  persona: Persona;
+  creating: boolean;
+  onCreateOpen(): void;
+  onCreateClose(): void;
+  onOpen(id: string): void;
+}) {
   const { rows: events, connection } = useRows<EventRow>(provider, 'listEvents', {}, persona);
-  const [creating, setCreating] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState({ title: '', emoji: '🪩', location: '', description: '' });
-  const closeCreating = useCallback(() => setCreating(false), []);
+  const [draft, setDraft] = useState({ title: '', emoji: '🪩', when: 'Next Saturday, 6:00 PM', location: '', description: '' });
+  const closeCreating = useCallback(() => onCreateClose(), [onCreateClose]);
   const submit = async () => {
     if (!draft.title.trim() || !draft.location.trim()) return;
     setBusy(true);
     try {
       const id = await provider.mutate<string>('createEvent', {
-        ...draft,
+        emoji: draft.emoji,
+        description: draft.description,
         title: draft.title.trim(),
         location: draft.location.trim(),
         startsAt: Date.now() + 3 * 24 * 60 * 60 * 1000,
@@ -118,7 +145,7 @@ function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona
         <h1>Make a plan worth<br /><em>leaving the chat for.</em></h1>
         <p>Small gatherings, good people, no algorithmic sludge.</p>
         <div className="hero-actions">
-          <button className="primary" data-testid="new-event" onClick={() => setCreating(!creating)}>{creating ? 'Never mind' : '+ Make something happen'}</button>
+          <button className="primary" data-testid="new-event" onClick={creating ? onCreateClose : onCreateOpen}>{creating ? 'Never mind' : '+ Make something happen'}</button>
           <ConnectionBadge value={connection} />
         </div>
       </section>
@@ -136,8 +163,8 @@ function Feed({ provider, persona, onOpen }: { provider: MatrixProvider; persona
 function CreateEventDialog({ open, busy, draft, setDraft, onClose, onSubmit }: {
   open: boolean;
   busy: boolean;
-  draft: { title: string; emoji: string; location: string; description: string };
-  setDraft(value: { title: string; emoji: string; location: string; description: string }): void;
+  draft: { title: string; emoji: string; when: string; location: string; description: string };
+  setDraft(value: { title: string; emoji: string; when: string; location: string; description: string }): void;
   onClose(): void;
   onSubmit(): Promise<void>;
 }) {
@@ -180,15 +207,63 @@ function CreateEventDialog({ open, busy, draft, setDraft, onClose, onSubmit }: {
       <section ref={panel} className="create-panel" data-testid="create-panel" role="dialog" aria-modal="true" aria-labelledby="create-title-heading" aria-describedby="create-description-copy">
         <div><span className="step">01</span><h2 id="create-title-heading">What’s the plan?</h2><p id="create-description-copy">A title and location are required.</p></div>
         <button className="dialog-close" data-testid="create-close" aria-label="Close create event" onClick={onClose}>Close</button>
-        <div className="create-grid">
+        <form className="create-grid" data-testid="create-event-form" onSubmit={(event) => { event.preventDefault(); void submit(); }}>
+          {touched.title && titleError && <div className="form-error-summary" role="alert" data-testid="form-error-summary">Please fix the highlighted event details.</div>}
           <input aria-label="Emoji" data-testid="create-emoji" className="emoji-input" value={draft.emoji} onChange={(e) => setDraft({ ...draft, emoji: e.target.value })} />
-          <label>Event title<input ref={titleInput} aria-invalid={Boolean(touched.title && titleError)} aria-describedby={touched.title && titleError ? 'create-title-error' : undefined} data-testid="create-title" placeholder="Sunday noodles" value={draft.title} onBlur={() => setTouched({ ...touched, title: true })} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
-          {touched.title && titleError && <span id="create-title-error" role="alert" data-testid="create-title-error">{titleError}</span>}
-          <label>Location<input ref={locationInput} aria-invalid={Boolean(touched.location && locationError)} aria-describedby={touched.location && locationError ? 'create-location-error' : undefined} data-testid="create-location" placeholder="Where are we meeting?" value={draft.location} onBlur={() => setTouched({ ...touched, location: true })} onChange={(e) => setDraft({ ...draft, location: e.target.value })} /></label>
-          {touched.location && locationError && <span id="create-location-error" role="alert" data-testid="create-location-error">{locationError}</span>}
-          <label className="description-field">Description<textarea aria-label="Description" data-testid="create-description" rows={4} placeholder="A sentence to set the mood" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
-          <button className="primary submit" data-testid="create-submit" disabled={busy} aria-disabled={busy} onClick={() => void submit()}>{busy ? 'Making it…' : 'Send the invite ↗'}</button>
-        </div>
+          <label>Event title<input ref={titleInput} aria-invalid={Boolean(touched.title && titleError)} aria-describedby={touched.title && titleError ? 'event-title-error' : undefined} data-testid="event-title" placeholder="Sunday noodles" value={draft.title} onBlur={() => setTouched({ ...touched, title: true })} onChange={(e) => setDraft({ ...draft, title: e.target.value })} /></label>
+          {touched.title && titleError && <span id="event-title-error" role="alert" data-testid="event-title-error">{titleError}</span>}
+          <label className="when-field">When<input aria-label="When" data-testid="event-when" value={draft.when} onChange={(e) => setDraft({ ...draft, when: e.target.value })} /></label>
+          <label>Location<input ref={locationInput} aria-invalid={Boolean(touched.location && locationError)} aria-describedby={touched.location && locationError ? 'event-location-error' : undefined} data-testid="event-location" placeholder="Where are we meeting?" value={draft.location} onBlur={() => setTouched({ ...touched, location: true })} onChange={(e) => setDraft({ ...draft, location: e.target.value })} /></label>
+          {touched.location && locationError && <span id="event-location-error" role="alert" data-testid="event-location-error">{locationError}</span>}
+          <label className="description-field">Description<textarea aria-label="Description" data-testid="event-description" rows={4} placeholder="A sentence to set the mood" value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} /></label>
+          <button type="submit" className="primary submit" data-testid="create-event-submit" disabled={busy} aria-disabled={busy}>{busy ? 'Making it…' : 'Send the invite ↗'}</button>
+        </form>
+      </section>
+    </div>, document.body,
+  );
+}
+
+function FocusOverlay({ open, title, description, testId, panelClassName = '', initialFocusTestId, onClose, children }: {
+  open: boolean;
+  title: string;
+  description: string;
+  testId: string;
+  panelClassName?: string;
+  initialFocusTestId: string;
+  onClose(): void;
+  children: React.ReactNode;
+}) {
+  const panel = useRef<HTMLElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>(`[data-testid="${initialFocusTestId}"]`)?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
+      if (event.key !== 'Tab' || !panel.current) return;
+      const focusable = [...panel.current.querySelectorAll<HTMLElement>('button:not([disabled]),input:not([disabled]),textarea:not([disabled])')];
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    addEventListener('keydown', onKeyDown);
+    return () => {
+      removeEventListener('keydown', onKeyDown);
+      queueMicrotask(() => { if (opener?.isConnected) opener.focus(); });
+    };
+  }, [initialFocusTestId, onClose, open]);
+  if (!open) return null;
+  const headingId = `${testId}-heading`;
+  const descriptionId = `${testId}-description`;
+  return createPortal(
+    <div className="product-overlay" data-testid={`${testId}-overlay`}>
+      <button className="create-backdrop" aria-label={`Close ${title}`} onClick={onClose} />
+      <section ref={panel} className={`product-overlay-panel ${panelClassName}`} data-testid={testId} role="dialog" aria-modal="true" aria-labelledby={headingId} aria-describedby={descriptionId}>
+        <h2 id={headingId}>{title}</h2>
+        <p id={descriptionId}>{description}</p>
+        {children}
       </section>
     </div>, document.body,
   );
@@ -217,6 +292,12 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
   const mine = guests.find((guest) => guest.userId === persona.userId);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
+  const [eventFailed, setEventFailed] = useState(() => new URLSearchParams(location.search).get('uiState') === 'event-error');
+  const [guestSheetOpen, setGuestSheetOpen] = useState(false);
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  const [pendingRsvp, setPendingRsvp] = useState<Exclude<RsvpStatus, 'host'> | null>(null);
+  const [pendingPost, setPendingPost] = useState<string | null>(null);
+  const optionsMenu = useRef<HTMLDivElement>(null);
   const respond = async (status: Exclude<RsvpStatus, 'host'>) => {
     setBusy(true);
     try { await provider.mutate('rsvp', { eventId, guestName: persona.name, status }, persona.userId); }
@@ -224,17 +305,40 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
   };
   const post = async () => {
     if (!draft.trim()) return;
+    const message = draft.trim();
+    setPendingPost(message);
+    setDraft('');
     setBusy(true);
     try {
-      await provider.mutate('postMessage', { eventId, authorName: persona.name, message: draft.trim() }, persona.userId);
-      setDraft('');
-    } finally { setBusy(false); }
+      await provider.mutate('postMessage', { eventId, authorName: persona.name, message }, persona.userId);
+      await new Promise((resolve) => setTimeout(resolve, 450));
+    } finally { setBusy(false); setPendingPost(null); }
   };
+  const confirmRsvp = async () => {
+    if (!pendingRsvp) return;
+    const status = pendingRsvp;
+    setPendingRsvp(null);
+    await respond(status);
+  };
+  const onOptionsKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    const items = [...(optionsMenu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])];
+    if (items.length === 0) return;
+    const current = Math.max(0, items.indexOf(document.activeElement as HTMLElement));
+    const next = event.key === 'ArrowDown' ? (current + 1) % items.length
+      : event.key === 'ArrowUp' ? (current - 1 + items.length) % items.length
+        : event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1 : null;
+    if (next !== null) { event.preventDefault(); items[next]?.focus(); }
+    if (event.key === 'Escape') { event.preventDefault(); setOptionsOpen(false); document.querySelector<HTMLElement>('[data-testid="event-options-trigger"]')?.focus(); }
+  };
+  if (eventFailed) return <section className="event-page" data-testid="event-page">
+    <button className="back" data-testid="back" onClick={onBack}>← All plans</button>
+    <div className="event-error" data-testid="event-error" role="alert"><h1>We couldn’t load this plan.</h1><p>The event route is still here. Try the event query again.</p><button data-testid="event-retry" onClick={() => setEventFailed(false)}>Try again</button></div>
+  </section>;
   if (!event) return <section className="event-page"><button className="back" onClick={onBack}>← All plans</button><p>Loading the plan…</p></section>;
   const going = guests.filter((guest) => ['host', 'going'].includes(guest.status)).length;
   return (
     <section className="event-page" data-testid="event-page">
-      <button className="back" data-testid="back" onClick={onBack}>← All plans</button>
+      <div className="event-toolbar"><button className="back" data-testid="back" onClick={onBack}>← All plans</button><div className="event-options"><button data-testid="event-options-trigger" aria-haspopup="menu" aria-expanded={optionsOpen} onClick={() => setOptionsOpen((open) => !open)}>Event options</button>{optionsOpen && <div ref={optionsMenu} className="event-options-menu" data-testid="event-options-menu" role="menu" aria-label="Event options" onKeyDown={onOptionsKeyDown}><button role="menuitem" data-testid="event-options-first-item" autoFocus>Copy invite link</button><button role="menuitem">Add to calendar</button><button role="menuitem">Mute updates</button></div>}</div></div>
       <div className={`event-hero ${event.accent}`}>
         <div className="event-glyph">{event.emoji}</div>
         <div><div className="eyebrow">{formatWhen(event.startsAt)} · HOSTED BY {event.hostName.toUpperCase()}</div><h1>{event.title}</h1><p>{event.description}</p></div>
@@ -245,18 +349,28 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
           <div className="where"><span>MEET HERE</span><h2>{event.location}</h2><div className="map-lines" /></div>
           <div className="wall" data-testid="wall"><div className="block-heading"><span>THE WALL</span><strong>{String(posts.length).padStart(2, '0')}</strong></div>
             {posts.map((post) => <div className="post" key={post._id}><b>{post.authorName.slice(0, 1)}</b><p><strong>{post.authorName}</strong>{post.message}</p></div>)}
-            <div className="composer"><input data-testid="wall-input" value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void post(); }} placeholder={`Say something as ${persona.name}…`} /><button data-testid="wall-send" disabled={busy || !draft.trim()} onClick={post}>Send ↗</button></div>
+            {pendingPost && <div className="post pending" data-testid="wall-pending-row"><b>{persona.name.slice(0, 1)}</b><p><strong>{persona.name}</strong>{pendingPost}<span role="status" data-testid="wall-pending-status">Sending…</span></p></div>}
+            <form className="composer" data-testid="wall-composer" onSubmit={(event) => { event.preventDefault(); void post(); }}><label className="sr-only" htmlFor="wall-message">Message</label><input id="wall-message" data-testid="wall-message" value={draft} onChange={(e) => setDraft(e.target.value)} placeholder={`Say something as ${persona.name}…`} /><button type="submit" data-testid="wall-submit" disabled={busy || !draft.trim()}>Send ↗</button></form>
           </div>
         </div>
         <aside className="guest-panel" data-testid="guest-list">
           <div className="block-heading"><span>WHO’S IN</span><strong>{going}</strong></div>
+          <button className="guest-list-trigger" data-testid="guest-list-trigger" onClick={() => setGuestSheetOpen(true)}>Open guest list</button>
           <div className="rsvp-actions" data-testid="rsvp-actions">
             {mine?.status === 'host' ? <div className="host-note">You’re hosting this one ✦</div> : ['going', 'maybe', 'cant'].map((status) => <button key={status} disabled={busy} className={mine?.status === status ? 'selected' : ''} data-testid={`rsvp-${status}`} onClick={() => respond(status as Exclude<RsvpStatus, 'host'>)}>{statusLabel(status)}</button>)}
           </div>
+          {mine?.status !== 'host' && <button className="rsvp-confirm-trigger" data-testid="rsvp-trigger" onClick={() => setPendingRsvp(mine?.status === 'going' ? 'maybe' : 'going')}>Confirm an RSVP change…</button>}
           <VirtualGuestList guests={guests} />
           <div className="provider-note"><span>{configuredBackend}</span>{provider.transport === 'push' ? 'streamed live' : 'refreshed every second'}</div>
         </aside>
       </div>
+      <FocusOverlay open={guestSheetOpen} title="Guest list" description={`${going} people are going.`} testId="guest-list-sheet" panelClassName="guest-sheet" initialFocusTestId="guest-sheet-close" onClose={() => setGuestSheetOpen(false)}>
+        <button data-testid="guest-sheet-close" onClick={() => setGuestSheetOpen(false)}>Close guest list</button>
+        <VirtualGuestList guests={guests} />
+      </FocusOverlay>
+      <FocusOverlay open={pendingRsvp !== null} title="Confirm RSVP" description={`Change your RSVP to ${pendingRsvp ? statusLabel(pendingRsvp) : ''}?`} testId="rsvp-confirm-dialog" initialFocusTestId="rsvp-confirm" onClose={() => setPendingRsvp(null)}>
+        <div className="confirm-actions"><button data-testid="rsvp-cancel" onClick={() => setPendingRsvp(null)}>Cancel</button><button data-testid="rsvp-confirm" onClick={() => void confirmRsvp()}>Confirm</button></div>
+      </FocusOverlay>
     </section>
   );
 }
