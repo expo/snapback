@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_SAFARI",
-  "recordedAt": "2026-07-22T01:51:15.321Z",
+  "recordedAt": "2026-07-22T01:52:08.443Z",
   "repository": {
-    "revision": "b6b130bab99b2bb6c08971af7fc4984d9d10e3c3",
+    "revision": "c327d9e9d952976712a0caf8bc696007a31cac11",
     "dirty": false
   },
   "claimEligible": true,
@@ -61,15 +61,31 @@
   ],
   "missingPrerequisites": [],
   "title": "Partitime / desktop safari citizenship",
-  "passed": 0,
+  "passed": 1,
   "skipped": 0,
-  "failed": 0,
-  "total": 0,
+  "failed": 1,
+  "total": 2,
   "ok": false,
-  "results": [],
+  "results": [
+    {
+      "name": "contract × snapback traps and restores focus in desktop safari",
+      "ok": true,
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "input": "WebDriver key actions"
+      }
+    },
+    {
+      "name": "contract × snapback exposes visible content to desktop safari find-on-page",
+      "ok": false,
+      "error": "native browser find did not expose the visible query: {\"found\":{\"anchor\":null,\"selection\":\"\"},\"nativeFind\":null}",
+      "diagnostic": null
+    }
+  ],
   "expectedChecks": 2,
-  "shortfall": "zero checks ran",
-  "setupError": "safari WebDriver POST /session failed: Could not create a session: The Safari instance is already paired with another WebDriver session.",
   "cleanupErrors": [],
   "cleanupErrorCount": 0
 }
