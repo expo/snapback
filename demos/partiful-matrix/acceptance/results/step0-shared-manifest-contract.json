@@ -59,11 +59,11 @@
     },
     "exact": {
       "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
-      "sha256": "fdddb9f17287551d6487769ac7d7246dcdb2fd575eada6e20d01031707a98714"
+      "sha256": "19ef616c4e60a13741657d66367285fd2c2df8544e409c7b56c624f5cb3e00d0"
     }
   },
   "exact": {
-    "revision": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1",
+    "revision": "d830e0923275ab2d8aedf7198e3c1b9710e06514",
     "dirty": false
   },
   "inputs": {
