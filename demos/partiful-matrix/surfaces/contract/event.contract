@@ -31,7 +31,7 @@ component PartifulEvent
   state guestSheetOpen = false
   state optionsOpen = false
   state pendingRsvp = ""
-  state pendingMessage = ""
+  state pendingMessage = initialUiState == "wall-pending" ? "Visual pending message" : ""
   query event = eventDetails({ eventId: eventId })
   query guests = guestList({ eventId: eventId })
   query wall = eventWall({ eventId: eventId })
@@ -83,11 +83,11 @@ component PartifulEvent
       row align="center" paddingBottom=22 gap=12
         button press=back testId="back" background="transparent" flex=1
           text "← All plans" size=11 color=textFor(visualVariant)
+        text `CONTRACT · ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
         button press=toggleOptions label="Event options" accessibilityExpanded=optionsOpen testId="event-options-trigger" background="transparent" padding=9 anchor="event-options-trigger"
           text "Event options" size=11 color=textFor(visualVariant)
-        text `CONTRACT · ${backendName}` size=10 color=accentFor(visualVariant) testId="matrix-label"
       when optionsOpen
-        column role="menu" label="Event options" keydown=navigateCollection focusTrap=true focusRestore=true dismiss=closeOptions anchor="event-options-trigger" anchorPlacement="bottom-end" anchorStrategy="fixed" anchorOffset=8 portalTarget="overlay" portalLevel=80 presence="entered" testId="event-options-menu" width=220 padding=8 background=backgroundFor(visualVariant) borderWidth=1 borderColor="rgba(23,21,18,0.35)"
+        column role="menu" label="Event options" keydown=navigateCollection focusTrap=true focusRestore=true dismiss=closeOptions anchor="event-options-trigger" anchorPlacement="bottom-end" anchorStrategy="fixed" anchorOffset=8 portalTarget="overlay" portalLevel=80 presence="entered" position="fixed" right=38 top=77 zIndex=80 testId="event-options-menu" width=220 padding=8 background=backgroundFor(visualVariant) borderWidth=1 borderColor="rgba(23,21,18,0.35)"
           button press=closeOptions role="menuitem" label="Copy invite link" testId="event-options-first-item" padding=11 background="transparent"
             text "Copy invite link" size=12 color=textFor(visualVariant)
           button press=closeOptions role="menuitem" label="Add to calendar" padding=11 background="transparent"
@@ -186,7 +186,7 @@ component PartifulEvent
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when guestSheetOpen
-        stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" testId="guest-sheet-overlay"
+        stack portalTarget="root" portalLevel=110 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=110 testId="guest-sheet-overlay"
           button press=closeGuestSheet label="Close guest list" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="guest-list-sheet-backdrop"
           section role="dialog" label="Guest list" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeGuestSheet presence="entered" testId="guest-list-sheet" zIndex=1 width="100%" maxWidth=620 padding=30 gap=16 style=surfaceStyle(visualVariant, "panel")
             row align="center"
@@ -206,7 +206,7 @@ component PartifulEvent
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""
-        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" testId="rsvp-confirm-overlay"
+        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 testId="rsvp-confirm-overlay"
           button press=cancelRespond label="Cancel RSVP change" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="rsvp-confirm-backdrop"
           section role="dialog" label="Confirm RSVP" accessibilityModal=true focusTrap=true focusRestore=true dismiss=cancelRespond presence="entered" testId="rsvp-confirm-dialog" zIndex=1 width="100%" maxWidth=460 padding=30 gap=18 style=surfaceStyle(visualVariant, "panel")
             text "Confirm RSVP" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)
