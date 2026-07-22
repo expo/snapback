@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_FIREFOX",
-  "recordedAt": "2026-07-21T21:31:04.876Z",
+  "recordedAt": "2026-07-22T01:55:17.923Z",
   "repository": {
-    "revision": "a3baead7228ca58b6fa478f2de80aeb87158a084",
+    "revision": "fb9d8ed5a3902972faab1eee20c4016ea16f850d",
     "dirty": false
   },
   "claimEligible": true,
@@ -55,8 +55,8 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
-      "sha256": "225907898e564401650367e7686784438f32077338b0a14f15e5d4080755cf1b",
-      "bytes": 15159
+      "sha256": "1c142a4fb8606ef5c8d5c57c0bff2307981b9bf8f06855203c27ae53f78a9994",
+      "bytes": 15582
     }
   ],
   "missingPrerequisites": [],
