@@ -25,6 +25,7 @@
   },
   "devDependencies": {
     "ajv": "^8.20.0",
+    "axe-core": "4.12.1",
     "esbuild": "^0.28.1",
     "fake-indexeddb": "^6.2.5",
     "miniflare": "^4.20260701.0",
