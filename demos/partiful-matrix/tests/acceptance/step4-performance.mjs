@@ -90,7 +90,15 @@ try {
       let runError = null;
       const cellCleanupErrors = [];
       try {
-        chrome = await launchChromeCdp({ chromeBin, userDataPrefix: `partitime-perf-${cell.arm}-${cell.backend}-` });
+        chrome = await launchChromeCdp({
+          chromeBin,
+          userDataPrefix: `partitime-perf-${cell.arm}-${cell.backend}-`,
+          // @ref LLP 0015#acceptance-rules — claim receipts still require
+          // process-group ESRCH plus leader close. Chrome can publish its
+          // process exit before inherited diagnostic pipes close, so this
+          // long matrix gives the second attestation a wider bounded window.
+          stopOptions: { leaderCloseTimeoutMs: 10_000 },
+        });
         preview = await startPreview(cell, snapbackUrl, gateway.url);
         cellReceipts[cellId(cell)] = await measureWebCell(chrome.ws, cell, preview.url);
       } catch (error) {
