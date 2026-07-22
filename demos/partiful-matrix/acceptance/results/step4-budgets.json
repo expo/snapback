@@ -7,9 +7,9 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T21:20:15.522Z",
+  "recordedAt": "2026-07-22T01:41:16.912Z",
   "repository": {
-    "snapbackRevision": "4da9f6b6c59abb6588d41b2b38ab7bac9ae93aa3",
+    "snapbackRevision": "68b7c29b68f760bd5c51ff62aa0bae4c9aa88a29",
     "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
   },
   "inputs": {
@@ -24,7 +24,7 @@
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "4da9f6b6c59abb6588d41b2b38ab7bac9ae93aa3",
+      "revision": "68b7c29b68f760bd5c51ff62aa0bae4c9aa88a29",
       "sha256": "459e29b758d62d0f7faa44c54a76c7caa1e879f081d009626f19e77ef6aebeb4"
     },
     "nativeReceipts": [
@@ -347,13 +347,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "coldStartupMs",
+            "actualP95": 77,
+            "threshold": 611,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "coldStartupMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1250,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "coldStartupMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 461,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "coldStartupMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 498,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -372,13 +407,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "warmStartupMs",
+            "actualP95": 41.599999994039536,
+            "threshold": 222,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "warmStartupMs",
+            "actualP95": 44.29999999701977,
+            "threshold": 33,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "warmStartupMs",
+            "actualP95": 56.29999999701977,
+            "threshold": 38,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "warmStartupMs",
+            "actualP95": 49.400000005960464,
+            "threshold": 45,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -397,13 +467,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 77,
+            "threshold": 697,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1344,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 702,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 514,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -422,13 +527,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 122,
+            "threshold": 697,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1344,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 702,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 514,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -447,13 +587,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 0.28099999999999997,
+            "threshold": 0.6838999999999992,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 2.1073333333333335,
+            "threshold": 1.1802,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 2.403666666666666,
+            "threshold": 1.1081,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 1.5599999999999998,
+            "threshold": 1.58865,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -472,13 +647,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 0,
+            "threshold": 0,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 1051,
+            "threshold": 735.7,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 1051,
+            "threshold": 735.7,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 700.6666666666666,
+            "threshold": 1103.55,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -497,13 +707,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 2994420,
+            "threshold": 2150064,
+            "pass": false
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3623680,
+            "threshold": 1818154,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3623656,
+            "threshold": 1818564,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3672080,
+            "threshold": 1816914,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -522,13 +767,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "updateFanoutCount",
+            "actualP95": 18,
+            "threshold": 9,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -547,13 +827,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 237,
+            "threshold": 19,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -572,13 +887,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "productionBuildMs",
+            "actualP95": 768.950167,
+            "threshold": 917,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "productionBuildMs",
+            "actualP95": 707.861125,
+            "threshold": 711,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "productionBuildMs",
+            "actualP95": 756.433875,
+            "threshold": 716,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "productionBuildMs",
+            "actualP95": 734.331667,
+            "threshold": 653,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -597,13 +947,48 @@
         },
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
-        "calibration": null,
-        "holdout": null,
-        "rows": [],
-        "perCellMeasurementsPresent": false
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 180,
+            "threshold": 415,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 145,
+            "threshold": 275,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 144,
+            "threshold": 235,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 153,
+            "threshold": 221,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
@@ -616,9 +1001,9 @@
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
+        "amendmentStatus": "ratified",
         "calibration": null,
         "holdout": null,
         "rows": [],
@@ -667,9 +1052,9 @@
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
+        "amendmentStatus": "ratified",
         "calibration": null,
         "holdout": null,
         "rows": [],
@@ -718,9 +1103,9 @@
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
+        "amendmentStatus": "ratified",
         "calibration": null,
         "holdout": null,
         "rows": [],
@@ -769,9 +1154,9 @@
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
+        "amendmentStatus": "ratified",
         "calibration": null,
         "holdout": null,
         "rows": [],
@@ -821,7 +1206,7 @@
         ],
         "performanceCollector": {
           "path": "demos/partiful-matrix/tests/acceptance/step4-performance.mjs",
-          "sha256": "045233004c36f8b55f27dc2d688169dbb0b3924db6d270af086803e82bf4dc98"
+          "sha256": "f6be4400143d98a8490fe3806aeb5be52a2fc4c0d40136847150da89f119bacf"
         },
         "nativePerformanceCollector": {
           "path": "demos/partiful-matrix/tests/acceptance/step4-native-performance.mjs",
@@ -1223,14 +1608,17 @@
         "amendmentFieldPresent": true,
         "amendment": {
           "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-          "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "amendmentStatus": "pending-ratifier-confirmation",
+        "amendmentStatus": "ratified",
         "holdoutValidationArtifacts": [
-          null,
+          {
+            "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+            "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          },
           null
         ],
-        "finding": "The dated amendment and executable collectors exist, but owner ratification is still pending and no claim is promoted."
+        "finding": "The dated amendment is ratified; holdout rows remain red until both web/build and native receipts are independently green."
       }
     },
     {
@@ -1292,11 +1680,11 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "1da674d2099d682f5df7c21fc36f9bf86c667692af261b2cd9c35ddad50f1dc6",
+        "stdoutSha256": "347a6af4a729120241ef8349eb7ba853c16b8f6c5742944875c643fa2f031c77",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
-          "dist/convex-realtime/assets/index-Bl9_t8ky.js          215.38 kB │ gzip: 68.12 kB",
-          "✓ built in 617ms",
+          "dist/convex-realtime/assets/index-CD9kevLf.js          215.38 kB │ gzip: 68.12 kB",
+          "✓ built in 671ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 49 modules transformed.",
@@ -1306,7 +1694,7 @@
           "dist/sqlite/partitime-cost-attribution.json    9.37 kB │ gzip:  0.81 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css         10.21 kB │ gzip:  3.19 kB",
           "dist/sqlite/assets/index-B-ZPQCUX.js         215.06 kB │ gzip: 68.02 kB",
-          "✓ built in 507ms"
+          "✓ built in 535ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -1327,7 +1715,7 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "c3ff5ffa28cbdd5b1e98eedb11aeb72e7495481de4986c338573266ef06df657",
+        "stdoutSha256": "47f54b1d66e8c2cc2285d30a9c18cee71f4b7a40cbf570aeb96cc343842610ef",
         "stderrSha256": "9d28e9acd2fcd2375e70b25979519437da13218b7918c762ddfb465dbeeceee2",
         "stdoutTail": [
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
@@ -1339,7 +1727,7 @@
           "dist/sqlite/partitime-cost-attribution.json   33.17 kB │ gzip:   2.04 kB",
           "dist/sqlite/assets/index-FpRJjXB4.js         467.94 kB │ gzip: 118.42 kB │ map: 2,374.90 kB",
           "",
-          "✓ built in 249ms",
+          "✓ built in 285ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
           "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
@@ -1367,11 +1755,11 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "f06e186a774a9e00e914c771cace22d934b134095e41afc1a39ee9eeb9f72415",
+        "stdoutSha256": "18b436aa35b570ba4d55e34fa86adc010edca463e38e3a338716f0736fc0c812",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
           "dist/convex/assets/index-BV5Pz4-N.js         20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 171ms",
+          "✓ built in 190ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
           "✓ 22 modules transformed.",
@@ -1381,7 +1769,7 @@
           "dist/sqlite/partitime-cost-attribution.json   2.28 kB │ gzip: 0.50 kB",
           "dist/sqlite/assets/index-Bv0ShAqY.css        10.21 kB │ gzip: 3.19 kB",
           "dist/sqlite/assets/index-qkvd2Q_p.js         20.23 kB │ gzip: 7.25 kB",
-          "✓ built in 189ms"
+          "✓ built in 186ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1810,10 +2198,16 @@
     "performance": {
       "amendment": {
         "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
-        "sha256": "f8893395ba78017f56bd8f5dee9c90dc9d02a6ece034c14414795c3b3b9f7040"
+        "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
       },
-      "calibration": null,
-      "holdout": null,
+      "calibration": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+        "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+      },
+      "holdout": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+        "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+      },
       "nativeCalibration": null,
       "nativeHoldout": null
     }
