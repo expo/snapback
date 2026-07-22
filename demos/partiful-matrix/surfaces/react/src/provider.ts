@@ -42,6 +42,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
   // @ref LLP 0034#5 — browser mount is inspect-first/idempotent; reset is
   // deliberately unreachable so reloads preserve the matrix cell's writes.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  const instanceId = crypto.randomUUID();
   let counter = 0;
   const subscriptionEvents: Record<string, unknown>[] = [];
   const refs = api as Record<string, unknown>;
@@ -56,7 +57,7 @@ async function createSnapbackProvider(): Promise<MatrixProvider> {
         userId,
         transport: 'stream',
         fallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
-        connectionId: `partiful_matrix_react_${name}_${counter += 1}`,
+        connectionId: `partiful_matrix_react_${instanceId}_${name}_${counter += 1}`,
         onUpdate: (rows) => { latestRows = rows; observer(rows, 'live', { kind: 'authoritative' }); },
         onConnectionChange: (connection, detail) => observer(
           latestRows,

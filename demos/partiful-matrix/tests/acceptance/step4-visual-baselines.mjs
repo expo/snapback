@@ -21,37 +21,43 @@ if (!exactRevision) throw new Error('authoritative visual capture requires --exa
 mkdirSync(captureRoot, { recursive: true });
 mkdirSync(receiptRoot, { recursive: true });
 
-const armRuns = [];
+const shardRuns = [];
 for (const arm of arms) {
-  const receiptPath = join(receiptRoot, `${arm}.json`);
-  const execution = spawnSync(process.execPath, [
-    browserHarness,
-    '--product-ui',
-    '--phase4-only',
-    '--phase4-claim', 'STEP4.UI.VISUAL',
-    '--capture-visual-dir', relative(repoRoot, captureRoot),
-    '--arm', arm,
-    '--receipt', receiptPath,
-  ], {
-    cwd: repoRoot,
-    env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
-    encoding: 'utf8',
-    maxBuffer: 40 * 1024 * 1024,
-  });
-  let receipt = null;
-  try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
-  const states = receipt?.results?.[0]?.details?.states ?? [];
-  const expectedCells = spec.states.length * spec.themes.length * spec.viewports.length;
-  const artifacts = states.map((state) => state.artifact).filter(Boolean);
-  const ok = execution.status === 0 && receipt?.ok === true && states.length === expectedCells && artifacts.length === expectedCells;
-  console.log(`  ${ok ? '✓' : '✗'} ${arm} ${artifacts.length}/${expectedCells} visual cells`);
-  if (!ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
-  armRuns.push({ arm, ok, exitCode: execution.status, receiptPath: relative(repoRoot, receiptPath), receiptSha256: receipt ? digest(receiptPath) : null, states, artifacts });
+  for (const theme of spec.themes) for (const viewport of spec.viewports) {
+    const shardId = `${arm}-${theme.id}-${viewport.id}`;
+    const receiptPath = join(receiptRoot, `${shardId}.json`);
+    const execution = spawnSync(process.execPath, [
+      browserHarness,
+      '--product-ui',
+      '--phase4-only',
+      '--phase4-claim', 'STEP4.UI.VISUAL',
+      '--capture-visual-dir', relative(repoRoot, captureRoot),
+      '--visual-theme', theme.id,
+      '--visual-viewport', viewport.id,
+      '--arm', arm,
+      '--receipt', receiptPath,
+    ], {
+      cwd: repoRoot,
+      env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
+      encoding: 'utf8',
+      maxBuffer: 40 * 1024 * 1024,
+    });
+    let receipt = null;
+    try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
+    const states = receipt?.results?.[0]?.details?.states ?? [];
+    const expectedCells = spec.states.length;
+    const artifacts = states.map((state) => state.artifact).filter(Boolean);
+    const identitiesMatch = states.every((state) => state.theme === theme.id && state.viewport === viewport.id);
+    const ok = execution.status === 0 && receipt?.ok === true && states.length === expectedCells && artifacts.length === expectedCells && identitiesMatch;
+    console.log(`  ${ok ? '✓' : '✗'} ${shardId} ${artifacts.length}/${expectedCells} visual cells`);
+    if (!ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
+    shardRuns.push({ arm, theme: theme.id, viewport: viewport.id, ok, exitCode: execution.status, receiptPath: relative(repoRoot, receiptPath), receiptSha256: receipt ? digest(receiptPath) : null, states, artifacts });
+  }
 }
 
-const artifacts = armRuns.flatMap((run) => run.artifacts.map((artifact) => ({ arm: run.arm, ...artifact })));
+const artifacts = shardRuns.flatMap((run) => run.artifacts.map((artifact) => ({ arm: run.arm, ...artifact })));
 const expectedArtifacts = arms.length * spec.states.length * spec.themes.length * spec.viewports.length;
-const captureComplete = armRuns.every((run) => run.ok) && artifacts.length === expectedArtifacts;
+const captureComplete = shardRuns.every((run) => run.ok) && artifacts.length === expectedArtifacts;
 const report = {
   $schema: 'partitime-visual-baseline-index/v1',
   generatedAt: new Date().toISOString(),
@@ -67,7 +73,8 @@ const report = {
     specVersion: spec.specVersion,
   },
   outcome: captureComplete ? 'pending-human-review' : 'red',
-  armRuns: armRuns.map(({ arm, ok, exitCode, receiptPath, receiptSha256 }) => ({ arm, ok, exitCode, receiptPath, receiptSha256 })),
+  isolation: 'fresh backend and browser process per arm × theme × viewport shard',
+  shardRuns: shardRuns.map(({ arm, theme, viewport, ok, exitCode, receiptPath, receiptSha256 }) => ({ arm, theme, viewport, ok, exitCode, receiptPath, receiptSha256 })),
   artifacts,
 };
 writeFileSync(indexPath, `${JSON.stringify(report, null, 2)}\n`);

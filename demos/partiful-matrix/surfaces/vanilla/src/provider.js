@@ -20,6 +20,7 @@ async function createSnapbackProvider() {
   // @ref LLP 0034#5 — every vanilla mount provisions idempotently and exposes
   // no reset operation, so a reload cannot erase writes from another row.
   await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
+  const instanceId = crypto.randomUUID();
   let counter = 0;
   const subscriptionEvents = [];
   return {
@@ -32,7 +33,7 @@ async function createSnapbackProvider() {
         userId,
         transport: 'stream',
         fallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
-        connectionId: `partiful_matrix_vanilla_${name}_${counter += 1}`,
+        connectionId: `partiful_matrix_vanilla_${instanceId}_${name}_${counter += 1}`,
         onUpdate: (rows) => {
           latestRows = rows;
           observer(rows, 'live', { kind: 'authoritative' });

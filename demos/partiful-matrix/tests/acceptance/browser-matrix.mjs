@@ -30,6 +30,8 @@ const productUi = process.argv.includes('--product-ui');
 const phase4Only = process.argv.includes('--phase4-only');
 const selectedPhase4Claim = option('phase4-claim');
 const captureVisualDir = option('capture-visual-dir');
+const selectedVisualTheme = option('visual-theme');
+const selectedVisualViewport = option('visual-viewport');
 const productionWeb = process.argv.includes('--production-web');
 const phase4ClaimIds = new Set([
   'STEP4.UI.RESPONSIVE',
@@ -44,6 +46,15 @@ if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
 }
 if (captureVisualDir && selectedPhase4Claim !== 'STEP4.UI.VISUAL') {
   throw new Error('--capture-visual-dir requires --phase4-claim STEP4.UI.VISUAL');
+}
+if ((selectedVisualTheme || selectedVisualViewport) && !captureVisualDir) {
+  throw new Error('--visual-theme and --visual-viewport require --capture-visual-dir');
+}
+if (selectedVisualTheme && !phase4VisualSpec.themes.some(({ id }) => id === selectedVisualTheme)) {
+  throw new Error(`unknown --visual-theme ${selectedVisualTheme}`);
+}
+if (selectedVisualViewport && !phase4VisualSpec.viewports.some(({ id }) => id === selectedVisualViewport)) {
+  throw new Error(`unknown --visual-viewport ${selectedVisualViewport}`);
 }
 const arms = productionWeb ? ['contract'] : selectedArm ? [selectedArm] : productUi ? ['react', 'contract'] : ['react', 'contract', 'vanilla'];
 const backends = productionWeb ? ['snapback'] : selectedBackend ? [selectedBackend] : productUi ? ['snapback'] : ['snapback', 'supabase', 'convex', 'sqlite'];
@@ -896,31 +907,49 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
 
   await phase4Claim(activeSuite, 'STEP4.UI.VISUAL', `${label} implements every representative state`, async () => {
     const states = [];
-    const themes = captureVisualDir ? phase4VisualSpec.themes : [phase4VisualSpec.themes[0]];
-    const viewports = captureVisualDir ? phase4VisualSpec.viewports : [phase4VisualSpec.viewports.at(-1)];
-    for (const theme of themes) for (const viewport of viewports) for (const state of phase4VisualSpec.states) {
-      await page.setViewport(viewport.width, viewport.height);
-      await prepareVisualState({ page, cell, baseUrl, state: state.id, theme: theme.id });
-      await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
-      const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
-      const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
-      if (invalid.length > 0) throw new Error(`${state.id}/${theme.id}/${viewport.id} violates required visibility: ${JSON.stringify(invalid)}`);
-      const relations = await page.eval(`(()=>{const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')].map(node=>{const r=node.getBoundingClientRect();return {id:node.getAttribute('data-testid'),left:r.left,top:r.top,right:r.right,bottom:r.bottom}});const overlaps=[];for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){const a=cards[i],b=cards[j];if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlaps.push([a.id,b.id])}const trigger=rect('event-options-trigger'),menu=rect('event-options-menu');const contained=['event-options-menu','guest-list-sheet','rsvp-confirm-dialog'].map(id=>({id,rect:rect(id)})).filter(x=>x.rect).map(x=>({...x,inside:x.rect.left>=0&&x.rect.top>=0&&x.rect.right<=innerWidth&&x.rect.bottom<=innerHeight}));return {viewport:{width:innerWidth,height:innerHeight},cardOverlaps:overlaps,menuAnchor:trigger&&menu?{rightDelta:Math.abs(trigger.right-menu.right),verticalGap:menu.top-trigger.bottom}:null,contained}})()`);
-      if (relations.cardOverlaps.length > 0 || relations.contained.some((entry) => !entry.inside) || (state.id === 'options-menu-open' && (!relations.menuAnchor || relations.menuAnchor.rightDelta > 2 || relations.menuAnchor.verticalGap < 0 || relations.menuAnchor.verticalGap > 16))) {
-        throw new Error(`${state.id}/${theme.id}/${viewport.id} violates visual relations: ${JSON.stringify(relations)}`);
+    const themes = captureVisualDir
+      ? phase4VisualSpec.themes.filter(({ id }) => !selectedVisualTheme || id === selectedVisualTheme)
+      : [phase4VisualSpec.themes[0]];
+    const viewports = captureVisualDir
+      ? phase4VisualSpec.viewports.filter(({ id }) => !selectedVisualViewport || id === selectedVisualViewport)
+      : [phase4VisualSpec.viewports.at(-1)];
+    for (const theme of themes) for (const viewport of viewports) {
+      const visualPage = captureVisualDir ? await cdp.newPage() : page;
+      try {
+        await visualPage.setViewport(viewport.width, viewport.height);
+        for (const state of phase4VisualSpec.states) {
+          try {
+            await prepareVisualState({ page: visualPage, cell, baseUrl, state: state.id, theme: theme.id });
+          } catch (error) {
+            throw new Error(`${state.id}/${theme.id}/${viewport.id} setup failed: ${error.message}`);
+          }
+          await visualPage.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+          const structural = await visualPage.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
+          const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
+          if (invalid.length > 0) {
+            const diagnostic = await visualPage.eval(`(()=>({href:location.href,title:document.title,body:document.body?.innerText?.slice(0,500)??null,ready:window.partifulMatrixReady?true:false}))()`);
+            throw new Error(`${state.id}/${theme.id}/${viewport.id} violates required visibility: ${JSON.stringify({ invalid, diagnostic })}`);
+          }
+          const relations = await visualPage.eval(`(()=>{const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();return r?{left:r.left,top:r.top,right:r.right,bottom:r.bottom,width:r.width,height:r.height}:null};const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')].map(node=>{const r=node.getBoundingClientRect();return {id:node.getAttribute('data-testid'),left:r.left,top:r.top,right:r.right,bottom:r.bottom}});const overlaps=[];for(let i=0;i<cards.length;i++)for(let j=i+1;j<cards.length;j++){const a=cards[i],b=cards[j];if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>1&&Math.min(a.bottom,b.bottom)-Math.max(a.top,b.top)>1)overlaps.push([a.id,b.id])}const trigger=rect('event-options-trigger'),menu=rect('event-options-menu');const contained=['event-options-menu','guest-list-sheet','rsvp-confirm-dialog'].map(id=>({id,rect:rect(id)})).filter(x=>x.rect).map(x=>({...x,inside:x.rect.left>=0&&x.rect.top>=0&&x.rect.right<=innerWidth&&x.rect.bottom<=innerHeight}));return {viewport:{width:innerWidth,height:innerHeight},cardOverlaps:overlaps,menuAnchor:trigger&&menu?{rightDelta:Math.abs(trigger.right-menu.right),verticalGap:menu.top-trigger.bottom}:null,contained}})()`);
+          if (relations.cardOverlaps.length > 0 || relations.contained.some((entry) => !entry.inside) || (state.id === 'options-menu-open' && (!relations.menuAnchor || relations.menuAnchor.rightDelta > 2 || relations.menuAnchor.verticalGap < 0 || relations.menuAnchor.verticalGap > 16))) {
+            throw new Error(`${state.id}/${theme.id}/${viewport.id} violates visual relations: ${JSON.stringify(relations)}`);
+          }
+          let artifact = null;
+          if (captureVisualDir) {
+            const artifactPath = resolve(repoRoot, captureVisualDir, cell.arm, theme.id, viewport.id, `${state.id}.png`);
+            mkdirSync(dirname(artifactPath), { recursive: true });
+            const viewportOnly = ['guest-list-sheet-open', 'create-event-form-default', 'create-event-form-validation-error', 'options-menu-open', 'rsvp-confirm-dialog-open'].includes(state.id);
+            writeFileSync(artifactPath, Buffer.from(await visualPage.screenshot({ fullPage: !viewportOnly }), 'base64'));
+            const image = readFileSync(artifactPath);
+            artifact = { path: relative(repoRoot, artifactPath), sha256: createHash('sha256').update(image).digest('hex'), bytes: image.byteLength, approval: 'pending-human-review' };
+          }
+          states.push({ state: state.id, theme: theme.id, viewport: viewport.id, specVersion: phase4VisualSpec.specVersion, structural, relations, artifact });
+        }
+      } finally {
+        if (visualPage !== page) await visualPage.close();
       }
-      let artifact = null;
-      if (captureVisualDir) {
-        const artifactPath = resolve(repoRoot, captureVisualDir, cell.arm, theme.id, viewport.id, `${state.id}.png`);
-        mkdirSync(dirname(artifactPath), { recursive: true });
-        const viewportOnly = ['guest-list-sheet-open', 'create-event-form-default', 'create-event-form-validation-error', 'options-menu-open', 'rsvp-confirm-dialog-open'].includes(state.id);
-        writeFileSync(artifactPath, Buffer.from(await page.screenshot({ fullPage: !viewportOnly }), 'base64'));
-        const image = readFileSync(artifactPath);
-        artifact = { path: relative(repoRoot, artifactPath), sha256: createHash('sha256').update(image).digest('hex'), bytes: image.byteLength, approval: 'pending-human-review' };
-      }
-      states.push({ state: state.id, theme: theme.id, viewport: viewport.id, specVersion: phase4VisualSpec.specVersion, structural, relations, artifact });
     }
-    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: captureVisualDir ? '78-cell per-arm capture with pending human approvals' : '13-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
+    return { claimId: 'STEP4.UI.VISUAL', cell: cellId, scope: captureVisualDir ? `${states.length}-cell isolated capture shard with pending human approvals` : '13-state structural preflight; full 156-cell baseline lane remains separately approval-gated', states };
   });
 }
 
@@ -944,6 +973,7 @@ async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
   const url = new URL(pathname.replace(/^\//, ''), `${baseUrl}/`);
   for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
   await page.navigate(url.href);
+  await page.waitForNavigation();
   const boot = await waitForMatrixBoot(page);
   if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
   await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
@@ -1000,7 +1030,11 @@ async function prepareVisualState({ page, cell, baseUrl, state, theme = 'light' 
   if (state === 'event-detail-maybe') { await page.click('rsvp-maybe'); await page.pollText('guest-user_eve', 'Maybe', 5_000); return; }
   if (state === 'guest-list-sheet-open') { await page.click('guest-list-trigger'); await page.pollText('guest-list-sheet', 'Guest list', 5_000); return; }
   if (state === 'wall-composer-active') { await page.focus('wall-message'); return; }
-  if (state === 'wall-optimistic-pending') return loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'wall-pending' });
+  if (state === 'wall-optimistic-pending') {
+    await loadPhase4Route(page, cell, baseUrl, '/events/event_sunset/', { ...params, uiState: 'wall-pending' });
+    await page.pollText('wall-pending-status', 'Sending', 5_000);
+    return;
+  }
   if (state === 'options-menu-open') { await page.click('event-options-trigger'); await page.pollText('event-options-menu', 'Copy invite link', 5_000); return; }
   if (state === 'rsvp-confirm-dialog-open') { await page.click('rsvp-trigger'); await page.pollText('rsvp-confirm-dialog', 'Confirm RSVP', 5_000); }
 }
