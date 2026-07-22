@@ -142,6 +142,28 @@ function validateMachineReceipt(path, label) {
   return receipt;
 }
 
+function validateCompleteDesktopWebDriverReceipt(path, label) {
+  if (!existsSync(path)) return null;
+  const receipt = readJson(path);
+  const results = Array.isArray(receipt.results) ? receipt.results : [];
+  if (
+    receipt.expectedChecks !== 2
+    || receipt.total !== 2
+    || results.length !== 2
+    || receipt.skipped !== 0
+    || receipt.cleanupErrorCount !== 0
+    || receipt.passed + receipt.failed !== 2
+    || receipt.ok !== (receipt.failed === 0)
+  ) {
+    throw new Error(`${label} is not a complete two-check receipt`);
+  }
+  for (const entry of receipt.testInventory ?? []) {
+    const actual = identity(resolve(repoRoot, entry.path));
+    if (actual.sha256 !== entry.sha256) throw new Error(`${label} input drifted: ${entry.path}`);
+  }
+  return receipt;
+}
+
 function rowsFromDesktopChrome(focusReceiptPath, findReceiptPath) {
   const focusReceipt = validateMachineReceipt(focusReceiptPath, 'desktop Chrome focus receipt');
   const findReceipt = validateMachineReceipt(findReceiptPath, 'desktop Chrome find receipt');
@@ -189,7 +211,7 @@ function rowsFromDesktopChrome(focusReceiptPath, findReceiptPath) {
 
 function rowsFromDesktopWebDriver(path, browser) {
   const label = `desktop ${browser}`;
-  const receipt = validateMachineReceipt(path, `${label} receipt`);
+  const receipt = validateCompleteDesktopWebDriverReceipt(path, `${label} receipt`);
   if (receipt === null) return [];
   if (receipt.schemaVersion !== 'partitime.desktop-webdriver-citizenship.v1' || receipt.browser !== browser) {
     throw new Error(`${label} receipt has the wrong schema or browser identity`);
@@ -208,30 +230,32 @@ function rowsFromDesktopWebDriver(path, browser) {
   }
   const focusName = `contract × snapback traps and restores focus in desktop ${browser}`;
   const findName = `contract × snapback exposes visible content to desktop ${browser} find-on-page`;
-  const find = (name) => receipt.results?.find((result) => result.name === name && result.ok === true);
+  const find = (name) => receipt.results?.find((result) => result.name === name);
   const focus = find(focusName);
   const browserFind = find(findName);
   if (!focus || !browserFind) throw new Error(`${label} receipt is missing a required citizenship check`);
   const evidence = identity(path);
   const browserLabel = browser === 'safari' ? 'Safari' : 'Mozilla Firefox';
   return [
-    {
+    [focus, {
       environment: `desktop-${browser}`, assertion: 'focus-trap-restore', fixture: 'partitime-create-dialog', status: 'pass',
       notes: `Fresh ${browserLabel} WebDriver run trapped focus inside the create-event dialog and restored it after Escape.`,
       evidence: [{ kind: 'machine-receipt', ref: evidence.path, sha256: evidence.sha256, result: focusName }],
       browser: { name: browserLabel, version: receipt.environment.browserVersion },
       os: { name: 'desktop host', version: receipt.environment.os }, channel: null,
       details: focus.details,
-    },
-    {
+    }],
+    [browserFind, {
       environment: `desktop-${browser}`, assertion: 'find-on-page', fixture: 'partitime-visible-event-copy', status: 'pass',
       notes: `Fresh ${browserLabel} run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.`,
       evidence: [{ kind: 'machine-receipt', ref: evidence.path, sha256: evidence.sha256, result: findName }],
       browser: { name: browserLabel, version: receipt.environment.browserVersion },
       os: { name: 'desktop host', version: receipt.environment.os }, channel: null,
       details: browserFind.details,
-    },
-  ].map((row) => validatePassingRow(row, `${label} machine receipt`));
+    }],
+  ]
+    .filter(([result]) => result.ok === true)
+    .map(([, row]) => validatePassingRow(row, `${label} machine receipt`));
 }
 
 const candidates = [
