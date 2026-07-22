@@ -1,6 +1,6 @@
 {
   "revision": {
-    "snapback": "faddb87bc23e5dc12d67520724d43d796d0e882c",
+    "snapback": "924aa678625d37c13d36f0f90025dfe712ff2a03",
     "exact": null
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
@@ -97,41 +97,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "requested": "npm:@ccheever/exact-contract@0.1.5",
           "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "c1dab475c1793d98999a4439f4a5bece3c46c7586dfe8392e680540d18e113a5"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "requested": "npm:@ccheever/exact-devtools@0.1.5",
           "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
           "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "8c7dfd95b951a599ec284cfe5a3ec06a60e007aa168dfc5bc303e5216375b407"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "requested": "npm:@ccheever/exact-renderer@0.1.5",
           "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "ba7d0ec05b0c193d639be65e3a66f136f20f3176541c751cbc92d2157af65d0d"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
-    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+    "diarySha256": "0dfc8100c48b323561b381fde67fec331b99575c19d59454dd5b8a70942851bf",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -246,7 +246,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-58037"
+      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-9747"
     ],
     "exitStatus": 1,
     "signal": null

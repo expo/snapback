@@ -1455,3 +1455,43 @@ both bytes and heap. This pass made those tradeoffs concrete rather than
 fundamental: the source-linked runtime can fit, but the stable distribution,
 Snapback interaction cost, native first frame, and mobile citizenship still
 need real work.
+
+## 2026-07-21 — the optimized Exact runtime became a stable-package result
+
+Publishing Exact 0.1.5 changed the most important qualification on the bundle
+work: Partitime no longer needs a source-linked Exact checkout to fit the
+frozen limits. The release included the full 15-package closure, including the
+new observability package, and all 15 public registry tarballs byte-matched the
+publish ledger. Migrating the Contract arm's four direct npm aliases and
+regenerating its Bun lockfile pulled the whole transitive graph to 0.1.5; a
+frozen install then proved the consumer is not depending on worktree state.
+
+On the unchanged workload, all eight byte checks are now green. Contract ×
+Snapback emits 367,782 minified and 100,995 deterministic-gzip bytes against
+limits of 422,417 and 119,451. Supabase emits 210,785/61,883 against
+213,488/67,246, while Convex and SQLite each emit 210,771/61,881 against
+213,483/67,246. The immutable production-browser suite also passes all nine
+checks from the installed package, including static authority, hydration
+adoption, base-path routing, metadata, history, and unsolicited push.
+
+That is a real closure of the Contract bundle-size problem, but it is not a
+closure of Step 4. The aggregate budget receipt remains 9 pass / 17 red / 16
+nonclaims: the 1,095-line authored Contract surface still exceeds its frozen
+348-line limit, 15 of 44 performance holdout rows miss, and native carrier
+calibration and holdout receipts do not exist because the Exact carrier still
+does not reach a first frame. The production-web aggregate remains 11/12;
+only the strict citizenship gate is red, with 5 of 21 required rows admitted.
+I refreshed both artifacts but kept both claims failing.
+
+For Exact, the pleasant part was that capability pruning survived packaging:
+the installed consumer got the same small runtime graph the source experiment
+had promised. The less pleasant part was release-closure discipline—one
+consumer-facing upgrade traversed 15 packages and added observability's schema
+dependencies to the lockfile. Contract now looks much less like it has a
+fundamental browser-size problem; its remaining authored-source and runtime
+performance costs are concrete follow-up work. Snapback's incremental bundle
+cost also fits its preregistered allowance, but its subscription heap and the
+native boot path remain specific Snapback/Exact integration concerns. Compared
+with React plus Supabase or Convex, the installed Contract arm is finally in
+the same browser-byte neighborhood, while still demanding substantially more
+evidence machinery to establish that result.

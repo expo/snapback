@@ -1,5 +1,21 @@
 # LLP 0063: Partitime platform roadmap
 
+**Revised (Step 4 stable Exact runtime checkpoint):** 2026-07-21 (Exact
+revision `9999f109…` was published as the complete 15-package
+`@ccheever/exact-*` 0.1.5 closure under `latest`; every public registry
+tarball byte-matches the retained publish ledger. Partitime now consumes the
+0.1.5 Contract, devtools, facet-core, and renderer packages through npm aliases
+and a frozen lockfile. A clean immutable-production-browser rerun passes 9/9.
+The stable-package budget rerun now places every Contract cell below both its
+frozen minified and deterministic-gzip thresholds: Snapback is
+367,782/100,995 bytes against 422,417/119,451, Supabase is 210,785/61,883
+against 213,488/67,246, and Convex and SQLite are 210,771/61,881 against
+213,483/67,246. This closes the Contract bundle-size remediation, but not the
+aggregate Step 4 claims: `STEP4.BUDGETS` remains red at 9 pass / 17 red / 16
+nonclaims because of authored-source, holdout-performance, and missing native
+carrier evidence, while `STEP4.PRODUCTION_WEB` remains red at 11/12 because
+the strict citizenship matrix is only 5/21. Neither claim is promoted.)
+
 **Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLP
 0065 now proposes the generated-pattern soundness and authorization/visibility
 floor; Draft LLP 0074 proposes the first portable bounded-join and

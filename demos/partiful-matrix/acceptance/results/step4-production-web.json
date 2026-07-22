@@ -7,10 +7,10 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-22T01:56:06.813Z",
+  "recordedAt": "2026-07-22T07:52:25.725Z",
   "repository": {
-    "snapbackRevision": "9d477bc51cadff5e87538ddf3cadefbc18b1982e",
-    "exactRevision": "268175d3321207c702ec8e7755dbae2e6d69dd9b"
+    "snapbackRevision": "924aa678625d37c13d36f0f90025dfe712ff2a03",
+    "exactRevision": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "inputs": {
     "protocol": {
@@ -19,11 +19,11 @@
     },
     "step0WebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+      "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
     },
     "productionBrowserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-      "sha256": "ef2613b879c2ec0b3f28124b6e2660120a485511eb69c528aeeb692af1ddfa6e"
+      "sha256": "4a0119fc193f25f1ecef67ee76a1c6fa2a3c1402c5e4c6e24aa341638bf79de1"
     },
     "citizenshipReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship.json",
@@ -31,11 +31,11 @@
     },
     "staticExport": {
       "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-      "sha256": "1873f5a51f0381c5d2ae0fc1909c2054e0ebc0142a8c01acb28a364df456b8a0"
+      "sha256": "ae442f8d98b503c99e5570316549a1e19dd885c23bc2fb6b708e48be379a2303"
     },
     "exactVerifyRegistry": {
-      "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
-      "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
+      "path": "../../../../tmp/exact-runtime-publish-20260721.AZmY3Y/wt/exact-verify.json",
+      "sha256": "152b8aee53a1e9d58ad2dde82dbad993198af648f66a467b0166425a197ab66c"
     }
   },
   "summary": {
@@ -52,7 +52,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-          "sha256": "ef2613b879c2ec0b3f28124b6e2660120a485511eb69c528aeeb692af1ddfa6e"
+          "sha256": "4a0119fc193f25f1ecef67ee76a1c6fa2a3c1402c5e4c6e24aa341638bf79de1"
         },
         "result": {
           "export": {
@@ -66,75 +66,75 @@
               {
                 "routeId": "/",
                 "path": "index.html",
-                "htmlSha256": "71570c2cf62390e6d8529e9793fa8f54f156c683955a19085000ebc7d0485fbe",
+                "htmlSha256": "d39fa231b09212e8110e46306810f5ac9e171359f75ee8a3f5cf94496194d8bf",
                 "nodes": 79
               },
               {
                 "routeId": "/events/event_sunset/",
                 "path": "events/event_sunset/index.html",
-                "htmlSha256": "d7add250ec7e451ad24ac766354b479c278edb566be90affab0fce9aee360cb7",
+                "htmlSha256": "2cc2269dedd68ecfff9cfa5692f9605aff811fc4d4f0857bb4249557d9e4f84b",
                 "nodes": 73
               },
               {
                 "routeId": "/events/event_swim/",
                 "path": "events/event_swim/index.html",
-                "htmlSha256": "bc97fd1ca9f4149236f21530c0ab2e32cad11533224e1c2a8fa3e6c9bb1b4fe9",
+                "htmlSha256": "73952e384e5d40b8ce5acdd5747010b8ca167bcc498b63fbd12644b08b012935",
                 "nodes": 71
               },
               {
                 "routeId": "/events/event_ceramics/",
                 "path": "events/event_ceramics/index.html",
-                "htmlSha256": "228ca4d26054de4cf072deea9b1f89143fbd811d67b53df78f41836496fbd937",
+                "htmlSha256": "9b454fc2431e5cac010954cb48f93f8d9a1ab88560098f89cc1c1b613dfa6ca4",
                 "nodes": 62
               }
             ]
           },
           "javascript": {
-            "bytes": 659528,
-            "sha256": "7a03e16ad62618615e88a64c990c3443ce2318f9ca6e788bd54bd8680970db13"
+            "bytes": 367795,
+            "sha256": "f5105c963c67a34a538cf38c540ab08ef40e30f902cd3fbcfe9e1c519a6af324"
           }
         },
         "staticExport": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/static-export.json",
-          "sha256": "1873f5a51f0381c5d2ae0fc1909c2054e0ebc0142a8c01acb28a364df456b8a0"
+          "sha256": "ae442f8d98b503c99e5570316549a1e19dd885c23bc2fb6b708e48be379a2303"
         },
         "pages": [
           {
             "routeId": "/",
             "path": "index.html",
-            "htmlSha256": "e94a2ea048f7f16b37c54bc8a5ff8a98947257fb0df1b5b0eff40d4bef4b77ba",
+            "htmlSha256": "e3aabec6bb8b6a856ec703566615992c7697eb136186b596b3225f2253adcdfa",
             "nodes": 79
           },
           {
             "routeId": "/events/event_sunset/",
             "path": "events/event_sunset/index.html",
-            "htmlSha256": "2f1261ef92fd2170da075e5e2c9ac786948629c787d1681575d1885a710f59ae",
+            "htmlSha256": "f38882f93a4a167d1f189fc7d7c77ac6cc34e2228c0a0603f8c03a6a375a6fe5",
             "nodes": 73
           },
           {
             "routeId": "/events/event_swim/",
             "path": "events/event_swim/index.html",
-            "htmlSha256": "08ecd64e8434ed916f3696a02e7ea14e834f52c0957ed6d7532751e29299f727",
+            "htmlSha256": "6b0c866487dd98b788bb6b9dbfbacf135e646cd5f22376dcf53c74d100869109",
             "nodes": 71
           },
           {
             "routeId": "/events/event_ceramics/",
             "path": "events/event_ceramics/index.html",
-            "htmlSha256": "0b9e57980c1e049c29068dc78f49345a547fbb5b0b3ea593bc52b1bc0b969746",
+            "htmlSha256": "66d677202cbac5fcb5b3651771c3acebfdcc8a807133806021ff4d205dfaa795",
             "nodes": 62
           }
         ],
         "javascript": {
           "assets": [
             {
-              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CwGZKwL6.js",
-              "minifiedBytes": 659515,
-              "deterministicGzipBytes": 165844,
-              "sha256": "b081fbd3df493c298894c40799a140a7e324e5bd3f36a3771c52550f0133c8e6"
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CAP9N1nk.js",
+              "minifiedBytes": 367782,
+              "deterministicGzipBytes": 100995,
+              "sha256": "b298843816b687aa141e57ee5ef1c5fd2f313d038862b22cc9ce247abd9e034c"
             }
           ],
-          "minifiedBytes": 659515,
-          "deterministicGzipBytes": 165844
+          "minifiedBytes": 367782,
+          "deterministicGzipBytes": 100995
         }
       }
     },
@@ -145,7 +145,7 @@
       "evidence": {
         "step0Receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-          "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+          "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
         },
         "checks": [
           "contract × snapback boots its identified cell",
@@ -162,7 +162,7 @@
       "evidence": {
         "receipt": {
           "path": "demos/partiful-matrix/acceptance/results/step4-production-web-browser.json",
-          "sha256": "ef2613b879c2ec0b3f28124b6e2660120a485511eb69c528aeeb692af1ddfa6e"
+          "sha256": "4a0119fc193f25f1ecef67ee76a1c6fa2a3c1402c5e4c6e24aa341638bf79de1"
         },
         "servedMode": "vite-preview-over-immutable-dist",
         "checks": [
@@ -184,19 +184,19 @@
       "reasonCode": "STEP4_WEB_HISTORY_PASSED",
       "evidence": {
         "before": {
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         },
         "event": {
           "pathname": "/partitime/events/event_sunset/",
           "title": "Sunset Supper Club · Partitime",
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         },
         "after": {
           "pathname": "/partitime/",
           "title": "Partitime · plans worth leaving the chat for",
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         }
       }
@@ -216,15 +216,15 @@
         "basepath": {
           "pathname": "/partitime/events/event_sunset/",
           "resources": [
-            "/partitime/assets/index-H9RybyBB.js"
+            "/partitime/assets/index-BcL8Vrb7.js"
           ],
           "scripts": [
-            "/partitime/assets/index-H9RybyBB.js"
+            "/partitime/assets/index-BcL8Vrb7.js"
           ]
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "2f1261ef92fd2170da075e5e2c9ac786948629c787d1681575d1885a710f59ae"
+          "sha256": "f38882f93a4a167d1f189fc7d7c77ac6cc34e2228c0a0603f8c03a6a375a6fe5"
         }
       }
     },
@@ -249,11 +249,11 @@
         },
         "feedArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
-          "sha256": "e94a2ea048f7f16b37c54bc8a5ff8a98947257fb0df1b5b0eff40d4bef4b77ba"
+          "sha256": "e3aabec6bb8b6a856ec703566615992c7697eb136186b596b3225f2253adcdfa"
         },
         "eventArtifact": {
           "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/events/event_sunset/index.html",
-          "sha256": "2f1261ef92fd2170da075e5e2c9ac786948629c787d1681575d1885a710f59ae"
+          "sha256": "f38882f93a4a167d1f189fc7d7c77ac6cc34e2228c0a0603f8c03a6a375a6fe5"
         }
       }
     },
@@ -272,10 +272,10 @@
                 "recreatedNodeCount": 0,
                 "hydrationMismatchCount": 0,
                 "adoptionFallbacks": [],
-                "serverHtmlHash": "fnv1a32:062aac74",
+                "serverHtmlHash": "fnv1a32:73baff2c",
                 "deferredMountTasks": 0,
                 "tasksReleasedBeforeAdoption": false,
-                "firstPaintHtmlHash": "fnv1a32:062aac74",
+                "firstPaintHtmlHash": "fnv1a32:73baff2c",
                 "firstPaintByteIdentical": true
               }
             },
@@ -298,9 +298,9 @@
           "witness": {
             "sameRoot": true,
             "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
-            "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth leaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+            "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
             "rootReplacements": 0,
-            "childListMutations": 8,
+            "childListMutations": 6,
             "result": {
               "rootId": 1347682305,
               "adoptedNodes": 79,
@@ -320,16 +320,16 @@
                 "recreatedNodeCount": 0,
                 "hydrationMismatchCount": 0,
                 "adoptionFallbacks": [],
-                "serverHtmlHash": "fnv1a32:3dda9011",
+                "serverHtmlHash": "fnv1a32:ddcaa918",
                 "deferredMountTasks": 0,
                 "tasksReleasedBeforeAdoption": false,
-                "firstPaintHtmlHash": "fnv1a32:3dda9011",
+                "firstPaintHtmlHash": "fnv1a32:ddcaa918",
                 "firstPaintByteIdentical": true
               }
             },
             "result": {
               "rootId": 1347686401,
-              "adoptedNodes": 73,
+              "adoptedNodes": 77,
               "recreatedNodes": 0,
               "mismatches": []
             },
@@ -350,7 +350,7 @@
             "rootReplacements": 0,
             "result": {
               "rootId": 1347686401,
-              "adoptedNodes": 73,
+              "adoptedNodes": 77,
               "recreatedNodes": 0,
               "mismatches": [],
               "mountPath": "partitime-static-document"
@@ -374,7 +374,7 @@
         "clientRoute": {
           "title": "Sunset Supper Club · Partitime",
           "description": "A long table, tiny plates, and the last warm light of the day.",
-          "canonical": "http://127.0.0.1:61736/partitime/events/event_sunset/",
+          "canonical": "http://127.0.0.1:54390/partitime/events/event_sunset/",
           "themeColor": "#f4f0e8"
         }
       }
@@ -386,10 +386,10 @@
       "evidence": {
         "pathname": "/partitime/events/event_sunset/",
         "resources": [
-          "/partitime/assets/index-H9RybyBB.js"
+          "/partitime/assets/index-BcL8Vrb7.js"
         ],
         "scripts": [
-          "/partitime/assets/index-H9RybyBB.js"
+          "/partitime/assets/index-BcL8Vrb7.js"
         ]
       }
     },
@@ -400,14 +400,14 @@
       "evidence": {
         "before": "EveMaybe",
         "after": "EveGoing",
-        "latencyMs": 5,
+        "latencyMs": 16,
         "pollFallback": "disabled",
         "evidence": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f8757399f7bedc9cdc92ed",
-            "subscriptionId": "sub_019f83f368f8757399f7bedc9cdc92ed",
+            "bindingId": "sub_019f87b4fad175a19271c092bc8331de",
+            "subscriptionId": "sub_019f87b4fad175a19271c092bc8331de",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -416,12 +416,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212705,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -430,8 +430,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f97882a28b0d6f1134a6d8",
-            "subscriptionId": "sub_019f83f368f97882a28b0d6f1134a6d8",
+            "bindingId": "sub_019f87b4fad175a19271c0f01bb5c1cd",
+            "subscriptionId": "sub_019f87b4fad175a19271c0f01bb5c1cd",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -440,12 +440,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212706,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -454,8 +454,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f97882a28b0d8281290ca3",
-            "subscriptionId": "sub_019f83f368f97882a28b0d8281290ca3",
+            "bindingId": "sub_019f87b4fad175a19271c0df7624c86c",
+            "subscriptionId": "sub_019f87b4fad175a19271c0df7624c86c",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -464,12 +464,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212707,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
@@ -484,8 +484,8 @@
       "reasonCode": "STEP4_WEB_UPSTREAM_EXACT_CHECKS_REGISTERED",
       "evidence": {
         "registry": {
-          "path": "../../../../Users/ccheever/projects/exact-snapback-mirror-20260721/exact-verify.json",
-          "sha256": "d0ab156df09fbc6249e7bc28b656fa82e7bc1518e11f7ad947bc9c6a3f2c885d"
+          "path": "../../../../tmp/exact-runtime-publish-20260721.AZmY3Y/wt/exact-verify.json",
+          "sha256": "152b8aee53a1e9d58ad2dde82dbad993198af648f66a467b0166425a197ab66c"
         },
         "checks": [
           "contract-web-host-csr",

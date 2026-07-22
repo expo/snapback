@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "901d729bd4d00ff492e89e895ce37d4d4a70a814",
-    "exact": "7b2c2b378488f242150682f117de0077bad2cb96"
+    "snapback": "924aa678625d37c13d36f0f90025dfe712ff2a03",
+    "exact": null
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -11,7 +11,7 @@
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.129",
+    "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -97,41 +97,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "requested": "npm:@ccheever/exact-contract@0.1.5",
           "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "83009e34e815aeed53dd64ccd320b66b0e5fbd5c30d87c4bd08568e0f25c6668"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "c1dab475c1793d98999a4439f4a5bece3c46c7586dfe8392e680540d18e113a5"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "requested": "npm:@ccheever/exact-devtools@0.1.5",
           "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "b223b49ea2f86029e9c05244eba3439087fa2d11a99f288cfe2e150e879e914b"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
           "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "95b533a6ff42b95e29cb25c0306073559274cb59e071f8996580d4e13e78b6a5"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "8c7dfd95b951a599ec284cfe5a3ec06a60e007aa168dfc5bc303e5216375b407"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "requested": "npm:@ccheever/exact-renderer@0.1.5",
           "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.2",
-          "manifestSha256": "af6594a0509b2767190fe018aadb7f2c5f0bf3faae3f8f4afeef898d006520e0"
+          "resolvedVersion": "0.1.5",
+          "manifestSha256": "ba7d0ec05b0c193d639be65e3a66f136f20f3176541c751cbc92d2157af65d0d"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "d458e96a5c2b6060c8bcebd4a32b79df906b07182accd2d3c1962c00c5cd4efb",
-    "reportSha256": "138a2ac6fb0bff6395e5df83b3a903354b6f3d4a043529ea7a2b5bd27af85591"
+    "diarySha256": "4bec4e686905b120c59ec70225b3d67a47bdf5cd868180f194ecfdcf95773db9",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -243,14 +243,16 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       },
       "convex": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       }
     }
   },
@@ -276,32 +278,32 @@
             {
               "routeId": "/",
               "path": "index.html",
-              "htmlSha256": "71570c2cf62390e6d8529e9793fa8f54f156c683955a19085000ebc7d0485fbe",
+              "htmlSha256": "d39fa231b09212e8110e46306810f5ac9e171359f75ee8a3f5cf94496194d8bf",
               "nodes": 79
             },
             {
               "routeId": "/events/event_sunset/",
               "path": "events/event_sunset/index.html",
-              "htmlSha256": "d7add250ec7e451ad24ac766354b479c278edb566be90affab0fce9aee360cb7",
+              "htmlSha256": "2cc2269dedd68ecfff9cfa5692f9605aff811fc4d4f0857bb4249557d9e4f84b",
               "nodes": 73
             },
             {
               "routeId": "/events/event_swim/",
               "path": "events/event_swim/index.html",
-              "htmlSha256": "bc97fd1ca9f4149236f21530c0ab2e32cad11533224e1c2a8fa3e6c9bb1b4fe9",
+              "htmlSha256": "73952e384e5d40b8ce5acdd5747010b8ca167bcc498b63fbd12644b08b012935",
               "nodes": 71
             },
             {
               "routeId": "/events/event_ceramics/",
               "path": "events/event_ceramics/index.html",
-              "htmlSha256": "228ca4d26054de4cf072deea9b1f89143fbd811d67b53df78f41836496fbd937",
+              "htmlSha256": "9b454fc2431e5cac010954cb48f93f8d9a1ab88560098f89cc1c1b613dfa6ca4",
               "nodes": 62
             }
           ]
         },
         "javascript": {
-          "bytes": 659528,
-          "sha256": "7a03e16ad62618615e88a64c990c3443ce2318f9ca6e788bd54bd8680970db13"
+          "bytes": 367795,
+          "sha256": "f5105c963c67a34a538cf38c540ab08ef40e30f902cd3fbcfe9e1c519a6af324"
         }
       }
     },
@@ -340,10 +342,10 @@
               "recreatedNodeCount": 0,
               "hydrationMismatchCount": 0,
               "adoptionFallbacks": [],
-              "serverHtmlHash": "fnv1a32:062aac74",
+              "serverHtmlHash": "fnv1a32:73baff2c",
               "deferredMountTasks": 0,
               "tasksReleasedBeforeAdoption": false,
-              "firstPaintHtmlHash": "fnv1a32:062aac74",
+              "firstPaintHtmlHash": "fnv1a32:73baff2c",
               "firstPaintByteIdentical": true
             }
           },
@@ -366,9 +368,9 @@
         "witness": {
           "sameRoot": true,
           "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
-          "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth leaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+          "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
           "rootReplacements": 0,
-          "childListMutations": 8,
+          "childListMutations": 6,
           "result": {
             "rootId": 1347682305,
             "adoptedNodes": 79,
@@ -392,16 +394,16 @@
               "recreatedNodeCount": 0,
               "hydrationMismatchCount": 0,
               "adoptionFallbacks": [],
-              "serverHtmlHash": "fnv1a32:3dda9011",
+              "serverHtmlHash": "fnv1a32:ddcaa918",
               "deferredMountTasks": 0,
               "tasksReleasedBeforeAdoption": false,
-              "firstPaintHtmlHash": "fnv1a32:3dda9011",
+              "firstPaintHtmlHash": "fnv1a32:ddcaa918",
               "firstPaintByteIdentical": true
             }
           },
           "result": {
             "rootId": 1347686401,
-            "adoptedNodes": 73,
+            "adoptedNodes": 77,
             "recreatedNodes": 0,
             "mismatches": []
           },
@@ -422,7 +424,7 @@
           "rootReplacements": 0,
           "result": {
             "rootId": 1347686401,
-            "adoptedNodes": 73,
+            "adoptedNodes": 77,
             "recreatedNodes": 0,
             "mismatches": [],
             "mountPath": "partitime-static-document"
@@ -436,10 +438,10 @@
       "details": {
         "pathname": "/partitime/events/event_sunset/",
         "resources": [
-          "/partitime/assets/index-H9RybyBB.js"
+          "/partitime/assets/index-BcL8Vrb7.js"
         ],
         "scripts": [
-          "/partitime/assets/index-H9RybyBB.js"
+          "/partitime/assets/index-BcL8Vrb7.js"
         ]
       }
     },
@@ -448,19 +450,19 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         },
         "event": {
           "pathname": "/partitime/events/event_sunset/",
           "title": "Sunset Supper Club · Partitime",
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         },
         "after": {
           "pathname": "/partitime/",
           "title": "Partitime · plans worth leaving the chat for",
-          "identity": "504e0f46-8e5a-4ba6-a86f-2a62180e5fe4",
+          "identity": "7c539b9c-f881-48eb-ab45-d9607631fa40",
           "navigations": 1
         }
       }
@@ -471,7 +473,7 @@
       "details": {
         "title": "Sunset Supper Club · Partitime",
         "description": "A long table, tiny plates, and the last warm light of the day.",
-        "canonical": "http://127.0.0.1:61736/partitime/events/event_sunset/",
+        "canonical": "http://127.0.0.1:54390/partitime/events/event_sunset/",
         "themeColor": "#f4f0e8"
       }
     },
@@ -481,14 +483,14 @@
       "details": {
         "before": "EveMaybe",
         "after": "EveGoing",
-        "latencyMs": 5,
+        "latencyMs": 16,
         "pollFallback": "disabled",
         "evidence": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f8757399f7bedc9cdc92ed",
-            "subscriptionId": "sub_019f83f368f8757399f7bedc9cdc92ed",
+            "bindingId": "sub_019f87b4fad175a19271c092bc8331de",
+            "subscriptionId": "sub_019f87b4fad175a19271c092bc8331de",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -497,12 +499,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212705,
             "queryName": "eventDetails",
             "args": {
               "eventId": "event_sunset"
@@ -511,8 +513,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f97882a28b0d6f1134a6d8",
-            "subscriptionId": "sub_019f83f368f97882a28b0d6f1134a6d8",
+            "bindingId": "sub_019f87b4fad175a19271c0f01bb5c1cd",
+            "subscriptionId": "sub_019f87b4fad175a19271c0f01bb5c1cd",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -521,12 +523,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212706,
             "queryName": "guestList",
             "args": {
               "eventId": "event_sunset"
@@ -535,8 +537,8 @@
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f83f368f97882a28b0d8281290ca3",
-            "subscriptionId": "sub_019f83f368f97882a28b0d8281290ca3",
+            "bindingId": "sub_019f87b4fad175a19271c0df7624c86c",
+            "subscriptionId": "sub_019f87b4fad175a19271c0df7624c86c",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -545,12 +547,12 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "snapback-online-surface:8871b073-37f0-401b-9a84-e2919cdc8a42",
+              "rootId": "snapback-online-surface:5798e243-8e39-49f5-b100-1247089397ba",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784625195275,
+            "receivedAtMs": 1784688212707,
             "queryName": "eventWall",
             "args": {
               "eventId": "event_sunset"
