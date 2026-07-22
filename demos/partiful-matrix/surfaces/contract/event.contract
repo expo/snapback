@@ -9,6 +9,7 @@ use goingCount from "./helpers.ts"
 use myStatus from "./helpers.ts"
 use openFeed from "./helpers.ts"
 use navigatePartitimeCollection from "./helpers.ts"
+use minimumFeedbackDelay from "./helpers.ts"
 use backgroundFor from "./ui.ts"
 use textFor from "./ui.ts"
 use mutedFor from "./ui.ts"
@@ -69,6 +70,7 @@ component PartifulEvent
     pendingMessage = message
     draft = ""
     let result = await postMut({ eventId: eventId, authorName: userName, message: message })
+    await minimumFeedbackDelay()
     pendingMessage = ""
 
   contract

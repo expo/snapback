@@ -11,6 +11,13 @@ export function statusLabel(status: string): string {
 export function goingCount(rows: Array<{status:string}>): number { return rows.filter((row) => row.status === 'host' || row.status === 'going').length; }
 export function myStatus(rows: Array<{userId:string;status:string}>, userId: string): string { return rows.find((row) => row.userId === userId)?.status ?? 'none'; }
 
+// Match the React control's minimum optimistic-status dwell. A local provider
+// can settle within one frame; without this floor the non-motion alternative
+// disappears before a person can perceive it.
+export function minimumFeedbackDelay(): Promise<void> {
+  return new Promise((resolveDelay) => setTimeout(resolveDelay, 450));
+}
+
 export function navigatePartitimeCollection(key: string): void {
   if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(key)) return;
   const active = document.activeElement instanceof HTMLElement ? document.activeElement : null;
