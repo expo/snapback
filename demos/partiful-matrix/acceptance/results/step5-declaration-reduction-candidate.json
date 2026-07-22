@@ -1,0 +1,123 @@
+{
+  "schemaVersion": "partitime.step5-declaration-reduction-candidate.v1",
+  "claimId": "STEP5.DECLARATION_REDUCTION",
+  "ok": false,
+  "disposition": "candidate-pass-authority-pending",
+  "claimStatus": "pending",
+  "implementationCandidatePass": true,
+  "authority": {
+    "path": "llp/0065-generated-data-pattern-soundness.rfc.md",
+    "sha256": "15709e36ca308d77db1b804300f0fed19871df304805c44a23fd3164edecf4b6",
+    "status": "Draft",
+    "acceptedForGate": false,
+    "rule": "LLP 0065 must be Accepted or Implemented before this candidate may promote the cumulative claim."
+  },
+  "sourceVolume": {
+    "actualLines": 136,
+    "thresholdLines": 152,
+    "marginLines": 16,
+    "pass": true,
+    "formula": "floor(partitime_snapback_backend_baseline_lines * 0.80)",
+    "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
+    "inventory": {
+      "files": [
+        {
+          "path": "demos/partiful-matrix/snapback/schema.mjs",
+          "lines": 20,
+          "bytes": 771,
+          "sha256": "c5198b128af62889125b04e4f9e551a8ee597b1ad863a0427d177a2400369bfc"
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/functions.mjs",
+          "lines": 94,
+          "bytes": 3655,
+          "sha256": "76f2be6b2cb31026cb257593476c5951ca76fee09c62ff9450a722b619accc7d"
+        },
+        {
+          "path": "demos/partiful-matrix/snapback/seed.json",
+          "lines": 22,
+          "bytes": 2295,
+          "sha256": "dc6d193ed038443151c9ca4622a647b434afac0112c24d735fccbb8548fa38d4"
+        }
+      ],
+      "totalLines": 136
+    }
+  },
+  "standardPatterns": {
+    "receipt": {
+      "schemaVersion": "snapback.standard-patterns-real-server.v1",
+      "ok": true,
+      "appId": "standard-patterns-app",
+      "users": 2,
+      "patterns": [
+        "owned-crud",
+        "owned-unique-lookup",
+        "owned-keyset-pagination"
+      ],
+      "checks": {
+        "serverDerivedOwner": true,
+        "trustedNow": true,
+        "trustedId": true,
+        "clientForgeryCannotOverrideTrustedValues": true,
+        "crossUserListRejected": true,
+        "crossUserGetRejected": true,
+        "crossUserUniqueLookupRejected": true,
+        "crossUserPaginationRejected": true,
+        "crossUserUpdateRejected": true,
+        "crossUserDeleteRejected": true
+      }
+    },
+    "receiptSha256": "dca3a308eb6c9c4b21a198dfe3919d49affb7a9e09ed382a75749f98ea0bd615",
+    "executions": [
+      {
+        "command": "node packages/snapback-codegen/standard-patterns.test.mjs",
+        "exitCode": 0
+      },
+      {
+        "command": "./node_modules/.bin/tsc --noEmit --strict --target es2022 --module esnext --moduleResolution bundler packages/snapback-codegen/standard-patterns-types.fixture.ts",
+        "exitCode": 0
+      },
+      {
+        "command": "node tests/acceptance/standard-patterns-v1.mjs --receipt /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback-step5-declaration-PvF0Dh/standard-patterns-real-server.json",
+        "exitCode": 0
+      }
+    ],
+    "inputs": [
+      {
+        "path": "packages/snapback-codegen/standard-patterns.mjs",
+        "sha256": "b3b4ff3ba8d421a28e64801121242f5b3b2805c452f420a64553d528d4ee938a"
+      },
+      {
+        "path": "packages/snapback-codegen/standard-patterns.d.ts",
+        "sha256": "38f024b1bdeff0d89b7c38f9ad7ed47f44c66e37a9fbebc22157e992ceb3dcad"
+      },
+      {
+        "path": "packages/snapback-codegen/standard-patterns.test.mjs",
+        "sha256": "c14f07ce6f391bcd0dc5d81232eaf4c6b144b85a1a60fbf918b2d7d2b484768a"
+      },
+      {
+        "path": "packages/snapback-codegen/standard-patterns-types.fixture.ts",
+        "sha256": "58f724a9111b9df823b072ce79ef435aac6ce77cf4b2784e6ed46cea28adcbd0"
+      },
+      {
+        "path": "tests/acceptance/standard-patterns-v1.mjs",
+        "sha256": "43e9290cf2d2f5a27891af3668869a27e925423889efd237e6910b0d25a80efe"
+      }
+    ]
+  },
+  "frozenInputs": {
+    "protocol": {
+      "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+    },
+    "baseline": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "sha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa"
+    }
+  },
+  "limitations": [
+    "This receipt proves the owned CRUD, unique-lookup, and keyset-pagination candidate only.",
+    "It does not claim joins, maintained projections, or migrations governed by Draft LLP 0074/0075.",
+    "It does not replace the separate released-package and LLP 0041 external-loop gates."
+  ]
+}
