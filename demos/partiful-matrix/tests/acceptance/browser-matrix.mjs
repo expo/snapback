@@ -1437,8 +1437,10 @@ async function webdriverRequest(origin, path, { method = 'GET', body = null, tim
   });
   const payload = await response.json().catch(() => null);
   const value = payload?.value;
-  if (!response.ok || value?.error) {
-    throw new Error(`WebDriver ${method} ${path} failed: ${value?.error ?? response.status} — ${value?.message ?? 'no diagnostic'}`);
+  if (!response.ok) {
+    const error = typeof value?.error === 'string' ? value.error : value?.error ? JSON.stringify(value.error) : String(response.status);
+    const message = typeof value?.message === 'string' ? value.message : value?.message ? JSON.stringify(value.message) : 'no diagnostic';
+    throw new Error(`WebDriver ${method} ${path} failed: ${error} — ${message}`);
   }
   return value;
 }
