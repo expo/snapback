@@ -14,6 +14,7 @@ const exactRevision = option('exact-revision') ?? process.env.PARTITIME_EXACT_RE
 const selectedArm = option('arm');
 const selectedClaim = option('claim');
 const selectedBrowser = option('browser') ?? 'chrome';
+const iosSimulatorUdid = option('ios-simulator-udid') ?? process.env.PARTITIME_IOS_SIMULATOR_UDID ?? null;
 const resultsRoot = join(demoRoot, 'acceptance', 'results', 'phase4-ui-claims', ...(selectedBrowser === 'chrome' ? [] : [selectedBrowser]));
 const aggregatePath = join(demoRoot, 'acceptance', 'results', selectedBrowser === 'chrome' ? 'step4-ui-claims.json' : `step4-ui-claims-${selectedBrowser}.json`);
 
@@ -30,7 +31,8 @@ const claims = selectedClaim ? [selectedClaim] : [
 if (!exactRevision) throw new Error('authoritative Phase 4 evidence requires --exact-revision or PARTITIME_EXACT_REVISION');
 if (arms.some((arm) => !['react', 'contract'].includes(arm))) throw new Error(`unknown arm: ${selectedArm}`);
 if (claims.some((claim) => !claim.startsWith('STEP4.UI.'))) throw new Error(`unknown claim: ${selectedClaim}`);
-if (!['chrome', 'firefox', 'safari'].includes(selectedBrowser)) throw new Error(`unknown browser: ${selectedBrowser}`);
+if (!['chrome', 'firefox', 'safari', 'ios-safari'].includes(selectedBrowser)) throw new Error(`unknown browser: ${selectedBrowser}`);
+if (selectedBrowser === 'ios-safari' && !iosSimulatorUdid) throw new Error('--browser ios-safari requires --ios-simulator-udid or PARTITIME_IOS_SIMULATOR_UDID');
 
 mkdirSync(resultsRoot, { recursive: true });
 const runs = [];
@@ -46,6 +48,7 @@ for (const arm of arms) {
       '--browser', selectedBrowser,
       '--arm', arm,
       '--receipt', receiptPath,
+      ...(selectedBrowser === 'ios-safari' ? ['--ios-simulator-udid', iosSimulatorUdid] : []),
     ], {
       cwd: repoRoot,
       env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },

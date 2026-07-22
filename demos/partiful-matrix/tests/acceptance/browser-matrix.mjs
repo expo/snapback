@@ -12,6 +12,7 @@ import { createSuite, runAcceptance, writeMachineReport } from '../../../_kit/ha
 import { freePort } from '../../../_kit/provenance.mjs';
 import api from '../../snapback/generated/api.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json' with { type: 'json' };
+import { webdriverCapabilities } from './webdriver-capabilities.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
@@ -29,6 +30,8 @@ const option = (name) => { const at = process.argv.indexOf(`--${name}`); return 
 const selectedArm = option('arm');
 const selectedBackend = option('backend');
 const selectedBrowser = option('browser') ?? 'chrome';
+const iosSimulatorUdid = option('ios-simulator-udid') ?? process.env.PARTITIME_IOS_SIMULATOR_UDID ?? null;
+const isIosSafari = selectedBrowser === 'ios-safari';
 const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
 const phase4Only = process.argv.includes('--phase4-only');
@@ -45,8 +48,11 @@ const phase4ClaimIds = new Set([
   'STEP4.UI.A11Y',
   'STEP4.UI.VISUAL',
 ]);
-if (!['chrome', 'firefox', 'safari'].includes(selectedBrowser)) {
+if (!['chrome', 'firefox', 'safari', 'ios-safari'].includes(selectedBrowser)) {
   throw new Error(`unknown --browser ${selectedBrowser}`);
+}
+if (isIosSafari && !iosSimulatorUdid) {
+  throw new Error('--browser ios-safari requires --ios-simulator-udid or PARTITIME_IOS_SIMULATOR_UDID');
 }
 if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
   throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
@@ -752,15 +758,19 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
     const identity = await page.eval(`(()=>{window.__phase4ResponsiveIdentity=crypto.randomUUID();return window.__phase4ResponsiveIdentity})()`);
     const observations = [];
-    for (const viewport of [
-      { id: 'compact', width: 390, height: 844, columns: 1 },
-      { id: 'regular', width: 768, height: 1024, columns: 2 },
-      { id: 'expanded', width: 1280, height: 800, columns: 3 },
-    ]) {
-      await page.setViewport(viewport.width, viewport.height);
+    const responsiveViewports = isIosSafari
+      ? [{ id: 'compact-device', width: null, height: null, columns: 1 }]
+      : [
+          { id: 'compact', width: 390, height: 844, columns: 1 },
+          { id: 'regular', width: 768, height: 1024, columns: 2 },
+          { id: 'expanded', width: 1280, height: 800, columns: 3 },
+        ];
+    for (const viewport of responsiveViewports) {
+      if (!isIosSafari) await page.setViewport(viewport.width, viewport.height);
       await page.eval(`(()=>{dispatchEvent(new Event('resize'));return new Promise(r=>setTimeout(r,120))})()`);
       const observed = await page.eval(`(()=>{const cards=[...document.querySelectorAll('[data-testid^="event-card-"]')];const xs=[...new Set(cards.map(node=>Math.round(node.getBoundingClientRect().x)))];return {count:cards.length,columns:xs.length,xs,width:innerWidth,identity:window.__phase4ResponsiveIdentity,path:location.pathname,cardRects:cards.map(node=>{const r=node.getBoundingClientRect();return {x:r.x,y:r.y,width:r.width,height:r.height}})}})()`);
-      if (observed.count !== 3 || observed.columns !== viewport.columns || observed.width !== viewport.width || observed.identity !== identity || observed.path !== '/') {
+      const widthMatches = isIosSafari ? observed.width < 600 : observed.width === viewport.width;
+      if (observed.count !== 3 || observed.columns !== viewport.columns || !widthMatches || observed.identity !== identity || observed.path !== '/') {
         throw new Error(`${viewport.id} structure drifted: ${JSON.stringify(observed)}`);
       }
       observations.push({ ...viewport, ...observed });
@@ -927,13 +937,15 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     const themes = captureVisualDir
       ? phase4VisualSpec.themes.filter(({ id }) => !selectedVisualTheme || id === selectedVisualTheme)
       : [phase4VisualSpec.themes[0]];
-    const viewports = captureVisualDir
-      ? phase4VisualSpec.viewports.filter(({ id }) => !selectedVisualViewport || id === selectedVisualViewport)
-      : [phase4VisualSpec.viewports.at(-1)];
+    const viewports = isIosSafari
+      ? [{ id: 'compact-device', width: null, height: null }]
+      : captureVisualDir
+        ? phase4VisualSpec.viewports.filter(({ id }) => !selectedVisualViewport || id === selectedVisualViewport)
+        : [phase4VisualSpec.viewports.at(-1)];
     for (const theme of themes) for (const viewport of viewports) {
       const visualPage = captureVisualDir ? await cdp.newPage() : page;
       try {
-        await visualPage.setViewport(viewport.width, viewport.height);
+        if (!isIosSafari) await visualPage.setViewport(viewport.width, viewport.height);
         for (const state of phase4VisualSpec.states) {
           try {
             await prepareVisualState({ page: visualPage, cell, baseUrl, state: state.id, theme: theme.id });
@@ -978,7 +990,7 @@ async function phase4Claim(activeSuite, claimId, title, check) {
 async function withPhase4KeyboardPage(cdp, cell, baseUrl, pathname, run) {
   const taskPage = await cdp.newPage();
   try {
-    await taskPage.setViewport(1280, 800);
+    if (!isIosSafari) await taskPage.setViewport(1280, 800);
     await loadPhase4Route(taskPage, cell, baseUrl, pathname, { user: 'eve' });
     return await run(taskPage);
   } finally {
@@ -1083,6 +1095,17 @@ function terminateGroup(child, signal) {
 
 function runIdentity() {
   const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+  const simulatorIdentity = () => {
+    if (!isIosSafari) return null;
+    try {
+      const inventory = JSON.parse(execFileSync('xcrun', ['simctl', 'list', 'devices', '--json'], { encoding: 'utf8' }));
+      for (const [runtime, devices] of Object.entries(inventory.devices ?? {})) {
+        const device = devices.find(({ udid }) => udid.toLowerCase() === iosSimulatorUdid.toLowerCase());
+        if (device) return { udid: device.udid, name: device.name, state: device.state, runtime };
+      }
+    } catch { /* receipt records an unresolved explicit identity */ }
+    return { udid: iosSimulatorUdid, name: null, state: null, runtime: null };
+  };
   const packageRecord = (arm, lockPath = join(demoRoot, 'surfaces', arm, 'bun.lock')) => {
     const root = join(demoRoot, 'surfaces', arm);
     const manifestPath = join(root, 'package.json');
@@ -1127,6 +1150,7 @@ function runIdentity() {
     'demos/_kit/chrome-process.mjs',
     'demos/_kit/server-process.mjs',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
+    'demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs',
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
     'demos/partiful-matrix/surfaces/react/src/provider.ts',
     'demos/partiful-matrix/surfaces/contract/main.ts',
@@ -1150,6 +1174,7 @@ function runIdentity() {
       browser: selectedBrowser,
       browserBinary,
       browserVersion,
+      iosSimulator: simulatorIdentity(),
       chrome: selectedBrowser === 'chrome' ? chromeBin : null,
       chromeVersion: selectedBrowser === 'chrome' ? browserVersion : null,
       cpu: cpus()[0]?.model ?? null,
@@ -1255,18 +1280,11 @@ function createWebDriverHarness({ browserName }) {
       const driver = await launchWebDriverServer(browserName);
       let sessionId = null;
       try {
-        const reducedMotion = browserName === 'firefox' && selectedPhase4Claim === 'STEP4.UI.REDUCED-MOTION';
-        const needsBidiViewport = browserName === 'firefox' && ['STEP4.UI.RESPONSIVE', 'STEP4.UI.VISUAL'].includes(selectedPhase4Claim);
-        const capabilities = browserName === 'firefox'
-          ? {
-              browserName: 'firefox',
-              ...(needsBidiViewport ? { webSocketUrl: true } : {}),
-              'moz:firefoxOptions': {
-                args: ['-headless'],
-                prefs: { 'ui.prefersReducedMotion': reducedMotion ? 1 : 0 },
-              },
-            }
-          : { browserName: 'safari' };
+        const capabilities = webdriverCapabilities({
+          browserName,
+          phase4Claim: selectedPhase4Claim,
+          iosSimulatorUdid,
+        });
         const created = await webdriverRequest(driver.url, '/session', {
           method: 'POST',
           body: { capabilities: { alwaysMatch: capabilities } },
@@ -1318,9 +1336,11 @@ function createWebDriverHarness({ browserName }) {
           setScriptExecutionDisabled: async (value) => {
             if (value) throw new Error(`${browserName} WebDriver does not expose script-disable emulation`);
           },
-          setViewport: (width, height) => bidi && bidiContext
-            ? bidi.send('browsingContext.setViewport', { context: bidiContext, viewport: { width, height }, devicePixelRatio: 1 })
-            : webdriverRequest(driver.url, `${base}/window/rect`, { method: 'POST', body: { width, height } }),
+          setViewport: (width, height) => browserName === 'ios-safari'
+            ? evalRaw(`({requested:{width:${width},height:${height}},actual:{width:innerWidth,height:innerHeight},fixedDeviceViewport:true})`)
+            : bidi && bidiContext
+              ? bidi.send('browsingContext.setViewport', { context: bidiContext, viewport: { width, height }, devicePixelRatio: 1 })
+              : webdriverRequest(driver.url, `${base}/window/rect`, { method: 'POST', body: { width, height } }),
           screenshot: async () => webdriverRequest(driver.url, `${base}/screenshot`, { method: 'GET' }),
           emulateReducedMotion: async (enabled) => {
             if (!enabled) return;
