@@ -80,23 +80,43 @@ try {
   const gateway = await startGateway(snapbackUrl);
   backendHealth = gateway.preflight;
   if (runWeb) {
-    const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partitime-perf-' });
-    cleanups.push(() => chrome.stop());
     for (const cell of cells) {
+      process.stderr.write(`[partitime-performance] web ${cellId(cell)} start\n`);
       const health = gateway.preflight.backends?.[cell.backend];
       assert(health?.ok === true, `backend preflight failed for ${cell.backend}: ${JSON.stringify(health)}`);
       buildMeasurementCell(cell, snapbackUrl, gateway.url);
-      const preview = await startPreview(cell, snapbackUrl, gateway.url);
+      let chrome;
+      let preview;
+      let runError = null;
+      const cellCleanupErrors = [];
       try {
+        chrome = await launchChromeCdp({ chromeBin, userDataPrefix: `partitime-perf-${cell.arm}-${cell.backend}-` });
+        preview = await startPreview(cell, snapbackUrl, gateway.url);
         cellReceipts[cellId(cell)] = await measureWebCell(chrome.ws, cell, preview.url);
+      } catch (error) {
+        runError = error;
       } finally {
-        await preview.stop();
+        for (const cleanup of [
+          () => preview?.stop(),
+          () => chrome?.stop(),
+        ]) {
+          try { await cleanup(); } catch (error) {
+            const message = `${cellId(cell)}: ${error instanceof Error ? error.message : String(error)}`;
+            cellCleanupErrors.push(message);
+            cleanupErrors.push(message);
+          }
+        }
       }
+      if (runError) throw runError;
+      assert.deepEqual(cellCleanupErrors, [], `${cellId(cell)} browser cleanup failed`);
+      process.stderr.write(`[partitime-performance] web ${cellId(cell)} complete\n`);
     }
   }
   if (runBuild) {
     for (const cell of cells) {
+      process.stderr.write(`[partitime-performance] build ${cellId(cell)} start\n`);
       buildReceipts[cellId(cell)] = await measureBuildCell(cell);
+      process.stderr.write(`[partitime-performance] build ${cellId(cell)} complete\n`);
     }
   }
 } finally {
@@ -510,7 +530,14 @@ async function startPreview(cell, snapbackUrl, gatewayUrl) {
       await waitUrl(new URL(moduleSource, previewUrl).href, child, `${cellId(cell)} preview client module`);
     }
   } catch (error) {
-    throw new Error(`${error.message}: ${log.slice(-3000)}`);
+    const cleanupFailures = [];
+    try { await stopChild(child, `${cellId(cell)} preview`); } catch (cleanupError) {
+      cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError));
+    }
+    try { rmSync(previewConfigDir, { recursive: true, force: true }); } catch (cleanupError) {
+      cleanupFailures.push(cleanupError instanceof Error ? cleanupError.message : String(cleanupError));
+    }
+    throw new Error(`${error.message}: ${log.slice(-3000)}${cleanupFailures.length ? `; cleanup: ${cleanupFailures.join('; ')}` : ''}`);
   }
   return {
     url: previewUrl,
