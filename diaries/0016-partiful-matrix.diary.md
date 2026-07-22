@@ -1640,3 +1640,29 @@ language failure, but it is a real production representation problem. The next
 useful changes are a development-only introspection module boundary and
 lazy/compact registration for unopened view regions—not provider or Snapback
 subscription surgery.
+
+## 2026-07-22 — the introspection implementation now leaves production too
+
+The allocation gate was only half of LLP 0192's promise. It stopped registering
+metadata, but the shared signal module still made the graph registry, bounded
+cause tracing, value cloning, and churn implementation reachable as production
+code. Exact now gives that machinery the same full-runtime/production boundary
+used for error reporting and quiescence: the Contract Vite plugin resolves the
+private bridge to a production stub, and Rollup removes both modules entirely.
+The unminified reachability fixture pins zero rendered bytes for each module and
+the absence of causal-carrier and registration symbols. All 27 focused
+introspection, update-economy, and reachability tests and all three TypeScript
+profiles remain green.
+
+The external Contract × Supabase quick probe moved from 1,620,640 to 1,608,104
+post-GC warm bytes while retaining 6 fan-out targets and 8 host patches. That
+12,536-byte improvement is smaller than the preceding allocation correction,
+which is useful evidence in itself: most of the remaining heap is mounted
+product representation, not dormant diagnostics. The corrected 1,394,100-byte
+threshold is still missed by 214,004 bytes, so no memory claim moves.
+
+Compared with React plus Supabase, this closes one avoidable tooling tax without
+changing Contract's core tradeoff. Development keeps a much richer explicit
+reactive graph; production now pays zero for the inspector. The remaining work
+is the representation of authored views—especially unopened regions and their
+mount environments—not the fact that Contract supports introspection.

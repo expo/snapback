@@ -45,12 +45,17 @@ signal/computed/effect registration, skips production metadata lookup, and
 adds a release-artifact regression for the three call sites. The external
 quick probe moves from 1,717,728 to 1,620,640 post-GC bytes while keeping
 update fan-out/patches at 6/8. This is a real roughly 97 KB improvement but
-remains 226,540 bytes above the frozen 1,394,100 limit. The retained snapshot
-attributes the rest mainly to V8 code and eager compiled view/host-model
-state; Exact LLP 0192's zero-code rule also remains open because the dead
-introspection implementation is still reachable in the shared signal module.
-The next work is a development-only introspection module boundary and
-lazy/compact hidden-view AOT registration. This is diagnostic evidence only;
+remained 226,540 bytes above the frozen 1,394,100 limit. Exact `8c150d2f…`
+then moved the full graph/cause/churn implementation behind the Contract Vite
+production boundary. The release fixture requires zero rendered bytes for the
+full implementation and its tree-shaken stub, plus absence of the causal
+carrier and registration symbols; full development introspection remains
+green. The same external quick probe reaches 1,608,104 warm bytes, another
+12,536-byte reduction, while preserving 6/8 update fan-out/patches. LLP 0192's
+zero-code invariant is now closed, but the memory cell remains 214,004 bytes
+above threshold. The retained snapshot attributes the rest mainly to V8 code
+and eager compiled view/host-model state, so the next work is lazy/compact
+hidden-view AOT registration. This is diagnostic evidence only;
 no threshold or claim is promoted, and a new Exact release plus full
 calibration/holdout reruns remain required.)
 **Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
