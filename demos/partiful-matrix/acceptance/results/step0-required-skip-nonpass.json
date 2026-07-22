@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "faddb87bc23e5dc12d67520724d43d796d0e882c",
-    "exact": null
+    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "exact": "1faa457ab18da1a3a4680b820d5b13b1507e8233"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -10,6 +10,9 @@
     "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
+    "browser": "chrome",
+    "browserBinary": "/definitely/not/chrome",
+    "browserVersion": null,
     "chrome": "/definitely/not/chrome",
     "chromeVersion": null,
     "cpu": "Apple M5 Max",
@@ -150,7 +153,7 @@
     "vanilla": {
       "manifestSha256": "bed549f8ad299a250857339982452a8599188848dfe27aa456c5f4d913841c05",
       "lockPath": "bun.lock",
-      "lockSha256": "24ac6116f04740e816ec3ae8804c5f6dc255cdfbed408bcc8166b7f94869f9cc",
+      "lockSha256": "1fc33a1ae5f3c6af9b728498d63902dd79de1a03eef7bb5980b69f31d121bf5c",
       "dependencies": {
         "vite": "^7.0.0"
       },
@@ -180,20 +183,24 @@
       "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
     },
     {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
-      "sha256": "eadb57a9b2d2456024b98ac6f46d8b93dc6d20e39198d92d17c042b0c7941431"
+      "sha256": "c7a5ef21c226d8a1560528dc9521aad295fc957a154c6c2f8dbb6627ef249e48"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/provider.ts",
-      "sha256": "f01bb9da9e5ad1430cd5ffe55107c4f9002cc4c111bd92b493b97225c81abd88"
+      "sha256": "e0e94dd80a33ebe8237eec017cd5e9116d90ded22e3b96021f46655c8654538e"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
+      "sha256": "86e11bbf62e0b719be22fc1bebd1a7fa4625944bdf4f2db0bdfb35fd6c36f935"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -201,11 +208,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
-      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee"
+      "sha256": "b87985b670a7a8a749cafee02740ad4de85534667edbdf3ee5c0d8b23d74763b"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363"
+      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -213,14 +220,14 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/provider.js",
-      "sha256": "890b11e61b09d3ed37181b8376a7915b5cbf40cd7c40f3c22a12618c11622b0f"
+      "sha256": "8d63f7db82f5a4953699413beddf6213d0292447b9177f7664622a88aa225b67"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/lifecycle.js",
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "df8ca05e3413fb48dfd73e2e028f0c4f0bbc1a53baec9a8f07ae55411e814fdd",
+  "testInventorySha256": "a5558ac10aad4de5eac4cac150413824ac5bea68c0a9f33296e9b4dc26dcb966",
   "title": "partiful matrix / twelve browser cells",
   "passed": 0,
   "total": 0,
@@ -246,7 +253,7 @@
       "--backend",
       "snapback",
       "--receipt",
-      "/private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-58037"
+      "/Users/ccheever/projects/snapback-llp0063-phase4-ui-codex/demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json.child-36705"
     ],
     "exitStatus": 1,
     "signal": null
@@ -258,7 +265,7 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "26e178696024787b703f5d8ef8a9a082e9cf76a13b7b3ade78a9f1ab8667f9ae"
+      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
     },
     {
       "path": "demos/_kit/harness.mjs",

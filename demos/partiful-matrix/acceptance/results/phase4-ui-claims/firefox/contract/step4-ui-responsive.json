@@ -1,7 +1,7 @@
 {
   "revision": {
-    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
-    "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
+    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
@@ -183,8 +183,12 @@
       "sha256": "92cee7b43b9a5f8d1c3db3f1919f370d47b62dc07e33e4dd17500b24aaf784eb"
     },
     {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "0dc0e8989a21c57274a0e7059f82aed04bce326fc740f9fac78d2cd806edf5f7"
+    },
+    {
       "path": "demos/partiful-matrix/tests/acceptance/browser-matrix.mjs",
-      "sha256": "7023c3ccd52be0db2f24e46811ddc10ffd910ebaeea9fb917424552703036303"
+      "sha256": "eca978ad3a8b27ae10afeb289f717ffcef7364d0f31f7da9b6c9f7cda8cb7fed"
     },
     {
       "path": "demos/partiful-matrix/surfaces/react/src/App.tsx",
@@ -208,7 +212,7 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/event.contract",
-      "sha256": "62b8182caf18d892b3ed2beaddf935e819c5d701cd97144fed1a3e374a063f4f"
+      "sha256": "e44923b80e1a7e2e6ae5508166bc2de0e30986908dd02c54f1cd8c33a0f28e1d"
     },
     {
       "path": "demos/partiful-matrix/surfaces/vanilla/src/main.js",
@@ -223,7 +227,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "2ff2ef558fa1b7dec7949d6773b6c3ef1b1d98efc65ea3083685460e83a97e5f",
+  "testInventorySha256": "a5558ac10aad4de5eac4cac150413824ac5bea68c0a9f33296e9b4dc26dcb966",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -246,16 +250,14 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       },
       "convex": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       }
     }
   },
@@ -299,7 +301,7 @@
               }
             ],
             "count": 3,
-            "identity": "819f01ec-a80e-431e-a970-8286a5719a1a",
+            "identity": "ddfe2574-5592-4941-b80b-3556462a3f56",
             "path": "/",
             "xs": [
               54
@@ -331,7 +333,7 @@
               }
             ],
             "count": 3,
-            "identity": "819f01ec-a80e-431e-a970-8286a5719a1a",
+            "identity": "ddfe2574-5592-4941-b80b-3556462a3f56",
             "path": "/",
             "xs": [
               54,
@@ -364,7 +366,7 @@
               }
             ],
             "count": 3,
-            "identity": "819f01ec-a80e-431e-a970-8286a5719a1a",
+            "identity": "ddfe2574-5592-4941-b80b-3556462a3f56",
             "path": "/",
             "xs": [
               54,

@@ -1,10 +1,10 @@
 {
   "$schema": "partitime-visual-baseline-index/v1",
-  "generatedAt": "2026-07-22T08:22:36.125Z",
+  "generatedAt": "2026-07-22T09:11:02.511Z",
   "specVersion": "partitime.visual.v1",
   "revisions": {
-    "snapback": "ccf07ff4c5c0938ed8c31955745fb01802edabc8",
-    "exact": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
+    "snapback": "57ce495bdeae2b248dbdee08fc66eba56e9b8ef1",
+    "exact": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "matrix": {
     "arms": [
@@ -67,7 +67,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-light-compact.json",
-      "receiptSha256": "5c3d234fe7ba2b1963f36a58ff51eeaad431e35f8f91e654a57483e360dbf317"
+      "receiptSha256": "08bec62bf2d1ae5178bec8cd15d613e50ef4605ff7a4cc1b6788a98c117549d3"
     },
     {
       "arm": "react",
@@ -76,7 +76,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-light-regular.json",
-      "receiptSha256": "14d8fd9fad6ebc53ad98228ad3810766f3eb68d2bf65a5d72f5be76f2e857a33"
+      "receiptSha256": "9ca2f3b6878b80477162c1b13de12676ee99aabcfe2a0a5b4a4941652c218cec"
     },
     {
       "arm": "react",
@@ -85,7 +85,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-light-expanded.json",
-      "receiptSha256": "053feb4934394ac3c8ebfda13db816d612f9211d82849893c0b849c9fbbb33a8"
+      "receiptSha256": "c04caac9e3b7645dbee03191fb01b650f7cfb5925edd40105d2af2fa78e9e519"
     },
     {
       "arm": "react",
@@ -94,7 +94,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-dark-compact.json",
-      "receiptSha256": "57d4bfde58cf469b1e5a6e53f48418ce969a3e5eb73768f59c55a6a3e2f91dda"
+      "receiptSha256": "08dcb060e2a9ff97866b07c87709156ee9b5d5ceb107488a615fdc7e28958530"
     },
     {
       "arm": "react",
@@ -103,7 +103,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-dark-regular.json",
-      "receiptSha256": "c27b438082fdb52ba4a5dd914cc4bf6b3191a8ebc729b44648666fdcd81f430a"
+      "receiptSha256": "3f8741af2510f48f3475f78cc66edafa0a47ce6e34a7f52612cc9446aaf5c619"
     },
     {
       "arm": "react",
@@ -112,7 +112,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/react-dark-expanded.json",
-      "receiptSha256": "2e0a7f0eb628ff569a607b8de2ebd6a984115ab37400cc11b1af3d589905dc1f"
+      "receiptSha256": "396bd5457b5ed41a2f4b866cc703d499174dd1908f7336c82cdb11513b5ced9c"
     },
     {
       "arm": "contract",
@@ -121,7 +121,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-light-compact.json",
-      "receiptSha256": "bf64297a321ae14faf0dcdafb066ca751bdd01599ca6463fb59e525905456aa2"
+      "receiptSha256": "4f456cfc31519c91142dc1f6942dfa38e6d8776ca08d61567802a222dc63fd44"
     },
     {
       "arm": "contract",
@@ -130,7 +130,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-light-regular.json",
-      "receiptSha256": "b8d061b4dbecb85b4df2a603ce5caefc1590b4bfda91f2aa6f2f16577862d7c8"
+      "receiptSha256": "d0a5b186b200d7711a6e4ca0719a7555a2e28111a3c6bf05aee83a826aa606df"
     },
     {
       "arm": "contract",
@@ -139,7 +139,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-light-expanded.json",
-      "receiptSha256": "6da1c25a07583b8ddfa9243e44ce6ce74547d9cfe8f32a78e791eee8ba44091d"
+      "receiptSha256": "57ad968e6dcdfef06ff6d866bbced489b9525d569dfc71317d0a9f8a8ebebbee"
     },
     {
       "arm": "contract",
@@ -148,7 +148,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-dark-compact.json",
-      "receiptSha256": "bc78d492282cee47ac96d051955e0a0123881703bec80b984cfa477a318e6017"
+      "receiptSha256": "0dbe501988c53b5b7393b744e11dfa232aa3a14a2eeca847d2b3f90cc9b78235"
     },
     {
       "arm": "contract",
@@ -157,7 +157,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-dark-regular.json",
-      "receiptSha256": "068333f5516f3801947b50e47d7cdcb5ea1671de96f6368626367d7e250017e9"
+      "receiptSha256": "098002cd52bd007a2750ee5198e6c0c8080a2020130b06fb6a45d0ef350e5281"
     },
     {
       "arm": "contract",
@@ -166,7 +166,7 @@
       "ok": true,
       "exitCode": 0,
       "receiptPath": "demos/partiful-matrix/acceptance/results/phase4-visual-baselines/contract-dark-expanded.json",
-      "receiptSha256": "390c989515f37dad0f6e266bf8a879295e2684306ced35cb77eed196ddfae8e8"
+      "receiptSha256": "99e0bd157ea32acbf4d32dfdb61f6faebff33eddca240572d009b48603b6888c"
     }
   ],
   "artifacts": [
@@ -287,8 +287,8 @@
       "viewport": "compact",
       "specVersion": "partitime.visual.v1",
       "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/create-event-form-validation-error.png",
-      "sha256": "53f5e3faa54491e6dfd7d09f0579e5a821c17b8f7d5771f8d674d36df244f76b",
-      "bytes": 47799,
+      "sha256": "4a6a66aa5356c3a54196e71658cf7988053b96ebfbf8beea102f9880d11a6cab",
+      "bytes": 47823,
       "approval": "pending-human-review"
     },
     {
@@ -298,8 +298,8 @@
       "viewport": "compact",
       "specVersion": "partitime.visual.v1",
       "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/options-menu-open.png",
-      "sha256": "47a9e3d9875569e9df8d74eec08bd911cf6101f4786de8537ebfaa3f7d6ee5a2",
-      "bytes": 60839,
+      "sha256": "1366dbd85cde821a03e3135beb7b21cc8aadfd14a68006a109c3451ec8497741",
+      "bytes": 60786,
       "approval": "pending-human-review"
     },
     {
@@ -309,8 +309,8 @@
       "viewport": "compact",
       "specVersion": "partitime.visual.v1",
       "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/light/compact/rsvp-confirm-dialog-open.png",
-      "sha256": "66091025a86f0ebd8a58c2400eca277888cb2eab494729a7bd9986abe965a3e8",
-      "bytes": 42759,
+      "sha256": "3fe6090fbfa0312d1daaf3fb2ccc14a3f437f537213b0050a3752e1a31a25d9d",
+      "bytes": 42756,
       "approval": "pending-human-review"
     },
     {
@@ -716,8 +716,8 @@
       "viewport": "compact",
       "specVersion": "partitime.visual.v1",
       "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/react/dark/compact/create-event-form-validation-error.png",
-      "sha256": "9bc889e5fc6f2f587588a9848beb1f9c54580b74ad2f9c2070808e24ddfb5206",
-      "bytes": 45376,
+      "sha256": "6eeaf2e55875f612304bee7992605af6cde18bf3b8be84178bb9ab8e4b5970cf",
+      "bytes": 45383,
       "approval": "pending-human-review"
     },
     {
@@ -1134,8 +1134,8 @@
       "viewport": "compact",
       "specVersion": "partitime.visual.v1",
       "path": "demos/partiful-matrix/acceptance/visual-baselines/partitime.visual.v1/contract/light/compact/create-event-form-default.png",
-      "sha256": "b53ea704cab710ab368f184b40fa48a00afb6c1b1926ce9d8ddf857738400a5b",
-      "bytes": 32125,
+      "sha256": "1752b8ac098acb65c45ccc2cbedd5a4252dbbd8f6cd89a0c75da3abe13c29ac8",
+      "bytes": 32126,
       "approval": "pending-human-review"
     },
     {

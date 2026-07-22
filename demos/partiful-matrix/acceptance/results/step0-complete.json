@@ -5,7 +5,7 @@
   "outcome": "pass",
   "manifestId": "partitime-cumulative-gates-v1",
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
-  "manifestSemanticSha256": "41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7",
+  "manifestSemanticSha256": "b459217907cbc2a1fb4f42c12bad959cdc98285543ba8e55cf6df2fb9afe6d0e",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "prerequisiteCount": 18,
@@ -63,7 +63,7 @@
       "witnessClass": "harness-integrity",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-required-skip-nonpass.json",
-        "sha256": "01c56243799ff6c5d56531dc2c97f0b910644722a484e24116741e6eea557c37"
+        "sha256": "de7a6fbd9e815850f6d441cb67a85134930e97b7c748660e8c8690206952f272"
       }
     },
     {
@@ -71,7 +71,7 @@
       "witnessClass": "rendering",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+        "sha256": "27994eefae570fe00b896ed64c47d07acaf0a0c06bf65ddf33e22fb38c0eeb03"
       }
     },
     {
@@ -79,7 +79,7 @@
       "witnessClass": "mutation-convergence",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+        "sha256": "27994eefae570fe00b896ed64c47d07acaf0a0c06bf65ddf33e22fb38c0eeb03"
       }
     },
     {
@@ -87,7 +87,7 @@
       "witnessClass": "transport-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+        "sha256": "27994eefae570fe00b896ed64c47d07acaf0a0c06bf65ddf33e22fb38c0eeb03"
       }
     },
     {
@@ -103,7 +103,7 @@
       "witnessClass": "package-provenance",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-        "sha256": "0a271fbba9b918870b0058dd9ec2bf22561387f2a74cd3ceccd93dd497c63b3d"
+        "sha256": "27994eefae570fe00b896ed64c47d07acaf0a0c06bf65ddf33e22fb38c0eeb03"
       }
     },
     {
@@ -135,7 +135,7 @@
       "witnessClass": "cross-repository-lock",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-        "sha256": "01fab65c8220cd8862dd022a8cd574833070c1776cda1003a823fffb7d7d1ac0"
+        "sha256": "69627518fa20cfeb26a1738776cbfd8e42b4d0c5ce48e1ec717b1099d2b83bf5"
       }
     },
     {
@@ -151,7 +151,7 @@
       "witnessClass": "cost-attribution",
       "artifact": {
         "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-        "sha256": "459e29b758d62d0f7faa44c54a76c7caa1e879f081d009626f19e77ef6aebeb4"
+        "sha256": "e884348d00920c703b02a9eaa004bb1a2ea35e1fe973dcf165674b1ee739b39f"
       }
     }
   ],
@@ -169,8 +169,8 @@
   ],
   "sharedManifestContract": {
     "path": "demos/partiful-matrix/acceptance/results/step0-shared-manifest-contract.json",
-    "sha256": "01fab65c8220cd8862dd022a8cd574833070c1776cda1003a823fffb7d7d1ac0",
-    "exactRevision": "8b1c24e9cbb5bcc596daa412c79bac2d927c5a3f"
+    "sha256": "69627518fa20cfeb26a1738776cbfd8e42b4d0c5ce48e1ec717b1099d2b83bf5",
+    "exactRevision": "6f96aaa7fb15605c1d63f2abaf45f64bebae12e1"
   },
   "inputs": {
     "semantics": {
@@ -179,7 +179,7 @@
     },
     "generator": {
       "path": "demos/partiful-matrix/tests/acceptance/finalize-step0.mjs",
-      "sha256": "74fec8b1cdcba1036b759957f20f713930b4c7573299f0152ab0c4e89a931189"
+      "sha256": "850a72311dfa50445007e3ee2e4ec042a4c0a139422a0ef783007f722d365c3e"
     }
   }
 }
