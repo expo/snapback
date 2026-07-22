@@ -592,6 +592,33 @@ try {
     }
   }
 
+  // Native process-group exit is the ownership proof. A helper outside that
+  // group may still retain an inherited pipe and delay Node's `close` event;
+  // after group exit, stopChild releases the parent's pipe handle so this
+  // descriptor lifetime cannot turn successful cleanup into a false failure.
+  const inheritedPipeChild = fakeChild(43_100);
+  inheritedPipeChild.stderr = {
+    destroyed: false,
+    destroy() {
+      this.destroyed = true;
+      inheritedPipeChild.emit('close', 0, null);
+    },
+  };
+  await stopChild(inheritedPipeChild, {
+    platform: 'darwin',
+    graceMs: 100,
+    leaderCloseTimeoutMs: 100,
+    signalTree: async () => ({
+      ok: true,
+      mechanism: 'process-group',
+      signal: 'SIGTERM',
+      pid: inheritedPipeChild.pid,
+      delivered: true,
+      exitAttested: true,
+    }),
+  });
+  assert.equal(inheritedPipeChild.stderr.destroyed, true);
+
   // Fake Windows completion: leader close alone must not resolve stop(). The
   // taskkill /T subprocess close with code zero is the tree-completion proof.
   const windowsChild = fakeChild(43101);

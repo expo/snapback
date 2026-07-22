@@ -1125,6 +1125,7 @@ function runIdentity() {
   const testPaths = [
     'demos/_kit/harness.mjs',
     'demos/_kit/chrome-process.mjs',
+    'demos/_kit/server-process.mjs',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
     'demos/partiful-matrix/surfaces/react/src/provider.ts',

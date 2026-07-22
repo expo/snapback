@@ -34,6 +34,20 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 OQ9 executable-claim checkpoint):** 2026-07-22 (the six
+shared `STEP4.UI.*` claims are now mandatory in every graduation outcome and
+carry fail-closed responsive, keyboard, focus, reduced-motion, accessibility,
+and visual witnesses. Both React and Contract arms pass all six families in
+desktop Chrome and Firefox. The isolated visual harness captured and
+hash-verified all 156 product-intent cells, but independent human approval is
+still pending; desktop Safari, simulator-reachable iOS Safari, and the
+real-device IME/autofill/focus checklist remain missing. The OQ9 aggregate
+therefore remains red at 0/6 and this amendment does not promote Step 4. A
+reproducible Chrome cleanup false failure was fixed without changing the
+workload or timeout: native group-exit remains mandatory, after which inherited
+parent pipe handles are released. The unchanged remote-backed matrix then
+passed 43/43, and the attribution rerun retained the frozen
+`partitime-thresholds-v1-sha256-343dcc1429e20e07` threshold set.)
 **Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
 (the package root no longer retains the full agent-custody implementation just
 to validate an optional `agentAuthority` constructor value. A package-private
