@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-chrome-find.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_CHROME.FIND",
-  "recordedAt": "2026-07-21T21:19:17.403Z",
+  "recordedAt": "2026-07-22T01:53:51.641Z",
   "repository": {
-    "revision": "d316effc4cc4ee7f837b4845a8ec1e83c10c6d68",
+    "revision": "8a0ac27f2afb2a216540b968ba62208881bf597e",
     "dirty": false
   },
   "claimEligible": true,
@@ -15,7 +15,7 @@
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.129",
+    "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max"
   },
   "artifacts": [
