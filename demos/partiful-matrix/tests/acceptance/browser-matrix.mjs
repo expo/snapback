@@ -20,11 +20,15 @@ const protocol = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'compariso
 const phase4VisualSpec = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'visual-spec.v1.json'), 'utf8'));
 const axeSource = readFileSync(join(repoRoot, 'node_modules', 'axe-core', 'axe.min.js'), 'utf8');
 const chromeBin = process.env.CHROME_BIN || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const geckoDriverBin = process.env.GECKODRIVER_BIN || '/opt/homebrew/bin/geckodriver';
+const firefoxBin = process.env.FIREFOX_BIN || '/Applications/Firefox.app/Contents/MacOS/firefox';
+const safariDriverBin = process.env.SAFARIDRIVER_BIN || '/System/Cryptexes/App/usr/bin/safaridriver';
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
 const sleep = (ms) => new Promise((resolveSleep) => setTimeout(resolveSleep, ms));
 const option = (name) => { const at = process.argv.indexOf(`--${name}`); return at < 0 ? null : process.argv[at + 1]; };
 const selectedArm = option('arm');
 const selectedBackend = option('backend');
+const selectedBrowser = option('browser') ?? 'chrome';
 const receiptFile = option('receipt');
 const productUi = process.argv.includes('--product-ui');
 const phase4Only = process.argv.includes('--phase4-only');
@@ -39,6 +43,9 @@ const phase4ClaimIds = new Set([
   'STEP4.UI.A11Y',
   'STEP4.UI.VISUAL',
 ]);
+if (!['chrome', 'firefox', 'safari'].includes(selectedBrowser)) {
+  throw new Error(`unknown --browser ${selectedBrowser}`);
+}
 if (selectedPhase4Claim && !phase4ClaimIds.has(selectedPhase4Claim)) {
   throw new Error(`unknown --phase4-claim ${selectedPhase4Claim}`);
 }
@@ -72,9 +79,14 @@ const suite = createSuite(suiteTitle, {
 });
 const cleanups = [];
 const phase4A11y = new Map();
-if (!existsSync(chromeBin) || !existsSync(serverBin)) {
+const browserPrerequisites = selectedBrowser === 'chrome'
+  ? [{ prerequisite: 'chrome', path: chromeBin }]
+  : selectedBrowser === 'firefox'
+    ? [{ prerequisite: 'geckodriver', path: geckoDriverBin }, { prerequisite: 'firefox', path: firefoxBin }]
+    : [{ prerequisite: 'safaridriver', path: safariDriverBin }];
+if (browserPrerequisites.some(({ path }) => !existsSync(path)) || !existsSync(serverBin)) {
   const missing = [
-    ...(!existsSync(chromeBin) ? [{ prerequisite: 'chrome', path: chromeBin }] : []),
+    ...browserPrerequisites.filter(({ path }) => !existsSync(path)),
     ...(!existsSync(serverBin) ? [{ prerequisite: 'snapback-server', path: serverBin }] : []),
   ];
   const report = {
@@ -92,7 +104,7 @@ if (!existsSync(chromeBin) || !existsSync(serverBin)) {
     cleanupErrorCount: 0,
   };
   if (receiptFile) writeMachineReport(receiptFile, report);
-  console.error(`SKIP partiful matrix browser — required prerequisites unavailable: ${missing.map(({ prerequisite }) => prerequisite).join(', ')}`);
+  console.error(`SKIP partiful matrix ${selectedBrowser} — required prerequisites unavailable: ${missing.map(({ prerequisite }) => prerequisite).join(', ')}`);
   console.log('\n--- machine-readable report ---');
   console.log(JSON.stringify(report));
   process.exit(1);
@@ -264,9 +276,14 @@ await runAcceptance(suite, async () => {
   const gateway = await startGateway(snapbackUrl);
   const gatewayUrl = gateway.url;
   reportIdentity.backendHealth = gateway.preflight;
-  const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partiful-matrix-' });
-  cleanups.push(() => chrome.stop());
-  const cdp = await connectCdp(chrome.ws);
+  let cdp;
+  if (selectedBrowser === 'chrome') {
+    const chrome = await launchChromeCdp({ chromeBin, userDataPrefix: 'partiful-matrix-' });
+    cleanups.push(() => chrome.stop());
+    cdp = await connectCdp(chrome.ws);
+  } else {
+    cdp = createWebDriverHarness({ browserName: selectedBrowser });
+  }
   cleanups.push(() => cdp.close());
 
   if (productionWeb) {
@@ -1067,8 +1084,9 @@ function runIdentity() {
       }).trim();
     } catch { /* an aggregate Step 0 run will reject a missing counterpart */ }
   }
-  let chromeVersion = null;
-  try { chromeVersion = execFileSync(chromeBin, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
+  const browserBinary = selectedBrowser === 'chrome' ? chromeBin : selectedBrowser === 'firefox' ? firefoxBin : safariDriverBin;
+  let browserVersion = null;
+  try { browserVersion = execFileSync(browserBinary, ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
   let bunVersion = null;
   try { bunVersion = execFileSync('bun', ['--version'], { encoding: 'utf8' }).trim(); } catch { /* receipt records null */ }
   const testPaths = [
@@ -1096,8 +1114,11 @@ function runIdentity() {
       node: process.version,
       bun: bunVersion,
       os: `${platform()}-${release()}-${arch()}`,
-      chrome: chromeBin,
-      chromeVersion,
+      browser: selectedBrowser,
+      browserBinary,
+      browserVersion,
+      chrome: selectedBrowser === 'chrome' ? chromeBin : null,
+      chromeVersion: selectedBrowser === 'chrome' ? browserVersion : null,
       cpu: cpus()[0]?.model ?? null,
       logicalCpus: cpus().length,
       totalMemoryBytes: totalmem(),
@@ -1190,4 +1211,202 @@ async function connectCdp(url) {
       transportEvidence: () => evalRaw(`(async()=>{const ready=await window.partifulMatrixReady;return ready.transportEvidence?.()??ready.provider?.transportEvidence?.()??[];})()`),
     };
   } };
+}
+
+function createWebDriverHarness({ browserName }) {
+  const pages = new Set();
+  let closing = false;
+  return {
+    async newPage() {
+      if (closing) throw new Error(`${browserName} WebDriver harness is closing`);
+      const driver = await launchWebDriverServer(browserName);
+      let sessionId = null;
+      try {
+        const reducedMotion = browserName === 'firefox' && selectedPhase4Claim === 'STEP4.UI.REDUCED-MOTION';
+        const needsBidiViewport = browserName === 'firefox' && ['STEP4.UI.RESPONSIVE', 'STEP4.UI.VISUAL'].includes(selectedPhase4Claim);
+        const capabilities = browserName === 'firefox'
+          ? {
+              browserName: 'firefox',
+              ...(needsBidiViewport ? { webSocketUrl: true } : {}),
+              'moz:firefoxOptions': {
+                args: ['-headless'],
+                prefs: { 'ui.prefersReducedMotion': reducedMotion ? 1 : 0 },
+              },
+            }
+          : { browserName: 'safari' };
+        const created = await webdriverRequest(driver.url, '/session', {
+          method: 'POST',
+          body: { capabilities: { alwaysMatch: capabilities } },
+          timeoutMs: 45_000,
+        });
+        sessionId = created.sessionId;
+        if (!sessionId) throw new Error(`${browserName} WebDriver omitted sessionId`);
+        const base = `/session/${sessionId}`;
+        const bidi = typeof created.capabilities?.webSocketUrl === 'string'
+          ? await connectBidi(created.capabilities.webSocketUrl)
+          : null;
+        const bidiTree = bidi ? await bidi.send('browsingContext.getTree', { maxDepth: 0 }) : null;
+        const bidiContext = bidiTree?.contexts?.[0]?.context ?? null;
+        await webdriverRequest(driver.url, `${base}/timeouts`, {
+          method: 'POST',
+          body: { script: 30_000, pageLoad: 30_000, implicit: 0 },
+        });
+        let closed = false;
+        const evalRaw = async (expression) => {
+          const envelope = await webdriverRequest(driver.url, `${base}/execute/async`, {
+            method: 'POST',
+            body: {
+              script: `const expression=arguments[0],done=arguments[arguments.length-1];Promise.resolve().then(()=>eval(expression)).then(value=>done({ok:true,value}),error=>done({ok:false,error:{message:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:null}}));`,
+              args: [expression],
+            },
+            timeoutMs: 35_000,
+          });
+          if (!envelope?.ok) throw new Error(`${browserName} script failed: ${envelope?.error?.message ?? 'unknown error'}${envelope?.error?.stack ? `\n${envelope.error.stack}` : ''}`);
+          return envelope.value;
+        };
+        const selector = (id) => `[data-testid="${id}"]`;
+        const close = async () => {
+          if (closed) return;
+          closed = true;
+          pages.delete(page);
+          let firstError = null;
+          try { bidi?.close(); }
+          catch (error) { firstError = error; }
+          try { await webdriverRequest(driver.url, base, { method: 'DELETE', timeoutMs: 10_000 }); }
+          catch (error) { firstError = error; }
+          try { await driver.stop(); }
+          catch (error) { firstError ??= error; }
+          if (firstError) throw firstError;
+        };
+        const page = {
+          navigate: (pageUrl) => webdriverRequest(driver.url, `${base}/url`, { method: 'POST', body: { url: pageUrl }, timeoutMs: 35_000 }),
+          close,
+          waitForNavigation: () => sleep(50),
+          setScriptExecutionDisabled: async (value) => {
+            if (value) throw new Error(`${browserName} WebDriver does not expose script-disable emulation`);
+          },
+          setViewport: (width, height) => bidi && bidiContext
+            ? bidi.send('browsingContext.setViewport', { context: bidiContext, viewport: { width, height }, devicePixelRatio: 1 })
+            : webdriverRequest(driver.url, `${base}/window/rect`, { method: 'POST', body: { width, height } }),
+          screenshot: async () => webdriverRequest(driver.url, `${base}/screenshot`, { method: 'GET' }),
+          emulateReducedMotion: async (enabled) => {
+            if (!enabled) return;
+            const matches = await evalRaw(`matchMedia('(prefers-reduced-motion: reduce)').matches`);
+            if (!matches) throw new Error(`${browserName} WebDriver session cannot witness prefers-reduced-motion`);
+          },
+          key: async (key) => {
+            const keys = { Enter: '\uE007', Space: ' ', Tab: '\uE004', Escape: '\uE00C', ArrowLeft: '\uE012', ArrowUp: '\uE013', ArrowRight: '\uE014', ArrowDown: '\uE015', Home: '\uE011', End: '\uE010' };
+            const value = keys[key] ?? key;
+            await webdriverRequest(driver.url, `${base}/actions`, {
+              method: 'POST',
+              body: { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value }, { type: 'keyUp', value }] }] },
+            });
+          },
+          insertText: async (text) => {
+            const active = await webdriverRequest(driver.url, `${base}/element/active`, { method: 'GET' });
+            const elementId = active?.['element-6066-11e4-a52e-4f735466cecf'];
+            if (!elementId) throw new Error(`${browserName} WebDriver omitted active element id`);
+            await webdriverRequest(driver.url, `${base}/element/${encodeURIComponent(elementId)}/value`, {
+              method: 'POST',
+              body: { text, value: [...text] },
+            });
+          },
+          eval: evalRaw,
+          focus: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!(el instanceof HTMLElement))throw new Error('missing focus target ${id}');el.focus();return el===document.activeElement})()`),
+          active: () => evalRaw(`(()=>{const el=document.activeElement;return {tag:el?.tagName??null,testId:el?.getAttribute('data-testid')??null,role:el?.getAttribute('role')??null,text:el?.textContent?.trim()??null,insideMenu:!!el?.closest('[role="menu"]'),insideDialog:!!el?.closest('[role="dialog"]')}})()`),
+          click: (id) => evalRaw(`(()=>{const el=document.querySelector('${selector(id)}');if(!el)throw new Error('missing ${id}');el.click();return true})()`),
+          text: (id) => evalRaw(`document.querySelector('${selector(id)}')?.textContent?.trim()??null`),
+          pollText: (id, pattern, timeout) => evalRaw(`(async()=>{const d=Date.now()+${timeout};let v=null;while(Date.now()<d){v=document.querySelector('${selector(id)}')?.textContent?.trim()??null;if(v&&new RegExp(${JSON.stringify(pattern)},'i').test(v))return v;await new Promise(r=>setTimeout(r,100));}return v})()`),
+          transportEvidence: () => evalRaw(`(async()=>{const ready=await window.partifulMatrixReady;return ready.transportEvidence?.()??ready.provider?.transportEvidence?.()??[];})()`),
+        };
+        pages.add(page);
+        return page;
+      } catch (error) {
+        try {
+          if (sessionId) await webdriverRequest(driver.url, `/session/${sessionId}`, { method: 'DELETE', timeoutMs: 5_000 });
+        } catch { /* retain primary failure */ }
+        try { await driver.stop(); } catch { /* retain primary failure */ }
+        throw new Error(`${error.message}${driver.log() ? `\n${driver.log().slice(-4_000)}` : ''}`);
+      }
+    },
+    async close() {
+      closing = true;
+      const failures = [];
+      for (const page of [...pages]) {
+        try { await page.close(); } catch (error) { failures.push(error); }
+      }
+      if (failures.length === 1) throw failures[0];
+      if (failures.length > 1) throw new AggregateError(failures, `${browserName} WebDriver cleanup failed`);
+    },
+  };
+}
+
+async function launchWebDriverServer(browserName) {
+  const port = await freePort();
+  const binary = browserName === 'firefox' ? geckoDriverBin : safariDriverBin;
+  const args = browserName === 'firefox' ? ['--host', '127.0.0.1', '--port', String(port)] : ['-p', String(port)];
+  let log = '';
+  const child = spawn(binary, args, { cwd: repoRoot, detached: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  child.stdout.on('data', (chunk) => { log = `${log}${chunk}`.slice(-16_000); });
+  child.stderr.on('data', (chunk) => { log = `${log}${chunk}`.slice(-16_000); });
+  const url = `http://127.0.0.1:${port}`;
+  try {
+    await waitUrl(`${url}/status`, child, `${browserName} WebDriver`, 15_000);
+  } catch (error) {
+    try { await stopChild(child, `${browserName} WebDriver startup`); } catch { /* retain primary */ }
+    throw new Error(`${error.message}${log ? `\n${log}` : ''}`);
+  }
+  return { url, log: () => log, stop: () => stopChild(child, `${browserName} WebDriver`) };
+}
+
+async function webdriverRequest(origin, path, { method = 'GET', body = null, timeoutMs = 30_000 } = {}) {
+  const response = await fetch(`${origin}${path}`, {
+    method,
+    ...(body === null ? {} : { headers: { 'content-type': 'application/json; charset=utf-8' }, body: JSON.stringify(body) }),
+    signal: AbortSignal.timeout(timeoutMs),
+  });
+  const payload = await response.json().catch(() => null);
+  const value = payload?.value;
+  if (!response.ok || value?.error) {
+    throw new Error(`WebDriver ${method} ${path} failed: ${value?.error ?? response.status} — ${value?.message ?? 'no diagnostic'}`);
+  }
+  return value;
+}
+
+async function connectBidi(url) {
+  const socket = new WebSocket(url);
+  const pending = new Map();
+  let nextId = 1;
+  const settle = (id) => {
+    const request = pending.get(id);
+    if (request) clearTimeout(request.timer);
+    pending.delete(id);
+    return request;
+  };
+  socket.addEventListener('message', async (event) => {
+    const message = JSON.parse(typeof event.data === 'string' ? event.data : await event.data.text());
+    if (!message.id || !pending.has(message.id)) return;
+    const request = settle(message.id);
+    if (message.type === 'error') request.reject(new Error(`WebDriver BiDi ${request.method} failed: ${message.error} — ${message.message}`));
+    else request.resolve(message.result ?? {});
+  });
+  await new Promise((resolveOpen, reject) => {
+    socket.addEventListener('open', resolveOpen, { once: true });
+    socket.addEventListener('error', () => reject(new Error('WebDriver BiDi connection failed')), { once: true });
+  });
+  return {
+    send(method, params = {}) {
+      return new Promise((resolveSend, reject) => {
+        const id = nextId++;
+        const timer = setTimeout(() => {
+          settle(id);
+          reject(new Error(`WebDriver BiDi timeout: ${method}`));
+        }, 30_000);
+        pending.set(id, { method, resolve: resolveSend, reject, timer });
+        try { socket.send(JSON.stringify({ id, method, params })); }
+        catch (error) { settle(id); reject(error); }
+      });
+    },
+    close() { socket.close(); },
+  };
 }
