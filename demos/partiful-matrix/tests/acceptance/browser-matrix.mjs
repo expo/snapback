@@ -779,6 +779,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.KEYBOARD', `${label} completes the product flow with real key events`, async () => {
+    const reusableKeyboardPage = selectedBrowser === 'safari' || isIosSafari ? page : null;
     const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('create-event');
       await taskPage.key('Enter');
@@ -789,11 +790,15 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await tabTo(taskPage, (state) => state.testId === 'event-location');
       await taskPage.insertText('Dolores Park');
       await tabTo(taskPage, (state) => state.testId === 'create-event-submit');
+      const beforeSubmit = await taskPage.eval(`(()=>({activeTestId:document.activeElement?.getAttribute('data-testid')??null,title:document.querySelector('[data-testid="event-title"]')?.value??null,location:document.querySelector('[data-testid="event-location"]')?.value??null,description:document.querySelector('[data-testid="event-description"]')?.value??null}))()`);
       await taskPage.key('Enter');
       const outcome = await taskPage.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
-      if (!outcome?.includes('Keyboard Picnic')) throw new Error(`keyboard create flow did not land its outcome: ${outcome}`);
+      if (!outcome?.includes('Keyboard Picnic')) {
+        const afterSubmit = await taskPage.eval(`(()=>({activeTestId:document.activeElement?.getAttribute('data-testid')??null,path:location.pathname,summary:document.querySelector('[data-testid="form-error-summary"]')?.textContent?.trim()??null,titleError:document.querySelector('[data-testid="event-title-error"]')?.textContent?.trim()??null,locationError:document.querySelector('[data-testid="event-location-error"]')?.textContent?.trim()??null}))()`);
+        throw new Error(`keyboard create flow did not land its outcome: ${JSON.stringify({ beforeSubmit, afterSubmit, outcome })}`);
+      }
       return 'Keyboard Picnic';
-    });
+    }, reusableKeyboardPage);
 
     const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('open-event_sunset');
@@ -811,7 +816,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.key('Escape');
       await assertFocused(taskPage, 'event-options-trigger', 'menu Escape');
       return { first, second };
-    });
+    }, reusableKeyboardPage);
 
     const rsvp = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
       await taskPage.focus('rsvp-going');
@@ -819,7 +824,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       const outcome = await taskPage.pollText('guest-user_eve', 'Going', 5_000);
       if (!outcome?.includes('Going')) throw new Error(`Space did not activate RSVP: ${outcome}`);
       return outcome;
-    });
+    }, reusableKeyboardPage);
 
     const guest = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
       await taskPage.focus('guest-list-trigger');
@@ -838,7 +843,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await taskPage.key('Escape');
       await assertFocused(taskPage, 'guest-list-trigger', 'guest sheet Escape');
       return { first, second, firstDescendant, secondDescendant };
-    });
+    }, reusableKeyboardPage);
 
     const wall = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/events/event_sunset/', async (taskPage) => {
       await taskPage.focus('wall-message');
@@ -849,7 +854,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       const posted = await taskPage.pollText('wall', 'Keyboard picnic', 5_000);
       if (!pending?.seen || !pending.text?.includes('Sending') || !posted?.includes('Keyboard picnic')) throw new Error(`wall submit lacks keyboard-visible pending and settled outcomes: ${JSON.stringify({ pending, posted })}`);
       return { pending, posted: 'Keyboard picnic' };
-    });
+    }, reusableKeyboardPage);
 
     return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, created, menu, rsvp, guest, wall };
   });
@@ -987,14 +992,14 @@ async function phase4Claim(activeSuite, claimId, title, check) {
   return activeSuite.check(`${claimId} ${title}`, check);
 }
 
-async function withPhase4KeyboardPage(cdp, cell, baseUrl, pathname, run) {
-  const taskPage = await cdp.newPage();
+async function withPhase4KeyboardPage(cdp, cell, baseUrl, pathname, run, reusablePage = null) {
+  const taskPage = reusablePage ?? await cdp.newPage();
   try {
     if (!isIosSafari) await taskPage.setViewport(1280, 800);
     await loadPhase4Route(taskPage, cell, baseUrl, pathname, { user: 'eve' });
     return await run(taskPage);
   } finally {
-    await taskPage.close();
+    if (!reusablePage) await taskPage.close();
   }
 }
 
@@ -1097,14 +1102,25 @@ function runIdentity() {
   const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
   const simulatorIdentity = () => {
     if (!isIosSafari) return null;
+    const accessibility = Object.fromEntries([
+      ['fullKeyboardAccessEnabled', 'FullKeyboardAccessEnabled'],
+      ['reduceMotionEnabled', 'ReduceMotionEnabled'],
+    ].map(([field, preference]) => {
+      try {
+        const value = execFileSync('xcrun', ['simctl', 'spawn', iosSimulatorUdid, 'defaults', 'read', 'com.apple.Accessibility', preference], { encoding: 'utf8' }).trim();
+        return [field, value === '1'];
+      } catch {
+        return [field, null];
+      }
+    }));
     try {
       const inventory = JSON.parse(execFileSync('xcrun', ['simctl', 'list', 'devices', '--json'], { encoding: 'utf8' }));
       for (const [runtime, devices] of Object.entries(inventory.devices ?? {})) {
         const device = devices.find(({ udid }) => udid.toLowerCase() === iosSimulatorUdid.toLowerCase());
-        if (device) return { udid: device.udid, name: device.name, state: device.state, runtime };
+        if (device) return { udid: device.udid, name: device.name, state: device.state, runtime, accessibility };
       }
     } catch { /* receipt records an unresolved explicit identity */ }
-    return { udid: iosSimulatorUdid, name: null, state: null, runtime: null };
+    return { udid: iosSimulatorUdid, name: null, state: null, runtime: null, accessibility };
   };
   const packageRecord = (arm, lockPath = join(demoRoot, 'surfaces', arm, 'bun.lock')) => {
     const root = join(demoRoot, 'surfaces', arm);
@@ -1150,6 +1166,7 @@ function runIdentity() {
     'demos/_kit/chrome-process.mjs',
     'demos/_kit/server-process.mjs',
     'demos/partiful-matrix/tests/acceptance/browser-matrix.mjs',
+    'demos/partiful-matrix/tests/acceptance/step4-ui-claims.mjs',
     'demos/partiful-matrix/tests/acceptance/webdriver-capabilities.mjs',
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
     'demos/partiful-matrix/surfaces/react/src/provider.ts',

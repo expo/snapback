@@ -35,41 +35,54 @@ if (!['chrome', 'firefox', 'safari', 'ios-safari'].includes(selectedBrowser)) th
 if (selectedBrowser === 'ios-safari' && !iosSimulatorUdid) throw new Error('--browser ios-safari requires --ios-simulator-udid or PARTITIME_IOS_SIMULATOR_UDID');
 
 mkdirSync(resultsRoot, { recursive: true });
+const iosSimulatorPreparation = selectedBrowser === 'ios-safari'
+  ? prepareIosSimulatorAccessibility(iosSimulatorUdid)
+  : null;
+let iosSimulatorRestoration = null;
+let iosSimulatorRestored = false;
+process.once('exit', () => {
+  if (iosSimulatorPreparation && !iosSimulatorRestored) restoreIosSimulatorAccessibility(iosSimulatorPreparation);
+});
 const runs = [];
-for (const arm of arms) {
-  for (const claimId of claims) {
-    const receiptPath = join(resultsRoot, arm, `${claimId.toLowerCase().replaceAll('.', '-')}.json`);
-    mkdirSync(dirname(receiptPath), { recursive: true });
-    const execution = spawnSync(process.execPath, [
-      browserHarness,
-      '--product-ui',
-      '--phase4-only',
-      '--phase4-claim', claimId,
-      '--browser', selectedBrowser,
-      '--arm', arm,
-      '--receipt', receiptPath,
-      ...(selectedBrowser === 'ios-safari' ? ['--ios-simulator-udid', iosSimulatorUdid] : []),
-    ], {
-      cwd: repoRoot,
-      env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
-      encoding: 'utf8',
-      maxBuffer: 20 * 1024 * 1024,
-    });
-    let receipt = null;
-    try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
-    const run = {
-      arm,
-      claimId,
-      exitCode: execution.status,
-      receiptPath: receiptPath.slice(repoRoot.length + 1),
-      receiptSha256: receipt ? digest(receiptPath) : null,
-      receipt,
-      ok: execution.status === 0 && receipt?.ok === true && receipt?.passed === 1 && receipt?.total === 1,
-    };
-    runs.push(run);
-    console.log(`  ${run.ok ? '✓' : '✗'} ${arm} ${claimId}`);
-    if (!run.ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
+try {
+  for (const arm of arms) {
+    for (const claimId of claims) {
+      const receiptPath = join(resultsRoot, arm, `${claimId.toLowerCase().replaceAll('.', '-')}.json`);
+      mkdirSync(dirname(receiptPath), { recursive: true });
+      const execution = spawnSync(process.execPath, [
+        browserHarness,
+        '--product-ui',
+        '--phase4-only',
+        '--phase4-claim', claimId,
+        '--browser', selectedBrowser,
+        '--arm', arm,
+        '--receipt', receiptPath,
+        ...(selectedBrowser === 'ios-safari' ? ['--ios-simulator-udid', iosSimulatorUdid] : []),
+      ], {
+        cwd: repoRoot,
+        env: { ...process.env, PARTITIME_EXACT_REVISION: exactRevision },
+        encoding: 'utf8',
+        maxBuffer: 20 * 1024 * 1024,
+      });
+      let receipt = null;
+      try { receipt = JSON.parse(readFileSync(receiptPath, 'utf8')); } catch { /* recorded below */ }
+      const run = {
+        arm,
+        claimId,
+        exitCode: execution.status,
+        receiptPath: receiptPath.slice(repoRoot.length + 1),
+        receiptSha256: receipt ? digest(receiptPath) : null,
+        receipt,
+        ok: execution.status === 0 && receipt?.ok === true && receipt?.passed === 1 && receipt?.total === 1,
+      };
+      runs.push(run);
+      console.log(`  ${run.ok ? '✓' : '✗'} ${arm} ${claimId}`);
+      if (!run.ok) console.error((execution.stderr || execution.stdout || 'child produced no diagnostic output').trim().split('\n').slice(-12).join('\n'));
+    }
   }
+} finally {
+  if (iosSimulatorPreparation) iosSimulatorRestoration = restoreIosSimulatorAccessibility(iosSimulatorPreparation);
+  iosSimulatorRestored = true;
 }
 
 const a11y = compareA11y(runs);
@@ -95,6 +108,9 @@ const report = {
     exact: exactRevision,
   },
   browser: selectedBrowser,
+  iosSimulatorAccessibility: iosSimulatorPreparation
+    ? { preparation: iosSimulatorPreparation.attestation, restoration: iosSimulatorRestoration }
+    : null,
   isolation: `Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ${selectedBrowser} process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.`,
   arms,
   claims,
@@ -143,4 +159,82 @@ function digest(path) {
 function gitRevision(cwd) {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function prepareIosSimulatorAccessibility(udid) {
+  const inventory = JSON.parse(runXcrun(['simctl', 'list', 'devices', '--json']));
+  const device = Object.entries(inventory.devices ?? {}).flatMap(([runtime, devices]) => devices.map((entry) => ({ ...entry, runtime }))).find((entry) => entry.udid.toLowerCase() === udid.toLowerCase());
+  if (!device) throw new Error(`unknown iOS Simulator UDID: ${udid}`);
+  const wasBooted = device.state === 'Booted';
+  if (!wasBooted) {
+    runXcrun(['simctl', 'boot', udid]);
+    runXcrun(['simctl', 'bootstatus', udid, '-b']);
+  }
+  const before = {
+    FullKeyboardAccessEnabled: readSimulatorPreference(udid, 'FullKeyboardAccessEnabled'),
+    ReduceMotionEnabled: readSimulatorPreference(udid, 'ReduceMotionEnabled'),
+  };
+  const changed = Object.entries(before).filter(([, value]) => value !== true).map(([preference]) => preference);
+  for (const preference of changed) writeSimulatorPreference(udid, preference, true);
+  if (changed.length > 0) restartSimulator(udid, 'Booted');
+  const during = {
+    FullKeyboardAccessEnabled: readSimulatorPreference(udid, 'FullKeyboardAccessEnabled'),
+    ReduceMotionEnabled: readSimulatorPreference(udid, 'ReduceMotionEnabled'),
+  };
+  if (Object.values(during).some((value) => value !== true)) throw new Error(`iOS Simulator accessibility preflight failed: ${JSON.stringify({ udid, during })}`);
+  return {
+    udid,
+    before,
+    changed,
+    wasBooted,
+    attestation: {
+      udid,
+      name: device.name,
+      runtime: device.runtime,
+      before,
+      during,
+      changed,
+      policy: 'Full Keyboard Access and Reduce Motion are enabled on the explicit simulator before Safari evidence; prior values and boot state are restored afterward.',
+    },
+  };
+}
+
+function restoreIosSimulatorAccessibility(preparation) {
+  for (const preference of preparation.changed) {
+    const value = preparation.before[preference];
+    if (value === null) runXcrun(['simctl', 'spawn', preparation.udid, 'defaults', 'delete', 'com.apple.Accessibility', preference], { allowFailure: true });
+    else writeSimulatorPreference(preparation.udid, preference, value);
+  }
+  if (preparation.changed.length > 0 && preparation.wasBooted) restartSimulator(preparation.udid, 'Booted');
+  const restored = Object.fromEntries(Object.keys(preparation.before).map((preference) => [preference, readSimulatorPreference(preparation.udid, preference)]));
+  const ok = Object.entries(preparation.before).every(([preference, value]) => restored[preference] === value);
+  if (!ok) throw new Error(`iOS Simulator accessibility restoration failed: ${JSON.stringify({ expected: preparation.before, restored })}`);
+  if (preparation.changed.length > 0 && !preparation.wasBooted) runXcrun(['simctl', 'shutdown', preparation.udid]);
+  return { restored, booted: preparation.wasBooted, ok };
+}
+
+function restartSimulator(udid, state, leaveBooted = true) {
+  if (state === 'Booted') runXcrun(['simctl', 'shutdown', udid]);
+  if (!leaveBooted) return;
+  runXcrun(['simctl', 'boot', udid]);
+  runXcrun(['simctl', 'bootstatus', udid, '-b']);
+}
+
+function readSimulatorPreference(udid, preference) {
+  const result = spawnSync('xcrun', ['simctl', 'spawn', udid, 'defaults', 'read', 'com.apple.Accessibility', preference], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const value = result.stdout.trim();
+  if (value === '1') return true;
+  if (value === '0') return false;
+  throw new Error(`unexpected iOS Simulator preference ${preference}: ${JSON.stringify(value)}`);
+}
+
+function writeSimulatorPreference(udid, preference, value) {
+  runXcrun(['simctl', 'spawn', udid, 'defaults', 'write', 'com.apple.Accessibility', preference, '-bool', value ? 'YES' : 'NO']);
+}
+
+function runXcrun(args, { allowFailure = false } = {}) {
+  const result = spawnSync('xcrun', args, { encoding: 'utf8' });
+  if (result.status !== 0 && !allowFailure) throw new Error(`xcrun ${args.join(' ')} failed: ${(result.stderr || result.stdout).trim()}`);
+  return result.stdout;
 }
