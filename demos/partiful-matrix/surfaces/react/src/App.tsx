@@ -309,7 +309,7 @@ function EventPage({ provider, persona, eventId, onBack }: { provider: MatrixPro
   const [guestSheetOpen, setGuestSheetOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [pendingRsvp, setPendingRsvp] = useState<Exclude<RsvpStatus, 'host'> | null>(null);
-  const [pendingPost, setPendingPost] = useState<string | null>(null);
+  const [pendingPost, setPendingPost] = useState<string | null>(() => new URLSearchParams(location.search).get('uiState') === 'wall-pending' ? 'Visual pending message' : null);
   const optionsMenu = useRef<HTMLDivElement>(null);
   const respond = async (status: Exclude<RsvpStatus, 'host'>) => {
     setBusy(true);

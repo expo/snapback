@@ -69,18 +69,18 @@ component PartifulFeed
         text "SAN FRANCISCO · YOUR WEEK AHEAD" size=10 color=mutedFor(visualVariant)
         match size
           case "expanded"
-            text "Make a plan worth\nleaving the chat for." headingLevel=1 size=66 weight=800 color=textFor(visualVariant) lineHeight=0.9 testId="hero-title"
+            text "Make a plan worth\nleaving the chat for." headingLevel=1 size=66 weight=800 color=textFor(visualVariant) lineHeight=64 testId="hero-title"
           case "regular"
-            text "Make a plan worth leaving the chat for." headingLevel=1 size=48 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+            text "Make a plan worth leaving the chat for." headingLevel=1 size=48 weight=800 color=textFor(visualVariant) lineHeight=52 testId="hero-title"
           else
-            text "Make a plan worth leaving the chat for." headingLevel=1 size=38 weight=800 color=textFor(visualVariant) lineHeight=1 testId="hero-title"
+            text "Make a plan worth leaving the chat for." headingLevel=1 size=38 weight=800 color=textFor(visualVariant) lineHeight=42 testId="hero-title"
         text "Small gatherings, good people, no algorithmic sludge." size=16 color=mutedFor(visualVariant)
         row gap=18 align="center"
           button press=openCreate label="+ Make something happen" testId="create-event" paddingTop=14 paddingBottom=14 paddingLeft=22 paddingRight=22 radius=999 background=textFor(visualVariant)
             text "+ Make something happen" size=14 weight=700 color=backgroundFor(visualVariant)
           ConnectionBadge(value=events.connection)
       when creating
-        stack portalTarget="root" portalLevel=100 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" testId="create-overlay"
+        stack portalTarget="root" portalLevel=100 portalPresentation="sheet" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=100 testId="create-overlay"
           button press=closeCreate label="Close create event" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.55)" borderWidth=0 testId="create-backdrop"
           section role="dialog" label="Create an event" labelledBy="create-title-heading" describedBy="create-description-copy" accessibilityModal=true focusTrap=true focusRestore=true dismiss=closeCreate presence="entered" testId="create-panel" zIndex=1 width="100%" maxWidth=720 padding=34 gap=18 style=surfaceStyle(visualVariant, "panel")
             row align="center"
