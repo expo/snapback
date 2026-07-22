@@ -2,6 +2,8 @@ use listEvents from "./data/provider.generated.ts"
 use createEvent from "./data/provider.generated.ts"
 use fmtWhen from "./helpers.ts"
 use openEvent from "./helpers.ts"
+use openCreateRoute from "./helpers.ts"
+use openFeed from "./helpers.ts"
 use backgroundFor from "./ui.ts"
 use textFor from "./ui.ts"
 use mutedFor from "./ui.ts"
@@ -16,10 +18,11 @@ component PartifulFeed
     userName: string = "Someone"
     backendName: string = "backend"
     initialVariant: string = "warm"
+    initialCreating: boolean = false
 
-  state creating = false
+  state creating = initialCreating
   state visualVariant = initialVariant
-  use createForm = form({ title: "", emoji: "🪩", location: "", description: "" }, { title: value => requiredMessage(value, "Event title"), location: value => requiredMessage(value, "Location") })
+  use createForm = form({ title: "", emoji: "🪩", when: "Next Saturday, 6:00 PM", location: "", description: "" }, { title: value => requiredMessage(value, "Event title"), location: value => requiredMessage(value, "Location") })
 
   query events = listEvents({})
   mutation createMut = createEvent
@@ -27,9 +30,11 @@ component PartifulFeed
 
   action openCreate writes creating
     creating = true
+    openCreateRoute()
   action closeCreate writes creating
     creating = false
     createForm.reset()
+    openFeed()
   action toggleVariant writes visualVariant
     visualVariant = visualVariant == "warm" ? "night" : "warm"
   action submit writes creating mutates createMut
@@ -84,17 +89,21 @@ component PartifulFeed
                 text "A title and location are required." nativeID="create-description-copy" size=12 color=mutedFor(visualVariant)
               button press=closeCreate label="Close create event" testId="create-close" background="transparent" padding=10
                 text "Close" size=12 color=textFor(visualVariant)
-            row gap=10
-              input label="Emoji" value=createForm.field("emoji").value change=createForm.field("emoji").change testId="create-emoji" width=62 padding=12 borderWidth=1 size=22 style=fieldStyle(visualVariant, false)
-              input label="Event title" value=createForm.field("title").value change=createForm.field("title").change describedBy=createForm.field("title").error ? "create-title-error" : null testId="create-title" flex=1 padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("title").error != null)
-            when createForm.field("title").touched && createForm.field("title").error
-              text createForm.field("title").error nativeID="create-title-error" role="alert" live="polite" testId="create-title-error" size=12 color="#c43b2f"
-            input label="Location" value=createForm.field("location").value change=createForm.field("location").change autoComplete="street-address" describedBy=createForm.field("location").error ? "create-location-error" : null testId="create-location" padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("location").error != null)
-            when createForm.field("location").touched && createForm.field("location").error
-              text createForm.field("location").error nativeID="create-location-error" role="alert" live="polite" testId="create-location-error" size=12 color="#c43b2f"
-            input label="Description" value=createForm.field("description").value change=createForm.field("description").change multiline=true numberOfLines=4 testId="create-description" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
-            button press=submit testId="create-submit" disabled=createForm.submitting opacity=canCreate ? 1 : 0.7 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background=textFor(visualVariant)
-              text "Send the invite ↗" size=14 weight=700 color=backgroundFor(visualVariant)
+            section role="form" label="Create event" gap=10 testId="create-event-form"
+              when createForm.field("title").touched && createForm.field("title").error
+                text "Please fix the highlighted event details." role="alert" live="assertive" testId="form-error-summary" size=12 color="#c43b2f"
+              row gap=10
+                input label="Emoji" value=createForm.field("emoji").value change=createForm.field("emoji").change testId="create-emoji" width=62 padding=12 borderWidth=1 size=22 style=fieldStyle(visualVariant, false)
+                input label="Event title" value=createForm.field("title").value change=createForm.field("title").change describedBy=createForm.field("title").error ? "event-title-error" : null testId="event-title" flex=1 padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("title").error != null)
+              when createForm.field("title").touched && createForm.field("title").error
+                text createForm.field("title").error nativeID="event-title-error" role="alert" live="polite" testId="event-title-error" size=12 color="#c43b2f"
+              input label="When" value=createForm.field("when").value change=createForm.field("when").change testId="event-when" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
+              input label="Location" value=createForm.field("location").value change=createForm.field("location").change autoComplete="street-address" describedBy=createForm.field("location").error ? "event-location-error" : null testId="event-location" padding=12 borderWidth=1 style=fieldStyle(visualVariant, createForm.field("location").error != null)
+              when createForm.field("location").touched && createForm.field("location").error
+                text createForm.field("location").error nativeID="event-location-error" role="alert" live="polite" testId="event-location-error" size=12 color="#c43b2f"
+              input label="Description" value=createForm.field("description").value change=createForm.field("description").change multiline=true numberOfLines=4 testId="event-description" padding=12 borderWidth=1 style=fieldStyle(visualVariant, false)
+              button press=submit label="Send the invite" testId="create-event-submit" disabled=createForm.submitting opacity=canCreate ? 1 : 0.7 paddingTop=13 paddingBottom=13 paddingLeft=20 paddingRight=20 radius=999 background=textFor(visualVariant)
+                text "Send the invite ↗" size=14 weight=700 color=backgroundFor(visualVariant)
       column gap=24 padding=54 testId="feed" style=surfaceStyle(visualVariant, "surface")
         row align="baseline"
           text "02 · ON THE HORIZON" size=10 color=mutedFor(visualVariant) flex=1
@@ -107,14 +116,30 @@ component PartifulFeed
           empty
             text "No plans yet. Make something happen." size=14 color="#5f594f" testId="feed-empty"
           ready rows
-            column gap=12 testId="feed-ready"
-              each event in rows key=event._id
-                row gap=22 align="center" padding=22 borderWidth=1 testId=`event-card-${event._id}` style=surfaceStyle(visualVariant, "surface")
-                  text event.emoji size=48 background="#f6a25d" padding=24 width=110 radius=4
-                  column gap=6 flex=1
-                    text fmtWhen(event.startsAt) size=10 color=accentFor(visualVariant)
-                    text event.title size=25 weight=800 color=textFor(visualVariant)
-                    text event.location size=13 color=mutedFor(visualVariant)
-                    text `HOSTED BY ${event.hostName}` size=9 color=mutedFor(visualVariant)
-                  button press=open(event._id) label=`View ${event.title}` testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background=textFor(visualVariant)
-                    text "View plan →" size=12 weight=700 color=backgroundFor(visualVariant)
+            match size
+              case "expanded"
+                EventGrid(rows=rows, cols=3, visualVariant=visualVariant, open=open)
+              case "regular"
+                EventGrid(rows=rows, cols=2, visualVariant=visualVariant, open=open)
+              else
+                EventGrid(rows=rows, cols=1, visualVariant=visualVariant, open=open)
+
+component EventGrid
+  props
+    rows: object[]
+    cols: number
+    visualVariant: string
+    open: (id) => void
+
+  view
+    grid cols=cols gap=12 testId="feed-ready"
+      each event in rows key=event._id
+        column gap=18 padding=22 borderWidth=1 testId=`event-card-${event._id}` style=surfaceStyle(visualVariant, "surface")
+          text event.emoji size=48 background="#f6a25d" padding=24 radius=4
+          column gap=6 flex=1
+            text fmtWhen(event.startsAt) size=10 color=accentFor(visualVariant)
+            text event.title size=25 weight=800 color=textFor(visualVariant)
+            text event.location size=13 color=mutedFor(visualVariant)
+            text `HOSTED BY ${event.hostName}` size=9 color=mutedFor(visualVariant)
+          button press=open(event._id) label=`View ${event.title}` testId=`open-${event._id}` paddingTop=10 paddingBottom=10 paddingLeft=16 paddingRight=16 radius=999 background=textFor(visualVariant)
+            text "View plan →" size=12 weight=700 color=backgroundFor(visualVariant)
