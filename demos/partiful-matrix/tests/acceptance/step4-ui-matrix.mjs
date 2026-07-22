@@ -7,6 +7,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
+  inspectPartitimeEngineClaim,
   inspectPartitimeManualDeviceGate,
   validateCitizenshipReceipt,
 } from './step4-closure-helpers.mjs';
@@ -62,14 +63,7 @@ const visualApproval = {
 };
 
 const claimResults = claims.map((claimId) => {
-  const automated = engineCells.map((engine) => {
-    const claim = engine.claimResults?.find((entry) => entry.claimId === claimId);
-    return {
-      browserId: engine.browserId,
-      status: engine.status === 'pass' && claim?.status === 'pass' ? 'pass' : 'red',
-      reason: engine.status !== 'pass' ? engine.reason : claim?.status === 'pass' ? null : 'claim-not-passing',
-    };
-  });
+  const automated = engineCells.map((engine) => inspectPartitimeEngineClaim(engine, claimId));
   const needsManual = ['STEP4.UI.KEYBOARD', 'STEP4.UI.FOCUS', 'STEP4.UI.A11Y'].includes(claimId);
   const status = automated.every((cell) => cell.status === 'pass')
     && (!needsManual || manual.status === 'pass')
@@ -115,12 +109,24 @@ function inspectEngine(cell) {
   if (!path || !existsSync(path)) return { browserId: cell.id, role: cell.role, status: 'red', reason: 'required-artifact-missing', path: path ? relative(repoRoot, path) : null, sha256: null, claimResults: [] };
   const receipt = readJson(path);
   const revisionMatches = receipt.revisions?.exact === exactRevision;
-  const complete = receipt.ok === true && receipt.claimResults?.length === claims.length && claims.every((claimId) => receipt.claimResults.some((claim) => claim.claimId === claimId && claim.status === 'pass'));
+  const receiptComplete = receipt.expectedRuns === claims.length * 2
+    && receipt.completedRuns === receipt.expectedRuns
+    && receipt.claimResults?.length === claims.length
+    && claims.every((claimId) => receipt.claimResults.filter((claim) => claim.claimId === claimId).length === 1);
+  const complete = receipt.ok === true && receiptComplete;
   return {
     browserId: cell.id,
     role: cell.role,
     status: complete && revisionMatches ? 'pass' : 'red',
-    reason: !revisionMatches ? 'exact-revision-mismatch' : complete ? null : 'claim-receipt-not-passing',
+    reason: !revisionMatches
+      ? 'exact-revision-mismatch'
+      : !receiptComplete
+        ? 'claim-receipt-incomplete'
+        : complete
+          ? null
+          : 'claim-receipt-not-passing',
+    revisionMatches,
+    receiptComplete,
     path: relative(repoRoot, path),
     sha256: digest(path),
     environment: receipt.browser ?? receipt.environment ?? null,

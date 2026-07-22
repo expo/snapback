@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { inspectPartitimeManualDeviceGate } from './step4-closure-helpers.mjs';
+import {
+  inspectPartitimeEngineClaim,
+  inspectPartitimeManualDeviceGate,
+} from './step4-closure-helpers.mjs';
 
 const required = [
   'ios-safari-current:autofill-password-manager',
@@ -51,4 +54,32 @@ test('duplicate rows and evidence-free passes fail closed', () => {
   const result = inspectPartitimeManualDeviceGate(receipt(rows), required);
   assert.equal(result.status, 'red');
   assert.deepEqual(result.duplicateIds, [required[0]]);
+});
+
+test('one failed engine claim does not erase independent passing claims', () => {
+  const engine = {
+    browserId: 'safari-ios-latest',
+    revisionMatches: true,
+    receiptComplete: true,
+    claimResults: [
+      { claimId: 'STEP4.UI.RESPONSIVE', status: 'pass' },
+      { claimId: 'STEP4.UI.KEYBOARD', status: 'red' },
+    ],
+  };
+  assert.deepEqual(inspectPartitimeEngineClaim(engine, 'STEP4.UI.RESPONSIVE'), {
+    browserId: 'safari-ios-latest', status: 'pass', reason: null,
+  });
+  assert.deepEqual(inspectPartitimeEngineClaim(engine, 'STEP4.UI.KEYBOARD'), {
+    browserId: 'safari-ios-latest', status: 'red', reason: 'claim-not-passing',
+  });
+});
+
+test('engine claims fail closed when the receipt or Exact revision is invalid', () => {
+  const claimResults = [{ claimId: 'STEP4.UI.RESPONSIVE', status: 'pass' }];
+  assert.equal(inspectPartitimeEngineClaim({
+    browserId: 'safari-ios-latest', revisionMatches: false, receiptComplete: true, claimResults,
+  }, 'STEP4.UI.RESPONSIVE').reason, 'exact-revision-mismatch');
+  assert.equal(inspectPartitimeEngineClaim({
+    browserId: 'safari-ios-latest', revisionMatches: true, receiptComplete: false, claimResults,
+  }, 'STEP4.UI.RESPONSIVE').reason, 'claim-receipt-incomplete');
 });

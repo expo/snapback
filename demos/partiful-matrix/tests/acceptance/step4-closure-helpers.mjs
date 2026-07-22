@@ -228,6 +228,20 @@ export function inspectPartitimeManualDeviceGate(receipt, requiredRowIds) {
   };
 }
 
+export function inspectPartitimeEngineClaim(engine, claimId) {
+  const claim = engine.claimResults?.find((entry) => entry.claimId === claimId);
+  if (engine.revisionMatches !== true) {
+    return { browserId: engine.browserId, status: 'red', reason: 'exact-revision-mismatch' };
+  }
+  if (engine.receiptComplete !== true) {
+    return { browserId: engine.browserId, status: 'red', reason: 'claim-receipt-incomplete' };
+  }
+  if (claim?.status !== 'pass') {
+    return { browserId: engine.browserId, status: 'red', reason: 'claim-not-passing' };
+  }
+  return { browserId: engine.browserId, status: 'pass', reason: null };
+}
+
 export function retainedResult(receipt, name) {
   const result = receipt.results.find((entry) => entry.name === name);
   assert(result, `retained Step 0 result is missing: ${name}`);
