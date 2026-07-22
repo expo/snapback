@@ -1011,7 +1011,19 @@ async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
   const boot = await waitForMatrixBoot(page);
   if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
   await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  const routeRoot = pathname.includes('/events/new/')
+    ? 'create-panel'
+    : pathname.includes('/events/')
+      ? 'event-page'
+      : 'feed';
+  await waitForTestId(page, routeRoot, `phase-4 route ${pathname}`);
   return boot;
+}
+
+async function waitForTestId(page, testId, label, timeoutMs = 5_000) {
+  const result = await page.eval(`(async()=>{const d=Date.now()+${timeoutMs};let node=null;while(Date.now()<d){node=document.querySelector('[data-testid=${JSON.stringify(testId)}]');if(node)return {found:true,testId:node.getAttribute('data-testid'),path:location.pathname,readyState:document.readyState};await new Promise(r=>setTimeout(r,50));}return {found:false,testId:${JSON.stringify(testId)},path:location.pathname,readyState:document.readyState,bodyText:document.body?.textContent?.trim().slice(0,500)??null}})()`);
+  if (!result?.found) throw new Error(`${label} did not render required target: ${JSON.stringify(result)}`);
+  return result;
 }
 
 async function tabTo(page, predicate, limit = 16) {
