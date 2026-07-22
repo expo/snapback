@@ -86,6 +86,7 @@ const upstreamChecks = [
   'web-citizenship-axe-delta',
   'web-bundle-budget',
   'web-citizenship-desktop-chrome',
+  'web-citizenship-desktop-firefox',
   'web-citizenship-ime-forms',
 ];
 const missingUpstreamChecks = upstreamChecks.filter((id) => !exactCheckIds.has(id));
