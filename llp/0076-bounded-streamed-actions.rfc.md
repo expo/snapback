@@ -5,7 +5,21 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (first model-family review round — Fable NOT READY,
+**Revised:** 2026-07-23 (second model-family review round — Fable NOT READY,
+Codex NOT READY, artifacts under `llp/reviews/0076-*`. This revision fixes the
+two normative-accuracy defects Fable blocked on — the canonical example now
+coalesces so it does not trip the progress-rate fence against the frozen
+fixture, and `SNAPBACK_ACTION_STREAM_CANCELLED` is described as a reserved
+internal reason with EOF-after-cancel as the v1 read behavior — makes
+settlement two-axis so `timed_out`/`cancelled` after provable initiation
+record the effect-may-have-executed fact, states the 30 s wall ceiling as
+absolute (removing the overshoot licence the prior revision wrongly
+introduced), drops the v1 cancel reason, scopes the fixture-matching claim to
+five limits, enumerates the author obligations, and expands the
+implementation-gaps section with the per-read fence, trusted terminalizer,
+retry fencing, wall-clock, buffer-accounting, capability-admission, and
+diagnostic-envelope items both families raised; status remains Draft).
+2026-07-23 (first model-family review round — Fable NOT READY,
 Codex NOT READY, artifacts under `llp/reviews/0076-*`. This revision corrects
 the three authority-accuracy defects — the progress pattern is authored, not
 generated; manifests publish limit names and status, not exact values; the
@@ -46,21 +60,29 @@ with the familiar reader subset:
 ```js
 const response = await ctx.fetchStream({ url, method: 'GET' });
 const reader = response.body.getReader();
+let batch = [];
 for (;;) {
   const { done, value } = await reader.read();
   if (done) break;
-  await ctx.runMutation('applyProgress', { attemptId, bytes: [...value] });
+  batch.push(...value);
+  // Coalesce so durable commits stay under the 10/s progress ceiling; a
+  // per-chunk commit against the frozen fixture (chunks every 80 ms) would
+  // trip SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED.
+  if (shouldFlush()) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; }
 }
+if (batch.length) await ctx.runMutation('applyProgress', { attemptId, bytes: batch });
 ```
 
 `value` is a `Uint8Array`. Only one reader may own a body. `read()` is
 pull-driven: the host obtains at most one bounded chunk because the reader
-asked, so application backpressure is the default. `cancel(reason)` closes the
-host cursor idempotently. Dropping or finishing the action closes every cursor
-owned by that invocation.
+asked, so application backpressure is the default. `cancel()` closes the host
+cursor idempotently; v1 takes no cancel reason (any argument is accepted and
+ignored). Dropping or finishing the action closes every cursor owned by that
+invocation.
 
-The first profile uses these enforced maxima, matching LLP 0075's frozen
-fixture:
+The first profile uses these enforced maxima. The first five match LLP 0075's
+frozen fixture; the 16 KiB host read size and the 4-cursor cap are additional
+v1 profile limits stated only here, as this RFC is the sole numeric authority:
 
 - 1 MiB total response bytes;
 - 64 KiB application-visible buffered bytes, with a host read size no greater
@@ -74,9 +96,12 @@ fixture:
 
 These are v1 profile limits, not claims about an eventual general-purpose
 streaming API. A later profile may widen them only prospectively with its own
-resource and abuse evidence. Limits are checked at read boundaries: a
-blocking read that begins inside the wall-clock budget may overshoot it by up
-to the idle window before the next check fires. The reader also supports
+resource and abuse evidence. The 30-second wall-clock ceiling is absolute: it
+is the accepted total from stream open through terminal read and matches LLP
+0075's frozen fixture, never exceeded. That the local host currently checks it
+only at read boundaries (so a blocking read can return slightly past the
+budget) is an implementation gap recorded below, not a licensed overshoot; the
+enforced deadline must bound the read itself. The reader also supports
 `for await` async iteration as part of v1, delegating to the same `read()`
 semantics. When the caller supplies an idempotency key, the host forwards it
 as the upstream `Idempotency-Key` header unless the author set that header
@@ -125,20 +150,34 @@ mutation.
 The late-effect fence is layered: the host closes cursors and fences via
 generation, authority, and abandonment checks, while terminal-settlement
 fencing is the pattern's in-transaction responsibility — an authored progress
-mutation that skips the terminal-row check forfeits that guarantee. This is
-the one obligation an application author must not get wrong.
+mutation that skips the terminal-row check forfeits that guarantee. The
+obligations an application author must not get wrong are: the in-transaction
+terminal check on every progress and completion mutation, the row-level
+progress throttle, and the no-retry-after-first-durable-commit rule below;
+none of these three is host-enforced.
 
-Settlement classification is by host-provable phase, and ambiguity strictly
+Settlement carries two facts, not one: a `terminalCause` (`complete`,
+`failed`, `cancelled`, `timed_out`, `ambiguous`) and, orthogonally, an
+upstream-effect certainty the durable row records whenever the host proves the
+request initiated — because cancellation or timeout after initiation of a
+non-idempotent request leaves the provider outcome genuinely unknown, exactly
+as a mid-body loss does. The single enum names the cause; the row additionally
+records "effect may have executed" for any terminal settlement after
+host-provable initiation, so `timed_out` and `cancelled` do not silently drop
+the uncertainty that `ambiguous` and mid-body `failed` preserve. Resolution of
+that uncertainty is LLP 0070's lookup/idempotency path, never a silent retry.
+
+Classification is by host-provable phase, and ambiguity strictly
 over-approximates: an upstream failure the host can prove preceded request
 initiation is `failed`; for a non-idempotent request, any transport failure
 the host cannot prove preceded initiation is `ambiguous`, and the runtime
-must not silently retry it. Mid-body transport loss after response metadata
-on a non-idempotent request settles `failed` while the durable row records
-that the upstream effect executed. Exhausting the idle or wall limit is
-`timed_out`. An explicitly cancelled reader is `cancelled`. Where the
-action's local inference and the durable row's committed terminal state
-disagree — for example a cancellation/timeout race — the durable winner is
-authoritative and the action must return it.
+must not silently retry it. Mid-body transport loss after response metadata on
+a non-idempotent request settles `failed` (cause) with the effect-executed
+fact recorded. Exhausting the idle or wall limit is `timed_out`. An explicitly
+cancelled reader is `cancelled`. Where the action's local inference and the
+durable row's committed terminal state disagree — for example a
+cancellation/timeout race — the durable winner is authoritative and the action
+must return it.
 
 An idempotent GET or a request carrying a provider-recognized idempotency key
 may be retried by the authored action, still under the same Snapback attempt
@@ -170,9 +209,12 @@ The v1 code families are:
 - `SNAPBACK_ACTION_STREAM_UNSUPPORTED`, refused by any target whose host does
   not implement the profile.
 
-`SNAPBACK_ACTION_STREAM_CANCELLED` names the cancellation reason surfaced on
-reads after cancellation; explicit `cancel()` itself succeeds idempotently
-rather than erroring.
+In v1 a read after cancellation returns end-of-stream (`done: true`), not an
+error, and explicit `cancel()` succeeds idempotently.
+`SNAPBACK_ACTION_STREAM_CANCELLED` is a reserved internal cancellation reason,
+not a diagnostic surfaced to the reader on a post-cancel read; no v1 read path
+emits it. A later profile may promote it to an observable refusal, which would
+be a profile change.
 
 The host additionally rate-fences **all** nested mutations while any cursor
 is open — not only the progress pattern's — emitting
@@ -243,19 +285,68 @@ private-data scans over stream receipts; and per-bullet receipts mapping each
 acceptance item to a named witness.
 
 Known implementation gaps against this authority's contract, each requiring
-a fix before gate 2: the local host-op validation checks abandonment,
-generation, and deadline but not service authority, and a blocking read has
-no post-read revalidation before exposing bytes; capability admission is
-inconsistent — the raw dev loader installs a stream-requiring artifact
-without resolving `require_capabilities`, while complete-pair preflight
-checks a static declaration instead of the live instance manifest; the
-Workerd open path's Begin/Initiated cut does not visibly match LLP 0059's
-normalize-before-Begin rule; the Workerd manifest claims idle, wall,
-progress-rate, watchdog, and typed-settlement evidence its witness does not
-earn; and the retained local witness still hardcodes the retired
-`local-ibex-sqlite.v1` target alias that LLP 0075's protocol amendment
-prohibits, so it must derive identity from the served manifest and rerun
-prospectively.
+a fix before gate 2:
+
+- **Per-read authority fence.** Local host-op validation checks abandonment,
+  generation, and deadline but not service authority, and a blocking read has
+  no post-read revalidation before exposing bytes; Workerd checks only before
+  the operation. An authority terminalization that lands during a blocked read
+  can still return bytes. The contract requires an exact permit held through
+  pull and byte handoff, or an equivalent fenced post-pull check.
+- **Trusted terminalizer.** Cursor closure is host-owned, but durable terminal
+  settlement is left to an authored mutation. After generation retirement,
+  service-authority terminalization, or watchdog abandonment the abandoned
+  action cannot commit, so the attempt row can remain `running` with no
+  durable winner to return. The contract requires a trusted compare-and-set
+  terminalizer or lease-expiry reconciler and a direct attempt-to-cursor
+  cancellation signal, raced for every lifecycle cause.
+- **Retry fencing.** `ActionStreamRequest` carries no attempt identity or
+  execution generation, and the reference `startReply` returns the same
+  attempt to concurrent callers without a single-runner lease, so two callers
+  can reopen the upstream request before either commits progress. The contract
+  requires distinct client-operation-key / Snapback-attempt-id / provider-key
+  identities, an atomic single-runner lease binding every progress and
+  terminal mutation, and duplicate-sequence acceptance only when byte offset
+  and digest agree.
+- **Absolute wall-clock enforcement.** The local host bounds the upstream
+  request timeout at the idle window and checks the wall limit only at read
+  boundaries, so a productive stream can fail near 5 s and be mislabeled, and
+  the 30 s ceiling is not enforced as an absolute bound on the read itself.
+  Separate overall, idle, connect, and per-read timers are required.
+- **64 KiB buffer accounting.** The accounting domain is undefined and the
+  local host has no buffered-byte counter at all (only Workerd enforces a
+  per-chunk bound); the shared reader permits unlimited concurrent `read()`
+  calls from its single owner. The contract must define per-cursor-versus-
+  invocation scope and which host/bridge/VM/network queues count, serialize
+  pulls per cursor, and mark the manifest row non-enforced until a
+  slow-consumer witness passes.
+- **Capability admission.** The raw dev loader installs a stream-requiring
+  artifact without resolving `require_capabilities`, while complete-pair
+  preflight checks a static declaration instead of the live instance
+  manifest — one path over-admits with egress disabled, the other
+  under-admits when egress is enabled. Both must resolve against the same
+  served instance manifest before any handler runs, with an
+  outbound-disabled negative admission witness. Codegen inference is also a
+  textual `fetchStream(` match; an AST-derived or explicit function
+  capability would close the alias gap.
+- **Diagnostic envelope coverage.** `SNAPBACK_ACTION_STREAM_UNSUPPORTED` and
+  the host rate-fence code are absent from the handler-envelope allowlists and
+  can fold to `SNAPBACK_HANDLER_FAILED`; every promised code must survive both
+  envelopes, and capability-admission refusal
+  (`SNAPBACK_CAPABILITY_UNSUPPORTED`) must stay distinct from runtime
+  `_UNSUPPORTED`.
+- **Cross-authority accuracy.** The Workerd open path's Begin/Initiated cut
+  does not visibly match LLP 0059's normalize-before-Begin rule; the Workerd
+  manifest claims idle, wall, progress-rate, watchdog, and typed-settlement
+  evidence its witness does not earn; and the retained local witness still
+  hardcodes the retired `local-ibex-sqlite.v1` target alias that LLP 0075's
+  protocol amendment prohibits, so it must derive identity from the served
+  manifest and rerun prospectively.
+
+The reference fixture also uses string mutation names and a client-key start
+dedup, which a prospective LLP 0075 amendment must reconcile with that Spec's
+generated-reference-only rule and server-issued attempt-identity wording
+before the checkpoint reruns.
 
 ## Non-goals
 

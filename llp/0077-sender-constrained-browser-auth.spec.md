@@ -5,7 +5,20 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (first model-family review round — Fable NOT READY,
+**Revised:** 2026-07-23 (second model-family review round — Fable READY,
+Codex NOT READY, artifacts under `llp/reviews/0077-*`. This revision closes
+the nonce-expiry deadlock Codex found in the desired design (a challenge
+issues a fresh generation only when the current nonce is absent or expired,
+never for a live one), pins the replay retention arithmetic to `iat+30+1`
+with an exclusive purge boundary, adds the per-custody request-serialization
+rule for concurrent protected requests, promotes the bind-only-at-issuance
+rule into the normative Issuance section, adds the LLP 0058
+forbidden-body-field and `SNAPBACK_AUTH_REQUIRED` precedence steps, the
+`(admission_epoch, proof_id)` replay tuple, and the canonical-URI
+normalization algorithm, and narrows the bound-server-test checkpoint claim
+to what the test exercises. The six-item defect ledger's code fixes still
+gate any positive capability).
+2026-07-23 (first model-family review round — Fable NOT READY,
 Codex NOT READY, artifacts under `llp/reviews/0077-*`. This revision fixes
 the nonce-challenge contradiction normatively (challenges return the
 still-current nonce and never rotate; rotation only inside verified-proof
@@ -68,9 +81,10 @@ hosted admission epoch into the exact grant. Browser WebSocket upgrade carries
 a second compact proof in a dedicated subprotocol over `GET`, the canonical
 HTTPS-normalized live URI, the grant-token hash, and the current nonce. The
 server verifies and atomically consumes it before the existing
-connection-token/generation gate and protocol switch. A real bound-server test
-executes request-code, key-bound exchange, authenticated projection, refresh,
-protected connection open, and the sender-bound WebSocket upgrade. Reconnect
+connection-token/generation gate and protocol switch. A bound-server test
+exercises request-code, key-bound exchange, authenticated projection, refresh,
+and protected connection open at the router level (`router.oneshot`); only the
+sender-bound WebSocket upgrade crosses a real bound TCP listener. Reconnect
 re-enters through a forced protected session projection, so an upgrade nonce
 whose response header was inaccessible to browser JavaScript is recovered by
 the same one-challenge rule before a new grant proof.
@@ -214,18 +228,33 @@ headers never define it.
 Verification order is:
 
 1. hosted admission and trusted external URI;
-2. bounded single-header and compact-proof shape;
-3. exact header/payload decoding and algorithm;
-4. token hash and durable family thumbprint;
-5. method, URI, admission epoch, time window, and nonce;
-6. ES256 signature;
-7. atomic shared replay consumption; and only then
-8. ordinary credential resolution and body ingestion.
+2. LLP 0058 forbidden-authority-field body check (a forbidden field in the
+   request body wins before any valid credential is considered);
+3. bounded single-header and compact-proof shape;
+4. exact header/payload decoding and algorithm;
+5. token hash and durable family thumbprint;
+6. method, URI, admission epoch, time window, and nonce;
+7. ES256 signature;
+8. atomic shared replay consumption; and only then
+9. ordinary credential resolution and body ingestion.
+
+Precedence composes with LLP 0057/0058 rather than overriding them: an absent
+or unparseable bearer yields `SNAPBACK_AUTH_REQUIRED` as those authorities
+require, not a sender-proof diagnostic; the sender-proof diagnostics below
+apply only once a well-formed hosted session credential is present. The canonical
+external URI is reconstructed as scheme + lowercased IDNA host + non-default
+port + the path normalized by resolving `.`/`..` segments and rejecting
+`%`-, `\`-, and empty-segment-encoded traversal, with fragment and query
+removed; the trusted edge supplies it and forwarding headers never define it.
 
 The accepted time window is server time minus 30 seconds through server time
-plus 5 seconds, both endpoints inclusive. A proof id is retained strictly
-longer than the full accepted window plus clock skew, through the final
-inclusive second. Replay-store unavailability refuses protected work.
+plus 5 seconds, both endpoints inclusive. A proof id is retained until strictly
+after its latest possible acceptance instant: retention is keyed to
+`iat + 30 + 1` seconds (equivalently, first-admission time plus the full 35-
+second window plus one second), and the purge predicate is
+`expires_at_seconds < now`, exclusive, so a `jti` replayed at the final
+inclusive second of its window still refuses. Replay-store unavailability
+refuses protected work.
 
 Sender admission composes with LLP 0057's session-token resolution matrix
 rather than replacing it: a proof-bearing request presenting an in-grace
@@ -243,20 +272,26 @@ cache-forbidden and contains no account, family, token, or proof fact. A
 client retries at most once and only when the response is this typed
 challenge.
 
-A challenge never mutates durable nonce state: it returns the current nonce,
-creating one only when the family has none installed, and never retires an
-installed generation. Rotation happens in exactly one place — inside the
-atomic consumption transaction of a fully verified proof. An unauthenticated
-request (missing proof, or any proof that fails signature verification)
-therefore cannot advance, retire, or churn a family's nonce; this is what
-denies a copied-bearer holder any availability lever over legitimate custody.
+A challenge never rotates a **live** installed nonce: while the current
+generation is unexpired it is returned unchanged, and no unauthenticated
+request can advance or retire it. A challenge installs a fresh generation only
+when the family has none installed or the installed one has expired — expiry
+is time-driven, not attacker-controllable, and no valid proof can reference an
+expired nonce, so this is the one case where returning "the current nonce"
+would deadlock (an expired value can never yield an acceptable next proof).
+Rotation of a live nonce happens in exactly one place — inside the atomic
+consumption transaction of a fully verified proof. An unauthenticated request
+against a live generation therefore cannot advance, retire, or churn a
+family's nonce; this is what denies a copied-bearer holder any availability
+lever over legitimate custody.
 
 Nonces are random 32-byte base64url values, deployment- and
-admission-epoch-bound, short-lived (the v1 profile TTL is 120 seconds; a
-change is a revision of this Spec), and one-current-generation per custody
-installation. Nonce issuance does not confirm whether a bearer, subject, or
-family exists. Nonce state is shared across every serving process for the
-deployment.
+admission-epoch-bound, short-lived (the initial hosted profile TTL is 120
+seconds, longer than the proof acceptance window so a client that holds a live
+nonce can always form a fresh proof; a change is a revision of this Spec), and
+one-current-generation per custody installation. Nonce issuance does not
+confirm whether a bearer, subject, or family exists. Nonce state is shared
+across every serving process for the deployment.
 
 Every accepted protected HTTP response carries the installed successor in
 `DPoP-Nonce`, also cache-forbidden. If that response is lost, the client presents
@@ -291,7 +326,15 @@ exactly:
 
 with the same protected header, codec, and canonicality rules as the resource
 proof. Successful exchange atomically binds the derived thumbprint into the
-new session family before returning a credential.
+new session family before returning a credential. The capability to bind a
+sender constraint to a session exists **only** inside this new-session
+issuance transaction: no supported server API may attach a constraint to an
+already-existing session id, so a v1 (bearer-only) family can never be
+upgraded in place — migration is deletion-and-re-exchange, never attachment.
+
+The replay uniqueness namespace is the tuple `(admission_epoch, proof_id)`
+within a deployment; a `jti` is unique per admission epoch, and a new epoch
+(deployment restart or reset) starts a fresh replay space.
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
@@ -355,6 +398,16 @@ reflect it. A successful status whose successor `DPoP-Nonce` is missing is an
 indeterminate outcome: the client must not report failure for a possibly
 committed effect, must not blind-retry a non-idempotent act, and recovers
 through the one-challenge rule on its next request.
+
+Because a family has one live nonce generation and every accepted response
+retires it, proof-bearing requests from one custody installation are
+serialized per installation: the client issues at most one outstanding
+protected request per generation and forms the next request's proof from the
+installed successor. Concurrent application calls are queued behind that
+serialization rather than each signing under the same generation (which would
+make all but one challenge-and-retry, and could surface a committed effect as
+a stale-authority failure). A future multi-flight design admitting a bounded
+lease of one-use nonce tickets is an open question; v1 serializes.
 
 Multiple tabs coordinate custody generation and nonce replacement through the
 existing client authority barrier. Only the current generation may publish a
