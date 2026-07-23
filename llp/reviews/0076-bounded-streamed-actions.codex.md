@@ -147,3 +147,104 @@ The durable mutation fence is the strongest part of the implementation: a termin
 Verdict: NOT READY
 
 The settlement, retry, lifecycle-authority, capability-admission, and executable-evidence gaps must be resolved before this RFC can serve as LLP 0074 gate-2 authority.
+
+## Round 2 — 2026-07-23
+
+**Revision under review:** `llp/0076-bounded-streamed-actions.rfc.md`, sha256 `f0bf6813a9f4bdb047113877e39b57f751928a43623ac7a92d236d51dc5bb9bc` (content MATCH; the reviewer noted HEAD had advanced to `742c5b4d` because the orchestrating session committed the round-1 revision mid-round — the file is tracked and clean at that commit, content identical to the pin)
+**Runtime detail:** codex session id 019f8e17-1709-7762-960d-62b58aba9844, workdir /Users/ccheever/projects/snapback; fresh session — no access to the orchestrating Claude session, to archived reviews, or to the concurrent Claude-family round. Inspected both host implementations, the shared shim, the witnesses, the generated manifests, and the pinned ureq dependency source; did not build.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check**
+
+**MISMATCH.**
+
+- `shasum -a 256 llp/0076-bounded-streamed-actions.rfc.md` returned `f0bf6813a9f4bdb047113877e39b57f751928a43623ac7a92d236d51dc5bb9bc`: document pin **MATCH**.
+- `git rev-parse --short HEAD` returned `742c5b4d`, not the stated `55033289`: repository pin **MISMATCH**.
+
+I reviewed the exact pinned document bytes against the repository currently on disk at `742c5b4d`. `./ref-check --verbose` also completed successfully with 0 errors and one unrelated unchecked shorthand.
+
+2. **Overall assessment**
+
+This is a good and necessary proposal. The narrow, pull-driven, action-only reader is the right shape; durable mutation-mediated progress is preferable to pretending an action or HTTP stream is itself transactional; and the RFC correctly refuses to treat this as a general streaming API. Its evidence-status section is unusually candid about what has and has not been proven.
+
+The Revised-header claims are partially substantiated. The common Ibex/Workerd reader surface exists, `bounded_response_stream_v1` and its live-instance predicate exist, all named diagnostic strings occur in code, and both local and Cloudflare executable witnesses exist. But several claimed semantics are not actually enforced end to end: cancellation and unsupported diagnostics do not surface as specified, local and Workerd differ on wall-clock behavior, the 64 KiB buffer limit is not defined or enforced locally, capability admission is inconsistent, and the reference application violates durable-winner precedence.
+
+More importantly, there are semantic blockers beyond missing tests. A single settlement enum cannot represent both why Snapback stopped and whether a non-idempotent upstream effect happened; retry has no single-runner fence; authority loss can leave the durable row permanently `running`; and a blocked read is not linearized against authority terminalization. LLP 0074 gate 2 therefore should remain open.
+
+3. **Strengths**
+
+- The scope is disciplined: one action-only, single-reader, pull-driven profile with explicit cursor limits and non-goals, rather than an implicit commitment to general streaming (`llp/0076-bounded-streamed-actions.rfc.md:37-83`, `llp/0076-bounded-streamed-actions.rfc.md:260-267`).
+
+- Durable progress through ordinary nested mutations fits the accepted action model, where actions are not transactions and publication crosses the mutation commit gate (`llp/0076-bounded-streamed-actions.rfc.md:100-129`, `llp/0028-cron-scheduled-execution.rfc.md:377-404`, `llp/0028-cron-scheduled-execution.rfc.md:524-536`).
+
+- The headline numeric values and terminal vocabulary match LLP 0075 and the frozen protocol JSON, apart from the wall-clock interpretation discussed below (`llp/0076-bounded-streamed-actions.rfc.md:62-73`, `llp/0075-convex-checkpoint-protocol.spec.md:249-267`, `demos/competitive-checkpoint/acceptance/protocol.v0.json:69-79`).
+
+- The target capability is real, not merely planned. It has an exact closed identifier, a positive predicate requiring outbound actions plus a registered implementation, codegen inference, and a live-instance unit witness (`src/manifest.rs:2961-3033`, `src/manifest.rs:3448-3463`, `src/manifest.rs:3865-3882`, `packages/snapback-codegen/index.mjs:3133-3147`).
+
+- The shared reader and both host implementations are substantive: the harness exposes `Uint8Array`, cancellation, reader ownership, and async iteration, while both targets have open/read/cancel operations (`packages/snapback-harness/ctx-bootstrap.js:804-884`, `src/server.rs:1179-1450`, `cloudflare/src/coordinator.js:1719-2042`).
+
+- The local happy-path witness genuinely traverses action → nested mutation → commit → native live push, observes multiple durable commits, and checks private-reader exclusion (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:100-137`).
+
+- The Draft does not falsely claim gate closure and explicitly records many missing witnesses and implementation gaps (`llp/0076-bounded-streamed-actions.rfc.md:224-258`; `llp/0074-convex-competitive-strategy.rfc.md:217-231`).
+
+4. **Concerns**
+
+1. **Major — Settlement collapses local termination cause and upstream-effect certainty.** The RFC says an unprovable non-idempotent transport failure is `ambiguous`, but then classifies every explicit cancellation as `cancelled`, every idle/wall expiry as `timed_out`, and mid-body loss after response metadata as `failed` with the effect recorded as executed (`llp/0076-bounded-streamed-actions.rfc.md:131-141`). Cancellation or timeout can occur after request initiation while the provider outcome remains unknown, and response metadata does not prove that a business effect committed. This conflicts with LLP 0074’s prohibition on collapsing ambiguity and LLP 0070’s requirement that ambiguous external effects resolve only through lookup or stable idempotency (`llp/0074-convex-competitive-strategy.rfc.md:379-396`, `llp/0070-durable-background-work.rfc.md:122-130`). The fixture schema cannot record the promised distinction (`demos/competitive-checkpoint/snapback/schema.mjs:16-30`). Resolve this with two durable axes—such as `terminalCause` and `upstreamEffectCertainty/outcome`—or give ambiguity precedence while retaining timeout/cancellation as secondary causes.
+
+2. **Major — Retry is neither serialized nor safely idempotent.** The RFC permits retry before first durable progress under the same attempt (`llp/0076-bounded-streamed-actions.rfc.md:143-150`), but `ActionStreamRequest` carries no attempt identity or execution generation (`src/runtime.rs:86-103`). `startReply` returns the same attempt to concurrent callers without granting one caller an execution lease, duplicate sequences are discarded without comparing their bytes, and the action clears its pending bytes even when a progress write was not applied (`demos/competitive-checkpoint/snapback/handlers.mjs:16-33`, `demos/competitive-checkpoint/snapback/handlers.mjs:63-86`, `demos/competitive-checkpoint/snapback/handlers.mjs:139-193`). Two callers can therefore reopen the upstream request before either commits progress and then splice or lose differently segmented data. Both hosts also treat mere presence of an idempotency key as proof that a transport failure is retry-safe, although the RFC admits provider recognition is not machine-checkable (`src/server.rs:1296-1313`, `cloudflare/src/coordinator.js:1839-1854`, `llp/0076-bounded-streamed-actions.rfc.md:148-150`). Define client operation key → server attempt ID → provider key separately; add an atomic single-runner lease/fencing generation; bind every progress/terminal mutation to it; compare duplicate offsets or digests; and retain `ambiguous` unless provider idempotency is trusted.
+
+3. **Major — No trusted actor owns terminalization after authority, generation, or watchdog loss.** Cursor closure is host-owned, but durable terminal settlement is left to an authored mutation (`llp/0076-bounded-streamed-actions.rfc.md:92-129`). Accepted authority rules prevent the abandoned action from committing after generation retirement, service-authority terminalization, or watchdog failure (`llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1107-1110`, `llp/0059-session-projection-and-client-barrier.spec.md:1115-1124`, `llp/0028-cron-scheduled-execution.rfc.md:427-433`). The attempt can consequently remain `running` forever, with no durable “winner” to return. Caller cancellation also reaches the physical reader only when a later progress mutation observes the terminal row; a stalled read may not attempt that mutation until idle timeout (`llp/0076-bounded-streamed-actions.rfc.md:106-110`). Specify a trusted compare-and-set terminalizer or lease-expiry reconciler, plus a direct attempt-to-cursor cancellation signal, and execute races for every lifecycle cause.
+
+4. **Major — The promised per-read authority fence is absent.** The RFC says every read revalidates invocation, generation, service authority, and watchdog, and that terminalization prevents another successful read (`llp/0076-bounded-streamed-actions.rfc.md:85-104`). Local validation omits service authority and occurs only before the blocking read; bytes are returned without post-read revalidation (`src/server.rs:864-881`, `src/server.rs:1347-1435`). Workerd likewise performs only a pre-operation abandonment check; its read closure receives no lifecycle control and does no check after awaiting the native reader (`cloudflare/src/host-ops.js:509-512`, `cloudflare/src/coordinator.js:1722-1729`, `cloudflare/src/coordinator.js:1899-2000`). LLP 0059’s existing Begin/Initiated permit protects initial fetch initiation, not later body pulls (`llp/0059-session-projection-and-client-barrier.spec.md:1209-1215`). Hold an exact permit through pull and byte handoff, or perform an equivalent fenced post-pull check, and add an authority-terminalization-during-blocked-read witness.
+
+5. **Major — The frozen resource semantics conflict and are not enforced consistently.** LLP 0075 and the JSON define a 30-second wall-clock ceiling, whereas this RFC permits up to a five-second overshoot (`llp/0075-convex-checkpoint-protocol.spec.md:249-267`, `demos/competitive-checkpoint/acceptance/protocol.v0.json:69-79`, `llp/0076-bounded-streamed-actions.rfc.md:75-80`). Workerd enforces an absolute remaining-wall deadline (`cloudflare/src/coordinator.js:1942-1966`), while local checks only before a blocking read (`src/server.rs:1363-1408`). Worse, local caps ureq’s overall request timeout at the five-second idle window (`src/server.rs:1258-1270`); the locked ureq 2.12.1 dependency defines that timeout across response-body reading (`Cargo.lock:3995-3998`, `/Users/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ureq-2.12.1/src/request.rs:59-62`, `/Users/ccheever/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/ureq-2.12.1/src/agent.rs:471-477`). A continuously productive stream can therefore fail around five seconds and be mislabeled idle (`src/server.rs:1388-1397`). Make the wall limit absolute or amend LLP 0075 prospectively, and separate overall, idle, connect, and per-read timers.
+
+6. **Major — Backpressure and the 64 KiB buffer ceiling are not enforceable as written.** The RFC itself admits that the accounting domain is undefined (`llp/0076-bounded-streamed-actions.rfc.md:235-237`). Local has a 16 KiB read size but no 64 KiB buffer counter, despite advertising buffered bytes as `Enforced` (`src/server.rs:760-764`, `src/server.rs:1381-1387`, `src/manifest.rs:3395-3410`). The shared reader permits unlimited simultaneous `read()` calls from its single owner; Workerd host calls run outside the invocation mutex and have no per-cursor in-flight lock (`packages/snapback-harness/ctx-bootstrap.js:826-856`, `cloudflare/src/coordinator.js:1899-2000`, `cloudflare/src/coordinator.js:2936-2977`). Concurrent pulls can exceed the stated memory bound and leave fallback remainder/cancellation ordering undefined. Define whether the limit is per cursor or invocation and which host, bridge, VM, and network queues count; serialize pulls per cursor; account aggregate retained bytes; and mark manifest rows non-enforced until a slow-consumer witness passes.
+
+7. **Major — The diagnostic names exist, but the public contract does not.** All eight stream names occur in runtime code or registries (`src/runtime.rs:138-160`, `src/runtime.rs:2884-2910`, `src/server.rs:1250-1450`, `src/server.rs:18002-18134`), but three are not observable as specified. Reads after cancellation return EOF rather than `SNAPBACK_ACTION_STREAM_CANCELLED`, matching the Cloudflare witness but contradicting the RFC (`llp/0076-bounded-streamed-actions.rfc.md:173-175`, `packages/snapback-harness/ctx-bootstrap.js:835-849`, `src/server.rs:1347-1354`, `cloudflare/test/acceptance.egress.mjs:272-280`). `SNAPBACK_ACTION_STREAM_UNSUPPORTED` and `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` are absent from both handler-envelope allowlists and can fold to `SNAPBACK_HANDLER_FAILED` (`src/runtime.rs:2884-2923`, `packages/snapback-harness/envelope.mjs:16-58`). Capability admission instead emits `SNAPBACK_CAPABILITY_UNSUPPORTED` (`src/manifest.rs:3645-3675`). Choose EOF or cancellation-error semantics, distinguish admission from runtime fallback, preserve every promised code through both envelopes, and add real-action exact-code and diagnostic-shape witnesses.
+
+8. **Major — Durable-winner precedence is contradicted by the reference fixture.** `settleReply` returns an already committed terminal winner, but `streamReply` ignores that result and returns its local inference (`demos/competitive-checkpoint/snapback/handlers.mjs:105-114`, `demos/competitive-checkpoint/snapback/handlers.mjs:184-192`). A cancellation/timeout race can leave the durable row `cancelled` while the action reports `timed_out` or `failed`, directly violating the RFC’s authoritative-winner rule (`llp/0076-bounded-streamed-actions.rfc.md:139-141`). Return the mutation result and add permutations covering cancellation, timeout, completion, and failure racing at both sides of the commit cut.
+
+9. **Major — Capability admission can both over-admit and under-admit streamed actions.** Raw development loading installs function artifacts without resolving their required capabilities, while complete-pair preflight checks the conservative static manifest rather than the outbound-enabled live instance (`src/local.rs:3308-3340`, `src/local.rs:3099-3140`, `src/manifest.rs:3448-3463`). Thus one path can admit a streamed action with egress disabled while another can reject it when egress is actually enabled. Codegen inference is also a textual `fetchStream(` regex, so alias or bracket access can omit the requirement (`packages/snapback-codegen/index.mjs:3133-3147`). Require an explicit or AST-derived function capability, resolve it against the exact served instance in every loader before effects, and execute an outbound-disabled negative admission witness.
+
+10. **Moderate — The frozen fixture and acceptance plan need a prospective rebinding.** The RFC example and demo use string mutation names, conflicting with LLP 0075’s generated-reference-only rule (`llp/0076-bounded-streamed-actions.rfc.md:46-54`, `demos/competitive-checkpoint/snapback/handlers.mjs:160-191`, `llp/0075-convex-checkpoint-protocol.spec.md:171-190`). LLP 0075 speaks of retry keyed by a server-issued attempt identity, while LLP 0076 deduplicates start by a client key (`llp/0075-convex-checkpoint-protocol.spec.md:249-264`, `llp/0076-bounded-streamed-actions.rfc.md:113-123`). The RFC also leaves “selected hosted target” unnamed, while LLP 0075’s adjudication identifies `single-instance-container-vm.v1` as the next executable adapter and treats Cloudflare as an ineligible narrow proof (`llp/0076-bounded-streamed-actions.rfc.md:188-198`, `llp/0075-convex-checkpoint-protocol.spec.md:350-372`). Amend LLP 0075 prospectively with the reviewed semantics, replace string calls with generated references, name each target profile, and distinguish runtime-engine conformance from hosted-adapter evidence.
+
+11. **Moderate — Acceptance remains only partially executable and evidenced.** The local suite contains six checks covering the happy path, start-row replay, durable cancellation, idle settlement, and two transport labels; it does not execute interrupted retry, slow consumption, exact real-path total/wall/rate codes, physical closure, active-cursor lifecycle loss, query/mutation `fetchStream` refusal, or receipt scans (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:43-60`, `demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:100-236`). Workerd exercises only pulling, visible chunk size, a non-discriminating shared limit code, and terminal-after-cancel behavior (`cloudflare/test/acceptance.egress.mjs:253-280`). The retained local receipt also names the retired target alias (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:238-245`). This agrees with the RFC’s own gap list (`llp/0076-bounded-streamed-actions.rfc.md:224-258`), but gate closure needs a per-target receipt matrix with explicit oracles for buffer accounting, socket closure, lifecycle races, exact diagnostic details, and secret scanning.
+
+5. **Suggestions**
+
+- Rename `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` to a profile-neutral host code before receipts make the current fixture-specific name permanent.
+
+- Store a byte offset, content digest, and execution-generation token with every progress patch; duplicate sequence numbers should be accepted only when the offset and digest agree.
+
+- Specify request-side limits for URL length, headers, body, redirects, and idempotency keys. The RFC currently says they are bounded without defining a cross-target profile (`llp/0076-bounded-streamed-actions.rfc.md:42-43`).
+
+- Define `cancel(reason)` precisely. The common reader currently ignores the reason (`packages/snapback-harness/ctx-bootstrap.js:846-849`); either omit it from v1 or constrain and redact its diagnostic representation.
+
+- Bound closed-cursor tombstones or define a total cursor-creation ceiling per invocation, not only four concurrently open cursors (`src/server.rs:1347-1450`, `cloudflare/src/coordinator.js:1719-1735`).
+
+- Publish typed value/unit fields or a profile digest in manifests before consumers use `bounded_response_stream_v1` to distinguish resource profiles.
+
+6. **Open questions**
+
+- Is settlement one axis or two, and what exact durable values represent local cause versus upstream-effect certainty?
+
+- Which trusted actor settles or reconciles a row after the action loses mutation authority?
+
+- What fence linearizes authority terminalization, cancellation, and a blocked or concurrent `read()`?
+
+- Is the 30-second limit absolute, and exactly which buffered copies count toward 64 KiB?
+
+- What are the distinct identities and trust rules for the client operation, Snapback attempt, execution generation, and upstream provider key?
+
+- Should reads after explicit cancellation return EOF or raise `SNAPBACK_ACTION_STREAM_CANCELLED`?
+
+- Which hosted profile must pass the full suite, and does a positive capability row mean experimental implementation availability or accepted product support?
+
+7. **Verdict**
+
+Verdict: NOT READY
+
+The settlement model, retry fencing, lifecycle ownership, read-authority linearization, and frozen resource bounds require resolution before this RFC can safely become semantic authority.
