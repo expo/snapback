@@ -206,11 +206,18 @@ export async function createOnlineSnapbackContractSurface({
     }
   };
   const connectionFor = (name) => wantLivePush ? connections.get(name) ?? 'connecting' : null;
-  const decorateCell = (name, cell) => (
-    Object.hasOwn(cell ?? {}, 'connection')
+  const decorateCell = (name, cell) => {
+    // @ref LLP 0034#23-connection-axis-mapping-kit-derived-policy-over-d0-signals —
+    // this adapter owns the live transport axis. Exact can seed a ready
+    // boundary cell with `connecting`, but a connection-only transition must
+    // replace that seed even when the authoritative rows do not change.
+    if (wantLivePush && cell?.status === 'ready') {
+      return { ...cell, connection: connectionFor(name) };
+    }
+    return Object.hasOwn(cell ?? {}, 'connection')
       ? cell
-      : { ...cell, connection: connectionFor(name) }
-  );
+      : { ...cell, connection: connectionFor(name) };
+  };
   const reemitConnection = (name) => {
     for (const record of observerRecords.get(name) ?? []) {
       if (record.lastCell !== null) record.observer(decorateCell(name, record.lastCell));

@@ -691,7 +691,24 @@ async function connectCdp(url) {
         resetNetworkBytes: async () => { networkBytes = 0; },
         networkBytes: async () => networkBytes,
         waitForLiveData: async () => {
-          const result = await evaluate(`(async()=>{const deadline=Date.now()+30000;while(Date.now()<deadline){const value=globalThis.__partitimePerf?.snapshot?.();if(value?.liveAt!=null)return value;await new Promise(r=>setTimeout(r,25));}return{timeout:true,milestones:globalThis.__partitimePerf?.snapshot?.()??null,title:document.title,bodyText:document.body?.innerText?.slice(0,1000)??null,readyType:typeof globalThis.partifulMatrixReady}})()`);
+          const result = await evaluate(`(async()=>{
+            const deadline=Date.now()+30000;
+            while(Date.now()<deadline){
+              const value=globalThis.__partitimePerf?.snapshot?.();
+              if(value?.liveAt!=null)return value;
+              await new Promise(r=>setTimeout(r,25));
+            }
+            const ready=await Promise.resolve(globalThis.partifulMatrixReady).catch(()=>null);
+            return{
+              timeout:true,
+              milestones:globalThis.__partitimePerf?.snapshot?.()??null,
+              title:document.title,
+              bodyText:document.body?.innerText?.slice(0,1000)??null,
+              readyType:typeof globalThis.partifulMatrixReady,
+              hydration:ready?.hydration??null,
+              transportEvidence:ready?.transportEvidence?.()??null,
+            };
+          })()`);
           return result?.timeout ? { ...result, runtimeExceptions: [...runtimeExceptions], browserDiagnostics: [...browserDiagnostics] } : result;
         },
         collectGarbage: () => send('HeapProfiler.collectGarbage', {}, sessionId),

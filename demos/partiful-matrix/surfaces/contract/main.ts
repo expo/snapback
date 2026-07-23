@@ -186,6 +186,11 @@ async function boot() {
       liveQueries,
       requiredQueries: liveQueries,
       liveFallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+      onConnectionChange: (connection: string, detail: Record<string, unknown>) => subscriptionEvents.push({
+        kind: 'connection',
+        connection,
+        ...detail,
+      }),
       onSubscriptionEvent: (event: Record<string, unknown>) => subscriptionEvents.push({
         pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         ...event,
