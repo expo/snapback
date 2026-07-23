@@ -24,7 +24,7 @@
   "construct": {
     "total": {
       "name": "warmHeapTotalBytesP95",
-      "definition": "Runtime.getHeapUsage usedSize after first-live-data, closure of the sibling cache-prime target, two requestAnimationFrame turns, and forced garbage collection in the measured target with one canonical feed subscription.",
+      "definition": "Runtime.getHeapUsage usedSize in the ordinary product feed entry after first-live-data, closure of the sibling cache-prime target, two requestAnimationFrame turns, and forced garbage collection with one canonical feed subscription.",
       "thresholdFormula": "floor(react_same_cell_calibration_p95 * 1.10)",
       "judgedCellFeedsOwnThreshold": false
     },
@@ -55,10 +55,11 @@
     "warmupsPerCount": 2,
     "calibrationSamplesPerCount": 7,
     "holdoutSamplesPerCount": 7,
+    "preSubscriptionBaseline": "In each fresh measurement target, activate one unreported canonical logical subscriber, await authoritative/live readiness, dispose it, wait two requestAnimationFrame turns, force garbage collection, and record the resulting zero-active-subscriber heap. This warms framework and provider caches without entering the fitted cohort.",
     "countOrder": "Fisher-Yates permutation from receipt-recorded seed before every cohort round",
     "outlierPolicy": "retain every valid observation; invalidate only a receipt-recorded collector, browser, backend-health, or cleanup failure",
     "cohortIsolation": "Commit calibration thresholds before holdout. Holdout reads them from the explicit committed calibration revision and never from the mutable worktree.",
-    "cleanup": "After every observation dispose all subscriber handles, force garbage collection, and require heap recovery within max(65536 bytes, 5% of the count-1 pre-subscription heap)."
+    "cleanup": "After every observation dispose every logical-subscriber handle and require the harness to report zero active and zero ready subscribers; then dispose the provider/root, close the fresh CDP target, and attest that the target no longer exists before the next observation. Same-target post-disposal heap is retained as diagnostic high-water-cache evidence only, never as an exclusion or claim input."
   },
   "cells": [
     "react:snapback",

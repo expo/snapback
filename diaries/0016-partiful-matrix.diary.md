@@ -2020,7 +2020,27 @@ resolution floor; Contract observations cannot select their own target.
 
 Writing the method before the collector was valuable. It forced us to specify
 provider deduplication, independent callback/disposer ownership, count
-randomization, cohort isolation, cleanup recovery, and invalid-sample policy.
+randomization, cohort isolation, target-isolated cleanup, and invalid-sample
+policy.
 A fail-closed validator makes those choices executable. The amendment remains
 proposed, so I did not run calibration or turn this design into a performance
 claim. No Snapback guide gap was encountered.
+
+The first no-DOM React smoke also prevented a bad cleanup rule from freezing.
+React retains target-scoped high-water caches after unmount, so same-document
+heap recovery mislabeled ordinary framework behavior as an observation leak.
+The corrected method warms one unreported subscriber before the zero-active
+baseline and proves the isolation property that matters across observations:
+every logical handle is gone, the harness reports zero active/ready
+subscribers, the provider/root is disposed, and Chrome attests that the fresh
+target no longer exists. The post-disposal heap is still retained as
+diagnostic evidence, but cannot exclude an observation or feed a claim.
+
+Non-claim one-sample Supabase diagnostics now complete for both arms. React's
+four-point fit was about 3.37 KB per logical subscriber with a roughly 5.86 KB
+one-sided upper bound; Contract's was about 0.84 KB with a roughly 1.68 KB
+upper bound. The ordinary product totals were still about 1.26 MB and 1.63 MB.
+One sample per count has only two fit degrees of freedom and is not suitable
+for promotion, but it is a useful engineering signal: the observed Contract
+problem looks much more like fixed product/runtime representation than
+per-subscriber data binding. No threshold was derived or retained.
