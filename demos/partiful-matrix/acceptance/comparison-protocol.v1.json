@@ -73,6 +73,12 @@
       "date": "2026-07-22",
       "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
       "status": "ratified"
+    },
+    {
+      "id": "partitime-ws8-memory-construct-v2-2026-07-23",
+      "date": "2026-07-23",
+      "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
+      "status": "proposed"
     }
   ],
   "changePolicy": {
