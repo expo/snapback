@@ -148,7 +148,13 @@ export function snapbackDev(options = {}) {
         });
         throw error;
       }
-      const proxy = createSnapbackProxy({ base, mode, getState: currentState, channel });
+      const proxy = createSnapbackProxy({
+        base,
+        mode,
+        getState: currentState,
+        channel,
+        refreshTarget: () => lifecycle.refreshTarget(),
+      });
       server.middlewares.use((req, res, next) => proxy.handleRequest(req, res, next));
       server.httpServer?.on('upgrade', (req, socket, head) => {
         proxy.handleUpgrade(req, socket, head);

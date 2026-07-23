@@ -10,10 +10,12 @@ import {
   lstatSync,
   mkdirSync,
   readFileSync,
+  rmSync,
   watch,
   writeFileSync,
 } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import { createInterface } from 'node:readline';
 import { fileURLToPath } from 'node:url';
 
 import { generate } from '@snapback/codegen';
@@ -292,6 +294,41 @@ function loadGenerated(binary, projectRoot, backendRoot, readyFile, adminToken, 
   }
 }
 
+// Resolve the client arm named by `snapback dev --client` / `--client-command`.
+// The CLI stays surface-agnostic: it runs the surface's own dev command in the
+// surface directory and never embeds frontend dev-server logic — the SC-2a
+// plugin inside that command attaches to the CLI-managed server through the
+// shared ready file (LLP 0041's boundary with LLP 0030).
+//
+// @ref LLP 0079#sc-2b-wire-the-client-arm-into-the-dev-loop-watch-process-from-llp-0078-r1-a3 —
+//   the client arm is one spawned command in the same watch process; default
+//   discovery is the surface package.json `dev` script under the repo runner.
+function resolveClientArm(client, projectRoot) {
+  if (client === undefined || client === null || client === false) return null;
+  const spec = typeof client === 'string' ? { directory: client } : client;
+  const directory = resolve(projectRoot, spec.directory ?? '.');
+  if (typeof spec.command === 'string' && spec.command.trim()) {
+    return { directory, command: spec.command };
+  }
+  const manifestPath = join(directory, 'package.json');
+  let manifest = null;
+  if (existsSync(manifestPath)) {
+    try {
+      manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    } catch {
+      manifest = null;
+    }
+  }
+  if (typeof manifest?.scripts?.dev !== 'string') {
+    throw diagnosticError(
+      'SNAPBACK_DEV_CLIENT_COMMAND_MISSING',
+      `no client dev command: ${directory} has no package.json "dev" script; pass --client-command`,
+      { directory, manifestPath },
+    );
+  }
+  return { directory, command: 'bun run dev' };
+}
+
 export async function runDev(options = {}) {
   const backendRoot = resolve(options.backendDirectory ?? 'snapback');
   const projectRoot = resolve(options.projectRoot ?? dirname(backendRoot));
@@ -301,6 +338,7 @@ export async function runDev(options = {}) {
   const database = resolve(options.database ?? join(stateRoot, 'dev.sqlite3'));
   const databaseExistedBeforeStart = existsSync(database);
   const runtime = resolveRuntimeBinary(options);
+  const clientArm = resolveClientArm(options.client, projectRoot);
   const generated = await generateApp(backendRoot);
   if (!generated.ok) return { ...generated, state: 'generation-failed' };
 
@@ -316,7 +354,7 @@ export async function runDev(options = {}) {
     child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
       cwd: projectRoot,
       env: scrubDynamicLoaderEnvironment(options.env),
-      stdio: options.serverStdio ?? 'inherit',
+      stdio: options.serverStdio ?? ['ignore', 2, 2],
     });
     managed = true;
     try {
@@ -366,72 +404,409 @@ export async function runDev(options = {}) {
 
   let timer = null;
   let closed = false;
-  let generationRunning = false;
+  let restarting = false;
   let queuedFilename = null;
-  const drainGenerationQueue = async () => {
-    if (generationRunning || closed) return;
-    generationRunning = true;
+  let lastLoad = { state: result.state, changed: null, ok: true };
+  const emitDevEvent = (event) => {
+    if (event.state === 'generated-and-loaded' || event.state === 'generated-but-not-loaded' || event.state === 'generation-failed') {
+      lastLoad = { state: event.state, changed: event.changed ?? null, ok: event.ok === true };
+    }
+    options.onEvent?.(event);
+    return event;
+  };
+
+  const regenerateAndLoad = async (filename, extra = {}) => {
+    let next;
     try {
-      while (!closed && queuedFilename !== null) {
-        const filename = queuedFilename;
-        queuedFilename = null;
-        let next;
-        try {
-          next = await generateApp(backendRoot);
-        } catch (error) {
-          options.onEvent?.({
-            schemaVersion: 'snapback.dev.v1',
-            ok: false,
-            state: 'generation-failed',
-            changed: filename,
-            diagnostics: [error.diagnostic ?? {
-              code: error.code ?? 'SNAPBACK_DEV_GENERATION_FAILED',
-              severity: 'error',
-              subsystem: 'codegen',
-              message: error.message,
-            }],
-          });
-          continue;
-        }
-        if (!next.ok) {
-          options.onEvent?.({ ...next, schemaVersion: 'snapback.dev.v1', state: 'generation-failed', changed: filename });
-          continue;
-        }
-        if (closed) break;
-        try {
-          loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken);
-          options.onEvent?.({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename });
-        } catch (error) {
-          options.onEvent?.({
-            schemaVersion: 'snapback.dev.v1',
-            ok: true,
-            state: 'generated-but-not-loaded',
-            changed: filename,
-            diagnostics: [error.diagnostic],
-          });
-        }
-      }
-    } finally {
-      generationRunning = false;
-      if (!closed && queuedFilename !== null) void drainGenerationQueue();
+      next = await generateApp(backendRoot);
+    } catch (error) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'generation-failed',
+        changed: filename,
+        ...extra,
+        diagnostics: [error.diagnostic ?? {
+          code: error.code ?? 'SNAPBACK_DEV_GENERATION_FAILED',
+          severity: 'error',
+          subsystem: 'codegen',
+          message: error.message,
+        }],
+      });
+    }
+    if (!next.ok) {
+      return emitDevEvent({ ...next, schemaVersion: 'snapback.dev.v1', state: 'generation-failed', changed: filename, ...extra });
+    }
+    if (closed) return null;
+    try {
+      loadGenerated(runtime.binary, projectRoot, backendRoot, readyFile, adminToken);
+      return emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'generated-and-loaded', changed: filename, ...extra });
+    } catch (error) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'generated-but-not-loaded',
+        changed: filename,
+        ...extra,
+        diagnostics: [error.diagnostic],
+      });
     }
   };
+
+  // One dev operation at a time: watcher passes, forced reloads, and backend
+  // restarts serialize on the same chain, so a verb never races a hot-push.
+  let workChain = Promise.resolve();
+  const withDevLock = (task) => {
+    const run = workChain.then(task, task);
+    workChain = run.then(() => undefined, () => undefined);
+    return run;
+  };
+  const drainGenerationQueue = () => withDevLock(async () => {
+    while (!closed && queuedFilename !== null) {
+      const filename = queuedFilename;
+      queuedFilename = null;
+      await regenerateAndLoad(filename);
+    }
+  });
   const watcher = watch(backendRoot, { recursive: true }, (_event, filename) => {
-    if (closed || !filename || filename.startsWith('generated')) return;
+    // Ignore codegen's own outputs: the committed `generated/` tree and the
+    // `.generated.tmp-*` staging directories it renames into place —
+    // otherwise every regeneration retriggers the watcher forever.
+    if (closed || !filename || filename.startsWith('generated') || filename.startsWith('.generated')) return;
     queuedFilename = filename;
     clearTimeout(timer);
     timer = setTimeout(() => void drainGenerationQueue(), 100);
   });
+
+  const attachExitWatch = (proc) => {
+    proc?.once('exit', (code, signal) => {
+      if (closed || restarting || proc !== child) return;
+      emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: false, state: 'server-exited', code, signal });
+      options.onServerExit?.(code, signal);
+    });
+  };
+  attachExitWatch(child);
+
+  // The client arm: one spawned surface dev command, streamed as events so
+  // the machine-readable stdout stays one JSON-line stream.
+  let clientProcess = null;
+  const startClientArm = () => {
+    const spawned = spawn(clientArm.command, {
+      shell: true,
+      cwd: clientArm.directory,
+      // Own process group: the shell-spawned tree (runner, Vite, esbuild)
+      // tears down as one unit on close.
+      detached: true,
+      env: options.env ?? process.env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    clientProcess = {
+      child: spawned,
+      pid: spawned.pid ?? null,
+      command: clientArm.command,
+      directory: clientArm.directory,
+      exitCode: null,
+      signal: null,
+    };
+    const forward = (stream, name) => {
+      let buffer = '';
+      stream.setEncoding('utf8');
+      const emitLines = (flush) => {
+        let newline;
+        while ((newline = buffer.indexOf('\n')) !== -1) {
+          const line = buffer.slice(0, newline);
+          buffer = buffer.slice(newline + 1);
+          if (line.length > 0 && !closed) {
+            emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'client-output', stream: name, line });
+          }
+        }
+        if (flush && buffer.length > 0 && !closed) {
+          emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: true, state: 'client-output', stream: name, line: buffer });
+          buffer = '';
+        }
+      };
+      stream.on('data', (chunk) => {
+        buffer += chunk;
+        emitLines(false);
+      });
+      stream.on('close', () => emitLines(true));
+    };
+    forward(spawned.stdout, 'stdout');
+    forward(spawned.stderr, 'stderr');
+    spawned.once('exit', (code, signal) => {
+      clientProcess.exitCode = code;
+      clientProcess.signal = signal;
+      if (!closed) {
+        emitDevEvent({ schemaVersion: 'snapback.dev.v1', ok: code === 0, state: 'client-exited', code, signal });
+      }
+    });
+    spawned.once('error', (error) => {
+      emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'client-exited',
+        code: null,
+        signal: null,
+        diagnostics: [{
+          code: 'SNAPBACK_DEV_CLIENT_SPAWN_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: `client dev command failed to spawn: ${error.message}`,
+          details: { command: clientArm.command, directory: clientArm.directory },
+        }],
+      });
+    });
+    emitDevEvent({
+      schemaVersion: 'snapback.dev.v1',
+      ok: true,
+      state: 'client-started',
+      pid: clientProcess.pid,
+      command: clientArm.command,
+      directory: clientArm.directory,
+    });
+  };
+  const closeClientArm = () => {
+    if (!clientProcess || clientProcess.exitCode !== null || clientProcess.signal !== null) return;
+    const { child: proc } = clientProcess;
+    const signalGroup = (signal) => {
+      try {
+        process.kill(-proc.pid, signal);
+      } catch {
+        try {
+          proc.kill(signal);
+        } catch {
+          // already gone
+        }
+      }
+    };
+    signalGroup('SIGTERM');
+    const escalate = setTimeout(() => {
+      if (clientProcess.exitCode === null && clientProcess.signal === null) signalGroup('SIGKILL');
+    }, 5_000);
+    escalate.unref?.();
+  };
+  // The client spawns only after the managed server is up and the first
+  // generate+load completed, so its plugin's `auto` mode attaches to the
+  // CLI-managed server through the ready file instead of racing to spawn one.
+  if (clientArm) startClientArm();
+
+  const clientStatus = () => {
+    if (clientArm === null && clientProcess === null) return null;
+    if (clientProcess === null) return { running: false, pid: null, exitCode: null, signal: null };
+    return {
+      running: clientProcess.exitCode === null && clientProcess.signal === null,
+      pid: clientProcess.pid,
+      exitCode: clientProcess.exitCode,
+      signal: clientProcess.signal,
+      command: clientProcess.command,
+      directory: clientProcess.directory,
+    };
+  };
+
+  // The dev-loop verb slice: status / reload / restart, each usable from the
+  // interactive keybindings and the machine-readable stdin command channel,
+  // and available with or without a client arm. Every verb resolves to the
+  // event it emitted; none of them throws.
+  const statusVerb = ({ requestId } = {}) => Promise.resolve(emitDevEvent({
+    schemaVersion: 'snapback.dev.v1',
+    ok: true,
+    state: 'status',
+    verb: 'status',
+    ...(requestId === undefined ? {} : { requestId }),
+    server: {
+      managed,
+      pid: descriptor.pid ?? null,
+      serverUrl: descriptor.serverUrl,
+      readyFile,
+      database,
+      running: child ? child.exitCode === null : null,
+    },
+    lastLoad,
+    client: clientStatus(),
+  }));
+  const reloadVerb = ({ requestId } = {}) => withDevLock(
+    () => regenerateAndLoad('(reload)', {
+      verb: 'reload',
+      ...(requestId === undefined ? {} : { requestId }),
+    }),
+  );
+  // Restart stops the managed server (nonce-verified native stop) and starts
+  // it again against the same ready file and database, then re-runs the
+  // generate+load pass. The client arm keeps running: its relay re-resolves
+  // the backend target from the rewritten ready file, so restart never
+  // requires restarting the client process.
+  const restartVerb = ({ requestId } = {}) => withDevLock(async () => {
+    const tag = requestId === undefined ? {} : { requestId };
+    if (closed) return null;
+    if (!managed || child === null) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'restart-failed',
+        verb: 'restart',
+        ...tag,
+        diagnostics: [{
+          code: 'SNAPBACK_DEV_RESTART_UNMANAGED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: 'dev attached to an externally started server; restart only manages the child this process spawned',
+          details: { readyFile },
+        }],
+      });
+    }
+    restarting = true;
+    try {
+      const previousPid = descriptor.pid ?? null;
+      if (child.exitCode === null && child.signalCode === null) {
+        const stop = native(runtime.binary, ['stop', '--ready-file', readyFile], { cwd: projectRoot });
+        if (stop.status !== 0 && child.exitCode === null) child.kill('SIGTERM');
+      }
+      const deadline = Date.now() + 10_000;
+      while (child.exitCode === null && child.signalCode === null && Date.now() < deadline) {
+        await new Promise((resolveWait) => setTimeout(resolveWait, 50));
+      }
+      if (child.exitCode === null && child.signalCode === null) child.kill('SIGKILL');
+      if (existsSync(readyFile)) rmSync(readyFile, { force: true });
+      child = spawn(runtime.binary, ['start', '--ready-file', readyFile, '--db', database], {
+        cwd: projectRoot,
+        env: scrubDynamicLoaderEnvironment(options.env),
+        stdio: options.serverStdio ?? ['ignore', 2, 2],
+      });
+      attachExitWatch(child);
+      descriptor = validateDevTarget(await waitForReady(readyFile, child), { readyFile, database });
+      adminToken = managedAdminToken(descriptor, database);
+      emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: true,
+        state: 'server-restarted',
+        verb: 'restart',
+        ...tag,
+        previousPid,
+        pid: descriptor.pid ?? null,
+        serverUrl: descriptor.serverUrl,
+      });
+      return await regenerateAndLoad('(restart)', { ...tag });
+    } catch (error) {
+      return emitDevEvent({
+        schemaVersion: 'snapback.dev.v1',
+        ok: false,
+        state: 'restart-failed',
+        verb: 'restart',
+        ...tag,
+        diagnostics: [error.diagnostic ?? {
+          code: error.code ?? 'SNAPBACK_DEV_RESTART_FAILED',
+          severity: 'error',
+          subsystem: 'cli',
+          message: error.message,
+        }],
+      });
+    } finally {
+      restarting = false;
+    }
+  });
+
   return {
     ...result,
     child,
+    verbs: { status: statusVerb, reload: reloadVerb, restart: restartVerb },
     close() {
       closed = true;
       clearTimeout(timer);
       watcher.close();
+      closeClientArm();
       closeManaged();
     },
   };
+}
+
+// The two dev-loop control channels over stdin. A TTY gets single-key verbs
+// (s=status, r=reload, R=restart backend, q=quit); anything else is the
+// machine-readable channel: newline-delimited JSON commands
+// (`{"schemaVersion":"snapback.dev-command.v1","verb":"status"|"reload"|"restart"}`,
+// optional `requestId` echoed on the response event). Responses and events
+// ride the one `snapback.dev.v1` JSON-line stream on stdout; unknown or
+// malformed commands produce a structured `command-error` event, never a
+// crash. Returns a detach function.
+export function attachDevControlChannel({ verbs, stop, onEvent, stdin = process.stdin }) {
+  const emit = (event) => onEvent?.({ schemaVersion: 'snapback.dev.v1', ...event });
+  const commandError = (code, message, details) => emit({
+    ok: false,
+    state: 'command-error',
+    diagnostics: [{ code, severity: 'error', subsystem: 'cli', message, ...(details ? { details } : {}) }],
+  });
+  const invoke = (verb, context) => {
+    Promise.resolve(verbs[verb](context)).catch((error) => {
+      commandError(error.code ?? 'SNAPBACK_DEV_COMMAND_FAILED', `dev verb ${verb} failed: ${error.message}`, { verb });
+    });
+  };
+  if (stdin.isTTY) {
+    stdin.setRawMode?.(true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+    const onKey = (key) => {
+      if (key === 's') invoke('status', {});
+      else if (key === 'r') invoke('reload', {});
+      else if (key === 'R') invoke('restart', {});
+      else if (key === 'q' || key === '\u0003') stop();
+    };
+    stdin.on('data', onKey);
+    emit({
+      ok: true,
+      state: 'control-ready',
+      channel: 'tty',
+      keys: { s: 'status', r: 'regenerate and reload', R: 'restart backend', q: 'quit' },
+    });
+    return () => {
+      stdin.off('data', onKey);
+      stdin.setRawMode?.(false);
+      stdin.pause();
+    };
+  }
+  const lines = createInterface({ input: stdin, crlfDelay: Infinity });
+  lines.on('line', (line) => {
+    if (!line.trim()) return;
+    let command;
+    try {
+      command = JSON.parse(line);
+    } catch {
+      commandError('SNAPBACK_DEV_COMMAND_INVALID', 'dev commands are newline-delimited JSON objects', { line: line.slice(0, 200) });
+      return;
+    }
+    if (command?.schemaVersion !== 'snapback.dev-command.v1' || typeof command?.verb !== 'string') {
+      commandError(
+        'SNAPBACK_DEV_COMMAND_INVALID',
+        'expected {"schemaVersion":"snapback.dev-command.v1","verb":"..."}',
+        { line: line.slice(0, 200) },
+      );
+      return;
+    }
+    const context = typeof command.requestId === 'string' ? { requestId: command.requestId } : {};
+    if (!Object.hasOwn(verbs, command.verb)) {
+      emit({
+        ok: false,
+        state: 'command-error',
+        ...context,
+        diagnostics: [{
+          code: 'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB',
+          severity: 'error',
+          subsystem: 'cli',
+          message: `unknown dev verb ${command.verb}`,
+          details: { verb: command.verb, supported: Object.keys(verbs) },
+        }],
+      });
+      return;
+    }
+    invoke(command.verb, context);
+  });
+  lines.on('close', () => stop());
+  emit({
+    ok: true,
+    state: 'control-ready',
+    channel: 'json',
+    commandSchemaVersion: 'snapback.dev-command.v1',
+    verbs: Object.keys(verbs),
+  });
+  return () => lines.close();
 }
 
 function takeFlag(args, name, fallback = null) {
@@ -480,13 +855,28 @@ export async function runCli(argv, options = {}) {
     if (noWatch) args.splice(args.indexOf('--no-watch'), 1);
     const readyFile = takeFlag(args, '--ready-file');
     const database = takeFlag(args, '--db');
+    const clientDirectory = takeFlag(args, '--client');
+    const clientCommand = takeFlag(args, '--client-command');
+    // A restart replaces the managed child, so unexpected-exit detection goes
+    // through runDev's onServerExit callback instead of a listener pinned to
+    // the first child process.
+    let onUnexpectedServerExit = null;
     const result = await runDev({
       backendDirectory: args.shift() ?? 'snapback',
       attach,
       watch: !noWatch,
       ...(readyFile ? { readyFile } : {}),
       ...(database ? { database } : {}),
+      ...(clientDirectory || clientCommand
+        ? {
+          client: {
+            ...(clientDirectory ? { directory: clientDirectory } : {}),
+            ...(clientCommand ? { command: clientCommand } : {}),
+          },
+        }
+        : {}),
       onEvent(event) { console.log(JSON.stringify(event)); },
+      onServerExit(code, signal) { onUnexpectedServerExit?.(code, signal); },
       ...options,
     });
     if (noWatch) {
@@ -494,25 +884,35 @@ export async function runCli(argv, options = {}) {
     } else if (result.ok) {
       await new Promise((resolveStop, rejectStop) => {
         let stopping = false;
-        const stop = () => {
-          if (stopping) return;
+        let detachInput = () => {};
+        const settle = () => {
           stopping = true;
           process.off('SIGINT', stop);
           process.off('SIGTERM', stop);
+          detachInput();
           result.close?.();
-          resolveStop();
         };
-        process.once('SIGINT', stop);
-        process.once('SIGTERM', stop);
-        result.child?.once('exit', (code, signal) => {
+        function stop() {
           if (stopping) return;
-          process.off('SIGINT', stop);
-          process.off('SIGTERM', stop);
+          settle();
+          resolveStop();
+        }
+        onUnexpectedServerExit = (code, signal) => {
+          if (stopping) return;
+          settle();
           rejectStop(diagnosticError(
             'SNAPBACK_DEV_SERVER_EXITED',
             'the managed Snapback server exited while dev watch was active',
             { code, signal },
           ));
+        };
+        process.once('SIGINT', stop);
+        process.once('SIGTERM', stop);
+        detachInput = attachDevControlChannel({
+          verbs: result.verbs,
+          stop,
+          onEvent(event) { console.log(JSON.stringify(event)); },
+          stdin: options.stdin ?? process.stdin,
         });
       });
     }

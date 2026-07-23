@@ -413,6 +413,53 @@ export function createSnapbackViteLifecycle(options = {}) {
     return { ...state };
   }
 
+  // Re-resolve the backend target from the ready file after the relay hits a
+  // refused connection: a `snapback dev` backend restart rewrites the
+  // descriptor (possibly with a new port), and the running relay must keep
+  // working without restarting the client process. Verified exactly like
+  // attach — target fencing plus the live startupNonce probe — and never a
+  // mutation path: no spawn, no setup, no ownership change. Returns the
+  // refreshed state, or null when no live verified target exists.
+  //
+  // @ref LLP 0079#sc-2b-wire-the-client-arm-into-the-dev-loop-watch-process-from-llp-0078-r1-a3 —
+  //   backend restart under a live relay re-resolves through the same
+  //   ready-file surface instead of caching one target forever.
+  let refreshInFlight = null;
+  function refreshTarget() {
+    if (closed || mode === 'off' || mode === 'external') return Promise.resolve(null);
+    refreshInFlight ??= (async () => {
+      try {
+        if (!existsSync(readyFile)) return null;
+        const candidate = validateDevTarget(readReadyDescriptor(readyFile), { readyFile, database });
+        const probe = await probeHealth(candidate.serverUrl);
+        const staleNonce = typeof candidate.startupNonce === 'string'
+          && probe.ok
+          && probe.health?.binary?.startupNonce !== candidate.startupNonce;
+        if (!probe.ok || staleNonce) return null;
+        const changed = state.serverUrl !== candidate.serverUrl || state.pid !== (candidate.pid ?? null);
+        descriptor = candidate;
+        state.serverUrl = candidate.serverUrl;
+        state.pid = candidate.pid ?? null;
+        state.ready = true;
+        if (changed) {
+          emit({
+            event: 'server-target-refreshed',
+            severity: 'note',
+            message: 'relay re-resolved its backend target from the readiness descriptor',
+            serverUrl: state.serverUrl,
+            pid: state.pid,
+          });
+        }
+        return publicState();
+      } catch {
+        return null;
+      } finally {
+        refreshInFlight = null;
+      }
+    })();
+    return refreshInFlight;
+  }
+
   async function close() {
     if (closed) return;
     closed = true;
@@ -447,6 +494,7 @@ export function createSnapbackViteLifecycle(options = {}) {
     readyFile,
     start,
     close,
+    refreshTarget,
     state: publicState,
   };
 }

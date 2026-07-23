@@ -89,7 +89,12 @@ function relayTarget(url, base) {
   return { pathname: parsed.pathname, search: parsed.search };
 }
 
-export function createSnapbackProxy({ base, mode, getState, channel }) {
+// Connection-level failures that justify one re-resolve-and-retry pass: the
+// cached backend target is gone (dev-loop backend restart), not an
+// application error the backend produced.
+const RETRYABLE_CONNECT_CODES = new Set(['ECONNREFUSED', 'ECONNRESET', 'EHOSTUNREACH']);
+
+export function createSnapbackProxy({ base, mode, getState, channel, refreshTarget = null }) {
   const emitRefusal = (diagnostic, transport) => {
     channel?.emit({
       event: 'proxy-refused',
@@ -119,43 +124,59 @@ export function createSnapbackProxy({ base, mode, getState, channel }) {
       });
       return undefined;
     }
-    const upstream = new URL(state.serverUrl);
-    const headers = {};
-    for (const [name, value] of Object.entries(req.headers)) {
-      if (HOP_BY_HOP.has(name) || name === 'host') continue;
-      headers[name] = value;
-    }
-    headers.host = upstream.host;
-    const proxied = http.request(
-      {
-        hostname: upstream.hostname,
-        port: upstream.port,
-        method: req.method,
-        path: `${pathname}${search}`,
-        headers,
-      },
-      (backendRes) => {
-        const responseHeaders = {};
-        for (const [name, value] of Object.entries(backendRes.headers)) {
-          if (HOP_BY_HOP.has(name)) continue;
-          responseHeaders[name] = value;
+    // The request body is buffered (dev-scale app-data payloads) so that a
+    // refused connection can be replayed once against a target re-resolved
+    // from the ready file — a `snapback dev` backend restart must not require
+    // restarting the client process for the relay to keep serving.
+    const forward = (serverUrl, body, mayRetry) => {
+      const upstream = new URL(serverUrl);
+      const headers = {};
+      for (const [name, value] of Object.entries(req.headers)) {
+        if (HOP_BY_HOP.has(name) || name === 'host') continue;
+        headers[name] = value;
+      }
+      headers.host = upstream.host;
+      const proxied = http.request(
+        {
+          hostname: upstream.hostname,
+          port: upstream.port,
+          method: req.method,
+          path: `${pathname}${search}`,
+          headers,
+        },
+        (backendRes) => {
+          const responseHeaders = {};
+          for (const [name, value] of Object.entries(backendRes.headers)) {
+            if (HOP_BY_HOP.has(name)) continue;
+            responseHeaders[name] = value;
+          }
+          res.writeHead(backendRes.statusCode ?? 502, responseHeaders);
+          backendRes.pipe(res);
+        },
+      );
+      proxied.on('error', (error) => {
+        if (mayRetry && refreshTarget && RETRYABLE_CONNECT_CODES.has(error.code)) {
+          void Promise.resolve(refreshTarget()).then((refreshed) => {
+            if (refreshed?.serverUrl) {
+              forward(refreshed.serverUrl, body, false);
+              return;
+            }
+            sendJson(res, 502, {
+              diagnostic: unreachableDiagnostic({ path: pathname, route: base, mode, serverUrl, cause: error.message }),
+            });
+          });
+          return;
         }
-        res.writeHead(backendRes.statusCode ?? 502, responseHeaders);
-        backendRes.pipe(res);
-      },
-    );
-    proxied.on('error', (error) => {
-      sendJson(res, 502, {
-        diagnostic: unreachableDiagnostic({
-          path: pathname,
-          route: base,
-          mode,
-          serverUrl: state.serverUrl,
-          cause: error.message,
-        }),
+        sendJson(res, 502, {
+          diagnostic: unreachableDiagnostic({ path: pathname, route: base, mode, serverUrl, cause: error.message }),
+        });
       });
-    });
-    req.pipe(proxied);
+      proxied.end(body);
+    };
+    const chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => forward(state.serverUrl, Buffer.concat(chunks), true));
+    req.on('error', () => res.destroy());
     return undefined;
   }
 
@@ -187,30 +208,46 @@ export function createSnapbackProxy({ base, mode, getState, channel }) {
       socket.destroy();
       return true;
     }
-    const upstream = new URL(state.serverUrl);
-    const backend = net.connect(Number(upstream.port), upstream.hostname, () => {
-      let requestHead = `${req.method} ${pathname}${search} HTTP/1.1\r\n`;
-      for (let index = 0; index < req.rawHeaders.length; index += 2) {
-        const name = req.rawHeaders[index];
-        const value = req.rawHeaders[index + 1];
-        if (name.toLowerCase() === 'host') {
-          requestHead += `host: ${upstream.host}\r\n`;
-          continue;
+    // Same restart tolerance as handleRequest: one re-resolve-and-reconnect
+    // pass before giving up. The browser socket is untouched until a backend
+    // connection succeeds, so retrying never replays consumed data.
+    const connectBackend = (serverUrl, mayRetry) => {
+      const upstream = new URL(serverUrl);
+      const backend = net.connect(Number(upstream.port), upstream.hostname, () => {
+        let requestHead = `${req.method} ${pathname}${search} HTTP/1.1\r\n`;
+        for (let index = 0; index < req.rawHeaders.length; index += 2) {
+          const name = req.rawHeaders[index];
+          const value = req.rawHeaders[index + 1];
+          if (name.toLowerCase() === 'host') {
+            requestHead += `host: ${upstream.host}\r\n`;
+            continue;
+          }
+          requestHead += `${name}: ${value}\r\n`;
         }
-        requestHead += `${name}: ${value}\r\n`;
-      }
-      requestHead += '\r\n';
-      backend.write(requestHead);
-      if (head && head.length > 0) backend.write(head);
-      socket.pipe(backend);
-      backend.pipe(socket);
-    });
-    const teardown = () => {
-      socket.destroy();
-      backend.destroy();
+        requestHead += '\r\n';
+        backend.write(requestHead);
+        if (head && head.length > 0) backend.write(head);
+        socket.pipe(backend);
+        backend.pipe(socket);
+      });
+      const teardown = () => {
+        socket.destroy();
+        backend.destroy();
+      };
+      backend.on('error', (error) => {
+        if (mayRetry && refreshTarget && RETRYABLE_CONNECT_CODES.has(error.code)) {
+          backend.destroy();
+          void Promise.resolve(refreshTarget()).then((refreshed) => {
+            if (refreshed?.serverUrl) connectBackend(refreshed.serverUrl, false);
+            else socket.destroy();
+          });
+          return;
+        }
+        teardown();
+      });
+      socket.on('error', teardown);
     };
-    backend.on('error', teardown);
-    socket.on('error', teardown);
+    connectBackend(state.serverUrl, true);
     return true;
   }
 

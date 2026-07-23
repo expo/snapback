@@ -37,7 +37,7 @@ which order, and how we know it's done*.
 | SC-1a | MCP verb-scope amendment | LLP 0042 (+ LLP 0024 if a new operation is added) | S (docs) | Landed 2026-07-23 (inspect-extension path; no LLP 0024 change needed) |
 | SC-1b | Control-plane MCP server build | LLP 0042 | L (code) | Landed 2026-07-23 (`snapback mcp-control`; acceptance.run HTTP registry follow-up filed) |
 | SC-2a | LLP 0030 MVP managed-dev Vite plugin | LLP 0030 | L (code) | Landed 2026-07-23 (`@snapback/vite`; todo Contract demo migrated) |
-| SC-2b | Dev-loop client-arm wiring | LLP 0041, LLP 0030 | M (code) | Open — SC-2a landed |
+| SC-2b | Dev-loop client-arm wiring | LLP 0041, LLP 0030 | M (code) | Landed 2026-07-23 (`snapback dev --client` + verb slice; Exact seam defined in LLP 0041) |
 | SC-3 | Doc-batch: constraints made standing | LLP 0037, LLP 0041/0003, LLP 0008/0012 | S (docs) | Landed 2026-07-23 (LLP 0037 amendment pending ratification) |
 | SC-4 | Embedded-Postgres option in LLP 0046 | LLP 0046, LLP 0007 | S (docs) | Landed 2026-07-23 |
 | SC-5 | Name-keying guard: semantic pin + dependency check | LLP 0037 | S–M (code) | Landed 2026-07-23 (`tests/name_keying_guard.rs`) |
