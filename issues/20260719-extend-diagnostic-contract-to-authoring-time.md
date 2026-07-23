@@ -1,6 +1,6 @@
 # Extend the SNAPBACK_* diagnostic contract down into the compile/tooling layer
 
-**Status:** Open
+**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
 **Severity:** P2
 **Systems:** Contract Compiler, Codegen, Dev Server, DX
 **Author:** Claude (Fable 5), directed by Charlie Cheever

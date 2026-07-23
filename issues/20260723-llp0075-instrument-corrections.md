@@ -1,6 +1,6 @@
 # Checkpoint instrument corrections: canonical target identity + cross-user delete witness
 
-**Status:** Open
+**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
 **Severity:** P2
 **Systems:** Competitive evaluation, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

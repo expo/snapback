@@ -1,6 +1,6 @@
 # Finish the agent-facing surface: agent principals GAP plus the app-CLI program
 
-**Status:** Open
+**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
 **Severity:** P2
 **Systems:** Auth, Agent Principals, App CLI, Guide
 **Author:** Claude (Fable 5), directed by Charlie Cheever
