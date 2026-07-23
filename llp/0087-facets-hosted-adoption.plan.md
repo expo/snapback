@@ -80,6 +80,20 @@ CC-1).
 
 ### Phase 0 — truth and spike (now)
 
+> **Progress note (2026-07-23, same day):** step 1 is done — the ENG-25387
+> LLP 0014 refresh landed. The spike has its first results
+> (`cloudflare/spike-facets/`): Worker Loader and facets **work under the
+> pinned Miniflare/workerd** (the plan's hard requirement), with per-facet
+> SQLite isolation, documented abort/delete lifecycle behavior, and
+> deny-by-default egress via `globalOutbound: null` all verified locally.
+> Two research updates: Dynamic Workers now has **published pricing with
+> billing since 2026-05-26** ($0.002/dynamic-worker/day beyond 1,000/month,
+> standard request/CPU rates, paid plans only), and the current docs carry
+> **no beta caveats** — GA status should be confirmed, which would soften
+> Gate 2. Still open for Gate 0: the LLP 0009 isolation review, real-platform
+> measurements (cold start, hibernation, alarms/PITR per facet, metered
+> billing), and facet class migration semantics.
+
 1. Land the ENG-25387 [LLP 0014](./0014-cloudflare-strategy.rfc.md)
    platform-fact refresh (dynamic code loading exists; storage billing
    live; write/read price asymmetry into the cost model).
