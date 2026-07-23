@@ -547,13 +547,17 @@ before the checkpoint reruns.
    `initiationState` write-ahead mark — that is settled; the open part is only
    which layer *persists* the certainty column, the host-owned attempt record
    or the authored progress row.)
+5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
+   host code before it becomes load-bearing in retained receipts?
+6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
+   target, and through the same opaque-placement seam as ordinary fetch?
 7. Are the 1 MiB and 64 KiB bounds measured on wire bytes, decoded bytes, or
    all retained VM/bridge copies, and how are concurrent cursors charged?
 8. Which supported monotonic elapsed-time source or host progress helper lets
    an action obey the 100 ms spacing without a wall clock?
 9. Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
    narrow proof and LLP 0075 selected `single-instance-container-vm.v1`?
-5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
-   host code before it becomes load-bearing in retained receipts?
-6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
-   target, and through the same opaque-placement seam as ordinary fetch?
+10. Does one durable attempt cover all four concurrent cursors, or does each
+    upstream request get a child record under a parent attempt? A single
+    scalar `initiationState`/certainty cannot represent four cursors in
+    different phases.
