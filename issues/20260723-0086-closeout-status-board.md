@@ -1,6 +1,6 @@
 # LLP 0086 close-out: status board reconciliation + author-direction note
 
-**Status:** Open
+**Status:** Done (2026-07-23 — board reconciled, execution note added, CC-6 provenance corrected, v0.3 Revised entry; ref-check green)
 **Severity:** P3
 **Systems:** Corpus
 **Author:** Claude (Fable), directed by Charlie Cheever

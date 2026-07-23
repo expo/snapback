@@ -1,6 +1,6 @@
 # CC-3.2: Triplit server-driven eviction protocol — design read vs LLP 0053
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0084 Triplit section gains the design-read subsection (frozen repo d3029ee, design level only): convergence on compiled-in auth recomputation + client-holdings resnapshot resume; LLP 0053 strictly stronger on ACK-backed obligations, retain/quarantine/delete matrix, lease-bounded offline clients, live policy-activation invalidation; first open question marked answered)
 **Severity:** P3
 **Systems:** Auth, Sync, Competitive analysis
 **Author:** Claude (Fable), directed by Charlie Cheever
