@@ -66,13 +66,13 @@
       "id": "partitime-ws8-warm-prime-invalidation-2026-07-22",
       "date": "2026-07-22",
       "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json",
-      "status": "proposed"
+      "status": "ratified"
     },
     {
       "id": "partitime-ws8-native-lane-invalidation-2026-07-22",
       "date": "2026-07-22",
       "path": "demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json",
-      "status": "proposed"
+      "status": "ratified"
     }
   ],
   "changePolicy": {

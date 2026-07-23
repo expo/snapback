@@ -102,7 +102,23 @@ target is LLP 0185 §4.3's unfinished production artifact: generated closures
 and structural/hydration identity without duplicate runtime view IR, while
 editable IR remains an authorized on-demand artifact. No threshold or claim
 is promoted.)
-**Revised (Step 4 native-lane custody correction proposal):** 2026-07-22
+**Revised (Step 4 post-adoption live-milestone repair):** 2026-07-23
+(The corrected Online adapter now treats its transport lifecycle as
+authoritative over a ready boundary cell's seeded `connecting` value and
+re-emits connection-only transitions without changing rows. The retained
+Partitime diagnostic then proved a second race: Exact received `live`,
+recomputed the query snapshot, and ran the text effect, but the direct
+production host suppressed that patch during the short interval after
+hydration was reported and never replayed it. Exact `b8149e155…` preserves the
+server first paint, records post-report host-model work while the fence is up,
+and replays the current model when custody ends. Its focused regression, 87
+renderer tests, TypeScript checks, and web-bundle invariants are green. A quick
+Contract × Snapback v2 diagnostic at Snapback `8f85d233…` and Exact
+`b8149e155…` reaches live in 63.5–72.7 ms, retains one logical subscription at
+1,839,404 warm heap bytes, and keeps update fan-out/patches
+at 6/8. Quick sampling is not calibration or holdout, so no budget claim is
+promoted.)
+**Revised (Step 4 native-lane custody correction ratification):** 2026-07-23
 (The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
 React Expo Release/Simulator with Exact's Debug host, development module-table
 source, and eager Acto graph. Exact LLP 0145#build-lanes and #fairness-rules
@@ -115,10 +131,12 @@ probe at Exact `a3e9cd71f…` measured 2,311,002 startup-source bytes / 261
 modules agent-off versus 4,868,548 / 511 agent-on; that explains much of the
 old graph but is still development source, not release evidence. Claim-grade
 collection now refuses non-v2 raw receipts and still requires native-host first
-frame plus a structured first-authoritative-data marker. The amendment is not
-ratified and Exact does not yet emit the qualifying production-bundled iOS HBC
-carrier, so native calibration, holdout, and claim promotion remain blocked.)
-**Revised (Step 4 performance-custody correction proposal):** 2026-07-22
+frame plus a structured first-authoritative-data marker. Charlie Cheever
+ratified the amendment on 2026-07-23 by stating, “I ratify Exact LLP 0386 §3.8
+and the Snapback WS8 web/native invalidations dated 2026-07-22.” Exact does
+not yet emit the qualifying production-bundled iOS HBC carrier, so native
+calibration, holdout, and claim promotion remain open.)
+**Revised (Step 4 performance-custody correction ratification):** 2026-07-23
 (The warm web collector primed and measured in the same browser target, so
 Chrome's back/forward cache retained the priming document while
 `Runtime.getHeapUsage` was described as one page and one active logical
@@ -127,9 +145,11 @@ arms; a retained nonclaim three-arm probe using a closed sibling priming target
 makes cold and warm heap converge. Proposed amendment
 `partitime-ws8-warm-prime-invalidation-2026-07-22` preserves the original
 artifacts, version-bumps the web performance method and threshold set, and
-requires all twelve controls/candidates plus committed holdout to rerun. It is
-not ratified, so full v2 collection and claim promotion fail closed. Candidate
-work also makes seeded rows honestly `connecting` until the provider converges,
+requires all twelve controls/candidates plus committed holdout to rerun.
+Charlie Cheever ratified the amendment on 2026-07-23 with the same quoted
+statement above. Ratification permits full v2 collection but does not validate
+the old artifacts or promote a claim. Candidate work also makes seeded rows
+honestly `connecting` until the provider converges,
 removes the consumed serialized hydration manifest, defers the unopened event
 route, and Exact `a3e9cd71f…` releases the parsed manifest after adoption. The
 published-runtime Contract x Supabase diagnostic drops to 1,755,252 bytes with
