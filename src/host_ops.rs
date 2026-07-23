@@ -50,6 +50,94 @@ pub const CLI_ONLY_HOST_OPS: [&str; 3] = ["host.start", "host.stop", "host.resta
 pub const PINNED_UNBUILT_HOST_OPS: [&str; 3] =
     ["schema.reload", "functions.reload", "acceptance.run"];
 
+/// Fixed per-process bound of the recent-invocations ring below.
+///
+/// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+///   the SC-1a non-deferrable minimum pins 128 entries, evicted oldest-first.
+pub const RECENT_INVOCATIONS_CAPACITY: usize = 128;
+
+/// One recorded host operation (a function run or a schema/function artifact
+/// load) surfaced by `app.inspect` as `data.recentInvocations`.
+#[derive(Clone, Debug, Serialize)]
+pub struct RecentInvocationEntry {
+    pub operation: String,
+    #[serde(rename = "functionId", skip_serializing_if = "Option::is_none")]
+    pub function_id: Option<String>,
+    /// `"ok"` or the failing diagnostic code.
+    pub outcome: String,
+    /// ISO 8601 UTC start time.
+    #[serde(rename = "startedAt")]
+    pub started_at: String,
+    #[serde(rename = "durationMs")]
+    pub duration_ms: u64,
+    pub diagnostics: Vec<Diagnostic>,
+}
+
+/// Bounded, in-memory, most-recent-first ring of recent operations. Shared by
+/// every router clone of one server process; never persisted (durable
+/// retention is explicitly deferred by the LLP 0042 amendment).
+#[derive(Clone, Default)]
+pub struct RecentInvocationRing {
+    entries: std::sync::Arc<std::sync::Mutex<std::collections::VecDeque<RecentInvocationEntry>>>,
+}
+
+impl RecentInvocationRing {
+    pub fn record(&self, entry: RecentInvocationEntry) {
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        entries.push_front(entry);
+        entries.truncate(RECENT_INVOCATIONS_CAPACITY);
+    }
+
+    pub fn snapshot(&self) -> Vec<RecentInvocationEntry> {
+        self.entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .iter()
+            .cloned()
+            .collect()
+    }
+}
+
+/// Project one envelope into the ring's `outcome` field: `"ok"`, or the first
+/// error/fatal diagnostic code (falling back to the first diagnostic, then a
+/// generic `"error"`).
+pub fn recent_invocation_outcome(result: &HostOpsResult) -> String {
+    if result.ok {
+        return "ok".to_owned();
+    }
+    result
+        .diagnostics
+        .iter()
+        .find(|diagnostic| {
+            matches!(
+                diagnostic.severity,
+                crate::diagnostic::DiagnosticSeverity::Error
+                    | crate::diagnostic::DiagnosticSeverity::Fatal
+            )
+        })
+        .or_else(|| result.diagnostics.first())
+        .map(|diagnostic| diagnostic.code.clone())
+        .unwrap_or_else(|| "error".to_owned())
+}
+
+/// Millisecond UNIX time as an ISO 8601 UTC timestamp.
+pub fn iso8601_utc_ms(ms: u64) -> String {
+    let seconds = (ms / 1_000) as i64;
+    let millis = ms % 1_000;
+    let days = seconds.div_euclid(86_400);
+    let second_of_day = seconds.rem_euclid(86_400);
+    let (year, month, day) = crate::cron::civil_from_days(days).unwrap_or((1970, 1, 1));
+    format!(
+        "{year:04}-{month:02}-{day:02}T{:02}:{:02}:{:02}.{millis:03}Z",
+        second_of_day / 3_600,
+        (second_of_day % 3_600) / 60,
+        second_of_day % 60,
+    )
+}
+
 /// The `function.explain` kinds LLP 0024 pins. `mutationDryRun` is served
 /// (LLP 0051 D8 / Increment 4); the rest return a structured
 /// `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED` envelope until built.
@@ -1594,6 +1682,72 @@ fn host_op_diagnostic(code: &str, operation: &str, message: &str) -> Diagnostic 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn recent_invocation_ring_is_bounded_and_most_recent_first() {
+        let ring = RecentInvocationRing::default();
+        for index in 0..(RECENT_INVOCATIONS_CAPACITY + 3) {
+            ring.record(RecentInvocationEntry {
+                operation: "function.run".to_owned(),
+                function_id: Some(format!("app:fn{index}")),
+                outcome: "ok".to_owned(),
+                started_at: iso8601_utc_ms(index as u64),
+                duration_ms: 1,
+                diagnostics: Vec::new(),
+            });
+        }
+        let snapshot = ring.snapshot();
+        assert_eq!(snapshot.len(), RECENT_INVOCATIONS_CAPACITY);
+        // Most recent first; the three oldest entries were evicted.
+        assert_eq!(
+            snapshot[0].function_id.as_deref(),
+            Some(format!("app:fn{}", RECENT_INVOCATIONS_CAPACITY + 2).as_str())
+        );
+        assert_eq!(
+            snapshot[RECENT_INVOCATIONS_CAPACITY - 1]
+                .function_id
+                .as_deref(),
+            Some("app:fn3")
+        );
+    }
+
+    #[test]
+    fn recent_invocation_outcome_prefers_the_failing_diagnostic_code() {
+        let snapback = LocalSnapback::memory().expect("memory outcome fixture");
+        let ok = host_ops_result(
+            &snapback,
+            "outcome-ok".to_owned(),
+            "function.run".to_owned(),
+            None,
+            ServerProfile::Test,
+            true,
+            authority_none(),
+            Value::Object(Default::default()),
+            Vec::new(),
+        );
+        assert_eq!(recent_invocation_outcome(&ok), "ok");
+        let failed = host_ops_result(
+            &snapback,
+            "outcome-failed".to_owned(),
+            "function.run".to_owned(),
+            None,
+            ServerProfile::Test,
+            false,
+            authority_none(),
+            Value::Object(Default::default()),
+            vec![
+                Diagnostic::warning("SNAPBACK_SOFT_NOTE", "host-ops", "not the outcome"),
+                Diagnostic::error("SNAPBACK_HANDLER_FAILED", "host-ops", "the outcome"),
+            ],
+        );
+        assert_eq!(recent_invocation_outcome(&failed), "SNAPBACK_HANDLER_FAILED");
+    }
+
+    #[test]
+    fn iso8601_utc_ms_formats_civil_time() {
+        assert_eq!(iso8601_utc_ms(0), "1970-01-01T00:00:00.000Z");
+        assert_eq!(iso8601_utc_ms(1_767_225_600_123), "2026-01-01T00:00:00.123Z");
+    }
 
     #[test]
     fn host_ops_envelope_reports_a_corrupt_durable_version_without_a_cursor() {

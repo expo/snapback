@@ -24,7 +24,7 @@ const inventories = [
     packageDir: 'packages/snapback-cli',
     testDir: '.',
     suffix: '.test.mjs',
-    expectedFiles: ['package.test.mjs'],
+    expectedFiles: ['mcp-control.test.mjs', 'package.test.mjs'],
   },
   {
     id: '@snapback/client',

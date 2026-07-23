@@ -13005,7 +13005,78 @@ async fn execute_auth_host_operation(
     }
 }
 
+/// Record function runs and schema/function artifact loads in the process-wide
+/// bounded ring, and project that ring into `app.inspect`'s
+/// `data.recentInvocations`. Dispatch itself lives in
+/// [`host_ops_handler_inner`]; this wrapper only observes envelopes (or the
+/// pre-envelope refusal diagnostic) so it cannot change any operation's result.
+///
+/// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+///   the SC-1a non-deferrable minimum: a bounded most-recent-first ring
+///   surfaced by `app.inspect`, identical over HTTP host-ops and MCP.
 async fn host_ops_handler(
+    State(runtime): State<AppState>,
+    route_admission: Option<Extension<AdmissionLease>>,
+    authority: Option<Extension<PreparedAuthority>>,
+    impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
+    headers: HeaderMap,
+    Json(request): Json<crate::host_ops::HostOpsRequest>,
+) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
+    let operation = request.operation.clone();
+    let function_id = request.function.clone();
+    let ring = runtime.recent_invocations.clone();
+    let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
+    let started = std::time::Instant::now();
+    let result = host_ops_handler_inner(
+        State(runtime),
+        route_admission,
+        authority,
+        impersonation,
+        headers,
+        Json(request),
+    )
+    .await;
+    if matches!(
+        operation.as_str(),
+        "schema.load" | "functions.load" | "function.run"
+    ) {
+        let (outcome, diagnostics) = match &result {
+            Ok(Json(envelope)) => (
+                crate::host_ops::recent_invocation_outcome(envelope),
+                envelope.diagnostics.clone(),
+            ),
+            Err(refusal) => (
+                refusal.0.diagnostic.code.clone(),
+                vec![refusal.0.diagnostic.clone()],
+            ),
+        };
+        ring.record(crate::host_ops::RecentInvocationEntry {
+            operation: operation.clone(),
+            function_id,
+            outcome,
+            started_at,
+            duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            diagnostics,
+        });
+    }
+    match result {
+        Ok(Json(mut envelope)) => {
+            if operation == "app.inspect"
+                && envelope.ok
+                && let Some(data) = envelope.data.as_object_mut()
+            {
+                data.insert(
+                    "recentInvocations".to_owned(),
+                    serde_json::to_value(ring.snapshot()).unwrap_or_default(),
+                );
+            }
+            Ok(Json(envelope))
+        }
+        refused => refused,
+    }
+}
+
+async fn host_ops_handler_inner(
     State(runtime): State<AppState>,
     route_admission: Option<Extension<AdmissionLease>>,
     authority: Option<Extension<PreparedAuthority>>,
@@ -23884,6 +23955,71 @@ globalThis.__snapbackHandlers = {
             "unrecognized"
         );
         assert!(!serialized.contains(SENTINEL), "{serialized}");
+    }
+
+    /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+    /// function runs and artifact loads land in the process-wide bounded ring
+    /// and `app.inspect` projects it as `data.recentInvocations`, most recent
+    /// first, with the failing diagnostic code as each entry's outcome.
+    #[tokio::test]
+    async fn host_ops_inspect_projects_recent_invocations_ring() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let host_op = |body: serde_json::Value| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&body).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            )
+        };
+
+        let load = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "functions.load" })))
+            .await
+            .expect("recorded functions.load refusal");
+        assert_eq!(load.status(), StatusCode::OK);
+        assert_eq!(response_json(load).await["ok"], false);
+
+        let run = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "function.run", "function": "missing" }),
+            ))
+            .await
+            .expect("recorded function.run refusal");
+        assert_eq!(run.status(), StatusCode::OK);
+        let run = response_json(run).await;
+        assert_eq!(run["ok"], false);
+        let run_code = run["diagnostics"][0]["code"]
+            .as_str()
+            .expect("failing function.run diagnostic code")
+            .to_owned();
+
+        let inspect = router
+            .oneshot(host_op(json!({ "operation": "app.inspect" })))
+            .await
+            .expect("inspect with recent invocations");
+        assert_eq!(inspect.status(), StatusCode::OK);
+        let inspect = response_json(inspect).await;
+        assert_eq!(inspect["ok"], true, "{inspect}");
+        let recent = inspect["data"]["recentInvocations"]
+            .as_array()
+            .expect("recentInvocations array");
+        assert_eq!(recent.len(), 2, "{inspect}");
+        assert_eq!(recent[0]["operation"], "function.run");
+        assert_eq!(recent[0]["functionId"], "missing");
+        assert_eq!(recent[0]["outcome"], run_code);
+        assert_eq!(recent[1]["operation"], "functions.load");
+        assert_eq!(recent[1]["outcome"], "SNAPBACK_HOST_OP_INPUT_MISSING");
+        for entry in recent {
+            assert!(entry["startedAt"].as_str().is_some_and(|at| at.ends_with('Z')));
+            assert!(entry["durationMs"].is_u64());
+            assert!(entry["diagnostics"].is_array());
+            assert_ne!(entry["operation"], "app.inspect");
+        }
     }
 
     #[tokio::test]

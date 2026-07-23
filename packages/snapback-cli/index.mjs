@@ -24,7 +24,7 @@ const RUNTIME_PACKAGES = new Map([
   ['darwin-arm64', '@snapback/runtime-darwin-arm64'],
 ]);
 
-function diagnosticError(code, message, details = undefined) {
+export function diagnosticError(code, message, details = undefined) {
   const error = new Error(message);
   error.code = code;
   error.diagnostic = {
@@ -37,7 +37,7 @@ function diagnosticError(code, message, details = undefined) {
   return error;
 }
 
-function scrubDynamicLoaderEnvironment(environment = process.env) {
+export function scrubDynamicLoaderEnvironment(environment = process.env) {
   const clean = { ...environment };
   for (const key of Object.keys(clean)) {
     if (key.startsWith('DYLD_') || key === 'LD_LIBRARY_PATH') delete clean[key];
@@ -168,7 +168,7 @@ export async function generateApp(backendDirectory, options = {}) {
   };
 }
 
-function readReadyDescriptor(path) {
+export function readReadyDescriptor(path) {
   let value;
   try {
     value = JSON.parse(readFileSync(path, 'utf8'));
@@ -202,7 +202,7 @@ export function validateDevTarget(descriptor, { readyFile, database }) {
   return descriptor;
 }
 
-function native(binary, args, options = {}) {
+export function native(binary, args, options = {}) {
   return spawnSync(binary, args, {
     cwd: options.cwd,
     env: scrubDynamicLoaderEnvironment(options.env),
@@ -223,7 +223,7 @@ function requireNativeSuccess(result, code, operation) {
   return result;
 }
 
-function managedAdminToken(descriptor, database) {
+export function managedAdminToken(descriptor, database) {
   const declared = descriptor?.adminTokenFile;
   if (typeof declared !== 'string') return null;
   const expected = `${resolve(database)}.admin-token`;
@@ -260,7 +260,7 @@ function managedAdminToken(descriptor, database) {
   return token;
 }
 
-async function waitForReady(path, child, timeoutMs = 15_000) {
+export async function waitForReady(path, child, timeoutMs = 15_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (existsSync(path)) return readReadyDescriptor(path);
@@ -517,6 +517,21 @@ export async function runCli(argv, options = {}) {
       });
     }
     return result.ok ? 0 : 1;
+  }
+  if (command === 'mcp-control') {
+    // @ref LLP 0042#implementation-decisions-recorded-for-sc-1b-2026-07-23 —
+    // the control-plane MCP server ships inside @snapback/cli as a JS
+    // command, reusing the CLI lifecycle helpers instead of the native
+    // binary's guide-only `snapback mcp`.
+    const readyFile = takeFlag(args, '--ready-file');
+    const database = takeFlag(args, '--db');
+    const { runMcpControl } = await import('./mcp-control.mjs');
+    return runMcpControl({
+      backendDirectory: args.shift() ?? 'snapback',
+      ...(readyFile ? { readyFile } : {}),
+      ...(database ? { database } : {}),
+      ...options,
+    });
   }
   const runtime = resolveRuntimeBinary(options);
   const delegatedArgs = command === undefined ? [] : [command, ...args];

@@ -258,3 +258,26 @@ consumed surfaces already gate.
 Draft. This RFC is the first buildable MCP slice under LLP 0024. The
 2026-07-23 agent-verb amendment (LLP 0079 SC-1a) widens the slice per
 LLP 0078 R3.
+
+**Implementation checkpoint (2026-07-23, LLP 0079 SC-1b).** The control-plane
+server shipped as decided above: `snapback mcp-control` in `@snapback/cli`
+(`packages/snapback-cli/mcp-control.mjs`), newline-delimited JSON-RPC 2.0
+stdio, all nine tools. Lifecycle tools reuse the CLI's ready-file
+spawn/validate/nonce-stop helpers; served ops POST
+`/_snapback/api/host-ops` with the `x-snapback-admin-token` header (and the
+process-bound impersonation capability header for caller-selected-user
+operations), returning the shared envelope verbatim — `ok: false` envelopes
+are successful tool results. The app-data catalog is derived at server start
+from `generated/functions.manifest.json` plus the per-operation args-schema
+artifacts (0024's pinned entry shape; queries by default, mutations only
+with an explicit authority tuple; `devAdminBypass` without `reason`
+refused with a `next` hint). `app.inspect` now carries the SC-1a
+`recentInvocations` ring (128 entries, recorded at the host-ops handler so
+HTTP and MCP project identically; `src/host_ops.rs`, `src/server.rs`).
+`snapback_acceptance_run` returns the pinned `SNAPBACK_HOST_OP_UNIMPLEMENTED`
+envelope **mirrored in-process**: the HTTP registry currently refuses
+pinned-unbuilt operations pre-dispatch as `SNAPBACK_HOST_OP_UNKNOWN`, so
+registering them for the honest unimplemented envelope over HTTP is a named
+follow-up, not silently absorbed here. The acceptance test
+(`packages/snapback-cli/mcp-control.test.mjs`) drives the full loop through
+MCP alone and runs in the local proof.
