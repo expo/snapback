@@ -2055,13 +2055,24 @@ deploy. The revocation-eviction differentiator claim therefore covers the
 **local target only** today. This is a known, deliberately recorded gap — not
 an acceptance failure.
 
-**Competitive half (LLP 0086 CC-3.3).** The InstantDB eviction probe is
-blocked on credentials, so the comparative half of the differentiator claim is
-not yet established; the LLP 0074 claim remains publication-gated per LLP 0086
-governing constraint 2.
+**Competitive half (LLP 0086 CC-3.3; updated 2026-07-23 same day).** The
+InstantDB eviction probe ran after credentials arrived: Instant was observed
+to evict already-synced rows live (~32 ms) on *data-dependent* revocation but
+not to re-evaluate live subscriptions on *rule* revocation
+(reconnect-only) — see LLP 0082 §Permissions and
+`tests/probes/instant-eviction-20260723/`. The differentiator claim was
+therefore narrowed, not unblocked as originally stated: what survives is
+that this contract is specified, ACK-backed, lease-bounded, and covers
+rule-activation invalidation — the shape Instant was observed not to deliver
+live. Narrowed claim text lives in LLP 0074; publication remains gated per
+LLP 0086 governing constraint 2.
 
 ## Changelog
 
+- **2026-07-23, later same day (LLP 0086 CC-3.3 probe results; still
+  Accepted).** Updated the §Competitive half note: the InstantDB probe ran —
+  data-dependent revocation evicts live, rule revocation is reconnect-only —
+  and the LLP 0074 claim was narrowed accordingly. No contract change.
 - **2026-07-23 (LLP 0086 CC-3.1 acceptance evidence; still Accepted).** Added
   the dated §Acceptance evidence and target coverage note under §Status: named
   the local-target implementation files, committed receipts

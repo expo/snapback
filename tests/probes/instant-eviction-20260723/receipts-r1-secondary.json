@@ -1,0 +1,63 @@
+{
+  "shape": "r1",
+  "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a",
+  "row_served_on_fresh_client": false,
+  "latest_ids": [],
+  "events": [
+    {
+      "ts": "2026-07-23T11:26:38.620Z",
+      "t_ms": 1784805998621,
+      "type": "secondary-start",
+      "shape": "r1",
+      "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+      "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a",
+      "user_email": "probe-user@example.com"
+    },
+    {
+      "ts": "2026-07-23T11:26:39.586Z",
+      "t_ms": 1784805999586,
+      "type": "token-minted",
+      "email": "probe-user@example.com"
+    },
+    {
+      "ts": "2026-07-23T11:26:39.760Z",
+      "t_ms": 1784805999760,
+      "type": "connection-status",
+      "status": "closed"
+    },
+    {
+      "ts": "2026-07-23T11:26:39.761Z",
+      "t_ms": 1784805999761,
+      "type": "client-signed-in",
+      "user_email": "probe-user@example.com"
+    },
+    {
+      "ts": "2026-07-23T11:26:39.926Z",
+      "t_ms": 1784805999926,
+      "type": "connection-status",
+      "status": "opened"
+    },
+    {
+      "ts": "2026-07-23T11:26:40.028Z",
+      "t_ms": 1784806000028,
+      "type": "connection-status",
+      "status": "authenticated"
+    },
+    {
+      "ts": "2026-07-23T11:26:40.137Z",
+      "t_ms": 1784806000137,
+      "type": "subscription-callback",
+      "ids": [],
+      "target_present": false
+    },
+    {
+      "ts": "2026-07-23T11:26:59.763Z",
+      "t_ms": 1784806019763,
+      "type": "secondary-final",
+      "shape": "r1",
+      "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a",
+      "row_served_on_fresh_client": false,
+      "latest_ids": []
+    }
+  ]
+}

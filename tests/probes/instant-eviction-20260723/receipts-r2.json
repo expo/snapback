@@ -1,0 +1,189 @@
+{
+  "shape": "r2",
+  "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+  "user_email": "probe-user@example.com",
+  "rowId": "daeaba8a-9cf7-4ffb-a877-44ae1c8fd49b",
+  "pre_rule": "data.visibleTo == auth.email",
+  "revocation": {
+    "kind": "admin-update-visibleTo",
+    "to": "other@example.com"
+  },
+  "verdict": {
+    "verdict": "evicted",
+    "eviction_latency_ms": 32,
+    "eviction_callback_ts": "2026-07-23T11:21:57.025Z"
+  },
+  "events": [
+    {
+      "ts": "2026-07-23T11:21:53.494Z",
+      "t_ms": 1784805713495,
+      "type": "start",
+      "shape": "r2",
+      "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+      "user_email": "probe-user@example.com"
+    },
+    {
+      "ts": "2026-07-23T11:21:53.938Z",
+      "t_ms": 1784805713938,
+      "type": "perms-push-ack",
+      "status": 200,
+      "perms": {
+        "probe_items": {
+          "allow": {
+            "view": "data.visibleTo == auth.email"
+          }
+        }
+      },
+      "response": {
+        "rules": {
+          "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+          "code": {
+            "probe_items": {
+              "allow": {
+                "view": "data.visibleTo == auth.email"
+              }
+            }
+          },
+          "version": 1
+        }
+      },
+      "roundtrip_ms": 439
+    },
+    {
+      "ts": "2026-07-23T11:21:54.171Z",
+      "t_ms": 1784805714171,
+      "type": "admin-create-row-ack",
+      "rowId": "daeaba8a-9cf7-4ffb-a877-44ae1c8fd49b",
+      "txRes": {
+        "tx-id": 2544140641
+      },
+      "roundtrip_ms": 233
+    },
+    {
+      "ts": "2026-07-23T11:21:54.305Z",
+      "t_ms": 1784805714305,
+      "type": "token-minted",
+      "email": "probe-user@example.com",
+      "token_len": 36
+    },
+    {
+      "ts": "2026-07-23T11:21:54.423Z",
+      "t_ms": 1784805714423,
+      "type": "connection-status",
+      "status": "closed"
+    },
+    {
+      "ts": "2026-07-23T11:21:54.424Z",
+      "t_ms": 1784805714424,
+      "type": "client-signed-in",
+      "user_email": "probe-user@example.com",
+      "user_id": "9b133f38-5e84-4391-b798-81faa207d317"
+    },
+    {
+      "ts": "2026-07-23T11:21:54.590Z",
+      "t_ms": 1784805714590,
+      "type": "connection-status",
+      "status": "opened"
+    },
+    {
+      "ts": "2026-07-23T11:21:54.686Z",
+      "t_ms": 1784805714686,
+      "type": "connection-status",
+      "status": "authenticated"
+    },
+    {
+      "ts": "2026-07-23T11:21:54.784Z",
+      "t_ms": 1784805714784,
+      "type": "subscription-callback",
+      "ids": [
+        "daeaba8a-9cf7-4ffb-a877-44ae1c8fd49b"
+      ],
+      "n": 1
+    },
+    {
+      "ts": "2026-07-23T11:21:54.784Z",
+      "t_ms": 1784805714784,
+      "type": "target-row-delivered",
+      "rowId": "daeaba8a-9cf7-4ffb-a877-44ae1c8fd49b"
+    },
+    {
+      "ts": "2026-07-23T11:21:56.993Z",
+      "t_ms": 1784805716993,
+      "type": "revocation-ack",
+      "kind": "admin-update-visibleTo",
+      "newValue": "other@example.com",
+      "txRes": {
+        "tx-id": 2544140845
+      },
+      "roundtrip_ms": 207
+    },
+    {
+      "ts": "2026-07-23T11:21:57.025Z",
+      "t_ms": 1784805717025,
+      "type": "subscription-callback",
+      "ids": [],
+      "n": 0
+    },
+    {
+      "ts": "2026-07-23T11:22:01.994Z",
+      "t_ms": 1784805721994,
+      "type": "checkpoint",
+      "at_s": 5,
+      "row_present_in_latest_callback": false,
+      "callbacks_since_ack": 1,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:22:01.994Z",
+      "t_ms": 1784805721994,
+      "type": "verdict-preliminary",
+      "verdict": "evicted",
+      "eviction_latency_ms": 32,
+      "eviction_callback_ts": "2026-07-23T11:21:57.025Z"
+    },
+    {
+      "ts": "2026-07-23T11:22:11.995Z",
+      "t_ms": 1784805731995,
+      "type": "checkpoint",
+      "at_s": 15,
+      "row_present_in_latest_callback": false,
+      "callbacks_since_ack": 1,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:22:26.993Z",
+      "t_ms": 1784805746993,
+      "type": "checkpoint",
+      "at_s": 30,
+      "row_present_in_latest_callback": false,
+      "callbacks_since_ack": 1,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:22:56.995Z",
+      "t_ms": 1784805776995,
+      "type": "checkpoint",
+      "at_s": 60,
+      "row_present_in_latest_callback": false,
+      "callbacks_since_ack": 1,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:23:56.994Z",
+      "t_ms": 1784805836994,
+      "type": "checkpoint",
+      "at_s": 120,
+      "row_present_in_latest_callback": false,
+      "callbacks_since_ack": 1,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:23:56.994Z",
+      "t_ms": 1784805836994,
+      "type": "verdict-final",
+      "verdict": "evicted",
+      "eviction_latency_ms": 32,
+      "eviction_callback_ts": "2026-07-23T11:21:57.025Z"
+    }
+  ]
+}

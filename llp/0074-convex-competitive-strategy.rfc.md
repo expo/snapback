@@ -984,3 +984,34 @@ series artifacts inherit the same anti-green-matrix rules as the matrices
 fail-closed cleanup), and any cross-vendor comparative claim a series post
 makes is competitive material under this section's publication gate, not
 exempt from it as "content."
+
+### Revocation-eviction claim (LLP 0086 CC-3.4, narrowed 2026-07-23)
+
+The claim originally anticipated by LLP 0086 CC-3 — Snapback has a ratified
+revocation-eviction contract where InstantDB is silent — was **narrowed** by
+the preregistered probe (probe-observed 2026-07-23; receipts and runnable
+protocol in `tests/probes/instant-eviction-20260723/`; provenance caveat:
+run on a self-provisioned ephemeral app after a credential mismatch,
+platform behavior assumed app-independent). The publishable claim is:
+
+> Snapback's authorization-invalidation path is a ratified, specified
+> contract — server-retained ACK-backed delivery obligations,
+> retain/quarantine/delete semantics, lease-bounded offline clients, and
+> invalidation on permission-rule activation — acceptance-tested on the
+> local target (internal fact: LLP 0053 + its 2026-07-23 coverage note;
+> local target only). InstantDB's implementation was probe-observed to
+> evict already-synced rows live (~32 ms) when a *data-dependent*
+> permission input changes, but observed **not** to re-evaluate live
+> subscriptions when the permission *rules themselves* change — rule
+> revocation reaches a connected client only on reconnect (probe-observed,
+> 2026-07-23) — and none of this behavior is documented (doc-confirmed
+> absence, checked 2026-07-23).
+
+What may NOT be published: any claim that Instant "does not evict" (refuted
+for the data-dependent shape), and any coverage implication beyond
+Snapback's local target. Publication remains under this section's gate
+(LLP 0086 governing constraint 2); the probe supplies the fresh empirical
+verification leg for the Instant-side facts, so the remaining gate items
+are the Snapback-side coverage statement (carried by LLP 0053's acceptance
+evidence) and the LLP 0082 review or an independent audit of the probe
+receipts.

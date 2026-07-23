@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Deployment, Auth, Sync, Realtime, Storage, Competitive analysis
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-23
-**Revised:** 2026-07-23 (v0.1 — round-1 review revision: governing constraints made operational, CC-2 condensed under LLP 0087's authority, Dynamic Workflows split out as CC-2b, CC-8 documentation batch and the evidence-disposition ledger added, CC-1 dependency chain stated, CC-6 licensing wording corrected. v0.2 — post-READY editorial pass after round 2 (Fable READY, Codex NOT READY; applied unreviewed): CC-1 operation set aligned with LLP 0087 Phase 2 and "working app" defined, publication gate extended to LLP 0001-sourced and compound claims, CC-4 pushdown scope bounded and guest-auth decision checklist added, CC-8 rows classified citation-vs-decision-bearing, CC-7 gains LLP 0007, CC-5/CC-3/CC-2b citation and status wording fixes. v0.3 — 2026-07-23 execution close-out: status board reconciled to execution results, execution note added, CC-6 marker provenance corrected (mesh marker lives in LLP 0084), LLP 0088/0089 referenced)
+**Revised:** 2026-07-23 (v0.1 — round-1 review revision: governing constraints made operational, CC-2 condensed under LLP 0087's authority, Dynamic Workflows split out as CC-2b, CC-8 documentation batch and the evidence-disposition ledger added, CC-1 dependency chain stated, CC-6 licensing wording corrected. v0.2 — post-READY editorial pass after round 2 (Fable READY, Codex NOT READY; applied unreviewed): CC-1 operation set aligned with LLP 0087 Phase 2 and "working app" defined, publication gate extended to LLP 0001-sourced and compound claims, CC-4 pushdown scope bounded and guest-auth decision checklist added, CC-8 rows classified citation-vs-decision-bearing, CC-7 gains LLP 0007, CC-5/CC-3/CC-2b citation and status wording fixes. v0.3 — 2026-07-23 execution close-out: status board reconciled to execution results, execution note added, CC-6 marker provenance corrected (mesh marker lives in LLP 0084), LLP 0088/0089 referenced. v0.4 — 2026-07-23 CC-3 probe close-out: probe ran (data-dependent revocation evicts live, rule revocation reconnect-only), decision rule fired, LLP 0074 claim narrowed, LLP 0082 corrected)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0018, LLP 0019, LLP 0024, LLP 0028, LLP 0033, LLP 0037, LLP 0040, LLP 0053, LLP 0060, LLP 0068, LLP 0070, LLP 0074, LLP 0076, LLP 0079, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0087, ENG-25387
 
 ## Summary
@@ -79,7 +79,7 @@ only the information-buying Phase 0 is authorized today.
 | CC-1 | Agent provisioning surface (remote MCP + platform API) | Spec + build | L | 0089 (new), 0010, 0024 | Spec drafted (LLP 0089, 2026-07-23, author-directed early start); build blocked on spec review + 0082 gate |
 | CC-2 | Facets/Dynamic Workers evaluation + LLP 0014 refresh | Evaluation spike | — | 0014, 0087 | Steps 1+1b done (GA determination 2026-07-23: still open beta — prohibition binding); Phase 0 spike executing under LLP 0087 |
 | CC-2b | Dynamic Workflows as LLP 0070 hosted-profile candidate | Assessment | S | 0070 | Done 2026-07-23 (verdict: blocked-on, five named facts) |
-| CC-3 | Revocation-eviction as a proven differentiator | Verification + probe | M | 0053, 0074, 0082 | Items 1–2 done 2026-07-23; probe blocked (no InstantDB credentials); claim blocked on probe |
+| CC-3 | Revocation-eviction as a proven differentiator | Verification + probe | M | 0053, 0074, 0082 | Done 2026-07-23 (probe: data-dependent revocation evicts live ~32 ms, rule revocation reconnect-only; claim narrowed per decision rule, landed in LLP 0074, publication gated) |
 | CC-4 | Permission pushdown requirement; auth paved-path design amendments | Design amendment | S | 0011 | Landed 2026-07-23 (LLP 0011 dated addendum) |
 | CC-5 | Streams comparison into bounded streamed actions | Design comparison | S | 0076 | Landed 2026-07-23 (four dispositions recorded) |
 | CC-6 | Positioning batch | Positioning | S | 0074 | Drafted 2026-07-23 in LLP 0074; publication gated |
@@ -550,8 +550,14 @@ beta prohibition binding (explicit changelog statements still say open
 beta as of 2026-07-23); the Triplit design read (LLP 0084) confirmed
 convergence on server-recomputation and mandatory resnapshot while finding
 LLP 0053 strictly stronger on delivery obligations, lease-bounded offline
-clients, and retain/quarantine semantics; ENG-25387 was already closed;
-CC-3's InstantDB probe is blocked on credentials.
+clients, and retain/quarantine semantics; ENG-25387 was already closed.
+CC-3's InstantDB probe ran later the same day once credentials arrived
+(preregistration committed first): data-dependent revocation evicts live
+(~32 ms server push), rule revocation produces no live traffic and is
+filtered only on reconnect — so the preregistered decision rule fired and
+the LLP 0074 claim was **narrowed**, not unblocked as stated; LLP 0082
+§Permissions carries the correction and
+`tests/probes/instant-eviction-20260723/` the receipts.
 
 ## Status
 

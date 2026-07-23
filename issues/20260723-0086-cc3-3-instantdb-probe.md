@@ -1,6 +1,6 @@
 # CC-3.3: InstantDB revocation-eviction empirical probe
 
-**Status:** In progress (2026-07-23 — credentials provided in .agent-local-secrets.md; preregistration below committed before execution)
+**Status:** Done (2026-07-23 — probe executed per preregistration on a self-provisioned ephemeral app (supplied admin token mismatched the supplied App ID): R2 data-dependent revocation EVICTED live ~32 ms after admin ack; R1 rule revocation NOT evicted live (zero callbacks in 120 s, filtered on reconnect); secondary: row not served on fresh reconnect in both shapes; receipts preserved in tests/probes/instant-eviction-20260723/; results recorded in LLP 0082 §Permissions)
 **Severity:** P2
 **Systems:** Competitive analysis, Auth
 **Author:** Claude (Fable), directed by Charlie Cheever
