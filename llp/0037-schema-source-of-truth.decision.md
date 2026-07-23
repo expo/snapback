@@ -5,8 +5,8 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
-**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057
+**Revised:** 2026-07-23 (LLP 0086 CC-8 rows 1/7/11: schema lockdown recorded as a named safety feature; Triplit compatibility-classified schema-push comparison; Cambria lens-migration prior-art note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057, LLP 0082, LLP 0084, LLP 0085, LLP 0086
 
 ## Summary
 
@@ -131,6 +131,55 @@ generated membership methods, and role-literal TypeScript unions are derived
 outputs, not competing wire authorities. Codegen may derive values such as the
 authority-creating marker, but the server manifest types remain the parser and
 schema authority.
+
+## Dated amendments: prior-art absorptions (2026-07-23)
+
+Recorded per [LLP 0086](./0086-prior-art-course-corrections.plan.md) §CC-8
+(rows 1, 7, 11). Row 1 is decision-bearing and follows this document's
+dated-amendment convention; rows 7 and 11 record comparisons and prior art
+without changing the decision.
+
+**Schema lockdown as a named safety feature (CC-8 row 1,
+decision-bearing).** InstantDB's `attrs` create-rules let an operator forbid
+dynamic attribute creation — "schema lockdown against rogue agents"
+(LLP 0082 §Permissions). Snapback's schema surface must support the
+equivalent as a *named* lockdown mode: when engaged, no agent or client path
+may create tables, fields, or indexes outside the declared,
+manifest-validated schema. Under this document's Rust-first mechanism the
+guarantee is today largely structural — the server's serde parsing fails
+closed on undeclared shapes, and there is no dynamic-attribute path on the
+paved surface — but recording it as a named feature rather than a side
+effect means any future surface that can change schema (in particular a
+provisioning push-schema operation) must preserve and expose it explicitly.
+The operating-surface half — the lockdown *toggle* an operator or agent
+harness sets — is carried by LLP 0086 §CC-1's provisioning surface spec
+(LLP 0089, in drafting), which is required to expose it; LLP 0024 receives
+its half through that spec.
+
+**Comparison: Triplit's compatibility-classified schema pushes (CC-8
+row 7).** Triplit classifies each schema push as backwards-compatible or
+not, with an enforcement flag, and deployed clients *refuse to connect* on
+an incompatible schema (LLP 0084 §Triplit). What LLP 0037 already covers:
+one authoritative source per shape, generated schemas with a
+`schemaVersion` on each artifact, a CI drift gate, and consumers that
+validate what they read — so an incompatible artifact is caught as a
+reviewable diff before it ships, and a fail-closed parse afterward. What
+the classification idea adds that LLP 0037 does not have: a *runtime*
+compatibility verdict at the deployed-client seam — the drift gate runs
+between in-repo artifacts at build time and does not classify whether an
+already-deployed client remains compatible with a newly pushed schema, nor
+give that client a principled refuse-to-connect behavior distinct from a
+generic validation failure. Recorded as a comparison only; no decision is
+taken here beyond noting the gap for whichever document owns deployed-client
+schema evolution.
+
+**Prior art: Cambria-style lens migrations (CC-8 row 11).** Jazz v2 ships
+Cambria-style bidirectional schema lenses for migrations — translating
+reads and writes between schema versions so deployed clients on different
+versions interoperate without lockstep upgrade (LLP 0085 §Jazz v2). Noted
+as prior art for schema evolution across deployed clients — a pointer, not
+an adoption; it complements rather than replaces this document's
+single-source-plus-drift-gate shape.
 
 ## Status
 

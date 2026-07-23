@@ -1,6 +1,6 @@
 # CC-8.6: Agents SDK client-writable broadcast anti-pattern (LLP 0011)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — recorded anti-pattern in LLP 0011 §Dated addendum)
 **Severity:** P3
 **Systems:** Auth, Realtime
 **Author:** Claude (Fable), directed by Charlie Cheever

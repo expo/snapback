@@ -1,6 +1,6 @@
 # CC-8.8: convergent permission language + revisability epitaph cited (LLP 0011)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — independent-validation citations in LLP 0011 §Dated addendum)
 **Severity:** P3
 **Systems:** Auth
 **Author:** Claude (Fable), directed by Charlie Cheever

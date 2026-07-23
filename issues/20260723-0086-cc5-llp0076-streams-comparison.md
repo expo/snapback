@@ -1,6 +1,6 @@
 # CC-5: InstantDB Streams comparison subsection in LLP 0076
 
-**Status:** Open
+**Status:** Done (2026-07-23 — §"Prior art: InstantDB Streams" added to LLP 0076; dispositions: resumability rejected for v1/deferred to OQ3, writer discipline already-equivalent, auth defaults already-equivalent, retention rejected)
 **Severity:** P3
 **Systems:** Actions, Realtime
 **Author:** Claude (Fable), directed by Charlie Cheever

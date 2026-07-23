@@ -1,6 +1,6 @@
 # CC-8.1: schema lockdown as a named safety feature (LLP 0037)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — recorded in LLP 0037 §Dated amendments: prior-art absorptions; LLP 0024 toggle half rides LLP 0089, in drafting)
 **Severity:** P3
 **Systems:** Schema, Developer experience
 **Author:** Claude (Fable), directed by Charlie Cheever

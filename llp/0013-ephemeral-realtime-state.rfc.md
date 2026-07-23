@@ -5,8 +5,8 @@
 **Systems:** Realtime, Sync, Storage, API, Runtime, Auth, Deployment, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053
+**Revised:** 2026-07-23 (LLP 0086 CC-8 row 4: deliberate partyserver posture recorded — parallel, not wrap; hibernation bounds noted). 2026-07-17 (client-visible scope, entry, and room-authority generations are bounded by `Number.MAX_SAFE_INTEGER`; entry exhaustion terminally retires the room and emits only a clearing epoch boundary). 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (item-6 implementation reconciliation: the local target now installs the accepted dependency-indexed room barriers, generation-checks protected-room sinks, and exposes the capability only under exact auth-invalidation negotiation; custom-key authorization remains refused). 2026-07-13 (authorization-invalidation amendment: LLP 0053 item 6 installs and quiesces dependency-indexed room barriers before an authorization-changing commit, generation-checks every effect sink atomically with its act, then projects level-triggered reauthorization and gives `AuthChanged`/`AuthRevoked` an owner); 2026-07-12 (ENG-24574: request metadata and WebSocket frames are hard-bounded, and the per-room byte budget now accounts conservatively for the complete retained room footprint); 2026-07-12 (ENG-24566/ENG-24570/ENG-24574: snapshots carry an authoritative room high-water mark, clients retain bounded delete tombstones, coalesced deltas drain in version order, lifecycle replacement is generation-linearized, and collection definitions/scopes fail closed before state changes); 2026-07-12 (ENG-24353: authenticated session/user identity is authoritative; conflicting payload claims fail closed, and custom keys are connection-owned until generated key-specific authorization exists; earlier: 2026-07-01 status → Accepted, ratified in the LLP 0032 R1 batch: the shipped ephemeral subsystem implements this design, with hardening gaps tracked as LLP 0032 L1/L4/L9; LLP 0032 R3: §App API boundary re-grounded on the ratified commit-time boundary instead of the superseded whole-handler lock model; 2026-06-29: related LLP index updated for LLP 0026)
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0014, LLP 0026, LLP 0039, LLP 0053, LLP 0083, LLP 0086
 
 ## Summary
 
@@ -905,6 +905,30 @@ table spelling or an ambient role string. Any transition that removes a
 required role—including a role downgrade—is a kick for room authority: the
 existing item-6 barrier reauthorizes or unregisters the affected connection
 before later effects can escape.
+
+## Dated note: partyserver posture (2026-07-23)
+
+Recorded as a deliberate decision per
+[LLP 0086](./0086-prior-art-course-corrections.plan.md) §CC-8 (row 4),
+following this Accepted document's dated-amendment convention. Cloudflare's
+**partyserver** (the PartyKit successor) is the closest platform-native
+implementation of this RFC's rooms contract
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md) §The realtime
+layer Cloudflare ships). The recorded posture for hosted ephemeral rooms is
+**parallel it**: Snapback keeps its own ratified ephemeral lane and does not
+wrap partyserver. Rationale: this RFC's lane is Accepted and implemented on
+the local target with its own room-authority, epoch/generation, budget, and
+authorization-invalidation semantics, and partyserver's hibernation bounds
+— a 16 KB serialized attachment per connection and in-memory state reset on
+wake (LLP 0083) — would constrain those semantics from below; a Snapback
+Durable Object adapter must instead make the honest hibernation choice this
+RFC's §Backend adapters already requires, rather than inherit a wrapper's.
+Partyserver remains prior art to consult (room routing, hibernation-aware
+subscription handling, partysub's sharded fan-out). This posture is
+revisable against a concrete hosted-rooms trigger — when a hosted
+ephemeral-rooms target is actually being built, re-evaluate wrap-vs-parallel
+against partyserver as it then exists, with LLP 0014 owning the broader
+Cloudflare strategy.
 
 ## Status
 

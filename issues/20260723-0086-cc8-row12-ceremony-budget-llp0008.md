@@ -1,6 +1,6 @@
 # CC-8.12: query-scoped-cache ceremony budget recorded (LLP 0008)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — ceremony budget recorded in LLP 0008 §Subscription Contract)
 **Severity:** P3
 **Systems:** Sync, Developer experience
 **Author:** Claude (Fable), directed by Charlie Cheever

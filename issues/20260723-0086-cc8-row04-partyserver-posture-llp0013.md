@@ -1,6 +1,6 @@
 # CC-8.4: partyserver posture recorded as deliberate decision (LLP 0013)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — posture recorded in LLP 0013 §Dated note: partyserver posture: parallel it, revisable against a concrete hosted-rooms trigger)
 **Severity:** P3
 **Systems:** Realtime, Ephemeral state
 **Author:** Claude (Fable), directed by Charlie Cheever

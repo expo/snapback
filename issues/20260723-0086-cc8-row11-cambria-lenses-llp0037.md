@@ -1,6 +1,6 @@
 # CC-8.11: Cambria-style lens migrations prior-art note (LLP 0037)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — prior-art pointer recorded in LLP 0037 §Dated amendments: prior-art absorptions)
 **Severity:** P3
 **Systems:** Schema
 **Author:** Claude (Fable), directed by Charlie Cheever

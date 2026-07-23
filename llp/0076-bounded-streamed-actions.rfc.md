@@ -5,7 +5,10 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (fifth model-family review round — Fable NOT READY
+**Revised:** 2026-07-23 (additive prior-art comparison against InstantDB
+Streams — resumability, writer discipline, authorization defaults, retention —
+added as a dated subsection under LLP 0086 CC-5; no contract text changed;
+LLP 0082 and LLP 0086 added to Related). 2026-07-23 (fifth model-family review round — Fable NOT READY
 (two items: the MUST/open-question tension and `wireInitiated` feasibility),
 Codex NOT READY, artifacts under `llp/reviews/0076-*`. This revision redesigns
 the effect-certainty axis to a crash-safe, transport-agnostic write-ahead
@@ -70,7 +73,7 @@ remains Draft). 2026-07-22 (implemented the shared Ibex/Workerd reader surface,
 instance-live capability predicate, exact resource-limit diagnostics, and
 local plus Cloudflare executable witnesses; status remains Draft pending
 author review). 2026-07-22 (initial semantic authority required by LLP 0074 gate 2)
-**Related:** LLP 0004, LLP 0008, LLP 0009, LLP 0028, LLP 0036, LLP 0058, LLP 0059, LLP 0063, LLP 0070, LLP 0074, LLP 0075
+**Related:** LLP 0004, LLP 0008, LLP 0009, LLP 0028, LLP 0036, LLP 0058, LLP 0059, LLP 0063, LLP 0070, LLP 0074, LLP 0075, LLP 0082, LLP 0086
 
 ## Summary
 
@@ -533,6 +536,71 @@ before the checkpoint reruns.
 - exactly-once upstream effects;
 - durable execution or resumable cursor ownership across process death; or
 - widening query/mutation network authority.
+
+## Prior art: InstantDB Streams (added 2026-07-23, LLP 0086 CC-5)
+
+This section is additive comparison, not contract. It positions the design
+above against InstantDB's Streams primitive — storage-backed, offset-resumable,
+single-writer channels aimed at LLM token UX, with rules default-closed
+([LLP 0082](./0082-instantdb.research.md) §Ephemeral state) — a shipped
+external answer to the same seam. It changes no normative text and resolves
+none of the open questions below; where an axis maps onto one, the open
+question is named. Instant's Streams is a *client-facing persisted-realtime
+channel*; LLP 0076 is a *server-side bounded byte reader* whose client-visible
+output is ordinary authoritative live-query commits (see Summary). Several
+dispositions follow from that architectural difference rather than from
+disagreement about any single property.
+
+- **Resumability model.** Instant: streams are backed by storage and never
+  expire; a reader can pick up from any offset and resume (LLP 0082
+  §Ephemeral state). LLP 0076: durable execution and resumable cursor
+  ownership across process death are explicit non-goals (§Non-goals); retry
+  is permitted only before the first durable progress commit, because
+  transport re-segmentation could bind a sequence number to different bytes
+  (§Settlement and retry). The resume anchor here is the durable progress
+  row the pattern already committed — clients re-observe committed state, not
+  a stream offset. **Disposition: reject for v1, as a named divergence** —
+  offset-resumability of the upstream byte stream is exactly what the
+  no-retry-after-first-commit rule refuses, and the crash-safety burden moves
+  to the write-ahead `initiationState` and trusted terminalizer instead.
+  Whether durable jobs later persist resumable upstream cursor metadata is
+  **deferred to open question 3**; Instant's design is evidence that the
+  storage-backed variant is buildable, not that this RFC adopts it.
+- **Writer discipline.** Instant: one writer per `clientId` (LLP 0082
+  §Ephemeral state). LLP 0076: one reader owns a body (§Surface), and every
+  attempt binds an atomic single-runner lease — a runner-generation token
+  under which alone progress and terminal mutations commit, so two runners
+  can never splice differently segmented bytes (§Settlement and retry,
+  "Single-runner lease"). **Disposition: already-equivalent** in intent, with
+  a stronger enforcement point: 0076 fences the writer inside the durable
+  transaction rather than by connection identity. Honestly stated, the lease
+  is specified contract but unimplemented — tracked in the staged-work ledger
+  ("Single-runner lease and retry fencing").
+- **Authorization defaults.** Instant: Streams rules are default-closed —
+  notably the opposite of Instant's own namespace default-allow (LLP 0082
+  §Ephemeral state, §Permissions). LLP 0076: streams are default-closed by
+  construction — only actions receive `ctx.fetchStream` (queries and
+  mutations cannot open streams, witnessed as an acceptance negative), the
+  capability is target-gated via `bounded_response_stream_v1` admission, and
+  there is no client-readable stream object to authorize at all: clients see
+  only live-query commits under Snapback's ordinary fail-closed
+  authorization. **Disposition: already-equivalent** on the default, reached
+  by removing the client-facing surface rather than by closing rules over
+  one. The capability-admission implementation gap (one loader path
+  over-admits) is already in the staged-work ledger and is unchanged by this
+  comparison.
+- **Retention.** Instant: "because streams are backed by storage, they never
+  expire" — unbounded retention as an infrastructure default (LLP 0082
+  §Ephemeral state). LLP 0076: bounded by profile — 1 MiB total response
+  bytes, 64 KiB application-visible buffering, 30 s wall clock (§Surface) —
+  and what persists is only what the authored progress pattern deliberately
+  commits to durable rows, which then carry secret/private-data scan
+  obligations (§Acceptance). **Disposition: reject** — unbounded
+  infrastructure-level retention of raw stream bytes is contrary to this
+  RFC's bounded-profile premise; retention is an application-level decision
+  expressed as durable commits. How the byte bounds are measured (wire vs.
+  decoded vs. retained copies) remains **open question 7**, but that governs
+  accounting, not the bounded-versus-unbounded disposition.
 
 ## Open questions
 

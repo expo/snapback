@@ -1,6 +1,6 @@
 # CC-8.9: Ditto read-time-derivation guidance cited (LLP 0008)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — Ditto read-time-derivation quoted in LLP 0008 §Mutation Replay and Conflict Semantics)
 **Severity:** P3
 **Systems:** Sync
 **Author:** Claude (Fable), directed by Charlie Cheever
