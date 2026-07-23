@@ -469,3 +469,54 @@ The residual weaknesses are honestly disclosed as open questions, but one of the
 7. **Verdict**
 
 Verdict: NOT READY — the document is otherwise well-disciplined and its checkpoint is verifiably accurate, but a normative security MUST (no proof resurrection across restore) rests on a non-rollbackable control-plane counter the Spec asserts exists yet leaves unidentified, and that single concern should be resolved before the Spec advances.
+
+## Round 9 — 2026-07-23
+
+**Revision under review:** `llp/0077-sender-constrained-browser-auth.spec.md`, sha256 `f580b08c633c852e7e3a60ff636e6b796e2d546c2e2a929616e8d67c444d9991` (MATCH at repo HEAD `7be5d53e`)
+**Runtime detail:** fresh Fable subagent, 20 tool uses, ~232 s; verified the pin and the r9 delta (honest restore/rollback guarantee, unified epoch terminology, LLP 0057 anti-oracle note, defect 13, scope note) against code; re-sampled defects 1/4/6/8/10/11. No access to earlier rounds or the concurrent Codex round.
+**Verdict:** READY
+
+### Review body (verbatim)
+
+1. **Revision check** — MATCH. `shasum -a 256 llp/0077-sender-constrained-browser-auth.spec.md` → `f580b08c633c852e7e3a60ff636e6b796e2d546c2e2a929616e8d67c444d9991`, and `git rev-parse --short HEAD` → `7be5d53e`. Both match the pin. The file is untracked at a tracked/committed HEAD, as stated.
+
+2. **Overall assessment**
+
+This is a security wire/custody/replay/rollout contract for the hosted browser sender-constrained v2 scheme delegated by LLP 0060 C3. Its defining characteristic remains its exceptional honesty: a 13-item defect ledger gates every positive capability, each unmet normative rule is tagged inline with its blocking defect number, and the checkpoint closes with "No capability is positive." I spot-checked the ledger against the code and found it accurate rather than defensive. The generic-client subclassing (defect 8) is real — `HostedBrowserSnapbackClient extends SnapbackClient` (`packages/snapback-client/hosted-browser.mjs:22`). `fresh_challenge` unconditionally rotates a live nonce via `issue_sender_nonce` when a thumbprint is present (defect 1: `src/auth/sender_proof.rs:686-722`, rotation at `591-605`). The replay/nonce tables key on `admission_epoch`, not a distinct `sender_replay_epoch`, and purge inclusively with `<= ?1` on both tables (defect 4 and 10: `src/auth/sender_proof.rs:281-298, 386, 392, 576`; `MINIMUM_REPLAY_RETENTION_SECONDS = 30 + 5` at `21-25`). `bind_new_session_sender_constraint` is a free function accepting any `session_id` (defect 6: `src/auth/sender_proof.rs:1086`, exercised binding "session-2" at `1958`). The client canonicalizes with `new URL(path, ...)`, which resolves dot-segments and normalizes rather than rejecting `%`/backslash/doubled-slash (defect 11: `packages/snapback-client/index.mjs:102-114`). The cross-language test, two-connection race, inclusive time boundaries, and reflected-material sanitization all exist as described (`tests/sender_proof_cross_language.rs:47`; `src/auth/sender_proof.rs:1558-1561, 1728`; `packages/snapback-client/sender-transport.test.mjs:346-378`). The doc/code agreement is strong; I found no overstatement.
+
+The r9 delta addresses the round-8 blocker directly. The restore-non-resurrection guarantee no longer asserts an unbacked counter as fact: declared restore is covered by the LLP 0059 incarnation advance, while raw-backup-rollback non-resurrection is now stated as a requirement "not yet a proven property — this Spec does not assert an unidentified counter exists" (lines 563-574). Epoch terminology is unified to `sender_replay_epoch` in the verification order (line 391) and nonce section (lines 490-494), with the code's `admission_epoch` honestly tracked as defect 10. The LLP 0057 Revised note now records the anti-oracle carrier-diagnostic amendment (`llp/0057-*.md:22-24`), matching the Spec's claim. The scope note (lines 314-320) honestly concedes a second *client* is not buildable because `AuthCustodyV3`/`BoundGrantAuthorityV2` are not closed. Defect 13 and the logout tombstone long-offline limitation (lines 651-653) are added.
+
+The prior NOT-READY grounds across rounds were internal contradictions and overclaiming. Those are resolved: I checked the defect-13/open-question pairing that looked like a possible new contradiction and found it coherent — defect 13 fixes "_REQUIRED + some cover nonce, not _INVALID + none" as the contract, while the open question asks the orthogonal refinement of whether that nonce must be *stable and keyed*. What remains is honestly-disclosed open design work appropriate to Draft, plus a self-owned scope boundary. That is a sound Draft, not an inconsistent one.
+
+3. **Strengths**
+
+- Ledger-gated honesty: every normative rule not yet met is tagged with its blocking defect (Summary lines 308-312), and the checkpoint refuses any positive claim (line 212). I verified defects 1, 4, 6, 8, 10, 11 map to real code; none was softened.
+- The r9 restore/rollback correction (lines 563-574) is a genuine soundness fix: it separates declared-restore (covered by the LLP 0059 incarnation advance) from raw-rollback (an open ratchet-source requirement) instead of asserting a counter that does not exist.
+- Server-side conformance list (lines 840-862) is a real MUST-level target a second *server* can be tested against — closed header/payload, reject-not-resolve URI, inclusive window, `iat+30+1` exclusive purge, challenge-never-rotates-live, epoch model, per-custody serialization, every-use grant proof.
+- RFC 9449 deviations are enumerated and each justified as negotiation-surface removal (lines 357-365).
+- Cross-authority notes are real, not hand-waved: LLP 0058 carries the route-scoped ordering Revised note (`llp/0058-*.md:8-11`), LLP 0057 carries the exchange + issuance-outcome + anti-oracle amendments (`llp/0057-*.md:8-24`), and LLP 0060 C3 delegates the slice (`llp/0060-*.md:835-870`).
+
+4. **Concerns**
+
+1. **Moderate** — The document is titled a Spec and LLP 0060 C3 delegates the "custody... contract," but the complete closed `AuthCustodyV3` schema and the `BoundGrantAuthorityV2` grant shape are explicitly not closed, so a second *client* is not buildable (lines 314-320, 831-836). The scope note is now honest about this, but the charter is partially undelivered. Resolution: close both schemas, or re-scope the C3 delegation to server-wire-only with the client custody contract tracked as a named follow-on before this leaves Draft.
+2. **Moderate** — The raw-backup-rollback non-resurrection guarantee now has no mechanism, only a stated requirement (lines 566-574) plus an open realization question (lines 817-823). A security Spec that lists rollback non-resurrection as a property but pins no monotone anti-rollback root leaves that property unprovable as written. This is honestly disclosed and correct for Draft, but it must be pinned (attestation ratchet vs dedicated control-plane counter vs LLP 0059 incarnation derivation) before Draft exit. Resolution: select the ratchet source and state its monotonicity argument.
+3. **Minor** — I could not execute the Rust or cross-language suites (they require the ibex runtime bootstrap). I verified the tests exist and assert what the checkpoint claims structurally (`tests/sender_proof_cross_language.rs`, `src/auth/sender_proof.rs:1728`, `sender-transport.test.mjs`), but "passes" is verified by inspection, not by a run. Resolution: none required for the doc; noting the limit of my verification.
+4. **Minor** — The defect-13 contract ("unknown carrier → `_REQUIRED` with a cover nonce") and the open question ("whether unknown carriers must receive a *stable keyed* cover nonce") are layered on the same axis (lines 289-291 vs 484-488, 824-825). They are consistent on close reading, but a reader could mistake them for a contradiction. Resolution: one sentence in the nonce section stating that the cover nonce's *existence* is fixed while its *stability/keying* is the open refinement.
+
+5. **Suggestions**
+
+- The 13-item ledger now mixes wire-contract gaps (defect 4), structural-custody gaps (defect 8), and ordering gaps (defect 12). A one-line "blocks: server-conformance / client-custody / both" tag per defect would let an implementer partition the remaining work against the two conformance targets.
+- The Conformance list (840-862) is server-side; consider a parallel explicit "client conformance is deferred to the AuthCustodyV3/grant-shape open questions" pointer inside that section itself (currently only in the scope note) so the two are not read in isolation.
+- Defect 10's per-rollout resync-storm reasoning (lines 270-274) is the strongest argument for prioritizing the `sender_replay_epoch` split; consider promoting a one-line version of it into the normative epoch bullets (546-562) so the rationale rides with the requirement.
+
+6. **Open questions** (the author must still decide)
+
+- The storage/realization of `sender_replay_epoch` and, specifically, the concrete non-rollbackable ratchet source for raw-rollback non-resurrection (lines 817-823) — the load-bearing one, since a stated security guarantee depends on it.
+- The complete closed `AuthCustodyV3` top-level and nested `formatVersion` schema, and the versioned `BoundGrantAuthorityV2` grant shape with its equality/invalidation rules plus the pending LLP 0059 amendment (lines 831-836, 683-686) — required for second-client buildability.
+- The final logout-lost-response mechanism (tombstone vs anonymous-recovery handshake), its retention bound, and the long-offline eventual-safe-deletion gap (lines 813-816, 651-653).
+- Whether unknown carriers must receive a stable keyed cover nonce or the residual bound-family existence signal is acceptable (lines 824-825).
+- Whether v2 tokens gain a legacy-rejecting syntax or LLP 0060 D6's activation/rollback barrier is the sole downgrade defense (lines 837-838).
+
+7. **Verdict**
+
+Verdict: READY — the round-8 blocker (an unbacked non-rollbackable counter asserted as fact) is genuinely resolved, the defect ledger is an accurate and honest record of the code I checked, and the remaining items are correctly-scoped Draft open questions rather than internal contradictions, so the document is sound in its current state.
