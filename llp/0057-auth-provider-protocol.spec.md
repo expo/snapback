@@ -13,7 +13,13 @@ a `DPoP-Nonce` header. This resolves the sender-binding question this Spec
 reserved as "not implementation latitude": the latitude is granted to LLP
 0077 specifically, which has precedence for the extended members. Sessions
 without a sender constraint, and the frozen `{challengeId, code}` core, are
-unchanged; this note records the amendment without reopening Accepted
+unchanged. The delegation also covers the issuance-proof outcome accounting
+for sender exchanges: a cryptographically valid issuance proof consumes its
+replay id (`jti`) even when the paired code is wrong, locked, or exhausted —
+so a single valid proof cannot be reused across code guesses — while a wrong
+code still increments this Spec's code-attempt counter and only a valid proof
+plus correct code binds the thumbprint; LLP 0077 defines that atomic outcome
+table. This note records the amendment without reopening Accepted
 status); 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this Spec after ENG-25001 closed the review findings and the FINAL4
 Codex and Fable reviews both returned READY; Status advanced to Accepted

@@ -570,3 +570,164 @@ The four relevant JavaScript suites passed under Node. Static inspection confirm
 Verdict: NOT READY
 
 The security direction is strong, but multiple normative contradictions, unimplemented replay and lifecycle requirements, and unresolved recovery/downgrade state machines must be closed before a second implementation or positive hosted capability can conform.
+
+## Round 7 — 2026-07-23
+
+**Revision under review:** `llp/0077-sender-constrained-browser-auth.spec.md`, sha256 `9236b279d793b841176041c69d86ecafc842f6b17d01e8541fb836569d621f61` (MATCH at repo HEAD `feb76b2c`)
+**Runtime detail:** codex session id 019f8e79-5574-7323-bd78-7b89925897fd, workdir /Users/ccheever/projects/snapback; fresh session — no access to the orchestrating Claude session, to archived reviews, or to the concurrent Claude-family round. Ran the four Node suites (pass); inspected Rust source without building.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check**
+
+MATCH.
+
+- `shasum -a 256 llp/0077-sender-constrained-browser-auth.spec.md` → `9236b279d793b841176041c69d86ecafc842f6b17d01e8541fb836569d621f61`
+- `git rev-parse --short HEAD` → `feb76b2c`
+
+2. **Overall assessment**
+
+The proposal is a strong security direction and stays within the browser sender-constraint slice delegated by LLP 0060 C3. Its threat claim is appropriately narrow—copied-credential/off-device replay resistance, not XSS resistance—and it explicitly covers non-extractable custody, session-family thumbprint binding, HTTP and WebSocket proofs, mandatory nonces, replay failure, and credential-class exclusions (`llp/0077-sender-constrained-browser-auth.spec.md:250-269`, `llp/0060-hosted-auth-security.rfc.md:835-878`).
+
+The cryptographic verifier and core SQLite consume/rotate transaction are substantially better developed than the surrounding lifecycle contract. The Rust implementation has closed codecs, canonical decoding, exact binding checks, inclusive time-boundary tests, atomic replay/nonce operations, a real two-connection replay race, and a served fail-closed outage test (`src/auth/sender_proof.rs:1196-1311`, `src/auth/sender_proof.rs:1520-1640`, `src/auth/sender_proof.rs:1728-1759`, `src/auth/sender_proof.rs:972-1081`, `src/server.rs:23937-24004`).
+
+However, this is not yet a complete, internally consistent specification from which an independent implementation can be built. The replay epoch and diagnostic matrices contradict themselves; the custody, grant, logout-recovery, WebSocket, and downgrade contracts defer essential choices; two Accepted governing LLPs have not received amendments that this Spec assumes; and the implementation ledger omits additional security-relevant divergences. The document correctly remains Draft and refuses a positive capability claim (`llp/0077-sender-constrained-browser-auth.spec.md:178-187`, `llp/0072-trusted-single-tenant-control-plane.rfc.md:210-230`).
+
+I ran the four named Node suites—sender proof, sender transport, hosted browser, and sender custody—and all passed. I did not run Cargo because this was a read-only review and the repository requires bootstrap before Cargo commands; the Rust conclusions below come from direct implementation and test-body inspection.
+
+3. **Strengths**
+
+- The threat model is precise and honest about same-origin signing oracles and active compromise (`llp/0077-sender-constrained-browser-auth.spec.md:250-269`, `llp/0060-hosted-auth-security.rfc.md:861-868`).
+
+- The proof format is unusually testable: closed ES256/P-256 fields, canonical base64url, exact coordinate/signature/JTI sizes, and RFC 7638 thumbprints are normative (`llp/0077-sender-constrained-browser-auth.spec.md:271-314`). Rust enforces these properties and rejects unknown fields, duplicate JSON members, malformed framing, wrong algorithms, noncanonical encodings, and tampering (`src/auth/sender_proof.rs:30-69`, `src/auth/sender_proof.rs:1196-1311`, `src/auth/sender_proof.rs:1576-1640`).
+
+- The inclusive time boundaries really are tested: both endpoints succeed and the immediately adjacent seconds fail (`src/auth/sender_proof.rs:1260-1267`, `src/auth/sender_proof.rs:1556-1573`).
+
+- Atomic nonce rotation is credible at the SQLite cut. The implementation checks the current generation, inserts replay state, compare-and-sets the nonce, and commits one transaction; tests prove replay refusal does not rotate another family’s nonce (`src/auth/sender_proof.rs:972-1081`, `src/auth/sender_proof.rs:1772-1826`, `src/auth/sender_proof.rs:1829-1900`).
+
+- The Node-to-Rust test genuinely generates a live WebCrypto proof and verifies it in Rust (`tests/sender_proof_cross_language.rs:21-47`). The real WebSocket test binds a TCP listener, consumes a grant proof, does not echo the proof-bearing subprotocol, and observes the successor nonce (`src/server.rs:24049-24094`).
+
+- Custody validation checks non-extractability, thumbprint agreement, and a live private/public signing round trip; the custody suite covers interrupted transitions, fenced rotations, IndexedDB reopen, and key mismatch (`packages/snapback-contract/auth-coordinator.mjs:479-562`, `packages/snapback-contract/auth-sender-custody.test.mjs:136-301`).
+
+- The LLP 0058 route-scoped body-order amendment is explicitly recorded rather than silently assumed (`llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:8-16`). The current-token-only grant-opening carve-out also agrees with LLP 0059 (`llp/0059-session-projection-and-client-barrier.spec.md:972-979`).
+
+- Credential-class scope is disciplined. Browser sessions and grants are covered, while operator, agent, scoped automation, pairing, and lease credentials remain excluded, consistent with LLP 0055 (`llp/0077-sender-constrained-browser-auth.spec.md:658-668`, `llp/0055-agent-principals-and-scoped-grants.rfc.md:913-914`, `llp/0055-agent-principals-and-scoped-grants.rfc.md:1813-1825`).
+
+4. **Concerns**
+
+1. **Major** — The diagnostic and reset-recovery contract is internally contradictory and conflicts with LLPs 0057/0059.
+
+   The HTTP section says absent `Authorization` yields `SNAPBACK_AUTH_REQUIRED`, while malformed or unknown carriers receive `SENDER_PROOF_REQUIRED` (`llp/0077-sender-constrained-browser-auth.spec.md:359-367`). The nonce section instead includes an absent carrier among cases receiving an uninstalled sender challenge (`llp/0077-sender-constrained-browser-auth.spec.md:415-423`). Both differ from LLP 0057 and LLP 0059, which require structurally invalid and unknown bearers to remain uniformly `AUTH_REQUIRED` (`llp/0057-auth-provider-protocol.spec.md:762-775`, `llp/0059-session-projection-and-client-barrier.spec.md:2585-2593`).
+
+   The shipped behavior matches neither complete story: required routes convert absent and malformed carriers into an empty bearer (`src/server.rs:8391-8406`); no proof then produces `SENDER_PROOF_REQUIRED`, while a proof with no family produces `SENDER_PROOF_INVALID` (`src/auth/sender_proof.rs:757-777`). The client’s reset recovery probe runs only after `_INVALID`, not `_REQUIRED` (`packages/snapback-client/index.mjs:2161-2180`), and the reset test mocks that shipped `_INVALID` divergence (`packages/snapback-client/sender-transport.test.mjs:175-185`, `packages/snapback-client/sender-transport.test.mjs:428-452`). A conforming `_REQUIRED` server would therefore exhaust the one retry and strand custody (`packages/snapback-client/index.mjs:1994-2044`).
+
+   Resolve this with one exhaustive matrix over carrier state, proof state, family state, diagnostic, nonce disclosure, and reset/logout recovery. Amend LLPs 0057 and 0059 if their public matrix changes, then align client and server tests with that single matrix.
+
+2. **Major** — The replay-epoch lifecycle is simultaneously normative and still undecided.
+
+   The Spec defines a distinct durable `sender_replay_epoch`, preserved across rollout and advanced on authorization-stream incarnation change (`llp/0077-sender-constrained-browser-auth.spec.md:472-499`). Elsewhere admission still validates an “admission epoch,” nonces remain “admission-epoch-bound,” and an open question asks whether the sender epoch is new, the LLP 0059 incarnation, or a composition (`llp/0077-sender-constrained-browser-auth.spec.md:339-342`, `llp/0077-sender-constrained-browser-auth.spec.md:425-431`, `llp/0077-sender-constrained-browser-auth.spec.md:733-735`). LLP 0060’s serving admission is a short-lived snapshot that expires or is replaced, so it is unsuitable as the durable replay namespace (`llp/0060-hosted-auth-security.rfc.md:531-548`).
+
+   The implementation still keys both tables directly by serving `admission_epoch` (`src/auth/sender_proof.rs:280-295`, `src/server.rs:8327-8333`) and reset does not advance a distinct epoch or clear those tables (`src/storage.rs:768-804`).
+
+   Resolve this by fixing one exact storage type and authority, its reset/import/restore transaction, the nonrollbackable control-plane ratchet, and failure recovery. Replace every ambiguous “admission epoch” use with either `serving_admission_epoch` or `sender_replay_epoch`, and remove the stale open question.
+
+3. **Major** — The browser custody, logout-recovery, and WebSocket contracts are not complete enough for a second client.
+
+   The Spec explicitly concedes that the closed `AuthCustodyV3` schema and browser-observable WebSocket state machine remain undefined and that a second client cannot be built from it (`llp/0077-sender-constrained-browser-auth.spec.md:740-758`). Logout requires a bounded authenticated recovery path, but the mechanism, retention, lookup, nonce semantics, and LLP 0057 interaction are left open (`llp/0077-sender-constrained-browser-auth.spec.md:560-571`, `llp/0077-sender-constrained-browser-auth.spec.md:729-732`). This falls short of LLP 0060’s required versioned storage, deletion, recovery, and downgrade specification (`llp/0060-hosted-auth-security.rfc.md:870-878`).
+
+   The gap is operational, not editorial: the client clears custody only after the sender fetch returns (`packages/snapback-client/index.mjs:3123-3144`), while the server’s sender lookup excludes the revoked family after logout (`src/auth/sender_proof.rs:1114-1126`). LLP 0059 expects lost terminal frames to converge through a later handshake, grant, or request, but sender admission now blocks that route without a tombstone or distinct recovery authority (`llp/0059-session-projection-and-client-barrier.spec.md:1526-1539`).
+
+   Resolve this with a closed V3 schema and normative state machines for total response loss, header-only response loss, logout recovery, WebSocket open/error/cancel, inaccessible upgrade headers, queue release, and reconnect.
+
+4. **Major** — Downgrade refusal remains an open design decision even though LLP 0060 makes it a prerequisite.
+
+   LLP 0060 makes public bearer v1 local-only and requires a closed protocol version that cannot downgrade a bound family (`llp/0060-hosted-auth-security.rfc.md:447-452`, `llp/0060-hosted-auth-security.rfc.md:850-878`). LLP 0077 requires sender material at hosted exchange and says migration is deletion-and-re-exchange, but does not specify activation, rollback, or how pre-existing v1 families behave when hosted mode is enabled (`llp/0077-sender-constrained-browser-auth.spec.md:522-531`, `llp/0077-sender-constrained-browser-auth.spec.md:617-621`). It leaves legacy-rejecting token syntax versus sole reliance on D6 open (`llp/0077-sender-constrained-browser-auth.spec.md:749-750`).
+
+   Retaining `Authorization: Bearer` is explicitly a deviation from RFC 9449 (`llp/0077-sender-constrained-browser-auth.spec.md:306-314`), making structural downgrade refusal especially important. The inherited generic client and mutable sender flag also remain direct-bearer seams (`packages/snapback-client/hosted-browser.mjs:22-41`, `packages/snapback-client/index.mjs:1046-1088`).
+
+   Resolve this with an activation/rollback matrix covering persisted v1 families and older handlers. A versioned credential syntax or standard `Authorization: DPoP` carrier would make refusal structural; otherwise D6 must prove that no legacy handler can interpret a v2 credential as a bare bearer.
+
+5. **Major** — The Spec claims an LLP 0057 issuance-accounting amendment that does not exist.
+
+   LLP 0077 requires every cryptographically valid issuance proof to consume its `jti`, including wrong, locked, or exhausted code outcomes, and says LLP 0057 carries a corresponding Revised note (`llp/0077-sender-constrained-browser-auth.spec.md:533-547`). LLP 0057’s note delegates only the optional `senderConstraint` member and `DPoP-Nonce` response header; it does not amend exchange outcome accounting (`llp/0057-auth-provider-protocol.spec.md:8-16`). LLP 0057’s existing transaction rules govern code-attempt outcomes but say nothing about a sender replay insertion (`llp/0057-auth-provider-protocol.spec.md:709-736`).
+
+   The code demonstrates why the missing authority matters: a rejected exchange commits only the provider rejection, while sender commitment is installed solely on the issue branch (`src/server.rs:10695-10721`).
+
+   Resolve this by amending LLP 0057 with the complete atomic outcome table and transaction ownership, then implement and test the valid-proof/wrong-code and valid-proof/exhausted-code cases.
+
+6. **Major** — Sender-bound grant authority remains undefined, and the current carrier inventory contains bare-bearer seams.
+
+   LLP 0077 requires proof on every grant use but admits that the versioned grant shape and LLP 0059 amendment are pending (`llp/0077-sender-constrained-browser-auth.spec.md:573-602`). LLP 0059’s Accepted `BoundGrantAuthorityV1` has neither thumbprint nor admission epoch (`llp/0059-session-projection-and-client-barrier.spec.md:935-970`).
+
+   The known defect is confirmed: sender admission recognizes a grant only through the WebSocket subprotocol branch (`src/server.rs:8337-8347`), while ordinary authorization accepts the header carrier (`src/server.rs:4862-4871`). Connection-token HTTP routes do not enter that proof branch, and generic HTTP proof construction hashes the session bearer instead of the presented grant (`src/server.rs:6287-6401`, `packages/snapback-client/index.mjs:1936-1948`).
+
+   Resolve this with `BoundGrantAuthorityV2`, exact equality/invalidation rules, and an exhaustive generated inventory of every grant-presenting route and permitted carrier. Every entry should test missing, malformed, wrong-`ath`, replayed, and authority-unavailable proofs before handler execution.
+
+7. **Major** — The defect ledger is not complete, contrary to the document’s claim that every unmet target rule is tagged.
+
+   LLP 0077 says each unmet normative rule is tagged and gated by the ledger (`llp/0077-sender-constrained-browser-auth.spec.md:265-269`). At least three additional divergences are untagged:
+
+   - D3 requires a shared atomic throttle before proof processing (`llp/0077-sender-constrained-browser-auth.spec.md:330-336`, `llp/0060-hosted-auth-security.rfc.md:315-364`). `HostedServingAuthority` contains only admission and origin, and sender admission proceeds directly into proof processing; later process-local connection accounting cannot satisfy D3 (`src/auth/deployment.rs:289-292`, `src/server.rs:8324-8424`, `src/server.rs:8803-8831`).
+
+   - The normative order is sender admission, forbidden-field inspection, then credential resolution (`llp/0077-sender-constrained-browser-auth.spec.md:344-357`). `SessionAuth` authority is resolved first, while body inspection and the forbidden-field check occur later (`src/server.rs:8533-8588`, `src/server.rs:8719-8780`, `src/server.rs:8853-8861`).
+
+   - Defect 11 mentions only dot-segment resolution, but the client also fails to reject all percent-encoded, backslash, and doubled-slash paths required by conformance because it delegates to WHATWG URL resolution (`llp/0077-sender-constrained-browser-auth.spec.md:369-375`, `packages/snapback-client/index.mjs:102-114`). Client-side JWK and nonce checks also use character/length regexes rather than decode-and-re-encode canonicality (`packages/snapback-client/sender-proof.mjs:19-25`, `packages/snapback-client/index.mjs:94-125`).
+
+   Add these to the blocking ledger, implement the D3 and ordering cuts, broaden the URI vectors, and remove the claim of exhaustive tagging until a generated conformance inventory verifies it.
+
+8. **Moderate** — Several implementation-checkpoint statements overstate what the tests prove.
+
+   The “lost-response challenge recovery” test injects an ordinary typed 401 challenge and retry; it does not commit an operation and discard its response (`packages/snapback-client/sender-transport.test.mjs:261-280`, `packages/snapback-client/sender-transport.test.mjs:321-328`). The WebSocket proof-shape assertion checks only method, URI, and nonce—not grant-token `ath`, header, JTI, signature, or proof distinctness (`packages/snapback-client/sender-transport.test.mjs:329-345`). I found no test for “v3-only credentials at legacy startup”; the cited custody area instead tests legacy attachment refusal, persistence, and key mismatch (`packages/snapback-contract/auth-sender-custody.test.mjs:223-301`).
+
+   The two-connection race is real but races only `consume_sender_proof_id`, not the full verify/consume/rotate or served-request cut (`src/auth/sender_proof.rs:1728-1759`). The test named `replay_authority_is_atomic_bounded_and_restart_durable` uses one in-memory connection and never restarts or reopens it (`src/auth/sender_proof.rs:1701-1724`).
+
+   Reword the checkpoint to the narrower evidence or add true lost-response, complete grant-proof, legacy-startup, restart-reopen, and full consume/rotate concurrency tests.
+
+9. **Moderate** — Replay authority initialization does not validate an existing schema fail-closed.
+
+   Initialization uses `CREATE TABLE IF NOT EXISTS` for security-critical replay and nonce tables but performs no inspection of an existing table’s columns, strictness, primary key, checks, or foreign keys (`src/auth/sender_proof.rs:269-307`). A malformed restored or pre-existing table without the uniqueness constraint could weaken replay protection rather than make the authority unavailable.
+
+   Resolve this with exact schema validation during hosted preflight and a negative test proving that a weakened or incompatible table produces `SENDER_PROOF_AUTHORITY_UNAVAILABLE`.
+
+5. **Suggestions**
+
+- Move the long revision history, checkpoint, and defect ledger into a companion Issue or Plan LLP. Keep this Spec centered on stable normative types, state machines, outcome matrices, and conformance vectors.
+
+- Generate a route × carrier × credential-state × proof-state table from route metadata. It should drive both server tests and the hosted-auth drill so a newly added route cannot silently become a bare-bearer seam.
+
+- Bind the exact LLP 0077 revision or conformance-vector digest into LLP 0072’s content-addressed hosted-auth drill receipt, alongside the handler and admission identities (`llp/0072-trusted-single-tenant-control-plane.rfc.md:210-224`).
+
+- Make the RFC 9449 deviation list exhaustive. In addition to the listed differences, call out issuance proof transport in a JSON member, the shared nonce namespace across authorization/resource surfaces, strict path rejection, and retaining the Bearer scheme. Standard DPoP-bound tokens use `Authorization: DPoP`; see [RFC 9449 §§4 and 7](https://www.rfc-editor.org/rfc/rfc9449.html).
+
+- Model the nonce/custody protocol as a small executable state machine. Property-based schedules covering two tabs, lost headers, total response loss, refresh, logout, reset, WebSocket cancellation, and stale CAS would likely find lifecycle gaps more efficiently than example-only tests.
+
+- Keep serialized single-flight as the initial safe profile, but measure its head-of-line blocking before finalizing it permanently. A bounded server-issued batch of one-use nonce tickets could later preserve replay resistance without making every browser request globally sequential.
+
+6. **Open questions**
+
+- What exactly owns and stores `sender_replay_epoch`, and how does reset/import/restore advance it against a nonrollbackable control-plane ratchet?
+
+- What is the final diagnostic and nonce-disclosure matrix for absent, malformed, unknown, revoked, superseded, and reset-invalidated carriers?
+
+- Which authenticated logout-recovery design is chosen, and what are its retention, proof, nonce, privacy, and repeat-logout rules?
+
+- When does the per-custody queue release around WebSocket open/error/cancel, and how does the browser resynchronize after an inaccessible successful-upgrade header?
+
+- What is the complete closed `AuthCustodyV3` schema, including anonymous, clearing, corrupt, migration, and recovery states?
+
+- What is the exact `BoundGrantAuthorityV2` shape, and which grant carriers and route classes are permitted?
+
+- Is downgrade refusal structural through versioned token/carrier syntax, or entirely dependent on D6 admission? What happens to extant v1 families during activation and rollback?
+
+- Which authority provides shared replay, nonce, and D3 throttle state for the first adapter, and how are schema mismatch, restart, backup rollback, and ambiguous commits handled?
+
+- Is the residual live-family signal from stable installed versus random cover nonces acceptable, or must unknown carriers receive a stable keyed cover value?
+
+- Is strict one-current-nonce serialization an intentional long-term browser performance contract, or only the v2 launch profile?
+
+7. **Verdict**
+
+Verdict: NOT READY
+
+The cryptographic core is promising, but the contradictory epoch and diagnostic rules, unresolved custody/grant/logout/downgrade contracts, missing authority amendments, and unledgered server gaps must be resolved before this can satisfy LLP 0060 C3.

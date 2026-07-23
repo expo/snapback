@@ -5,8 +5,23 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (sixth model-family review round — Fable NOT READY
-(two narrow items), Codex NOT READY, artifacts under `llp/reviews/0077-*`.
+**Revised:** 2026-07-23 (seventh model-family review round — Fable NOT READY
+(one blocking internal-consistency item), Codex NOT READY, artifacts under
+`llp/reviews/0077-*`. This revision resolves the blocker by narrowing the
+`sender_replay_epoch` open question to its storage/realization only while the
+observable contract (distinct namespace, rotates only on the LLP 0059
+incarnation change, non-rollbackable) is fixed and conformance-binding;
+selects the bounded revoked-family tombstone as the default logout-recovery
+mechanism so defect 9 gains a negative test; fixes the diagnostic-matrix
+contradiction so an absent header uniformly yields `SNAPBACK_AUTH_REQUIRED`;
+extends the LLP 0057 Revised note to actually cover the issuance-outcome
+accounting this Spec claimed; adds defect 12 (D3 throttle and admission
+ordering) and broadens defect 11's URI/canonicality scope; corrects the stale
+"LLP 0058 should carry a note" to present tense; and notes the per-rollout
+resync-storm consequence of defect 10. The twelve-item ledger still gates any
+positive capability). 2026-07-23 (sixth model-family review round — Fable
+NOT READY (two narrow items), Codex NOT READY, artifacts under
+`llp/reviews/0077-*`.
 This revision reconciles the epoch lifecycle with LLP 0060/0059 by making the
 replay/nonce namespace a **distinct durable `sender_replay_epoch`** (not the
 rollout-churning serving admission epoch), rotated only on the LLP 0059
@@ -238,14 +253,24 @@ fix plus a negative test:
 10. Replay and nonce isolation keys on LLP 0060's serving `admission_epoch`
     rather than a distinct durable `sender_replay_epoch`, and reset neither
     advances a sender epoch nor clears the replay/nonce tables — so the
-    normative epoch model above is not yet implemented, and a rollout would
-    orphan live nonces while a reset would not close the tables.
+    normative epoch model above is not yet implemented. This is not merely a
+    correctness nit: because live nonces key on the serving admission epoch,
+    every rollout that rotates it strands all installed nonces and forces every
+    client through the one-shot challenge-retry simultaneously — a per-rollout
+    resync storm — so the fix is priority.
 11. A cryptographically valid issuance proof paired with a wrong or exhausted
     code does not consume its `jti` (the wrong-code path returns before sender
     commitment), so the issuance outcome table's cross-guess-reuse rule is
     unmet; and the browser client canonicalizes the proof URI with WHATWG
-    `new URL()`, which *resolves* dot-segments rather than *rejecting* them as
-    the conformance rule requires.
+    `new URL()`, which *resolves* dot-segments and does not reject all
+    percent-encoded, backslash, or doubled-slash paths, contrary to the
+    reject-not-resolve conformance rule; client JWK/nonce checks also use
+    character/length regexes rather than decode-and-re-encode canonicality.
+12. Two admission-order divergences: the LLP 0060 D3 shared-throttle charge is
+    not performed before proof processing (the hosted serving authority holds
+    only admission and origin, and sender admission proceeds directly into
+    proof processing), and the shipped code resolves `SessionAuth` before the
+    forbidden-authority-field body check rather than in the specified order.
 
 ## Summary
 
@@ -354,7 +379,9 @@ admission runs first and the forbidden-field check runs immediately after,
 still before credential resolution and before any application handler. The
 security rationale is that an unproven sender must never cause body ingestion;
 the forbidden-field check keeps its precedence over the bearer. LLP 0058
-should carry a Revised note recording this route-scoped reorder.
+carries a Revised note recording this route-scoped reorder. (The shipped code
+resolves `SessionAuth` before the forbidden-field check rather than in this
+order; that divergence is tracked as defect 12.)
 
 Diagnostic precedence composes with LLP 0057 rather than overriding it. A
 genuinely absent `Authorization` header yields `SNAPBACK_AUTH_REQUIRED` as
@@ -390,12 +417,17 @@ grace-expired tokens refuse as LLP 0057 specifies.
 
 ## Nonce protocol
 
-Nonce is mandatory on every hosted protected surface. A missing, expired,
-wrong-admission, or already-retired nonce returns the fixed
+Nonce is mandatory on every hosted protected surface. Given a present
+credential carrier and a well-formed proof, a missing, expired,
+wrong-admission, or already-retired *nonce* returns the fixed
 `SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` projection and the family's
-still-current nonce in the `DPoP-Nonce` response header. The header is
-cache-forbidden and contains no account, family, token, or proof fact. A
-client retries at most once and only when the response is this typed
+still-current nonce in the `DPoP-Nonce` response header. This nonce challenge
+is distinct from the carrier-diagnostic precedence: a genuinely absent
+`Authorization` header still yields `SNAPBACK_AUTH_REQUIRED` per LLP 0057/0059
+(it never reaches the nonce challenge), and only a present-but-malformed or
+unknown carrier is folded into the anti-oracle sender-proof challenge. The
+header is cache-forbidden and contains no account, family, token, or proof
+fact. A client retries at most once and only when the response is this typed
 challenge.
 
 A challenge never rotates a **live** installed nonce: while the current
@@ -487,7 +519,9 @@ replayed:
 - It rotates only on the LLP 0059 authorization-stream incarnation change
   (reset, logical import, declared restore). The single reset transaction
   MUST, atomically: advance `sender_replay_epoch`, revoke every sender-bound
-  session family, and clear the replay and nonce tables.
+  session family, and clear the replay and nonce tables. The observable
+  properties in this section are the fixed normative contract; only the
+  epoch's storage/realization is an open author decision (below).
 - The straddle seam at a rotation is closed by nonce epoch-keying, not by
   replay retention: a proof issued under the old epoch carries a nonce that is
   orphaned under the new epoch, so it fails the nonce check regardless of the
@@ -543,8 +577,9 @@ code-attempt counter:
 - only a valid proof plus a correct code binds the thumbprint and publishes
   the credential, all in one transaction.
 
-LLP 0057 carries a corresponding Revised note; for the extended member,
-header, and this outcome table this Spec has precedence.
+LLP 0057 carries a corresponding Revised note covering both the extended
+exchange member/header and this issuance-outcome accounting; for the extended
+member, header, and this outcome table this Spec has precedence.
 
 Refresh requires both the current credential and a protected-resource proof.
 Every successor remains bound to the same thumbprint. Rotation to another key
@@ -560,15 +595,19 @@ because its only authority is revoke-only.
 A committed logout whose response is lost is a special recovery case: because
 the logout revoked the family, the generic still-current-nonce recovery cannot
 help (the family no longer resolves), and the next signed request could strand
-custody indefinitely. The normative requirement is that the client MUST NOT
-clear custody until it has the terminal outcome, and the server MUST provide a
-bounded, authenticated post-logout recovery path that returns the terminal
-`durableDelete` outcome. The exact mechanism — a bounded revoked-family sender
-tombstone versus a distinct anonymous-recovery handshake — and its retention
-bound, resolution/lookup path, nonce treatment, and interaction with LLP
-0057's repeat-logout `SESSION_EXPIRED` are an open author decision listed
-below, not yet fixed here. This requirement is unimplemented (the sender
-lookup joins only current sessions); it is tracked as defect 9.
+custody indefinitely. The client MUST NOT clear custody until it has the terminal outcome, and the
+server MUST provide a bounded, authenticated post-logout recovery path. The
+default mechanism is a **bounded revoked-family sender tombstone**: on logout
+the family binding is moved to a tombstone retained for the session
+refresh/grace horizon (the same bound LLP 0057 uses for superseded-token
+grace), a post-logout signed request resolves against that tombstone by
+thumbprint, receives the terminal `durableDelete` outcome, and consumes its
+proof id without rotating a nonce; a repeat request after the tombstone
+expires converges to LLP 0057's `SESSION_EXPIRED`. An anonymous-recovery
+handshake is an admissible alternative an author may substitute, but the
+tombstone is the default so defect 9 has a concrete negative test. This
+requirement is unimplemented (the sender lookup joins only current sessions);
+it is tracked as defect 9.
 
 ## WebSocket and connection binding
 
@@ -730,9 +769,13 @@ and parser errors are forbidden.
   tombstone versus anonymous-recovery handshake), its retention bound,
   resolution path, nonce treatment, and composition with LLP 0057's
   repeat-logout `SESSION_EXPIRED`.
-- Whether `sender_replay_epoch` is a wholly new durable counter, the LLP 0059
-  authorization-stream incarnation, or a composition of those gated by the
-  monotone control-plane attestation — and its exact storage.
+- The exact *storage and realization* of `sender_replay_epoch` — a dedicated
+  durable column, a value derived from the LLP 0059 authorization-stream
+  incarnation, or a composition — and the concrete non-rollbackable ratchet
+  source. The *observable* contract is fixed and not reopened here: it is a
+  namespace distinct from LLP 0060's serving admission epoch, it rotates only
+  on the LLP 0059 incarnation change, and it is non-rollbackable. Only the
+  realization behind that observable contract is open.
 - Whether unknown carriers must receive a stable keyed cover nonce, or the
   residual live-bound-family existence signal is acceptable.
 - Whether v2 later admits a bounded multi-flight lease of one-use nonce
@@ -754,7 +797,10 @@ and parser errors are forbidden.
 This list is the **server/wire-observable** conformance target; the client
 custody schema (the complete closed `AuthCustodyV3`) and the sender-bound
 grant shape (`BoundGrantAuthorityV2`) are deferred to the open questions, so a
-second *client* cannot yet be built from this Spec alone. A second server
+second *client* cannot yet be built from this Spec alone. The client-side
+canonical-URI rule (reject `.`/`..`, `%`, backslash, doubled-slash rather than
+resolve) is part of this target but is not yet met by the shipped client — see
+defect 11. A second server
 implementation is tested against, at minimum: the closed ES256/P-256
 header and payload with `deny_unknown_fields` and canonical unpadded base64url;
 the exact issuance and resource proof payloads and the `senderConstraint`
