@@ -181,6 +181,12 @@ here (or listed here but gone from the code).
 | host_ops.function.run.impersonated | operating.host-ops |
 | host_ops.functions.load | operating.host-ops |
 | host_ops.schema.load | operating.host-ops |
+| host_ops.schema.reload | operating.host-ops |
+| host_ops.functions.reload | operating.host-ops |
+| host_ops.acceptance.run | operating.host-ops |
+| host_ops.host.start | operating.host-ops |
+| host_ops.host.stop | operating.host-ops |
+| host_ops.host.restart | operating.host-ops |
 
 ---
 
