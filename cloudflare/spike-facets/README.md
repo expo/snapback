@@ -43,17 +43,22 @@ Result: all probes pass locally.
 node cloudflare/spike-facets/harness.mjs   # pinned Node; ~1 min
 ```
 
-Implements probes P1–P8 from `gate0-probe-list.md` against topologies A
-(facet family), B (loader-fed shared services), C (hybrid), and the
-compiled-in baseline. It emits reconnaissance JSON — explicitly **not** the
-Gate 0 receipt, which only the post-sign-off suite-level runs may produce.
+Runs **reconnaissance-grade partial shapes** of probes P1/P2/P3/P4/P5/P7/P8
+from `gate0-probe-list.md` (see that file's "Instruments — honest coverage
+statement" for exactly what each shape omits; P6 and P9–P13 are not
+implemented) against topologies A (facet family), B (loader-fed shared
+services), C (hybrid), and the compiled-in baseline. It emits
+reconnaissance JSON — explicitly **not** the Gate 0 receipt, and its green
+results are instrument validation, never probe passes.
 
 Reconnaissance results (2026-07-23, Node 24.18.0 / miniflare 4.20260706 /
 workerd 1.20260707):
 
-- **P1 egress denial, P2 empty binding envelope, P3 slow-action
-  non-blocking (query p95 ≈ 4–7 ms during a 1.5 s action), P5 storage
-  invariant, P8 version skew: pass in all three topologies.**
+- **Recon shapes of P1 egress denial, P2 envelope enumeration, P3
+  slow-action non-blocking (query p95 ≈ 4–7 ms during a 1.5 s action), P5
+  storage inspection, and P8 sequential version switch: green in all three
+  topologies.** These are instrument-validation results, not probe passes
+  — the full criteria run post-sign-off.
 - **P4 adversarial: not locally answerable.** App 2 starves during app 1's
   CPU spin in every topology *including the baseline* — local workerd does
   not exhibit production isolate scheduling, so P4's contention half is
