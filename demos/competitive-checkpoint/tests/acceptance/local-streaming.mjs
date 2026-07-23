@@ -3,6 +3,7 @@
 // @ref LLP 0076#acceptance — exercise the real action → nested mutation →
 // commit → native live-push path, including cancellation and settlement kinds.
 
+import { createHash } from 'node:crypto';
 import { createServer } from 'node:http';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -39,6 +40,10 @@ const server = await startServer({
   },
 });
 const client = new SnapbackClient(server.baseUrl, server.clientOptions);
+// @ref LLP 0075#author-adjudication--2026-07-22 — protocol amendment v0.1: target identity
+// is derived from the served capability manifest (never a hand-written alias)
+// and the receipt pins the manifest digest it was derived from.
+const servedIdentity = await deriveServedTargetIdentity(server.baseUrl);
 const cleanups = [() => source.close(), () => server.stop()];
 const suite = createSuite('competitive checkpoint / local streamed actions', { expectedChecks: 6 });
 let conversationId;
@@ -46,6 +51,11 @@ let conversationId;
 await runAcceptance(suite, async () => {
   const functionManifest = generated('functions.manifest.json');
   const capabilityManifest = generated('capability.manifest.json');
+  assertEqual(
+    servedIdentity.targetProfile,
+    capabilityManifest.targetProfileId,
+    'served target identity must match the generated artifact pair',
+  );
   const streamedAction = functionManifest.functions.find((fn) => fn.name === 'streamReply');
   assert(
     streamedAction?.requiredCapabilities?.includes('bounded_response_stream_v1'),
@@ -94,7 +104,26 @@ await runAcceptance(suite, async () => {
       'SNAPBACK_ROW_NOT_VISIBLE',
       'other actor update must fail closed',
     );
-    return { generatedOperations: 8, visibility: { kind: 'owner', field: 'ownerId' } };
+    // @ref LLP 0065#2-the-v1-visibility-floor — cross-user delete refusal is part of the
+    // required negative-authorization set; the row must survive untouched.
+    await assertThrows(
+      () => client.mutate(api.deleteConversation, {
+        userId: GRACE,
+        args: { id: conversationId },
+      }),
+      'SNAPBACK_ROW_NOT_VISIBLE',
+      'other actor delete must fail closed',
+    );
+    assertEqual(
+      (await client.query(api.listConversations, { userId: ADA })).rows.length,
+      1,
+      'owner row survives the refused cross-user delete',
+    );
+    return {
+      generatedOperations: 8,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      crossUserDenialsWitnessed: ['list', 'uniqueLookup', 'keysetPage', 'update', 'delete'],
+    };
   });
 
   await suite.check('16 upstream chunks become multiple authoritative native-push commits', async () => {
@@ -240,10 +269,35 @@ await runAcceptance(suite, async () => {
   reportExtra: {
     schemaVersion: 'snapback.competitive-checkpoint.local-streaming.v0',
     protocol: 'llp-0075-convex-checkpoint-v0',
-    targetProfile: 'local-ibex-sqlite.v1',
+    // Derived, never authored: the alias mistake recorded in
+    // knownInstrumentDefects (hardcoded `local-ibex-sqlite.v1`) is structurally
+    // unrepeatable because the receipt carries the served identity plus the
+    // digest of the manifest it came from.
+    targetProfile: servedIdentity.targetProfile,
+    targetIdentitySource: servedIdentity.source,
+    capabilityManifestSha256: servedIdentity.capabilityManifestSha256,
   },
   reportFile: join(here, '..', '..', 'acceptance', 'results', 'local-streaming.v0.json'),
 });
+
+async function deriveServedTargetIdentity(baseUrl) {
+  const response = await fetch(`${baseUrl}/inspect`);
+  if (!response.ok) {
+    throw new Error(`GET /inspect failed: ${response.status}`);
+  }
+  const inspect = await response.json();
+  const targetProfile = inspect?.targetProfileId ?? inspect?.capabilityManifest?.targetProfileId;
+  if (typeof targetProfile !== 'string' || targetProfile.length === 0) {
+    throw new Error('served /inspect payload carries no targetProfileId');
+  }
+  return {
+    targetProfile,
+    source: 'GET /inspect targetProfileId',
+    capabilityManifestSha256: createHash('sha256')
+      .update(JSON.stringify(inspect.capabilityManifest))
+      .digest('hex'),
+  };
+}
 
 async function startReply(idempotencyKey, content) {
   const result = await client.mutate(api.startReply, {
