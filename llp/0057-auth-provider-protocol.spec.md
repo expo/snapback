@@ -5,7 +5,16 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+**Revised:** 2026-07-23 (delegated wire extension: Draft LLP 0077 extends
+this Spec's `/auth/exchange` contract for sender-constrained v2 browser
+sessions — the request body gains an optional `senderConstraint` member
+carrying the public JWK and issuance proof, and responses on that path carry
+a `DPoP-Nonce` header. This resolves the sender-binding question this Spec
+reserved as "not implementation latitude": the latitude is granted to LLP
+0077 specifically, which has precedence for the extended members. Sessions
+without a sender constraint, and the frozen `{challengeId, code}` core, are
+unchanged; this note records the amendment without reopening Accepted
+status); 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this Spec after ENG-25001 closed the review findings and the FINAL4
 Codex and Fable reviews both returned READY; Status advanced to Accepted
 without advancing frozen LLP 0039); 2026-07-15 (FINAL3 closure: declared restore validates every
