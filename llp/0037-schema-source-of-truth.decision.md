@@ -5,7 +5,7 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-23 (LLP 0079 SC-3: standing name-keyed-encoding constraint added with its enforcement mechanism, external evidence LLP 0078 F2c/A1; pending Charlie's ratification as an amendment to this Accepted decision); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Revised:** 2026-07-23 (LLP 0079 SC-3: standing name-keyed-encoding constraint added with its enforcement mechanism, external evidence LLP 0078 F2c/A1; ratified by Charlie same day); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
 **Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057
 
 ## Summary
@@ -134,7 +134,7 @@ schema authority.
 
 ## Dated constraint: name-keyed encodings
 
-*(2026-07-23, LLP 0079 SC-3 — pending Charlie's ratification as an amendment
+*(2026-07-23, LLP 0079 SC-3. Ratified by Charlie 2026-07-23 as an amendment
 to this Accepted decision.)*
 
 **Standing rule:** no Snapback-owned persisted or wire encoding may depend on
