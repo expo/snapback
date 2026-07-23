@@ -67,6 +67,7 @@ export function validateMemoryConstructAmendment(amendment) {
   assert.equal(amendment.replacement.thresholdSetId, 'derived-at-calibration');
   assert.equal(amendment.replacement.claimId, 'STEP4.MEMORY_V2');
   assert.equal(amendment.construct.conjunctionRequired, true);
+  assert.match(amendment.construct.total.definition, /ordinary product feed entry/);
   assert.equal(amendment.construct.total.judgedCellFeedsOwnThreshold, false);
   assert.equal(amendment.construct.marginal.judgedCellFeedsOwnThreshold, false);
   assert.deepEqual(amendment.construct.marginal.counts, EXPECTED_COUNTS);
@@ -84,8 +85,19 @@ export function validateMemoryConstructAmendment(amendment) {
   assert.equal(amendment.sampling.warmupsPerCount, 2);
   assert.equal(amendment.sampling.calibrationSamplesPerCount, 7);
   assert.equal(amendment.sampling.holdoutSamplesPerCount, 7);
+  assert.match(
+    amendment.sampling.preSubscriptionBaseline,
+    /one unreported canonical logical subscriber/,
+  );
+  assert.match(
+    amendment.sampling.preSubscriptionBaseline,
+    /zero-active-subscriber heap/,
+  );
   assert.match(amendment.sampling.outlierPolicy, /retain every valid observation/);
   assert.match(amendment.sampling.cohortIsolation, /Commit calibration thresholds before holdout/);
+  assert.match(amendment.sampling.cleanup, /zero active and zero ready subscribers/);
+  assert.match(amendment.sampling.cleanup, /target no longer exists/);
+  assert.match(amendment.sampling.cleanup, /diagnostic high-water-cache evidence only/);
   assert.deepEqual(amendment.cells, EXPECTED_CELLS);
   assert.deepEqual(amendment.targetDerivationInputs.allowed, [
     'same-backend React calibration measurements',

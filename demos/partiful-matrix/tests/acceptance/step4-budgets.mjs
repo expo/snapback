@@ -20,6 +20,10 @@ import {
   writeStep4Report,
 } from './step4-closure-helpers.mjs';
 import { evaluateHoldoutMetric } from './step4-budget-holdout.mjs';
+import {
+  validateMemoryConstructAmendment,
+  validateMemoryConstructRegistration,
+} from './step4-memory-authority.mjs';
 
 // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — every WS8
 // category receives a machine row; missing prospective instruments remain red
@@ -43,6 +47,9 @@ const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/ste
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
 const nativePerformanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-holdout.json';
+const memoryAmendmentPath = 'demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json';
+const memoryCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json';
+const memoryHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json';
 
 const protocol = readJson(protocolPath);
 const thresholdSource = readCommittedJson(attributionPath);
@@ -58,12 +65,17 @@ const contractConvexRealtime = readJson(contractConvexRealtimePath);
 const performanceAmendment = readJson(performanceAmendmentPath);
 const performanceInvalidation = readJson(performanceInvalidationPath);
 const nativePerformanceInvalidation = readJson(nativePerformanceInvalidationPath);
+const memoryAmendment = readJson(memoryAmendmentPath);
 const optionalReceipt = (path) => existsSync(resolve(repoRoot, path)) ? readJson(path) : null;
 const performanceCalibration = optionalReceipt(performanceCalibrationPath);
 const performanceHoldout = optionalReceipt(performanceHoldoutPath);
 const nativePerformanceCalibration = optionalReceipt(nativePerformanceCalibrationPath);
 const nativePerformanceHoldout = optionalReceipt(nativePerformanceHoldoutPath);
+const memoryCalibration = optionalReceipt(memoryCalibrationPath);
+const memoryHoldout = optionalReceipt(memoryHoldoutPath);
 validateRetainedWebReceipt(webReceipt);
+validateMemoryConstructAmendment(memoryAmendment);
+validateMemoryConstructRegistration(protocol, memoryAmendment);
 
 const protocolAmendment = protocol.amendments.find(({ id }) => id === performanceAmendment.amendmentId);
 assert(protocolAmendment, `protocol does not register ${performanceAmendment.amendmentId}`);
@@ -105,6 +117,16 @@ const nativePerformanceStatus = nativePerformanceGovernanceRatified && nativePer
   : nativePerformanceGovernanceRatified
     ? 'ratified-but-v2-receipts-missing'
     : nativePerformanceInvalidation.status;
+const memoryAmendmentIdentity = identity(memoryAmendmentPath);
+const memoryReceiptsCurrent = [memoryCalibration, memoryHoldout].every((receipt) =>
+  receipt?.methodId === memoryAmendment.replacement.methodId
+  && receipt?.workloadVersion === memoryAmendment.replacement.workloadVersion
+  && JSON.stringify(receipt?.amendment) === JSON.stringify(memoryAmendmentIdentity));
+const memoryStatus = memoryAmendment.status === 'ratified' && memoryReceiptsCurrent
+  ? 'ratified'
+  : memoryAmendment.status === 'ratified'
+    ? 'ratified-but-v2-receipts-missing'
+    : memoryAmendment.status;
 
 assert.equal(frozen.workloadVersion, protocol.workloadVersion);
 assert.equal(frozen.methodId, protocol.protocolId);
@@ -294,6 +316,45 @@ const nativePerformanceInstrument = (id, metricName) => {
   }, pass ? undefined : 'nonclaim');
 };
 
+const memoryV2Instrument = () => {
+  const rows = memoryHoldout?.holdoutValidation?.rows ?? [];
+  const expectedRows = 8;
+  const pass = memoryStatus === 'ratified'
+    && memoryHoldout?.claimEligible === true
+    && memoryHoldout?.holdoutValidation?.ok === true
+    && rows.length === expectedRows
+    && rows.every((row) => row.pass === true);
+  return requirement(
+    'two-part-subscription-memory-v2',
+    pass ? 'pass' : 'red',
+    pass
+      ? 'STEP4_BUDGET_MEMORY_V2_PASSED'
+      : 'STEP4_BUDGET_MEMORY_V2_NOT_GREEN',
+    {
+      claimId: memoryAmendment.replacement.claimId,
+      methodId: memoryAmendment.replacement.methodId,
+      workloadVersion: memoryAmendment.replacement.workloadVersion,
+      conjunctionRequired: memoryAmendment.construct.conjunctionRequired,
+      metricNames: [
+        memoryAmendment.construct.total.name,
+        memoryAmendment.construct.marginal.name,
+      ],
+      amendment: memoryAmendmentIdentity,
+      amendmentStatus: memoryStatus,
+      calibration: memoryCalibration ? identity(memoryCalibrationPath) : null,
+      holdout: memoryHoldout ? identity(memoryHoldoutPath) : null,
+      rows,
+      expectedRows,
+      historicalMetric: {
+        name: memoryAmendment.supersedesMetric.name,
+        disposition: memoryAmendment.supersedesMetric.disposition,
+        receipt: performanceHoldout ? identity(performanceHoldoutPath) : null,
+      },
+    },
+    pass ? undefined : 'nonclaim',
+  );
+};
+
 const nativeReceiptEvidence = {
   retainedReceipts: [
     identity(nativeAggregatePath),
@@ -348,7 +409,7 @@ const requirements = [
   webPerformanceInstrument('first-live-data-ms-p95', 'firstAuthoritativeAndLiveDataMsP95', 'firstLiveDataMs'),
   webPerformanceInstrument('idle-cpu', 'idleCpuAndNetwork', 'idleCpuTaskMsPerSecond'),
   webPerformanceInstrument('idle-network-use', 'idleCpuAndNetwork', 'idleNetworkBytesPerSecond'),
-  webPerformanceInstrument('memory-per-active-subscription-bytes-p95', 'memoryPerActiveSubscriptionBytesP95', 'memoryPerActiveSubscriptionBytes'),
+  memoryV2Instrument(),
   webPerformanceInstrument('update-fanout-count-p95', 'fanoutAndHostPatchCountP95', 'updateFanoutCount'),
   webPerformanceInstrument('dom-or-host-patch-count-p95', 'fanoutAndHostPatchCountP95', 'domOrHostPatchCount'),
   webPerformanceInstrument('production-build-latency-ms-p95', 'productionAndIncrementalBuildMsP95', 'productionBuildMs'),
@@ -384,10 +445,14 @@ const requirements = [
   }),
   requirement('prospective-category-amendments-and-holdout-validation', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
+    && memoryStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
+    && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
+    && memoryStatus === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
+    && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true
     ? 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_PASSED'
     : 'STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_NOT_GREEN', {
@@ -397,15 +462,20 @@ const requirements = [
     amendment: identity(performanceAmendmentPath),
     invalidation: identity(performanceInvalidationPath),
     nativeInvalidation: nativePerformanceInvalidationIdentity,
+    memoryAmendment: memoryAmendmentIdentity,
     amendmentStatus: webPerformanceStatus,
     nativeAmendmentStatus: nativePerformanceStatus,
+    memoryAmendmentStatus: memoryStatus,
     holdoutValidationArtifacts: [
       performanceHoldout ? identity(performanceHoldoutPath) : null,
+      memoryHoldout ? identity(memoryHoldoutPath) : null,
       nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
     ],
-    finding: webPerformanceStatus === 'ratified' && nativePerformanceStatus === 'ratified'
-      ? 'Both corrected methods are ratified; holdout rows remain red until web/build and paired release-native receipts are independently green.'
-      : 'The invalid artifacts remain preserved, but both proposed v2 corrections require owner ratification before replacement calibration or claim promotion.',
+    finding: webPerformanceStatus === 'ratified'
+      && nativePerformanceStatus === 'ratified'
+      && memoryStatus === 'ratified'
+      ? 'All corrected methods are ratified; holdout rows remain red until web/build, two-part memory, and paired release-native receipts are independently green.'
+      : 'Invalid historical artifacts remain preserved; every replacement requires owner-ratified authority plus an independently bound green holdout before claim promotion.',
   }, 'nonclaim'),
   requirement('native-realtime-follow-up-matrix-before-ranking', 'pass', 'STEP4_BUDGET_NATIVE_REALTIME_MATRIX_COMPLETE', {
     existingNativeWorkload: protocol.workloadVersion,
@@ -463,6 +533,9 @@ const report = finalizeReport({
         holdout: performanceHoldout ? identity(performanceHoldoutPath) : null,
         nativeCalibration: nativePerformanceCalibration ? identity(nativePerformanceCalibrationPath) : null,
         nativeHoldout: nativePerformanceHoldout ? identity(nativePerformanceHoldoutPath) : null,
+        memoryAmendment: memoryAmendmentIdentity,
+        memoryCalibration: memoryCalibration ? identity(memoryCalibrationPath) : null,
+        memoryHoldout: memoryHoldout ? identity(memoryHoldoutPath) : null,
       },
     },
     frozenThresholds: frozen.thresholds,
