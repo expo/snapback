@@ -1,6 +1,6 @@
 # Guide and capability-index obligations for the app CLI
 
-**Status:** Open
+**Status:** Done for the shipped checkpoint scope (2026-07-23) — the capability GAP flip, clients.app-cli row, and guide pages exist and pass check-guide; the /app-api route-map rows ride the deferred advanced program (issues/20260717-app-cli-phase1-program.md) and get their rows when those routes exist
 **Severity:** P3
 **Systems:** Docs, Guide
 **Author:** Claude (Fable 5), directed by Charlie Cheever

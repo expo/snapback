@@ -1,6 +1,6 @@
 # Smooth the RBAC/membership authoring surface (memberId reachability and guide coverage)
 
-**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
+**Status:** Resolved (2026-07-23 — all three Done-when criteria verified against main; posture B: foreclosure documented, alternatives paved)
 **Severity:** P2
 **Systems:** RBAC, Memberships, Codegen, Guide
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -53,3 +53,27 @@ posture up front, with the invite-then-promote example made honest.
   operations matrix and corrects the `pendingRoles` example's implication.
 - The diary 0013 seam catalog is absorbed into guide or LLP 0056 material so
   the next auth integration doesn't rediscover it.
+
+## Resolution (2026-07-23, audited against origin/main)
+
+Landed via c5d67b0a (2026-07-19) + d6ccce21 (2026-07-18); this file now
+matches the Done Linear twin ENG-25269.
+
+1. **Reachability:** the repo deliberately keeps the private v1 roster without
+   an admin id resolver (the absence is the security contract —
+   llp/0056 §"no general private-roster resolver"; src/runtime.rs id-addressed
+   forms still require memberId; host-resolved `setSelfRole`/`removeSelf`/
+   `patchSelf` close the self corner). guide/auth/scoped-roles.md states the
+   foreclosure plainly and shows supported postures (invitation table +
+   self-insert, pendingRole + self transition, bootstrapRole).
+2. **Matrix:** guide/auth/scoped-roles.md §"Privacy posture and reachable
+   operations" documents the operation → reachable-path matrix, and the
+   `pendingRoles` example is now honest (invitee self-promotes;
+   "Do not imply that the inviter can promote the private row later").
+3. **Seam catalog absorbed:** all six diary-0013 seams (coordinator epoch,
+   queue generation, artifact identity, principal scope, descriptor, query
+   lease) live in guide/auth/scoped-roles.md §"Keep the authorization
+   composition seams aligned" with anti-patterns.
+
+Follow-through: Linear ENG-25263 (guide-gap twin) marked Done — its substance
+is delivered by the same guide sections.

@@ -1,6 +1,6 @@
 # Close the static type-safety loop: generate contract-meta sidecars and type helper results
 
-**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
+**Status:** Resolved (2026-07-23 — all three Done-when criteria verified against main; pin proven by running the regression under @ccheever/exact-contract@0.1.4)
 **Severity:** P2
 **Systems:** Codegen, Contract Adapter, DX
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -42,3 +42,31 @@ access on helper results is checked with did-you-mean quality errors.
   reproducing the diary 0010 `headsgn` case.
 - The guide's Contract client page documents the checked seam (and the
   remaining unchecked residue, if any, as explicit caveats).
+
+## Resolution (2026-07-23, audited against origin/main)
+
+All three Done-when criteria are implemented and gated:
+
+1. **Drift checker:** `scripts/check-contract-meta.mjs` diffs each sidecar's
+   `pure({ params })` against the sibling module's exported signatures and
+   fails with `SNAPBACK_CONTRACT_META_PARAMS_DRIFT` (plus
+   `_EXPORT_MISSING`/`_PARAMS_UNCHECKABLE`); unit test seeds a drift and
+   asserts the code; wired into `scripts/verify-local-proof` (lines 59-60).
+   The generation alternative (`exact contract meta --write/--check`,
+   ENG-22419) exists upstream.
+2. **Misspelled member access fails typecheck:**
+   `demos/all-aboard/surfaces/contract/headsign-typecheck.test.ts` compiles
+   `board.hero.headsgn` and asserts `shape_unknown_member` with
+   `did you mean "headsign"?` (the diary-0010 case). Verified executable this
+   session: `bun test headsign-typecheck.test.ts` → 1 pass under the pinned
+   published `@exact/contract` = `npm:@ccheever/exact-contract@0.1.4`, so the
+   published pin demonstrably contains the seam. `check-contract-meta` also
+   ran green.
+3. **Guide documents the checked seam:** `guide/clients/contract-adapter.md`
+   §"Checked helper metadata and result shapes" names the gate, the stable
+   codes, the headsign example, and the residue caveats (opaque non-shape
+   results; raw function-type spellings).
+
+Residual (non-blocking, noted for completeness): the checker walks `demos/`
+only (admin-ui sidecars unchecked) and compares param names, not types.
+Linear twin ENG-25268 was already Done; this file now matches it.

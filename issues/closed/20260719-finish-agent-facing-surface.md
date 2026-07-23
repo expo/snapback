@@ -1,6 +1,6 @@
 # Finish the agent-facing surface: agent principals GAP plus the app-CLI program
 
-**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
+**Status:** Resolved (2026-07-23 — all four exit criteria verified against main; guide checker returned to green this session)
 **Severity:** P2
 **Systems:** Auth, Agent Principals, App CLI, Guide
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -49,3 +49,27 @@ alongside it.
 - A diary or acceptance suite demonstrates the end-to-end agent journey
   (discover → pair → scoped principal → mutate → subscribe → verify)
   against the packaged surface.
+
+## Resolution (2026-07-23, audited against origin/main)
+
+1. **GAP row closed:** `auth.agent-principals` in guide/capabilities.md is
+   shipped with witness route `/auth/agents/pair` and page
+   guide/auth/agent-principals.md (pairing, principals, scoped grants,
+   anti-patterns; nav-listed).
+2. **Program rescoped:** issues/20260717-app-cli-phase1-program.md records the
+   2026-07-19 checkpoint and the deferred advanced phase; the promised
+   `clients.app-cli` row exists (witness `snapback-app` in
+   packages/snapback-app-cli/cli.mjs; page guide/clients/app-cli.md names the
+   deferred boundary).
+3. **Versioned packages:** `@snapback/client` 0.1.0 and `@snapback/app-cli`
+   0.1.0 with real exports; demo-kit client is a compatibility re-export.
+4. **End-to-end journey:** packages/snapback-app-cli/package.test.mjs proves
+   discover → pair → token → fenced session → mutate → subscribe → verify and
+   asserts bearer non-return.
+
+The only blocker was an unrelated red `check-guide` (six host-ops registered
+by ENG-25388 but unclassified in the surface map). Fixed this session:
+capabilities.md host-operations table gained
+schema.reload/functions.reload/acceptance.run/host.start/host.stop/host.restart
+→ operating.host-ops, guide manifest regenerated, checker green
+(32 pages, 68 routes + 19 host-ops joined).

@@ -1,6 +1,6 @@
 # Extend the SNAPBACK_* diagnostic contract down into the compile/tooling layer
 
-**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree; audit-and-complete pass)
+**Status:** Resolved (2026-07-23 — classes mapped to owning fixes/issues below; both static promotions verified; principle landed in guide)
 **Severity:** P2
 **Systems:** Contract Compiler, Codegen, Dev Server, DX
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -55,3 +55,34 @@ sub-issues per item and record them here.
 - A stated principle lands in the guide or an LLP: authoring-time failures
   carry the same stable-code, right-location, one-report discipline as
   runtime `SNAPBACK_*` diagnostics.
+
+## Resolution / per-class status (2026-07-23, audited against origin/main)
+
+1. **Misleading `event_unknown_action` architectural misread** — mooted/fixed;
+   the compiler supported prop-threaded actions all along and diaries 0009/0010
+   record the improved diagnostics. Kept as the canonical cost example.
+2. **Parse errors anchor far from the offender** — ENG-25271 (Done), fixed in
+   exact `f7f0a3041` (parser anchoring + diagnostic-codes tests); see also
+   issues/closed/20260718-contract-block-claim-grammar-and-parse-error-location.md.
+3. **Overlay loci garbled / per-tick re-spam** — filed as **ENG-25396**
+   (repo:exact, child of ENG-25267): out-of-range spans must be
+   clamped/validated with a code frame, render-expression errors report once
+   per generation. The one class with no landed fix; it now has an owning
+   issue.
+4. **Statically knowable failures surfaced at runtime** — fixed:
+   unconfigured live query in multi-live Contract mode refuses at
+   construction with `SNAPBACK_CONTRACT_LIVEQUERY_NOT_LIVE`
+   (packages/snapback-contract/index.mjs; test in
+   multi-live-poll-reconcile.test.mjs; see
+   issues/closed/20260718-refuse-non-live-query-bindings-in-multi-live-contract-surfaces.md),
+   and the JS-query rows-array contract is a codegen-time
+   `FUNCTION_JS_QUERY_STATIC_RESULT_NOT_ROWS` with sourceSpan
+   (packages/snapback-codegen/index.mjs; test in
+   contract-binding-reads.test.mjs). Both = ENG-25272, commit c5d67b0a.
+5. **Swallowed route-registry setup causes** — ENG-25273 (Done), fixed in
+   exact `f7f0a3041` (cause preservation + routeRegistrySourceSpan).
+
+**Principle landed:** guide/operating/diagnostics.md:22-27 states the
+authoring-time contract (stable code, authored offender location, first
+actionable cause preserved, one report per generation, no deferral of
+boot-knowable failures into error-shaped cells), backed by LLP 0010.
