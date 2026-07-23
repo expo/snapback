@@ -274,10 +274,11 @@ with an explicit authority tuple; `devAdminBypass` without `reason`
 refused with a `next` hint). `app.inspect` now carries the SC-1a
 `recentInvocations` ring (128 entries, recorded at the host-ops handler so
 HTTP and MCP project identically; `src/host_ops.rs`, `src/server.rs`).
-`snapback_acceptance_run` returns the pinned `SNAPBACK_HOST_OP_UNIMPLEMENTED`
-envelope **mirrored in-process**: the HTTP registry currently refuses
-pinned-unbuilt operations pre-dispatch as `SNAPBACK_HOST_OP_UNKNOWN`, so
-registering them for the honest unimplemented envelope over HTTP is a named
-follow-up, not silently absorbed here. The acceptance test
+`snapback_acceptance_run` **proxies** the pinned
+`SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope over HTTP: ENG-25388 (resolved
+2026-07-23, same day) registered the pinned-unbuilt operations in the HTTP
+operation registry at their LLP 0024 authority classes, so the honest
+envelope is server-stamped rather than mirrored in-process, and truly
+unknown operations still fail closed at `AdminWrite`. The acceptance test
 (`packages/snapback-cli/mcp-control.test.mjs`) drives the full loop through
 MCP alone and runs in the local proof.

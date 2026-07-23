@@ -227,10 +227,18 @@ try {
 
   const acceptance = await client.call('snapback_acceptance_run');
   assert.notEqual(acceptance.isError, true);
+  assert.equal(acceptance.structuredContent.resultKind, 'hostOpsResult');
   assert.equal(acceptance.structuredContent.operation, 'acceptance.run');
   assert.equal(acceptance.structuredContent.ok, false);
   assert.equal(acceptance.structuredContent.diagnostics[0].code, 'SNAPBACK_HOST_OP_UNIMPLEMENTED');
   assert.equal(acceptance.structuredContent.diagnostics[0].details.operation, 'acceptance.run');
+  // The envelope is proxied from the running server, not fabricated by the
+  // MCP process: the server stamps its own URL into the target block.
+  assert.equal(
+    acceptance.structuredContent.target.serverUrl,
+    restarted.structuredContent.data.current.serverUrl,
+  );
+  assert.equal(acceptance.structuredContent.authority.mode, 'none');
 
   const stopped = await client.call('snapback_stop');
   assert.equal(stopped.structuredContent.operation, 'host.stop');

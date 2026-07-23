@@ -641,27 +641,14 @@ export class McpControlServer {
         return this.runFunctionResult(name, args.function, args.args ?? {}, args.authority);
       case 'snapback_acceptance_run':
         // @ref LLP 0042#acceptance-suite-execution--exposed-runner-deferred —
-        // exposed-but-honest: the pinned unimplemented envelope, same
-        // diagnostic shape as the server's pinned-unbuilt operations.
-        return this.toolResult(this.envelope('acceptance.run', {
-          requestId: id,
-          authority: {
-            mode: 'none',
-            actorPrincipal: null,
-            effectivePrincipal: null,
-            localDevOnly: true,
-            adminBypass: false,
-            scope: null,
-            reason: null,
-          },
-          diagnostics: [{
-            code: 'SNAPBACK_HOST_OP_UNIMPLEMENTED',
-            severity: 'error',
-            subsystem: 'host-ops',
-            message: 'acceptance.run is pinned by LLP 0024 but its runner is deferred (LLP 0042 agent-verb amendment, 2026-07-23)',
-            details: { operation: 'acceptance.run' },
-          }],
-        }));
+        // exposed-but-honest: the server registers the pinned-unbuilt
+        // operation, so this proxies host-ops like every served tool and
+        // relays the server's SNAPBACK_HOST_OP_UNIMPLEMENTED envelope
+        // instead of fabricating one in-process.
+        return this.servedResult({
+          operation: 'acceptance.run',
+          ...(typeof args.profile === 'string' ? { args: { profile: args.profile } } : {}),
+        });
       default: {
         const entry = (this.catalog?.entries ?? []).find((candidate) => candidate.toolName === name);
         if (!entry) return null;

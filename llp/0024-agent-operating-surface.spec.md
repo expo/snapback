@@ -33,11 +33,20 @@
 >   narrower and available only in dev/test. Rescue remains reachable in
 >   `dev`; mint fails closed there until item 4 activates
 >   `sessions`. LLP 0057 owns their exact provider and rescue semantics.
+> - **Built (2026-07-23 reconciliation):** `function.explain` is served at
+>   `AdminRead` (only its unbuilt explanation *kinds* return
+>   `SNAPBACK_EXPLAIN_KIND_UNIMPLEMENTED`), and the **control-plane MCP
+>   projection shipped** as `snapback mcp-control` (LLP 0042's 2026-07-23
+>   implementation checkpoint; LLP 0079 SC-1b).
 > - **Pinned, not built:** `host.restart`, `schema.reload`,
->   `functions.reload`, `function.explain`, `acceptance.run` — requested
->   over HTTP they return a structured `SNAPBACK_HOST_OP_UNIMPLEMENTED`
->   envelope (`host.*` over HTTP returns `SNAPBACK_HOST_OP_CLI_ONLY`); the
->   MCP projection is not built.
+>   `functions.reload`, `acceptance.run` — requested over HTTP they return
+>   the structured `SNAPBACK_HOST_OP_UNIMPLEMENTED` envelope (`host.*` over
+>   HTTP returns `SNAPBACK_HOST_OP_CLI_ONLY`). As of ENG-25388 these
+>   operations are registered in the HTTP operation registry at their
+>   authority classes (write-class; explain read-class), so the honest
+>   envelope is actually reachable over HTTP behind the admin gate — truly
+>   unknown operations still fail closed at `AdminWrite` with
+>   `SNAPBACK_HOST_OP_UNKNOWN`.
 >
 > Read the rest of the tables as pinned contract; the list above is the
 > built surface.

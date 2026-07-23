@@ -11209,6 +11209,54 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::NONE,
         ),
+        // The pinned-unbuilt reload/acceptance verbs and the CLI-owned
+        // `host.*` lifecycle verbs are registered so an authenticated request
+        // reaches the dispatcher's honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
+        // `SNAPBACK_HOST_OP_CLI_ONLY` envelope instead of the pre-dispatch
+        // unknown-operation refusal. All are write-class: reloads are
+        // manifest loads, an acceptance profile can mutate state, and
+        // lifecycle verbs manage the process. Unknown names stay unregistered
+        // and keep failing closed at AdminWrite.
+        //
+        // @ref LLP 0024#authority-tuple — manifest loads and state-mutating
+        // operations require AdminWrite; unknown operations fail closed at
+        // AdminWrite.
+        host(
+            "host_ops.schema.reload",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.functions.reload",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.acceptance.run",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.start",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.stop",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.restart",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
         operation(
             "host_ops.auth.mintSession",
             "/_snapback/api/host-ops",
@@ -11483,6 +11531,17 @@ pub(crate) fn host_ops_operation_spec(
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
+        // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
+        // operations resolve to registered AdminWrite policies so an
+        // authenticated request reaches the structured UNIMPLEMENTED /
+        // CLI_ONLY envelope; unregistered names still return `None` and fail
+        // closed at AdminWrite before any envelope is built.
+        "schema.reload" => "host_ops.schema.reload",
+        "functions.reload" => "host_ops.functions.reload",
+        "acceptance.run" => "host_ops.acceptance.run",
+        "host.start" => "host_ops.host.start",
+        "host.stop" => "host_ops.host.stop",
+        "host.restart" => "host_ops.host.restart",
         "function.explain" if impersonated => "host_ops.function.explain.impersonated",
         "function.explain" => "host_ops.function.explain",
         "function.run" if impersonated => "host_ops.function.run.impersonated",
@@ -23955,6 +24014,116 @@ globalThis.__snapbackHandlers = {
             "unrecognized"
         );
         assert!(!serialized.contains(SENTINEL), "{serialized}");
+    }
+
+    /// @ref LLP 0024#http-projection — the pinned-but-unbuilt operations and
+    /// the CLI-owned `host.*` verbs are registered: an authenticated request
+    /// reaches the honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
+    /// `SNAPBACK_HOST_OP_CLI_ONLY` envelope over HTTP, while unauthenticated
+    /// and truly unknown requests keep failing closed at the AdminWrite gate.
+    #[tokio::test]
+    async fn pinned_unbuilt_and_cli_only_host_operations_return_honest_envelopes() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let host_op = |body: serde_json::Value, admin: Option<&str>| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&body).unwrap(),
+                true,
+                admin,
+                None,
+            )
+        };
+
+        for operation in ["acceptance.run", "schema.reload", "functions.reload"] {
+            let response = router
+                .clone()
+                .oneshot(host_op(
+                    json!({ "operation": operation }),
+                    Some("auth-http-admin"),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{operation}");
+            let payload = response_json(response).await;
+            assert_eq!(payload["resultKind"], "hostOpsResult", "{payload}");
+            assert_eq!(payload["operation"], operation);
+            assert_eq!(payload["ok"], false);
+            assert_eq!(
+                payload["diagnostics"][0]["code"],
+                "SNAPBACK_HOST_OP_UNIMPLEMENTED"
+            );
+            assert_eq!(payload["diagnostics"][0]["subsystem"], "host-ops");
+            assert_eq!(payload["diagnostics"][0]["details"]["operation"], operation);
+            assert_eq!(payload["authority"]["mode"], "none");
+        }
+
+        let restart = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "host.restart" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(restart.status(), StatusCode::OK);
+        let restart = response_json(restart).await;
+        assert_eq!(restart["ok"], false);
+        assert_eq!(restart["diagnostics"][0]["code"], "SNAPBACK_HOST_OP_CLI_ONLY");
+        assert_eq!(
+            restart["diagnostics"][0]["details"]["operation"],
+            "host.restart"
+        );
+
+        // Authentication precedes the envelope builder: no honest envelope
+        // (and no operation echo) for an unauthenticated caller.
+        let unauthenticated = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "acceptance.run" }), None))
+            .await
+            .unwrap();
+        assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+        // Truly unknown operations stay unregistered and fail closed at the
+        // AdminWrite gate: authentication first, then the pre-dispatch
+        // unknown refusal, never a 200 envelope.
+        let unknown_unauthenticated = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "app.nonsense" }), None))
+            .await
+            .unwrap();
+        assert_eq!(unknown_unauthenticated.status(), StatusCode::UNAUTHORIZED);
+        let unknown = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "app.nonsense" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_ne!(unknown.status(), StatusCode::OK);
+        assert_eq!(
+            response_json(unknown).await["diagnostic"]["code"],
+            "SNAPBACK_HOST_OP_UNKNOWN"
+        );
+
+        // Deliberate: pinned-unbuilt requests now reach the handler, but the
+        // LLP 0042 ring records function runs and artifact loads only, so the
+        // refused verbs above leave `recentInvocations` empty.
+        let inspect = router
+            .oneshot(host_op(
+                json!({ "operation": "app.inspect" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        let inspect = response_json(inspect).await;
+        assert_eq!(inspect["ok"], true, "{inspect}");
+        assert_eq!(
+            inspect["data"]["recentInvocations"],
+            json!([]),
+            "{inspect}"
+        );
     }
 
     /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
