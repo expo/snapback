@@ -63,4 +63,11 @@ test('rejects a post-hoc count or threshold change', () => {
     () => validateMemoryConstructAmendment(changedFloor),
     /65536 !== 4096/,
   );
+
+  const changedSeed = structuredClone(amendment);
+  changedSeed.sampling.holdoutSeed = changedSeed.sampling.calibrationSeed;
+  assert.throws(
+    () => validateMemoryConstructAmendment(changedSeed),
+    /calibration and holdout seeds must remain distinct/,
+  );
 });
