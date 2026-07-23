@@ -1,0 +1,197 @@
+{
+  "shape": "r1",
+  "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+  "user_email": "probe-user@example.com",
+  "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a",
+  "pre_rule": "auth.id != null",
+  "revocation": {
+    "kind": "perms-push",
+    "rule": "false"
+  },
+  "verdict": {
+    "verdict": "not-evicted-live",
+    "row_present_at_T": true,
+    "reconnect_since_ack": false
+  },
+  "events": [
+    {
+      "ts": "2026-07-23T11:24:27.835Z",
+      "t_ms": 1784805867835,
+      "type": "start",
+      "shape": "r1",
+      "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+      "user_email": "probe-user@example.com"
+    },
+    {
+      "ts": "2026-07-23T11:24:28.059Z",
+      "t_ms": 1784805868059,
+      "type": "perms-push-ack",
+      "status": 200,
+      "perms": {
+        "probe_items": {
+          "allow": {
+            "view": "auth.id != null"
+          }
+        }
+      },
+      "response": {
+        "rules": {
+          "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+          "code": {
+            "probe_items": {
+              "allow": {
+                "view": "auth.id != null"
+              }
+            }
+          },
+          "version": 2
+        }
+      },
+      "roundtrip_ms": 220
+    },
+    {
+      "ts": "2026-07-23T11:24:28.281Z",
+      "t_ms": 1784805868281,
+      "type": "admin-create-row-ack",
+      "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a",
+      "txRes": {
+        "tx-id": 2544151840
+      },
+      "roundtrip_ms": 222
+    },
+    {
+      "ts": "2026-07-23T11:24:28.390Z",
+      "t_ms": 1784805868390,
+      "type": "token-minted",
+      "email": "probe-user@example.com",
+      "token_len": 36
+    },
+    {
+      "ts": "2026-07-23T11:24:28.494Z",
+      "t_ms": 1784805868494,
+      "type": "connection-status",
+      "status": "closed"
+    },
+    {
+      "ts": "2026-07-23T11:24:28.495Z",
+      "t_ms": 1784805868495,
+      "type": "client-signed-in",
+      "user_email": "probe-user@example.com",
+      "user_id": "9b133f38-5e84-4391-b798-81faa207d317"
+    },
+    {
+      "ts": "2026-07-23T11:24:28.665Z",
+      "t_ms": 1784805868665,
+      "type": "connection-status",
+      "status": "opened"
+    },
+    {
+      "ts": "2026-07-23T11:24:28.786Z",
+      "t_ms": 1784805868786,
+      "type": "connection-status",
+      "status": "authenticated"
+    },
+    {
+      "ts": "2026-07-23T11:24:28.938Z",
+      "t_ms": 1784805868938,
+      "type": "subscription-callback",
+      "ids": [
+        "daeaba8a-9cf7-4ffb-a877-44ae1c8fd49b",
+        "9270be5e-af02-4ef4-9456-6f8eebac3d2a"
+      ],
+      "n": 2
+    },
+    {
+      "ts": "2026-07-23T11:24:28.938Z",
+      "t_ms": 1784805868938,
+      "type": "target-row-delivered",
+      "rowId": "9270be5e-af02-4ef4-9456-6f8eebac3d2a"
+    },
+    {
+      "ts": "2026-07-23T11:24:31.080Z",
+      "t_ms": 1784805871080,
+      "type": "perms-push-ack",
+      "status": 200,
+      "perms": {
+        "probe_items": {
+          "allow": {
+            "view": "false"
+          }
+        }
+      },
+      "response": {
+        "rules": {
+          "app_id": "31c150a5-256c-478b-a481-afb9942c14b1",
+          "code": {
+            "probe_items": {
+              "allow": {
+                "view": "false"
+              }
+            }
+          },
+          "version": 3
+        }
+      },
+      "roundtrip_ms": 142
+    },
+    {
+      "ts": "2026-07-23T11:24:31.080Z",
+      "t_ms": 1784805871080,
+      "type": "revocation-ack",
+      "kind": "perms-push-view-false"
+    },
+    {
+      "ts": "2026-07-23T11:24:36.081Z",
+      "t_ms": 1784805876081,
+      "type": "checkpoint",
+      "at_s": 5,
+      "row_present_in_latest_callback": true,
+      "callbacks_since_ack": 0,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:24:46.081Z",
+      "t_ms": 1784805886081,
+      "type": "checkpoint",
+      "at_s": 15,
+      "row_present_in_latest_callback": true,
+      "callbacks_since_ack": 0,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:25:01.082Z",
+      "t_ms": 1784805901082,
+      "type": "checkpoint",
+      "at_s": 30,
+      "row_present_in_latest_callback": true,
+      "callbacks_since_ack": 0,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:25:31.080Z",
+      "t_ms": 1784805931080,
+      "type": "checkpoint",
+      "at_s": 60,
+      "row_present_in_latest_callback": true,
+      "callbacks_since_ack": 0,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:26:31.080Z",
+      "t_ms": 1784805991080,
+      "type": "checkpoint",
+      "at_s": 120,
+      "row_present_in_latest_callback": true,
+      "callbacks_since_ack": 0,
+      "reconnect_since_ack": false
+    },
+    {
+      "ts": "2026-07-23T11:26:31.080Z",
+      "t_ms": 1784805991080,
+      "type": "verdict-final",
+      "verdict": "not-evicted-live",
+      "row_present_at_T": true,
+      "reconnect_since_ack": false
+    }
+  ]
+}

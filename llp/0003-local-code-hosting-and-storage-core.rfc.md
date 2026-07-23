@@ -5,8 +5,8 @@
 **Systems:** Runtime, Storage, Realtime, Developer experience, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-17 (internal additive migrations reserve the SQLite writer before inspecting predecessor columns, and database open validates the complete pre-migration and post-migration cuts without treating a valid intervening sibling commit as corruption). 2026-07-17 (snapshot-bound local reads: every query invocation is pinned on WAL, direct, live-subscription, and in-memory lanes; mutation-handler composite reads pin their own head-bound facts and capture the exact storage inputs consumed by read-your-writes overlays; local commit versions are allocated only after SQLite's writer reservation). 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, https://github.com/expo/valet, https://github.com/ccheever/ibex
+**Revised:** 2026-07-23 (LLP 0086 CC-8 row 5: seam-design rule recorded in §Execution and Write Semantics — never assume continuous global uniqueness or same-version caller↔authority calls across a graduated-target seam; design for epoch-scoped uniqueness and one deploy of version skew, per LLP 0083's platform-wall evidence). 2026-07-17 (internal additive migrations reserve the SQLite writer before inspecting predecessor columns, and database open validates the complete pre-migration and post-migration cuts without treating a valid intervening sibling commit as corruption). 2026-07-17 (snapshot-bound local reads: every query invocation is pinned on WAL, direct, live-subscription, and in-memory lanes; mutation-handler composite reads pin their own head-bound facts and capture the exact storage inputs consumed by read-your-writes overlays; local commit versions are allocated only after SQLite's writer reservation). 2026-07-12 (ENG-24576: `app.reset` with an optional seed is one SQLite transaction and advances runtime state only after commit. Earlier: 2026-07-07 ENG-23342: §Database Model migrator contract — declared indexes are kept in sync with the manifest: physical index names are validated globally and a changed or stale index definition is rebuilt instead of silently no-opping through `CREATE INDEX IF NOT EXISTS`. Earlier: LLP 0032 E3/DK-1: §Execution and Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline *by design* — the two-execution-models distinction and the atomic-host-plan rationale. Same day, LLP 0032 L6+L7: §Database Model reader pool implemented, §Execution and Write Semantics status updated — query handlers now run on pinned WAL snapshots and blocking work is off the async workers. Earlier: LLP 0032 R7 current-vs-target annotation; LLP 0032 S5.D4 post-commit fan-out error contract)
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0083, LLP 0086, https://github.com/expo/valet, https://github.com/ccheever/ibex
 
 ## Summary
 
@@ -410,6 +410,41 @@ For the first slice:
 Actions, outbound fetch, durable jobs, cron, and notification outboxes need
 their own follow-on contracts. They should not complicate the first mutation
 path.
+
+### Seam rule: epoch-scoped uniqueness and version skew (added 2026-07-23)
+
+The single-writer reasoning above is stated for the canonical local target,
+where one Rust process owns the database and "one writer" holds continuously
+for the life of the process. Graduated targets must not silently import that
+strength. Cloudflare documents the two walls precisely for its own equivalent
+seam: Durable Object global uniqueness is *event-scoped, not continuous* — a
+replaced instance can briefly run concurrently with its successor during
+partitions or platform updates, and only storage access re-asserts uniqueness
+— and a newly deployed Worker version can call a DO still running the previous
+version for a short period
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md) §Sharp edges — the
+operational fine print). "One object, one thread" is true per storage epoch,
+not absolutely.
+
+The rule, recorded per
+[LLP 0086](./0086-prior-art-course-corrections.plan.md) CC-8 row 5: any seam
+between a transport front-end and the write authority (Worker↔DO on Cloudflare,
+or the analogous split on any future target) must **never assume continuous
+global uniqueness or same-version calls across the seam**. Concretely:
+
+- correctness facts anchor in **storage transactions**, which re-assert the
+  single writer, never in the authority's in-memory state surviving between
+  events — an in-memory fact from a superseded epoch may belong to a stale
+  concurrent instance;
+- seam messages are **forward/backward compatible across at least one deploy
+  of skew**: a caller one version ahead of (or behind) the authority must
+  degrade to a structured error, never to misinterpretation.
+
+The local target satisfies both trivially (one process, atomically upgraded);
+the rule exists so the target-adaptation clause in [Decision](#decision) —
+"other targets must either implement or consciously adapt" — cannot be
+satisfied by a port that quietly assumes the local target's continuous
+uniqueness.
 
 ## Agent and Test Surface
 

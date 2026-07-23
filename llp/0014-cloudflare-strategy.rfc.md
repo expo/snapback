@@ -5,7 +5,18 @@
 **Systems:** Deployment, Runtime, Storage, Sync, Realtime, Security, Assets, Cron, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-26
-**Revised:** 2026-07-07 (latest: §Resolution ratified by Charlie and
+**Revised:** 2026-07-23 (latest: ENG-25387 platform-fact refresh from the
+LLP 0083 prior-art pass — the dynamic-code fact is updated for Worker Loader
+(open beta 2026-03-24) and Durable Object Facets (beta 2026-04), which
+provide platform-mediated runtime code loading the 2026-07-07 check
+predated; the storage-billing bullet gains the enforcement-live date and
+the write/read price-asymmetry design note; one-way door 2 gains a dated
+premise-change annotation pointing at LLP 0087's gated re-evaluation — the
+ratified decision itself is unchanged; same day, LLP 0087 Phase 0 step 1b:
+§Platform Facts gains the published Dynamic Workers pricing — billing live
+since 2026-05-26 — and a dated GA determination: docs carry no beta
+caveats, but no explicit GA announcement found, so the beta prohibition
+remains binding); 2026-07-07 (earlier: §Resolution ratified by Charlie and
 strengthened — everything on Durable Objects: the control plane moves from D1
 to a registry object with gateway caching, and D1 leaves the architecture,
 preserved only as named fallbacks in the data-plane (LLP 0040) and
@@ -19,7 +30,7 @@ Durable Object SQLite, platform control plane on D1 — proposed, pending
 Charlie's ratification, with LLP 0040 revised in step; §The Full Plan adds
 the end state, phase ladder, and one-way doors; open questions annotated with
 their answers); 2026-07-02 (LLP 0032 X1: DK-2 commit-version answer recorded — per-app stream, one version authority per app, Durable Object counter; Profile C intra-app sharding named as the constraint that reopens LLP 0007's note)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0023, LLP 0028, LLP 0032, LLP 0036, LLP 0039, LLP 0040, LLP 0041, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0048, https://developers.cloudflare.com/workers/platform/storage-options/, https://developers.cloudflare.com/durable-objects/, https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/, https://developers.cloudflare.com/durable-objects/api/alarms/, https://developers.cloudflare.com/durable-objects/reference/data-location/, https://developers.cloudflare.com/durable-objects/platform/pricing/, https://developers.cloudflare.com/durable-objects/best-practices/websockets/, https://developers.cloudflare.com/d1/platform/limits/, https://developers.cloudflare.com/r2/, https://developers.cloudflare.com/queues/, https://developers.cloudflare.com/workers/configuration/cron-triggers/, https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0018, LLP 0023, LLP 0028, LLP 0032, LLP 0036, LLP 0039, LLP 0040, LLP 0041, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0048, LLP 0083, LLP 0087, https://developers.cloudflare.com/dynamic-workers/usage/durable-object-facets/, https://developers.cloudflare.com/dynamic-workers/pricing/, https://developers.cloudflare.com/dynamic-workers/usage/dynamic-workflows/, https://developers.cloudflare.com/changelog/post/2026-03-24-dynamic-workers-open-beta/, https://developers.cloudflare.com/changelog/post/2026-05-01-dynamic-workflows/, https://developers.cloudflare.com/workers/platform/storage-options/, https://developers.cloudflare.com/durable-objects/, https://developers.cloudflare.com/durable-objects/api/sqlite-storage-api/, https://developers.cloudflare.com/durable-objects/api/alarms/, https://developers.cloudflare.com/durable-objects/reference/data-location/, https://developers.cloudflare.com/durable-objects/platform/pricing/, https://developers.cloudflare.com/durable-objects/best-practices/websockets/, https://developers.cloudflare.com/d1/platform/limits/, https://developers.cloudflare.com/r2/, https://developers.cloudflare.com/queues/, https://developers.cloudflare.com/workers/configuration/cron-triggers/, https://developers.cloudflare.com/cloudflare-for-platforms/workers-for-platforms/
 
 ## Summary
 
@@ -97,7 +108,11 @@ before implementation because Cloudflare's platform changes quickly:
   Data Studio can inspect and write object SQLite data, and SQLite-backed
   objects are available on the free plan. Storage bills by rows: reads
   $0.001/million (25 B/month included), writes $1.00/million (50 M/month
-  included), storage $0.20/GB-month.
+  included), storage $0.20/GB-month. Billing enforcement has been live
+  since ~2026-01-07 (noted 2026-07-23), and the shape matters for design:
+  **a row write costs 1000× a row read**, which rewards batched op-log
+  writes and penalizes chatty row-at-a-time write paths — measure the cost
+  model against All Aboard's real meters, not the free-period intuition.
 - WebSocket Hibernation is the idle-economics mechanism: duration (GB-s)
   charges stop while hibernated, server-held sockets survive object eviction,
   ping/pong is auto-answered without waking the object, and incoming messages
@@ -115,14 +130,53 @@ before implementation because Cloudflare's platform changes quickly:
   relocation is "planned", not shipped); `locationHint` is honored only at
   creation, and jurisdictions (`eu`/`us`/`fedramp`) are separate id
   namespaces chosen at creation. Placement is effectively permanent per app.
-- The deployed Workers runtime **forbids dynamic code evaluation** (`eval`,
-  `new Function`, buffer-based WebAssembly compilation). An app bundle cannot
-  be loaded from storage and evaluated at runtime the way the local target
-  does it; code is either compiled into the deployed Worker or uploaded as a
-  separate **user Worker via Workers for Platforms** dispatch namespaces —
-  Cloudflare's product for running untrusted tenant code, with per-worker
-  CPU/subrequest limits and an outbound Worker mediating the tenant's
-  `fetch`.
+- The deployed Workers runtime **forbids in-isolate dynamic code
+  evaluation** (`eval`, `new Function`, buffer-based WebAssembly
+  compilation) — still true — but as of 2026 the platform provides
+  **platform-mediated runtime code loading** (updated 2026-07-23, LLP 0083
+  pass; supersedes the 2026-07-07 wording): **Worker Loader** (open beta
+  for paid accounts, 2026-03-24) lets a Worker instantiate another Worker
+  from code supplied at runtime in its own isolate with a
+  supervisor-controlled binding envelope, and **Durable Object Facets**
+  (beta, 2026-04) let a supervisor object host dynamically loaded child
+  facets, each with its own isolated SQLite database; **Dynamic
+  Workflows** (2026-05) extends the pattern to durable execution. An app
+  bundle *can* therefore be loaded from storage at runtime on this
+  platform — through beta primitives whose isolation, economics, and
+  local-dev (Miniflare) parity are unverified for Snapback's use.
+  [LLP 0087](./0087-facets-hosted-adoption.plan.md) owns the gated
+  evaluation. **Workers for Platforms** dispatch namespaces remain the GA
+  product for untrusted tenant code, with per-worker CPU/subrequest limits
+  and an outbound Worker mediating the tenant's `fetch`.
+- **Dynamic Workers pricing and platform status** (checked 2026-07-23
+  against current docs; LLP 0087 Phase 0 step 1b / LLP 0086 CC-2 residue).
+  *Pricing is published and billing has been live since 2026-05-26*
+  (<https://developers.cloudflare.com/dynamic-workers/pricing/>, page last
+  updated 2026-06-11: "Starting May 26, 2026, Dynamic Workers created
+  daily are billed as part of Dynamic Workers pricing"). Workers Paid plan
+  only. 1,000 unique Dynamic Workers/month included, then **$0.002 per
+  Dynamic Worker per day**; a Dynamic Worker is unique by Worker ID plus
+  code — a change to either counts as a new one, and the count resets
+  daily, so a supervisor should `.get()` with a stable ID to avoid
+  re-billing the same app bundle. Requests and CPU bill at the standard
+  Workers Paid rates ($0.30/million requests beyond 10 M/month included,
+  $0.02/million CPU-ms beyond 30 M/month included) and appear on the
+  existing Workers bill, not as separate Dynamic Workers charges.
+  **GA determination (2026-07-23):** the Dynamic Workers doc pages — the
+  landing page and DO Facets page (last updated 2026-04-21), the Dynamic
+  Workflows page (last updated 2026-07-22), and the pricing page — carry
+  **no beta caveats** as of 2026-07-23, but Cloudflare's most recent
+  *explicit* status statements still say **open beta**: the 2026-03-24
+  changelog entry "Dynamic Workers, now in open beta" ("for all paid
+  Workers users",
+  <https://developers.cloudflare.com/changelog/post/2026-03-24-dynamic-workers-open-beta/>)
+  and the 2026-05-01 Dynamic Workflows changelog entry, which still
+  describes Dynamic Workers as "open beta on the Workers Paid plan"
+  (<https://developers.cloudflare.com/changelog/post/2026-05-01-dynamic-workflows/>).
+  **No explicit GA announcement was found** in the changelog or blog as of
+  2026-07-23. The beta-prohibition predicate in LLP 0086 CC-2 / LLP 0087
+  ("no hosted rearchitecture starts while facets are beta") therefore
+  **remains binding** until an explicit determination replaces this entry.
 - Size caps that shape the wire: 2 MB per SQL row/BLOB/string (object storage
   and D1 alike), 100 KB per SQL statement, 100 bound parameters, 32 MiB per
   received WebSocket message, 30 s (configurable to 5 min) of CPU per object
@@ -456,6 +510,15 @@ Decisions that are cheap now and expensive later, pinned before Phase 0
    adds an engine). Consequence the dev loop must report honestly: code
    hot-load into a running Cloudflare target is a missing capability — an
    app-code change is a deploy.
+   *Premise-change annotation (2026-07-23):* this door was pinned when the
+   platform offered no runtime code loading at all. Worker Loader and DO
+   Facets (see §Platform Facts) change the premise — not the decision,
+   which stands as ratified until
+   [LLP 0087](./0087-facets-hosted-adoption.plan.md)'s Gate 0 evidence
+   (isolation per LLP 0009, per-facet storage semantics, measured
+   economics, Miniflare parity) supports re-ratifying or reaffirming it.
+   Note the door's own rationale is *not* invalidated: the rejected path
+   was in-isolate `eval`/interpreter-in-WASM, and facets are neither.
 3. **The handler↔host seam stays async and RPC-shaped.** Phase 0 executes
    handlers inside the object, but the `ctx` surface must not grow
    synchronous same-isolate assumptions, so Phase 3 can move execution into

@@ -5,8 +5,8 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
-**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032
+**Revised:** 2026-07-23 (LLP 0086 CC-8 row 2 amendment: per-target durability claims adopt the output-gate vocabulary — "synchronous inside, gated at the boundary" — with D1 Sessions bookmarks recorded as prior art for keeping bookmarkable versions on the wire (wire half cross-referenced to LLP 0008); vocabulary and citations only, no decided contract changed). 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032, LLP 0083, LLP 0086
 
 ## Summary
 
@@ -473,6 +473,54 @@ will not reject `INSERT/UPDATE/DELETE/PRAGMA` issued on a "query" path
 ([LLP 0009](./0009-code-execution-security.rfc.md)) needs an authorizer hook or a
 statement check above storage, or it must be treated as a capability assertion the
 runtime enforces, not a property the database provides.
+
+### Durability vocabulary: synchronous inside, gated at the boundary (amended 2026-07-23)
+
+> Recorded 2026-07-23 per [LLP 0086](./0086-prior-art-course-corrections.plan.md)
+> CC-8 row 2 as a dated amendment under this Spec's convention: it fixes
+> vocabulary and cites prior art, and changes no decided contract elsewhere in
+> this document.
+
+Every storage target this Spec graduates to must state its durability claim in
+one shared vocabulary: **synchronous inside, gated at the boundary**. The claim
+has two named halves —
+
+- **the synchronous interior:** what the target guarantees at the moment a
+  commit call returns *inside* the write authority — the transaction is
+  committed, the commit version is allocated, and subsequent reads on that
+  authority observe it;
+- **the boundary gate:** the durability condition that must hold before any
+  externally observable effect of the commit is released — the mutation
+  response, the changeset, subscription fan-out, and any other outgoing
+  message.
+
+The two halves may coincide (local SQLite: the fsync'd WAL commit is both the
+interior and the gate) or deliberately differ (Cloudflare DO SQLite: SQLite
+commits synchronously in-object, while the platform's output gates hold all
+outgoing network messages until the write replicates 3-of-5 — so the interior is
+fast and the boundary never exposes an unconfirmed write). A per-target
+durability claim that names only one half is incomplete under this Spec: a
+target must say what "committed" means inside, what the gate waits for at the
+boundary, and therefore exactly what an external observer can conclude when it
+sees a version `N`. The gate is what makes property 3 above (gap-free commit
+visibility) a *durability* statement and not merely an ordering one. The
+vocabulary is taken from Cloudflare's SRS storage engine, which pairs
+synchronous SQL with output gates
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md) §The storage
+engine's design lessons (SRS)).
+
+**Prior-art note — keep bookmarkable versions on the wire.** D1's Sessions API
+ships sequential consistency across read replicas via lexically comparable
+bookmarks attached to each query and portable across requests
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md) §D1 — the managed
+sibling, and its one original idea). That is a shipped wire contract for
+exactly the read-consistency problem this Spec's commit-version graduation will
+face if a target ever adds regional read scale. The `(stream identity,
+version)` cursor pinned above is already bookmark-shaped; no evolution of the
+wire protocol may replace it with a token that cannot be compared and resumed
+the way a bookmark can. The wire half of this note — client cursors, resume,
+and retention — is owned by
+[LLP 0008](./0008-local-first-sync-and-realtime.rfc.md) §Retention, not here.
 
 ## Schema Evolution
 

@@ -5,8 +5,8 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
-**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053, LLP 0059
+**Revised:** 2026-07-23 (LLP 0086 CC-8 citation absorptions from the prior-art batch: §Realtime Delivery records that bookmarkable versions stay on the wire, with D1's Sessions API as the copyable prior art for a future regional/cacheable read lane and the output-gate durability vocabulary cross-referenced to LLP 0007 — row 2; §Mutation Replay cites Ditto's read-time-derivation guidance as the from-inside-the-camp source for keeping semantic merge out of the sync core — row 9 — and the Jazz 2026-04-18 retreat trilogy plus Electric's pivot as primary-source evidence for the server-authoritative foundation — row 10; §Subscription Contract records the ceremony budget against Instant's query-scoped cache model — row 12); 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053, LLP 0059, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0086
 
 ## Summary
 
@@ -114,6 +114,22 @@ policy, and a generated dependency summary that the matcher can inspect. Queries
 outside that subset may still be callable and may still use an online live
 `replace`/resnapshot mode, but adapters must surface them as online-only or
 replace-only capability classes rather than presenting them as fully local-first.
+
+**Ceremony budget (2026-07-23, LLP 0086 CC-8 row 12).** InstantDB ships the
+weaker version of this contract and it sells: its partial sync is query-scoped
+caching, Firebase-style — the client holds the union of mounted-query results,
+with no declared synced subset, no capability classes, and no surfaced durable
+client-cursor story ([LLP 0082](./0082-instantdb.research.md) §InstaQL — live
+queries by default). Snapback's declared contract (the syncable-live subset,
+sync policies, capability flags, durable cursors) buys authoritative resume,
+honest offline claims, and authorization-aware retention — but that purchase
+has a budget: the declarations must not cost the author more ceremony than the
+added guarantee is worth. For an ordinary analyzable query the paved path must
+stay at Instant's altitude — subscribe to a query and go, with the syncable-live
+classification derived rather than hand-authored — and extra declarations are
+demanded only where a stronger guarantee (retention, resume, bulk) is actually
+being bought. Treat this as a standing constraint on the authoring surface,
+re-evaluated whenever the subscription contract grows a new required input.
 
 After the snapshot, the server sends ordered deltas or resnapshot instructions.
 Messages are idempotent. Clients must be able to apply the same committed
@@ -369,6 +385,37 @@ treated as proof that generic row-level sync automatically solves arbitrary
 per-character merge semantics. When conflicts do surface to clients or agents,
 use a **typed conflict payload**, not a generic error.
 
+**From inside the CRDT camp (2026-07-23, LLP 0086 CC-8 row 9).** The stance
+above — semantic merge stays out of the sync core — now has a citable source
+from the camp's most successful practitioner. Ditto, the CRDT vendor whose
+mesh business actually works at scale, tells its own users in its
+best-practices guidance to "accept every write using add-wins maps, then
+derive the correct business state at read time" in application logic: the
+CRDT layer guarantees *convergence*, not *correctness*
+([LLP 0084](./0084-triplit-ditto.research.md) §Ditto — CRDTs where the mesh
+is the product). That is LLP 0022 §1's "automatic semantic conflict
+resolution is the wall" restated from inside the camp — even where CRDTs are
+the product, business-rule resolution is read-time application logic, not
+merge-layer behavior — which is exactly the division this RFC pins.
+
+**The retreats, cited (2026-07-23, LLP 0086 CC-8 row 10).** The
+server-authoritative foundation now rests on two dated, first-party retreats,
+not only on convergence-by-survey. Jazz's founder published a three-post
+retrospective on 2026-04-18 announcing a ground-up rewrite in his own words:
+"Permissions moved away from cryptographic enforcement around the whole
+system toward a trusted server applying richer policies at sync time," and
+"Concurrent history moved away from CRDT replay and toward a more git-like
+snapshot model" — after 2.5 years invested, landing on a shape convergent
+with this RFC (declared relational schema, server-enforced policies, a
+server-side live query graph pushing deltas, field-level LWW)
+([LLP 0085](./0085-jazz.research.md) §The retreat — in their own words,
+§Jazz v2 — the convergent replacement). ElectricSQL's 2024 pivot post
+walking back generic CRDT sync is the earlier of the pair
+([LLP 0022](./0022-electric-powersync-turso.research.md)). Two independent
+funded teams abandoned "the data structure is the authority" in public,
+dated, first-party writing, and the destination each retreated *to* is the
+model proposed here — materially stronger evidence than arriving by thesis.
+
 ## Local Store
 
 The local store is a target-specific implementation detail with a shared logical
@@ -586,6 +633,26 @@ table / tailer / matcher as a local detail behind a change-notification seam tha
 coalesces and tolerates spurious wakeups (recover by re-reading the current
 version); the product contract is ordered changesets by version, regardless of how
 a target learns a change happened.
+
+**Bookmarkable versions stay on the wire (2026-07-23, LLP 0086 CC-8 row 2).**
+The committed-changeset version on every durable envelope is not just internal
+ordering metadata — keep it a client-visible, comparable bookmark. The copyable
+prior art is D1's Sessions API, which attaches lexically comparable bookmarks
+to each query in a session and derives sequential consistency (monotonic
+reads, read-your-writes) across regional read replicas by comparing them;
+Durable Objects' 30-day point-in-time recovery likewise "was an accidental
+feature" of bookmarks over log-plus-snapshot storage
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md) §D1 — the managed
+sibling, §The storage engine's design lessons). Snapback already has the
+primitive — versions ride every snapshot and delta, and the client cursor is
+durable — so the obligation is mostly negative: do not strip or make opaque
+the version as the wire protocol evolves, because a future regional or
+cacheable read lane (the DK-3 preserved option, LLP 0022) needs
+client-comparable bookmarks to offer read-your-writes without a sticky
+primary. The other half of this absorption — the output-gate vocabulary,
+"synchronous inside, gated at the boundary," for per-target durability
+claims — lands in [LLP 0007](./0007-storage-portability.spec.md), which owns
+per-target durability language (LLP 0086 CC-8 row 2).
 
 > **v1 wire protocol as shipped (LLP 0032 P4 close-out, 2026-07-02).** The
 > local target now implements this section's contract as follows (design

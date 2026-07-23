@@ -11,9 +11,9 @@ queries non-retainable until the LLP 0053 convergence fixture exists, pin
 bounded list semantics, collapse missing/invisible mutation rows at the
 generated public boundary, refuse empty updates, and state the owner profile's
 cross-tenant scope); 2026-07-20 (clarify that this RFC's owner-only floor
-governs standard generated patterns; LLP 0074 separately owns an explicit
+governs standard generated patterns; LLP 0090 separately owns an explicit
 query-only public-read profile)
-**Related:** LLP 0004, LLP 0007, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0074
+**Related:** LLP 0004, LLP 0007, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0090
 
 ## Summary
 
@@ -125,7 +125,7 @@ generic owner CRUD.
 Public, role-based, membership-based, and tenant-based standard patterns are
 future profiles. They require their own explicit semantics and negative
 acceptance cases; a generator must not approximate them with the owner profile.
-LLP 0074's explicitly declared, query-only `public-read` relation profile is a
+LLP 0090's explicitly declared, query-only `public-read` relation profile is a
 separate authority: it neither creates a public CRUD pattern nor weakens this
 RFC's owner-only standard-operation floor.
 

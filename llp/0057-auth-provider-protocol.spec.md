@@ -5,7 +5,28 @@
 **Systems:** Auth, Storage, Security, API, Admin API, Backup/restore, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-15 (author ratification: Charlie Cheever explicitly
+**Revised:** 2026-07-23 (delegated wire extension: Draft LLP 0077 extends
+this Spec's `/auth/exchange` contract for sender-constrained v2 browser
+sessions — the request body gains an optional `senderConstraint` member
+carrying the public JWK and issuance proof, and responses on that path carry
+a `DPoP-Nonce` header. This resolves the sender-binding question this Spec
+reserved as "not implementation latitude": the latitude is granted to LLP
+0077 specifically, which has precedence for the extended members. Sessions
+without a sender constraint, and the frozen `{challengeId, code}` core, are
+unchanged. The delegation also covers the issuance-proof outcome accounting
+for sender exchanges: a cryptographically valid issuance proof consumes its
+replay id (`jti`) even when the paired code is wrong, locked, or exhausted —
+so a single valid proof cannot be reused across code guesses — while a wrong
+code still increments this Spec's code-attempt counter and only a valid proof
+plus correct code binds the thumbprint; LLP 0077 defines that atomic outcome
+table. The delegation further narrows this Spec's carrier-diagnostic matrix on
+sender-constrained hosted routes only: a present-but-malformed or unknown
+session carrier is folded into LLP 0077's anti-oracle
+`SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` challenge (with a cover nonce) rather
+than `SNAPBACK_AUTH_REQUIRED`, to avoid a family-existence oracle; a genuinely
+absent `Authorization` header still yields `SNAPBACK_AUTH_REQUIRED` as this
+Spec requires, and non-sender routes are unchanged. This note records the
+amendment without reopening Accepted status); 2026-07-15 (author ratification: Charlie Cheever explicitly
 ratified this Spec after ENG-25001 closed the review findings and the FINAL4
 Codex and Fable reviews both returned READY; Status advanced to Accepted
 without advancing frozen LLP 0039); 2026-07-15 (FINAL3 closure: declared restore validates every

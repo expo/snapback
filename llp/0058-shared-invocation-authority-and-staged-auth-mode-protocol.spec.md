@@ -5,7 +5,18 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (authority-independent authoring validation now treats
+**Revised:** 2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
+on sender-constrained hosted browser routes, sender-proof admission runs
+before the request body is polled, so this Spec's forbidden-authority-field
+body check runs immediately after sender admission rather than before bearer
+consideration. The forbidden-field check keeps its precedence over the bearer
+and still precedes credential resolution and any application handler; the
+rationale is that an unproven sender must never cause body ingestion. This
+narrow reorder applies only to routes carrying `hosted_sender`; all other
+routes retain the forbidden-field-first order). 2026-07-22 (LLP 0076 adds
+the ninth closed target-capability id,
+`bounded_response_stream_v1`, with a conjunctive registered-implementation and
+process-live outbound-action predicate). 2026-07-17 (authority-independent authoring validation now treats
 membership predicates and `authScopeField` as authority dependencies before
 artifacts are written). 2026-07-17 (post-commit carrier closure: an independently owned
 transition task receives a fail-closed carrier from Local projection, performs
@@ -52,7 +63,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0076
 
 ## Summary
 
@@ -302,13 +313,16 @@ support set. Missing `capabilityGaps` is never positive evidence of support.
 Top-level schema requirements and function/cron requirements are unioned and
 resolved through this same authority before any effect.
 
-The version-1 `TargetCapabilityId` set is closed to exactly the eight ids in the
-example above. The local target derives them from code-owned facts, never from
-candidate artifacts:
+The version-1 `TargetCapabilityId` set is closed to exactly nine ids after the
+LLP 0076 streamed-action amendment. The static example above intentionally
+emits only eight: its declared local target has process-live outbound actions
+disabled, so the ninth predicate is false. The local target derives every id
+from code-owned facts, never from candidate artifacts:
 
 | Capability id | Positive local authority |
 | --- | --- |
 | `auth.sessions.v1` | the paired-v1 parser, shared invocation gate, and staged-mode implementation are registered |
+| `bounded_response_stream_v1` | outbound actions are enabled for this exact runtime instance and the LLP 0076 bounded stream implementation is registered |
 | `host_plan_runtime` | `RuntimeCapabilities.host_plan_runtime == true` |
 | `ibex_ctx_db_host_bridge` | `RuntimeCapabilities.ibex_ctx_db_host_bridge == Available` |
 | `live_subscriptions` | `CapabilityManifest.liveSubscriptions == true` |
@@ -320,9 +334,11 @@ candidate artifacts:
 The registry emits only ids whose positive predicate is true for that exact
 target/runtime instance. Existing codegen-emitted function requirements and
 cron requirements therefore remain valid under v1 instead of being mistaken
-for unknown auth capabilities. Adding any ninth id requires a manifest/schema
-revision and a named positive predicate; string similarity, a missing gap, or a
-successful unrelated runtime probe cannot extend the enum.
+for unknown auth capabilities. LLP 0076 is the dated ninth-id amendment: it
+adds the manifest/schema enum member and the conjunctive process-live predicate
+above. Adding any tenth id requires another manifest/schema revision and a
+named positive predicate; string similarity, a missing gap, or a successful
+unrelated runtime probe cannot extend the enum.
 
 Only the schema and function artifact manifests — plus the generated
 contract-data manifest, which is bound to the exact paired schema/function

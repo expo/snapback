@@ -4,11 +4,11 @@
 **Redacted:** no
 **Method:** cli-runner
 
-I've read LLP 0074 in full, plus the governing context: LLP 0004 (deferred-joins boundary, syncable-subset rules), LLP 0007 (portable query semantics, unique-index v1 rules, commit-version contract, 1,024-write mutation buffer), LLP 0053 (auth-scoped resnapshot/obligation model), LLP 0063 Workstream 6 and its Step 5 entry gates, and LLP 0065 (declaration floor, owner-only v1 visibility profile). Here is the review.
+I've read LLP 0090 in full, plus the governing context: LLP 0004 (deferred-joins boundary, syncable-subset rules), LLP 0007 (portable query semantics, unique-index v1 rules, commit-version contract, 1,024-write mutation buffer), LLP 0053 (auth-scoped resnapshot/obligation model), LLP 0063 Workstream 6 and its Step 5 entry gates, and LLP 0065 (declaration floor, owner-only v1 visibility profile). Here is the review.
 
 ---
 
-# Review: LLP 0074 — Portable relational queries and maintained projections
+# Review: LLP 0090 — Portable relational queries and maintained projections
 
 ## Overall assessment
 
@@ -35,7 +35,7 @@ However, it is not yet acceptable as written. Three load-bearing semantics are u
 *Resolution:* pin explicitly that (a) the root visibility predicate composes into the logical root filter before ordering and `take`; (b) the joined visibility check runs per unique lookup; (c) `inner` omission may yield fewer than `take` rows with **no refill**, and cursors advance over root order keys so omitted rows are never skipped across pages. Add an acceptance case where an invisible root row sits inside the top-N boundary and one where inner-join omission shortens a page mid-pagination.
 
 **C3 — HIGH — Rebuild determinism under concurrent writes is undefined.**
-§6 validates "a canonical content digest" and the acceptance suite compares a crash-recovered generation against "a clean rebuild" — but a digest is deterministic only relative to a source snapshot, and nothing says whether source mutations (which per §5 must synchronously maintain the *current* generation) are blocked, dual-applied to the in-flight generation, or replayed via snapshot-plus-catch-up during a rebuild. Handing "approval, checkpointing, cleanup" to the migration RFC (LLP 0075) does not discharge this: "the projection invariants it must preserve" must include *the published generation equals the mapper applied to the source at the publish commit version*, and that invariant is only meaningful once the concurrency stance is chosen.
+§6 validates "a canonical content digest" and the acceptance suite compares a crash-recovered generation against "a clean rebuild" — but a digest is deterministic only relative to a source snapshot, and nothing says whether source mutations (which per §5 must synchronously maintain the *current* generation) are blocked, dual-applied to the in-flight generation, or replayed via snapshot-plus-catch-up during a rebuild. Handing "approval, checkpointing, cleanup" to the migration RFC (LLP 0091) does not discharge this: "the projection invariants it must preserve" must include *the published generation equals the mapper applied to the source at the publish commit version*, and that invariant is only meaningful once the concurrency stance is chosen.
 *Resolution:* state the v1 stance in this RFC (a write-blocking rebuild with a bounded window is a defensible v1; dual-apply is the alternative), name the invariant in terms of a pinned commit version, and add a write-during-rebuild acceptance case — the current crash cases test the boundary but not the race.
 
 **C4 — MEDIUM — Single-equality versus compound-key contradiction.**
@@ -128,7 +128,7 @@ identity and prove the output owner field derives from a source owner field.
 text claimed (§2, Acceptance).** Include the retained/native evaluator and
 either include Postgres or scope it to a future admitted profile.
 
-Low findings: add LLP 0075 to Related and explain the coupled implementation
+Low findings: add LLP 0091 to Related and explain the coupled implementation
 acceptance; clarify that opaque cursors may carry unprojected root boundary keys.
 
 ### Suggestions
@@ -164,7 +164,7 @@ The reviewer verified all five targeted gate areas:
   owner outputs prove same-subject source-field provenance.
 - The normative and acceptance evaluator lists both include retained/native;
   Postgres is correctly a future profile that must pass before it is claimed.
-- LLP 0075 is related and supplies the exclusive barrier, pinned V, crash
+- LLP 0091 is related and supplies the exclusive barrier, pinned V, crash
   recovery, and reciprocal coupled acceptance; neither RFC claims an executable
   witness before the combined suite passes.
 
