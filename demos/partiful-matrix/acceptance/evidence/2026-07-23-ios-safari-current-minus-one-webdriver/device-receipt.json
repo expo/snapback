@@ -1,0 +1,149 @@
+{
+  "schemaVersion": "partitime.ios-safari-webdriver-citizenship.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP.IOS_SAFARI_CURRENT_1",
+  "recordedAt": "2026-07-23T22:42:27.994Z",
+  "repository": {
+    "revision": "a3aa35da85e503d86ee3cab4efe0c0051514f08b",
+    "dirty": false
+  },
+  "exactRepository": {
+    "revision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+    "dirty": false,
+    "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723"
+  },
+  "candidatePackages": {
+    "source": "linked-source",
+    "sourceBound": true,
+    "rendererRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer",
+    "contractRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract",
+    "artifacts": [
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/package.json",
+        "sha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
+        "bytes": 1658
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
+        "sha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
+        "bytes": 89528
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/package.json",
+        "sha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01",
+        "bytes": 5710
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/src/web-host-direct.ts",
+        "sha256": "099e0c0bdd4b74d4ce646c8912c5ec21a499c6861913c7e359e936c93c8b030c",
+        "bytes": 28811
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract/package.json",
+        "sha256": "cf53d0e05e489b6d78c8ad0214a0373991693ada95c815ef71b668be75e87c82",
+        "bytes": 3919
+      }
+    ]
+  },
+  "candidateBuild": {
+    "root": "demos/partiful-matrix/surfaces/contract/dist/snapback",
+    "fileCount": 25,
+    "sha256": "2c5f6bf648b6a243fd9943008c86178bb72473212df315cde2dccd4233d877e2",
+    "entry": {
+      "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+      "sha256": "1457b9a2f9c807a495b42e1fed6774a228dd88f9b28d2e77d780ec60a1dde7fc",
+      "bytes": 48572
+    }
+  },
+  "claimEligible": true,
+  "cells": [
+    "contract:snapback"
+  ],
+  "environmentId": "ios-safari-current-1",
+  "channel": "current-1",
+  "environment": {
+    "node": "v25.9.0",
+    "os": "darwin-25.5.0-arm64",
+    "cpu": "Apple M5 Max",
+    "browserName": "Mobile Safari",
+    "browserVersion": "26.4",
+    "platformName": "iOS",
+    "platformVersion": "26.4",
+    "platformBuild": "23E244",
+    "deviceName": "Codex-Partitime-iOS-Safari-26.4",
+    "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+    "simulatorRuntime": "com.apple.CoreSimulator.SimRuntime.iOS-26-4",
+    "simulatorState": "Booted",
+    "driver": "/usr/bin/safaridriver",
+    "driverVersion": "Included with Safari 26.5.2 (21624.2.5.11.8)"
+  },
+  "baseUrl": "http://127.0.0.1:5192/partitime/",
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387",
+      "bytes": 10475
+    },
+    {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "41138bb2e42ea0746453aecb613b774a00102d2a11741348332584eed13b19c3",
+      "bytes": 32485
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-ios-safari-webdriver-citizenship.mjs",
+      "sha256": "b8cad36bbfc2b6bce18c9bdcb1c5ff9bd28f04e17d3e7cd34f517e332a49d69e",
+      "bytes": 19421
+    }
+  ],
+  "missingPrerequisites": [],
+  "title": "Partitime / ios-safari-current-1 WebDriver citizenship",
+  "passed": 2,
+  "skipped": 0,
+  "failed": 0,
+  "total": 2,
+  "ok": true,
+  "results": [
+    {
+      "name": "contract × snapback traps and restores focus in ios-safari-current-1",
+      "ok": true,
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "tabPath": [
+          null,
+          "theme-toggle",
+          "new-event"
+        ],
+        "activationPath": [
+          {
+            "attempt": 1,
+            "before": {
+              "opener": true,
+              "active": "new-event"
+            },
+            "overlay": true,
+            "active": "create-close"
+          }
+        ],
+        "fixtureActivation": "DOM click on the WebDriver-keyboard-focused opener",
+        "input": "iOS Safari WebDriver key actions"
+      }
+    },
+    {
+      "name": "contract × snapback restores authored state from bfcache in ios-safari-current-1",
+      "ok": true,
+      "details": {
+        "route": "feed -> event -> about:blank -> browser back -> feed",
+        "eventUrl": "http://127.0.0.1:5192/partitime/events/event_sunset/?user=eve",
+        "pageshowPersisted": true,
+        "retainedDraft": "bfcache-current-1-draft",
+        "interactiveAfterRestore": true,
+        "input": "iOS Safari WebDriver navigation, browser history, and controlled-input events"
+      }
+    }
+  ],
+  "expectedChecks": 2,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}
