@@ -8,22 +8,11 @@ class AppDelegate: ExpoAppDelegate {
 
   var reactNativeDelegate: ExpoReactNativeFactoryDelegate?
   var reactNativeFactory: RCTReactNativeFactory?
-  private var javascriptLoadedObserver: NSObjectProtocol?
 
   public override func application(
     _ application: UIApplication,
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
   ) -> Bool {
-    javascriptLoadedObserver = NotificationCenter.default.addObserver(
-      forName: NSNotification.Name(rawValue: "RCTJavaScriptDidLoadNotification"),
-      object: nil,
-      queue: .main
-    ) { notification in
-      guard let bridge = notification.userInfo?["bridge"] as? RCTBridge else { return }
-      // RCTPLScriptExecution is raw value 1 in React Native's RCTPLTag NS_ENUM.
-      let evaluationMs = bridge.performanceLogger.duration(for: RCTPLTag(rawValue: 1)!)
-      Self.reportNativeLaunchStage(hermesEvaluationMs: evaluationMs)
-    }
     let delegate = ReactNativeDelegate()
     let factory = ExpoReactNativeFactory(delegate: delegate)
     delegate.dependencyProvider = RCTAppDependencyProvider()
@@ -40,35 +29,6 @@ class AppDelegate: ExpoAppDelegate {
 #endif
 
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
-  }
-
-  deinit {
-    if let javascriptLoadedObserver {
-      NotificationCenter.default.removeObserver(javascriptLoadedObserver)
-    }
-  }
-
-  private static func reportNativeLaunchStage(hermesEvaluationMs: Int64) {
-    guard let url = URL(string: "http://127.0.0.1:18764/event") else { return }
-    let launchId = "ios-native-\(ProcessInfo.processInfo.processIdentifier)"
-    let payload: [String: Any] = [
-      "schemaVersion": "partitime.native-event.v1",
-      "profileId": "react-expo/ios",
-      "capabilityClass": "Online",
-      "launchId": launchId,
-      "event": "native-launch-stage",
-      "details": [
-        "definitionVersion": "partitime.native-launch-stage.v1",
-        "hermesEvaluationMs": hermesEvaluationMs,
-      ],
-      "atMs": Int64(Date().timeIntervalSince1970 * 1000),
-    ]
-    guard let body = try? JSONSerialization.data(withJSONObject: payload) else { return }
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "content-type")
-    request.httpBody = body
-    URLSession.shared.dataTask(with: request).resume()
   }
 
   // Linking API
