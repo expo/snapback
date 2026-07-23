@@ -1,6 +1,6 @@
 # Fold the LLP 0062 super-refine residue into the amendments and deliverables
 
-**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree)
+**Status:** Resolved (2026-07-23 — every item dispositioned into owned, tracked work; table in LLP 0062 §2026-07-23 amendment-phase dispositions)
 **Severity:** P2
 **Systems:** Docs, Contracts, Auth, API
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -113,3 +113,36 @@ ibex 0028+0029 correcting amendments (filing owned by
   the two ibex correction filings have recorded Linear identifiers;
   nothing is considered “filed” solely because a review mentioned it.
 - `./ref-check --verbose` passes after each doc change.
+
+## Resolution (2026-07-23, session 1681e9d6)
+
+Disposition recorded as a dated section in LLP 0062 (§2026-07-23
+amendment-phase dispositions), with `Revised:` updated and LLP 0043 added to
+Related naming the adopted acknowledgement protocol. Per done-when:
+
+- **Items 1-11 + nits + standing residue**: each mapped to its owning
+  amendment or frozen deliverable in the LLP 0062 table. Verified 2026-07-23
+  that every item marked "ticket file" is actually specified in its owning
+  `issues/20260717-app-cli-*.md` (keyword-checked: 0043 protocol in
+  mutation-settlement; descriptor-less stage-(a) carve-out in
+  principal-selection; alias/merged in envelope-codegen; Content-Digest in
+  envelope-serving; refresh + challenge custody in session-custody-store;
+  unknown-diagnostic fallback in shared-result-core; envelope-less refusal
+  exit + grammar validation + exit-9 broker timeout in
+  engine-dev-subcommands/code-mode-host; no-console fixture in
+  acceptance-fixture; remote-service matrix in principal-selection).
+- **Five dated Snapback amendments now first-class tracked work:**
+  ENG-25405 (LLP 0012: envelope DTO + declaration integrity + LLP 0043
+  settlement document half), ENG-25406 (LLP 0024 shared-core + LLP 0037
+  registration + unknown-diagnostic exits), ENG-25407 (LLP 0031 route class +
+  HEAD/Content-Digest matrix), ENG-25408 (LLP 0055 pairing/token items),
+  ENG-25409 (LLP 0058 eligibility descriptor + ownership gloss).
+- **Ibex correction filings with recorded identifiers:** ENG-25410 (ibex LLP
+  0028), ENG-25411 (ibex LLP 0029) — stale claims quoted, phase-1
+  non-dependency explicit, resolution requires reviewed amendments before any
+  standalone phase; filed, deliberately not landed (r9 author call).
+- `./ref-check --verbose` green after the doc change.
+
+All amendment work rides the deferred advanced phase; nothing here reopens
+it. Executable acceptance evidence lands with each owning deliverable when
+that phase resumes (each Linear issue names its acceptance bar).

@@ -82,7 +82,8 @@ Cross-cutting:
   residue into the doc/amendments and frozen deliverables
 - `20260717-app-cli-ibex-contract-corrections.md` — file and track the
   required ibex LLP 0028/0029 corrections without making them a phase-1
-  runtime dependency
+  runtime dependency (filed 2026-07-23: ENG-25410, ENG-25411; ticket
+  resolved, landing deferred)
 
 The advanced-program decomposition remains complete only when every normative
 deliverable and carried review item has an explicit owning ticket, dependency
