@@ -9,7 +9,7 @@ import { fileURLToPath } from 'node:url';
 import { manifestSemanticSha256 } from './manifest-semantics.mjs';
 
 // @ref LLP 0063#sequence
-// @ref Exact LLP 0373#8-success-scorecard
+// Cross-repository counterpart: Exact LLP 0373#8-success-scorecard.
 //
 // Final proof is conjunctive. This witness validates current artifact bytes
 // and reports the exact non-passing mandatory set for every frozen outcome;

@@ -165,6 +165,16 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   );
   assert.deepEqual((await grace.client.query('getTodo', { args: { id: graceRow._id } })).rows.map((row) => row.title), ['Grace task']);
 
+  await mutate(ada, 'deleteTodo', { id: adaRow._id }, 'cm_patterns_own_delete');
+  await assert.rejects(
+    () => mutate(ada, 'updateTodo', { id: adaRow._id, title: 'missing' }, 'cm_patterns_missing_update'),
+    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
+  );
+  await assert.rejects(
+    () => mutate(ada, 'deleteTodo', { id: adaRow._id }, 'cm_patterns_missing_delete'),
+    (error) => (error?.code ?? error?.diagnostic?.code) === 'SNAPBACK_ROW_NOT_VISIBLE',
+  );
+
   // A raw protocol caller can include unknown object members in v0. The plan
   // never reads them: the server derives all three values from its prepared
   // runtime, so the attempted values cannot acquire semantic authority.
@@ -192,6 +202,7 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
       crossUserPaginationRejected: true,
       crossUserUpdateRejected: true,
       crossUserDeleteRejected: true,
+      missingAndInvisibleMutationRowsCollapsed: true,
     },
   };
   const renderedReceipt = `${JSON.stringify(receipt, null, 2)}\n`;

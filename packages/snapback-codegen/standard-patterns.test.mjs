@@ -141,6 +141,60 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     /SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED: by_owner_created_slug must be unique with exact fields \[ownerId, createdAt\]/,
     'a third unique-index field does not make the cursor unique within one owner partition',
   );
+
+  const permissionRows = defineTable({
+    ownerId: v.principal(),
+    role: v.string(),
+  }).permissionBacking(['role']);
+  const membershipRows = defineTable({
+    ownerId: v.principal(),
+    role: v.string(),
+  }).membership({
+    scope: 'app',
+    principal: 'ownerId',
+    role: 'role',
+    roles: ['member'],
+    transitions: [],
+  });
+  defineSchema({ permissionRows, membershipRows });
+  for (const table of [permissionRows, membershipRows]) {
+    assert.throws(
+      () => defineOwnedCrud({
+        table,
+        names,
+        visibility: { kind: 'owner', field: 'ownerId' },
+      }),
+      /SNAPBACK_STANDARD_PATTERN_PERMISSION_BACKING_REFUSED/,
+      'standard patterns must not turn permission-backing rows into self-service authority',
+    );
+  }
+
+  const opaqueOrder = defineTable({
+    ownerId: v.principal(),
+    payload: v.json(),
+    immutableValue: v.string(),
+  });
+  defineSchema({ opaqueOrder });
+  assert.throws(
+    () => defineOwnedCrud({
+      table: opaqueOrder,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      listOrder: 'payload',
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: listOrder payload must be a portable scalar field/,
+    'portable list ordering must refuse JSON values',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: opaqueOrder,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      immutable: ['payload', 'immutableValue'],
+    }),
+    /SNAPBACK_STANDARD_PATTERN_INVALID: update would patch no fields/,
+    'a generated update must not silently become an empty patch',
+  );
 }
 
 const dir = mkdtempSync(join(tmpdir(), 'snapback-standard-patterns-'));
@@ -211,6 +265,7 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   for (const name of ['listTodos', 'getTodo', 'todoBySlug', 'firstTodoPage', 'nextTodoPage']) {
     const fn = byName.get(name);
     assert.equal(fn.authRequirement, 'authenticated', `${name} must require authenticated authority`);
+    assert.equal(Object.hasOwn(fn, 'retainable'), false, `${name} stays non-retainable until it carries the LLP 0053 convergence fixture`);
     assert.equal(fn.readSetSummary.authScopeField, 'ownerId', `${name} must carry explicit row visibility`);
     assert(
       fn.runtime.HostPlan.Query.filters.some((filter) => (
@@ -237,6 +292,7 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   const update = byName.get('updateTodo');
   const updateSteps = update.runtime.HostPlan.Mutation.steps;
   assert.equal(updateSteps[0].Get.table, 'todos');
+  assert.equal(updateSteps[0].Get.else_error, 'SNAPBACK_ROW_NOT_VISIBLE');
   assert.equal(updateSteps[1].Guard.else_error, 'SNAPBACK_ROW_NOT_VISIBLE');
   assert.equal(updateSteps[1].Guard.cond.Binary.right, 'AuthUserId');
   assert.equal(updateSteps[2].Patch.values.updatedAt, 'RuntimeNow');

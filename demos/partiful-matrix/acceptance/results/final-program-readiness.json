@@ -301,8 +301,8 @@
       {
         "claimId": "STEP5.DECLARATION_REDUCTION",
         "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
-        "expectedSha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68",
-        "actualSha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68",
+        "expectedSha256": "9c1c883658706d0983813a65eff5650e438aead02fea5890f1af80843639ae99",
+        "actualSha256": "9c1c883658706d0983813a65eff5650e438aead02fea5890f1af80843639ae99",
         "ok": true
       },
       {
@@ -423,7 +423,7 @@
           "status": "pending",
           "artifact": {
             "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
-            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+            "sha256": "9c1c883658706d0983813a65eff5650e438aead02fea5890f1af80843639ae99"
           }
         },
         {
@@ -535,7 +535,7 @@
           "status": "pending",
           "artifact": {
             "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
-            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+            "sha256": "9c1c883658706d0983813a65eff5650e438aead02fea5890f1af80843639ae99"
           }
         },
         {
@@ -647,7 +647,7 @@
           "status": "pending",
           "artifact": {
             "path": "demos/partiful-matrix/acceptance/results/step5-declaration-reduction-candidate.json",
-            "sha256": "e323acdfd8dc84fdbf2a2d9d44dbf19c9e01f386e272cbc355a4de0a0ee87a68"
+            "sha256": "9c1c883658706d0983813a65eff5650e438aead02fea5890f1af80843639ae99"
           }
         },
         {

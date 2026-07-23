@@ -5,9 +5,14 @@
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 (clarify that this RFC's owner-only floor governs
-standard generated patterns; LLP 0074 separately owns an explicit query-only
-public-read profile)
+**Revised:** 2026-07-23 (apply the independent Claude-family review: refuse
+permission-backing and membership tables at generation, keep v1 generated
+queries non-retainable until the LLP 0053 convergence fixture exists, pin
+bounded list semantics, collapse missing/invisible mutation rows at the
+generated public boundary, refuse empty updates, and state the owner profile's
+cross-tenant scope); 2026-07-20 (clarify that this RFC's owner-only floor
+governs standard generated patterns; LLP 0074 separately owns an explicit
+query-only public-read profile)
 **Related:** LLP 0004, LLP 0007, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0074
 
 ## Summary
@@ -97,8 +102,25 @@ has four effects, all mandatory:
 
 The owner field is absent from client-authored create/update arguments. Create
 sets it from `ctx.auth.userId`; update cannot transfer ownership. Missing rows
-and invisible rows use distinct stable codes internally, but public targets
-may project them to a common refusal when existence secrecy requires it.
+and invisible rows are collapsed to `SNAPBACK_ROW_NOT_VISIBLE` by generated
+update/delete plans. This is the safe default at the authenticated public
+operation boundary: callers cannot use document IDs as an existence oracle.
+Lower storage and diagnostic layers may retain a more precise internal cause,
+but this v1 profile exposes no opt-out.
+
+The v1 generated queries are intentionally **non-retainable**. Their
+`authScopeField` is within LLP 0053's shipped `userId`-scoped refinement
+because the scope value is exactly `ctx.auth.userId`, regardless of the
+application field's name. A future retained profile must attach and execute
+LLP 0053's matcher-versus-full-requery convergence fixture for every generated
+query before setting `retainable: true`; metadata alone cannot promote it.
+
+Standard patterns are refused on any table declared with `.membership()` or
+`.permissionBacking()`, using
+`SNAPBACK_STANDARD_PATTERN_PERMISSION_BACKING_REFUSED`. Membership transition
+policy and host-filled provenance stay under LLP 0056, and a hand-authored
+permission-backing table cannot acquire a self-service grant channel through
+generic owner CRUD.
 
 Public, role-based, membership-based, and tenant-based standard patterns are
 future profiles. They require their own explicit semantics and negative
@@ -118,6 +140,17 @@ name the owner field, and update defaults cannot name immutable fields. Updates
 are complete-field updates for the mutable v1 field set; partial-patch omission
 semantics are not guessed. Every helper's top-level options object is closed;
 misspelled or future options fail rather than being ignored.
+
+The generated list is a bounded prefix, not an all-rows claim. Its default
+order is `_createdAt` and its default limit is 100; authors may select a
+portable schema scalar or system field and a limit from 1 through 1,024.
+LLP 0007's ascending `_id` tie-break makes every order total. JSON/object
+ordering is refused. Reaching the limit does not carry an implicit
+`hasMore`; callers that need completeness beyond the bound use the explicit
+keyset pattern. Mutable order fields are permitted deliberately, so authors
+accept membership movement at the bounded edge. An update with neither a
+mutable field nor a trusted update default is refused rather than generating
+an empty patch.
 
 `defineOwnedUniqueLookup` requires a declared unique index containing the owner
 field. It returns a definition map keyed by the required operation name,
@@ -151,7 +184,8 @@ tree. Stable authoring diagnostics include:
 - `SNAPBACK_STANDARD_PATTERN_TABLE_UNBOUND`;
 - `SNAPBACK_STANDARD_PATTERN_VISIBILITY_REQUIRED`;
 - `SNAPBACK_STANDARD_PATTERN_UNIQUE_INDEX_REQUIRED`;
-- `SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED`; and
+- `SNAPBACK_STANDARD_PATTERN_PAGINATION_INDEX_REQUIRED`;
+- `SNAPBACK_STANDARD_PATTERN_PERMISSION_BACKING_REFUSED`; and
 - `SNAPBACK_STANDARD_PATTERN_INVALID` for closed-vocabulary violations.
 
 Generated function references and operation schemas remain the public client
@@ -165,8 +199,17 @@ Before this RFC may move to Accepted:
 - generation from one table declaration produces byte-identical artifacts on
   rerun and inferred argument/result types compile;
 - omission or misspelling of visibility fails before output;
+- membership and permission-backing tables fail before output with the stable
+  standard-pattern refusal;
 - cross-user reads, unique lookups, updates, and deletes cannot observe or
   mutate another owner's row in the real server;
+- generated mutation calls expose the same refusal for missing and invisible
+  rows, preventing an existence oracle;
+- generated v1 queries remain non-retainable; any later retained profile must
+  run LLP 0053's convergence fixture for every `authScopeField` query;
+- list ordering, limit bounds, `_id` total-order tie-break, JSON refusal, and
+  bounded-prefix semantics are executable;
+- an update with neither mutable fields nor trusted update defaults is refused;
 - trusted `now`/`id` fields reject client-supplied values and use recorded host
   answers under replay;
 - the generated read/write ceiling is checked against every observed HostPlan
@@ -176,10 +219,27 @@ Before this RFC may move to Accepted:
   threshold; and
 - the no-Exact-core and package-artifact gates rerun.
 
+The owner profile has no independent tenant axis: its authority partition is
+the authenticated user. For this profile, the required cross-tenant negative
+case therefore reduces to the cross-user case above. A future tenant profile
+must add a distinct tenant declaration and distinct negative fixtures rather
+than claiming coverage from this reduction.
+
 The current implementation in `packages/snapback-codegen/standard-patterns.*`
 is an implementation candidate and unit-level witness. While this RFC is
 Draft, it does not satisfy LLP 0063's Step 5 entry gate or promote
 `STEP5.DECLARATION_REDUCTION`.
+
+### Independent review disposition — 2026-07-23
+
+The Claude-family review at
+`llp/reviews/0065-generated-data-pattern-soundness.fable.md` returned
+not-ready with findings C1–C6. This revision applies all six without changing
+the RFC lifecycle state: C1 is the permission-backing refusal; C2 is the
+explicit non-retainable/convergence posture; C3 pins list semantics; C4
+collapses the public existence oracle; C5 pins trusted-default types and
+refuses empty updates; C6 states why the owner profile's tenant-negative case
+is the cross-user case. Acceptance remains the author's decision.
 
 ## Open questions
 
@@ -190,5 +250,5 @@ Draft, it does not satisfy LLP 0063's Step 5 entry gate or promote
 3. Which static analyzer and source language can prove complete conservative
    ceilings for non-HostPlan handlers without turning undecidability into an
    optimistic fallback?
-4. Should invisible and missing row diagnostics always be collapsed at the
-   HTTP boundary, or remain a per-target security policy?
+4. A future trusted/admin-only profile may consider exposing distinct
+   missing/invisible causes, but the v1 generated public surface has no opt-out.

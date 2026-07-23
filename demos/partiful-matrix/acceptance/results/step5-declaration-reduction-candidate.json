@@ -7,7 +7,7 @@
   "implementationCandidatePass": true,
   "authority": {
     "path": "llp/0065-generated-data-pattern-soundness.rfc.md",
-    "sha256": "15709e36ca308d77db1b804300f0fed19871df304805c44a23fd3164edecf4b6",
+    "sha256": "f87490cebbd212aacda86f497c6f336500182fd0c46798d039b6c995455632f6",
     "status": "Draft",
     "acceptedForGate": false,
     "rule": "LLP 0065 must be Accepted or Implemented before this candidate may promote the cumulative claim."
@@ -64,10 +64,11 @@
         "crossUserUniqueLookupRejected": true,
         "crossUserPaginationRejected": true,
         "crossUserUpdateRejected": true,
-        "crossUserDeleteRejected": true
+        "crossUserDeleteRejected": true,
+        "missingAndInvisibleMutationRowsCollapsed": true
       }
     },
-    "receiptSha256": "dca3a308eb6c9c4b21a198dfe3919d49affb7a9e09ed382a75749f98ea0bd615",
+    "receiptSha256": "a4163cc1cf1e1c706f9c64631b6a453e6b6b4c83a3b60a7774d29de4e4663a50",
     "executions": [
       {
         "command": "node packages/snapback-codegen/standard-patterns.test.mjs",
@@ -78,14 +79,14 @@
         "exitCode": 0
       },
       {
-        "command": "node tests/acceptance/standard-patterns-v1.mjs --receipt /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback-step5-declaration-PvF0Dh/standard-patterns-real-server.json",
+        "command": "node tests/acceptance/standard-patterns-v1.mjs --receipt <scratch>/standard-patterns-real-server.json",
         "exitCode": 0
       }
     ],
     "inputs": [
       {
         "path": "packages/snapback-codegen/standard-patterns.mjs",
-        "sha256": "b3b4ff3ba8d421a28e64801121242f5b3b2805c452f420a64553d528d4ee938a"
+        "sha256": "875b0c321c62558c3ddfea6ca3ebced5581de4f6088f8f4ea31c688413c9872f"
       },
       {
         "path": "packages/snapback-codegen/standard-patterns.d.ts",
@@ -93,7 +94,7 @@
       },
       {
         "path": "packages/snapback-codegen/standard-patterns.test.mjs",
-        "sha256": "c14f07ce6f391bcd0dc5d81232eaf4c6b144b85a1a60fbf918b2d7d2b484768a"
+        "sha256": "93764efcc3b25a2d82a83766bc0d634d256d04453592c80ecf44df2377e7c4df"
       },
       {
         "path": "packages/snapback-codegen/standard-patterns-types.fixture.ts",
@@ -101,7 +102,7 @@
       },
       {
         "path": "tests/acceptance/standard-patterns-v1.mjs",
-        "sha256": "43e9290cf2d2f5a27891af3668869a27e925423889efd237e6910b0d25a80efe"
+        "sha256": "c66f1289028b936e4dc9872c32c14bf3fe088dc5137fb843a1094e453fb8be94"
       }
     ]
   },

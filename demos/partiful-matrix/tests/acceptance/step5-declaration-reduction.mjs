@@ -37,7 +37,10 @@ const identity = (path) => ({ path, sha256: sha256(readFileSync(resolve(repoRoot
 const run = (command, args) => {
   const result = spawnSync(command, args, { cwd: repoRoot, encoding: 'utf8' });
   assert.equal(result.status, 0, `${command} ${args.join(' ')} failed:\n${result.stderr || result.stdout}`);
-  return { command: [command, ...args].join(' '), exitCode: result.status };
+  return {
+    command: [command, ...args].join(' ').replaceAll(scratch, '<scratch>'),
+    exitCode: result.status,
+  };
 };
 
 try {
