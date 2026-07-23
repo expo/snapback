@@ -1,0 +1,84 @@
+{
+  "schemaVersion": "partitime.citizenship-environment-invalidation.v1",
+  "environment": "ios-safari-current-1",
+  "outcome": "invalid-environment",
+  "reasonCode": "STEP4_CITIZENSHIP_IOS_CURRENT_MINUS_ONE_RUNTIME_FONT_ASSETS_MISSING",
+  "recordedAt": "2026-07-23T11:58:00Z",
+  "authority": [
+    "Snapback LLP 0063 Step 4",
+    "demos/partiful-matrix/acceptance/web-citizenship-runbook.md"
+  ],
+  "candidate": {
+    "snapbackRevision": "0df687d1a8c0097f768fc2693458f397da100532",
+    "exactBaseRevision": "b8149e1559e15acec8784ba24dcd463ba2d04197",
+    "note": "This receipt invalidates only the simulator environment. It is not passing application evidence and is not admitted by the citizenship collector."
+  },
+  "affectedRuntime": {
+    "device": {
+      "name": "iPhone 17 Pro",
+      "udid": "E0E49A2F-54A7-4355-8EB4-D52138E3361B",
+      "kind": "iOS Simulator"
+    },
+    "os": {
+      "name": "iOS",
+      "version": "26.3.1",
+      "build": "23D8133",
+      "channel": "current-1"
+    },
+    "browser": {
+      "name": "Mobile Safari",
+      "version": "26.3",
+      "build": "8623.2.7.10.4"
+    }
+  },
+  "healthyControl": {
+    "device": {
+      "name": "Codex-Partitime-iOS-Safari-2694",
+      "udid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+      "kind": "iOS Simulator"
+    },
+    "os": {
+      "name": "iOS",
+      "version": "26.5",
+      "build": "23F77",
+      "channel": "current"
+    },
+    "browser": {
+      "name": "Mobile Safari",
+      "version": "26.5",
+      "build": "8624.2.5.10.4"
+    }
+  },
+  "probe": {
+    "description": "The same simple same-origin Safari page displays Japanese text and emoji both as body copy and as a native form value.",
+    "expectedText": "乾杯 かんぱい 🍻 🪩",
+    "affectedObservation": "Every Japanese and emoji glyph renders as a missing-glyph box in both body copy and the native form control.",
+    "controlObservation": "The iOS 26.5 runtime renders every Japanese and emoji glyph correctly in the same layout.",
+    "scope": "The defect reproduces outside Contract and Snapback application code, so it invalidates this simulator image as visual current-minus-one citizenship evidence."
+  },
+  "evidence": [
+    {
+      "kind": "affected-runtime-screenshot",
+      "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-invalidation/current-minus-one.png",
+      "sha256": "741f8c84a0319d61f06a12303e1657c171a10f6832f1fc2470c2924112a5e2cf",
+      "bytes": 118129
+    },
+    {
+      "kind": "healthy-control-screenshot",
+      "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-invalidation/current-control.png",
+      "sha256": "a86fbc7934a0f5295b60e489f1bfeb030740c8db4d5a027d2ea86637013300a0",
+      "bytes": 188683
+    }
+  ],
+  "claimEffect": {
+    "promotedRows": [],
+    "redRowsPreserved": [
+      "ios-safari-current-1/ime-composition",
+      "ios-safari-current-1/autofill-password-manager",
+      "ios-safari-current-1/focus-trap-restore",
+      "ios-safari-current-1/bfcache-restore",
+      "ios-safari-current-1/find-on-page"
+    ],
+    "requiredFollowUp": "Rerun all five rows on a complete current-minus-one Safari runtime; missing evidence remains red and is never converted to a skip or pass."
+  }
+}
