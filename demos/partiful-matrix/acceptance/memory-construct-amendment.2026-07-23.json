@@ -55,8 +55,10 @@
     "warmupsPerCount": 2,
     "calibrationSamplesPerCount": 7,
     "holdoutSamplesPerCount": 7,
+    "calibrationSeed": 381202607,
+    "holdoutSeed": 381202608,
     "preSubscriptionBaseline": "In each fresh measurement target, activate one unreported canonical logical subscriber, await authoritative/live readiness, dispose it, wait two requestAnimationFrame turns, force garbage collection, and record the resulting zero-active-subscriber heap. This warms framework and provider caches without entering the fitted cohort.",
-    "countOrder": "Fisher-Yates permutation from receipt-recorded seed before every cohort round",
+    "countOrder": "Fisher-Yates permutation from the cohort's pre-frozen calibrationSeed or holdoutSeed before every cohort round",
     "outlierPolicy": "retain every valid observation; invalidate only a receipt-recorded collector, browser, backend-health, or cleanup failure",
     "cohortIsolation": "Commit calibration thresholds before holdout. Holdout reads them from the explicit committed calibration revision and never from the mutable worktree.",
     "cleanup": "After every observation dispose every logical-subscriber handle and require the harness to report zero active and zero ready subscribers; then dispose the provider/root, close the fresh CDP target, and attest that the target no longer exists before the next observation. Same-target post-disposal heap is retained as diagnostic high-water-cache evidence only, never as an exclusion or claim input."

@@ -57,7 +57,8 @@ const output = option('out') ?? join(
   'acceptance/results',
   `step4-memory-v2-${cohort}.json`,
 );
-const seed = Number(option('seed') ?? (quick ? 381 : Number.NaN));
+const authoritySeed = amendment.sampling[`${cohort}Seed`];
+const seed = Number(option('seed') ?? (quick ? 381 : authoritySeed));
 const arms = selectedArm ? [selectedArm] : ['react', 'contract'];
 const backends = selectedBackend
   ? [selectedBackend]
@@ -98,6 +99,11 @@ if (isMain) {
         amendment.status,
         'ratified',
         'memory amendment must be ratified before calibration or holdout',
+      );
+      assert.equal(
+        seed,
+        authoritySeed,
+        `${cohort} seed must match the ratified memory authority`,
       );
       assert.equal(cells.length, 8, 'claim-eligible memory sampling requires all eight cells');
     }
