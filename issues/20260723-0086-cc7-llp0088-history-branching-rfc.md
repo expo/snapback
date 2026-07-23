@@ -1,6 +1,6 @@
 # CC-7: record history/branching exploration RFC (LLP 0088)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0088 authored, Draft: history reads pursue (phase 1, journal-backed, portable), losing versions subsumed, branching deferred with named trigger, merge-in-core never, GC/retention + per-version fail-closed auth as preconditions, LLP 0007 no-change derived; acceptance waits on the LLP 0085 gate + own review)
 **Severity:** P2
 **Systems:** Storage, Sync, API
 **Author:** Claude (Fable), directed by Charlie Cheever
