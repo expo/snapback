@@ -232,3 +232,60 @@ Secondarily, the RFC now normatively requires a second settlement axis that the 
 7. **Verdict**
 
 Verdict: NOT READY — the accuracy defects from prior rounds are genuinely fixed and every claim I checked holds, but the specified late-effect fence still delegates terminalization to an authored mutation that provably cannot run under abandonment and to a retry path with no single-runner lease, leaving a disclosed-but-unspecified late-/duplicate-write hole (Concern 1) that must be closed in the model, alongside the still-unlanded two-axis fixture reconciliation (Concern 2), before this can be accepted as the fence authority.
+
+## Round 5 — 2026-07-23
+
+**Revision under review:** `llp/0076-bounded-streamed-actions.rfc.md`, sha256 `983749efaca5ea8497fce081ee0741d6a51efa061965b0dedc60b123b53fef89` (MATCH at repo HEAD `56534268`)
+**Runtime detail:** fresh Fable subagent, 21 tool uses, ~516 s; verified the pinned hash and each headline round-5 change (terminalizer/lease as specified contract, distinct `wireInitiated` fact, orthogonal certainty axis, byte-stream-only SSE non-goal) against code. No access to earlier rounds or the concurrent Codex round.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check** — MATCH. `shasum -a 256 llp/0076-bounded-streamed-actions.rfc.md` → `983749efaca5ea8497fce081ee0741d6a51efa061965b0dedc60b123b53fef89`; `git rev-parse --short HEAD` → `56534268`. Both match the pin. The file is untracked at a tracked HEAD, as stated.
+
+2. **Overall assessment**
+
+This is a mature, unusually honest RFC that has clearly absorbed four prior rounds. The revision does what its header claims. I verified each headline change: the trusted terminalizer and single-runner lease are now written as normative parts of the Settlement contract (§Settlement and retry, lines 244–269), not gap-only wishes; `wireInitiated` is specified as a *distinct* host fact separate from LLP 0059's `Initiated` permit (lines 209–219) — and LLP 0059's permit does exist and is release-in-`finally` semantics (`llp/0059`:1212), so the distinction the doc draws is real; the certainty is framed as an orthogonal column rather than a sixth kind (lines 200–207), which correctly leaves LLP 0075's `requiredSettlementKinds` at exactly five (`demos/competitive-checkpoint/acceptance/protocol.v0.json`:78 — `["complete","failed","cancelled","timed_out","ambiguous"]`); and the SSE non-goal is tightened to a byte-stream-only commitment (lines 481–483).
+
+The cross-authority numeric agreement is exact. The five fixture bounds — 1 MiB total, 64 KiB buffered, 30 s wall, 5 s idle, 10 commits/s (`protocol.v0.json`:72–77) — match the RFC (lines 120–131) and the Rust constants: `ACTION_STREAM_TOTAL_BYTES_MAX = 1_048_576`, `ACTION_STREAM_WALL_MS = 30_000`, `ACTION_STREAM_IDLE_MS = 5_000`, `ACTION_STREAM_CHUNK_BYTES_MAX = 16_384`, `ACTION_STREAM_OPEN_MAX = 4` (`src/server.rs`:760–764). The 16 KiB read size and 4-cursor cap the RFC says exist "only here" are indeed enforced (`src/server.rs`:1186, 1385). The diagnostic code families all exist with the exact names claimed (`src/server.rs`:1188–1446, 29041–29119; `cloudflare/src/coordinator.js`:1754–2038; `SNAPBACK_ACTION_STREAM_UNSUPPORTED` at `src/runtime.rs`:143–157).
+
+Most importantly, the evidence ledger (§Evidence status) is accurate rather than aspirational, and I could confirm the gaps by reading code. `wireInitiated` and any effect-certainty column are genuinely absent from the tree (no matches anywhere outside the LLP), so the two-axis contract is honestly labeled unimplemented. `validate_live` checks abandonment, generation, and deadline but *not* service authority, and `read_response_stream` calls it nowhere (`src/server.rs`:865–882, 1347–1436) — exactly the per-read-fence gap the doc records. `bounded_response_stream_buffered_bytes` is published `Enforced` (`src/manifest.rs`:3399–3402) while the read path tracks only `total_bytes` with no buffered-byte counter — exactly the overclaim the doc flags. This doc-to-code fidelity is the RFC's strongest feature and the reason I trust the rest of it.
+
+My hesitation is narrow and concerns the document's job as a *precise* authority. The certainty axis is elevated to a hard "MUST be host-derived, not author-inferred" (line 209) while open question 4 simultaneously asks "does the host or the authored pattern own the effect-certainty channel?" (lines 497–499). Read charitably these are about derivation vs. persistence-ownership, but as written a downstream consumer sees a MUST and an open question pointing opposite directions on the same mechanism. Coupled with the fact that the newly-mandated `wireInitiated` fact's *feasibility* — distinguishing "bytes handed to the wire" from a pre-send transport failure — is asserted but not demonstrated against either real transport (the Rust open path classifies purely on method/idempotency-key, not on wire progress: `src/server.rs`:1289–1314), the central new normative commitment rests on an unestablished host capability. For a Draft that other LLPs will treat as settled semantics, that tension should be reconciled before acceptance.
+
+3. **Strengths**
+
+- Late-effect model is now closed on paper: terminalizer guarantees a durable winner exists even under abandonment, and the atomic single-runner lease prevents two runners from committing differently-segmented bytes (lines 244–269). This directly answers the round-4 hole and is coherent.
+- Retry safety is layered and conservative: idempotent/keyed retry only before the first durable commit, with re-segmentation named as the exact hazard (lines 271–278) — verified consistent with the fixture's single-attempt identity.
+- Certainty-as-orthogonal-column is the right call: it preserves LLP 0075's five kinds with no fixture amendment (lines 200–207 vs `protocol.v0.json`:78), avoiding a cascading cross-authority edit.
+- The evidence ledger separates witnessed from staged with per-item code-level accuracy (lines 358–473); every gap I spot-checked was real.
+- Progress-rate fence is honestly scoped as a shared transport-level guard reusing the fixture-flavored code, with the rename flagged as open (lines 308–314; code at `src/server.rs`:1059, `cloudflare/src/host-ops.js`:280).
+- Non-goals now genuinely exclude what the body could imply: the byte-stream-only SSE commitment (lines 481–483) forecloses the general-streaming-API reading.
+
+4. **Concerns**
+
+1. **Moderate — normative MUST contradicts an open question on the certainty axis.** Line 209 states the certainty axis "MUST be host-derived, not author-inferred," yet open question 4 (lines 497–499) reopens "does the host or the authored pattern own the effect-certainty channel?" A precise authority cannot both mandate host derivation and list ownership as undecided. *Resolution:* either narrow OQ4 explicitly to persistence-channel ownership (host derives the fact; who writes the column is open) or downgrade line 209 from MUST to a stated intent until OQ4 closes.
+
+2. **Moderate — the mandated `wireInitiated` host fact's feasibility is asserted, not shown.** The body makes host-derived initiation a MUST (lines 209–219) and stakes the entire effect-certainty guarantee on it, but neither transport currently exposes "bytes reached the wire" — the Rust open path infers retry-safety from method/idempotency-key alone (`src/server.rs`:1289–1314), which is precisely the author-inference the doc forbids. *Resolution:* add a sentence establishing that ureq/Workerd can in principle surface a send-progress signal (or reference where LLP 0070/0059 will), so the MUST is not built on an unproven host capability.
+
+3. **Minor — the Authority section overstates present per-read revalidation.** Line 149 asserts "Every open/read/cancel operation revalidates the exact action invocation, app generation, service authority, and watchdog deadline," but `read_response_stream` performs no `validate_live` call and `validate_live` omits service authority entirely (`src/server.rs`:865–882, 1347–1436). The gap ledger discloses this (lines 383–388), so it is disclosed-but-internally-inconsistent prose. *Resolution:* mark line 149 as the target contract explicitly, matching the ledger's framing.
+
+4. **Minor — the shipped manifest violates LLP 0074's own rule the RFC governs.** `bounded_response_stream_v1` is published as a positive `supportedCapabilities` entry (`src/manifest.rs`:3032 gate; positive rows across generated manifests) and `bounded_response_stream_buffered_bytes` reads `Enforced` (`src/manifest.rs`:3399–3402) despite no buffered-byte accounting — LLP 0074 forbids positive capability for a Draft authority without executable conformance. The RFC correctly prescribes the fix (maturity admission, `Missing` rows: lines 446–455), so this is code lag, not a doc defect; noting it because the prompt asked that cross-authority conflicts be surfaced rather than smoothed.
+
+5. **Suggestions**
+
+- State explicitly, in §Settlement and retry, that three of the four author obligations (lines 190–195) remain host-unenforced in v1 and that this is the accepted authored-pattern tradeoff — the fence's terminal check for the *authored* path still depends on author correctness even with the terminalizer in place. It is implied but deserves a one-line acceptance of the residual.
+- The acceptance bullet at lines 347–348 (cancelled/timed-out-after-initiation carry the effect fact; pre-initiation `failed` does not) cannot be witnessed until `wireInitiated` and the certainty column exist. Consider tagging acceptance bullets that are blocked on a named gap, so a reader knows which are witnessable today vs staged.
+- Consider resolving open question 5 (progress-rate code rename) before any receipt becomes load-bearing, since the shared `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` name is already emitted by both hosts and will be awkward to rename once it appears in retained receipts.
+
+6. **Open questions** (author must decide)
+
+- Reconcile the line-209 MUST with open question 4: is host-derivation of the certainty fact a settled requirement or itself still open?
+- Is `wireInitiated` actually derivable from ureq and the Workerd fetch path, or does v1 need to accept an author-declared fallback with a stated soundness caveat?
+- What is the exact 64 KiB buffer-accounting domain (host-retained unread vs bridge copies) — undefined today and the gate on the slow-consumer witness (lines 373–375, 415–422)?
+- When does the positive-capability/manifest maturity correction land, given LLP 0074 forbids the current published state for a Draft authority?
+- The doc's own open questions 1–6 (surface completeness, provider-key machine-checkability, resumable cursors, `ambiguous`'s residual meaning, code rename, secret-bearing streams) all remain live.
+
+7. **Verdict**
+
+`Verdict: NOT READY` — the model is now semantically closed and doc-to-code fidelity is excellent, but the certainty axis carries a normative MUST (line 209) directly reopened by open question 4 and rests on a `wireInitiated` host fact whose feasibility is unestablished; for a document whose sole value is precision as the authority consumed by LLP 0074/0075/0070, that tension should be reconciled before acceptance.

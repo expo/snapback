@@ -5,8 +5,22 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (fourth model-family review round — Fable NOT READY,
-Codex NOT READY, artifacts under `llp/reviews/0077-*`. This revision pins the
+**Revised:** 2026-07-23 (fifth model-family review round — Fable NOT READY
+(one blocker: the epoch lifecycle), Codex NOT READY, artifacts under
+`llp/reviews/0077-*`. This revision resolves the admission-epoch/reset
+lifecycle normatively — a monotonic control-plane-bound epoch that rotates
+only on reset, whose reset transaction atomically revokes families and clears
+the replay/nonce tables, closing the restart-straddle replay seam — and moves
+it out of the open questions; adds the atomic issuance outcome table (a valid
+proof consumes its `jti` even on a wrong code, so it cannot be reused across
+guesses), the LLP 0060 D3 throttle charge point, the WebSocket
+subprotocol-echo prohibition and connection-open current-token carve-out, and
+a normative logout-lost-response recovery rule (defect 9); tags the target-
+contract assertions inline with their blocking defect numbers; notes the
+defect 7↔5 coupling; and adds a conformance MUST-list. The nine-item ledger
+still gates any positive capability). 2026-07-23 (fourth model-family review
+round — Fable NOT READY, Codex NOT READY, artifacts under `llp/reviews/0077-*`.
+This revision pins the
 exact closed issuance exchange-wire schema (`senderConstraint` =
 `{protocol, publicJwk, proof}`, unknown-member-rejecting, hosted-required /
 local-absent, JWK-equals-proof-header, atomic no-attempt-no-replay on
@@ -155,7 +169,7 @@ independent review, and remote acceptance remain unimplemented. No capability
 is positive.
 
 **Known implementation defects (2026-07-23, from the `llp/reviews/0077-*`
-round-1 reviews).** Each blocks any positive capability claim and requires a
+review rounds).** Each blocks any positive capability claim and requires a
 fix plus a negative test:
 
 1. The challenge path rotates the family's durable nonce on unauthenticated
@@ -189,7 +203,9 @@ fix plus a negative test:
    implemented: concurrent client calls each sign under the same generation
    and race the successor-nonce compare-and-set. A per-custody queue must span
    proof creation through nonce-header commit for HTTP, refresh, logout,
-   connection open, and WebSocket initiation.
+   connection open, and WebSocket initiation. Defects 7 and 5 are coupled:
+   without the serialization queue, defect 5's successor-nonce handling cannot
+   be correct, so neither may be marked done alone.
 8. The hosted browser entrypoint subclasses the generic client, so its
    constructor (which accepts a bearer) is reachable through the prototype
    chain, and inherited transport fields plus the mutable `senderConstrained`
@@ -197,6 +213,11 @@ fix plus a negative test:
    not yet structural. It needs a non-inheriting façade (or an intrinsic v3
    custody posture with privatized transport state) plus prototype-graph and
    direct-mutation sentinels.
+9. A committed logout whose response is lost strands custody: the family is
+   revoked, sender lookup joins only current sessions, and the client clears
+   custody only after the response. A bounded revoked-family sender tombstone
+   (or an anonymous-recovery handshake) is required so a post-logout signed
+   request can obtain the terminal `durableDelete` outcome.
 
 ## Summary
 
@@ -212,6 +233,12 @@ replay authority.
 This constrains copied credentials and off-device replay. It does not prevent
 active same-origin code from asking the installed key to sign or using the
 client while compromised, and no Snapback surface may call it XSS-resistant.
+
+The normative rules below describe the target contract. Several are not yet
+met by the shipped code; each such rule is tagged inline with its blocking
+ledger defect (for example, "no sender-bound grant acts as a bare bearer"
+carries *(defect 2)*), and the ledger gates any positive capability. A reader
+must not mistake a tagged rule for implemented reality.
 
 ## Protocol and algorithms
 
@@ -273,12 +300,18 @@ tests prove admission completes against a body that panics if polled — in this
 order:
 
 1. hosted admission and trusted external URI;
-2. bounded single-header and compact-proof shape;
-3. exact header/payload decoding and algorithm;
-4. token hash and durable family thumbprint;
-5. method, URI, admission epoch, time window, and nonce;
-6. ES256 signature; and
-7. atomic shared replay consumption.
+2. LLP 0060 D3 shared-throttle charge — every challenge, refresh,
+   connection-open, and malformed/unresolved-credential attempt charges all
+   applicable buckets atomically, including on denial, and stays bounded if
+   the limiter fails; this throttle accounting is distinct from LLP 0057's
+   provider code-attempt counter and "consumes no code attempt" never means
+   "consumes no throttle attempt";
+3. bounded single-header and compact-proof shape;
+4. exact header/payload decoding and algorithm;
+5. token hash and durable family thumbprint;
+6. method, URI, admission epoch, time window, and nonce;
+7. ES256 signature; and
+8. atomic shared replay consumption.
 
 Only after admission succeeds does ordinary post-admission processing run:
 the LLP 0058 forbidden-authority-field body check (which retains its LLP 0058
@@ -348,7 +381,8 @@ Rotation of a live nonce happens in exactly one place — inside the atomic
 consumption transaction of a fully verified proof. An unauthenticated request
 against a live generation therefore cannot advance, retire, or churn a
 family's nonce; this is what denies a copied-bearer holder any availability
-lever over legitimate custody.
+lever over legitimate custody *(defect 1: the shipped `fresh_challenge` still
+rotates a live nonce and must be fixed to satisfy this rule)*.
 
 A challenge to a request with no resolvable family (absent, malformed, or
 unknown session carrier) returns a freshly generated but *uninstalled* nonce
@@ -408,8 +442,27 @@ already-existing session id, so a v1 (bearer-only) family can never be
 upgraded in place — migration is deletion-and-re-exchange, never attachment.
 
 The replay uniqueness namespace is the tuple `(admission_epoch, proof_id)`
-within a deployment; a `jti` is unique per admission epoch, and a new epoch
-(deployment restart or reset) starts a fresh replay space.
+within a deployment; a `jti` is unique per admission epoch. The epoch's
+lifecycle is normative, not an open question, because a proof's ~35 s
+acceptance window can straddle a lifecycle event and a fresh replay space
+would otherwise let a still-in-window proof be replayed:
+
+- The `admission_epoch` is a monotonic counter bound to the deployment's
+  control-plane attestation (LLP 0060), **not** to process lifetime. An
+  ordinary process restart preserves the epoch and its replay/nonce tables
+  (restored intact), so there is no fresh replay space on restart and no
+  straddle seam.
+- The epoch rotates only on an explicit reset (the LLP 0059 authorization-
+  stream incarnation change). The single reset transaction MUST, atomically:
+  rotate the epoch, revoke every sender-bound session family, and clear the
+  replay and nonce tables. Because the families are revoked, any proof issued
+  before the reset references a family that no longer resolves and is refused
+  regardless of the now-empty replay space — the seam is closed by family
+  revocation, not by replay retention.
+- A declared restore or backup rollback MUST NOT resurrect an accepted proof:
+  the epoch is drawn from the non-rollbackable control-plane attestation, so a
+  restored snapshot carrying an old nonce but missing a later replay row still
+  presents a stale epoch (or revoked families) and cannot authorize work.
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
@@ -432,10 +485,23 @@ hosted target and **absent** on a local bearer-v1 exchange; a hosted request
 without it, or a local request carrying it, is refused at the route boundary.
 `publicJwk` MUST equal the JWK in the issuance proof's protected header (the
 server rejects a mismatch), and its RFC 7638 thumbprint is what the new
-session family binds. A response on the hosted path carries `DPoP-Nonce`. An
-issuance proof that fails verification consumes neither a code attempt nor a
-replay id — issuance is atomic with binding. LLP 0057 carries a corresponding
-Revised note; for the extended member and header this Spec has precedence.
+session family binds. A response on the hosted path carries `DPoP-Nonce`.
+
+Issuance outcome accounting is atomic and composes with LLP 0057's
+code-attempt counter:
+
+- an issuance proof that fails cryptographic verification consumes neither a
+  code attempt nor a replay id (the request never reached the exchange);
+- a cryptographically valid proof MUST consume its `jti` (replay id) even when
+  the paired `code` is wrong or the challenge is exhausted, so a single valid
+  proof can never be reused across code guesses just because session binding
+  did not commit; a wrong code still increments the LLP 0057 attempt counter;
+  and
+- only a valid proof plus a correct code binds the thumbprint and publishes
+  the credential, all in one transaction.
+
+LLP 0057 carries a corresponding Revised note; for the extended member,
+header, and this outcome table this Spec has precedence.
 
 Refresh requires both the current credential and a protected-resource proof.
 Every successor remains bound to the same thumbprint. Rotation to another key
@@ -447,6 +513,17 @@ Logout and family alarm remain usable for revocation under their existing
 privacy contract. Logout with a live credential requires v2 proof. The opaque
 family-alarm secret is explicitly excluded from browser sender constraint
 because its only authority is revoke-only.
+
+A committed logout whose response is lost is a special recovery case: because
+the logout revoked the family, the generic still-current-nonce recovery cannot
+help (the family no longer resolves), and the next signed request could strand
+custody indefinitely. The server MUST therefore keep a bounded revoked-family
+sender tombstone sufficient to authenticate a post-logout signed request and
+return the terminal `durableDelete` outcome (or specify an anonymous-recovery
+handshake that proves the terminal outcome before the client clears custody).
+The client MUST NOT clear custody until it has the terminal outcome. This is a
+normative requirement not yet implemented (the sender lookup joins only current
+sessions); it is tracked as defect 9 below.
 
 ## WebSocket and connection binding
 
@@ -464,8 +541,20 @@ A grant issued to a sender-bound session requires a valid proof on **every**
 subsequent use — each connection-token HTTP act (live, outbox, ephemeral) and
 each WebSocket upgrade — regardless of which permitted carrier presents the
 grant. There is no carrier or route on which a sender-bound grant acts as a
-bare bearer. On every grant-presenting request, the proof's `ath` covers the
+bare bearer *(defect 2)*. On every grant-presenting request, the proof's `ath` covers the
 grant token, not the session bearer.
+
+The server MUST NOT select or echo the proof-bearing subprotocol value as the
+negotiated WebSocket protocol; it selects only the ordinary live protocol, so
+the compact proof never becomes the application-visible subprotocol. A
+sender-bound grant is minted or renewed only by a current session token —
+never by an in-grace superseded token (preserving LLP 0059's connection-open
+carve-out); the in-grace resolution above applies to ordinary finite HTTP
+requests, not to connection-open. The sender-bound grant shape extends LLP
+0059's `BoundGrantAuthorityV1` with the thumbprint and admission epoch and
+needs a corresponding LLP 0059 amendment defining the versioned grant shape
+and its equality/invalidation rules; that amendment is pending (tracked as an
+open question).
 
 No proof rides application WebSocket frames. Existing connection generation,
 revocation, authorization-invalidation, and user-switch barriers remain
@@ -594,11 +683,32 @@ and parser errors are forbidden.
   the serialized authority and restart/backup semantics preserve expiry.
 - Whether unknown carriers must receive a stable keyed cover nonce, or the
   residual live-bound-family existence signal is acceptable.
-- The exact reset/restore/restart/rollback/admission-replacement lifecycle for
-  the replay and nonce tables and the sender admission epoch: cleared,
-  restored-but-unreachable, or retained until expiry — and what authoritatively
-  rotates the epoch.
 - Whether v2 later admits a bounded multi-flight lease of one-use nonce
   tickets instead of strict per-custody serialization.
 - When a browser cannot read a successful WebSocket upgrade's successor nonce,
-  when the serialization queue releases and how the next request resyncs.
+  when the serialization queue releases and how the next request resyncs, and
+  the full browser-observable open/error/cancel/reconnect state machine.
+- The versioned sender-bound grant shape that extends LLP 0059's
+  `BoundGrantAuthorityV1` (thumbprint + admission epoch), its equality and
+  invalidation rules, and the corresponding LLP 0059 amendment.
+- The complete closed `AuthCustodyV3` top-level and nested `formatVersion`
+  schema for an independent implementation (the current "V2 plus" description
+  is not sufficient).
+- Whether v2 session/grant tokens gain a legacy-rejecting syntax, or LLP 0060
+  D6's mixed-version activation/rollback barrier is the sole downgrade defense.
+
+## Conformance (MUST-level requirements)
+
+A second implementation is tested against, at minimum: the closed ES256/P-256
+header and payload with `deny_unknown_fields` and canonical unpadded base64url;
+the exact issuance and resource proof payloads and the `senderConstraint`
+exchange schema; canonical-URI reconstruction by **rejection** (never
+resolution) of `%`, backslash, doubled-slash, and dot-segment paths; the
+inclusive `[iat−30, iat+5]` time window; replay retention to `iat+30+1` with an
+exclusive `< now` purge on both replay and nonce tables; challenge never
+rotates a live nonce (fresh generation only when absent or expired); rotation
+only inside the atomic consume/rotate transaction of a verified proof;
+`publicJwk` equals the proof-header JWK; the monotonic control-plane-bound
+admission epoch that rotates only on reset (with atomic family revocation and
+table clear); per-custody request serialization; and the every-use
+grant-bound proof rule on both carriers.

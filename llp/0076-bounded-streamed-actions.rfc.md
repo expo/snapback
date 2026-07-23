@@ -5,7 +5,19 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (fourth model-family review round — Fable NOT READY,
+**Revised:** 2026-07-23 (fifth model-family review round — Fable NOT READY
+(two items: the MUST/open-question tension and `wireInitiated` feasibility),
+Codex NOT READY, artifacts under `llp/reviews/0076-*`. This revision redesigns
+the effect-certainty axis to a crash-safe, transport-agnostic write-ahead
+`initiationState` (`definitely_not_initiated` / `initiation_possible` /
+`response_observed`, pre-marked before the send) — which both establishes
+`wireInitiated` feasibility and closes the MUST-versus-open-question tension
+(host derivation is settled; only which layer persists the column is open) —
+gives the terminalizer/lease a concrete host-owned `StreamAttemptV1` ownership
+model, fixes the canonical example that used the denied `Date.now()` (now
+coalesces by chunk count), and marks the per-read-revalidation prose as target
+contract; the code side of all of these remains tracked as gaps; status
+remains Draft). 2026-07-23 (fourth model-family review round — Fable NOT READY,
 Codex NOT READY, artifacts under `llp/reviews/0076-*`. Both families confirmed
 the round-3 accuracy fixes but identified a hole in the *specified* model: the
 late-effect fence delegated terminalization to an authored mutation that
@@ -86,17 +98,19 @@ with the familiar reader subset:
 const response = await ctx.fetchStream({ url, method: 'GET' });
 const reader = response.body.getReader();
 let batch = [];
-let lastCommit = 0;
-const shouldFlush = () => Date.now() - lastCommit >= 100; // >= 100 ms spacing
+let sinceCommit = 0;
 for (;;) {
   const { done, value } = await reader.read();
   if (done) break;
   batch.push(...value);
-  // Coalesce so durable commits stay under the 100 ms minimum spacing; a
-  // per-chunk commit against the witness cadence (chunks every 80 ms; the
-  // fixture floor is ~50 ms) would trip SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED.
-  // shouldFlush() gates on >=100 ms elapsed since the last commit.
-  if (shouldFlush()) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; lastCommit = Date.now(); }
+  // Coalesce so durable commits stay under the 100 ms minimum spacing. The
+  // example counts chunks rather than reading a wall clock — actions have no
+  // `Date.now()`, and `ctx.runtime.now` is fixed per invocation — so flushing
+  // every two reads keeps spacing above the fence against the witness cadence
+  // (chunks every 80 ms; fixture floor ~50 ms). A per-chunk commit would trip
+  // SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED. A host-provided progress helper that
+  // owns coalescing and the terminal CAS is the intended v1 direction.
+  if (++sinceCommit >= 2) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; sinceCommit = 0; }
 }
 if (batch.length) await ctx.runMutation('applyProgress', { attemptId, bytes: batch });
 ```
@@ -125,7 +139,8 @@ v1 profile limits stated only here, as this RFC is the sole numeric authority:
 - 10 durable progress commits per second for the durable progress pattern —
   enforced as a 100 ms minimum spacing between commits while a cursor is open,
   not a rolling-window budget, so a burst after a stall is refused and authors
-  must space commits (the `shouldFlush()` in the example gates on elapsed time
+  must space commits (the example coalesces by chunk count, since actions have
+  no wall clock — see the example comment; it does not gate on elapsed time
   since the last commit);
   and
 - at most 4 concurrently open cursors per action invocation.
@@ -146,9 +161,13 @@ explicitly — the key is provider-visible, not merely Snapback metadata.
 ## Authority and lifecycle
 
 Opening a stream crosses the existing service external-effect begin/initiated
-cut. Every open/read/cancel operation revalidates the exact action invocation,
-app generation, service authority, and watchdog deadline. A cursor is opaque,
-random, invocation-local, and never accepted by another action.
+cut. In the target contract, every open/read/cancel operation revalidates the
+exact action invocation, app generation, service authority, and watchdog
+deadline, and a read revalidates *after* awaiting bytes and discards late
+bytes if authority was lost. The shipped hosts do not yet perform the
+post-read revalidation or check the full service-authority predicate; this is
+tracked as the per-read authority-fence gap below. A cursor is opaque, random,
+invocation-local, and never accepted by another action.
 
 The following events close the cursor and prevent another successful read:
 
@@ -206,17 +225,32 @@ alongside the kind, not a new kind. The single cause enum alone would let
 `timed_out` and `cancelled` silently drop the uncertainty that `ambiguous`
 and mid-body `failed` preserve.
 
-The certainty axis MUST be host-derived, not author-inferred. The host exposes
-a distinct `wireInitiated` fact that is true only once the request bytes have
-been handed to the network — deliberately *not* LLP 0059's `Initiated`
-authority permit, which acknowledges synchronous invocation *or* synchronous
-refusal and therefore cannot prove the provider may have acted. The durable
-row records "effect may have executed" for any terminal settlement whose
-`wireInitiated` fact is true. Resolution of the uncertainty is LLP 0070's
-lookup/idempotency path, never a silent retry. The reference pattern's
-single-status row does not yet carry this second axis and the host does not
-yet expose `wireInitiated`; both are recorded as implementation gaps below,
-but the two-axis contract and the host fact are specified here, not deferred.
+The certainty axis MUST be host-derived, not author-inferred, and it is made
+crash-safe by write-ahead marking rather than by observing the wire. The
+runtime carries a durable `initiationState` with three values:
+`definitely_not_initiated`, `initiation_possible`, and `response_observed`.
+The runtime durably records `initiation_possible` **before** it hands the
+request bytes to the outbound stack; it narrows to `definitely_not_initiated`
+only when it can prove the request never left (a pre-send failure such as
+connection-refused or DNS failure before any byte was written); and it
+advances to `response_observed` once response metadata arrives. This is
+deliberately *not* LLP 0059's `Initiated` authority permit, which
+acknowledges synchronous invocation *or* synchronous refusal and so cannot
+distinguish a proven pre-send failure. The design is transport-agnostic: it
+requires only that a host can recognize a provable pre-send failure, and a
+host that cannot MUST conservatively leave the state at `initiation_possible`
+— the fail-safe direction. A crash after the pre-mark leaves
+`initiation_possible`, which is the conservative reading.
+
+The durable row records "effect may have executed" for any terminal
+settlement whose `initiationState` is not `definitely_not_initiated`.
+Resolution of the uncertainty is LLP 0070's lookup/idempotency path, never a
+silent retry. The two-axis contract, the three-state `initiationState`, and
+the write-ahead pre-mark are specified here, not deferred; the reference
+pattern's single-status row and the host pre-mark are not yet implemented and
+are recorded as implementation gaps below. The certainty is derived by the
+host (this is settled, not open); the remaining open question is only which
+layer *persists* the certainty column, not who derives the fact.
 
 Classification is by host-provable phase, and ambiguity strictly
 over-approximates: an upstream failure the host can prove preceded request
@@ -261,6 +295,15 @@ two runtime-owned mechanisms, not left to the authored mutation:
   runners' differently segmented bytes. `startReply` returning the same
   attempt to a concurrent caller must hand back the existing lease holder, not
   a second runner.
+
+The ownership model is a host-owned attempt record (`StreamAttemptV1`): the
+runtime, not the authored schema, owns the attempt identity, the runner-
+generation lease, the `initiationState`, and the terminal cause+certainty, and
+issues the action an opaque attempt token that binds fetch, progress,
+cancellation, lease renewal/takeover, and terminal settlement. This is what
+lets the trusted terminalizer locate and CAS the row after the authored action
+is gone. The authored progress pattern references the attempt token; it does
+not own the fence-critical fields.
 
 With those two in place, the "durable winner is authoritative" rule always has
 a winner and the action MUST return the committed terminal result verbatim
@@ -403,11 +446,16 @@ a fix before gate 2:
   duplicate-sequence acceptance only when byte offset and digest agree. Until
   it lands, automatically retried cron/LLP 0070 durable invocations are
   excluded from streamed actions.
-- **Host `wireInitiated` fact (specified above; unimplemented).** The host
-  does not yet expose the distinct "bytes handed to the network" fact the
-  effect-certainty axis requires; today only LLP 0059's `Initiated` permit
-  exists, which cannot distinguish synchronous refusal from a request that
-  reached the wire.
+- **Host `initiationState` write-ahead mark (specified above; unimplemented).**
+  The host does not yet durably pre-mark `initiation_possible` before the send
+  or expose the three-state `initiationState`; today the open path infers
+  retry-safety from method/idempotency-key alone. The write-ahead mark is what
+  makes the effect-certainty axis crash-safe and transport-agnostic.
+- **Host-owned `StreamAttemptV1` record (specified above; unimplemented).**
+  `ActionStreamRequest` carries no attempt token, and the reference progress
+  schema owns the status field itself; the fence-critical fields must move to
+  a host-owned attempt record with an opaque token so the trusted terminalizer
+  and lease can act after the authored action is gone.
 - **Absolute wall-clock enforcement.** The local host bounds the upstream
   request timeout at the idle window and checks the wall limit only at read
   boundaries, so a productive stream can fail near 5 s and be mislabeled, and
@@ -495,8 +543,16 @@ before the checkpoint reruns.
 3. Should durable jobs persist resumable upstream cursor metadata, or restart
    only at provider-defined idempotent boundaries?
 4. What exact fact does `ambiguous` add beyond effect-may-have-executed once
-   the two axes are separated, and does the host or the authored pattern own
-   the effect-certainty channel?
+   the two axes are separated? (The host *derives* the certainty via the
+   `initiationState` write-ahead mark — that is settled; the open part is only
+   which layer *persists* the certainty column, the host-owned attempt record
+   or the authored progress row.)
+7. Are the 1 MiB and 64 KiB bounds measured on wire bytes, decoded bytes, or
+   all retained VM/bridge copies, and how are concurrent cursors charged?
+8. Which supported monotonic elapsed-time source or host progress helper lets
+   an action obey the 100 ms spacing without a wall clock?
+9. Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
+   narrow proof and LLP 0075 selected `single-instance-container-vm.v1`?
 5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
    host code before it becomes load-bearing in retained receipts?
 6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
