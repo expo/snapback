@@ -1,12 +1,22 @@
 import { exactContractWeb } from '@exact/devtools/contract-web';
+import { resolve } from 'node:path';
 import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
 export default ({ mode, command }: { mode: string; command: 'serve' | 'build' }) => {
-  const base = process.env.PARTITIME_BASE_PATH ?? (command === 'build' ? '/partitime/' : '/');
+  const memoryEntry = process.env.PARTITIME_MEMORY_ENTRY === '1';
+  const base = memoryEntry
+    ? '/'
+    : process.env.PARTITIME_BASE_PATH ?? (command === 'build' ? '/partitime/' : '/');
   return {
     root: __dirname,
     base,
-    plugins: [exactContractWeb({ data: 'snapback', app: { entry: '/main.ts' } }), partitimeCostAttribution()],
+    plugins: [
+      exactContractWeb({
+        data: 'snapback',
+        app: { entry: memoryEntry ? '/memory.ts' : '/main.ts' },
+      }),
+      partitimeCostAttribution(),
+    ],
     define: {
       __MATRIX_BACKEND__: JSON.stringify(mode),
       __PARTITIME_BASE_PATH__: JSON.stringify(base),
@@ -29,5 +39,10 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
         '/snapback': { target: process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433', changeOrigin: true, ws: true, rewrite: (path: string) => path.replace(/^\/snapback/, '') },
       },
     },
+    ...(memoryEntry ? {
+      build: {
+        rollupOptions: { input: resolve(__dirname, 'memory.html') },
+      },
+    } : {}),
   };
 };

@@ -30,6 +30,19 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 memory-v2 collector checkpoint):** 2026-07-23 (The proposed
+two-part construct now has separate production-feed and no-DOM sibling
+entries, a fail-closed collector, OLS/one-sided-confidence-bound and conjunctive
+holdout tests, randomized count order, and target-destruction cleanup custody.
+Non-claim React × Supabase and Contract × Supabase one-sample diagnostics
+exercise all four subscriber counts. React reports a roughly 3.37 KB/subscriber
+slope and Contract roughly 0.84 KB/subscriber; their one-sample upper bounds
+are roughly 5.86 KB and 1.68 KB respectively, while ordinary-product total
+heap remains roughly 1.26 MB and 1.63 MB. These are smoke diagnostics, not
+thresholds or claims. They support the LLP 0381 hypothesis that the hard
+remainder is fixed production representation rather than marginal logical
+subscription cost. The amendment remains proposed and calibration remains
+forbidden until ratification.)
 **Revised (Step 4 memory-construct preregistration checkpoint):** 2026-07-23
 (Exact LLP 0381's production-program work exposed that the frozen
 `memoryPerActiveSubscriptionBytes` row is a one-subscription total-heap
@@ -1512,8 +1525,11 @@ Each Contract threshold is derived only from the same-backend React
 calibration: 1.10 times its total p95, and 1.10 times its marginal upper bound
 with a pre-frozen 4,096-byte measurement-resolution floor. A judged Contract
 measurement can never feed its own target. Calibration and holdout each retain
-seven observations per count, use separate committed cohorts, and require
-post-observation subscriber disposal plus heap recovery. The machine validator
+seven observations per count and use separate committed cohorts. Every fresh
+target warms and disposes one unreported subscriber before its zero-active
+baseline, then proves zero active/ready logical subscribers, full provider/root
+disposal, and CDP target destruction before the next observation. Same-target
+post-disposal high-water caches are diagnostic only. The machine validator
 locks these rules and all receipt identities.
 
 This is a preregistration artifact, not a replacement result. The amendment is
