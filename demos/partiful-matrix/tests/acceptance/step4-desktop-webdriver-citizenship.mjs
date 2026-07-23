@@ -226,8 +226,8 @@ await runAcceptance(suite, async () => {
       ]);
       await sleep(500);
       requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to keystroke "a" using command down',
-        '-e', `tell application "System Events" to keystroke "${query}"`,
+        '-e', `tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to set value of text field 1 to "${query}"`,
+        '-e', 'tell application "System Events" to key code 36',
       ]);
       await sleep(500);
       const findValue = requiredCommand('/usr/bin/osascript', [
