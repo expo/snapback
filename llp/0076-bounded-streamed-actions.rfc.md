@@ -5,7 +5,18 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (second model-family review round — Fable NOT READY,
+**Revised:** 2026-07-23 (third model-family review round — Fable NOT READY,
+Codex NOT READY, artifacts under `llp/reviews/0076-*`. Both families confirmed
+the round-2 fixes but caught that the round-2 two-axis settlement was asserted
+as implemented fact while existing nowhere; this revision demotes it to a
+normative "must record" requirement tracked as a gap plus a fourth author
+obligation and an acceptance bullet (needing a host-exposed `initiated`
+fact), states the keyed-classification behavior as the author's assertion and
+the progress fence as a 100 ms minimum spacing, corrects the witness-cadence
+attribution and the cancel/`releaseLock` wording, and adds gaps for the
+missing LLP 0036 secret scrubbing on streamed fetch and the positive
+capability-manifest overclaim; status remains Draft).
+2026-07-23 (second model-family review round — Fable NOT READY,
 Codex NOT READY, artifacts under `llp/reviews/0076-*`. This revision fixes the
 two normative-accuracy defects Fable blocked on — the canonical example now
 coalesces so it does not trip the progress-rate fence against the frozen
@@ -65,9 +76,10 @@ for (;;) {
   const { done, value } = await reader.read();
   if (done) break;
   batch.push(...value);
-  // Coalesce so durable commits stay under the 10/s progress ceiling; a
-  // per-chunk commit against the frozen fixture (chunks every 80 ms) would
-  // trip SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED.
+  // Coalesce so durable commits stay under the 100 ms minimum spacing; a
+  // per-chunk commit against the witness cadence (chunks every 80 ms; the
+  // fixture floor is ~50 ms) would trip SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED.
+  // shouldFlush() gates on >=100 ms elapsed since the last commit.
   if (shouldFlush()) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; }
 }
 if (batch.length) await ctx.runMutation('applyProgress', { attemptId, bytes: batch });
@@ -76,8 +88,12 @@ if (batch.length) await ctx.runMutation('applyProgress', { attemptId, bytes: bat
 `value` is a `Uint8Array`. Only one reader may own a body. `read()` is
 pull-driven: the host obtains at most one bounded chunk because the reader
 asked, so application backpressure is the default. `cancel()` closes the host
-cursor idempotently; v1 takes no cancel reason (any argument is accepted and
-ignored). Dropping or finishing the action closes every cursor owned by that
+cursor idempotently once it is open (a host-op cancel of an unknown cursor id
+errors `SNAPBACK_ACTION_STREAM_INVALID`, but the bridge reader makes that
+unreachable from application code); v1 takes no cancel reason (any argument is
+accepted and ignored). `releaseLock()` throws unless the stream has reached
+EOF or been cancelled — a deliberate deviation from the Web reader contract.
+Dropping or finishing the action closes every cursor owned by that
 invocation.
 
 The first profile uses these enforced maxima. The first five match LLP 0075's
@@ -90,7 +106,11 @@ v1 profile limits stated only here, as this RFC is the sole numeric authority:
 - 30 seconds from stream open through terminal read, further bounded by the
   action watchdog;
 - 5 seconds without a delivered byte;
-- 10 durable progress commits per second for the durable progress pattern;
+- 10 durable progress commits per second for the durable progress pattern —
+  enforced as a 100 ms minimum spacing between commits while a cursor is open,
+  not a rolling-window budget, so a burst after a stall is refused and authors
+  must space commits (the `shouldFlush()` in the example gates on elapsed time
+  since the last commit);
   and
 - at most 4 concurrently open cursors per action invocation.
 
@@ -153,31 +173,46 @@ fencing is the pattern's in-transaction responsibility — an authored progress
 mutation that skips the terminal-row check forfeits that guarantee. The
 obligations an application author must not get wrong are: the in-transaction
 terminal check on every progress and completion mutation, the row-level
-progress throttle, and the no-retry-after-first-durable-commit rule below;
-none of these three is host-enforced.
+progress throttle, the no-retry-after-first-durable-commit rule below, and
+recording the upstream-effect-certainty fact on any terminal settlement after
+host-provable initiation; none of these four is host-enforced, and the
+reference pattern does not yet implement the fourth.
 
-Settlement carries two facts, not one: a `terminalCause` (`complete`,
+Settlement must carry two facts, not one: a `terminalCause` (`complete`,
 `failed`, `cancelled`, `timed_out`, `ambiguous`) and, orthogonally, an
-upstream-effect certainty the durable row records whenever the host proves the
-request initiated — because cancellation or timeout after initiation of a
-non-idempotent request leaves the provider outcome genuinely unknown, exactly
-as a mid-body loss does. The single enum names the cause; the row additionally
-records "effect may have executed" for any terminal settlement after
-host-provable initiation, so `timed_out` and `cancelled` do not silently drop
-the uncertainty that `ambiguous` and mid-body `failed` preserve. Resolution of
-that uncertainty is LLP 0070's lookup/idempotency path, never a silent retry.
+upstream-effect certainty — because cancellation or timeout after initiation
+of a non-idempotent request leaves the provider outcome genuinely unknown,
+exactly as a mid-body loss does. The single cause enum alone would let
+`timed_out` and `cancelled` silently drop the uncertainty that `ambiguous`
+and mid-body `failed` preserve. This second axis is a normative v1
+requirement that the reference pattern's single-status row does not yet carry;
+it is recorded as an implementation gap below, and it needs a host-exposed
+`initiated` fact so the axis is host-derived rather than author-inferred (the
+authored mutation cannot otherwise know a timeout-before-metadata request
+reached the wire). Resolution of the uncertainty is LLP 0070's
+lookup/idempotency path, never a silent retry.
 
 Classification is by host-provable phase, and ambiguity strictly
 over-approximates: an upstream failure the host can prove preceded request
 initiation is `failed`; for a non-idempotent request, any transport failure
 the host cannot prove preceded initiation is `ambiguous`, and the runtime
 must not silently retry it. Mid-body transport loss after response metadata on
-a non-idempotent request settles `failed` (cause) with the effect-executed
-fact recorded. Exhausting the idle or wall limit is `timed_out`. An explicitly
-cancelled reader is `cancelled`. Where the action's local inference and the
-durable row's committed terminal state disagree — for example a
-cancellation/timeout race — the durable winner is authoritative and the action
-must return it.
+a non-idempotent request settles `failed` (cause) and must set the
+effect-may-have-executed fact. Exhausting the idle or wall limit is
+`timed_out`; an explicitly cancelled reader is `cancelled`; both must set the
+effect fact when initiation was host-provable. Where the action's local
+inference and the durable row's committed terminal state disagree — for
+example a cancellation/timeout race — the durable winner is authoritative and
+the action must return it.
+
+Classification currently keys on whether the request carries an idempotency
+key: a keyed non-GET is treated as idempotent-class and a transport failure on
+it settles `failed`, not `ambiguous`. That is the author's assertion that the
+provider recognizes the key, not a machine-checked fact (open question 2), and
+it is why an unrecognized key can under-report uncertainty. Making key
+recognition a trusted, provider-founded declaration — after which only a
+recognized key downgrades `ambiguous` to `failed` — is the intended
+direction, tracked as a gap.
 
 An idempotent GET or a request carrying a provider-recognized idempotency key
 may be retried by the authored action, still under the same Snapback attempt
@@ -254,6 +289,9 @@ Executable evidence must prove:
 - explicit cancellation closes the upstream reader and prevents every late
   progress commit;
 - failed, cancelled, timed-out, and ambiguous attempts remain distinct;
+- a cancelled-after-initiation and a timed-out-after-initiation attempt each
+  carry the upstream-effect-may-have-executed fact, while a pre-initiation
+  `failed` attempt does not;
 - reload/reset, authority loss, and watchdog abandonment close cursors and
   preserve the existing late-mutation fence;
 - queries and mutations cannot open streams; and
@@ -263,10 +301,11 @@ The witness must run through the real action, nested mutation, commit, and
 native live-push path. Client animation, a buffered body split after receipt,
 logs, or a single terminal replacement cannot pass.
 
-## Evidence status and implementation gaps (2026-07-23)
+## Evidence status and staged-work ledger
 
-Recorded from the `llp/reviews/0076-*` round-1 reviews so the Draft does not
-overstate its witnesses. Witnessed today: the happy path through the real
+The living record of what is witnessed versus staged, so the Draft does not
+overstate itself; new revisions add entries here rather than treating it as a
+historical annex. Seeded from the `llp/reviews/0076-*` reviews. Witnessed today: the happy path through the real
 action → nested mutation → commit → native-push chain with three-plus
 intermediate commits and a blocked negative actor; start-row idempotency;
 durable cancellation with the late-patch fence; idle settlement;
@@ -329,6 +368,30 @@ a fix before gate 2:
   outbound-disabled negative admission witness. Codegen inference is also a
   textual `fetchStream(` match; an AST-derived or explicit function
   capability would close the alias gap.
+- **Two-axis settlement.** The durable row carries only a single status
+  today; the required orthogonal upstream-effect-certainty axis is
+  unimplemented in the reference pattern and both hosts, there is no
+  host-exposed `initiated` fact for the authored mutation to read, and the
+  fixture's `requiredSettlementKinds` is single-axis. The host must expose the
+  initiation fact and the pattern must record the certainty, with the
+  acceptance bullet above witnessing it, before gate 2.
+- **Secret scrubbing on streamed fetch.** `ctx.fetchStream` forwards raw URL,
+  headers, body, and key and performs none of the LLP 0036 opaque-descriptor
+  resolution and value-aware redaction that ordinary `ctx.fetch` does, so a
+  secret-bearing streamed request to an AI provider cannot yet place a secret
+  the way an ordinary action can. v1 must add the same per-function opaque
+  placement seam to streamed requests and witness it (excluding secret-bearing
+  streams instead would gut the intended AI-provider use case).
+- **Positive capability overclaim.** `bounded_response_stream_v1` is published
+  as a positive `supportedCapabilities` entry — which LLP 0058 reads as
+  present server support and LLP 0074 forbids for a Draft authority without
+  executable conformance — while the pattern's terminal, throttle, and retry
+  guarantees are not host-enforced; the manifest also marks buffered-bytes
+  `Enforced` with no accounting and omits the read-size and cursor limits, and
+  the Cloudflare runtime fact claims idle/wall/progress/watchdog/settlement
+  evidence its witness does not earn. Until conformance the capability should
+  carry a proposed/experimental maturity admission cannot treat as support,
+  and unproved limit rows should read `Missing`.
 - **Diagnostic envelope coverage.** `SNAPBACK_ACTION_STREAM_UNSUPPORTED` and
   the host rate-fence code are absent from the handler-envelope allowlists and
   can fold to `SNAPBACK_HANDLER_FAILED`; every promised code must survive both
@@ -365,3 +428,10 @@ before the checkpoint reruns.
    machine-checkable rather than authored assertions?
 3. Should durable jobs persist resumable upstream cursor metadata, or restart
    only at provider-defined idempotent boundaries?
+4. What exact fact does `ambiguous` add beyond effect-may-have-executed once
+   the two axes are separated, and does the host or the authored pattern own
+   the effect-certainty channel?
+5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
+   host code before it becomes load-bearing in retained receipts?
+6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
+   target, and through the same opaque-placement seam as ordinary fetch?

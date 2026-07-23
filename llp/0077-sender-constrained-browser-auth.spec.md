@@ -5,7 +5,20 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (second model-family review round — Fable READY,
+**Revised:** 2026-07-23 (third model-family review round — Fable NOT READY,
+Codex NOT READY, artifacts under `llp/reviews/0077-*`. Both families found
+that the round-2 additions introduced fresh contradictions; this revision
+repositions the LLP 0058 forbidden-field check to post-admission
+(pre-body admission is preserved), restricts `SNAPBACK_AUTH_REQUIRED` to a
+genuinely absent header and states the malformed-carrier challenge as a
+deliberate anti-oracle choice, changes the canonical-URI rule to reject —
+not resolve — dot-segments, marks the per-custody serialization as normative
+but unimplemented (defect 7), adds the hosted-constructor structural-exclusion
+gap (defect 8), corrects the retention wording and ledger item 4, adds the
+uninstalled-cover-nonce note, and records the reset/epoch, issuance-wire, and
+cover-nonce design decisions as open questions rather than asserting
+unproven answers. The eight-item ledger still gates any positive capability).
+2026-07-23 (second model-family review round — Fable READY,
 Codex NOT READY, artifacts under `llp/reviews/0077-*`. This revision closes
 the nonce-expiry deadlock Codex found in the desired design (a challenge
 issues a fresh generation only when the current nonce is absent or expired,
@@ -145,8 +158,9 @@ fix plus a negative test:
    proof-bearing requests that present an in-grace superseded token and
    breaking LLP 0057's tombstone-grace resolution matrix.
 4. Replay retention is exactly the accepted window (35 s) with
-   inclusive-boundary purge, one second short at the final inclusive second;
-   the contract below requires window plus skew.
+   inclusive-boundary purge (`expires_at_seconds <= now`), one second short at
+   the final inclusive second; the contract requires expiry at `iat + 30 + 1`
+   with an exclusive purge boundary.
 5. The client installs the successor `DPoP-Nonce` without adding it to the
    diagnostic redaction set, and parses a successful response body before
    failing on a missing successor nonce, so a committed effect can be
@@ -154,6 +168,18 @@ fix plus a negative test:
 6. `bind_new_session_sender_constraint` can bind any existing session id;
    the binding capability must be restricted to the session-issuance
    transaction so no supported API can bind an extant v1 family.
+7. The per-custody request serialization the Nonce protocol requires is not
+   implemented: concurrent client calls each sign under the same generation
+   and race the successor-nonce compare-and-set. A per-custody queue must span
+   proof creation through nonce-header commit for HTTP, refresh, logout,
+   connection open, and WebSocket initiation.
+8. The hosted browser entrypoint subclasses the generic client, so its
+   constructor (which accepts a bearer) is reachable through the prototype
+   chain, and inherited transport fields plus the mutable `senderConstrained`
+   flag are writable — the structural-exclusion property LLP 0060 requires is
+   not yet structural. It needs a non-inheriting façade (or an intrinsic v3
+   custody posture with privatized transport state) plus prototype-graph and
+   direct-mutation sentinels.
 
 ## Summary
 
@@ -225,36 +251,51 @@ fragment and query. The trusted edge supplies the externally observed URI
 through the provider-authenticated effective-source boundary. Public forwarding
 headers never define it.
 
-Verification order is:
+Sender admission runs entirely before the request body is polled — the pinned
+tests prove admission completes against a body that panics if polled — in this
+order:
 
 1. hosted admission and trusted external URI;
-2. LLP 0058 forbidden-authority-field body check (a forbidden field in the
-   request body wins before any valid credential is considered);
-3. bounded single-header and compact-proof shape;
-4. exact header/payload decoding and algorithm;
-5. token hash and durable family thumbprint;
-6. method, URI, admission epoch, time window, and nonce;
-7. ES256 signature;
-8. atomic shared replay consumption; and only then
-9. ordinary credential resolution and body ingestion.
+2. bounded single-header and compact-proof shape;
+3. exact header/payload decoding and algorithm;
+4. token hash and durable family thumbprint;
+5. method, URI, admission epoch, time window, and nonce;
+6. ES256 signature; and
+7. atomic shared replay consumption.
 
-Precedence composes with LLP 0057/0058 rather than overriding them: an absent
-or unparseable bearer yields `SNAPBACK_AUTH_REQUIRED` as those authorities
-require, not a sender-proof diagnostic; the sender-proof diagnostics below
-apply only once a well-formed hosted session credential is present. The canonical
-external URI is reconstructed as scheme + lowercased IDNA host + non-default
-port + the path normalized by resolving `.`/`..` segments and rejecting
-`%`-, `\`-, and empty-segment-encoded traversal, with fragment and query
-removed; the trusted edge supplies it and forwarding headers never define it.
+Only after admission succeeds does ordinary post-admission processing run:
+the LLP 0058 forbidden-authority-field body check (which retains its LLP 0058
+precedence *within* post-admission processing — it wins over credential
+resolution, not over sender admission), then credential resolution and
+application body ingestion. Sender admission thus never overrides the
+pre-body admission guarantee; the 0058 field check keeps its precedence over
+the bearer exactly where LLP 0058 places it, after the body is available.
+
+Diagnostic precedence composes with LLP 0057 rather than overriding it. A
+genuinely absent `Authorization` header yields `SNAPBACK_AUTH_REQUIRED` as
+LLP 0057 requires. A present but malformed or unknown session carrier is
+deliberately *not* distinguished from a well-formed one: it receives the
+`SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` challenge (with a generated,
+uninstalled nonce — see the non-enumeration note below), because
+distinguishing "no such family" from "wrong nonce" would be a
+family-existence oracle. This anti-oracle choice is intentional and is why
+the diagnostics section folds unknown-token into the sender-proof bucket.
+
+The canonical external URI is reconstructed as scheme + lowercased IDNA host
++ non-default port + absolute path, over a pre-canonical ASCII origin. The
+path is not resolved: any `%`-encoding, backslash, doubled slash, or literal
+`.`/`..` segment is *rejected*, and fragment and query are removed. The
+trusted edge supplies the origin and forwarding headers never define it. A
+second implementation must reject, not resolve, so both compute the same
+proof URI for the same wire request.
 
 The accepted time window is server time minus 30 seconds through server time
 plus 5 seconds, both endpoints inclusive. A proof id is retained until strictly
-after its latest possible acceptance instant: retention is keyed to
-`iat + 30 + 1` seconds (equivalently, first-admission time plus the full 35-
-second window plus one second), and the purge predicate is
-`expires_at_seconds < now`, exclusive, so a `jti` replayed at the final
-inclusive second of its window still refuses. Replay-store unavailability
-refuses protected work.
+after its latest possible acceptance instant: retention expires at
+`iat + 30 + 1` seconds (the latest accepted `iat` plus the future window plus
+one second) and the purge predicate is `expires_at_seconds < now`, exclusive,
+so a `jti` replayed at the final inclusive second of its window still refuses.
+Replay-store unavailability refuses protected work.
 
 Sender admission composes with LLP 0057's session-token resolution matrix
 rather than replacing it: a proof-bearing request presenting an in-grace
@@ -284,6 +325,16 @@ consumption transaction of a fully verified proof. An unauthenticated request
 against a live generation therefore cannot advance, retire, or churn a
 family's nonce; this is what denies a copied-bearer holder any availability
 lever over legitimate custody.
+
+A challenge to a request with no resolvable family (absent, malformed, or
+unknown session carrier) returns a freshly generated but *uninstalled* nonce
+— it is never written to family state and can never authorize work. This is
+what lets the anti-oracle diagnostic hold without an installed generation. It
+does leave a residual distinction between a live bound family (which returns
+its stable installed nonce) and an unknown carrier (which returns a random
+uninstalled one); whether the initial implementation must serve a stable
+keyed cover nonce for unknown carriers, or the bound-family existence signal
+is acceptable, is an open question below.
 
 Nonces are random 32-byte base64url values, deployment- and
 admission-epoch-bound, short-lived (the initial hosted profile TTL is 120
@@ -400,14 +451,17 @@ committed effect, must not blind-retry a non-idempotent act, and recovers
 through the one-challenge rule on its next request.
 
 Because a family has one live nonce generation and every accepted response
-retires it, proof-bearing requests from one custody installation are
+retires it, proof-bearing requests from one custody installation MUST be
 serialized per installation: the client issues at most one outstanding
 protected request per generation and forms the next request's proof from the
 installed successor. Concurrent application calls are queued behind that
 serialization rather than each signing under the same generation (which would
 make all but one challenge-and-retry, and could surface a committed effect as
-a stale-authority failure). A future multi-flight design admitting a bounded
-lease of one-use nonce tickets is an open question; v1 serializes.
+a stale-authority failure — see defect 5). This serialization is a normative
+requirement the current client does not yet implement; it is recorded as
+defect 7 below. A future multi-flight design admitting a bounded lease of
+one-use nonce tickets is an open question; the initial sender-constrained v2
+implementation serializes.
 
 Multiple tabs coordinate custody generation and nonce replacement through the
 existing client authority barrier. Only the current generation may publish a
@@ -476,6 +530,12 @@ and parser errors are forbidden.
 - An in-grace superseded token with a valid proof resolves as the same
   session; an unauthenticated challenge never advances a nonce generation; a
   proof id replayed at the final inclusive second of its window still refuses.
+- A forbidden authority field in the request body wins over a valid bearer
+  post-admission, while sender admission still completes before the body is
+  polled; a genuinely absent Authorization header yields
+  `SNAPBACK_AUTH_REQUIRED` while a malformed carrier is challenged.
+- Two concurrent protected requests from one custody serialize: neither
+  observes a committed effect as a stale-authority failure.
 - A complete hosted admission and adapter drill cannot become positive until
   this matrix passes against the served public origin.
 
@@ -487,3 +547,17 @@ and parser errors are forbidden.
 - Exact provider selected for the shared nonce and replay authority in the
   first single-instance adapter. SQLite is acceptable only while one process is
   the serialized authority and restart/backup semantics preserve expiry.
+- Whether unknown carriers must receive a stable keyed cover nonce, or the
+  residual live-bound-family existence signal is acceptable.
+- The exact reset/restore/restart/rollback/admission-replacement lifecycle for
+  the replay and nonce tables and the sender admission epoch: cleared,
+  restored-but-unreachable, or retained until expiry — and what authoritatively
+  rotates the epoch.
+- The exact closed issuance request/response wire schema (`senderConstraint`
+  wrapper keys, hosted-required/local-forbidden, JWK equality with the proof
+  header, issuance `jti`/replay accounting) and its precedence against LLP
+  0057's code-attempt accounting.
+- Whether v2 later admits a bounded multi-flight lease of one-use nonce
+  tickets instead of strict per-custody serialization.
+- When a browser cannot read a successful WebSocket upgrade's successor nonce,
+  when the serialization queue releases and how the next request resyncs.
