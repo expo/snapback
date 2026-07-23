@@ -1,4 +1,4 @@
-# LLP 0074 — Portable relational queries and maintained projections
+# LLP 0080 — Portable relational queries and maintained projections
 
 **Type:** RFC
 **Status:** Draft
@@ -8,7 +8,7 @@
 **Revised:** 2026-07-20 (post-review reconciliation: bounded shared write
 ceiling, visibility/limit ordering, rebuild fencing, and v1 visibility profiles
 are pinned)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0065, LLP 0075
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0037, LLP 0051, LLP 0053, LLP 0056, LLP 0063, LLP 0065, LLP 0081
 
 ## Summary
 
@@ -261,7 +261,7 @@ source/output schema hashes with the stored projection identity. A changed plan
 does not mutate production data implicitly; it emits a migration/rebuild
 requirement consumed by the storage-evolution authority.
 
-V1 rebuild uses LLP 0075's exclusive single-writer barrier. It pins source
+V1 rebuild uses LLP 0081's exclusive single-writer barrier. It pins source
 commit version V, blocks source writes for the full materialization/publication
 window, and proves the new output equals `materializeAll(core, V)` against the V
 snapshot. Dual-apply and catch-up rebuilds are future profiles.
@@ -282,7 +282,7 @@ generations are never query-visible. The migration RFC owns approval,
 checkpointing, cleanup, and rollback policy; this RFC owns the projection
 invariants it must preserve.
 
-LLP 0074 and LLP 0075 may complete semantic review independently, but their
+LLP 0080 and LLP 0081 may complete semantic review independently, but their
 implementation acceptance transitions are coupled: 0074's rebuild corpus uses
 0075's executor and 0075's projection step uses this equivalence oracle. Neither
 claims its executable acceptance witness before the combined suite passes.

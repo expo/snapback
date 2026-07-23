@@ -1,4 +1,4 @@
-# LLP 0075 — Reviewed storage evolution and migrations
+# LLP 0081 — Reviewed storage evolution and migrations
 
 **Type:** RFC
 **Status:** Draft
@@ -8,7 +8,7 @@
 **Revised:** 2026-07-20 (post-review reconciliation: deterministic inputs,
 independent data proof, retained-client publication semantics, control-plane
 approval/backup custody, and resumable hosted execution are pinned)
-**Related:** LLP 0004, LLP 0007, LLP 0010, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0046, LLP 0051, LLP 0063, LLP 0072, LLP 0074
+**Related:** LLP 0004, LLP 0007, LLP 0010, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0046, LLP 0051, LLP 0063, LLP 0072, LLP 0080
 
 ## Summary
 
@@ -156,7 +156,7 @@ V1 admits only closed steps whose portable semantics Snapback owns:
 - `ValidateUnique` followed by `CreateUniqueIndex`;
 - `CopyField` and `CopyTable` into successor storage;
 - `StageTableGeneration`;
-- `RebuildMaintainedProjection` under LLP 0074; and
+- `RebuildMaintainedProjection` under LLP 0080; and
 - `RetireField`, `RetireTable`, or `RetireGeneration` as logical retirement,
   with physical cleanup separately fenced after the rollback window.
 
@@ -427,7 +427,7 @@ Before this RFC may move to Accepted:
 - a required rehearsal executes only through its restore-derived binding,
   cannot target production, and its receipt is consumed without substituting
   for the production apply receipt;
-- a maintained projection change runs LLP 0074's shadow rebuild and publishes
+- a maintained projection change runs LLP 0080's shadow rebuild and publishes
   its schema and generation atomically;
 - generated artifacts, admin inspection, CLI, and Agent surfaces show the same
   plan/step/result identities and stable diagnostics;
