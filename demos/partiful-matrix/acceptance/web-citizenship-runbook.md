@@ -102,13 +102,24 @@ node demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.
   --receipt demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json
 ```
 
+The collector records the resolved Exact package manifests and the direct-host
+source used by the candidate. A registry install is bound by those installed
+artifact digests. When the packages are linked to an Exact source checkout,
+pass `--exact-root /path/to/exact`; the receipt is claim-eligible only when
+both linked package roots belong to that clean, revision-identified checkout.
+
 Safari must have Develop → Allow Remote Automation enabled by the machine
 owner. `safaridriver --enable` requests an administrator password; the gate
 does not bypass that setting or convert its absence into a skip. Because Safari
 does not focus buttons on mouse click, its focus probe explicitly focuses the
-opener and uses a WebDriver Enter key before testing trap, wrap, Escape, and
-restoration; activation still comes from the browser's keyboard path, not a
-JavaScript click.
+opener before WebDriver's native click, then tests trap, wrap, Escape, and
+restoration with WebDriver key actions. Safari disables its native Find command
+inside a WebDriver-owned window, so the collector closes that bounded session
+and relaunches the same candidate in an ordinary Safari process for the Find
+half. It invokes the native Find bar with the macOS keyboard path, reads the
+browser chrome through Accessibility APIs, and activates the matched event
+through the same accessibility surface; it does not substitute a DOM text
+search for Safari's browser UI.
 
 Desktop receipts must be complete, clean-checkout, zero-skip, zero-cleanup
 runs matching the currently installed browser version. The cumulative

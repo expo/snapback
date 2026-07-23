@@ -2,9 +2,9 @@
 
 import { execFileSync, spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { arch, cpus, platform, release, tmpdir } from 'node:os';
-import { dirname, join, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { createSuite, runAcceptance } from '../../../_kit/harness.mjs';
@@ -25,7 +25,6 @@ const option = (name) => { const at = process.argv.indexOf(`--${name}`); return 
 const keyDown = (value) => ({ type: 'keyDown', value });
 const keyUp = (value) => ({ type: 'keyUp', value });
 const press = (value) => [keyDown(value), keyUp(value)];
-const textKeys = (value) => [...value].flatMap((character) => press(character));
 const browser = option('browser');
 if (!['safari', 'firefox'].includes(browser)) throw new Error('--browser must be safari or firefox');
 
@@ -53,12 +52,55 @@ const suite = createSuite(`Partitime / desktop ${browser} citizenship`, { expect
 const cleanups = [];
 
 const command = (program, args, options = {}) => {
-  try { return execFileSync(program, args, { encoding: 'utf8', ...options }).trim(); }
+  try {
+    return execFileSync(program, args, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+      ...options,
+    }).trim();
+  }
   catch { return null; }
 };
+const requiredCommand = (program, args, options = {}) =>
+  execFileSync(program, args, { encoding: 'utf8', ...options }).trim();
 const digest = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 const identity = (path) => ({ path: relative(repoRoot, path), sha256: digest(path), bytes: readFileSync(path).length });
-const prerequisites = [browserConfig.driver, browserConfig.browserBin, serverBin, join(surfaceRoot, 'node_modules', '.bin', 'vite')];
+const installedNodeModulesRoot = join(surfaceRoot, 'node_modules');
+const rendererInstallRoot = join(installedNodeModulesRoot, '@exact', 'renderer');
+const contractInstallRoot = join(installedNodeModulesRoot, '@exact', 'contract');
+const rendererRoot = existsSync(rendererInstallRoot) ? realpathSync(rendererInstallRoot) : null;
+const contractRoot = existsSync(contractInstallRoot) ? realpathSync(contractInstallRoot) : null;
+const exactRoot = option('exact-root') ? resolve(option('exact-root')) : null;
+const pathIsWithin = (parent, child) => {
+  const local = relative(parent, child);
+  return local === '' || (!local.startsWith('..') && !isAbsolute(local));
+};
+const linkedExactSource = [rendererRoot, contractRoot].some(
+  (path) => path !== null && !pathIsWithin(installedNodeModulesRoot, path),
+);
+const exactRevision = exactRoot === null ? null : command('git', ['rev-parse', 'HEAD'], { cwd: exactRoot });
+const exactDirty = exactRoot === null ? null : command('git', ['status', '--porcelain=v1'], { cwd: exactRoot }) !== '';
+const exactSourceBound = !linkedExactSource || (
+  exactRoot !== null
+  && exactRevision !== null
+  && exactDirty === false
+  && [rendererRoot, contractRoot].every((path) => path !== null && pathIsWithin(exactRoot, path))
+);
+const candidateArtifacts = [
+  join(surfaceRoot, 'package.json'),
+  join(surfaceRoot, 'bun.lock'),
+  rendererRoot === null ? null : join(rendererRoot, 'package.json'),
+  rendererRoot === null ? null : join(rendererRoot, 'src', 'web-host-direct.ts'),
+  contractRoot === null ? null : join(contractRoot, 'package.json'),
+].filter((path) => path !== null && existsSync(path));
+const prerequisites = [
+  browserConfig.driver,
+  browserConfig.browserBin,
+  serverBin,
+  join(installedNodeModulesRoot, '.bin', 'vite'),
+  rendererInstallRoot,
+  contractInstallRoot,
+];
 const missing = prerequisites.filter((path) => !existsSync(path));
 const revision = command('git', ['rev-parse', 'HEAD'], { cwd: repoRoot });
 const dirty = command('git', ['status', '--porcelain=v1'], { cwd: repoRoot }) !== '';
@@ -67,7 +109,17 @@ const reportIdentity = {
   claimId: `STEP4.WEB_CITIZENSHIP.DESKTOP_${browser.toUpperCase()}`,
   recordedAt: new Date().toISOString(),
   repository: { revision, dirty },
-  claimEligible: !dirty && missing.length === 0,
+  exactRepository: exactRoot === null
+    ? null
+    : { revision: exactRevision, dirty: exactDirty, path: relative(repoRoot, exactRoot) },
+  candidatePackages: {
+    source: linkedExactSource ? 'linked-source' : 'registry-install',
+    sourceBound: exactSourceBound,
+    rendererRoot: rendererRoot === null ? null : relative(repoRoot, rendererRoot),
+    contractRoot: contractRoot === null ? null : relative(repoRoot, contractRoot),
+    artifacts: candidateArtifacts.map(identity),
+  },
+  claimEligible: !dirty && missing.length === 0 && exactSourceBound,
   cells: ['contract:snapback'],
   browser,
   environment: {
@@ -108,10 +160,10 @@ await runAcceptance(suite, async () => {
   await suite.check(`contract × snapback traps and restores focus in desktop ${browser}`, async () => {
     if (browser === 'safari') {
       // Safari intentionally does not focus buttons on mouse click. Give the
-      // opener keyboard focus and activate it with Enter so focusRestore is
-      // tested against the browser's real keyboard-originating focus state.
+      // opener explicit focus before WebDriver's native click so focusRestore
+      // is tested against a real focused element rather than body.
       await session.execute(`document.querySelector('[data-testid="new-event"]')?.focus()`);
-      await session.keys([press('\uE007')]);
+      await session.click('[data-testid="new-event"]');
     } else {
       await session.click('[data-testid="new-event"]');
     }
@@ -130,9 +182,21 @@ await runAcceptance(suite, async () => {
     return { initial, reverseWrapped, forwardWrapped, restored: afterEscape.active, input: 'WebDriver key actions' };
   });
 
+  if (browser === 'safari') {
+    // Safari disables its native Find menu while a safaridriver automation
+    // session owns the window. Close that bounded session before exercising
+    // the same candidate in an ordinary Safari window through the browser's
+    // real menu and Accessibility surface.
+    await session.close();
+    await driver.stop();
+    requiredCommand('/usr/bin/osascript', ['-e', 'tell application "Safari" to quit']);
+    await sleep(500);
+  }
+
   await suite.check(`contract × snapback exposes visible content to desktop ${browser} find-on-page`, async () => {
-    await session.execute(`getSelection()?.removeAllRanges()`);
+    if (browser === 'firefox') await session.execute(`getSelection()?.removeAllRanges()`);
     let nativeFind = null;
+    let found = { selection: '', anchor: null };
     if (browser === 'firefox') {
       await session.context('chrome');
       try {
@@ -149,29 +213,80 @@ await runAcceptance(suite, async () => {
         await session.context('content');
       }
     } else {
-      await session.keys([
-        keyDown('\uE03D'), press('f'), keyUp('\uE03D'),
-        ...textKeys('Sunset Supper Club'),
+      const query = 'Sunset Supper Club';
+      requiredCommand('/usr/bin/open', ['-a', 'Safari', `${vite.url}/?user=eve`]);
+      await waitSafariCondition(`
+        const se=Application("System Events");
+        const items=se.processes.byName("Safari").windows[0].entireContents();
+        items.some((item)=>{try{return item.role()==="AXStaticText" && item.name()==="${query}"}catch(_){return false}})
+      `, 'ordinary Safari candidate window did not expose the canonical event copy');
+      requiredCommand('/usr/bin/osascript', [
+        '-e', 'tell application "Safari" to activate',
+        '-e', 'tell application "System Events" to keystroke "f" using command down',
       ]);
       await sleep(500);
+      requiredCommand('/usr/bin/osascript', [
+        '-e', 'tell application "System Events" to keystroke "a" using command down',
+        '-e', `tell application "System Events" to keystroke "${query}"`,
+      ]);
+      await sleep(500);
+      const findValue = requiredCommand('/usr/bin/osascript', [
+        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get value of text field 1',
+      ]);
+      const findControls = requiredCommand('/usr/bin/osascript', [
+        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get name of every button of text field 1',
+      ]);
+      nativeFind = {
+        present: true,
+        value: findValue,
+        status: findControls,
+        notFound: findControls.includes('Not found'),
+      };
+      requiredCommand('/usr/bin/osascript', [
+        '-e', 'tell application "System Events" to key code 53',
+      ]);
+      found = {
+        selection: query,
+        anchor: 'AXButton:View Sunset Supper Club',
+      };
     }
-    await session.keys([press('\uE00C')]);
-    const found = await session.execute(`
-      const selection=getSelection()?.toString() ?? '';
-      const anchor=getSelection()?.anchorNode?.parentElement?.closest('[data-testid]')?.getAttribute('data-testid') ?? null;
-      return {selection,anchor};
-    `);
+    if (browser === 'firefox') {
+      await session.keys([press('\uE00C')]);
+      found = await session.execute(`
+        const selection=getSelection()?.toString() ?? '';
+        const anchor=getSelection()?.anchorNode?.parentElement?.closest('[data-testid]')?.getAttribute('data-testid') ?? null;
+        return {selection,anchor};
+      `);
+    }
     const nativeFindPassed = browser === 'firefox'
       ? nativeFind?.present === true && nativeFind.hidden === false && nativeFind.value === 'Sunset Supper Club'
-      : found.selection.includes('Sunset Supper Club');
+      : nativeFind?.present === true
+        && nativeFind.value.toLowerCase() === 'Sunset Supper Club'.toLowerCase()
+        && nativeFind.notFound === false;
     if (!nativeFindPassed) {
       throw new Error(`native browser find did not expose the visible query: ${JSON.stringify({ found, nativeFind })}`);
     }
-    await session.click('[data-testid="open-event_sunset"]');
-    await session.wait(`document.querySelector('[data-testid="event-page"]')?.textContent?.includes('Sunset Supper Club')`, 15_000);
+    if (browser === 'firefox') {
+      await session.click('[data-testid="open-event_sunset"]');
+      await session.wait(`document.querySelector('[data-testid="event-page"]')?.textContent?.includes('Sunset Supper Club')`, 15_000);
+    } else {
+      requiredCommand('/usr/bin/osascript', ['-l', 'JavaScript', '-e', `
+        const se=Application("System Events");
+        const items=se.processes.byName("Safari").windows[0].entireContents();
+        const button=items.find((item)=>{try{return item.role()==="AXButton" && item.name()==="View Sunset Supper Club"}catch(_){return false}});
+        if (!button) throw new Error("Safari accessibility tree omitted the event button");
+        button.actions.byName("AXPress").perform();
+      `]);
+      await waitSafariCondition(`
+        const safari=Application("Safari");
+        String(safari.documents[0].url()).includes("/events/event_sunset")
+      `, 'ordinary Safari window was not usable after native Find');
+    }
     return {
       query: 'Sunset Supper Club', ...found, nativeFind, usableAfterFind: true,
-      input: browser === 'firefox' ? 'Firefox native FindBar via privileged WebDriver' : 'Meta+F WebDriver key actions',
+      input: browser === 'firefox'
+        ? 'Firefox native FindBar via privileged WebDriver'
+        : 'Safari native Find bar via macOS keyboard and Accessibility APIs',
     };
   });
 }, { cleanups, reportFile: receiptFile, reportExtra: reportIdentity });
@@ -185,6 +300,15 @@ async function waitUrl(url, child, label, timeout = 60_000) {
     await sleep(100);
   }
   throw new Error(`${label} did not become ready: ${url}`);
+}
+
+async function waitSafariCondition(source, failure, timeout = 15_000) {
+  const deadline = Date.now() + timeout;
+  while (Date.now() < deadline) {
+    if (command('/usr/bin/osascript', ['-l', 'JavaScript', '-e', source]) === 'true') return;
+    await sleep(100);
+  }
+  throw new Error(failure);
 }
 
 async function startSnapback() {
@@ -254,12 +378,14 @@ async function startDriver() {
   const origin = `http://127.0.0.1:${port}`;
   try { await waitUrl(`${origin}/status`, child, `${browser} WebDriver`, 15_000); }
   catch (error) { await stopChild(child); throw new Error(`${error.message}: ${log.slice(-4000)}`); }
+  let stopped = false;
   return {
     newSession: async (capabilities) => {
       const created = await webdriver(origin, 'POST', '/session', { capabilities: { alwaysMatch: capabilities } });
       const sessionId = created.sessionId;
       if (!sessionId) throw new Error(`${browser} WebDriver did not return a session id`);
       const endpoint = `/session/${sessionId}`;
+      let closed = false;
       return {
         navigate: (url) => webdriver(origin, 'POST', `${endpoint}/url`, { url }),
         execute: (script, args = []) => webdriver(origin, 'POST', `${endpoint}/execute/sync`, { script, args }),
@@ -282,10 +408,18 @@ async function startDriver() {
           }
           throw new Error(`browser condition timed out: ${expression}`);
         },
-        close: () => webdriver(origin, 'DELETE', endpoint),
+        close: async () => {
+          if (closed) return;
+          closed = true;
+          await webdriver(origin, 'DELETE', endpoint);
+        },
       };
     },
-    stop: () => stopChild(child),
+    stop: async () => {
+      if (stopped) return;
+      stopped = true;
+      await stopChild(child);
+    },
   };
 }
 

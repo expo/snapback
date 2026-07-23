@@ -75,8 +75,8 @@ const identity = (path) => {
   const bytes = readFileSync(path);
   return { path: displayPath(path), sha256: sha256(bytes), bytes: bytes.length };
 };
-const command = (program, args) => {
-  const result = spawnSync(program, args, { cwd: repoRoot, encoding: 'utf8' });
+const command = (program, args, cwd = repoRoot) => {
+  const result = spawnSync(program, args, { cwd, encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : null;
 };
 const appVersion = (path) => existsSync(path)
@@ -218,6 +218,28 @@ function rowsFromDesktopWebDriver(path, browser) {
   }
   if (receipt.claimEligible !== true || receipt.repository?.dirty !== false) {
     throw new Error(`${label} receipt is not claim-eligible clean-checkout evidence`);
+  }
+  if (receipt.candidatePackages?.sourceBound !== true || !Array.isArray(receipt.candidatePackages.artifacts)) {
+    throw new Error(`${label} receipt does not bind the installed Exact candidate`);
+  }
+  for (const entry of receipt.candidatePackages.artifacts) {
+    const actual = identity(resolve(repoRoot, entry.path));
+    if (actual.sha256 !== entry.sha256) throw new Error(`${label} candidate drifted: ${entry.path}`);
+  }
+  if (receipt.candidatePackages.source === 'linked-source') {
+    const exact = receipt.exactRepository;
+    if (!nonempty(exact?.path) || !/^[a-f0-9]{40}$/.test(exact?.revision ?? '') || exact?.dirty !== false) {
+      throw new Error(`${label} linked Exact candidate lacks a clean source revision`);
+    }
+    const exactRoot = resolve(repoRoot, exact.path);
+    if (
+      command('git', ['rev-parse', 'HEAD'], exactRoot) !== exact.revision
+      || command('git', ['status', '--porcelain=v1'], exactRoot) !== ''
+    ) {
+      throw new Error(`${label} linked Exact source revision drifted`);
+    }
+  } else if (receipt.candidatePackages.source !== 'registry-install') {
+    throw new Error(`${label} receipt has an unknown Exact candidate source`);
   }
   if (!Array.isArray(receipt.cells) || !receipt.cells.includes('contract:snapback')) {
     throw new Error(`${label} receipt does not identify Contract × Snapback`);
