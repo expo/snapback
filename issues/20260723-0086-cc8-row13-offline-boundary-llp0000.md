@@ -1,6 +1,6 @@
 # CC-8.13: offline-boundary naming (LLP 0000)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0000 §Non-goals gains the serverless-mesh boundary marker naming Ditto's segment as deliberately unserved)
 **Severity:** P3
 **Systems:** Positioning
 **Author:** Claude (Fable), directed by Charlie Cheever

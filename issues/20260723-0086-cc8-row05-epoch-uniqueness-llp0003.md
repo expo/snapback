@@ -1,6 +1,6 @@
 # CC-8.5: epoch-scoped uniqueness / version-skew seam design (LLP 0003)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — seam rule recorded in LLP 0003 §Execution and Write Semantics: epoch-scoped uniqueness, one-deploy version-skew compatibility)
 **Severity:** P3
 **Systems:** Runtime, Storage
 **Author:** Claude (Fable), directed by Charlie Cheever

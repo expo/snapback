@@ -1,6 +1,6 @@
 # CC-8.2: output-gate vocabulary + bookmarkable versions (LLP 0007/0008)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — both halves landed: LLP 0007 §Transactions and Atomicity durability-vocabulary amendment + D1 Sessions prior-art note; LLP 0008 §Realtime Delivery wire note)
 **Severity:** P3
 **Systems:** Storage, Sync
 **Author:** Claude (Fable), directed by Charlie Cheever
