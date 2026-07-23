@@ -1,6 +1,6 @@
 # DECISION: streaming semantics and profile forks
 
-**Status:** Open (author decisions)
+**Status:** Resolved (2026-07-23 — all eight forks decided by the author; recorded in LLP 0076 §Author decisions — 2026-07-23; OQ 1, 2, 3, 4, 5, 8, 9, 10 annotated resolved)
 **Severity:** P2
 **Systems:** Actions, Runtime, Diagnostics, Deployment
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -36,3 +36,20 @@ amendment):
   represent four cursors in different phases).
 - Whether the full Web `ReadableStream` surface is adopted in a later profile,
   and whether durable jobs persist resumable upstream cursor metadata.
+
+## Resolution (2026-07-23)
+
+Decided by Charlie Cheever (interactive session 1681e9d6): `ambiguous` kept
+and precisely defined (unrefinable non-idempotent initiation_possible);
+certainty column persists on the host-owned attempt record; parent attempt +
+per-cursor child records; `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` rename now
+(nothing on main is load-bearing); non-GET retry idempotency =
+deployment-pinned provider declaration or downgrade-to-non-idempotent (bare
+assertions stop conferring retry semantics; fixture behaviorally unaffected);
+monotonic `elapsedMs` on every stream read result; gate-2 receipt from
+`single-instance-container-vm.v1`; ReadableStream (OQ1) and resumable cursors
+(OQ3) deferred with named reopen triggers. Prospective LLP 0075 /
+protocol.v0.json notes for the two outcome-affecting items (rename,
+idempotency) ride their implementation tickets
+(20260723-llp0076-attempt-control-plane.md and the diagnostic/boundedness
+tickets). The implementation tickets this gated are now unblocked.

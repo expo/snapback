@@ -5,7 +5,14 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (additive prior-art comparison against InstantDB
+**Revised:** 2026-07-23 (author decisions: open questions 1, 2, 3, 4, 5, 8, 9,
+and 10 resolved — see §Author decisions — 2026-07-23; OQ6 and OQ7 remain
+open; the certainty column is host-persisted, attempts gain per-cursor child
+records, non-GET retry idempotency becomes declaration-or-downgrade, the
+progress-rate code is renamed profile-neutral, reads carry monotonic
+elapsedMs, gate 2 targets `single-instance-container-vm.v1`, and
+ReadableStream/resumable-cursor adoption is deferred with named triggers).
+2026-07-23 (additive prior-art comparison against InstantDB
 Streams — resumability, writer discipline, authorization defaults, retention —
 added as a dated subsection under LLP 0086 CC-5; no contract text changed;
 LLP 0082 and LLP 0086 added to Related). 2026-07-23 (fifth model-family review round — Fable NOT READY
@@ -602,30 +609,88 @@ disagreement about any single property.
   decoded vs. retained copies) remains **open question 7**, but that governs
   accounting, not the bounded-versus-unbounded disposition.
 
+## Author decisions — 2026-07-23
+
+Recorded by the author (Charlie Cheever) against
+`issues/20260723-llp0076-semantics-decisions.md`; each resolves the numbered
+open question below. Outcome-affecting requirement changes additionally owe a
+prospective LLP 0075 / `protocol.v0.json` amendment when their implementation
+ticket lands (noted per item). None of these is implemented by this revision;
+the Evidence-status ledger stays authoritative for what exists.
+
+1. **`ambiguous` (OQ4a) — kept, precisely defined.** `ambiguous` remains a
+   first-class terminal settlement kind denoting exactly: a non-idempotent
+   request (no verified idempotency declaration and not a safe method) that
+   reached `initiation_possible` and produced no provable terminal outcome —
+   the one kind whose effect fact can never be refined by evidence. It is not
+   a compatibility alias; `failed` continues to require provable
+   non-completion of the transport phase.
+2. **Certainty persistence (OQ4b) — host-owned attempt record.** The
+   effect-certainty column is persisted on the host-owned `StreamAttemptV1`
+   record (the row that owns the terminalizer and lease). Authored progress
+   rows MAY mirror it read-only; the host record is the authority the
+   late-effect fence reads.
+3. **Attempt shape (OQ10) — parent attempt plus per-cursor children.** Each
+   upstream request (cursor) gets a child record carrying its own
+   `initiationState` and certainty; the parent attempt owns settlement and
+   lease, and its certainty is the pessimistic fold of its children.
+4. **Progress-rate code (OQ5) — renamed now.**
+   `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` is the host-owned, profile-neutral
+   code. The reference fixture's authored
+   `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` is updated by the implementation
+   ticket in the same change (prospective protocol note rides with it; the
+   retained receipt does not name the code, so nothing frozen breaks).
+5. **Idempotency (OQ2) — declaration or downgrade.** Safe methods (GET/HEAD)
+   are idempotent by grammar. A non-GET request earns retry semantics only
+   through a deployment-pinned provider idempotency declaration (provider
+   identity, key header, scope) verified by the host, which binds the
+   effective key and a canonical request digest into the attempt record. A
+   bare authored `upstreamIdempotent` assertion no longer confers idempotency:
+   such requests are treated as non-idempotent and settle `ambiguous` when
+   unprovable. (Outcome-affecting: prospective protocol amendment rides the
+   implementation ticket; the frozen fixture is behaviorally unaffected — its
+   GET leg is idempotent by method, its POST leg already asserts false.)
+6. **Progress clock (OQ8) — monotonic `elapsedMs` on every read.** Every
+   stream read result carries host-owned monotonic elapsed milliseconds since
+   attempt start (plus per-chunk delta). Authored code gates its progress
+   commits on that value; the host rate refusal stays as the enforcement
+   backstop. No new ambient time primitive is added to the runtime surface.
+7. **Gate-2 adapter (OQ9) — `single-instance-container-vm.v1`.** The LLP 0074
+   gate-2 receipt is produced on LLP 0075's selected hosted target. Cloudflare
+   remains a narrow proof and is not gate-bearing. Gate 2 therefore also
+   waits on the 0075 program-ownership decision that picks the concrete
+   provider for the first remote drill.
+8. **Surface deferrals (OQ1, OQ3) — both deferred with named triggers.** v1
+   keeps the small pull-reader contract, and durable jobs restart only at
+   provider-defined idempotent boundaries. Reopen triggers: a concrete
+   consumer requiring pipe/tee semantics reopens OQ1; a provider with
+   verified range-resume semantics plus the OQ2 declaration mechanism reopens
+   OQ3.
+
 ## Open questions
 
-1. Does a later profile adopt the complete Web `ReadableStream` surface or keep
+1. *(Resolved 2026-07-23 — deferred with a named trigger; see §Author decisions item 8.)* Does a later profile adopt the complete Web `ReadableStream` surface or keep
    this smaller reader contract?
-2. Which provider idempotency-key declarations can make non-GET retries
+2. *(Resolved 2026-07-23 — declaration-or-downgrade; see §Author decisions item 5.)* Which provider idempotency-key declarations can make non-GET retries
    machine-checkable rather than authored assertions?
-3. Should durable jobs persist resumable upstream cursor metadata, or restart
+3. *(Resolved 2026-07-23 — restart at idempotent boundaries only; see §Author decisions item 8.)* Should durable jobs persist resumable upstream cursor metadata, or restart
    only at provider-defined idempotent boundaries?
-4. What exact fact does `ambiguous` add beyond effect-may-have-executed once
+4. *(Resolved 2026-07-23 — kept and precisely defined; certainty persists on the host attempt record; see §Author decisions items 1-2.)* What exact fact does `ambiguous` add beyond effect-may-have-executed once
    the two axes are separated? (The host *derives* the certainty via the
    `initiationState` write-ahead mark — that is settled; the open part is only
    which layer *persists* the certainty column, the host-owned attempt record
    or the authored progress row.)
-5. Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
+5. *(Resolved 2026-07-23 — renamed to `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`; see §Author decisions item 4.)* Is `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` renamed to a profile-neutral
    host code before it becomes load-bearing in retained receipts?
 6. Are authenticated secret-bearing AI-provider streams in v1 on every claimed
    target, and through the same opaque-placement seam as ordinary fetch?
 7. Are the 1 MiB and 64 KiB bounds measured on wire bytes, decoded bytes, or
    all retained VM/bridge copies, and how are concurrent cursors charged?
-8. Which supported monotonic elapsed-time source or host progress helper lets
+8. *(Resolved 2026-07-23 — monotonic `elapsedMs` on every read result; see §Author decisions item 6.)* Which supported monotonic elapsed-time source or host progress helper lets
    an action obey the 100 ms spacing without a wall clock?
-9. Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
+9. *(Resolved 2026-07-23 — `single-instance-container-vm.v1`; see §Author decisions item 7.)* Which hosted adapter produces the gate-2 receipt now that Cloudflare is a
    narrow proof and LLP 0075 selected `single-instance-container-vm.v1`?
-10. Does one durable attempt cover all four concurrent cursors, or does each
+10. *(Resolved 2026-07-23 — parent attempt with per-cursor child records; see §Author decisions item 3.)* Does one durable attempt cover all four concurrent cursors, or does each
     upstream request get a child record under a parent attempt? A single
     scalar `initiationState`/certainty cannot represent four cursors in
     different phases.

@@ -1,6 +1,6 @@
 # DECISION: non-rollbackable ratchet source for raw-backup-rollback non-resurrection
 
-**Status:** Open (author decision)
+**Status:** Resolved (2026-07-23 — composition ratchet selected with its monotonicity argument; recorded in LLP 0077 §Author decisions — 2026-07-23 item 1)
 **Severity:** P1
 **Systems:** Auth, Control plane, Storage
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -35,3 +35,17 @@ Options to weigh (pick one and state its monotonicity argument):
   questions).
 - `20260723-llp0077-sender-replay-epoch.md` can then implement it with a
   restore/rollback straddle test.
+
+## Resolution (2026-07-23)
+
+Decided by Charlie Cheever (interactive session 1681e9d6): the composition —
+`sender_replay_epoch` rotates only on the LLP 0059 incarnation change, and a
+dedicated control-plane monotone counter stored outside the rolled-back
+durable set provides the anti-rollback floor; effective epoch =
+max(incarnation-derived, floor). Monotonicity argument recorded in the Spec: a
+raw rollback reverts the durable tables but cannot lower the external floor,
+so no accepted proof's epoch can recur. LLP 0060's admission epoch stays a
+distinct namespace (used by neither the namespace nor the floor). The
+guarantee graduates to a proven property when
+20260723-llp0077-sender-replay-epoch.md lands the implementation with the
+restore/rollback straddle test — that ticket is now unblocked.

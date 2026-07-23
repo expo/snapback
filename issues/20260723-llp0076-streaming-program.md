@@ -40,7 +40,8 @@ Boundedness, authority, and honesty:
 
 Decisions (forks to resolve, not code):
 
-- `20260723-llp0076-semantics-decisions.md` — `ambiguous`'s residual meaning,
+- `20260723-llp0076-semantics-decisions.md` — RESOLVED 2026-07-23 (all forks
+  decided; LLP 0076 §Author decisions). Was: `ambiguous`'s residual meaning,
   which layer persists the certainty column, provider-idempotency trust, the
   progress-rate code rename, a monotonic clock/progress helper, and the gate-2
   hosted adapter

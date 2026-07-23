@@ -1,6 +1,6 @@
 # DECISION: close the client contract — AuthCustodyV3, grant shape, logout recovery, cover nonce, downgrade, WS state machine
 
-**Status:** Open (author decisions)
+**Status:** Open (all six forks decided 2026-07-23 — LLP 0077 §Author decisions items 2-7; residual work: draft the closed AuthCustodyV3 schema text and the LLP 0059 BoundGrantAuthorityV2 amendment)
 **Severity:** P1
 **Systems:** Auth, Browser client, WebSocket, Control plane
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -37,3 +37,24 @@ authority amended):
 - The browser-observable WebSocket successor-nonce state machine: queue release
   and resynchronization after a successful upgrade whose 101 header JS cannot
   read; open/error/cancel/reconnect transitions.
+
+## Decisions record (2026-07-23)
+
+All six forks decided by Charlie Cheever (interactive session 1681e9d6) and
+pinned in LLP 0077 §Author decisions — 2026-07-23: logout = bounded
+revoked-family tombstone (retention = max TTL + skew, 30-day cap; no nonce
+rotation for tombstoned families; converges to LLP 0057 SESSION_EXPIRED);
+keyed cover nonce for unknown carriers (HMAC(secret, epoch‖token_digest‖
+time_bucket)); downgrade = legacy-rejecting v2 syntax + D6 barrier;
+WebSocket queue releases on the first server frame carrying the successor
+nonce (failure paths resync via fresh challenge); BoundGrantAuthorityV2 =
+V1 + custody JWK thumbprint + issuance sender_replay_epoch, exact-tuple
+equality; AuthCustodyV3 = complete closed seven-state schema
+(anonymous/pending/active/clearing/corrupt/migrating/recovery).
+
+Remaining before this ticket closes (spec drafting, now unblocked and
+shape-pinned): the closed AuthCustodyV3 schema text in LLP 0077, and the
+LLP 0059 amendment for BoundGrantAuthorityV2 (rides
+20260723-llp0077-grant-binding.md, which is now unblocked). Coordinate the
+schema text with the in-flight custody implementation
+(packages/snapback-contract/auth-custody-indexeddb.mjs).

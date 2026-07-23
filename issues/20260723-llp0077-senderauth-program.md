@@ -17,7 +17,10 @@ authoritative — each ticket **references** its ledger item rather than copying
 it, and closing a ticket means updating the Spec's ledger/checkpoint, not just
 landing code.
 
-Two prerequisites gate everything else and are author decisions, not code:
+Two prerequisites gate everything else and are author decisions, not code
+(both decided 2026-07-23 — LLP 0077 §Author decisions; the ratchet ticket is
+Resolved, the client-contract ticket keeps only schema-drafting residue, and
+defects 2 and 10 are unblocked):
 
 - `20260723-llp0077-rollback-ratchet.md` — the non-rollbackable ratchet source
   for raw-backup-rollback non-resurrection (a stated security requirement with
