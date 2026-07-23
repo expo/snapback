@@ -5,9 +5,23 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (fifth model-family review round — Fable NOT READY
-(one blocker: the epoch lifecycle), Codex NOT READY, artifacts under
-`llp/reviews/0077-*`. This revision resolves the admission-epoch/reset
+**Revised:** 2026-07-23 (sixth model-family review round — Fable NOT READY
+(two narrow items), Codex NOT READY, artifacts under `llp/reviews/0077-*`.
+This revision reconciles the epoch lifecycle with LLP 0060/0059 by making the
+replay/nonce namespace a **distinct durable `sender_replay_epoch`** (not the
+rollout-churning serving admission epoch), rotated only on the LLP 0059
+incarnation change, non-rollbackable, with the straddle seam closed by nonce
+epoch-keying — the code's use of `admission_epoch` is now tracked as defect
+10; fixes a real doc error (the exchange `senderConstraint.protocol` is
+`snapback.sender-issuance.v2`, matching the code, not the resource-proof id);
+demotes the under-specified logout recovery mechanism from a hard MUST to a
+stated requirement plus an open-question mechanism choice; adds defect 11
+(issuance `jti` not consumed on wrong code; client URI resolves instead of
+rejects); scopes the conformance list as server-side; and clarifies defect 5
+versus the passing redaction test. The eleven-item ledger still gates any
+positive capability). 2026-07-23 (fifth model-family review round — Fable
+NOT READY (one blocker: the epoch lifecycle), Codex NOT READY, artifacts
+under `llp/reviews/0077-*`. This revision resolves the admission-epoch/reset
 lifecycle normatively — a monotonic control-plane-bound epoch that rotates
 only on reset, whose reset transaction atomically revokes families and clears
 the replay/nonce tables, closing the restart-straddle replay seam — and moves
@@ -193,9 +207,12 @@ fix plus a negative test:
    contract requires expiry at `iat + 30 + 1` with an exclusive `< now` purge
    on both tables.
 5. The client installs the successor `DPoP-Nonce` without adding it to the
-   diagnostic redaction set, and parses a successful response body before
-   failing on a missing successor nonce, so a committed effect can be
-   observed as a failure and retried.
+   diagnostic redaction set on the response-processing path, and parses a
+   successful response body before failing on a missing successor nonce, so a
+   committed effect can be observed as a failure and retried. (The reflected-
+   material test that passes covers the *request* nonce on an error path; the
+   unredacted successor is the distinct install path this defect names, and it
+   is coupled to defect 7.)
 6. `bind_new_session_sender_constraint` can bind any existing session id;
    the binding capability must be restricted to the session-issuance
    transaction so no supported API can bind an extant v1 family.
@@ -218,6 +235,17 @@ fix plus a negative test:
    custody only after the response. A bounded revoked-family sender tombstone
    (or an anonymous-recovery handshake) is required so a post-logout signed
    request can obtain the terminal `durableDelete` outcome.
+10. Replay and nonce isolation keys on LLP 0060's serving `admission_epoch`
+    rather than a distinct durable `sender_replay_epoch`, and reset neither
+    advances a sender epoch nor clears the replay/nonce tables — so the
+    normative epoch model above is not yet implemented, and a rollout would
+    orphan live nonces while a reset would not close the tables.
+11. A cryptographically valid issuance proof paired with a wrong or exhausted
+    code does not consume its `jti` (the wrong-code path returns before sender
+    commitment), so the issuance outcome table's cross-guess-reuse rule is
+    unmet; and the browser client canonicalizes the proof URI with WHATWG
+    `new URL()`, which *resolves* dot-segments rather than *rejecting* them as
+    the conformance rule requires.
 
 ## Summary
 
@@ -441,28 +469,39 @@ issuance transaction: no supported server API may attach a constraint to an
 already-existing session id, so a v1 (bearer-only) family can never be
 upgraded in place — migration is deletion-and-re-exchange, never attachment.
 
-The replay uniqueness namespace is the tuple `(admission_epoch, proof_id)`
-within a deployment; a `jti` is unique per admission epoch. The epoch's
-lifecycle is normative, not an open question, because a proof's ~35 s
-acceptance window can straddle a lifecycle event and a fresh replay space
-would otherwise let a still-in-window proof be replayed:
+The replay uniqueness namespace is the tuple `(sender_replay_epoch,
+proof_id)` within a deployment, and nonces are keyed by the same
+`sender_replay_epoch`. The epoch's lifecycle is normative, not an open
+question, because a proof's ~35 s acceptance window can straddle a lifecycle
+event and a fresh replay space would otherwise let a still-in-window proof be
+replayed:
 
-- The `admission_epoch` is a monotonic counter bound to the deployment's
-  control-plane attestation (LLP 0060), **not** to process lifetime. An
-  ordinary process restart preserves the epoch and its replay/nonce tables
-  (restored intact), so there is no fresh replay space on restart and no
-  straddle seam.
-- The epoch rotates only on an explicit reset (the LLP 0059 authorization-
-  stream incarnation change). The single reset transaction MUST, atomically:
-  rotate the epoch, revoke every sender-bound session family, and clear the
-  replay and nonce tables. Because the families are revoked, any proof issued
-  before the reset references a family that no longer resolves and is refused
-  regardless of the now-empty replay space — the seam is closed by family
-  revocation, not by replay retention.
+- `sender_replay_epoch` is a **distinct durable counter**, stored
+  transactionally alongside the session, replay, and nonce state — it is
+  **not** LLP 0060's serving `HostedAdmission.admissionEpoch`, which is
+  short-lived and rotates on attestation, health, rollout, and routing
+  changes; binding replay isolation to that epoch would orphan every live
+  nonce on each rollout. An ordinary process restart or rollout preserves
+  `sender_replay_epoch` and its tables, so there is no fresh replay space and
+  no straddle seam under normal operation.
+- It rotates only on the LLP 0059 authorization-stream incarnation change
+  (reset, logical import, declared restore). The single reset transaction
+  MUST, atomically: advance `sender_replay_epoch`, revoke every sender-bound
+  session family, and clear the replay and nonce tables.
+- The straddle seam at a rotation is closed by nonce epoch-keying, not by
+  replay retention: a proof issued under the old epoch carries a nonce that is
+  orphaned under the new epoch, so it fails the nonce check regardless of the
+  now-empty replay space. Family revocation on reset is an additional barrier.
 - A declared restore or backup rollback MUST NOT resurrect an accepted proof:
-  the epoch is drawn from the non-rollbackable control-plane attestation, so a
-  restored snapshot carrying an old nonce but missing a later replay row still
-  presents a stale epoch (or revoked families) and cannot authorize work.
+  `sender_replay_epoch` is gated by a monotone, non-rollbackable control-plane
+  attestation counter, so a restored snapshot presenting a stale epoch is
+  rejected by the live server even though it carries a consistent
+  (epoch, tables) pair.
+
+The shipped code keys replay and nonces on LLP 0060's `admission_epoch`
+directly rather than a distinct `sender_replay_epoch`, and reset does not yet
+advance a sender epoch or clear the tables; this divergence from the model
+above is tracked as defect 10.
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
@@ -473,16 +512,20 @@ later-version question. The v2 exchange request body is exactly:
   "challengeId": "...",
   "code": "...",
   "senderConstraint": {
-    "protocol": "snapback.sender-constrained.v2",
+    "protocol": "snapback.sender-issuance.v2",
     "publicJwk": { "crv": "P-256", "kty": "EC", "x": "...", "y": "..." },
     "proof": "<compact sender-issuance.v2 JWS>"
   }
 }
 ```
 
-The `senderConstraint` object rejects unknown members. It is **required** on a
-hosted target and **absent** on a local bearer-v1 exchange; a hosted request
-without it, or a local request carrying it, is refused at the route boundary.
+The `senderConstraint.protocol` value is `snapback.sender-issuance.v2` — the
+same protocol id the issuance proof carries — not the resource-proof id
+`snapback.sender-constrained.v2`; the exchange member and the proof it wraps
+agree. The `senderConstraint` object rejects unknown members. It is
+**required** on a hosted target and **absent** on a local bearer-v1 exchange;
+a hosted request without it, or a local request carrying it, is refused at the
+route boundary.
 `publicJwk` MUST equal the JWK in the issuance proof's protected header (the
 server rejects a mismatch), and its RFC 7638 thumbprint is what the new
 session family binds. A response on the hosted path carries `DPoP-Nonce`.
@@ -517,13 +560,15 @@ because its only authority is revoke-only.
 A committed logout whose response is lost is a special recovery case: because
 the logout revoked the family, the generic still-current-nonce recovery cannot
 help (the family no longer resolves), and the next signed request could strand
-custody indefinitely. The server MUST therefore keep a bounded revoked-family
-sender tombstone sufficient to authenticate a post-logout signed request and
-return the terminal `durableDelete` outcome (or specify an anonymous-recovery
-handshake that proves the terminal outcome before the client clears custody).
-The client MUST NOT clear custody until it has the terminal outcome. This is a
-normative requirement not yet implemented (the sender lookup joins only current
-sessions); it is tracked as defect 9 below.
+custody indefinitely. The normative requirement is that the client MUST NOT
+clear custody until it has the terminal outcome, and the server MUST provide a
+bounded, authenticated post-logout recovery path that returns the terminal
+`durableDelete` outcome. The exact mechanism — a bounded revoked-family sender
+tombstone versus a distinct anonymous-recovery handshake — and its retention
+bound, resolution/lookup path, nonce treatment, and interaction with LLP
+0057's repeat-logout `SESSION_EXPIRED` are an open author decision listed
+below, not yet fixed here. This requirement is unimplemented (the sender
+lookup joins only current sessions); it is tracked as defect 9.
 
 ## WebSocket and connection binding
 
@@ -681,6 +726,13 @@ and parser errors are forbidden.
 - Exact provider selected for the shared nonce and replay authority in the
   first single-instance adapter. SQLite is acceptable only while one process is
   the serialized authority and restart/backup semantics preserve expiry.
+- The exact logout-lost-response recovery mechanism (bounded revoked-family
+  tombstone versus anonymous-recovery handshake), its retention bound,
+  resolution path, nonce treatment, and composition with LLP 0057's
+  repeat-logout `SESSION_EXPIRED`.
+- Whether `sender_replay_epoch` is a wholly new durable counter, the LLP 0059
+  authorization-stream incarnation, or a composition of those gated by the
+  monotone control-plane attestation — and its exact storage.
 - Whether unknown carriers must receive a stable keyed cover nonce, or the
   residual live-bound-family existence signal is acceptable.
 - Whether v2 later admits a bounded multi-flight lease of one-use nonce
@@ -697,18 +749,23 @@ and parser errors are forbidden.
 - Whether v2 session/grant tokens gain a legacy-rejecting syntax, or LLP 0060
   D6's mixed-version activation/rollback barrier is the sole downgrade defense.
 
-## Conformance (MUST-level requirements)
+## Conformance (server-side MUST-level requirements)
 
-A second implementation is tested against, at minimum: the closed ES256/P-256
+This list is the **server/wire-observable** conformance target; the client
+custody schema (the complete closed `AuthCustodyV3`) and the sender-bound
+grant shape (`BoundGrantAuthorityV2`) are deferred to the open questions, so a
+second *client* cannot yet be built from this Spec alone. A second server
+implementation is tested against, at minimum: the closed ES256/P-256
 header and payload with `deny_unknown_fields` and canonical unpadded base64url;
 the exact issuance and resource proof payloads and the `senderConstraint`
 exchange schema; canonical-URI reconstruction by **rejection** (never
 resolution) of `%`, backslash, doubled-slash, and dot-segment paths; the
-inclusive `[iat−30, iat+5]` time window; replay retention to `iat+30+1` with an
-exclusive `< now` purge on both replay and nonce tables; challenge never
+inclusive time window `iat ∈ [now−30, now+5]`; replay retention to `iat+30+1`
+with an exclusive `< now` purge on both replay and nonce tables; challenge never
 rotates a live nonce (fresh generation only when absent or expired); rotation
 only inside the atomic consume/rotate transaction of a verified proof;
-`publicJwk` equals the proof-header JWK; the monotonic control-plane-bound
-admission epoch that rotates only on reset (with atomic family revocation and
-table clear); per-custody request serialization; and the every-use
-grant-bound proof rule on both carriers.
+`publicJwk` equals the proof-header JWK; the distinct durable
+`sender_replay_epoch` that rotates only on the LLP 0059 incarnation change
+(with atomic family revocation and table clear) and is non-rollbackable;
+per-custody request serialization; and the every-use grant-bound proof rule on
+both carriers.
