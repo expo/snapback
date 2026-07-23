@@ -2044,3 +2044,55 @@ One sample per count has only two fit degrees of freedom and is not suitable
 for promotion, but it is a useful engineering signal: the observed Contract
 problem looks much more like fixed product/runtime representation than
 per-subscriber data binding. No threshold was derived or retained.
+
+## 2026-07-23 — the Exact production graph is a real HBC; the security target is still closed
+
+The native collector no longer depends on Exact's development module service.
+Exact gained a build-only transform that leaves literal route imports available
+to Rollup but turns opaque inspection/HMR imports into explicit rejected
+promises. Partitime now selects native variants, imports the shared runtime
+bootstrap, and bundles the product through one production entry. The result is
+a 437-module IIFE with no dynamic imports or development module table; Hermes
+compiled it to a 3.17 MB HBC, and the Exact Release/Simulator app admitted the
+same bytes.
+
+That separated two problems which previously looked like one. The production
+graph/HBC problem is solved. The app still stops before bytecode evaluation
+because Ibex refuses to prepare an armed runtime on iOS: its current registry
+advertises no executable target, and it has no report-backed iOS target row.
+Exact now logs that immutable prelude failure, and the Snapback collector waits
+for and records the specific refusal instead of racing to the later generic
+`JS evaluation failed` mark.
+
+This is an Exact/Ibex release-custody boundary, not a Snapback or Contract app
+failure. React/Expo makes the analogous Release/HBC launch routine; Exact still
+requires its report-derived CapSec target program to land before the paired
+performance lane can run honestly. A diagnostic runtime would be easier, but
+would violate the ratified lane and erase the security property the Release
+carrier is supposed to measure. No Snapback guide gap was encountered.
+
+## 2026-07-23 — the next Exact release needs its own bundle gate
+
+The published Exact 0.1.5 runtime remains below every frozen Contract bundle
+threshold, but the current source-linked Exact checkout does not. After
+retaining the newer hydration and citizenship work, the three gateway cells
+emit about 220.5 KB of minified JavaScript against roughly 213.5 KB limits;
+deterministic gzip still passes. This does not invalidate the retained 0.1.5
+claim, but it is a release-blocking regression for the next runtime.
+
+Two Partitime packaging changes made the comparison entry point more honest.
+Snapback-only client, adapter, and manifest imports now stay behind the
+Snapback backend branch instead of entering every cell's module graph, and the
+supported native-ESM browser matrix no longer receives Vite's legacy
+module-preload polyfill. All four Contract production builds completed. The
+Snapback browser path passed 4/4, including fallback-disabled push, and the
+Supabase path passed 3/3 after a parallel gateway-port setup collision was
+rerun alone.
+
+The remaining raw-byte miss is mostly in Exact's newer hydration transaction
+and direct production host, not Snapback transport code. Compacting the
+hydration snapshot saved a small amount without weakening its all-or-nothing
+fallback, but ordinary minifier changes were not enough to close the gap.
+That makes the next step an Exact production-runtime representation problem,
+not a threshold rebaseline or a reason to remove browser correctness. No
+Snapback guide gap was encountered.
