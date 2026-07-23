@@ -39,10 +39,14 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
         '/snapback': { target: process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433', changeOrigin: true, ws: true, rewrite: (path: string) => path.replace(/^\/snapback/, '') },
       },
     },
-    ...(memoryEntry ? {
-      build: {
+    build: {
+      // The supported browser matrix loads native ESM. Disabling Vite's
+      // legacy module-preload shim preserves route-level lazy loading without
+      // shipping a second dependency scheduler in every Contract cell.
+      modulePreload: false,
+      ...(memoryEntry ? {
         rollupOptions: { input: resolve(__dirname, 'memory.html') },
-      },
-    } : {}),
+      } : {}),
+    },
   };
 };

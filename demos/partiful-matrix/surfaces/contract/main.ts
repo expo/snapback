@@ -11,12 +11,6 @@ import {
 import { setThemeReducedMotion, setThemeViewportWidth } from '@exact/facet-core';
 import { installContractWebHost, type ContractWebHostHandle } from '@exact/renderer/web-host';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createOnlineSnapbackContractSurface } from '../../../../packages/snapback-contract/online-surface.mjs';
-import artifactIndex from '../../snapback/generated/artifacts.json';
-import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
-import functionsManifest from '../../snapback/generated/functions.manifest.json';
-import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import feedApp from './feed.contract';
 import {
@@ -166,6 +160,24 @@ async function boot() {
   };
 
   if (__MATRIX_BACKEND__ === 'snapback') {
+    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — gateway
+    // cells must not retain the Snapback client, Contract adapter, or generated
+    // manifests merely because the comparison entry point can select them.
+    const [
+      { SnapbackClient },
+      { createOnlineSnapbackContractSurface },
+      { default: artifactIndex },
+      { default: contractDataManifest },
+      { default: functionsManifest },
+      { default: schemaManifest },
+    ] = await Promise.all([
+      import('../../../_kit/client.mjs'),
+      import('../../../../packages/snapback-contract/online-surface.mjs'),
+      import('../../snapback/generated/artifacts.json'),
+      import('../../snapback/generated/contract-data.manifest.json'),
+      import('../../snapback/generated/functions.manifest.json'),
+      import('../../snapback/generated/schema.manifest.json'),
+    ]);
     const client = new SnapbackClient(__SNAPBACK_API_ORIGIN__ || '/snapback');
     await client.health();
     // @ref LLP 0034#5 — one idempotent ensure per mount; never reset from a
