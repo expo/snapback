@@ -4,23 +4,23 @@
   "ok": false,
   "outcome": "red",
   "claimEligible": false,
-  "recordedAt": "2026-07-22T01:55:33.718Z",
+  "recordedAt": "2026-07-23T09:39:34.296Z",
   "authority": [
     "Snapback LLP 0063 Step 4",
     "Exact LLP 0211 §4.3"
   ],
   "repository": {
-    "revision": "616c388c9757ad0e97116198226bc085b6e745b4",
+    "revision": "80663cd347e88f8a1dd2f08a09110eb57bb9a218",
     "dirty": false
   },
   "summary": {
     "required": 21,
-    "passed": 5,
-    "red": 16,
+    "passed": 6,
+    "red": 15,
     "skipped": 0
   },
-  "passed": 5,
-  "red": 16,
+  "passed": 6,
+  "red": 15,
   "skipped": 0,
   "environments": [
     {
@@ -301,7 +301,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-          "sha256": "83a0da6b5af7fa7484991c6a9a91a133a0098bb72e984aa6bfec8399c90a89e1",
+          "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
           "result": "contract × snapback traps and restores focus in desktop safari"
         }
       ],
@@ -325,13 +325,39 @@
     {
       "environment": "desktop-safari",
       "assertion": "find-on-page",
-      "acceptedFixtures": [
-        "partitime-visible-event-copy"
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "Fresh Safari run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
+      "evidence": [
+        {
+          "kind": "machine-receipt",
+          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
+          "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
+          "result": "contract × snapback exposes visible content to desktop safari find-on-page"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Safari",
+        "version": "26.5.2"
+      },
+      "os": {
+        "name": "desktop host",
+        "version": "darwin-25.5.0-arm64"
+      },
+      "channel": null,
+      "details": {
+        "query": "Sunset Supper Club",
+        "selection": "Sunset Supper Club",
+        "anchor": "AXButton:View Sunset Supper Club",
+        "nativeFind": {
+          "present": true,
+          "value": "Sunset Supper Club",
+          "status": "missing value, 1 match",
+          "notFound": false
+        },
+        "usableAfterFind": true,
+        "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
+      }
     },
     {
       "environment": "desktop-chrome",
@@ -343,7 +369,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "8895e81420e2823737455dcdc5fa7d22adf13119efea4b43f7799f212c639beb",
+          "sha256": "a51cef9b10205f63045abef488cf26a97338606d61b118b1b8f753b40a87f6d8",
           "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
         }
       ],
@@ -398,7 +424,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-          "sha256": "07e96623c7abc09086804d96531411b5a8913c7d8aec4f13759f670c400ab122",
+          "sha256": "46524d6006204ed9a6d09a85ba5e21c732cc6bc29cf6b022957bb624c479b0e2",
           "result": "contract × snapback exposes visible content to browser find-on-page"
         }
       ],
@@ -429,7 +455,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
+          "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
           "result": "contract × snapback traps and restores focus in desktop firefox"
         }
       ],
@@ -460,7 +486,7 @@
         {
           "kind": "machine-receipt",
           "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
+          "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
           "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
         }
       ],
@@ -506,30 +532,30 @@
   "inputs": [
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "8895e81420e2823737455dcdc5fa7d22adf13119efea4b43f7799f212c639beb",
-      "bytes": 29221
+      "sha256": "a51cef9b10205f63045abef488cf26a97338606d61b118b1b8f753b40a87f6d8",
+      "bytes": 29402
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-      "sha256": "07e96623c7abc09086804d96531411b5a8913c7d8aec4f13759f670c400ab122",
+      "sha256": "46524d6006204ed9a6d09a85ba5e21c732cc6bc29cf6b022957bb624c479b0e2",
       "bytes": 2647
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-      "sha256": "83a0da6b5af7fa7484991c6a9a91a133a0098bb72e984aa6bfec8399c90a89e1",
-      "bytes": 2826
+      "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
+      "bytes": 4860
     },
     {
       "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-      "sha256": "dcd6ddbeae8506e841a912854eeb9300b4827c322b5d9d93699d3bb0e91339ac",
-      "bytes": 3332
+      "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
+      "bytes": 5077
     }
   ],
   "testInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-browser-citizenship.mjs",
-      "sha256": "de59be62d94f82b65fdcf7e03858c55886ac3caa28ae6eed8213406dfd5dcc94",
-      "bytes": 17344
+      "sha256": "9b0209676ea2f5dcdd0d7ee572ce60cca7f9d69a66a65daff2b3d2a85831cc2a",
+      "bytes": 18535
     }
   ],
   "nonClaims": [
