@@ -122,3 +122,135 @@ The translation from research to work is selective without being explicit about 
 7. **Verdict** — Verified claims against: `llp/0001-prior-art.research.md`, `llp/0008-local-first-sync-and-realtime.rfc.md`, `llp/0009-code-execution-security.rfc.md`, `llp/0010-agent-dx-and-acceptance.spec.md`, `llp/0011-auth-and-permissions.rfc.md`, `llp/0014-cloudflare-strategy.rfc.md`, `llp/0018-app-instance-boundaries.rfc.md`, `llp/0024-agent-operating-surface.spec.md`, `llp/0033-license-posture.decision.md`, `llp/0040-cloudflare-narrow-proof.rfc.md`, `llp/0053-authorization-invalidation.rfc.md`, `llp/0068-collaborative-document-convergence.rfc.md`, `llp/0070-durable-background-work.rfc.md`, `llp/0074-convex-competitive-strategy.rfc.md`, `llp/0076-bounded-streamed-actions.rfc.md`, `llp/0079-serverpod-course-corrections.plan.md`, `llp/0082-instantdb.research.md`, `llp/0083-cloudflare-do-d1-prior-art.research.md`, `llp/0084-triplit-ditto.research.md`, `llp/0085-jazz.research.md`, `llp/0087-facets-hosted-adoption.plan.md`, `cloudflare/deploy.sh`, `cloudflare/src/gateway.js`, `cloudflare/src/coordinator.js`, `cloudflare/src/handler-worker.js`, `cloudflare/src/host-ops.js`, the checked-in `cloudflare/wrangler*.jsonc` profiles, and `cloudflare/spike-facets/README.md`/`spike.mjs`. No file under `llp/reviews/` was read. Approximate tool-call count: 19.
 
 Verdict: NOT READY
+## Round 2 — 2026-07-23
+
+**Revision under review:** `llp/0086-prior-art-course-corrections.plan.md`, sha256 `f9b4b1a060b2f499ede753615151eba6d3142dec27a8a76fcd13e76e4fe621f7`, tracked at HEAD `92d93ddf` (both MATCH the pinned values). Round-2 prompt noted the document carries a Revised header from the round-1 revision; the reviewer had no access to round-1 artifacts.
+**Runtime detail:** ~15 tool calls (self-reported); verified claims against the files listed in the review's verdict section.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check**
+
+Commands run:
+
+```sh
+shasum -a 256 llp/0086-prior-art-course-corrections.plan.md
+git rev-parse --short HEAD
+```
+
+Observed:
+
+- Document SHA-256: `f9b4b1a060b2f499ede753615151eba6d3142dec27a8a76fcd13e76e4fe621f7`
+- Repository HEAD: `92d93ddf`
+- Result: **MATCH**
+
+`git rev-parse` also emitted sandbox-related macOS cache warnings, but returned the expected commit.
+
+2. **Overall assessment**
+
+This is a strong, unusually disciplined translation of a large research batch into bounded work. The ratification posture, evidence-review gates, per-target honesty in CC-3, staged delegation of CC-2 to LLP 0087, and evidence-disposition ledger are all good ideas. The research findings are generally represented faithfully, and the plan avoids reopening the central server-authoritative, ephemeral-lane, per-app-isolation, and licensing decisions.
+
+It is not yet ready to advance because several items are not executable from their Work/Exit criteria alone. Most importantly, CC-1’s promised provisioning contract omits operations that its named downstream consumer, LLP 0087 Phase 2, explicitly requires; CC-8 treats several normative or decision-bearing amendments to Accepted documents as interchangeable one-paragraph documentation edits; and CC-4 does not adequately bound either pushdown-compilability or guest-account claiming. CC-5 also materially misstates the current state of LLP 0076.
+
+The sequencing is otherwise sensible: information-buying work precedes hosted rearchitecture, CC-1 and CC-7 have appropriate evidence commitment gates, and the CC-2/LLP 0087 gates preserve LLP 0014’s authority. The document needs another tightening pass resembling LLP 0079’s habit of distinguishing evidence-derived recommendations, plan-added decisions, normative amendments, and ordinary documentation absorption.
+
+3. **Strengths**
+
+- The ratification boundary is explicit and correct. Lines 34–46 keep app rows, version authority, and journal state in coordinator SQLite and defer door-2 reconsideration to LLP 0014. This matches LLP 0014’s ratified one-way doors (§One-way doors, especially lines 470–488) and LLP 0087’s ratification posture (lines 34–65).
+
+- The evidence-review gate is operational rather than ceremonial (lines 48–68): it defines independent review, disposition of blocking findings, and distinct commitment/publication gates. That is particularly appropriate because LLPs 0082–0085 remain Draft.
+
+- CC-2 is accurately delegated to one detailed authority rather than copied divergently (lines 161–192). Its description of the current deployment is confirmed by `cloudflare/wrangler*.jsonc`, the `snapback-app` imports in `cloudflare/src/gateway.js`, `coordinator.js`, and `handler-worker.js`, and the separate All Aboard `ACTION_HANDLER` binding. The local facet results also match `cloudflare/spike-facets/README.md`, `spike.mjs`, and `gate0-probe-list.md`.
+
+- CC-2 preserves the key distinction between platform-mediated runtime loading and in-isolate `eval`. That faithfully reflects LLP 0014’s premise-change annotation rather than pretending its original rationale disappeared.
+
+- CC-3 is admirably falsifiable. Lines 216–238 name the local and Cloudflare targets separately, preregister the InstantDB observable and timing threshold, and include a failure branch that corrects or withdraws the competitive claim. This matches LLP 0053’s Accepted local contract and its explicit Cloudflare gap at lines 1926–1928. The repository also contains substantial local implementation and acceptance evidence, including authorization-version storage, invalidation wire handling, client quarantine/deletion paths, and retained acceptance receipts.
+
+- The evidence-disposition ledger (lines 396–436) is substantially faithful to the actionable sections of LLPs 0082–0085. Guest auth, streams, provisioning, schema lockdown, pushdown, revocation, Facets/Workflows, alarms, Partyserver, Triplit eviction/schema compatibility, Ditto derivation guidance, Jazz history/branching, Cambria lenses, E2EE, and the named avoidances all receive visible dispositions.
+
+- CC-7 correctly refuses to import unbounded history wholesale. Its decomposition into history reads, losing versions, branching, merge policy, GC, authorization, and portability (lines 327–339) directly addresses LLP 0085’s warning that neither Jazz generation supplies a retention/GC story.
+
+- The status board and sequencing provide a useful program-level view. In particular, CC-1/CC-7 commitment gating and CC-2 Phase-0-only authorization avoid turning unreviewed research into premature architecture commitments.
+
+4. **Concerns**
+
+1. **Major** — CC-1’s required operation set cannot satisfy its own exit criterion or LLP 0087 Phase 2.
+
+   Lines 96–104 define only `create-app`, `push-schema`, `push-permissions`, and `read-capability-manifest`, yet lines 129–136 require a “working app end-to-end.” LLP 0024’s existing local surface includes `functions.load`, confirming that schema alone is not the whole application artifact. More decisively, LLP 0087 Phase 2 says its contract requires create, push-code, and rollback operations and then requires artifact provenance, anti-rollback policy, and schema/code compatibility (LLP 0087 lines 361–396). CC-1 is named as that contract’s owner but does not specify those operations.
+
+   **Resolution:** Define the minimum provisioning state machine and operation set explicitly. At minimum, reconcile create, schema, permissions, function/code artifact publication, version selection, rollback, capability inspection, provenance, authorization, and schema/code compatibility with LLP 0087. State what constitutes a “working app” on local/trusted-local, and add acceptance covering a real generated function invocation after provisioning. If local provisioning and hosted artifact lifecycle are different-sized slices, split CC-1 into ordered subitems.
+
+2. **Major** — CC-8 is not an executable “cheap, docs-only, independently landable” batch as written.
+
+   Lines 343–394 assign thirteen heterogeneous changes the same exit rule: a one-paragraph dated revision or named no-action. Several are normative decisions or modify Accepted authorities: Partyserver posture affects Accepted LLP 0013’s hosted adapter strategy; lossy-alarm wording touches Accepted LLP 0028; schema-lockdown and compatibility policy are routed partly to Accepted LLP 0037; and epoch/version-skew rules affect core runtime assumptions. Rows also use ambiguous joint owners (`0007 / 0008`, `0028 / 0070`, `0008 / 0011`) without saying which document receives which assertion. CC-8.1 is not independent because its toggle must coordinate with CC-1.
+
+   LLP 0079’s analogous SC-3 explicitly distinguishes Accepted from Draft owners and requires the Accepted amendment’s own ratification path. CC-8 omits that discipline.
+
+   **Resolution:** Give every row a precise owner, normative-versus-rationale classification, dependency, concrete amendment text or question to decide, and row-specific exit criterion. Require the owning ratification/review path for changes to Accepted documents. Separate genuinely independent citation/rationale absorptions from decision-bearing amendments, and sequence CC-8.1 with CC-1.
+
+3. **Moderate** — CC-4’s pushdown requirement is broader than the current authorization model and is not adequately scoped.
+
+   Lines 252–256 say “the permission language” must remain compilable into query plans. LLP 0011 currently distinguishes function-level checks from data-visibility rules and only requires analyzability where rules affect sync; opaque rules may instead make a query non-syncable (LLP 0011 lines 169–188). As written, CC-4 could inadvertently prohibit ordinary function-level authorization logic or silently replace the accepted non-syncable fallback.
+
+   **Resolution:** State whether pushdown-compilability applies only to row-visibility/sync-filter rules, and preserve the existing treatment of function-level and opaque authorization unless deliberately re-ratified. Define the required behavior for a rule that cannot be pushed down: rejection, online-only execution, bounded post-filtering, or another explicit capability class.
+
+4. **Moderate** — CC-4’s guest-auth/account-claiming slice is too underspecified for security-sensitive design work.
+
+   “Specified to the point where implementation is docketable” (lines 256–264) is not a checkable exit criterion. The work does not require decisions on guest principal stability, claim proof, existing-account collisions, ownership transfer, concurrent claims, session rotation, audit events, revocation/invalidation, or whether claiming changes durable identity.
+
+   **Resolution:** Add a minimum decision checklist and acceptance scenarios covering identity continuity, proof of claim, collision/link behavior, authorization preservation, concurrent/replayed claims, session handling, auditability, and failure atomicity. Reassess the `S` size or split guest auth from pushdown/default-deny ergonomics.
+
+5. **Moderate** — CC-5 inaccurately describes LLP 0076 as having “just converged.”
+
+   Lines 275–280 use convergence to justify an additive amendment that “does not restart” review. LLP 0076’s current header says it remains Draft after five rounds in which both named reviewer families returned `NOT READY`; its staged-work ledger still lists many contract and implementation gaps. There is no ratifying contract text yet whose review impact this plan can pre-decide.
+
+   **Resolution:** Describe LLP 0076 as an active Draft undergoing review. Integrate the comparison before acceptance, require explicit dispositions for Instant’s resumability, writer, authorization, and retention properties, and leave the owning document’s author/review process to determine whether another focused review is needed.
+
+6. **Moderate** — CC-7 drops one of the research document’s named owning authorities.
+
+   LLP 0085 maps history/branching evaluation to LLP 0007 and LLP 0008 (lines 229–236). CC-7’s status board names only the new RFC and LLP 0008, and its no-pursuit exit records only an LLP 0008 amendment (plan lines 315–339). Storage portability, target capability, export/retention, and provider-PITR dependence are central to the proposed exploration, so omitting LLP 0007 is substantive.
+
+   **Resolution:** Add LLP 0007 as an owning/consulted document and require the RFC or no-action disposition to state whether the portable storage contract changes. If no LLP 0007 amendment is needed, make that an explicit reviewed conclusion.
+
+7. **Minor** — The review/publication gate is precise globally but ambiguous at individual CC-6 claim level.
+
+   CC-6 combines claims supported by LLP 0082, LLP 0084, LLP 0001, and LLP 0074. “Supporting evidence passes review” does not say whether every source supporting a compound sentence must pass, or whether one freshly reverified component permits the whole sentence to publish.
+
+   **Resolution:** Give each publishable claim its own source set, evidence class, checked date, and gate state. Compound claims should publish only when every factual component has cleared its applicable gate.
+
+5. **Suggestions**
+
+- Add a dependency column to the status board. Important dependencies are currently distributed through prose, making CC-1/CC-8/LLP 0087 interactions harder to audit.
+
+- Mark plan-added execution decisions explicitly, following LLP 0079. Examples include CC-3’s probe protocol, CC-4’s stable requirement name, CC-8.1’s proposed toggle, and CC-7’s allowed no-RFC disposition.
+
+- Split CC-6’s competitive triangle into atomic claims. “Functions,” “sync surface,” “physical isolation,” license permissiveness, and completeness of open code have different evidence and may age independently.
+
+- For watch items, add a concrete trigger and an owner for rechecking. The Rivet item already gestures toward this; the same treatment would improve Jazz v2 policy bundles, DO relocation, and Instant BYOP.
+
+- Give CC-2b a named artifact location or exact subsection heading in LLP 0070 so “candidate-assessment note” is mechanically findable.
+
+- Add a brief ledger column distinguishing `evidence-derived`, `plan-added`, `already ratified`, and `watch/no-action`. That would make future corpus maintenance substantially easier.
+
+6. **Open questions**
+
+- What exact artifact set must exist before CC-1 calls a local app “working”: schema and permissions only, or executable functions/code as well?
+
+- Is CC-1 intended to own hosted artifact rollback and provenance, as LLP 0087 currently says, or should that contract live in a separate hosted-control-plane document?
+
+- Does “pushdown-compilability” cover only sync-visible row rules, or every authorization mechanism including function-level checks?
+
+- Will each CC-8 amendment to an Accepted LLP receive a separate author ratification, or are some rows intended to be non-normative evidence notes only?
+
+- Should CC-7 begin with portable history reads and explicitly defer branch/merge, given that the former can build on Snapback-owned machinery while the latter introduces a much larger product and retention surface?
+
+- What review state must LLP 0076 reach before CC-5’s comparison can be considered absorbed without another focused review?
+
+7. **Verdict**
+
+Files verified against: `llp/0086-prior-art-course-corrections.plan.md`; LLPs `0000`, `0001`, `0003`, `0007`, `0008`, `0010`, `0011`, `0013`, `0014`, `0024`, `0028`, `0037`, `0053`, `0070`, `0074`, `0076`, `0079`, `0082`, `0083`, `0084`, `0085`, and `0087`; relevant files under `cloudflare/` including deployment configs, `README.md`, `deploy.sh`, `src/`, and `spike-facets/`; and relevant implementation/tests under `src/`, `tests/`, and `packages/`. No file under `llp/reviews/` was read.
+
+Approximate tool-call count: 15.
+
+Verdict: NOT READY

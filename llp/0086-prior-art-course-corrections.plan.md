@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Deployment, Auth, Sync, Realtime, Storage, Competitive analysis
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-23
-**Revised:** 2026-07-23 (v0.1 — round-1 review revision: governing constraints made operational, CC-2 condensed under LLP 0087's authority, Dynamic Workflows split out as CC-2b, CC-8 documentation batch and the evidence-disposition ledger added, CC-1 dependency chain stated, CC-6 licensing wording corrected)
+**Revised:** 2026-07-23 (v0.1 — round-1 review revision: governing constraints made operational, CC-2 condensed under LLP 0087's authority, Dynamic Workflows split out as CC-2b, CC-8 documentation batch and the evidence-disposition ledger added, CC-1 dependency chain stated, CC-6 licensing wording corrected. v0.2 — post-READY editorial pass after round 2 (Fable READY, Codex NOT READY; applied unreviewed): CC-1 operation set aligned with LLP 0087 Phase 2 and "working app" defined, publication gate extended to LLP 0001-sourced and compound claims, CC-4 pushdown scope bounded and guest-auth decision checklist added, CC-8 rows classified citation-vs-decision-bearing, CC-7 gains LLP 0007, CC-5/CC-3/CC-2b citation and status wording fixes)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0014, LLP 0018, LLP 0019, LLP 0024, LLP 0028, LLP 0033, LLP 0037, LLP 0040, LLP 0053, LLP 0060, LLP 0068, LLP 0070, LLP 0074, LLP 0076, LLP 0079, LLP 0082, LLP 0083, LLP 0084, LLP 0085, LLP 0087, ENG-25387
 
 ## Summary
@@ -58,7 +58,12 @@ dimensions apply, deliberately distinct:
   text, CC-6's batch) do not publish until the supporting evidence passes
   review *or* the claim is re-established by fresh empirical verification
   (CC-3's probe is exactly that). Drafting may begin speculatively; publishing
-  may not.
+  may not. This gate covers LLP 0001-sourced claims too — LLP 0001 is likewise
+  Draft — so CC-6's fragile-suppliers argument and boundary markers publish
+  only once the LLP 0001 synthesis sections they rest on are reviewed or the
+  claims are re-verified against primary sources. A compound claim publishes
+  only when every factual component has cleared its gate; each published claim
+  carries its own source set, evidence-class label, and checked date.
 
 CC-2 is deliberately not review-gated, on two grounds: its load-bearing
 platform facts were independently re-verified into LLP 0014 with dated
@@ -78,7 +83,7 @@ only the information-buying Phase 0 is authorized today.
 | CC-4 | Permission pushdown requirement; auth paved-path design amendments | Design amendment | S | 0011 | Proposed |
 | CC-5 | Streams comparison into bounded streamed actions | Design comparison | S | 0076 | Proposed |
 | CC-6 | Positioning batch | Positioning | S | 0074 | Proposed (claim publication-gated) |
-| CC-7 | Record history/branching exploration | RFC exploration | M | new RFC, 0008 | Proposed (commitment-gated on 0085 review) |
+| CC-7 | Record history/branching exploration | RFC exploration | M | new RFC, 0008, 0007 | Proposed (commitment-gated on 0085 review) |
 | CC-8 | Documentation absorption batch | Doc batch | S | 0003, 0007, 0008, 0011, 0013, 0028, 0037, 0000 | Proposed |
 
 ## Work items
@@ -95,10 +100,15 @@ surface.
 
 **Work.** Specify and build the reachable-from-anywhere provisioning path:
 a provisioning surface whose operations cover create-app, push-schema,
-push-permissions, and read-capability-manifest, honoring
+push-permissions, push-code (function/artifact publication, with version
+selection and rollback — matching the create / push-code / roll-back set
+LLP 0087 Phase 2 requires of this contract, along with its
+artifact-provenance and schema/code-compatibility requirements), and
+read-capability-manifest, honoring
 [LLP 0024](./0024-agent-operating-surface.spec.md)'s operating-surface
 contract and [LLP 0010](./0010-agent-dx-and-acceptance.spec.md)'s acceptance
-bar. The surface spec must decide the projection order (remote MCP first,
+bar. The surface spec must expose the schema-lockdown toggle (CC-8.1's
+safety feature) and must decide the projection order (remote MCP first,
 platform HTTP API first, or both behind one spec — open question 1) before
 implementation starts. Include the smaller absorptions that ride along: docs
 served as `.md`-suffixed URLs, and a skills package.
@@ -127,9 +137,10 @@ served as `.md`-suffixed URLs, and a skills package.
   fallback rules.
 
 **Exit.** (1) An agent with only credentials and the surface endpoint can
-provision a working app end-to-end on the local/trusted-local target,
-demonstrated by an acceptance gate; the hosted equivalent lands with LLP
-0087 Phase 2. (2) LLP 0010/0024 (or the new contract document) revised to
+provision a working app end-to-end on the local/trusted-local target —
+"working" meaning schema, permissions, and function code are all loaded and
+at least one generated function invocation succeeds — demonstrated by an
+acceptance gate; the hosted equivalent lands with LLP 0087 Phase 2. (2) LLP 0010/0024 (or the new contract document) revised to
 specify the surface, with the scope extension explicitly reviewed.
 (3) Docs reachable as `.md`-suffixed URLs, verified by a fetch check in the
 acceptance gate. (4) A skills package installable into an agent's skill
@@ -199,8 +210,9 @@ can carry [LLP 0070](./0070-durable-background-work.rfc.md)'s hosted
 profile (same conformance suite, different substrate). Day-scale time box;
 no implementation.
 
-**Exit.** A dated candidate-assessment note in LLP 0070's hosted-profile
-section: viable / not-viable / blocked-on (with the blocking facts named).
+**Exit.** A dated candidate-assessment note in LLP 0070 (in its
+target-profile material, creating a hosted-profile subsection if needed):
+viable / not-viable / blocked-on (with the blocking facts named).
 Any adoption decision belongs to LLP 0070's own review cadence.
 
 ### CC-3. Revocation-eviction as a proven differentiator (from LLP 0082, 0084)
@@ -216,8 +228,8 @@ readable in a frozen repo (LLP 0084 §Triplit).
 1. Confirm LLP 0053's contract is implemented and acceptance-tested on the
    named targets: the local (Ibex-hosted) target, and the Cloudflare target.
    On Cloudflare the expected result today is a **recorded capability gap**,
-   not a pass — LLP 0053's as-built note says the Cloudflare coordinator
-   currently has no auth machinery — and the item's output there is an
+   not a pass — LLP 0053 records (open question 3) that the Cloudflare
+   coordinator currently has no auth machinery — and the item's output there is an
    honest statement of which targets the differentiator claim covers.
 2. A design read of Triplit's server-driven eviction protocol against
    LLP 0053 — read for design, not reuse (AGPL).
@@ -252,10 +264,21 @@ permission language gets by early design and cannot cheaply retrofit.
 **Work.** Add to LLP 0011: (1) a named requirement —
 **pushdown-compilability**: the permission language must remain compilable
 into query plans — with the current evaluation strategy documented against
-it; any future permission-language implementation spec must cite this named
-requirement (that citation is the checkable carry-forward). (2) Guest auth
+it. The requirement is scoped to row-visibility / sync-filter rules;
+function-level authorization checks and LLP 0011's existing treatment of
+opaque rules (a rule that defeats analysis makes its query non-syncable)
+are untouched unless deliberately re-ratified, and the amendment must name
+the behavior class for a rule that cannot be pushed down (reject,
+online-only, or bounded post-filtering). Any future permission-language
+implementation spec must cite this named requirement (that citation is the
+checkable carry-forward). (2) Guest auth
 with account claiming as a paved-path feature (Instant's best onboarding
-idea), specified to the point where implementation is docketable. (3) An
+idea), specified to the point where implementation is docketable — at
+minimum deciding: guest principal stability and identity continuity across
+claiming, proof of claim, existing-account collision and linking behavior,
+concurrent or replayed claims, session rotation at claim time, audit
+events, interaction with LLP 0053 invalidation, and failure atomicity.
+(3) An
 onboarding-ergonomics note keeping fail-closed defaults while making the
 first rule trivial to write — default-allow is the one Instant choice
 explicitly rejected, and the rejection is stated with its cost
@@ -263,7 +286,8 @@ acknowledged.
 
 **Exit.** LLP 0011 revised with the three items, each as a dated amendment;
 the pushdown requirement exists under a stable name that implementation
-specs can cite.
+specs can cite. The S sizing covers the amendment text; item 2's checklist
+acknowledges that guest-auth design depth is the bulk of it.
 
 ### CC-5. Streams comparison into bounded streamed actions (from LLP 0082)
 
@@ -274,10 +298,11 @@ single-writer channels for LLM token UX, rules default-closed (LLP 0082
 
 **Work.** A comparison subsection in LLP 0076 positioning its design against
 Instant's (resumability model, writer discipline, authorization defaults,
-retention), adopting or explicitly rejecting each property. LLP 0076 has
-just converged through a multi-round review; the subsection lands as a
-clearly additive, dated revision — no change to the ratifying contract text
-— so it does not restart that loop.
+retention), adopting or explicitly rejecting each property. LLP 0076 is an
+active Draft that has been through a multi-round review; the subsection
+lands as a clearly additive, dated revision — no change to the contract
+text that converged through review — and LLP 0076's own review cadence
+decides whether the addition needs a focused re-review before acceptance.
 
 **Exit.** LLP 0076 revised; divergences are named decisions.
 
@@ -336,7 +361,10 @@ treating "history and/or branching" as one product.
 
 **Exit.** A new RFC exists with per-capability recommendations, or a
 decision not to pursue is recorded as a dated amendment to LLP 0008 with
-the demand evidence acknowledged.
+the demand evidence acknowledged. Either outcome states whether
+[LLP 0007](./0007-storage-portability.spec.md)'s portable storage contract
+changes — an explicit no-change conclusion counts, since LLP 0085 names
+LLP 0007 as a co-owner of this evaluation.
 
 ### CC-8. Documentation absorption batch (from LLP 0082–0085)
 
@@ -389,8 +417,24 @@ docs-only, landable independently. Sweep:
     non-goal markers → [LLP 0000](./0000-snapback.explainer.md) (CC-6
     carries the competitive-material half).
 
-**Exit.** Each row landed as a dated revision in its owning LLP, or its
-row here annotated with a named no-action rationale. No row may be closed
+**Row classes and discipline.** Rows divide into two classes with different
+exits. *Citation/rationale absorptions* (rows 6, 8, 9, 10, 11, 12) add
+evidence to rationale text and land directly as dated revisions.
+*Decision-bearing amendments* (rows 1–5, 7, 13) touch normative text or
+record a posture decision, several in Accepted documents (LLP 0013, 0028,
+0037, 0003, 0007); these follow the owning document's dated-amendment
+convention and its author-ratification path — "one paragraph" describes the
+expected size, not an exemption from that path. Joint-owner rows name the
+receiving document per assertion: row 2's vocabulary lands in LLP 0007 with
+the wire-format half cross-referenced from LLP 0008; row 3's
+schedule-table-stays-authoritative statement lands in LLP 0028 with LLP
+0070 cross-referenced; row 10's retreat citations land in each named
+rationale section. Row 1 is not independent: it sequences with CC-1, whose
+surface spec carries the lockdown-toggle requirement.
+
+**Exit.** Each row landed as a dated revision in its owning LLP (through
+the owning ratification path for decision-bearing rows), or its row here
+annotated with a dated, named no-action rationale. No row may be closed
 silently.
 
 ## Evidence-disposition ledger
@@ -439,9 +483,11 @@ marked *covered* cite where the existing corpus already holds the point.
 
 - **Now:** CC-2's residue (ENG-25387 closure; LLP 0087 Phase 0 step 1b) —
   the spike itself is already executing under LLP 0087; CC-4 item 1
-  (pushdown requirement — hardest to retrofit); CC-8 (cheap, docs-only,
-  each row independent).
-- **Next:** CC-2b (bounded, day-scale), CC-3 (mostly verification and
+  (pushdown requirement — hardest to retrofit); CC-8 (docs-only; rows
+  independent except CC-8.1, which sequences with CC-1).
+- **Next:** CC-4 items 2–3 (the guest-auth and onboarding amendments ride
+  the same LLP 0011 revision cycle but are not time-sensitive the way
+  item 1 is), CC-2b (bounded, day-scale), CC-3 (mostly verification and
   reading; claim publication gated), CC-5 (rides LLP 0076's active
   design).
 - **Commitment-gated:** CC-1 and CC-7 wait for `llp-review` over their
@@ -494,7 +540,10 @@ grounding in LLP 0082–0085 and LLP 0001.
 
 Draft. Written 2026-07-23 to convert the LLP 0082–0085 research (plus the
 LLP 0001 survey batch) into an actionable program without changing any
-ratified decision. Revised same day after round-1 multi-family review
-(artifacts under `llp/reviews/`). Items become real work through the normal
-LLP 0032-style docket path; this plan should be revised as items land, are
-rejected, or as the review-gated evidence documents pass or fail review.
+ratified decision. Two multi-family review rounds same day (artifacts under
+`llp/reviews/`): round 1 Fable NOT READY / Codex NOT READY, revised; round
+2 Fable READY / Codex NOT READY, followed by the v0.2 post-READY editorial
+pass absorbing both reviewers' remaining concerns (applied unreviewed).
+Items become real work through the normal LLP 0032-style docket path; this
+plan should be revised as items land, are rejected, or as the review-gated
+evidence documents pass or fail review.
