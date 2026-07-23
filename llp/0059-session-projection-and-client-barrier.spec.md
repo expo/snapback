@@ -5,7 +5,13 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Client integration, Contract, Exact, Security, Backup/restore, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-17 (authorization-reservation frontier closure: the SQLite data head and durable authorization witness used by one reservation are read as one snapshot-bound pair, never synthesized across commits). 2026-07-17 (Contract durable-confirmation closure: an exposed
+**Revised:** 2026-07-23 (sender-bound amendment, per the LLP 0077 author
+decisions: `BoundGrantAuthorityV2` — the session arm gains the custody key's
+JWK thumbprint and the `sender_replay_epoch` at issuance, with exact-tuple
+equality and revocation/epoch invalidation; V1 grants stay valid only on
+non-sender-bound lanes. The browser custody record's V3 sender extension is
+owned by LLP 0077 §The closed AuthCustodyV3 schema; `AuthCustodyV2` here
+remains the closed non-sender format). 2026-07-17 (authorization-reservation frontier closure: the SQLite data head and durable authorization witness used by one reservation are read as one snapshot-bound pair, never synthesized across commits). 2026-07-17 (Contract durable-confirmation closure: an exposed
 local custody record remains the fail-closed blanking witness even after a
 clearing wakeup pre-pauses publication; the local cut snapshots participants
 behind completion, isolates every quiesce/blank/clear failure, preserves the
@@ -975,6 +981,24 @@ a superseded family token is honored inside its inclusive ten-second grace,
 fails `SNAPBACK_AUTH_CREDENTIAL_SUPERSEDED` outside grace, and cannot be used to
 refresh a delegated connection capability.
 
+### BoundGrantAuthorityV2 — sender-bound grants (amendment 2026-07-23)
+
+On sender-constrained lanes (LLP 0077), the session arm is versioned to
+`BoundGrantAuthorityV2`: it extends the V1 session variant with exactly two
+immutable identity fields — `senderThumbprint` (the custody P-256 key's JWK
+thumbprint, 32-byte base64url) and `senderReplayEpochAtIssuance` (the durable
+`sender_replay_epoch` current when the grant was minted). Equality is
+exact-tuple over the V1 identity fields plus both new fields (the mutable
+`deadlineMs` lease stays excluded, as in V1). The grant invalidates — no reuse,
+no renewal — when the thumbprint's custody family is revoked or when
+`sender_replay_epoch` advances past the issuance value; either condition
+closes the grant exactly like an authority mismatch. The anonymous and
+service-principal arms are unchanged. V1 session grants remain valid only on
+non-sender-bound lanes; a sender-constrained lane MUST refuse to mint or
+honor a V1 session grant. The wire/custody half of this shape is owned by
+LLP 0077 (§Author decisions item 6); this section is the registry-side
+authority it amends.
+
 ### Reuse and mismatch
 
 The existing `previousToken` optimization is idempotent only when its stored
@@ -1661,7 +1685,11 @@ a late tab overwrite a successor credential.
 
 ### Durable custody record
 
-The coordinator's closed durable record is:
+The coordinator's closed durable record is below. (2026-07-23: the
+sender-constrained `formatVersion: 3` extension — `senderConstraint` and
+`pendingSenderConstraint` — is owned by LLP 0077 §The closed AuthCustodyV3
+schema; `AuthCustodyV2` remains the closed non-sender format, and v3 shells
+settle back to anonymous v2 on logout.)
 
 ```ts
 type AuthCustodyV2 = {

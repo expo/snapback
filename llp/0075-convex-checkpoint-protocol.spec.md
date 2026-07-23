@@ -49,8 +49,8 @@ checkpoint before implementation changes the surfaces it measures. It is the
 delegated protocol slice anticipated by LLP 0063, not a replacement for LLP
 0063's program-wide comparison protocol. The machine-readable authority is
 [`demos/competitive-checkpoint/acceptance/protocol.v0.json`](../demos/competitive-checkpoint/acceptance/protocol.v0.json)
-(amendment v0.3, sha256
-`930adc07655bb32886eb731973951f8b96145c4c33e4e22dae4f608ff8597fa8`; a change
+(amendment v0.4, sha256
+`0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4`; a change
 to that file requires a dated amendment entry there and a refreshed pin here).
 Current implementation evidence and nonclaims live in
 [`implementation-status.v0.json`](../demos/competitive-checkpoint/acceptance/implementation-status.v0.json);

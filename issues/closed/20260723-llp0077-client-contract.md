@@ -1,6 +1,6 @@
 # DECISION: close the client contract — AuthCustodyV3, grant shape, logout recovery, cover nonce, downgrade, WS state machine
 
-**Status:** Open (all six forks decided 2026-07-23 — LLP 0077 §Author decisions items 2-7; residual work: draft the closed AuthCustodyV3 schema text and the LLP 0059 BoundGrantAuthorityV2 amendment)
+**Status:** Resolved (2026-07-23 — all six forks decided AND the two schema residuals landed: LLP 0077 §The closed AuthCustodyV3 schema + LLP 0059 §BoundGrantAuthorityV2 amendment)
 **Severity:** P1
 **Systems:** Auth, Browser client, WebSocket, Control plane
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -58,3 +58,30 @@ LLP 0059 amendment for BoundGrantAuthorityV2 (rides
 20260723-llp0077-grant-binding.md, which is now unblocked). Coordinate the
 schema text with the in-flight custody implementation
 (packages/snapback-contract/auth-custody-indexeddb.mjs).
+
+## Final resolution (2026-07-23, session 1681e9d6)
+
+The two drafting residuals landed the same day as the decisions:
+
+- **AuthCustodyV3**: complete closed schema in LLP 0077 §The closed
+  AuthCustodyV3 schema — exact 13-member top level (11 for v2),
+  deny-unknown-fields at every level, ClientAuthority/TransitionIntent/
+  SenderConstraint grammars, per-phase invariants, the CAS replacement
+  algebra (revision +1 exactly, epoch +0/+1, fresh = epoch 0 revision 1,
+  minimum settled revision 2e+1), the storage binding, and the seven
+  client-observable states with their full transition set. Verified
+  field-for-field against the in-flight reference implementation
+  (packages/snapback-contract/auth-coordinator.mjs, validateAuthCustody /
+  validateAuthCustodySenderKeys) so the Spec and the code being built agree;
+  the durable encoding needs only the three phases, and the seven decided
+  states are defined as the observable machine over them.
+- **BoundGrantAuthorityV2**: dated amendment in LLP 0059 §BoundGrantAuthorityV2
+  — session arm + senderThumbprint + senderReplayEpochAtIssuance, exact-tuple
+  equality (deadline excluded), revocation/epoch invalidation, V1 valid only
+  on non-sender lanes, sender-constrained lanes refuse V1 session grants.
+  20260723-llp0077-grant-binding.md (defect 2) now has its full contract.
+
+A second client is buildable from LLP 0077 alone. The WS state machine,
+tombstone, cover nonce, and downgrade decisions were pinned in the earlier
+batch (§Author decisions items 2-5); their implementations remain ledger
+defects owned by the program's defect tickets.

@@ -1,8 +1,8 @@
 {
   "schemaVersion": "snapback.competitive-checkpoint.implementation-status.v0",
   "protocol": "llp-0075-convex-checkpoint-v0",
-  "protocolVersion": "v0.3",
-  "protocolSha256": "930adc07655bb32886eb731973951f8b96145c4c33e4e22dae4f608ff8597fa8",
+  "protocolVersion": "v0.4",
+  "protocolSha256": "0de15357509244c7bbbaacf34b325d7460cae20582b3da88340417bd8d6880a4",
   "adjudicatedProtocolVersion": "v0",
   "recordedAt": "2026-07-22",
   "revisedAt": "2026-07-23",

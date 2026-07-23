@@ -741,14 +741,143 @@ successor credential or nonce. A stale tab may request a retry but cannot
 overwrite current custody.
 
 `AuthCustodyV3` is the closed `AuthCustodyV2` shape plus
-`senderConstraint` and `pendingSenderConstraint`. Each non-null constraint is
-exactly `{formatVersion, protocol, custodyGeneration, privateKey, publicJwk,
-thumbprint, nonce}`; nonce is exactly `{value, generation, expiresAtMs}`.
-Settled v3 sessions have only `senderConstraint`; clearing has only
-`pendingSenderConstraint`; anonymous and exhausted records have neither.
-Transition-intent v2 binds the pending thumbprint (or the explicit delete
-marker) into its transition id. Logout settles to anonymous `AuthCustodyV2`
-after the v3 clearing cut, so no secret-free v3 shell remains.
+`senderConstraint` and `pendingSenderConstraint`. The complete closed schema
+follows in the next section; the summary rules are: settled v3 sessions have
+only `senderConstraint`; clearing has only `pendingSenderConstraint`;
+anonymous and exhausted records have neither. Transition-intent v2 binds the
+pending thumbprint (or the explicit delete marker) into its transition id.
+Logout settles to anonymous `AuthCustodyV2` after the v3 clearing cut, so no
+secret-free v3 shell remains.
+
+### The closed `AuthCustodyV3` schema (landed 2026-07-23)
+
+This section discharges §Author decisions item 7: it is the complete closed
+custody schema for an independent client, verified field-for-field against the
+reference implementation
+(`packages/snapback-contract/auth-coordinator.mjs`,
+`validateAuthCustody`/`validateAuthCustodySenderKeys`, in flight 2026-07-23).
+Validation is deny-unknown-fields at every level: a record with a missing,
+extra, or malformed member is **corrupt** in its entirety, and recovery from
+corruption is deletion-only — no partial repair.
+
+**Grammars used below.** `Base64Url32` = 43 characters of
+`[A-Za-z0-9_-]` (32 bytes, unpadded). `AuthorityKey` = `sha256:` plus 64
+lowercase hex. `UuidV7` = canonical lowercase UUIDv7. `SafeInt` = an integer
+in the JS safe range; `SafeInt⁺` additionally ≥ 1. App ids are non-empty,
+already-normalized strings (no trimming is performed at validation).
+
+**Top level.** A `formatVersion: 3` record has exactly these thirteen members
+(a `formatVersion: 2` record has exactly the first eleven — v2 remains a valid
+custody format on non-sender lanes):
+
+| Member | Type |
+| --- | --- |
+| `formatVersion` | `2` or `3` |
+| `appId` | canonical app id; must equal the owning app |
+| `authorityEpoch` | `SafeInt` ≥ 0 |
+| `revision` | `SafeInt⁺` |
+| `phase` | `"settled"` \| `"clearing"` \| `"exhausted"` |
+| `authority` | `ClientAuthority` or `null` |
+| `pendingAuthority` | `ClientAuthority` or `null` |
+| `bearer` | non-empty string or `null` |
+| `pendingBearer` | non-empty string or `null` |
+| `refreshAfterMs` | `SafeInt` ≥ 0 or `null` |
+| `transitionIntent` | `TransitionIntent` or `null` |
+| `senderConstraint` | `SenderConstraint` or `null` (v3 only) |
+| `pendingSenderConstraint` | `SenderConstraint` or `null` (v3 only) |
+
+**`ClientAuthority`.** Anonymous is exactly
+`{kind: "anonymous", authMode, authorizationStreamIncarnation}`; session is
+exactly `{kind: "session", authMode: "sessions", authorizationStreamIncarnation,
+sessionId, userId}`. `authMode ∈ {"dev", "sessions"}`;
+`authorizationStreamIncarnation`, `sessionId`, and `userId` are `UuidV7`. The
+canonical authority key is `sha256:` over
+`snapback.auth-authority.v1\n` + the JSON of the ordered
+`{appId, kind, authMode, authorizationStreamIncarnation[, sessionId, userId]}`
+object.
+
+**`TransitionIntent`.** Version 1 is exactly `{formatVersion: 1, transitionId,
+expectedEpoch, expectedAuthorityKey, nextEpoch, nextAuthorityKey, reason,
+disposition, previousAuthority, nextAuthority}`; version 2 adds exactly
+`senderConstraintThumbprint` (`Base64Url32` or `null`, where `null` is the
+explicit delete marker). `nextEpoch = expectedEpoch + 1`; both authority keys
+match `AuthorityKey` and must equal the canonical keys of the embedded
+`previousAuthority`/`nextAuthority`; `reason` is a non-empty string;
+`disposition ∈ {"delete", "preserve"}`. The transition id is `sha256:` over
+`snapback.auth-transition.v1\n{appId}\n{predecessorRevision}\n{nextEpoch}\n{nextAuthorityKey}`
+for v1, and over
+`snapback.auth-transition.v2\n…\n{senderConstraintThumbprint ?? "delete"}`
+for v2.
+
+**`SenderConstraint`.** Exactly `{formatVersion: 1, protocol:
+"snapback.sender-constrained.v2", custodyGeneration, privateKey, publicJwk,
+thumbprint, nonce}`. `custodyGeneration` is `SafeInt⁺`. `privateKey` is a
+live non-extractable ECDSA P-256 `CryptoKey` with usages exactly `["sign"]`.
+`publicJwk` is exactly `{crv: "P-256", kty: "EC", x, y}` with `x`/`y`
+`Base64Url32`. `thumbprint` is `Base64Url32`. `nonce` is exactly
+`{value, generation, expiresAtMs}` with `value` `Base64Url32` and the numbers
+`SafeInt⁺`. On every load, acceptance of a stored private-key handle
+additionally requires a live signature binding it to the exact `publicJwk`
+and `thumbprint` (see the earlier custody rules); a mismatch is corruption.
+
+**Per-phase invariants.**
+
+- `exhausted`: every nullable member is `null` — no publishable authority or
+  credential state survives.
+- `settled`: `authority` non-null; `pendingAuthority`, `pendingBearer`, and
+  `pendingSenderConstraint` are `null`. Anonymous settled custody has `null`
+  `bearer`, `refreshAfterMs`, and `senderConstraint`. Session settled custody
+  has non-null `bearer` and `refreshAfterMs`, and in v3 a non-null
+  `senderConstraint`. A retained `transitionIntent` must be the one that
+  produced this state: `nextEpoch = authorityEpoch`, `nextAuthorityKey` = the
+  canonical key of `authority`, same embedded authority; in v3 it must be
+  version 2 with `senderConstraintThumbprint = senderConstraint.thumbprint`.
+- `clearing`: `authorityEpoch ≥ 1`; `authority`, `bearer`, and
+  `senderConstraint` are `null`; `pendingAuthority` non-null (the successor
+  credentials may be staged in `pendingBearer`/`pendingSenderConstraint`);
+  `transitionIntent` non-null with `nextEpoch = authorityEpoch` and
+  `nextAuthorityKey` binding `pendingAuthority`, and its `transitionId` must
+  equal the derivation over `predecessorRevision = revision − 1 ≥ 1`.
+
+**Replacement algebra.** Fresh custody begins at exactly
+`{authorityEpoch: 0, revision: 1}`. Every replacement is a compare-and-swap
+that advances `revision` by exactly one and advances `authorityEpoch` by zero
+or one; any regression or skip is corruption. The minimum revision of a
+settled record at epoch `e` is `2e + 1`, and at that minimum the retained
+transition id is derivable from `revision − 2` — validators check it.
+
+**Storage binding (browser reference).** IndexedDB database
+`snapback-auth-custody` version 1 with object stores `custody` and `leases`;
+ownership via Web Locks (`snapback-auth-custody:{appId}`, exclusive) or the
+transactional lease fallback (`{holderNonce: 22-char base64url,
+fencingToken: SafeInt⁺, expiresAtMs: SafeInt}`, 5 s lease, 1 s renew);
+custody CAS and lease validation share one transaction domain. A second
+client may substitute an equivalent transactional store; the closed record
+schema and the replacement algebra are the portable contract.
+
+**The seven client-observable states.** The decided state set
+(§Author decisions item 7) is the client-observable machine over this closed
+record — the durable encoding needs only the three phases, and the remaining
+states are validation and runtime conditions, deliberately not stored:
+
+| State | Definition over the record |
+| --- | --- |
+| `anonymous` | `settled` ∧ `authority.kind = "anonymous"` |
+| `active` | `settled` ∧ `authority.kind = "session"` (v3: with its sender constraint) |
+| `pending` | `clearing` ∧ `pendingAuthority.kind = "session"` — a session acquisition cut over, successor issuance staged or in flight |
+| `clearing` | `clearing` ∧ `pendingAuthority.kind = "anonymous"` — a logout/downgrade cut |
+| `corrupt` | any record failing this schema (including sender-key liveness) — never operated on, deletion-only exit |
+| `migrating` | client holds a valid v2 record on a sender-constrained lane — exits only through a fresh v2 exchange producing a v3 record (bearer upgrade-in-place is prohibited) |
+| `recovery` | `exhausted`, or the post-`corrupt` deletion path — only ordinary re-authentication exits |
+
+Transitions: `anonymous → pending` (begin session acquisition; epoch +1 cut),
+`pending → active` (settle with issued credentials), `active → clearing`
+(logout/downgrade; epoch +1 cut), `clearing → anonymous` (settle the cut;
+v3 shells settle to anonymous v2), `active → pending` (re-issuance cut for
+the same principal), any → `corrupt` (validation failure), `corrupt →
+recovery` (delete), `recovery → pending` (re-authenticate), `migrating →
+pending` (fresh v2 exchange). Every arrow that touches the durable record is
+one CAS replacement obeying the algebra above; no other transition exists.
 
 ## Credential classes
 
@@ -881,9 +1010,10 @@ client-contract ticket.
    `anonymous`, `pending`, `active`, `clearing`, `corrupt`, `migrating`,
    `recovery` — and explicit transitions, replacing the insufficient "V2
    plus" description. LLP 0059's premature "closed" claim is reconciled by its
-   amendment pointing here as the owning schema. Drafting is spec work in
-   `20260723-llp0077-client-contract.md`; a second client is buildable from
-   this Spec alone only when that schema text lands.
+   amendment pointing here as the owning schema. The schema text landed the same
+   day — see §The closed `AuthCustodyV3` schema (landed 2026-07-23); the
+   seven states are realized as the client-observable machine over the
+   three-phase durable record, exactly as that section defines.
 
 ## Open questions
 
