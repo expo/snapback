@@ -5,8 +5,8 @@
 **Systems:** Background work, Actions, Webhooks, Cron, Storage, Runtime, Auth, Secrets, Deployment, Admin, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 (initial proposal for LLP 0063's hosted application platform)
-**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0018, LLP 0028, LLP 0036, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0063, LLP 0069
+**Revised:** 2026-07-23 (LLP 0086 CC-2b: dated candidate-assessment note added under §Capability classes — can Cloudflare Dynamic Workflows carry this RFC's hosted profile; verdict blocked-on, with the blocking facts named — plus the alarms-are-lossy cross-reference to LLP 0028's same-day amendment; assessment only, no adoption language). 2026-07-20 (initial proposal for LLP 0063's hosted application platform)
+**Related:** LLP 0003, LLP 0004, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0018, LLP 0028, LLP 0036, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0063, LLP 0069, LLP 0083, LLP 0086, LLP 0087
 
 ## Summary
 
@@ -259,6 +259,85 @@ generic claim/lease/retry machinery.
 `durable-work-single-process-v1` requires `SingleProcess` or better. A local
 in-memory queue is never durable evidence. Multi-worker and hosted-managed
 claims are independent and cannot be inferred from the single-process proof.
+
+### Hosted profile candidate: Dynamic Workflows — candidate assessment (2026-07-23)
+
+Recorded per LLP 0086 CC-2b. This is an assessment only — no
+implementation, no adoption language; any adoption decision belongs to
+this RFC's own review cadence.
+
+**Candidate.** Cloudflare's Dynamic Workflows (announced 2026-05-01)
+extends the Dynamic Workers / Worker Loader family to durable execution
+with per-tenant, runtime-loaded workflow definitions, on the same Durable
+Object substrate Cloudflare builds its own Queues and Workflows products
+on (LLP 0083 §Dynamic Workers and DO Facets, §The realtime layer).
+LLP 0083 names it "a platform-native candidate substrate" for this RFC's
+hosted profile — which in the classes above would be a `HostedManaged`
+mapping: an external managed engine carrying this contract while
+reporting its own lease, retention, and delivery limits. Dynamic Workers
+has published pricing with billing since 2026-05-26
+($0.002/dynamic-worker/day beyond 1,000/month, standard request/CPU
+rates, paid plans only), and current platform docs carry no beta caveats
+(LLP 0087 §Phase 0 progress note, 2026-07-23).
+
+**Verdict: blocked-on.** The candidacy is plausible — durable execution
+from the platform itself, on the DO substrate the hosted target already
+ratified — and Dynamic Workflows should remain the named candidate for
+the hosted profile. But nothing required to call it viable exists yet.
+The blocking facts:
+
+1. **This RFC is Draft.** There is no accepted contract for any substrate
+   to carry, and this RFC's own boundary rule bars capability claims
+   while it is Draft. The §Acceptance conformance corpus exists only as
+   prose: no executable suite, and no
+   `durable-work-single-process-v1` receipt to serve as the reference
+   evidence a hosted mapping must match.
+2. **No conformance-suite run on the substrate.** The hosted-profile rule
+   in the §Summary — same conformance suite, different substrate, with
+   the target's own leases/retention/delivery limits reported — has been
+   exercised on nothing, Dynamic Workflows included.
+3. **Contract mapping unresolved.** The load-bearing mechanics of this
+   contract have no known Dynamic Workflows expression: transactional
+   enqueue in the same database transaction as the producing mutation's
+   writes (app data lives in the coordinator DO's SQLite per LLP 0087's
+   door-1 invariant, so a cross-substrate enqueue needs an outbox-shaped
+   answer that preserves the roll-back-together acceptance bar); fenced
+   leases with strictly increasing per-job tokens and stale-publication
+   rejection; state-version CAS transitions; artifact-digest pinning with
+   deployment compatibility manifests; bounded retry with deterministic
+   jitter; cooperative cancellation; dead-letter replay with audit.
+   LLP 0083 records Dynamic Workflows' existence and positioning, not its
+   execution semantics; no measurement of the engine against these
+   requirements exists.
+4. **Durability/retry semantics unmeasured against the no-silent-drop
+   bar.** The underlying platform timer is lossy: a Durable Object holds
+   a single in-flight alarm, retried with exponential backoff about six
+   times, then **silently dropped** (LLP 0083 §Limits and economics;
+   recorded as LLP 0028 §Cloudflare's dated amendment, 2026-07-23, which
+   keeps the durable schedule table authoritative). Workflows runs on
+   that same substrate; whether its engine masks the lossiness into the
+   at-least-once, recorded-never-dropped delivery this RFC requires is
+   unverified. This paragraph is also this RFC's platform-timer
+   cross-reference: the single-process profile carries no platform-timer
+   dependency, and any hosted mapping must treat a platform timer as a
+   lossy wakeup over the durable job table, never as the delivery
+   guarantee.
+5. **Platform status and gating facts unsettled.** The published pricing
+   is recorded but unvalidated by measurement; no dated GA determination
+   is recorded in LLP 0014, which LLP 0087 requires before any external
+   platform-status claim affects a gate; and runtime code loading engages
+   LLP 0014's ratified door 2 (bundle loading is deploy-time, never
+   runtime eval), which stands in force pending LLP 0014's own
+   re-ratification (LLP 0087 §Ratification posture; LLP 0086 governing
+   constraint 1).
+
+**What would unblock a real evaluation:** this RFC leaving Draft with the
+conformance suite executable and the single-process receipt in hand;
+LLP 0014's dated GA determination and door-2 disposition; then a
+measured mapping exercise (enqueue transactionality, fencing, retry
+policy, artifact pinning) on the real platform — sequenced with
+LLP 0087's facets track, which explicitly names Dynamic Workflows
+adoption a non-goal assessed here.
 
 ## Acceptance
 

@@ -1,6 +1,6 @@
 # CC-2b: Dynamic Workflows as LLP 0070 hosted-profile candidate — assessment note
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0070 §Capability classes gains the candidate assessment: verdict blocked-on with five named blocking facts (LLP 0070 Draft/no executable suite, no substrate run, contract mapping unresolved, durability unmeasured vs no-silent-drop, platform status ungated); Dynamic Workflows stays the named candidate)
 **Severity:** P3
 **Systems:** Durable execution, Deployment
 **Author:** Claude (Fable), directed by Charlie Cheever

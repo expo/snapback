@@ -5,7 +5,7 @@
 **Systems:** Cron, Runtime, Realtime, Data gateway, Deployment, Security, Developer experience, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-06-30
-**Revised:** 2026-07-17 (local definition generations and run sequences are terminal, JavaScript-safe identities; exhaustion refuses before ownership/nominal mutation, durable counter corruption fails startup, and failure telemetry saturates). 2026-07-16 (Cloudflare cron status now separates its public bounded outcome/code projection from authenticated operator detail; the diagnostic code is persisted independently and public classification is never parsed from error text); 2026-07-15 (ENG-25006: vendored Ibex now keeps pending fetch work visible until its runtime callback is published; the ENG-24530 settlement-floor precedence remains a defense-in-depth caller contract); 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
+**Revised:** 2026-07-23 (dated amendment per LLP 0086 CC-8 row 3: §Cloudflare records that platform alarms are treated as lossy — single in-flight per-object alarm, ~six backoff retries, then silent drop (LLP 0083) — and that the durable schedule table remains authoritative; this confirms the existing wakeup-vs-durable-runner stance and sharpens the retry bullet, which noted the ~6-attempt backoff but not the terminal silent drop; cross-referenced with LLP 0070). 2026-07-17 (local definition generations and run sequences are terminal, JavaScript-safe identities; exhaustion refuses before ownership/nominal mutation, durable counter corruption fails startup, and failure telemetry saturates). 2026-07-16 (Cloudflare cron status now separates its public bounded outcome/code projection from authenticated operator detail; the diagnostic code is persisted independently and public classification is never parsed from error text); 2026-07-15 (ENG-25006: vendored Ibex now keeps pending fetch work visible until its runtime callback is published; the ENG-24530 settlement-floor precedence remains a defense-in-depth caller contract); 2026-07-14 (ENG-24530: the host-call-free completion generation fence also arbitrates the settlement-floor result, so a spurious `SNAPBACK_HANDLER_DID_NOT_SETTLE` from the vendored Ibex fetch-completion window cannot mask a real `SNAPBACK_ACTION_GENERATION_CONFLICT`; watchdog timeout precedence preserved; earlier: 2026-07-13 ENG-24565/ENG-24569: scheduled nominals are consumed at claim time, allow-overlap owns multiple run ids, logical-job ownership survives schedule replacement while outcomes remain generation-bound, cron dispatch is bounded-concurrent, and detached native action workers have a hard admission ceiling; earlier: 2026-07-12 ENG-24340 final review follow-up: detached host-call instance-lock and commit-gate acquisition are deadline/abandon-aware; HostPlan/data iteration and buffered-write application poll lifecycle outside the gate, whose only owner is the final SQLite commit, so a wedged mutex or data-dependent plan cannot strand the watchdog; ENG-24340 review follow-up: the outer detached action now carries its staging app generation; every later host call, including an in-lock host-plan mutation, and the final successful completion fence reject schema/function/reset drift; ENG-24340: nested Ibex mutations execute against an isolated, staging-time schema/read view outside the instance mutex, commit rejects app-generation drift, abandonment is linearized at their bounded commit gate, and Hermes async-break time limits terminate CPU-bound action/nested VMs without leaking workers; ENG-24343/ENG-24348/ENG-24367/ENG-24369: Cloudflare scheduler state uses a recoverable lease plus commit-coupled nested-mutation replay, manual run-now stays outside that ledger, pre-reset actions are generation-fenced, and strict-next cadence after missed ticks is regression-pinned; ENG-24356: persisted scheduler state is format-versioned and incompatible/corrupt durable shapes fail closed without overwrite; earlier: 2026-07-11 ENG-23840 / ENG-23841 / ENG-23626: §Scale-to-zero
 tension gains the deliberate real-Cloudflare All Aboard no-subscriber proof:
 the operational credential path was restored, five zero-demand observations
 established the reset/disarm boundary, and a settled two-hour pure window
@@ -34,7 +34,7 @@ decision table's DO-alarm row. The minute Cron Trigger + demand check remains
 the named fallback, taken only with its idle invocation rate measured and
 declared in the capability manifest. The All Aboard source cadence comments
 were corrected in the same change); 2026-07-07 (ENG-23417: §Scheduler state: validation-rejected jobs hold no runtime state — a redeploy that fails validation drops the job's previously-earned state in `reconcile`, manual run-now refuses rejected jobs with `SNAPBACK_CRON_JOB_INVALID`, and `claim_due_runs` claims only from schedule-hash-matching state; closes the loophole where a stale nominal made a rejected job execute, or with an invalid expression re-execute every tick); 2026-07-07 (ENG-23324: §Execution: the action class gains the as-built detached-execution note — server-triggered Ibex actions are staged under the global mutex but run off it on a watchdogged thread with per-host-call lock reacquisition; cron ticks claim under the lock, execute detached, and finish under the lock; `action_wall_clock_timeout` reports Enforced); 2026-07-01 (LLP 0032 L5: §Scheduler state gains the idle-cost contract — persist only on change, and skip the global lock when no job is armed, so an idle local instance has no periodic disk writes; status → Accepted, ratified in the LLP 0032 R1 batch: cron shipped per this design — duration-record and retry gaps tracked as LLP 0032 S5.D8 and the test-debt register, DK-6 open; Cloudflare-friendly refinement: All Aboard now uses a 60s read-through/minute-refresh default; Cron still supports sub-minute target capabilities but no longer treats a sub-minute DO alarm as All Aboard's baseline); 2026-07-02 (DK-6, ratified by Charlie and ledgered in LLP 0000: §Calendar expression semantics ratifies POSIX OR day-of-month/day-of-week matching — a breaking change from the initial AND behavior — and unsatisfiable expressions now fail validation instead of silently never firing; same day, the unimplemented `retry: backoff` mode is rejected fail-closed at validation); 2026-07-02 (ENG-22604: §Inspection and query surface documents the epoch-0 interval anchor and the display rule — armed past-due times render as "due now" and not-armed next times render as absent, never as an epoch wall-clock date)
-**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027, LLP 0040, LLP 0049, LLP 0050
+**Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0008, LLP 0009, LLP 0010, LLP 0014, LLP 0017, LLP 0027, LLP 0040, LLP 0049, LLP 0050, LLP 0070, LLP 0083, LLP 0086
 
 ## Summary
 
@@ -757,6 +757,46 @@ Consequences the local model doesn't surface:
 - **Determinism doesn't transfer.** The frozen-clock + manual-tick bar is a
   local/Ibex capability; the CF profile reports it as a capability gap (or uses a
   Snapback-injected clock shim).
+
+#### Amendment (2026-07-23): platform alarms are lossy; the durable schedule table stays authoritative
+
+Recorded per LLP 0086 CC-8 row 3, from the LLP 0083 Cloudflare prior-art
+pass. Cloudflare documents a Durable Object as holding a **single**
+in-flight per-object alarm — the only idle-compatible timer — with
+at-least-once execution, exponential-backoff retry of a throwing handler up
+to about six attempts, and, the fact this amendment adds to the retry
+bullet above, a **silent drop after the sixth failed retry**
+(LLP 0083 §Limits and economics, confirmed there against the platform
+alarms/lifecycle docs). A platform alarm is therefore a lossy wakeup hint,
+never a delivery guarantee: after the retry chain exhausts, the platform
+stops retrying and reports nothing.
+
+**This is confirmation of the existing stance, not a change to it.** This
+document already implies the posture: this section holds that a Cron
+Trigger or alarm is only a wakeup, never a complete job, and that the
+ledger, claim, and no-overlap always live in the durable runner;
+§Scheduler state's as-built Cloudflare protocol keeps nominal slots,
+lease-backed claims, and recovery in the Coordinator DO's SQLite;
+§Delivery's missed-tick rule runs once on recovery from durable state; and
+the resolved runner/storage open question already bars any topology that
+"silently revert[s] to wakeup-owned execution." What the amendment pins is
+the platform-side consequence: because the alarm's own retry chain can end
+in a silent drop, **the durable schedule table remains the sole authority
+for what is due**. Every wakeup — a re-armed alarm, a Cron-Trigger
+dispatch, demand re-arming, manual tick, or crash recovery — must derive
+due work from the table, and alarm arming must be reconciled *from* the
+table (as the implemented demand-aware alarm reconciliation does), so a
+dropped alarm delays work until the next wakeup rather than losing it. A
+projection that let the platform alarm itself carry schedule state would
+inherit the silent drop and violate the no-silent-drop rule
+(LLP 0000 §Lessons from Valet).
+
+Cross-reference: [LLP 0070](./0070-durable-background-work.rfc.md)
+(durable background work) takes the same posture for its job machinery —
+`availableAt`, claims, and leases live in the durable job table, and any
+hosted timer can only be a lossy wakeup over that table. LLP 0070's
+Dynamic Workflows candidate assessment (dated 2026-07-23, per LLP 0086
+CC-2b) carries the substrate-side view of the same finding.
 
 ### Scale-to-zero tension and demand-gated polling
 
