@@ -223,6 +223,11 @@ def check(root):
             text = read_text(full)
             if text is None:
                 continue
+            if "@generated" in text.split("\n", 1)[0]:
+                # A committed generated artifact is not authored source: its
+                # annotations cite its generator's own corpus (possibly a
+                # different repo), like build outputs and source maps.
+                continue
             n_files += 1
             for lineno, rest in collect_refs(rel, text):
                 n_refs += 1
