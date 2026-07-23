@@ -27,6 +27,13 @@ const inventories = [
     expectedFiles: ['mcp-control.test.mjs', 'package.test.mjs'],
   },
   {
+    id: '@snapback/vite',
+    packageDir: 'packages/snapback-vite',
+    testDir: '.',
+    suffix: '.test.mjs',
+    expectedFiles: ['package.test.mjs'],
+  },
+  {
     id: '@snapback/client',
     packageDir: 'packages/snapback-client',
     testDir: '.',
@@ -178,7 +185,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 65, 'reviewed package/admin test count changed');
+assert.equal(total, 66, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

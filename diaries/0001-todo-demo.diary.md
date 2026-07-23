@@ -459,3 +459,75 @@ from `../exact` are gone. This makes the browser/build loop feel like an app
 dependency again: `bun install`, then the local scripts. The acceptance resolver
 still accepts an explicit checkout for unpublished Exact work, but packages are
 now a capability-probed final rung instead of an unimplemented promise.
+
+## 2026-07-23 — LLP 0079 SC-2a: migrating onto the @snapback/vite managed-dev plugin
+
+The Contract surface just became the first consumer of the LLP 0030 MVP plugin
+(`packages/snapback-vite`). The old shape — `SNAPBACK_TODO_API` env, a
+hand-rolled `/snapback` proxy with `rewrite`, and browser-boot
+`client.ensureApp({schema, functions, seed})` — is gone. One `bun run dev` now
+attaches to a running backend through the `HostReadyDescriptor` ready file or
+spawns a managed child, loads the generated manifests and seed over host-ops
+during bring-up, and relays only an explicit method+path allowlist of app
+routes at `/__snapback`. The browser imports `virtual:snapback/dev` for the
+base path and never sees the backend origin or any token material.
+
+### What felt good
+
+- **The CLI helpers made the plugin thin.** `readReadyDescriptor`,
+  `validateDevTarget`, `managedAdminToken`, `waitForReady`, and the DYLD scrub
+  are all `@snapback/cli` exports, so the plugin's lifecycle controller is
+  genuinely a projection — no second dialect, exactly what LLP 0030/0041 asked
+  for. Managed spawn-to-ready is ~1s against the debug binary.
+- **Host-ops as the bring-up surface just worked.** `schema.load`,
+  `functions.load`, and `app.reset`+seed over `POST /_snapback/api/host-ops`
+  with the auto-minted `<db>.admin-token` needed zero server changes. The
+  `deny_unknown_fields` strictness on server inputs bit once (an ephemeral
+  ensure probe), and the diagnostic named the offending field immediately.
+- **Boot code shrank.** `main.ts` lost the seed import and the provisioning
+  step; boot is now health-check → mount. Reload semantics got strictly
+  better: reset/seed happens only for a fresh managed database (`if-new`), so
+  a page reload — and even a second attached Vite session — preserves data by
+  construction rather than by a carefully-ordered ensure.
+- **The allowlist refusals are pleasant to debug.** Hitting
+  `/__snapback/_snapback/api/host-ops` or `/__snapback/admin/reset` returns a
+  structured `SNAPBACK_DEV_PROXY_ROUTE_REFUSED` JSON body with next-checks,
+  not an opaque 404/HTML proxy error.
+
+### What surprised me / friction
+
+- **The Exact preset overrides the host.** `exactContractWeb` pins
+  `server.host: true` (LAN exposure for device testing), which the plugin's
+  loopback default refused with `SNAPBACK_DEV_HOST_EXPOSED` — the failure the
+  RFC wanted, but it means every Exact-preset consumer must carry an explicit
+  `allowNonLoopbackHost: true` opt-in. Worth an upstream conversation: the old
+  config *believed* it was loopback (`host: '127.0.0.1'`) while the preset
+  silently exposed the full-root `/snapback` proxy on the network. The
+  allowlist makes that exposure much narrower now, but the opt-in should be a
+  conscious Exact-level decision, not plugin-config boilerplate.
+- **`bun --bun` still cannot relay WebSocket upgrades.** The plugin's raw
+  upgrade handler never fires under bun's `node:http` shim — the same
+  limitation graffiti/cursors-web recorded for Vite's own proxy. The surface
+  falls back to outbox polling (unchanged from before); WS-through-relay is
+  proven by the package test under a node-run Vite server, which LLP 0030
+  explicitly allows as a dedicated WS test. Running the demo's Vite under node
+  is blocked by Exact packages shipping raw `.ts` sources, which node will not
+  import from `node_modules` even with type stripping.
+- **Worktree environment, not Snapback:** this worktree carried a
+  source-patched sibling-ibex `hermesvm` (the chat-matrix trap from diary
+  0017) that made every JS handler die with `SNAPBACK_RUNTIME_CREATE_FAILED`
+  at baseline. Restoring the main checkout's Hermes frameworks plus
+  `cargo clean -p ibex-runtime` fixed it; the plugin was blameless but the
+  triage cost real time because the structured diagnostic has empty `details`.
+
+### Comparison
+
+This lands the dev loop where Convex's `npx convex dev` has been: one command,
+backend lifecycle owned by tooling, the browser talking only app routes over a
+stable relative path. The differences that matter: the attach/managed split is
+explicit and validated (Convex silently multiplexes; Snapback refuses a
+target mismatch with a structured code), and destructive reset/seed authority
+is mode-scoped instead of ambient. Against Supabase local dev (docker compose
++ studio), this is dramatically lighter. What is still missing versus both:
+watch/codegen/hot-push in the same command — that is SC-2b (LLP 0030 step 9),
+deliberately gated behind this lifecycle/authority boundary proving sound.

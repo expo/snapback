@@ -1,2 +1,4 @@
 node_modules/
 dist/
+.snapback/
+.snapback.snapback.restore.lock

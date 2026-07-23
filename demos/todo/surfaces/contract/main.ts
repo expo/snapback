@@ -1,5 +1,6 @@
 import { mount, reset } from '@exact/contract/runtime';
 import { installContractWebHost } from '@exact/renderer/web-host';
+import { snapbackBasePath } from 'virtual:snapback/dev';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
 import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
@@ -7,7 +8,6 @@ import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
-import seed from '../../snapback/seed.json';
 import app from './todo.contract';
 import {
   configureSnapbackContractLinks,
@@ -18,11 +18,15 @@ import { todoOptimisticReducers } from './optimistic.mjs';
 const ADA = 'user_ada';
 let activeSurface: { dispose?: () => void } | null = null;
 
+// The browser only ever sees the relative relay base path (`/__snapback` from
+// the @snapback/vite plugin); the backend's loopback origin stays a dev-server
+// implementation detail. In a shell that supplies its own server origin, the
+// relay path is joined onto that origin instead.
 function snapbackBaseUrl(): string {
   const serverOrigin = (globalThis as { __exactServerOrigin?: string }).__exactServerOrigin;
   return typeof serverOrigin === 'string' && serverOrigin.length > 0
-    ? `${serverOrigin}/snapback`
-    : '/snapback';
+    ? `${serverOrigin}${snapbackBasePath}`
+    : snapbackBasePath;
 }
 
 function ensureBootStatusElement(): HTMLElement | null {
@@ -75,13 +79,11 @@ async function boot(): Promise<void> {
   const client = new SnapbackClient(snapbackBaseUrl());
   await client.health();
 
-  // Single idempotent mount-lifecycle ensure (LLP 0034 §5 / ENG-22527):
-  // provisions only what is missing, seeds only when the todos table is
-  // empty — the boot-path reset is gone (D4 edit 1), so a reload preserves
-  // your data.
-  status('Ensuring backend provisioning...');
-  await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-
+  // Backend provisioning no longer happens here (LLP 0030 step 8 / LLP 0079
+  // SC-2a): the @snapback/vite plugin loads schema/functions and seeds during
+  // managed bring-up, server-side, before this page is served. The browser
+  // holds no provisioning authority — the relay forwards app routes only —
+  // and a reload just remounts against the already-prepared backend.
   status('Mounting Contract surface...');
   installContractWebHost();
   const surface = await createSnapbackContractSurface({

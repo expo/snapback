@@ -838,3 +838,26 @@ managed-dev plugin for one existing Contract demo — readiness handshake
 (read the descriptor), mode-aware lifecycle, `/__snapback` app-route proxy
 allowlist, and structured diagnostics. Codegen/watch/hot push should follow
 only after the backend lifecycle and authority boundary prove sound.
+
+**Implementation checkpoint (2026-07-23, LLP 0079 SC-2a).** The MVP shipped
+as `@snapback/vite` (`packages/snapback-vite/`): `snapbackDev()` with the
+five modes (`off`/`external`/`attach`/`managed`/`auto`), lifecycle built on
+the `@snapback/cli` helpers (ready-file handshake, target + live
+startup-nonce validation, admin-token discovery, nonce-verified stop of only
+its own managed child), managed-only one-shot bring-up over host-ops HTTP
+(reset/seed default `if-new`; attach/external refuse setup without explicit
+opt-in), the `/__snapback` HTTP+WebSocket relay with an explicit
+method+path allowlist derived from the server's `RouteClass::AppData` route
+registrations (host-ops, retired root `/admin/*`, `/ephemeral/cleanup`, the
+`/ephemeral/collections` register, and `POST /app/ensure` — whose legacy
+provision half is exactly the authority this plugin moves off the browser —
+all refused with `SNAPBACK_DEV_PROXY_ROUTE_REFUSED`), loopback-only default
+with an explicit `allowNonLoopbackHost` opt-in (`SNAPBACK_DEV_HOST_EXPOSED`
+otherwise), sanitized `virtual:snapback/dev`, and machine-readable
+`snapback.vite-dev.v1` events. The `demos/todo` Contract surface migrated
+per step 8: browser-boot `ensureApp` provisioning removed in favor of
+managed bring-up, one command starts Vite and attaches-or-spawns the
+backend, and the package e2e proves the WS-through-proxy live path (the
+demo surface itself still polls under `bun --bun`, whose `node:http` never
+surfaces upgrade events). Steps 9–10 (codegen/watch/hot-push wiring, admin
+dev-loop revisit) remain open — step 9 is LLP 0079 SC-2b.
