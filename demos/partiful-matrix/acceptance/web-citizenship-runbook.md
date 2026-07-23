@@ -111,6 +111,30 @@ artifact digests. When the packages are linked to an Exact source checkout,
 pass `--exact-root /path/to/exact`; the receipt is claim-eligible only when
 both linked package roots belong to that clean, revision-identified checkout.
 
+## iOS Safari focus and bfcache
+
+The iOS WebDriver collector binds one named simulator runtime and production
+candidate, then exercises native Mobile Safari keyboard focus containment and a
+real document leave/back traversal. The bfcache check retains an unsubmitted
+event-wall draft, requires `pageshow.persisted === true`, edits the restored
+draft again, and returns to the feed to prove continued interactivity.
+
+Run it separately for the current and current−1 simulator runtimes:
+
+```sh
+node demos/partiful-matrix/tests/acceptance/step4-ios-safari-webdriver-citizenship.mjs \
+  --device-udid <simulator-udid> \
+  --channel current \
+  --base-url http://127.0.0.1:<port>/partitime/ \
+  --exact-root /path/to/exact \
+  --receipt /tmp/partitime-ios-current-webdriver.json
+```
+
+The receipt may be admitted as the durable device-lab log for the focus and
+bfcache rows. IME, autofill, and Find still require the simulator's real native
+keyboard/accessory/browser UI and their own retained evidence; WebDriver
+substitution is not accepted for those three behaviors.
+
 Safari must have Develop → Allow Remote Automation enabled by the machine
 owner. `safaridriver --enable` requests an administrator password; the gate
 does not bypass that setting or convert its absence into a skip. Because Safari
