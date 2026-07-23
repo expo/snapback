@@ -85,6 +85,13 @@ export function validateMemoryConstructAmendment(amendment) {
   assert.equal(amendment.sampling.warmupsPerCount, 2);
   assert.equal(amendment.sampling.calibrationSamplesPerCount, 7);
   assert.equal(amendment.sampling.holdoutSamplesPerCount, 7);
+  assert.notEqual(
+    amendment.sampling.calibrationSeed,
+    amendment.sampling.holdoutSeed,
+    'calibration and holdout seeds must remain distinct',
+  );
+  assert.equal(amendment.sampling.calibrationSeed, 381202607);
+  assert.equal(amendment.sampling.holdoutSeed, 381202608);
   assert.match(
     amendment.sampling.preSubscriptionBaseline,
     /one unreported canonical logical subscriber/,
@@ -94,6 +101,7 @@ export function validateMemoryConstructAmendment(amendment) {
     /zero-active-subscriber heap/,
   );
   assert.match(amendment.sampling.outlierPolicy, /retain every valid observation/);
+  assert.match(amendment.sampling.countOrder, /pre-frozen calibrationSeed or holdoutSeed/);
   assert.match(amendment.sampling.cohortIsolation, /Commit calibration thresholds before holdout/);
   assert.match(amendment.sampling.cleanup, /zero active and zero ready subscribers/);
   assert.match(amendment.sampling.cleanup, /target no longer exists/);

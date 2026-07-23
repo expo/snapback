@@ -539,7 +539,7 @@ const report = finalizeReport({
       },
     },
     frozenThresholds: frozen.thresholds,
-    conclusion: 'Contract byte budgets pass. Authored source, red web holdout rows, and the missing native holdout keep the aggregate budget claim red.',
+    conclusion: 'Contract × Snapback minified bytes and every compressed-byte row pass. Three non-Snapback Contract minified-byte rows, authored source, red web holdout rows including the proposed two-part memory successor, and native evidence keep the aggregate budget claim red.',
   },
 });
 
