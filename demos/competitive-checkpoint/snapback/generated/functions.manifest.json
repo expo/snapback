@@ -1,0 +1,780 @@
+{
+  "appId": "competitive-checkpoint",
+  "artifactKind": "functionManifest",
+  "bundleHash": "sha256:90e18f65e82e44e8",
+  "config": [],
+  "cronJobs": [],
+  "functions": [
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "applyReplyProgress",
+      "exportedName": "applyReplyProgress",
+      "id": "competitive-checkpoint:applyReplyProgress",
+      "kind": "Mutation",
+      "name": "applyReplyProgress",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "applyReplyProgress",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "cancelReply",
+      "exportedName": "cancelReply",
+      "id": "competitive-checkpoint:cancelReply",
+      "kind": "Mutation",
+      "name": "cancelReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "cancelReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "completeReply",
+      "exportedName": "completeReply",
+      "id": "competitive-checkpoint:completeReply",
+      "kind": "Mutation",
+      "name": "completeReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "completeReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "conversationBySlug",
+      "exportedName": "conversationBySlug",
+      "id": "competitive-checkpoint:conversationBySlug",
+      "kind": "LiveQuery",
+      "name": "conversationBySlug",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "slug",
+                "op": "Eq",
+                "value": {
+                  "Arg": "slug"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_slug",
+            "limit": 1,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "createConversation",
+      "exportedName": "createConversation",
+      "id": "competitive-checkpoint:createConversation",
+      "kind": "Mutation",
+      "name": "createConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Binding": "__standardCreatedId"
+                },
+                "table": "conversations"
+              }
+            },
+            "steps": [
+              {
+                "Insert": {
+                  "bind_id_as": "__standardCreatedId",
+                  "table": "conversations",
+                  "values": {
+                    "createdAt": "RuntimeNow",
+                    "model": {
+                      "Arg": "model"
+                    },
+                    "ownerId": "AuthUserId",
+                    "pageKey": "RuntimeId",
+                    "slug": {
+                      "Arg": "slug"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "deleteConversation",
+      "exportedName": "deleteConversation",
+      "id": "competitive-checkpoint:deleteConversation",
+      "kind": "Mutation",
+      "name": "deleteConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": null,
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_VISIBLE"
+                }
+              },
+              {
+                "Delete": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "firstConversationPage",
+      "exportedName": "firstConversationPage",
+      "id": "competitive-checkpoint:firstConversationPage",
+      "kind": "LiveQuery",
+      "name": "firstConversationPage",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": "by_owner_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "getConversation",
+      "exportedName": "getConversation",
+      "id": "competitive-checkpoint:getConversation",
+      "kind": "LiveQuery",
+      "name": "getConversation",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "_id",
+                "op": "Eq",
+                "value": {
+                  "Arg": "id"
+                }
+              }
+            ],
+            "indexed_by": null,
+            "limit": null,
+            "membershipFilters": [],
+            "order": [],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listConversations",
+      "exportedName": "listConversations",
+      "id": "competitive-checkpoint:listConversations",
+      "kind": "LiveQuery",
+      "name": "listConversations",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              }
+            ],
+            "indexed_by": null,
+            "limit": 100,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "_createdAt"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "listMessages",
+      "exportedName": "listMessages",
+      "id": "competitive-checkpoint:listMessages",
+      "kind": "LiveQuery",
+      "name": "listMessages",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "ibex_ctx_db_host_bridge"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "listMessages",
+          "source": "async function listMessages(ctx, args) {\n  return await ctx.db\n    .query('messages')\n    .withIndex('by_owner_conversation')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('conversationId', args.conversationId)\n    .order('pageKey', 'asc')\n    .collect();\n}\n\nglobalThis.__snapbackHandlers = { listMessages };\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "authorizationDependence": [
+        "userId"
+      ],
+      "bundleEntrypoint": "nextConversationPage",
+      "exportedName": "nextConversationPage",
+      "id": "competitive-checkpoint:nextConversationPage",
+      "kind": "LiveQuery",
+      "name": "nextConversationPage",
+      "readSetSummary": {
+        "authScopeField": "ownerId",
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "live_subscriptions",
+        "host_plan_runtime"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Query": {
+            "filters": [
+              {
+                "field": "ownerId",
+                "op": "Eq",
+                "value": "AuthUserId"
+              },
+              {
+                "field": "pageKey",
+                "op": "Gt",
+                "value": {
+                  "Arg": "after"
+                }
+              }
+            ],
+            "indexed_by": "by_owner_page_key",
+            "limit": 10,
+            "membershipFilters": [],
+            "order": [
+              {
+                "direction": "Asc",
+                "field": "pageKey"
+              }
+            ],
+            "table": "conversations"
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "syncable-live",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "none",
+        "primaryTable": null,
+        "tables": []
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "settleReply",
+      "exportedName": "settleReply",
+      "id": "competitive-checkpoint:settleReply",
+      "kind": "Mutation",
+      "name": "settleReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "settleReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "startReply",
+      "exportedName": "startReply",
+      "id": "competitive-checkpoint:startReply",
+      "kind": "Mutation",
+      "name": "startReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations",
+          "messages"
+        ]
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "startReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "streamReply",
+      "exportedName": "streamReply",
+      "id": "competitive-checkpoint:streamReply",
+      "kind": "Action",
+      "name": "streamReply",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "handlerDeclared",
+        "primaryTable": null,
+        "tables": []
+      },
+      "requiredCapabilities": [
+        "ibex_ctx_db_host_bridge",
+        "cron_action_run_mutation",
+        "bounded_response_stream_v1"
+      ],
+      "runtime": {
+        "IbexModule": {
+          "export": "streamReply",
+          "source": "function fail(code, message) {\n  throw new Error(code + ': ' + message);\n}\n\nasync function ownedAttempt(ctx, attemptId) {\n  const rows = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_attempt')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('attemptId', attemptId)\n    .collect();\n  if (rows.length !== 1) fail('SNAPBACK_ROW_NOT_VISIBLE', 'reply attempt is not visible');\n  return rows[0];\n}\n\nasync function startReply(ctx, args) {\n  const conversation = await ctx.db.get('conversations', args.conversationId);\n  if (!conversation || conversation.ownerId !== ctx.auth.userId) {\n    fail('SNAPBACK_ROW_NOT_VISIBLE', 'conversation is not visible');\n  }\n  const prior = await ctx.db\n    .query('messages')\n    .withIndex('by_owner_idempotency')\n    .eq('ownerId', ctx.auth.userId)\n    .eq('idempotencyKey', args.idempotencyKey)\n    .collect();\n  if (prior.length === 1) {\n    return {\n      attemptId: prior[0].attemptId,\n      assistantMessageId: prior[0]._id,\n      replayed: true,\n    };\n  }\n  const now = ctx.runtime.now();\n  const attemptId = ctx.runtime.id();\n  await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'user',\n    content: args.content,\n    status: 'complete',\n    attemptId: ctx.runtime.id(),\n    idempotencyKey: 'user:' + args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  const assistantMessageId = await ctx.db.insert('messages', {\n    ownerId: ctx.auth.userId,\n    conversationId: args.conversationId,\n    role: 'assistant',\n    content: '',\n    status: 'running',\n    attemptId,\n    idempotencyKey: args.idempotencyKey,\n    sequence: 0,\n    lastProgressAt: now,\n    pageKey: ctx.runtime.id(),\n  });\n  return { attemptId, assistantMessageId, replayed: false };\n}\n\nasync function applyReplyProgress(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') {\n    return {\n      applied: false,\n      terminal: true,\n      status: row.status,\n      sequence: row.sequence,\n    };\n  }\n  if (args.sequence <= row.sequence) {\n    return { applied: false, terminal: false, sequence: row.sequence };\n  }\n  if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');\n  const now = ctx.runtime.now();\n  if (row.sequence > 0 && now - row.lastProgressAt < 100) {\n    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.delta,\n    sequence: args.sequence,\n    lastProgressAt: now,\n  });\n  return { applied: true, terminal: false, sequence: args.sequence };\n}\n\nasync function completeReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status === 'complete') return { status: 'complete', sequence: row.sequence };\n  if (row.status !== 'running') fail('SNAPBACK_REPLY_CANCELLED', 'reply is terminal');\n  if (args.sequence !== row.sequence + (args.tail.length > 0 ? 1 : 0)) {\n    fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'terminal reply sequence is not contiguous');\n  }\n  await ctx.db.patch('messages', row._id, {\n    content: row.content + args.tail,\n    sequence: args.sequence,\n    status: 'complete',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'complete', sequence: args.sequence };\n}\n\nasync function settleReply(ctx, args) {\n  const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];\n  if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: args.status,\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: args.status, sequence: row.sequence };\n}\n\nasync function cancelReply(ctx, args) {\n  const row = await ownedAttempt(ctx, args.attemptId);\n  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };\n  await ctx.db.patch('messages', row._id, {\n    status: 'cancelled',\n    lastProgressAt: ctx.runtime.now(),\n  });\n  return { status: 'cancelled', sequence: row.sequence };\n}\n\nfunction safeCode(error) {\n  const message = String(error && error.message ? error.message : error);\n  const match = message.match(/SNAPBACK_[A-Z0-9_]+/);\n  return match ? match[0] : 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED';\n}\n\nfunction ascii(bytes) {\n  let text = '';\n  for (let index = 0; index < bytes.length; index += 1) text += String.fromCharCode(bytes[index]);\n  return text;\n}\n\nasync function streamReply(ctx, args) {\n  let reader = null;\n  let pending = '';\n  let sequence = 0;\n  let readsSinceCommit = 0;\n  try {\n    const response = await ctx.fetchStream({\n      url: args.streamUrl,\n      method: args.method,\n      body: args.method === 'GET' ? null : '{}',\n      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,\n    });\n    if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');\n    reader = response.body.getReader();\n    for (;;) {\n      const chunk = await reader.read();\n      if (chunk.done) break;\n      pending += ascii(chunk.value);\n      readsSinceCommit += 1;\n      if (readsSinceCommit >= 2) {\n        sequence += 1;\n        const progress = await ctx.runMutation('applyReplyProgress', {\n          attemptId: args.attemptId,\n          sequence,\n          delta: pending,\n        });\n        if (progress.terminal) {\n          await reader.cancel();\n          return { outcome: progress.status, sequence: progress.sequence };\n        }\n        pending = '';\n        readsSinceCommit = 0;\n      }\n    }\n    const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);\n    await ctx.runMutation('completeReply', {\n      attemptId: args.attemptId,\n      sequence: terminalSequence,\n      tail: pending,\n    });\n    return { outcome: 'complete', sequence: terminalSequence };\n  } catch (error) {\n    if (reader) {\n      try { await reader.cancel(); } catch (_) {}\n    }\n    const code = safeCode(error);\n    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };\n    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'\n      ? 'ambiguous'\n      : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'\n        ? 'timed_out'\n        : 'failed';\n    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });\n    return { outcome: status, sequence, code };\n  }\n}\n\nglobalThis.__snapbackHandlers = {\n  startReply,\n  applyReplyProgress,\n  completeReply,\n  settleReply,\n  cancelReply,\n  streamReply,\n};\n"
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "action",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "handlerDeclared",
+        "primaryTable": "messages",
+        "tables": [
+          "messages"
+        ]
+      }
+    },
+    {
+      "authRequirement": "authenticated",
+      "bundleEntrypoint": "updateConversation",
+      "exportedName": "updateConversation",
+      "id": "competitive-checkpoint:updateConversation",
+      "kind": "Mutation",
+      "name": "updateConversation",
+      "readSetSummary": {
+        "authScopeField": null,
+        "mode": "singleTable",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      },
+      "requiredCapabilities": [
+        "host_plan_runtime",
+        "mutation_read_set_validation"
+      ],
+      "runtime": {
+        "HostPlan": {
+          "Mutation": {
+            "return_value": {
+              "Document": {
+                "id": {
+                  "Arg": "id"
+                },
+                "table": "conversations"
+              }
+            },
+            "steps": [
+              {
+                "Get": {
+                  "bind_as": "__standardOwnedRow",
+                  "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              },
+              {
+                "Guard": {
+                  "cond": {
+                    "Binary": {
+                      "left": {
+                        "Field": {
+                          "base": {
+                            "Binding": "__standardOwnedRow"
+                          },
+                          "key": "ownerId"
+                        }
+                      },
+                      "op": "Eq",
+                      "right": "AuthUserId"
+                    }
+                  },
+                  "else_error": "SNAPBACK_ROW_NOT_VISIBLE"
+                }
+              },
+              {
+                "Patch": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations",
+                  "values": {
+                    "model": {
+                      "Arg": "model"
+                    },
+                    "title": {
+                      "Arg": "title"
+                    },
+                    "updatedAt": "RuntimeNow"
+                  }
+                }
+              }
+            ]
+          }
+        }
+      },
+      "sourceSpan": null,
+      "syncabilityClass": "mutation",
+      "uses": [],
+      "writeSetSummary": {
+        "mode": "mutationPlan",
+        "primaryTable": "conversations",
+        "tables": [
+          "conversations"
+        ]
+      }
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "fb8666ab2c821d9c5b41597d14fb877f19c652a91d31ddb0e7196401120bbaac",
+  "schemaVersion": "snapback.v0",
+  "unsupportedDependencyDiagnostics": []
+}

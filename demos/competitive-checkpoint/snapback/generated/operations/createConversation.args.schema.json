@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/createConversation.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "model": {
+      "type": "string"
+    },
+    "slug": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "slug",
+    "title",
+    "model"
+  ],
+  "title": "competitive-checkpoint:createConversation arguments",
+  "type": "object"
+}
