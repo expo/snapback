@@ -5,7 +5,7 @@
 **Systems:** API, Tooling, Client integration, Contract/Exact, Testing, Packaging
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-02
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
+**Revised:** 2026-07-23 (LLP 0079 SC-3: standing name-keyed-encoding constraint added with its enforcement mechanism, external evidence LLP 0078 F2c/A1; pending Charlie's ratification as an amendment to this Accepted decision); 2026-07-16 (ENG-24920 companion amendment); 2026-07-13 (ENG-24596: recorded narrow Rust-owned schema projections for non-serializable secret wrappers and the shipped host-ops/readiness/auth DTO schemas); 2026-07-02 (ratified same day: Rust-first; DK-7 decided)
 **Related:** LLP 0004, LLP 0012, LLP 0016, LLP 0020, LLP 0024, LLP 0032, LLP 0057
 
 ## Summary
@@ -131,6 +131,37 @@ generated membership methods, and role-literal TypeScript unions are derived
 outputs, not competing wire authorities. Codegen may derive values such as the
 authority-creating marker, but the server manifest types remain the parser and
 schema authority.
+
+## Dated constraint: name-keyed encodings
+
+*(2026-07-23, LLP 0079 SC-3 — pending Charlie's ratification as an amendment
+to this Accepted decision.)*
+
+**Standing rule:** no Snapback-owned persisted or wire encoding may depend on
+declaration order surviving edits. Enum-like values, fields, columns, and
+variant tags stay **name-keyed** — the serialized form carries the variant or
+field *name* (as a scalar for unit variants, or as the object key for
+data-bearing variants), never the declaration index. Any future by-index
+encoding is an explicit decision with a named reason recorded in this
+document, not a default.
+
+External evidence (LLP 0078 F2c): Serverpod's default by-index enum
+persistence silently corrupted data on reorder and had to be flipped to
+name-keyed in a breaking 3.0 change. The 2026-07-23 repo audit (LLP 0078 A1)
+verified Snapback passes today — this section makes the property a stated
+constraint rather than an emergent one.
+
+**Enforcement (LLP 0079 SC-5, plan-added):** `tests/name_keying_guard.rs`
+runs in `cargo test` (and therefore the local proof and CI) with two parts:
+a semantic pin asserting the exact name-keyed JSON of representative
+Snapback-owned enum encodings (unit and data-bearing `FieldType` forms in
+the schema manifest; every `live_wire` op-kind), and a tripwire failing if
+`serde_repr` appears among direct dependencies or as a derive/attribute in
+`src/` without an adjacent `@ref` to the deciding document. **Covered
+scope:** Rust-owned encodings plus what the artifact-schema drift gates
+already pin for generated artifacts; client-side wire decoders and
+hand-written SQL encodings are out of scope of the mechanical guard (the
+standing rule still applies to them).
 
 ## Status
 

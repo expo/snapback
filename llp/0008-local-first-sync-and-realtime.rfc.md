@@ -5,7 +5,7 @@
 **Systems:** Sync, Realtime, Storage, API, Auth, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
+**Revised:** 2026-07-23 (LLP 0079 SC-3: dated constraints section added — additive-wire discipline reinforced with LLP 0078 F2a/F2e as external evidence, and the DK-10 adapter-owned-lifecycle ledger decision elevated into an explicit app-facing no-connection-lifecycle-exposure constraint); 2026-07-21 (DK-3 delivery-lane hardening: membership-gated plans are excluded fail-closed from `live_delta` at candidacy and inside `compute_live_delta`, and the L4 convergence assertion also runs at `NoChange` settles — closes LLP 0067 §F2a; same day: the DK-3 fan-out figures are marked superseded fixture results per the `37f1a2f` corrections, LLP 0035's 2026-07-21 note); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (auth-program implementation reconciliation: the local target now implements negotiated item-6 authorization invalidation and item-8 signed-lease retained authorization, with the card-game proof exercising disjoint live delivery, logout blanking, cold-process retention, and equality-expiry deletion; this does not broaden the claim to arbitrary opaque-query retention or hosted auth). 2026-07-13 (narrow authorization-invalidation amendment: LLP 0053, once Accepted, controls coarse events versus witnessed shrinking-delivery obligations, fail-closed protected inputs, mandatory fresh auth-scoped resume, and ACK-backed negative delivery while preserving server authorization and fresh snapshots; earlier 2026-07-12: ENG-24493/ENG-24496 harden the first web client store: uninterpretable durable bytes fail closed in place until explicit reset/migration, and every localStorage transaction is serialized across same-origin contexts through a crash-releasing Web Lock; earlier 2026-07-02: §Decision DK-9 added — store-agnostic client-store interface with SQLite reference impl, LLP 0032 X4; same day: LLP 0032 M3 re-measurement after DK-4: §Decision DK-3 records the revisit trigger *fired* — op-log deltas for the analyzable subset are ~5 200× cheaper than the warm re-query, the sanctioned next fan-out lever, wire/client half coordinated with LLP 0034; earlier 2026-07-01: §Reactivity recorded the initial DK-3 v1 replace/WS pin and trigger, and L3 retention status)
 **Related:** LLP 0000, LLP 0001, LLP 0003, LLP 0004, LLP 0006, LLP 0007, LLP 0009, LLP 0010, LLP 0011, LLP 0013, LLP 0039, LLP 0053, LLP 0059
 
 ## Summary
@@ -724,6 +724,34 @@ incremental fan-out for that case. Role-gated live replacement does not imply
 retained eligibility: retained role-gated queries remain refused in v1 until
 the authorized-lease proof can bind the membership dependency and expiry
 floor.
+
+## Dated constraints: additive wire, adapter-owned lifecycle (2026-07-23, LLP 0079 SC-3)
+
+Two load-bearing rules, one already normative and here reinforced, one
+previously ledger-only and here made explicit. External evidence for both is
+[LLP 0078](./0078-serverpod-lessons.research.md): a competitor's deprecated
+first realtime design (F2a — hand-managed WebSocket lifecycle exposed to app
+code, later deprecated wholesale) and its breaking-change tax (F2e — a
+protocol streamlining that flatly broke existing apps).
+
+1. **Additive wire discipline (reinforcement).** §Decision DK-3 already pins
+   `live_delta` as strictly additive beside `live_replace`, and LLP 0012's
+   DK-3 wire guardrail requires future read lanes to be added beside the
+   WebSocket path, never as a breaking wire change. F2a/F2e are the recorded
+   evidence for why these rules must not be relaxed under delivery
+   pressure: breaking the wire taxes every downstream user, and the tax
+   compounds after distribution.
+2. **No app-facing connection-lifecycle exposure (new normative sentence).**
+   App code — schema, handlers, and generated client callers — must never
+   see or manage connection lifecycle: no open/close/reconnect hooks, no
+   per-connection message handlers, no socket handles. The app-facing
+   realtime surface is declarative (live queries); connection lifecycle,
+   reconnect, and delivery-lane selection belong to the framework and the
+   adapter exclusively. This elevates the DK-10 adapter-owned-live-push
+   ledger decision (LLP 0000, 2026-07-02) from an architecture choice to a
+   stated constraint: a lower-level socket surface must not leak into the
+   app contract "temporarily", because F2a shows such surfaces ship, get
+   depended on, and then cost a deprecation cycle to remove.
 
 ## Status
 
