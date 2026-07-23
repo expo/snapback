@@ -410,3 +410,101 @@ These are not merely missing tests. Positive capability manifests currently adve
 Verdict: NOT READY
 
 Internal settlement contradictions, missing authority/cancellation/retry fences, false-positive capability claims, and incomplete end-to-end evidence must be resolved before acceptance or LLP 0074 gate 2.
+
+## Round 4 — 2026-07-23
+
+**Revision under review:** `llp/0076-bounded-streamed-actions.rfc.md`, sha256 `40a2b735d031bd7b45a13132b00716e95519ad34a4f402015061510bf6446201` (document pin MATCH; HEAD moved from `7e5b54b8` to `23578f49` mid-review via a concurrent commit that did not touch the reviewed paths, per the reviewer's diff check)
+**Runtime detail:** codex session id 019f8e41-d7ce-7db0-b59d-3a0d0690daf9, workdir /Users/ccheever/projects/snapback; fresh session — no access to the orchestrating Claude session, to archived reviews, or to the concurrent Claude-family round. Inspected both hosts, the shim, witnesses, manifests, and the action-watchdog timing; did not build.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check**
+
+**MISMATCH at capture time; the document pin itself MATCHES.** Before review, I ran `shasum -a 256 llp/0076-bounded-streamed-actions.rfc.md` and `git rev-parse --short HEAD`; they returned the requested SHA-256 `40a2b735d031bd7b45a13132b00716e95519ad34a4f402015061510bf6446201` and HEAD `7e5b54b8`. A final recheck returned the same document hash but HEAD `23578f49`. `git diff --name-only 7e5b54b8..23578f49 -- <reviewed paths>` was empty, so the intervening commit did not change the reviewed evidence.
+
+The implementation and witness checks cover the on-disk working tree: `git status --short -- <reviewed paths>` showed relevant implementation files modified and several fixture/witness files untracked, so those facts are not reproducible from the pinned commit alone. `./ref-check --verbose` completed with 84 LLP documents, 1,779 references, zero errors, and one unchecked annotation.
+
+2. **Overall assessment**
+
+This is a good idea and largely the right architecture: action-only, pull-driven response consumption; ordinary nested mutations as the durable progress boundary; explicit finite limits; and no pretense that an action itself is transactional or returns a streamed client response. The frozen numeric bounds agree exactly with LLP 0075 and its protocol JSON.
+
+The RFC is also unusually candid about what remains unfinished. Unfortunately, several unfinished items are central semantics rather than routine implementation work. The meaning of `ambiguous` and the effect-certainty axis is not closed; the existing `Initiated` fact cannot prove provider initiation; retry classification trusts an unverified key; concurrent retries can corrupt progress; and the reference implementation violates its own durable-winner rule.
+
+The Revised claim is therefore only partly supported. The shared Ibex/Workerd reader surface, live capability predicate, named diagnostic families, local native-push witness, and Workerd regression witness exist. They do not yet establish the promised backpressure, authority, settlement, secret-placement, diagnostic-envelope, or target-parity contract. This RFC is a strong design and gap ledger, but it is not yet sound enough to accept as gate-2 semantic authority.
+
+3. **Strengths**
+
+- The scope boundary is clear: upstream bytes are consumed only by actions and durable visibility still comes from ordinary commits and live queries (`llp/0076-bounded-streamed-actions.rfc.md:49-60`, `llp/0028-cron-scheduled-execution.rfc.md:377-404`).
+
+- The five frozen bounds match exactly: 1 MiB, 64 KiB, 30 seconds, 5 seconds, and 10 commits/second (`llp/0076-bounded-streamed-actions.rfc.md:99-115`, `llp/0075-convex-checkpoint-protocol.spec.md:249-267`, `demos/competitive-checkpoint/acceptance/protocol.v0.json:69-78`).
+
+- The layered-fence model correctly acknowledges that prior mutation commits remain visible and that terminal checks belong inside each progress transaction (`llp/0076-bounded-streamed-actions.rfc.md:145-179`, `llp/0028-cron-scheduled-execution.rfc.md:531-536`).
+
+- The implementation surface is real rather than aspirational: target-neutral request/chunk types and default refusal exist (`src/runtime.rs:86-161`), the shared reader bridge exists (`packages/snapback-harness/ctx-bootstrap.js:804-884`), and both local and Workerd hosts implement open/read/cancel operations (`src/server.rs:1179-1450`, `cloudflare/src/coordinator.js:1719-2043`).
+
+- The local happy path genuinely traverses action → nested mutation → commit → native WebSocket observation and asserts three-plus intermediate commits with ordered final content (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:100-137`, `demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:323-367`).
+
+- All named diagnostic families exist literally in producers or registries, including `_UNSUPPORTED`; `_CANCELLED` is deliberately only an internal cancellation reason (`llp/0076-bounded-streamed-actions.rfc.md:235-260`, `src/runtime.rs:138-160`, `src/server.rs:1048-1063`, `src/server.rs:1347-1466`, `cloudflare/src/coordinator.js:2024-2027`).
+
+- The evidence ledger accurately identifies most outstanding blockers and respects LLP 0074’s rule that Draft authority cannot close gate 2 (`llp/0076-bounded-streamed-actions.rfc.md:304-412`, `llp/0074-convex-competitive-strategy.rfc.md:217-231`).
+
+4. **Concerns**
+
+1. **Major — The settlement model is not a closed state machine.** `ambiguous` remains both a terminal cause and a proxy for effect uncertainty, while an equally uncertain mid-body failure is represented as `failed + effect-may-have-executed`; the RFC itself still asks what `ambiguous` adds (`llp/0076-bounded-streamed-actions.rfc.md:181-215`, `llp/0076-bounded-streamed-actions.rfc.md:431-433`). The reference schema contains only one `status` field (`demos/competitive-checkpoint/snapback/schema.mjs:16-30`). Moreover, LLP 0059’s `Initiated` acknowledges synchronous invocation **or synchronous refusal**, so it cannot prove that a provider may have acted (`llp/0059-session-projection-and-client-barrier.spec.md:1209-1215`, `src/auth/service_fence.rs:208-214`). The bridge currently calls it in `finally` even though request validation happens afterward (`packages/snapback-harness/ctx-bootstrap.js:807-825`, `src/server.rs:1186-1255`). Resolve this with closed enums for local terminal cause, request/effect certainty, and retry disposition; define every legal combination and derive the five compatibility settlement kinds from that model. Use a distinct conservative host fact rather than repurposing the authority-permit acknowledgement.
+
+2. **Major — Retry/idempotency can under-report uncertainty and corrupt content.** A keyed non-GET is currently classified as retry-safe from mere field presence despite the RFC admitting that provider recognition is unverified (`llp/0076-bounded-streamed-actions.rfc.md:208-224`). Both hosts allow an explicit `Idempotency-Key` header to override the metadata field but still classify from the metadata field, so the provider-visible key and retry classification can disagree (`src/server.rs:1274-1313`, `cloudflare/src/coordinator.js:1819-1853`). Separately, repeated starts share an attempt without a runner lease, duplicate sequence numbers require no byte offset or digest match, and the action discards an `applied:false` response (`demos/competitive-checkpoint/snapback/handlers.mjs:21-32`, `demos/competitive-checkpoint/snapback/handlers.mjs:63-86`, `demos/competitive-checkpoint/snapback/handlers.mjs:158-171`). This conflicts with LLP 0070’s fenced-at-least-once model and LLP 0028’s whole-action cron replay behavior (`llp/0070-durable-background-work.rfc.md:96-100`, `llp/0070-durable-background-work.rfc.md:128-130`, `llp/0028-cron-scheduled-execution.rfc.md:294-319`). Resolve with a trusted provider declaration, one canonical provider-visible key, a canonical request digest, a single-runner lease/generation, and offset-plus-digest validation. Exclude automatically retried cron/durable invocations until those bindings exist.
+
+3. **Major — The reference pattern violates durable-winner precedence.** The RFC says the committed row wins every settlement race (`llp/0076-bounded-streamed-actions.rfc.md:204-206`). `settleReply` returns that winner, but `streamReply` ignores the return value and reports its own inferred status (`demos/competitive-checkpoint/snapback/handlers.mjs:105-114`, `demos/competitive-checkpoint/snapback/handlers.mjs:184-192`). `completeReply` also maps every non-running state through a cancellation-shaped error (`demos/competitive-checkpoint/snapback/handlers.mjs:89-102`). Cancellation while blocked on the slow source can therefore leave a durable `cancelled` row while the action returns `timed_out`; the current test cancels only after progress and misses this race (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:160-208`). Resolve with one terminal compare-and-set mutation whose typed result always becomes the action result, plus barrier-controlled cancellation/timeout/completion races.
+
+4. **Major — Authority loss and cancellation do not yet fence a blocked pull through byte handoff.** The RFC promises service-authority validation on every operation (`llp/0076-bounded-streamed-actions.rfc.md:130-154`), but local `validate_live` checks only abandonment, generation, and deadline (`src/server.rs:864-880`). Workerd captures a cursor, awaits the native pull, and can return bytes without checking whether concurrent cancellation removed that cursor (`cloudflare/src/coordinator.js:1899-2015`, `cloudflare/src/coordinator.js:2030-2036`). Durable cancellation also has no direct attempt-to-cursor signal, while lifecycle abandonment can leave the authored row permanently `running`; the RFC acknowledges both gaps (`llp/0076-bounded-streamed-actions.rfc.md:329-341`). Resolve with attempt-bound cursor identity and an exact permit or epoch rechecked after every await, plus a trusted terminal compare-and-set/reconciler independent of the abandoned action.
+
+5. **Major — The resource profile is not enforced with the stated semantics.** Local has no 64 KiB buffer counter, the shared reader permits concurrent outstanding reads, and Workerd lacks a per-cursor pull mutex (`src/server.rs:760-771`, `packages/snapback-harness/ctx-bootstrap.js:835-845`, `cloudflare/src/coordinator.js:1899-1999`). Both hosts start their 30-second clock after response metadata, not before the outbound operation (`src/server.rs:1282-1334`, `cloudflare/src/coordinator.js:1823-1879`); local also cannot bound a blocking read by the remaining wall budget (`src/server.rs:1363-1408`). The default action watchdog is itself 30 seconds and its execution deadline is up to 50 ms earlier, so a default action cannot reach the stream’s 30-second timeout and then durably settle it (`src/server.rs:745-764`, `src/server.rs:1626-1643`). Finally, the 100 ms fence records mutation admission rather than successful commit linearization (`src/server.rs:1048-1067`, `cloudflare/src/host-ops.js:275-285`, `cloudflare/src/host-ops.js:513-522`). Resolve by defining the exact buffer accounting domain, serializing pulls, carrying one deadline from pre-fetch through terminal read, reserving terminalization grace outside the action watchdog, and measuring spacing at successful commit.
+
+6. **Major — The diagnostic contract is not preserved end to end.** The exact names exist, but `_UNSUPPORTED` and `SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` are omitted from both handler allowlists and therefore fold to `SNAPBACK_HANDLER_FAILED` (`src/runtime.rs:2884-2923`, `packages/snapback-harness/envelope.mjs:12-58`). Trusted host errors construct operation, limit, received-summary, and repair details, but the settlement wrapper and both decoders retain only code and message (`packages/snapback-harness/ctx-bootstrap.js:1049-1074`, `src/runtime.rs:2261-2287`, `packages/snapback-harness/workerd/handler-server.mjs:455-488`, `packages/snapback-harness/envelope.mjs:61-89`). Malformed-request diagnostics also retain raw deserializer text, which can contradict the value-free requirement (`src/runtime.rs:1374-1387`, `llp/0076-bounded-streamed-actions.rfc.md:228-233`). Resolve with a trusted structured error envelope that preserves scrubbed details without permitting handler-forged codes, and test every code/detail field through the public action result.
+
+7. **Major — Capability and frozen-fixture authorities currently contradict the evidence.** LLP 0074 forbids gate closure until LLP 0076 is accepted with executable witnesses (`llp/0074-convex-competitive-strategy.rfc.md:217-231`). Nevertheless, positive capability membership already authorizes admission and manifests mark buffered bytes `Enforced` (`src/manifest.rs:3031-3033`, `src/manifest.rs:3385-3410`, `src/manifest.rs:3452-3463`, `src/manifest.rs:3645-3675`, `demos/competitive-checkpoint/snapback/generated/capability.manifest.json:44-68`, `demos/competitive-checkpoint/snapback/generated/capability.manifest.json:115-124`). Cloudflare makes the same positive claim and asserts evidence its regression witness does not contain (`cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json:17-20`, `cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json:57-77`, `cloudflare/generated/capability.manifest.cloudflare-do-sqlite-v8.all-aboard.json:138`). Separately, LLP 0075 requires prospective amendment for outcome-affecting authority changes, but its JSON remains single-axis and its generated-reference-only rule conflicts with the string mutation names in the reference pattern (`llp/0075-convex-checkpoint-protocol.spec.md:87-96`, `llp/0075-convex-checkpoint-protocol.spec.md:171-190`, `demos/competitive-checkpoint/acceptance/protocol.v0.json:78`, `demos/competitive-checkpoint/snapback/handlers.mjs:139-192`). Demote the capability to non-admissible experimental maturity, mark unproved limits `Missing`, convert the fixture to generated references, and prospectively amend LLP 0075 and the JSON for the closed two-axis model.
+
+8. **Major — The accepted secret-placement contract is absent from streamed fetch.** LLP 0036 requires opaque handles, host-boundary placement, and value-aware scrubbing (`llp/0036-app-secrets-and-config.rfc.md:562-604`). The stream path forwards raw URL/header/body/key strings (`cloudflare/src/coordinator.js:1751-1822`), while only ordinary fetch resolves secret descriptors and constructs a redactor (`cloudflare/src/coordinator.js:2045-2103`). This directly contradicts the RFC’s claim that streaming shares ordinary fetch’s secret policy (`llp/0076-bounded-streamed-actions.rfc.md:64-67`) and is acknowledged as a mandatory gap (`llp/0076-bounded-streamed-actions.rfc.md:378-384`). Resolve by adding the same opaque placement seam and staged-value redactor to stream open, then scan action envelopes, receipts, response errors, URLs, and private bytes.
+
+9. **Major — The acceptance contract is not currently executable as claimed.** The local witness proves ordered happy-path bytes and three-plus commits, but reports the 800 ms duration as a constant; its retry test only repeats `startReply`, and its cancellation test checks row stability rather than upstream socket closure (`demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:100-188`, `demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs:323-335`). Direct host tests cover several codes but do not satisfy the RFC’s real action/mutation/commit path requirement (`src/server.rs:29994-30120`, `llp/0076-bounded-streamed-actions.rfc.md:300-302`). The Workerd witness uses only 8×4096-byte chunks at 25 ms and proves pull size, total refusal, and reader cancellation—not durable progress, wall/idle/rate settlement, authority loss, certainty, or secrets (`cloudflare/test/acceptance.egress.mjs:111-130`, `cloudflare/test/acceptance.egress.mjs:253-339`). Its harness explicitly describes Miniflare as a regression surface, not hosted evidence (`cloudflare/test/harness.mjs:1-13`). Require a per-bullet receipt matrix on every manifest-positive target, including the protocol’s next executable `single-instance-container-vm.v1` target (`demos/competitive-checkpoint/acceptance/protocol.v0.json:56-60`).
+
+10. **Moderate — The normative surface is broader than the non-goals suggest.** Arbitrary HTTP(S), six methods, headers/body, a custom reader, and async iteration amount to a general bounded response-byte API (`llp/0076-bounded-streamed-actions.rfc.md:64-128`). Neither host rejects `text/event-stream`, so the SSE non-goal can only exclude framing/reconnect semantics, not consuming SSE bytes (`llp/0076-bounded-streamed-actions.rfc.md:414-421`, `src/server.rs:1179-1345`, `cloudflare/src/coordinator.js:1751-1885`). The host also rate-fences every nested mutation whenever any cursor is open, changing unrelated action behavior (`llp/0076-bounded-streamed-actions.rfc.md:254-260`, `src/server.rs:1048-1066`). Resolve by stating the byte-stream commitment precisely and moving progress throttling behind an explicit generated progress primitive, or narrowing the admitted surface.
+
+5. **Suggestions**
+
+- Encode `minimumProgressSpacingMs: 100`, its clock point, and whether failed attempts consume a slot in the protocol JSON; `authoritativePatchRatePerSecond: 10` alone is underspecified (`demos/competitive-checkpoint/acceptance/protocol.v0.json:77`).
+
+- Add a target conformance table mapping every limit, settlement combination, diagnostic, and acceptance bullet to a named executable receipt.
+
+- Refuse redirects in v1 or specify hop count, cross-origin header behavior, request replay, idempotency-key handling, and effect certainty; both hosts currently use default redirect behavior (`src/server.rs:1262-1286`, `cloudflare/src/coordinator.js:1829-1835`).
+
+- Bound or evict closed-cursor tombstones; both hosts retain every closed UUID until invocation completion despite only bounding concurrently open cursors (`src/server.rs:1347-1450`, `cloudflare/src/coordinator.js:1722-1735`, `cloudflare/src/coordinator.js:2018-2042`).
+
+- Remove `releaseLock()` from v1 if reader transfer is intentionally unsupported; the current implementation never clears its `locked` flag (`packages/snapback-harness/ctx-bootstrap.js:826-855`).
+
+- State numeric URL/header/body/key admission bounds in the RFC or explicitly classify them as target-local safeguards; the code enforces numbers not present in the claimed sole numeric authority (`llp/0076-bounded-streamed-actions.rfc.md:99-115`, `src/server.rs:1194-1255`).
+
+6. **Open questions**
+
+- Is `ambiguous` durable authority, or a derived compatibility/retry-policy view over effect certainty?
+
+- What exact host-observable event separates `not_sent_proven` from `may_have_executed`, given synchronous refusal and redirects?
+
+- Who may declare provider idempotency semantics, and how are that declaration, the effective key, and the canonical request digest bound to an attempt?
+
+- Who terminalizes the durable row when generation, service authority, or watchdog abandonment prevents the action from committing?
+
+- What queues count toward 64 KiB, and are concurrent `read()` calls rejected or serialized?
+
+- Does v1 exclude cron and LLP 0070 durable-job execution until a runner lease exists, or must this RFC define that binding now?
+
+- Must every manifest-positive target pass every acceptance bullet, including the selected hosted target?
+
+- Is progress cadence measured at admission, commit linearization, or successful completion?
+
+7. **Verdict**
+
+Verdict: NOT READY
+
+The core settlement, retry, lifecycle-fencing, boundedness, and capability-evidence contracts require resolution before this RFC can serve as accepted gate-2 authority.

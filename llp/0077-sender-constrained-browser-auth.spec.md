@@ -5,8 +5,20 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (third model-family review round — Fable NOT READY,
-Codex NOT READY, artifacts under `llp/reviews/0077-*`. Both families found
+**Revised:** 2026-07-23 (fourth model-family review round — Fable NOT READY,
+Codex NOT READY, artifacts under `llp/reviews/0077-*`. This revision pins the
+exact closed issuance exchange-wire schema (`senderConstraint` =
+`{protocol, publicJwk, proof}`, unknown-member-rejecting, hosted-required /
+local-absent, JWK-equals-proof-header, atomic no-attempt-no-replay on
+verification failure) as normative rather than an open question; rewords the
+implementation checkpoint so it no longer claims the generic constructor is
+excluded (it is defect 8); records the pre-body sender-admission reorder of
+LLP 0058's forbidden-field precedence as an explicit route-scoped amendment
+with a matching LLP 0058 Revised note; and aligns the acceptance and
+retention wording with the ledger. The eight-item ledger still gates any
+positive capability). 2026-07-23 (third model-family review round — Fable
+NOT READY, Codex NOT READY, artifacts under `llp/reviews/0077-*`. Both
+families found
 that the round-2 additions introduced fresh contradictions; this revision
 repositions the LLP 0058 forbidden-field check to post-admission
 (pre-body admission is preserved), restricts `SNAPBACK_AUTH_REQUIRED` to a
@@ -45,9 +57,13 @@ implementation defects ledger that blocks any positive capability claim).
 **Related:** LLP 0039, LLP 0053, LLP 0055, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0072, LLP 0074
 
 **Implementation checkpoint (2026-07-22):** The hosted-only browser entrypoint
-excludes the generic client constructor and the constructor/setter
-direct-bearer seams; inherited transport fields remain writable public
-properties, and a direct-mutation sentinel is pending. Its
+closes the exported constructor-options and `setBearerToken` direct-bearer
+seams, but it currently subclasses the generic client, so the generic
+constructor is still reachable through the prototype chain and inherited
+transport fields plus the mutable `senderConstrained` flag remain writable —
+the structural exclusion LLP 0060 requires is not yet structural. This is
+recorded as defect 8; the checkpoint does not claim the generic constructor
+is excluded. Its
 coordinator-owned transport now generates the non-extractable P-256 key,
 performs issuance, installs bearer/key/nonce as one `AuthCustodyV3` transition,
 signs protected HTTP requests, rotates each response nonce under the exact
@@ -157,10 +173,11 @@ fix plus a negative test:
 3. Sender lookup joins only the current session token hash, refusing
    proof-bearing requests that present an in-grace superseded token and
    breaking LLP 0057's tombstone-grace resolution matrix.
-4. Replay retention is exactly the accepted window (35 s) with
-   inclusive-boundary purge (`expires_at_seconds <= now`), one second short at
-   the final inclusive second; the contract requires expiry at `iat + 30 + 1`
-   with an exclusive purge boundary.
+4. Replay retention is exactly the accepted window (35 s) with an
+   inclusive-boundary purge (`expires_at_seconds <= now`) on both the replay
+   and nonce tables, one second short at the final inclusive second; the
+   contract requires expiry at `iat + 30 + 1` with an exclusive `< now` purge
+   on both tables.
 5. The client installs the successor `DPoP-Nonce` without adding it to the
    diagnostic redaction set, and parses a successful response body before
    failing on a missing successor nonce, so a committed effect can be
@@ -266,10 +283,17 @@ order:
 Only after admission succeeds does ordinary post-admission processing run:
 the LLP 0058 forbidden-authority-field body check (which retains its LLP 0058
 precedence *within* post-admission processing — it wins over credential
-resolution, not over sender admission), then credential resolution and
-application body ingestion. Sender admission thus never overrides the
-pre-body admission guarantee; the 0058 field check keeps its precedence over
-the bearer exactly where LLP 0058 places it, after the body is available.
+resolution), then credential resolution and application body ingestion.
+
+This is a deliberate, narrow amendment to LLP 0058's stated ordering, not
+mere composition: LLP 0058 places the forbidden-authority-field check before
+bearer consideration, but a sender-constrained route cannot trust its request
+body until the sender proof has gated body access, so on these routes sender
+admission runs first and the forbidden-field check runs immediately after,
+still before credential resolution and before any application handler. The
+security rationale is that an unproven sender must never cause body ingestion;
+the forbidden-field check keeps its precedence over the bearer. LLP 0058
+should carry a Revised note recording this route-scoped reorder.
 
 Diagnostic precedence composes with LLP 0057 rather than overriding it. A
 genuinely absent `Authorization` header yields `SNAPBACK_AUTH_REQUIRED` as
@@ -389,10 +413,29 @@ within a deployment; a `jti` is unique per admission epoch, and a new epoch
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
-later-version question: the v2 exchange body adds a `senderConstraint` member
-carrying the public JWK and issuance proof, and the response carries
-`DPoP-Nonce`. LLP 0057 carries a corresponding Revised note; for the extended
-members and header, this Spec has precedence.
+later-version question. The v2 exchange request body is exactly:
+
+```json
+{
+  "challengeId": "...",
+  "code": "...",
+  "senderConstraint": {
+    "protocol": "snapback.sender-constrained.v2",
+    "publicJwk": { "crv": "P-256", "kty": "EC", "x": "...", "y": "..." },
+    "proof": "<compact sender-issuance.v2 JWS>"
+  }
+}
+```
+
+The `senderConstraint` object rejects unknown members. It is **required** on a
+hosted target and **absent** on a local bearer-v1 exchange; a hosted request
+without it, or a local request carrying it, is refused at the route boundary.
+`publicJwk` MUST equal the JWK in the issuance proof's protected header (the
+server rejects a mismatch), and its RFC 7638 thumbprint is what the new
+session family binds. A response on the hosted path carries `DPoP-Nonce`. An
+issuance proof that fails verification consumes neither a code attempt nor a
+replay id — issuance is atomic with binding. LLP 0057 carries a corresponding
+Revised note; for the extended member and header this Spec has precedence.
 
 Refresh requires both the current credential and a protected-resource proof.
 Every successor remains bound to the same thumbprint. Rotation to another key
@@ -515,8 +558,10 @@ and parser errors are forbidden.
   clone, and signs a fixed cross-language vector accepted by Rust.
 - Header, payload, JWK, base64url, signature, method, URI, time, nonce, token
   hash, and thumbprint negatives each fail before application body ingestion.
-- Two processes racing the same proof id produce one success and one replay
-  refusal; replay-store failure produces no application execution.
+- Concurrent connections racing the same proof id produce one success and one
+  replay refusal; replay-store failure produces no application execution.
+  (Witnessed today by two in-process SQLite connections across threads; a true
+  two-process race remains pending, per the checkpoint.)
 - Issuance binds the key before credential publication; refresh preserves it;
   key loss has no bearer fallback; v1 migration is deletion-only.
 - HTTP, connection-open, WebSocket upgrade, reconnect, logout, rotation,
@@ -553,10 +598,6 @@ and parser errors are forbidden.
   the replay and nonce tables and the sender admission epoch: cleared,
   restored-but-unreachable, or retained until expiry — and what authoritatively
   rotates the epoch.
-- The exact closed issuance request/response wire schema (`senderConstraint`
-  wrapper keys, hosted-required/local-forbidden, JWK equality with the proof
-  header, issuance `jti`/replay accounting) and its precedence against LLP
-  0057's code-attempt accounting.
 - Whether v2 later admits a bounded multi-flight lease of one-use nonce
   tickets instead of strict per-custody serialization.
 - When a browser cannot read a successful WebSocket upgrade's successor nonce,

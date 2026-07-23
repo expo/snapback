@@ -179,3 +179,62 @@ The problem is that the round-3 normative additions introduce fresh contradictio
 7. **Verdict**
 
 Verdict: NOT READY — the defect ledger and checkpoint are now verifiably honest, but the round-3 normative additions introduce an internal ordering contradiction (LLP 0058 body-check step vs. the pre-body admission rule and its pinned tests) plus doc/code divergences on bearer-precedence, URI normalization, and the untracked serialization rule that a second implementation could not reconcile.
+
+## Round 4 — 2026-07-23
+
+**Revision under review:** `llp/0077-sender-constrained-browser-auth.spec.md`, sha256 `a4028a14d8ffc02a57f06fb8305b1b8a07b3f0bf802c7a011e80bcec57bd8806` at repo HEAD `7e5b54b8` (the reviewer flagged a pin MISMATCH — the orchestrator's round-4 prompt carried a stale round-1 pin due to a sed templating bug — but verified the on-disk file equals the round-4 content and reviewed it)
+**Runtime detail:** fresh Fable subagent, 35 tool uses, ~321 s; re-verified all eight ledger defects against the code and the four round-3-contradiction fixes. No access to earlier rounds or the concurrent Codex round.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check** — **MISMATCH.** I ran `shasum -a 256 llp/0077-sender-constrained-browser-auth.spec.md` → `a4028a14d8ffc02a57f06fb8305b1b8a07b3f0bf802c7a011e80bcec57bd8806`, which does **not** equal the pinned `1c583c3d358edd2e9c3de62df19bd12b4f5f3a273ed3c30b412d521995f67b46`. `git rev-parse --short HEAD` → `7e5b54b8` (matches). The file is untracked/uncommitted, so it was edited after the pin was computed; I reviewed the on-disk revision at HEAD `7e5b54b8` and flag that it is not the pinned bytes. Everything below concerns the on-disk text.
+
+2. **Overall assessment**
+
+This revision is a genuine improvement over what the header records as two prior NOT-READY rounds, and it is unusually honest for a Draft. The four repositionings it claims are real and internally coherent: the LLP 0058 forbidden-field check is now described as post-admission with pre-body sender admission preserved (and the code confirms the ordering — sender admission runs at `src/server.rs:8502` before `AdmittedBodyGuard::wrap` at `:8526`); `SNAPBACK_AUTH_REQUIRED` is narrowed to a genuinely absent `Authorization` header with the malformed-carrier challenge argued as a deliberate anti-oracle choice (§HTTP binding, lines 274–282); the canonical-URI rule now rejects rather than resolves dot-segments and other path adornments (lines 284–290); and the per-custody serialization and hosted-constructor exclusion are tracked as defects 7 and 8. The document stays cleanly inside the slice LLP 0060 §C3 delegates (0060:835–874) and contradicts nothing in the governing authorities I checked; LLP 0057 carries the matching Revised delegation note (0057:8–15).
+
+Where it is weakest is the tension between a Spec's job and its current form. The eight-item defect ledger is candid and correctly gates any positive capability, and I verified all eight defects still exist in the code exactly as described — that honesty is a strength, not a flaw. But two things keep me from READY. First, the implementation checkpoint still overstates in at least one place that directly contradicts the ledger it sits above: it says the hosted entrypoint "excludes the generic client constructor" (lines 47–48), while `packages/snapback-client/hosted-browser.mjs:22` shows it `extends SnapbackClient` and invokes `super(...)` with `bearerToken: null` — the parent constructor is reached, not excluded, which is exactly what defect 8 concedes. Second, and more fundamental for a wire Spec: the exact issuance request/response schema — a central artifact this document exists to pin — is still parked as an open question (lines 556–559), so a second implementer cannot yet build the `/auth/exchange` sender-binding wire interoperably from the normative text. A Spec whose defining purpose is to freeze the wire contract should not advance while its issuance wire remains unspecified.
+
+The security reasoning is otherwise sound and the deviations from RFC 9449 are enumerated and each removes negotiation surface rather than adding it (lines 234–242). My verdict rests on doc/code-agreement and normative-completeness gaps, not on a design flaw.
+
+3. **Strengths**
+
+- **Honest, code-accurate defect ledger.** All eight defects are real and still present: defect 1 (unauthenticated challenge rotates a live nonce) is confirmed at `src/auth/sender_proof.rs:696–721` where `fresh_challenge` unconditionally calls `issue_sender_nonce`, which increments generation at `:591–592`; defect 3 (current-token-only join) at `:1114–1126` (`session.token_hash = ?1 AND revoked_at_ms IS NULL`, no grace tombstone); defect 4 (inclusive `<=` purge, 35 s retention) at `:1157` and `:25`; defect 6 (unrestricted binding) at `:1086–1103` where `bind_new_session_sender_constraint` accepts any `session_id`; defect 8 at `hosted-browser.mjs:22`. Ledgering these as blocking (lines 141–182) is the right posture.
+- **Gate/status discipline is intact.** The checkpoint ends "No capability is positive" (line 139) and lines 537–540 make the acceptance matrix a hard precondition, consistent with LLP 0060 §C3's "before any positive sender-constraint capability is emitted" (0060:870).
+- **XSS non-claim is precise and matches the authority.** Summary lines 195–197 mirror 0060 §C3 lines 861–868 verbatim in spirit; no surface is allowed to call this XSS-resistant.
+- **Concrete, testable primitives where they exist.** The verifier negative corpus and both inclusive time boundaries are real: `verify_time` at `src/auth/sender_proof.rs:1260–1263` and the boundary asserts at `:1556–1569`; the two-connection replay race at `:1728` yields exactly one success and one replay; the WebCrypto→Rust cross-language vector (`tests/sender_proof_cross_language.rs`) exercises a live non-extractable P-256 key. The reflected-material sanitization gap the checkpoint claims was closed is genuinely tested at `sender-transport.test.mjs:346–378` (asserts NONCE, JWK x/y, and each proof segment do not escape into the projected error).
+- **Anti-oracle diagnostic reasoning is well-constructed** (lines 274–282, 329–337): folding unknown-token into the sender-proof bucket to avoid a family-existence oracle, with the residual bound-vs-unknown distinction honestly surfaced as an open question rather than hidden.
+- `./ref-check --verbose` passes: 84 docs, 1779 refs, 0 errors.
+
+4. **Concerns**
+
+1. **(Moderate) Checkpoint contradicts defect 8 on constructor exclusion.** Lines 47–48 assert the hosted entrypoint "excludes the generic client constructor," but `packages/snapback-client/hosted-browser.mjs:22` subclasses `SnapbackClient` and calls `super(baseUrl, { ...options, senderConstrained: true, bearerToken: null, ... })` — the generic constructor is invoked through the prototype chain, precisely the seam defect 8 (lines 176–182) says is not yet closed. *Resolution:* reword the checkpoint so it does not claim exclusion the code does not provide; describe the current subclass posture and point to defect 8, so the checkpoint and ledger cannot be read as contradicting each other.
+
+2. **(Moderate) Central issuance wire schema is still an open question, undermining second-implementation testability.** §Issuance gives the issuance-proof payload (lines 366–376) but line 393–395 only says the exchange body "adds a `senderConstraint` member carrying the public JWK and issuance proof," and open question 5 (lines 556–559) concedes the exact wrapper keys, hosted-required/local-forbidden rules, JWK-equality requirement, and issuance replay accounting are unspecified. For a Spec whose stated purpose is the wire/custody/replay/rollout contract, this is a MUST-level hole. *Resolution:* pin the closed `senderConstraint` object schema (member names, required/forbidden-by-locus, the JWK-equals-header-JWK rule the code already enforces at `src/auth/sender_proof.rs:1332–1338`, and issuance `jti`/replay accounting), or explicitly scope the issuance wire out of this Spec's normative surface.
+
+3. **(Moderate) Contract/code divergence on replay retention is real and security-relevant, not merely cosmetic.** The normative text requires retention to `iat + 30 + 1` with an exclusive `expires_at_seconds < now` purge so a `jti` replayed at the final inclusive second still refuses (lines 293–297), but the code retains `now + 35` and purges with `<=` at `src/auth/sender_proof.rs:1157` (and the same inclusive purge for nonces at `:576`). Defect 4 records this, but the ledger wording ("one second short at the final inclusive second") understates that the purge predicate itself is inclusive on both tables. *Resolution:* keep as a blocking defect, and make the acceptance test at lines 531–532 assert the boundary against the corrected `<` predicate on both the replay and nonce tables.
+
+4. **(Minor) "Two processes racing the same proof id" acceptance criterion (line 518) is proven only by two in-process SQLite connections across threads.** The test at `src/auth/sender_proof.rs:1728` opens two `Connection`s on one file in spawned threads; the checkpoint honestly notes "a true two-process replay race … remain[s] unimplemented" (lines 137–138), but the Acceptance section (line 518) states "Two processes" without that caveat. *Resolution:* align the acceptance wording with the checkpoint (in-process multi-connection now; true multi-process pending), so Acceptance is not read as already satisfied.
+
+5. **(Minor) Spec-vs-narrative: the normative contract remains entangled with implementation log.** Much of the MUST-level content (e.g. the ordered admission steps, lines 258–264; nonce lifecycle, lines 307–357) is stated normatively, but it is interleaved with a two-page implementation checkpoint and defect ledger, and some normative rules exist only as prose adjacent to "defect N" notes. A second implementer must currently read the ledger to know which stated behaviors are the contract versus the current (defective) code. *Resolution:* factor a compact normative "Requirements (MUST)" list separate from the checkpoint/ledger.
+
+5. **Suggestions**
+
+- Add a one-line disposition to each defect (owning ticket / target milestone) so the ledger is actionable and the gate has a burn-down.
+- The cover-nonce residual (lines 329–337) and the epoch-rotation authority (open question 4, lines 553–555) interact: whether unknown carriers get a stable keyed cover nonce depends on what rotates the admission epoch. Consider resolving them together, since both feed the anti-oracle guarantee.
+- State explicitly, in the WebSocket section (lines 408–429), what recovers an upgrade nonce whose response header browser JS cannot read — the checkpoint describes the "forced protected session projection" path (lines 100–103) but the normative WebSocket text does not, and open question 7 (lines 562–563) leaves the release/resync point undefined.
+- Consider citing the exact RFC 9449 sections for the `use_dpop_nonce` pattern (line 505) and the pre-generated-proof/off-device rationale, to make the deviation list self-contained.
+
+6. **Open questions** (the author must still decide)
+
+- The closed issuance request/response wire schema and its precedence against LLP 0057's code-attempt accounting (the document's own open question 5, and my concern 2).
+- Whether unknown carriers must receive a stable keyed cover nonce or the bound-family existence signal is acceptable (lines 329–337, 551).
+- The exact reset/restore/restart/rollback lifecycle for the replay/nonce tables and admission epoch, and what authoritatively rotates the epoch (lines 553–555).
+- Whether the initial profile serializes per custody (defect 7) or later admits a bounded multi-flight lease of one-use nonce tickets (lines 460–464, 561).
+- Signing-in-page vs a typed service-worker network broker for the first implementation (lines 544–546).
+- The shared nonce/replay provider beyond single-instance SQLite (lines 547–549).
+
+7. **Verdict**
+
+`Verdict: NOT READY` — the design is sound and honestly bounded, but at least three items must be resolved first: the central issuance wire schema is still an explicit open question (a Spec cannot freeze the wire while its issuance interface is unpinned), the implementation checkpoint's "excludes the generic client constructor" claim contradicts both defect 8 and `hosted-browser.mjs:22`, and I could only review an on-disk revision that mismatches the pinned hash.

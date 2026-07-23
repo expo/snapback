@@ -5,7 +5,21 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (third model-family review round — Fable NOT READY,
+**Revised:** 2026-07-23 (fourth model-family review round — Fable NOT READY,
+Codex NOT READY, artifacts under `llp/reviews/0076-*`. Both families confirmed
+the round-3 accuracy fixes but identified a hole in the *specified* model: the
+late-effect fence delegated terminalization to an authored mutation that
+cannot run under abandonment, and retry had no single-runner lease. This
+revision promotes the trusted terminalizer and the atomic single-runner lease
+from gap items into the specified Settlement contract (so a durable winner
+always exists and no two runners commit), specifies a distinct host
+`wireInitiated` fact for the effect-certainty axis rather than reusing LLP
+0059's `Initiated` permit, clarifies that the certainty is an orthogonal fact
+rather than a sixth settlement kind (so LLP 0075's five `requiredSettlementKinds`
+need no amendment), tightens the SSE non-goal to a byte-stream-only commitment,
+and makes the canonical example's `shouldFlush()` self-contained; the code-side
+of the terminalizer/lease/wireInitiated remains tracked as gaps; status remains
+Draft). 2026-07-23 (third model-family review round — Fable NOT READY,
 Codex NOT READY, artifacts under `llp/reviews/0076-*`. Both families confirmed
 the round-2 fixes but caught that the round-2 two-axis settlement was asserted
 as implemented fact while existing nowhere; this revision demotes it to a
@@ -72,6 +86,8 @@ with the familiar reader subset:
 const response = await ctx.fetchStream({ url, method: 'GET' });
 const reader = response.body.getReader();
 let batch = [];
+let lastCommit = 0;
+const shouldFlush = () => Date.now() - lastCommit >= 100; // >= 100 ms spacing
 for (;;) {
   const { done, value } = await reader.read();
   if (done) break;
@@ -80,7 +96,7 @@ for (;;) {
   // per-chunk commit against the witness cadence (chunks every 80 ms; the
   // fixture floor is ~50 ms) would trip SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED.
   // shouldFlush() gates on >=100 ms elapsed since the last commit.
-  if (shouldFlush()) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; }
+  if (shouldFlush()) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; lastCommit = Date.now(); }
 }
 if (batch.length) await ctx.runMutation('applyProgress', { attemptId, bytes: batch });
 ```
@@ -182,15 +198,25 @@ Settlement must carry two facts, not one: a `terminalCause` (`complete`,
 `failed`, `cancelled`, `timed_out`, `ambiguous`) and, orthogonally, an
 upstream-effect certainty — because cancellation or timeout after initiation
 of a non-idempotent request leaves the provider outcome genuinely unknown,
-exactly as a mid-body loss does. The single cause enum alone would let
+exactly as a mid-body loss does. The certainty is a separate durable fact, not
+a sixth cause: the five settlement kinds are unchanged, so LLP 0075's frozen
+`requiredSettlementKinds` stays exactly those five and no fixture amendment is
+required for it — the certainty column is additional retained evidence
+alongside the kind, not a new kind. The single cause enum alone would let
 `timed_out` and `cancelled` silently drop the uncertainty that `ambiguous`
-and mid-body `failed` preserve. This second axis is a normative v1
-requirement that the reference pattern's single-status row does not yet carry;
-it is recorded as an implementation gap below, and it needs a host-exposed
-`initiated` fact so the axis is host-derived rather than author-inferred (the
-authored mutation cannot otherwise know a timeout-before-metadata request
-reached the wire). Resolution of the uncertainty is LLP 0070's
-lookup/idempotency path, never a silent retry.
+and mid-body `failed` preserve.
+
+The certainty axis MUST be host-derived, not author-inferred. The host exposes
+a distinct `wireInitiated` fact that is true only once the request bytes have
+been handed to the network — deliberately *not* LLP 0059's `Initiated`
+authority permit, which acknowledges synchronous invocation *or* synchronous
+refusal and therefore cannot prove the provider may have acted. The durable
+row records "effect may have executed" for any terminal settlement whose
+`wireInitiated` fact is true. Resolution of the uncertainty is LLP 0070's
+lookup/idempotency path, never a silent retry. The reference pattern's
+single-status row does not yet carry this second axis and the host does not
+yet expose `wireInitiated`; both are recorded as implementation gaps below,
+but the two-axis contract and the host fact are specified here, not deferred.
 
 Classification is by host-provable phase, and ambiguity strictly
 over-approximates: an upstream failure the host can prove preceded request
@@ -213,6 +239,34 @@ it is why an unrecognized key can under-report uncertainty. Making key
 recognition a trusted, provider-founded declaration — after which only a
 recognized key downgrades `ambiguous` to `failed` — is the intended
 direction, tracked as a gap.
+
+For the fence promise (no late continuation writes after cancellation,
+timeout, deployment change, or authority loss) to hold, the model specifies
+two runtime-owned mechanisms, not left to the authored mutation:
+
+- **Trusted terminalizer.** A durable winner must always exist. When the
+  action is abandoned — generation retirement, service-authority
+  terminalization, or watchdog expiry — a trusted runtime terminalizer (or a
+  lease-expiry reconciler) writes the terminal row by compare-and-set, so the
+  attempt never remains `running` with no winner for the authored path or a
+  reader to observe. This is required because the abandoned action itself
+  cannot commit, so terminalization cannot be the authored mutation's sole
+  responsibility. The authored in-transaction terminal check remains the
+  fence for the *authored* path; the trusted terminalizer guarantees a winner
+  exists for the *abandoned* path.
+- **Single-runner lease.** Every attempt binds an atomic single-runner lease
+  (a runner-generation token) at start. A progress or terminal mutation
+  commits only under the current lease; a second runner that reopens the
+  upstream request cannot commit progress, so retry can never splice two
+  runners' differently segmented bytes. `startReply` returning the same
+  attempt to a concurrent caller must hand back the existing lease holder, not
+  a second runner.
+
+With those two in place, the "durable winner is authoritative" rule always has
+a winner and the action MUST return the committed terminal result verbatim
+rather than its local inference. The reference pattern implements neither the
+trusted terminalizer nor the lease yet; both are tracked as implementation
+gaps below, but they are part of the specified contract, not optional.
 
 An idempotent GET or a request carrying a provider-recognized idempotency key
 may be retried by the authored action, still under the same Snapback attempt
@@ -332,21 +386,28 @@ a fix before gate 2:
   the operation. An authority terminalization that lands during a blocked read
   can still return bytes. The contract requires an exact permit held through
   pull and byte handoff, or an equivalent fenced post-pull check.
-- **Trusted terminalizer.** Cursor closure is host-owned, but durable terminal
-  settlement is left to an authored mutation. After generation retirement,
-  service-authority terminalization, or watchdog abandonment the abandoned
-  action cannot commit, so the attempt row can remain `running` with no
-  durable winner to return. The contract requires a trusted compare-and-set
-  terminalizer or lease-expiry reconciler and a direct attempt-to-cursor
-  cancellation signal, raced for every lifecycle cause.
-- **Retry fencing.** `ActionStreamRequest` carries no attempt identity or
-  execution generation, and the reference `startReply` returns the same
-  attempt to concurrent callers without a single-runner lease, so two callers
-  can reopen the upstream request before either commits progress. The contract
-  requires distinct client-operation-key / Snapback-attempt-id / provider-key
-  identities, an atomic single-runner lease binding every progress and
-  terminal mutation, and duplicate-sequence acceptance only when byte offset
-  and digest agree.
+- **Trusted terminalizer (specified above; unimplemented).** The contract now
+  requires a trusted compare-and-set terminalizer or lease-expiry reconciler
+  and a direct attempt-to-cursor cancellation signal, raced for every
+  lifecycle cause. The reference pattern still leaves durable terminal
+  settlement to an authored mutation that cannot run once the action is
+  abandoned, so the attempt row can remain `running`; closing this is required
+  before gate 2.
+- **Single-runner lease and retry fencing (specified above; unimplemented).**
+  `ActionStreamRequest` carries no attempt identity or execution generation,
+  and the reference `startReply` returns the same attempt to concurrent
+  callers without a lease, so two callers can reopen the upstream request
+  before either commits progress. The contract requires distinct
+  client-operation-key / Snapback-attempt-id / provider-key identities, the
+  atomic single-runner lease binding every progress and terminal mutation, and
+  duplicate-sequence acceptance only when byte offset and digest agree. Until
+  it lands, automatically retried cron/LLP 0070 durable invocations are
+  excluded from streamed actions.
+- **Host `wireInitiated` fact (specified above; unimplemented).** The host
+  does not yet expose the distinct "bytes handed to the network" fact the
+  effect-certainty axis requires; today only LLP 0059's `Initiated` permit
+  exists, which cannot distinguish synchronous refusal from a request that
+  reached the wire.
 - **Absolute wall-clock enforcement.** The local host bounds the upstream
   request timeout at the idle window and checks the wall limit only at read
   boundaries, so a productive stream can fail near 5 s and be mislabeled, and
@@ -414,7 +475,12 @@ before the checkpoint reruns.
 ## Non-goals
 
 - streaming an action's HTTP response directly to its caller;
-- WebSocket, SSE, upload, or bidirectional streaming APIs;
+- WebSocket, SSE, upload, or bidirectional streaming APIs. v1 consumes the
+  raw bytes of any HTTP(S) response, including a `text/event-stream` body, as
+  an opaque byte stream; it provides no SSE event framing, `id`/`retry`
+  reconnect semantics, or WebSocket/upload/bidirectional surface. The v1
+  commitment is precisely a bounded, pull-driven, action-only *response-byte*
+  reader over an absolute HTTP(S) URL — not a general streaming API;
 - arbitrary action-to-action pipes;
 - exactly-once upstream effects;
 - durable execution or resumable cursor ownership across process death; or
