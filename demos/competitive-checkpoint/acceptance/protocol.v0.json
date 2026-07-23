@@ -1,0 +1,189 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-protocol.v0",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.3",
+  "authority": "llp/0075-convex-checkpoint-protocol.spec.md",
+  "normativePrecedence": "Where this JSON and the Spec prose disagree on an outcome-affecting requirement, the disagreement is a protocol defect that blocks timed runs until a dated amendment resolves it; neither artifact is silently authoritative over the other.",
+  "amendments": [
+    {
+      "version": "v0.1",
+      "date": "2026-07-23",
+      "prospective": true,
+      "reason": "First model-family review round (Fable + Codex, llp/reviews/0075-*). No timed sample had run; no baseline is rewritten.",
+      "changes": [
+        "snapbackLocalProfile corrected from the invented alias local-ibex-sqlite.v1 to the canonical target identity local-dev-sqlite-ibex (src/manifest.rs TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX); receipts must derive target identity from the served capability manifest, never hardcode it",
+        "nonInferiority gains explicit requiredFailuresMax/retriesMax/skippedGatesMax comparator-relative rules that the prose stated and this file omitted; cleanupDefectsMax stays at the stricter absolute zero and the prose now matches",
+        "outcomePrecedence, preRunDisposition, assistancePolicy, statisticsImplementation, and frontendHostingBoundary added; the unpinned entries explicitly block timed runs rather than deferring to runner discretion"
+      ]
+    },
+    {
+      "version": "v0.2",
+      "date": "2026-07-23",
+      "prospective": true,
+      "reason": "Second model-family review round (Fable READY, Codex NOT READY, llp/reviews/0075-*). No timed sample has run; no baseline is rewritten.",
+      "changes": [
+        "securityFailuresMax: 0 added — the prose margin the JSON omitted",
+        "proposedHostedAdapter marked replaced-prospectively and nextExecutableAdapter named, so a JSON-only consumer cannot plan a Cloudflare-hosted run",
+        "runCapsule, metricDefinitions, convexLocalLegTopology, and applicationAuthSetup added as unpinned-blocks-timed-runs; the assistance policy now requires one identical agent configuration across arms with only the documentation corpus differing per arm",
+        "generatedPatterns attributed to the Snapback arm's authoring constraint; requiredSurfaceTiming distinguishes the timed React web path from the untimed Expo compatibility check",
+        "frozen Draft authority set extended to LLP 0041/0051/0064 with the acceptance-supersedes-snapshot rule"
+      ]
+    },
+    {
+      "version": "v0.3",
+      "date": "2026-07-23",
+      "prospective": true,
+      "reason": "Third model-family review round (Fable READY, Codex NOT READY, llp/reviews/0075-*). No timed sample has run; no baseline is rewritten.",
+      "changes": [
+        "rubric scoring anchors upgraded from unpinned-blocks-scoring to blocking both timed runs and evidence reveal, so anchors cannot be authored after seeing either arm's receipts",
+        "prose warmup wording aligned to warmupsPerArm: 2 (two untimed warmups per arm)",
+        "generic reprioritize consequence returns the named gap to LLP 0063 for sequencing instead of commanding tranche movement from this Spec"
+      ]
+    }
+  ],
+  "strategy": "llp/0074-convex-competitive-strategy.rfc.md",
+  "programAuthority": "llp/0063-partitime-platform-roadmap.plan.md",
+  "baselineCutoff": {
+    "snapbackCommit": "4a1024a7ead9daf2415a1a21a123fcf39f919c92",
+    "rule": "All metric-affecting work after this commit is treatment work; executions use fresh external checkouts and preserve versioned two-arm rerun evidence."
+  },
+  "claimScope": {
+    "kind": "exact-frozen-fixture-only",
+    "customer": "one noninteractive coding agent acting for a solo developer or small product team",
+    "application": "owner-private AI chat with streamed durable assistant progress",
+    "requiredSurfaces": ["react-web", "react-expo-ios-online"],
+    "requiredSurfaceTiming": { "react-web": "timed", "react-expo-ios-online": "untimed-online-compatibility-check" },
+    "snapbackLocalProfile": "local-dev-sqlite-ibex",
+    "snapbackHostedProfile": "trusted-single-tenant-app-complete.v1",
+    "proposedHostedAdapter": "cloudflare-worker-do-sqlite-v8.v0",
+    "proposedHostedAdapterStatus": "replaced-prospectively-2026-07-22-by-adjudication-pending-versioned-amendment",
+    "nextExecutableAdapter": "single-instance-container-vm.v1",
+    "convexPackage": "convex@1.42.3",
+    "convexPackageAnchor": "demos/chat-matrix/expo/bun.lock"
+  },
+  "fixture": {
+    "tables": ["conversations", "messages"],
+    "generatedPatterns": ["owned-crud", "owned-unique-lookup", "owned-keyset-pages"],
+    "generatedPatternsArm": "snapback-only-authoring-constraint; the Convex arm implements the same behavioral facts idiomatically",
+    "visibility": { "kind": "owner", "field": "ownerId", "explicit": true },
+    "stream": {
+      "deterministicChunks": 16,
+      "minimumSourceDurationMs": 800,
+      "minimumIntermediateAuthoritativeCommits": 3,
+      "totalByteLimit": 1048576,
+      "bufferedByteLimit": 65536,
+      "wallClockLimitMs": 30000,
+      "idleLimitMs": 5000,
+      "authoritativePatchRatePerSecond": 10,
+      "requiredSettlementKinds": ["complete", "failed", "cancelled", "timed_out", "ambiguous"]
+    },
+    "requiredNegativeActors": 1,
+    "pushFallbackDisabled": true
+  },
+  "initialState": {
+    "freshMachineSnapshot": true,
+    "noSnapbackCheckout": true,
+    "noSiblingRuntimeCheckout": true,
+    "emptyPackageCache": true,
+    "noRunningBackend": true,
+    "noPriorDeploymentSelection": true,
+    "snapbackPackageSource": "public-npm-registry-only",
+    "forbiddenSnapbackSources": ["tarball", "workspace-link", "git-dependency", "sibling-path", "repository-local-runtime"]
+  },
+  "sampling": {
+    "armOrder": "alternating",
+    "startingArm": "convex",
+    "warmupsPerArm": 2,
+    "timedSamplesPerArm": 7,
+    "statistics": ["median", "p95", "bootstrap-95ci"],
+    "outlierPolicy": "retain every valid sample; invalidate only a documented instrument failure with a named documenter and retained rationale"
+  },
+  "statisticsImplementation": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "The exact estimator, bootstrap target, resample count, seed, and invalid-sample replacement rule must be pinned by content digest in a dated amendment before the first timed sample."
+  },
+  "assistancePolicy": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "One identical agent model/tool configuration serves both arms; only the pinned per-arm documentation corpus may differ, and both must be pinned in a dated amendment before the first timed sample — never left to the runner. The asymmetry is material: the comparator is abundantly represented in model training data while the Snapback arm depends on its shipped guide."
+  },
+  "runCapsule": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "A content-addressed run capsule — neutral fixture prompt bytes, each arm's starting scaffold tree digest, harness and analysis implementation digests, machine image, hardware/network policy, exact package integrities, provider/region/plan, and credential preconditions — must be pinned in a dated amendment before the first timed sample."
+  },
+  "metricDefinitions": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "An event schema pinning timer start/stop events for first-local-live-row and hosted-live-URL, the top-level-command and wrapper policy, token and tool-call accounting classes, per-metric aggregation across the seven samples for command/token/tool-call/failure/retry/skip margins, and an expected-refusal taxonomy distinguishing required negative witnesses from actual failures must be pinned in a dated amendment before the first timed sample."
+  },
+  "convexLocalLegTopology": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "Whether the comparator local leg is the isolated cloud development deployment, account-free local Convex (beta), or both with a preregistered sensitivity arm must be decided in a dated amendment before the first timed sample; the topologies are materially different workflows with different latency profiles."
+  },
+  "applicationAuthSetup": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "Each arm's identity provider, two-principal account fixture, credential provisioning, and timed-versus-excluded setup boundary must be pinned in a dated amendment before the first timed sample; server-derived identity and cross-user refusal are required product facts in both arms."
+  },
+  "frontendHostingBoundary": {
+    "status": "unpinned-blocks-timed-runs",
+    "rule": "hosted-live-URL means the public origin serving the actual React application. The comparator deploy command pushes backend functions; each arm's frontend host, credentials, and timed/excluded provisioning boundary must be pinned in a dated amendment before timed hosted samples."
+  },
+  "nonInferiority": {
+    "localElapsed": { "ratioMax": 1.25, "absoluteSlowerMsMax": 120000, "rule": "both" },
+    "hostedElapsed": { "ratioMax": 1.25, "absoluteSlowerMsMax": 300000, "rule": "both" },
+    "localTopLevelCommands": { "deltaMax": 2 },
+    "hostedTopLevelCommands": { "deltaMax": 3 },
+    "agentTokensRatioMax": 1.25,
+    "toolCallsRatioMax": 1.25,
+    "humanInterventionsMax": 0,
+    "unplannedCredentialRepairsMax": 0,
+    "correctnessFailuresMax": 0,
+    "securityFailuresMax": 0,
+    "cleanupDefectsMax": 0,
+    "requiredFailuresMax": "no-greater-than-comparator",
+    "retriesMax": "no-greater-than-comparator",
+    "skippedGatesMax": "no-greater-than-comparator",
+    "decisionStatistic": "point-estimate-median; p95 and bootstrap-95ci are informational and cannot rescue or overturn a margin"
+  },
+  "evidenceConfidence": {
+    "dimensions": [
+      "authority-attribution",
+      "transport-attribution",
+      "target-identity",
+      "settlement-precision",
+      "negative-authorization",
+      "cleanup",
+      "artifact-immutability",
+      "receipt-reproducibility"
+    ],
+    "scorePerDimension": { "missingOrContradicted": 0, "indirect": 1, "directReproducible": 2 },
+    "snapbackRequiredScore": 16,
+    "trustHypothesisMinimumLead": 2,
+    "scoringAnchors": {
+      "status": "unpinned-blocks-timed-runs-and-scoring",
+      "rule": "Per-dimension, per-arm 0/1/2 anchors — including what counts as direct reproducible evidence for comparator dashboard/CLI artifacts — must be preregistered in a dated amendment before the first timed sample and before any arm's evidence is revealed to the anchor author; managed-provider evidence may not be scored down merely for differing from Snapback's receipt vocabulary.",
+      "scorer": "A model family that did not author either arm scores the rubric with a retained dimension-level transcript before adjudication; the adjudicator resolves disputes under the dispute rule rather than scoring first."
+    }
+  },
+  "outcomes": {
+    "continue": "All checkpoint gates and margins pass with Snapback evidence confidence 16/16 and no required skip.",
+    "stop": "Any security/correctness, late-effect, target-confusion, secret-exposure, destructive-cleanup, or false-claim defect.",
+    "reprioritize": "Correctness passes but a margin fails, one gap dominates, or the proposed hosted adapter cannot implement the profile honestly."
+  },
+  "outcomePrecedence": ["stop", "reprioritize", "continue"],
+  "preRunDisposition": "A required pre-run skip with no Stop-class defect yields a readiness disposition of reprioritize; it is not a first-hour, completeness, or confidence outcome, and no timed comparison result exists until both arms complete timed samples under this protocol.",
+  "comparatorInventory": [
+    { "capability": "account-free local deployment", "deliveryClass": "core-beta", "verified": "2026-07-22", "source": "https://docs.convex.dev/cli/local-deployments" },
+    { "capability": "per-agent isolated deployment and scoped token", "deliveryClass": "hosted-cli", "verified": "2026-07-22", "source": "https://docs.convex.dev/cli/agent-mode" },
+    { "capability": "production and preview deploy", "deliveryClass": "hosted-cli", "verified": "2026-07-22", "source": "https://docs.convex.dev/cli/reference/deploy" },
+    { "capability": "backup export and destructive restore", "deliveryClass": "hosted-dashboard-cli", "verified": "2026-07-22", "source": "https://docs.convex.dev/database/backup-restore" },
+    { "capability": "online resumable migration with dry run", "deliveryClass": "component", "verified": "2026-07-22", "source": "https://docs.convex.dev/database/writing-data" },
+    { "capability": "staged index backfill", "deliveryClass": "core", "verified": "2026-07-22", "source": "https://docs.convex.dev/database/reading-data/indexes/" },
+    { "capability": "isolated component data and functions", "deliveryClass": "component", "verified": "2026-07-22", "source": "https://docs.convex.dev/components/understanding" },
+    { "capability": "React Native, Swift, Kotlin quickstarts", "deliveryClass": "client", "verified": "2026-07-22", "source": "https://docs.convex.dev/quickstarts" },
+    { "capability": "action fetch in browser-like runtime", "deliveryClass": "core", "verified": "2026-07-22", "source": "https://docs.convex.dev/functions/runtimes" }
+  ],
+  "adjudication": {
+    "ratifier": "Charlie Cheever, as named by LLP 0000",
+    "disputeRule": "A disputed interpretation requires a dated LLP 0063/0075 amendment before rerun.",
+    "requiredReports": ["product-completeness", "first-hour-cost", "correctness-and-evidence-confidence"]
+  }
+}

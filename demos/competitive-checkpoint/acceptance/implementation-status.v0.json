@@ -1,0 +1,110 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.implementation-status.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.3",
+  "protocolSha256": "930adc07655bb32886eb731973951f8b96145c4c33e4e22dae4f608ff8597fa8",
+  "adjudicatedProtocolVersion": "v0",
+  "recordedAt": "2026-07-22",
+  "revisedAt": "2026-07-23",
+  "adjudicator": "Charlie Cheever",
+  "adjudicatedAt": "2026-07-22",
+  "adjudicatorDecision": "reprioritize",
+  "recommendedOutcome": "reprioritize",
+  "recommendationReason": "The target-neutral release builder, exact target registry, immutable planner, and normalized single-instance lifecycle orchestration are implemented, including leases, interruption resume, standalone retention-bound backup plan/apply, verified backup manifests, activation generation fencing, served-path failure rollback, explicit code-only rollback, destructive restore with paused verification and separate activation, bounded logs, authenticated inspection, hash-chained receipts, and a fail-closed local control-audit chain. The deterministic driver is explicitly non-remote: no concrete provider has supplied hosted auth/TLS, remote logs/inspection/restore/audit evidence, or other hosted lifecycle attestations, and public npm publication still requires unavailable registry authority.",
+  "implementedEvidence": [
+    {
+      "claim": "local generated owner patterns and bounded authoritative stream progress",
+      "artifact": "demos/competitive-checkpoint/acceptance/results/local-streaming.v0.json",
+      "status": "passed-for-witnessed-subset-see-knownInstrumentDefects"
+    },
+    {
+      "claim": "shared authored ctx.fetchStream surface on the Workerd target",
+      "artifact": "cloudflare/test/acceptance.egress.mjs",
+      "status": "passed-21-of-21"
+    },
+    {
+      "claim": "React web and Expo iOS compile from generated function references",
+      "artifact": "demos/competitive-checkpoint/surfaces/react-expo",
+      "status": "typecheck-and-export-passed"
+    },
+    {
+      "claim": "public package closure installs without repository links",
+      "artifact": "demos/competitive-checkpoint/acceptance/results/package-cold-install.v1.json",
+      "status": "disposable-registry-proof-passed-public-publication-pending"
+    },
+    {
+      "claim": "packaged target-neutral release build retains and verifies an activation-ineligible immutable closure",
+      "artifact": "demos/competitive-checkpoint/acceptance/results/package-cold-install.v1.json#deployBuild",
+      "status": "passed-with-23-explicit-blocking-gaps"
+    },
+    {
+      "claim": "single-instance target/plan/apply protocol fences exact identity, resumes an interrupted operation, verifies a secret-free backup manifest, and rolls back failed served-path verification",
+      "artifact": "packages/snapback-cli/package.test.mjs",
+      "status": "deterministic-lifecycle-passed-remote-evidence-explicitly-false"
+    },
+    {
+      "claim": "production planning requires content-addressed adapter qualification and prepared-release evidence rather than an injectable eligibility assertion",
+      "artifact": "schemas/adapter.qualification.schema.json + schemas/prepared-release.manifest.schema.json",
+      "status": "verifier-and-schema-passed-positive-fixture-complete-profile-producer-pending"
+    },
+    {
+      "claim": "code-only rollback and destructive restore use separate exact plans; restore remains effects-fenced and inactive until a second verified activation plan",
+      "artifact": "schemas/rollback.plan.schema.json + schemas/restore.plan.schema.json + schemas/restore.activation-plan.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "deterministic-rollback-and-restore-drill-passed-remote-evidence-explicitly-false"
+    },
+    {
+      "claim": "structured logs and authenticated inspection are bounded, digest-bound, identity-fenced, and production-remote-evidence-gated",
+      "artifact": "schemas/vm-adapter.query-request.schema.json + schemas/vm-adapter.query-response.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "deterministic-query-protocol-passed-remote-provider-query-pending"
+    },
+    {
+      "claim": "standalone backup uses an immutable generation- and retention-bound plan, lease, read-back verification, and no-activation-change invariant",
+      "artifact": "schemas/backup.plan.schema.json + schemas/backup.manifest.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "deterministic-standalone-backup-passed-remote-storage-pending"
+    },
+    {
+      "claim": "privileged control mutations and reads append bounded Rust-owned events to a verified fail-closed local hash chain",
+      "artifact": "schemas/control.audit-event.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "local-chain-and-unavailable-intake-refusal-passed-independent-remote-sink-pending"
+    },
+    {
+      "claim": "adapter qualification requires a closed executed hosted-auth drill receipt rather than a generic hostedAuth evidence label",
+      "artifact": "schemas/hosted-auth.drill-receipt.schema.json + schemas/adapter.qualification.schema.json + packages/snapback-cli/package.test.mjs",
+      "status": "verifier-and-positive-shape-fixture-passed-sender-constrained-runtime-composed-authenticated-adapter-producer-and-remote-drill-pending"
+    },
+    {
+      "claim": "sender-constrained browser proof uses structured-cloned non-extractable WebCrypto P-256 custody, closed ES256 verification, durable family binding, redacted pre-body admission, and atomic replay-plus-nonce-generation consumption",
+      "artifact": "llp/0077-sender-constrained-browser-auth.spec.md + packages/snapback-client/hosted-browser.mjs + packages/snapback-client/sender-proof.mjs + packages/snapback-client/sender-transport.test.mjs + packages/snapback-contract/auth-coordinator.mjs + packages/snapback-contract/auth-sender-custody.test.mjs + src/auth/sender_proof.rs + src/server.rs + tests/sender_proof_cross_language.rs",
+      "status": "cross-language-atomic-nonce-single-record-custody-successful-http-refresh-challenge-recovery-real-websocket-upgrade-closed-codec-binding-negatives-two-connection-replay-race-replay-authority-failure-recovery-reset-restore-expiry-logout-live-invalidation-custody-composition-and-forbidden-carrier-redaction-passed-remaining-served-lifecycle-pressure-adapter-review-and-remote-acceptance-pending"
+    }
+  ],
+  "knownInstrumentDefects": [
+    {
+      "defect": "The local-streaming harness hardcodes the invented target alias local-ibex-sqlite.v1 into its receipt; the canonical identity is local-dev-sqlite-ibex (src/manifest.rs, generated capability manifest). Protocol v0.1 corrects the declared profile; the harness must derive target identity from the served capability manifest and the witness must be prospectively rerun before any comparison run.",
+      "recordedAt": "2026-07-23",
+      "source": "llp/reviews/0075-convex-checkpoint-protocol.codex.md round 1"
+    },
+    {
+      "defect": "The local-streaming witness covers cross-user list, lookup, and update denial but not cross-user delete refusal, which the frozen fixture and LLP 0065 both require; the generated-owner claim is narrowed to the witnessed subset until a real-server negative delete witness is retained.",
+      "recordedAt": "2026-07-23",
+      "source": "llp/reviews/0075-convex-checkpoint-protocol.codex.md round 1"
+    }
+  ],
+  "requiredRemoteSkips": [
+    {
+      "gate": "public-npm-publication",
+      "reason": "No authenticated npm publishing identity was available; a dry run or disposable registry is not public publication."
+    },
+    {
+      "gate": "trusted-single-tenant-app-complete-v1",
+      "reason": "No selected adapter currently implements every frozen hosted-profile fact without semantic substitution."
+    }
+  ],
+  "nextTranche": {
+    "profile": "trusted-single-tenant-app-complete.v1",
+    "adapter": "single-instance-container-vm.v1",
+    "parallelGate": "public-npm-publication",
+    "cloudflareTreatment": "narrow-proof-until-the-identical-complete-profile-passes-without-semantic-substitutions"
+  },
+  "claimBoundary": "Charlie Cheever accepted LLP 0075 v0 and adjudicated this checkpoint reprioritize. The decision preserves local evidence but closes no hosted, public-package, competitive, or later-stage gate; the selected adapter and public npm gate require prospective executable evidence."
+}
