@@ -31,7 +31,7 @@ be committed to until their evidence documents pass `llp-review`.
 | Item | Title | Owner LLP(s) | State |
 | --- | --- | --- | --- |
 | CC-1 | Agent provisioning surface (remote MCP + platform API) | 0010, 0024 | Proposed (review-gated) |
-| CC-2 | Facets/Dynamic Workers evaluation spike + LLP 0014 refresh | 0014, 0018, 0009, 0070 | Proposed |
+| CC-2 | Facets/Dynamic Workers evaluation spike + LLP 0014 refresh | 0014, 0018, 0009, 0070 | Elaborated as LLP 0087 |
 | CC-3 | Revocation-eviction as a proven differentiator | 0053, 0074 | Proposed |
 | CC-4 | Permission pushdown as a design requirement; auth paved-path adoptions | 0011 | Proposed |
 | CC-5 | Streams comparison into bounded streamed actions | 0076 | Proposed |
@@ -109,6 +109,10 @@ per-tenant backend hosting.
 3. Separately assess Dynamic Workflows as the
    [LLP 0070](./0070-durable-background-work.rfc.md) hosted profile
    candidate — same conformance suite, different substrate.
+
+**Elaboration.** This item is now expanded into a full staged adoption plan,
+[LLP 0087](./0087-facets-hosted-adoption.plan.md); the spike below is its
+Phase 0 and the decision gate below is its Gate 0.
 
 **Decision gate.** After the spike, LLP 0014 records one of: adopt facets
 for the next hosted profile; keep the hand-built per-app deploy; or hybrid
