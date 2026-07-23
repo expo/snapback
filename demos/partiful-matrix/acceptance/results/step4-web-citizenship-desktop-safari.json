@@ -1,10 +1,48 @@
 {
   "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_SAFARI",
-  "recordedAt": "2026-07-22T01:52:08.443Z",
+  "recordedAt": "2026-07-23T09:36:52.866Z",
   "repository": {
-    "revision": "c327d9e9d952976712a0caf8bc696007a31cac11",
+    "revision": "1fb605eed66634edd3646e1185fc28fbb5ef8040",
     "dirty": false
+  },
+  "exactRepository": {
+    "revision": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79",
+    "dirty": false,
+    "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723"
+  },
+  "candidatePackages": {
+    "source": "linked-source",
+    "sourceBound": true,
+    "rendererRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer",
+    "contractRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract",
+    "artifacts": [
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/package.json",
+        "sha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
+        "bytes": 1658
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
+        "sha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
+        "bytes": 89528
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/package.json",
+        "sha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01",
+        "bytes": 5710
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/src/web-host-direct.ts",
+        "sha256": "b598ccc0d0ca8af6cb3199c02d958f4ec7a9eaf8fa054a409e79cca56a5f88a0",
+        "bytes": 16430
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract/package.json",
+        "sha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3",
+        "bytes": 3814
+      }
+    ]
   },
   "claimEligible": true,
   "cells": [
@@ -23,13 +61,13 @@
   "artifacts": [
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554",
-      "bytes": 15025
+      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445",
+      "bytes": 15899
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692",
-      "bytes": 4550
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
+      "bytes": 4778
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -55,17 +93,17 @@
     },
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
-      "sha256": "1c142a4fb8606ef5c8d5c57c0bff2307981b9bf8f06855203c27ae53f78a9994",
-      "bytes": 15582
+      "sha256": "138ec1d22948fbcf94d46e8ce3cd6aae20fcce772da09532175446ac36d60bb8",
+      "bytes": 21638
     }
   ],
   "missingPrerequisites": [],
   "title": "Partitime / desktop safari citizenship",
-  "passed": 1,
+  "passed": 2,
   "skipped": 0,
-  "failed": 1,
+  "failed": 0,
   "total": 2,
-  "ok": false,
+  "ok": true,
   "results": [
     {
       "name": "contract × snapback traps and restores focus in desktop safari",
@@ -80,9 +118,20 @@
     },
     {
       "name": "contract × snapback exposes visible content to desktop safari find-on-page",
-      "ok": false,
-      "error": "native browser find did not expose the visible query: {\"found\":{\"anchor\":null,\"selection\":\"\"},\"nativeFind\":null}",
-      "diagnostic": null
+      "ok": true,
+      "details": {
+        "query": "Sunset Supper Club",
+        "selection": "Sunset Supper Club",
+        "anchor": "AXButton:View Sunset Supper Club",
+        "nativeFind": {
+          "present": true,
+          "value": "Sunset Supper Club",
+          "status": "missing value, 1 match",
+          "notFound": false
+        },
+        "usableAfterFind": true,
+        "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
+      }
     }
   ],
   "expectedChecks": 2,
