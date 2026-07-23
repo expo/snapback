@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Runtime, API, Tooling, Testing, Auth, Security, Client integration
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
+**Revised:** 2026-07-23 (dated pointer note: the provisioning/project-lifecycle contract's proposed home is LLP 0089; this Spec's scope exclusion stands); 2026-07-16 (ENG-24920 companion amendment); 2026-07-15 (ENG-25001: make LLP 0024 the explicit host-operation DTO owner, require the credential authority descriptor, and distinguish ordinary from startup-recovery rescue output); 2026-07-13 (ENG-24596 final audit: preserve frozen LLP 0039's narrower dev/test-only collision-rescue profile while mint remains dev/demo/test); 2026-07-13 (ENG-24596: add the built `auth.mintSession` and `auth.rescueCollidingTable` host operations, including their independent authority axes, activation fence, and exact result projections; earlier: ENG-24561 centralized operation profile and AdminRead/AdminWrite requirements across dedicated and multiplexed transports; provisioning and dev-user impersonation fail closed in prod, and host-ops reports the active profile. Earlier: 2026-07-01 LLP 0032 R4: implementation-status banner added — pinned contract, not built surface)
 **Related:** LLP 0000, LLP 0003, LLP 0004, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0017, LLP 0019, LLP 0020, LLP 0023, LLP 0057
 
 > **Implementation status (2026-07-02 — the LLP 0032 P6 first slice is
@@ -542,6 +542,21 @@ require `--as-membership <declaration>:<resource>:<role>`, which is row-seeding
 sugar, not ambient authority. `--as-agent` selects a synthetic
 dev-impersonation agent principal and never authenticates as a durable
 production agent.
+
+## Dated note: provisioning contract home (2026-07-23)
+
+The hosted-control-plane and project-lifecycle operations this Spec's scope
+section excludes — create-app, push-schema/permissions/code, version
+selection and rollback — now have a proposed contract home in
+[LLP 0089](./0089-agent-provisioning-surface.rfc.md) (Draft, authored under
+LLP 0086 §CC-1, resolving that plan's open question 4). This Spec's scope is
+**not** extended: it remains the operating surface for an app on a running
+server, and its exclusion of hosted control planes, billing, tenants, and
+project lifecycle stands. LLP 0089 reuses this Spec's result-envelope shape
+and projection-consistency rule, and the hosted-authority prerequisites in
+the 2026-07-16 amendment above (LLP 0060's deployment contract, LLP 0019
+F8's audit log, the LLP 0011 service-principal work) bind LLP 0089's hosted
+half unchanged.
 
 ## Open Questions
 

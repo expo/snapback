@@ -1,6 +1,6 @@
 # CC-1 (spec half): agent provisioning surface contract (LLP 0089)
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0089 authored, Draft: provisioning.v0 op table (create/schema.push/permissions.push/code.push/code.activate/capabilities.read/schema.lockdown, default locked), MCP-first + HTTP-second projections over one authority table (OQ1 resolved as proposed), contract home = new doc (OQ4), hosted half inherits LLP 0087 Phase 2 prerequisites; pointer notes added to LLP 0024/0010; build half stays blocked on review)
 **Severity:** P2
 **Systems:** Developer experience, Deployment, Auth
 **Author:** Claude (Fable), directed by Charlie Cheever
