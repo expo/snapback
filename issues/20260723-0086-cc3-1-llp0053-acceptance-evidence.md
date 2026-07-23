@@ -1,6 +1,6 @@
 # CC-3.1: LLP 0053 implementation/acceptance evidence + per-target coverage statement
 
-**Status:** Open
+**Status:** Done (2026-07-23 — LLP 0053 gains §Acceptance evidence and target coverage: local target covered at negotiated item-6/item-8 scope (receipts + suites named; three contract tests re-run passing), Cloudflare recorded as expected capability gap (verified no auth machinery in coordinator.js), CC-3.3 blocker noted so the competitive claim stays gated)
 **Severity:** P2
 **Systems:** Auth, Sync, Testing
 **Author:** Claude (Fable), directed by Charlie Cheever

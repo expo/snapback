@@ -5,7 +5,17 @@
 **Systems:** Sync, Realtime, Auth, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-12
-**Revised:** 2026-07-14 (ENG-24906 agent-auth input admission: the new dated
+**Revised:** 2026-07-23 (LLP 0086 CC-3.1 acceptance evidence and target
+coverage: added the dated §Acceptance evidence and target coverage note under
+§Status linking the local-target implementation and acceptance receipts —
+`src/auth/{invalidation,lease}.rs`, `src/storage/{auth_invalidation,authorized_lease,authorization}.rs`,
+`src/local/{authorization_acceptance,auth_room_kick_acceptance}.rs`,
+`tests/acceptance/auth-invalidation-v1-*`, and the card-game
+`authority-scope.mjs` proof — and stating per-target coverage honestly: local
+(Ibex) yes at the negotiated item-6/item-8 scope; Cloudflare no (open question 3
+stands as a recorded capability gap); the InstantDB competitive probe is blocked
+on credentials, so the LLP 0074 differentiator claim stays publication-gated.
+No contract change; Status stays Accepted.) 2026-07-14 (ENG-24906 agent-auth input admission: the new dated
 §Agent-auth protected-query inputs classifies the protected-query inputs
 LLP 0055 and LLP 0056 introduce — from 0056 the membership predicate node and
 the `ctx.permissions` membership read; from 0055 the sealed `ctx.auth`
@@ -35,7 +45,7 @@ history and §Changelog; artifacts in
 `reviews/0053-authorization-invalidation.{fable,codex}.md`. Split out of
 [LLP 0039](./0039-auth-vertical-slice.rfc.md) §Permission dependencies on
 2026-07-12.)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051, LLP 0055, LLP 0056
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0016, LLP 0020, LLP 0026, LLP 0032, LLP 0039, LLP 0043, LLP 0051, LLP 0055, LLP 0056, LLP 0074, LLP 0086
 
 ## Summary
 
@@ -1977,8 +1987,90 @@ camelCase while this RFC uses snake_case before LLP 0051 D4 fixes the wire
 encoding. Neither changes behavior or blocks implementation; the implementing
 spec must use the owning 0053 semantics and the registered wire spelling.
 
+### Acceptance evidence and target coverage (LLP 0086 CC-3) — 2026-07-23
+
+This dated note answers LLP 0086 §CC-3 item 1: where this contract is
+implemented and acceptance-tested, per target, with the concrete artifacts
+named. It records evidence; it amends no contract text.
+
+**Local (Ibex-hosted) target — implemented and acceptance-tested.** The
+"Acceptance settles the contract; it does not claim the implementation already
+exists" caveat above is now discharged for the local target at the negotiated
+item-6/item-8 scope, as LLP 0008's Revised header (2026-07-14
+auth-program implementation reconciliation) records. The evidence:
+
+- **Implementation.** Server side: `src/auth/invalidation.rs` (obligations,
+  issuers, retry episodes; `@ref`s to §Invalidation is an obligation, not a
+  message and §Negative deltas), `src/auth/lease.rs` (AuthorizedLease MAC,
+  keyring, verification locus per ENG-24992),
+  `src/storage/auth_invalidation.rs` (durable boot issuers/counters),
+  `src/storage/authorized_lease.rs`, `src/storage/authorization.rs`
+  (authorization version, `permissionFields` classification), and the room
+  machinery in `src/ephemeral.rs`. Client arm: `packages/snapback-contract/`
+  (`client-store.mjs`, `authorized-lease.mjs`, `query-authorization.mjs`,
+  `auth-coordinator*.mjs`).
+- **Committed acceptance receipts.** The canonical map is
+  `tests/acceptance/auth-invalidation-v1-evidence.md`, which pairs each
+  §Acceptance surface (mine-OR-public `public → private` without an epoch,
+  ACL-and-result roster, hierarchy reparent, mixed `permissionFields`,
+  matcher/full-requery convergence, lost-ACK escalation, restart, membership
+  blast radius, client quarantine/queue behavior, protected-query admission,
+  room kick, lease expiry) with a named executable test or receipt. The
+  machine-readable receipts are `auth-invalidation-v1-receipt.json`,
+  `auth-invalidation-v1-composed-receipt.json`, and
+  `auth-invalidation-v1-property-corpus.json`, composed and drift-checked by
+  `tests/acceptance/auth-invalidation-v1-report.mjs`, which runs in
+  `scripts/verify-local-proof` under an `@ref LLP 0053#acceptance` marker.
+- **Focused Rust suites.** `src/local/authorization_acceptance.rs` (the shapes
+  that killed attempts 1–5, plus the randomized convergence oracle),
+  `src/local/auth_room_kick_acceptance.rs` (the §Ephemeral room kick trace;
+  clause map in `tests/eng-24604-protected-room-kick.acceptance.md`),
+  `tests/protected_query_profile_v1.rs` and `tests/retainability_profile_v1.rs`
+  (the default-deny profile and retainability matrix), and the unit corpora in
+  `auth::lease::tests`, `storage::authorized_lease::tests`,
+  `storage::auth_invalidation::tests`, and `storage::authorization::tests`.
+- **Card-game proof.** `demos/card-game/tests/acceptance/authority-scope.mjs`
+  (also in `verify-local-proof`) exercises end to end the four proofs LLP
+  0008's header names: disjoint live delivery of hidden hands, logout blanking
+  of the predecessor surface, cold-process retained boot under a live
+  AuthorizedLease, and equality-expiry deletion of the exact retained payload
+  (plus user-switch physical deletion and stale-callback fencing).
+- **What was executed for this note.** On 2026-07-23 the standalone
+  server-free contract tests `packages/snapback-contract/authorized-lease.test.mjs`,
+  `authorized-retained-store.test.mjs`, and `auth-invalidation.test.mjs` were
+  run and passed. The Rust suites, the composed report, and the card-game
+  acceptance run were **located and cited from the committed receipts**, not
+  re-executed here (they run inside `scripts/verify-local-proof`, which starts
+  demo servers on shared fixed ports).
+- **Scope honesty.** The proven scope is the negotiated item-6/item-8 surface.
+  Per LLP 0008's same header entry, this does not extend to arbitrary
+  opaque-query retention or hosted auth.
+
+**Cloudflare target — not covered; recorded capability gap, expected.** Open
+question 3 stands: the Cloudflare coordinator
+(`cloudflare/src/coordinator.js`) has no authorization-version, obligation,
+lease, or `permissionBacking` machinery at all (its only "lease" strings are
+cron-claim leases, unrelated to §The lease), and it rebuilds subscriptions on
+deploy. The revocation-eviction differentiator claim therefore covers the
+**local target only** today. This is a known, deliberately recorded gap — not
+an acceptance failure.
+
+**Competitive half (LLP 0086 CC-3.3).** The InstantDB eviction probe is
+blocked on credentials, so the comparative half of the differentiator claim is
+not yet established; the LLP 0074 claim remains publication-gated per LLP 0086
+governing constraint 2.
+
 ## Changelog
 
+- **2026-07-23 (LLP 0086 CC-3.1 acceptance evidence; still Accepted).** Added
+  the dated §Acceptance evidence and target coverage note under §Status: named
+  the local-target implementation files, committed receipts
+  (`tests/acceptance/auth-invalidation-v1-*`), focused Rust suites, and the
+  card-game `authority-scope.mjs` proof; recorded the per-target coverage
+  statement (local yes at item-6/item-8 scope, Cloudflare no — open question 3
+  is a recorded capability gap) and that the InstantDB probe (CC-3.3) is
+  blocked on credentials, keeping the LLP 0074 claim publication-gated. No
+  contract change; no status transition.
 - **2026-07-14 (ENG-24906 agent-auth input admission; still Accepted).** Added
   §Agent-auth protected-query inputs, a dated amendment classifying the new
   protected-query inputs LLP 0055 and LLP 0056 introduce so the default-deny
