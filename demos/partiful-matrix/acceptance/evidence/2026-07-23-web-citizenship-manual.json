@@ -1,12 +1,12 @@
 {
   "schemaVersion": "partitime.web-citizenship-evidence.v1",
   "run": {
-    "id": "partitime-web-citizenship-mobile-20260723",
-    "operator": "Codex using agent-device on the owner-controlled simulator",
-    "baseCommit": "0df687d1a8c0097f768fc2693458f397da100532",
-    "exactCommit": "72ea2d9782a404f75aa5f0518eef44116c864418",
+    "id": "partitime-web-citizenship-ios-current-and-current-minus-one-20260723",
+    "operator": "Codex using native simulator UI plus source-bound iOS safaridriver receipts on owner-controlled simulators",
+    "baseCommit": "a3aa35da85e503d86ee3cab4efe0c0051514f08b",
+    "exactCommit": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
     "startedAt": "2026-07-23T12:11:49.506Z",
-    "completedAt": "2026-07-23T12:13:58.631Z"
+    "completedAt": "2026-07-23T22:42:27.994Z"
   },
   "rows": [
     {
@@ -49,6 +49,329 @@
         "pollFallbackEnabled": false,
         "markedText": "かんぱい",
         "committedValue": "乾杯"
+      }
+    },
+    {
+      "environment": "ios-safari-current",
+      "assertion": "autofill-password-manager",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On iOS 26.5 Mobile Safari, the native keyboard accessory exposed AutoFill Contact and the synthetic My Info home-address suggestion. Selecting it populated the controlled Contract Location input with 123 Market Street and left the dialog editable.",
+      "evidence": [
+        {
+          "kind": "device-screenshot-native-autofill-suggestion",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-autofill/suggestion.png",
+          "sha256": "6da43f1c154f791e9e7e2fb3aa2c0036ca6a6640bcc9732ab8977a67b771212a"
+        },
+        {
+          "kind": "device-screenshot-controlled-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-autofill/filled.png",
+          "sha256": "9a887aa58434e84ce1488639cf71ed0a6c3b5effd0841983204068880f670708"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-2694",
+        "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+        "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+        "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+        "pollFallbackEnabled": false,
+        "identity": "synthetic Partitime Tester vCard selected as My Info",
+        "suggestion": "home — 123 Market Street, San Francisco, CA 94105, United States",
+        "committedValue": "123 Market Street"
+      }
+    },
+    {
+      "environment": "ios-safari-current",
+      "assertion": "focus-trap-restore",
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "notes": "A clean iOS 26.5 safaridriver run used keyboard Tab to reach the opener, observed focus move to create-close, verified reverse and forward wrapping inside the dialog, then Escape closed the scope and restored focus to new-event.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-webdriver/device-receipt.json",
+          "sha256": "4ea11d456cca91de3de51c320c4cccddb87d7fd4ab979a69fc49a76d1536b2e5",
+          "result": "contract × snapback traps and restores focus in ios-safari-current"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "tabPath": [
+          null,
+          "theme-toggle",
+          "new-event"
+        ],
+        "fixtureActivation": "DOM click on the WebDriver-keyboard-focused opener"
+      }
+    },
+    {
+      "environment": "ios-safari-current",
+      "assertion": "bfcache-restore",
+      "fixture": "partitime-feed-event-bfcache",
+      "status": "pass",
+      "notes": "A clean iOS 26.5 safaridriver run retained an unsubmitted Contract wall draft across event → about:blank → browser back, observed pageshow.persisted=true, edited the restored draft, and returned to the live feed.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-webdriver/device-receipt.json",
+          "sha256": "4ea11d456cca91de3de51c320c4cccddb87d7fd4ab979a69fc49a76d1536b2e5",
+          "result": "contract × snapback restores authored state from bfcache in ios-safari-current"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "route": "feed -> event -> about:blank -> browser back -> feed",
+        "pageshowPersisted": true,
+        "retainedDraft": "bfcache-current-draft",
+        "interactiveAfterRestore": true
+      }
+    },
+    {
+      "environment": "ios-safari-current",
+      "assertion": "find-on-page",
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "iOS 26.5 Safari's native Page Menu Find UI found Sunset Supper Club with a 1 of 1 result and visibly highlighted the event copy. After dismissing Find, the event opened normally.",
+      "evidence": [
+        {
+          "kind": "device-screenshot-native-find-result",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-find/result.png",
+          "sha256": "bf40e802defbebeabfd89e6b0e53370ccb4797b51e5400f152143f51ca6f49a6"
+        },
+        {
+          "kind": "device-screenshot-usable-after-find",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-find/usable-after-dismiss.png",
+          "sha256": "974969ec0f6c982f92bead59b7b57b02e9e331b42de8d536515d4ebef95762ad"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-2694",
+        "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+        "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+        "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+        "pollFallbackEnabled": false,
+        "query": "Sunset Supper Club",
+        "resultCount": "1 of 1",
+        "usableAfterFind": true
+      }
+    },
+    {
+      "environment": "ios-safari-current-1",
+      "assertion": "ime-composition",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On iOS 26.4 Mobile Safari, real Japanese Romaji key taps produced visibly marked かんぱい in the native Event title control with native candidates including 乾杯; Return committed かんぱい once and left it visible.",
+      "evidence": [
+        {
+          "kind": "device-screenshot-marked-composition",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-ime/composing.png",
+          "sha256": "eb6b03c15135737c93169d3f4f8f247d70b60dec07b8abac8d79fb7629bdfc99"
+        },
+        {
+          "kind": "device-screenshot-committed-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-ime/committed.png",
+          "sha256": "0448f1db6d20d9c72f34e16b3f62b3fe37fb104fe51f942b7f73c3c41ccf26c0"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.4"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.4 (23E244)"
+      },
+      "channel": "current-1",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-26.4",
+        "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+        "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+        "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+        "pollFallbackEnabled": false,
+        "keyboard": "Japanese Romaji",
+        "markedText": "かんぱい",
+        "nativeCandidate": "乾杯",
+        "committedValue": "かんぱい"
+      }
+    },
+    {
+      "environment": "ios-safari-current-1",
+      "assertion": "autofill-password-manager",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On iOS 26.4 Mobile Safari, the native keyboard accessory exposed AutoFill Contact and the synthetic My Info home-address suggestion. Selecting it populated the controlled Contract Location input with 123 Market Street and kept the dialog intact.",
+      "evidence": [
+        {
+          "kind": "device-screenshot-native-autofill-suggestion",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-autofill/suggestion.png",
+          "sha256": "65108772f930497408b84122ab41b91d0bfc4deda5945433355759442e69a6b7"
+        },
+        {
+          "kind": "device-screenshot-controlled-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-autofill/filled.png",
+          "sha256": "9202908e2edbb2c504c875324a70c9a9eb9b9b8e290c8be9e0d50f8587669297"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.4"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.4 (23E244)"
+      },
+      "channel": "current-1",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-26.4",
+        "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+        "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+        "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+        "pollFallbackEnabled": false,
+        "identity": "synthetic Partitime Tester vCard selected as My Info",
+        "suggestion": "home — 123 Market Street, San Francisco, CA 94105, United States",
+        "committedValue": "123 Market Street"
+      }
+    },
+    {
+      "environment": "ios-safari-current-1",
+      "assertion": "focus-trap-restore",
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "notes": "A clean iOS 26.4 safaridriver run used keyboard Tab to reach the opener, observed focus move to create-close, verified reverse and forward wrapping inside the dialog, then Escape closed the scope and restored focus to new-event.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-webdriver/device-receipt.json",
+          "sha256": "d3981473fcf5f487177ceb6e2e3913d4e70a032eb54e6506df0b7ada9f9161ad",
+          "result": "contract × snapback traps and restores focus in ios-safari-current-1"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.4"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.4 (23E244)"
+      },
+      "channel": "current-1",
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "tabPath": [
+          null,
+          "theme-toggle",
+          "new-event"
+        ],
+        "fixtureActivation": "DOM click on the WebDriver-keyboard-focused opener"
+      }
+    },
+    {
+      "environment": "ios-safari-current-1",
+      "assertion": "bfcache-restore",
+      "fixture": "partitime-feed-event-bfcache",
+      "status": "pass",
+      "notes": "A clean iOS 26.4 safaridriver run retained an unsubmitted Contract wall draft across event → about:blank → browser back, observed pageshow.persisted=true, edited the restored draft, and returned to the live feed.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-webdriver/device-receipt.json",
+          "sha256": "d3981473fcf5f487177ceb6e2e3913d4e70a032eb54e6506df0b7ada9f9161ad",
+          "result": "contract × snapback restores authored state from bfcache in ios-safari-current-1"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.4"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.4 (23E244)"
+      },
+      "channel": "current-1",
+      "details": {
+        "route": "feed -> event -> about:blank -> browser back -> feed",
+        "pageshowPersisted": true,
+        "retainedDraft": "bfcache-current-1-draft",
+        "interactiveAfterRestore": true
+      }
+    },
+    {
+      "environment": "ios-safari-current-1",
+      "assertion": "find-on-page",
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "iOS 26.4 Safari's native Page Menu Find UI found Sunset Supper Club with a 1 of 1 result and visibly highlighted the event copy. After dismissing Find, the event opened normally.",
+      "evidence": [
+        {
+          "kind": "device-screenshot-native-find-result",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-find/result.png",
+          "sha256": "6cdf64d3796805f2af4df7a43b2a97d997912add26a2624c3debefc6c8c69017"
+        },
+        {
+          "kind": "device-screenshot-usable-after-find",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-minus-one-find/usable-after-dismiss.png",
+          "sha256": "a4785f891c89d197e407b73cf97b04bd83d8ddbda26c705969717cc4df853a0b"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.4"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.4 (23E244)"
+      },
+      "channel": "current-1",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-26.4",
+        "deviceUdid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306",
+        "snapbackRevision": "8df618243c0d273339d8f3a9465cab6f2b3ca746",
+        "exactRevision": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+        "pollFallbackEnabled": false,
+        "query": "Sunset Supper Club",
+        "resultCount": "1 of 1",
+        "usableAfterFind": true
       }
     }
   ]
