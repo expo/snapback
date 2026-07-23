@@ -1,9 +1,9 @@
 {
   "schemaVersion": "partitime.desktop-chrome-find.v1",
   "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_CHROME.FIND",
-  "recordedAt": "2026-07-22T01:53:51.641Z",
+  "recordedAt": "2026-07-23T09:39:16.537Z",
   "repository": {
-    "revision": "8a0ac27f2afb2a216540b968ba62208881bf597e",
+    "revision": "b25ba4373517f9fe17796d4f77ac0675f764ec52",
     "dirty": false
   },
   "claimEligible": true,
@@ -21,13 +21,13 @@
   "artifacts": [
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554",
-      "bytes": 15025
+      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445",
+      "bytes": 15899
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692",
-      "bytes": 4550
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
+      "bytes": 4778
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
