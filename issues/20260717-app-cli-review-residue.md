@@ -1,6 +1,6 @@
 # Fold the LLP 0062 super-refine residue into the amendments and deliverables
 
-**Status:** Open
+**Status:** In Progress (claimed 2026-07-23 by Claude session 1681e9d6, issues-sweep worktree)
 **Severity:** P2
 **Systems:** Docs, Contracts, Auth, API
 **Author:** Claude (Fable 5), directed by Charlie Cheever
