@@ -1,0 +1,94 @@
+{
+  "schemaVersion": "partitime.device-citizenship-receipt.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP.ios-safari-current.ime-composition",
+  "outcome": "pass",
+  "recordedAt": "2026-07-23T12:14:28Z",
+  "authority": [
+    "Snapback LLP 0063 Step 4",
+    "Exact LLP 0202 §§5-6",
+    "Exact LLP 0211 §4.3"
+  ],
+  "run": {
+    "id": "partitime-ios-safari-current-ime-20260723T121150Z",
+    "operator": "Codex using agent-device on the owner-controlled simulator",
+    "startedAt": "2026-07-23T12:11:49.506Z",
+    "completedAt": "2026-07-23T12:13:58.631Z",
+    "session": "partitime-ios265-verify",
+    "device": {
+      "name": "Codex-Partitime-iOS-Safari-2694",
+      "udid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+      "kind": "iOS Simulator"
+    },
+    "os": {
+      "name": "iOS",
+      "version": "26.5",
+      "build": "23F77",
+      "channel": "current"
+    },
+    "browser": {
+      "name": "Mobile Safari",
+      "version": "26.5",
+      "build": "8624.2.5.10.4"
+    }
+  },
+  "candidate": {
+    "snapbackRevision": "0df687d1a8c0097f768fc2693458f397da100532",
+    "exactRevision": "72ea2d9782a404f75aa5f0518eef44116c864418",
+    "exactRevisionPublishedToOriginMain": true,
+    "exactDirectHostBlob": "9b2dfb8b4fe0d5d74e7e256371eccf8ca3fb9f0c",
+    "productionAsset": {
+      "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-Cttyo_U4.js",
+      "sha256": "dcb8d11f21fa79db66072950d35fadc8c16874d177b69daa43f580d8a3fd4ba0",
+      "bytes": 351202
+    },
+    "pollFallbackEnabled": false
+  },
+  "fixture": {
+    "id": "partitime-create-form",
+    "route": "/partitime/",
+    "control": "Description"
+  },
+  "interaction": {
+    "inputMethod": "Japanese Romaji system keyboard",
+    "physicalKeyTaps": [
+      "k",
+      "a",
+      "n",
+      "p",
+      "a",
+      "i"
+    ],
+    "markedText": "かんぱい",
+    "selectedCandidate": "乾杯",
+    "candidateTap": {
+      "accessibilityRole": "cell",
+      "accessibilityLabel": "乾杯, カワク、カンソウキノカン、カンパイノハイ、サカズキ"
+    }
+  },
+  "observations": {
+    "compositionPreviewRemainedInNativeControl": true,
+    "compositionPreviewWasVisiblyMarked": true,
+    "intermediateValueWasNotSnappedBack": true,
+    "committedAccessibilityNode": {
+      "label": "Description",
+      "role": "TextView",
+      "value": "乾杯"
+    },
+    "committedValueRemainedVisible": true
+  },
+  "evidence": [
+    {
+      "kind": "device-screenshot-marked-composition",
+      "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/composing.png",
+      "sha256": "02d288cd187032c36cdd9379a6c50fda0f80ecd49d5264043f228dde880aae1d",
+      "bytes": 67412
+    },
+    {
+      "kind": "device-screenshot-committed-value",
+      "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/committed.png",
+      "sha256": "aa3459b02fda0d46197abc52136e4ef2e617218851b48ae00c8c34d197f20e86",
+      "bytes": 65996
+    }
+  ],
+  "conclusion": "A real Japanese Romaji IME kept marked text browser-owned, committed the selected candidate once, and left the final Contract-controlled value visible and accessibility-observable."
+}

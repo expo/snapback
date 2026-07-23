@@ -1,0 +1,55 @@
+{
+  "schemaVersion": "partitime.web-citizenship-evidence.v1",
+  "run": {
+    "id": "partitime-web-citizenship-mobile-20260723",
+    "operator": "Codex using agent-device on the owner-controlled simulator",
+    "baseCommit": "0df687d1a8c0097f768fc2693458f397da100532",
+    "exactCommit": "72ea2d9782a404f75aa5f0518eef44116c864418",
+    "startedAt": "2026-07-23T12:11:49.506Z",
+    "completedAt": "2026-07-23T12:13:58.631Z"
+  },
+  "rows": [
+    {
+      "environment": "ios-safari-current",
+      "assertion": "ime-composition",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On iOS 26.5 Mobile Safari, Japanese Romaji key taps produced visibly marked かんぱい text in the native Description control; selecting 乾杯 committed once, remained visible, and was returned as the control's accessibility value.",
+      "evidence": [
+        {
+          "kind": "device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/device-receipt.json",
+          "sha256": "2782de1dd84267f10984326881808bf0258adf4e9dbce0f979548aefae726897"
+        },
+        {
+          "kind": "device-screenshot-marked-composition",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/composing.png",
+          "sha256": "02d288cd187032c36cdd9379a6c50fda0f80ecd49d5264043f228dde880aae1d"
+        },
+        {
+          "kind": "device-screenshot-committed-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/committed.png",
+          "sha256": "aa3459b02fda0d46197abc52136e4ef2e617218851b48ae00c8c34d197f20e86"
+        }
+      ],
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5 (8624.2.5.10.4)"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-2694",
+        "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+        "snapbackRevision": "0df687d1a8c0097f768fc2693458f397da100532",
+        "exactRevision": "72ea2d9782a404f75aa5f0518eef44116c864418",
+        "pollFallbackEnabled": false,
+        "markedText": "かんぱい",
+        "committedValue": "乾杯"
+      }
+    }
+  ]
+}

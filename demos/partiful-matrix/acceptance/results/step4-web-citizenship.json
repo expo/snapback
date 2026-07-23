@@ -4,23 +4,23 @@
   "ok": false,
   "outcome": "red",
   "claimEligible": false,
-  "recordedAt": "2026-07-23T09:39:34.296Z",
+  "recordedAt": "2026-07-23T12:17:03.237Z",
   "authority": [
     "Snapback LLP 0063 Step 4",
     "Exact LLP 0211 §4.3"
   ],
   "repository": {
-    "revision": "80663cd347e88f8a1dd2f08a09110eb57bb9a218",
-    "dirty": false
+    "revision": "0df687d1a8c0097f768fc2693458f397da100532",
+    "dirty": true
   },
   "summary": {
     "required": 21,
-    "passed": 6,
-    "red": 15,
+    "passed": 1,
+    "red": 20,
     "skipped": 0
   },
-  "passed": 6,
-  "red": 15,
+  "passed": 1,
+  "red": 20,
   "skipped": 0,
   "environments": [
     {
@@ -129,13 +129,44 @@
     {
       "environment": "ios-safari-current",
       "assertion": "ime-composition",
-      "acceptedFixtures": [
-        "partitime-create-form"
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On iOS 26.5 Mobile Safari, Japanese Romaji key taps produced visibly marked かんぱい text in the native Description control; selecting 乾杯 committed once, remained visible, and was returned as the control's accessibility value.",
+      "evidence": [
+        {
+          "kind": "device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/device-receipt.json",
+          "sha256": "2782de1dd84267f10984326881808bf0258adf4e9dbce0f979548aefae726897"
+        },
+        {
+          "kind": "device-screenshot-marked-composition",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/composing.png",
+          "sha256": "02d288cd187032c36cdd9379a6c50fda0f80ecd49d5264043f228dde880aae1d"
+        },
+        {
+          "kind": "device-screenshot-committed-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-ios-safari-current-ime/committed.png",
+          "sha256": "aa3459b02fda0d46197abc52136e4ef2e617218851b48ae00c8c34d197f20e86"
+        }
       ],
-      "status": "red",
-      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
-      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
-      "evidence": []
+      "browser": {
+        "name": "Mobile Safari",
+        "version": "26.5 (8624.2.5.10.4)"
+      },
+      "os": {
+        "name": "iOS Simulator",
+        "version": "26.5 (23F77)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Codex-Partitime-iOS-Safari-2694",
+        "deviceUdid": "AC4D3044-C675-486D-A5DC-FABC82400ADC",
+        "snapbackRevision": "0df687d1a8c0097f768fc2693458f397da100532",
+        "exactRevision": "72ea2d9782a404f75aa5f0518eef44116c864418",
+        "pollFallbackEnabled": false,
+        "markedText": "かんぱい",
+        "committedValue": "乾杯"
+      }
     },
     {
       "environment": "ios-safari-current",
@@ -294,224 +325,68 @@
     {
       "environment": "desktop-safari",
       "assertion": "focus-trap-restore",
-      "fixture": "partitime-create-dialog",
-      "status": "pass",
-      "notes": "Fresh Safari WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-          "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
-          "result": "contract × snapback traps and restores focus in desktop safari"
-        }
+      "acceptedFixtures": [
+        "partitime-create-dialog"
       ],
-      "browser": {
-        "name": "Safari",
-        "version": "26.5.2"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "initial": "create-close",
-        "reverseWrapped": "create-submit",
-        "forwardWrapped": "create-close",
-        "restored": "new-event",
-        "input": "WebDriver key actions"
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     },
     {
       "environment": "desktop-safari",
       "assertion": "find-on-page",
-      "fixture": "partitime-visible-event-copy",
-      "status": "pass",
-      "notes": "Fresh Safari run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-          "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
-          "result": "contract × snapback exposes visible content to desktop safari find-on-page"
-        }
+      "acceptedFixtures": [
+        "partitime-visible-event-copy"
       ],
-      "browser": {
-        "name": "Safari",
-        "version": "26.5.2"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "query": "Sunset Supper Club",
-        "selection": "Sunset Supper Club",
-        "anchor": "AXButton:View Sunset Supper Club",
-        "nativeFind": {
-          "present": true,
-          "value": "Sunset Supper Club",
-          "status": "missing value, 1 match",
-          "notFound": false
-        },
-        "usableAfterFind": true,
-        "input": "Safari native Find bar via macOS keyboard and Accessibility APIs"
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     },
     {
       "environment": "desktop-chrome",
       "assertion": "focus-trap-restore",
-      "fixture": "partitime-create-dialog",
-      "status": "pass",
-      "notes": "Fresh Chrome CDP run trapped focus inside the create-event dialog and restored it to the trigger after Escape.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-          "sha256": "a51cef9b10205f63045abef488cf26a97338606d61b118b1b8f753b40a87f6d8",
-          "result": "contract × snapback provides an accessible portal form and keyboard focus scope"
-        }
+      "acceptedFixtures": [
+        "partitime-create-dialog"
       ],
-      "browser": {
-        "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.130"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "semantics": {
-          "role": "dialog",
-          "modal": "true",
-          "labelledBy": "create-title-heading",
-          "describedBy": "create-description-copy",
-          "portal": true,
-          "portalDetached": false,
-          "overlayPosition": "fixed",
-          "descriptionTag": "TEXTAREA",
-          "activeTestId": "create-close"
-        },
-        "validation": {
-          "titleInvalid": null,
-          "locationInvalid": null,
-          "titleDescribedBy": "create-title-error",
-          "locationDescribedBy": "create-location-error",
-          "titleErrorRole": "alert",
-          "locationErrorRole": "alert",
-          "activeTestId": "create-close"
-        },
-        "trapped": {
-          "last": "create-submit",
-          "count": 6
-        },
-        "wrappedTo": "create-close",
-        "restored": {
-          "overlay": false,
-          "activeTestId": "new-event"
-        }
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     },
     {
       "environment": "desktop-chrome",
       "assertion": "find-on-page",
-      "fixture": "partitime-visible-event-copy",
-      "status": "pass",
-      "notes": "Fresh Chrome CDP run selected visible canonical event text with browser find and opened the event afterward.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-          "sha256": "46524d6006204ed9a6d09a85ba5e21c732cc6bc29cf6b022957bb624c479b0e2",
-          "result": "contract × snapback exposes visible content to browser find-on-page"
-        }
+      "acceptedFixtures": [
+        "partitime-visible-event-copy"
       ],
-      "browser": {
-        "name": "Google Chrome",
-        "version": "Google Chrome 150.0.7871.130"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "query": "Sunset Supper Club",
-        "matched": true,
-        "selection": "Sunset Supper Club",
-        "anchor": "event-card-event_sunset",
-        "usableAfterFind": true
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     },
     {
       "environment": "desktop-firefox",
       "assertion": "focus-trap-restore",
-      "fixture": "partitime-create-dialog",
-      "status": "pass",
-      "notes": "Fresh Mozilla Firefox WebDriver run trapped focus inside the create-event dialog and restored it after Escape.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
-          "result": "contract × snapback traps and restores focus in desktop firefox"
-        }
+      "acceptedFixtures": [
+        "partitime-create-dialog"
       ],
-      "browser": {
-        "name": "Mozilla Firefox",
-        "version": "Mozilla Firefox 152.0.1"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "initial": "create-close",
-        "reverseWrapped": "create-submit",
-        "forwardWrapped": "create-close",
-        "restored": "new-event",
-        "input": "WebDriver key actions"
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     },
     {
       "environment": "desktop-firefox",
       "assertion": "find-on-page",
-      "fixture": "partitime-visible-event-copy",
-      "status": "pass",
-      "notes": "Fresh Mozilla Firefox run used the browser's native find pipeline to select visible canonical event text and opened the event afterward.",
-      "evidence": [
-        {
-          "kind": "machine-receipt",
-          "ref": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-          "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
-          "result": "contract × snapback exposes visible content to desktop firefox find-on-page"
-        }
+      "acceptedFixtures": [
+        "partitime-visible-event-copy"
       ],
-      "browser": {
-        "name": "Mozilla Firefox",
-        "version": "Mozilla Firefox 152.0.1"
-      },
-      "os": {
-        "name": "desktop host",
-        "version": "darwin-25.5.0-arm64"
-      },
-      "channel": null,
-      "details": {
-        "query": "Sunset Supper Club",
-        "anchor": "event-card-event_sunset",
-        "selection": "Sunset Supper Club",
-        "nativeFind": {
-          "hidden": false,
-          "present": true,
-          "status": "",
-          "value": "Sunset Supper Club"
-        },
-        "usableAfterFind": true,
-        "input": "Firefox native FindBar via privileged WebDriver"
-      }
+      "status": "red",
+      "reasonCode": "STEP4_CITIZENSHIP_REQUIRED_EVIDENCE_MISSING",
+      "notes": "No admitted versioned browser/device evidence was supplied; missing is red, not skipped or N/A.",
+      "evidence": []
     }
   ],
   "inventory": {
@@ -525,37 +400,31 @@
       "chrome": "134.0.6998.135"
     },
     "ios": {
-      "current": null,
+      "current": {
+        "browser": {
+          "name": "Mobile Safari",
+          "version": "26.5 (8624.2.5.10.4)"
+        },
+        "os": {
+          "name": "iOS Simulator",
+          "version": "26.5 (23F77)"
+        }
+      },
       "currentMinusOne": null
     }
   },
   "inputs": [
     {
-      "path": "demos/partiful-matrix/acceptance/results/step4-product-ui-browser.json",
-      "sha256": "a51cef9b10205f63045abef488cf26a97338606d61b118b1b8f753b40a87f6d8",
-      "bytes": 29402
-    },
-    {
-      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-chrome-find.json",
-      "sha256": "46524d6006204ed9a6d09a85ba5e21c732cc6bc29cf6b022957bb624c479b0e2",
-      "bytes": 2647
-    },
-    {
-      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-safari.json",
-      "sha256": "2e73496b429d7d2555637b6fa674dc90f1cf8cca952238cfc09eb24f50f0dd8d",
-      "bytes": 4860
-    },
-    {
-      "path": "demos/partiful-matrix/acceptance/results/step4-web-citizenship-desktop-firefox.json",
-      "sha256": "11cca7f18db131b2fc65864e63fafe016bc0405a07f8f638e4346ee89cf05da0",
-      "bytes": 5077
+      "path": "demos/partiful-matrix/acceptance/evidence/2026-07-23-web-citizenship-manual.json",
+      "sha256": "543e5e3aa9391a4b778420fe596fc7635a487da19aa158cb62b9af381c2a6da5",
+      "bytes": 2309
     }
   ],
   "testInventory": [
     {
       "path": "demos/partiful-matrix/tests/acceptance/step4-browser-citizenship.mjs",
-      "sha256": "9b0209676ea2f5dcdd0d7ee572ce60cca7f9d69a66a65daff2b3d2a85831cc2a",
-      "bytes": 18535
+      "sha256": "2c668d6d804892f8a4d22938055df2ce2fe8d5d6409d5a7619a7c76323c49efd",
+      "bytes": 19952
     }
   ],
   "nonClaims": [

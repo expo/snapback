@@ -46,6 +46,9 @@ device. Use the create-event form/dialog on `/partitime/`, the canonical
 
 Record the exact browser and OS versions, a short observation, and at least one
 durable screenshot, video, device-lab log, or session URL for every row.
+Committed local evidence must include its SHA-256 digest; the collector refuses
+missing files and digest drift. A versioned external session URL may be used
+without a local digest.
 
 ## Evidence input
 
