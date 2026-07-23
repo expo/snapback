@@ -5,9 +5,23 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (seventh model-family review round — Fable NOT READY
-(one blocking internal-consistency item), Codex NOT READY, artifacts under
-`llp/reviews/0077-*`. This revision resolves the blocker by narrowing the
+**Revised:** 2026-07-23 (eighth model-family review round — Fable NOT READY
+(one blocker: an unbacked non-rollbackable ratchet asserted as fact), Codex
+NOT READY, artifacts under `llp/reviews/0077-*`. This revision stops asserting
+that a non-rollbackable control-plane counter exists: the restore-non-
+resurrection guarantee is now honest — declared restore is covered by the LLP
+0059 incarnation advance, while the raw-backup-rollback ratchet source is a
+stated requirement pending its open realization; unifies epoch terminology
+(the verification step and nonce section now say `sender_replay_epoch`, not
+"admission epoch"); adds a server-wire scope note (a second client is not yet
+buildable — `AuthCustodyV3`/`BoundGrantAuthorityV2` deferred); extends the LLP
+0057 Revised note to record the anti-oracle carrier-diagnostic amendment; adds
+defect 13 (unknown-carrier `_INVALID`-without-nonce divergence); and notes the
+logout tombstone's long-offline limitation. The thirteen-item ledger still
+gates any positive capability). 2026-07-23 (seventh model-family review round
+— Fable NOT READY (one blocking internal-consistency item), Codex NOT READY,
+artifacts under `llp/reviews/0077-*`. This revision resolves the blocker by
+narrowing the
 `sender_replay_epoch` open question to its storage/realization only while the
 observable contract (distinct namespace, rotates only on the LLP 0059
 incarnation change, non-rollbackable) is fixed and conformance-binding;
@@ -271,6 +285,10 @@ fix plus a negative test:
     only admission and origin, and sender admission proceeds directly into
     proof processing), and the shipped code resolves `SessionAuth` before the
     forbidden-authority-field body check rather than in the specified order.
+13. An unknown carrier bearing a present proof returns
+    `SNAPBACK_AUTH_SENDER_PROOF_INVALID` without the cover nonce, diverging
+    from the anti-oracle matrix (which folds unknown carriers into the
+    `_REQUIRED` challenge with a cover nonce).
 
 ## Summary
 
@@ -292,6 +310,14 @@ met by the shipped code; each such rule is tagged inline with its blocking
 ledger defect (for example, "no sender-bound grant acts as a bare bearer"
 carries *(defect 2)*), and the ledger gates any positive capability. A reader
 must not mistake a tagged rule for implemented reality.
+
+Scope: this document currently pins the complete **server-side wire and
+storage contract** (a second server implementation is buildable from the
+Conformance list below). The closed client custody schema (`AuthCustodyV3`)
+and the versioned sender-bound grant shape (`BoundGrantAuthorityV2`) are
+described but not yet fully closed, so a second *client* is not yet buildable
+from this Spec alone; both are tracked as open questions and are follow-on
+work before this advances past Draft.
 
 ## Protocol and algorithms
 
@@ -362,7 +388,7 @@ order:
 3. bounded single-header and compact-proof shape;
 4. exact header/payload decoding and algorithm;
 5. token hash and durable family thumbprint;
-6. method, URI, admission epoch, time window, and nonce;
+6. method, URI, `sender_replay_epoch`, time window, and nonce;
 7. ES256 signature; and
 8. atomic shared replay consumption.
 
@@ -423,9 +449,16 @@ wrong-admission, or already-retired *nonce* returns the fixed
 `SNAPBACK_AUTH_SENDER_PROOF_REQUIRED` projection and the family's
 still-current nonce in the `DPoP-Nonce` response header. This nonce challenge
 is distinct from the carrier-diagnostic precedence: a genuinely absent
-`Authorization` header still yields `SNAPBACK_AUTH_REQUIRED` per LLP 0057/0059
-(it never reaches the nonce challenge), and only a present-but-malformed or
-unknown carrier is folded into the anti-oracle sender-proof challenge. The
+`Authorization` header still yields `SNAPBACK_AUTH_REQUIRED` per LLP 0057/0059,
+enforced at the route middleware before sender admission is reached (it never
+reaches the nonce challenge), and only a present-but-malformed or unknown
+carrier is folded into the anti-oracle sender-proof challenge. Because folding
+malformed/unknown carriers into the sender challenge (rather than
+`AUTH_REQUIRED`) departs from LLP 0057's carrier matrix, LLP 0057's Revised
+note records this anti-oracle diagnostic amendment as well. The shipped code
+returns `_INVALID` without the cover nonce for an unknown carrier bearing a
+proof, which diverges from this matrix; that divergence is tracked as defect
+13. The
 header is cache-forbidden and contains no account, family, token, or proof
 fact. A client retries at most once and only when the response is this typed
 challenge.
@@ -455,7 +488,8 @@ keyed cover nonce for unknown carriers, or the bound-family existence signal
 is acceptable, is an open question below.
 
 Nonces are random 32-byte base64url values, deployment- and
-admission-epoch-bound, short-lived (the initial hosted profile TTL is 120
+`sender_replay_epoch`-bound (the same distinct namespace as replay ids, not
+the serving admission epoch), short-lived (the initial hosted profile TTL is 120
 seconds, longer than the proof acceptance window so a client that holds a live
 nonce can always form a fresh proof; a change is a revision of this Spec), and
 one-current-generation per custody installation. Nonce issuance does not
@@ -526,11 +560,18 @@ replayed:
   replay retention: a proof issued under the old epoch carries a nonce that is
   orphaned under the new epoch, so it fails the nonce check regardless of the
   now-empty replay space. Family revocation on reset is an additional barrier.
-- A declared restore or backup rollback MUST NOT resurrect an accepted proof:
-  `sender_replay_epoch` is gated by a monotone, non-rollbackable control-plane
-  attestation counter, so a restored snapshot presenting a stale epoch is
-  rejected by the live server even though it carries a consistent
-  (epoch, tables) pair.
+- A declared restore or backup rollback must not resurrect an accepted proof.
+  For a **declared restore** (LLP 0059 authorization-stream incarnation
+  change) this holds by the same rotation rule: the incarnation advances on
+  restore, so `sender_replay_epoch` advances and the restored proofs reference
+  a superseded epoch. For a **raw backup rollback** that reverts the durable
+  tables wholesale, non-resurrection requires `sender_replay_epoch` to be
+  gated by a monotone source the rollback cannot rewind; whether that source
+  is the LLP 0060 attestation ratchet, a dedicated control-plane counter, or
+  another primitive is the open realization question below. Until that source
+  is pinned, the raw-rollback non-resurrection guarantee is a stated
+  requirement, not yet a proven property — this Spec does not assert an
+  unidentified counter exists.
 
 The shipped code keys replay and nonces on LLP 0060's `admission_epoch`
 directly rather than a distinct `sender_replay_epoch`, and reset does not yet
@@ -605,7 +646,11 @@ thumbprint, receives the terminal `durableDelete` outcome, and consumes its
 proof id without rotating a nonce; a repeat request after the tombstone
 expires converges to LLP 0057's `SESSION_EXPIRED`. An anonymous-recovery
 handshake is an admissible alternative an author may substitute, but the
-tombstone is the default so defect 9 has a concrete negative test. This
+tombstone is the default so defect 9 has a concrete negative test. A client
+offline longer than the tombstone horizon is not yet guaranteed eventual safe
+deletion — closing that requires either a retention bound covering the full
+custody lifetime or a durable key-bound anonymous-recovery witness, which is
+the open part of the mechanism decision below. This
 requirement is unimplemented (the sender lookup joins only current sessions);
 it is tracked as defect 9.
 

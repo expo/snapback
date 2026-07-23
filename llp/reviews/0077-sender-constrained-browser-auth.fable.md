@@ -412,3 +412,60 @@ My one blocking reservation is narrow and specific to this round's headline chan
 7. **Verdict**
 
 Verdict: NOT READY — the document is sound, honest, and accurate against the code, but its headline `sender_replay_epoch` reconciliation is asserted normatively while its identity and storage are simultaneously reopened as an author decision that the server conformance target depends on (Concern 1), and that single internal contradiction must be resolved before the contract is coherent.
+
+## Round 8 — 2026-07-23
+
+**Revision under review:** `llp/0077-sender-constrained-browser-auth.spec.md`, sha256 `be8fd692b006955388b2b5080de50a389702526c8db72faaf93cbd5b1f8fd477` (MATCH at repo HEAD `0b516b48`)
+**Runtime detail:** fresh Fable subagent, 27 tool uses, ~302 s; verified the pin and the round-8 changes (narrowed epoch open question, default logout tombstone, diagnostic-matrix fix, 0057 note extension, defects 11/12) against code; re-sampled the ledger. No access to earlier rounds or the concurrent Codex round.
+**Verdict:** NOT READY
+
+### Review body (verbatim)
+
+1. **Revision check** — MATCH. `shasum -a 256 llp/0077-sender-constrained-browser-auth.spec.md` → `be8fd692b006955388b2b5080de50a389702526c8db72faaf93cbd5b1f8fd477`, matching the pin; `git rev-parse --short HEAD` → `0b516b48`, matching. The file is untracked at a tracked HEAD, as stated.
+
+2. **Overall assessment**
+
+This is a Draft spec doing an unusually disciplined job of not lying about itself. The capability it governs (LLP 0060 C3's sender-constrained v2) is deliberately gated to zero — "No capability is positive" (line 198) — and every normative rule the shipped code does not yet meet is tagged inline with a blocking ledger defect (lines 290-294). I spot-verified the load-bearing checkpoint claims against the code and the checkpoint is accurate rather than overstated: it names real defects and does not claim done work that isn't. That is the correct posture for a security-critical Spec mid-implementation, and it is rare to see it held this consistently across seven review rounds.
+
+The document now carries a genuinely testable **server-side** contract: closed ES256/P-256 header/payload with `deny_unknown_fields` (verified src/auth/sender_proof.rs:31,48,60), the inclusive `[now−30, now+5]` window (sender_proof.rs:1261-1262), the RFC 9449 deviation list (lines 331-339), the issuance/exchange wire schema (lines 484-565), and a consolidated Conformance MUST-list (lines 795-817). It correctly stays inside the slice LLP 0060 C3 delegates (0060 rfc §C3 lines 870-880 enumerates exactly the wire/storage items this Spec pins) and honors the pinned XSS-claim prohibition explicitly (lines 287-288). The governing authorities' Revised notes exist as claimed (LLP 0057:8-21, 0058:8-11, 0059:8), and `./ref-check --verbose` passes (0 errors).
+
+The residual weaknesses are honestly disclosed as open questions, but one of them is load-bearing for a security MUST: the non-resurrection-across-restore guarantee rests on a "monotone, non-rollbackable control-plane attestation counter" (lines 529-533) whose concrete source is left open (lines 772-778) and which — unlike LLP 0060's attestation-driven `admissionEpoch`, explicitly rejected here — is not identified as an existing platform primitive. The Spec also concedes a second *client* cannot be built from it (AuthCustodyV3 schema and `BoundGrantAuthorityV2` deferred, lines 798-801). These are appropriate for Draft status but the ratchet-source gap is the one I would want closed before this advances.
+
+3. **Strengths**
+
+- Verified honesty of the checkpoint. Defect 1 (fresh_challenge rotates a live nonce) is real: `fresh_challenge` unconditionally calls `issue_sender_nonce` (sender_proof.rs:700-708), which increments generation on any existing row (sender_proof.rs:591-592, ON CONFLICT UPDATE 612-615), and is invoked on both missing-proof (823) and nonce-mismatch (861) paths. Defect 4 is real: retention is `now+35` (sender_proof.rs:25,348-351) with inclusive `expires_at_seconds <= ?1` purge (386,392,576), which strands a still-valid proof at the boundary exactly as described. Defect 10 is real: the schema keys on `admission_epoch` (sender_proof.rs:281-298), not a distinct `sender_replay_epoch`. Defect 11 is real: the client uses `new URL(path, origin)` (index.mjs:109) which resolves dot-segments, and the wrong/unknown-challenge exchange path routes to `exchange_unknown` without the sender commitment (server.rs:11012-11024), so no `jti` is consumed. Defect 8 is real: hosted-browser.mjs:22 `extends SnapbackClient`.
+- Inline defect-tagging of unmet normative rules (lines 290-294, and e.g. the "no sender-bound grant acts as a bare bearer *(defect 2)*" at 628) makes it impossible for a reader to mistake the target contract for shipped reality.
+- The epoch model is now internally consistent — the prior round's blocker is resolved by fixing the observable contract (distinct namespace, rotates only on the LLP 0059 incarnation change, non-rollbackable, lines 504-533) while narrowing only realization to an open question (772-778).
+- Diagnostic matrix is now uniform: absent `Authorization` → `SNAPBACK_AUTH_REQUIRED` in all three places it is discussed (388-390, 424-428, 753-754), with the anti-oracle folding of malformed/unknown carriers into the sender-proof challenge stated as deliberate.
+- Strong redaction posture, verified: `SenderProofExpectation`/`VerifiedSenderProof` Debug is `[REDACTED]` (sender_proof.rs:81-84), and the client reflected-material sentinel actually asserts absence of proof segments, JWK coordinates, and a nonce in projected errors (sender-transport.test.mjs:364-377).
+- The two-connection replay race exists and is accurately scoped: two real `Connection::open` handles on one file across two threads, one Ok / one Replay (sender_proof.rs:1728-1760), and the doc correctly labels the true two-process race still pending (line 737).
+
+4. **Concerns**
+
+1. **Major — the non-rollbackable ratchet source underpinning a security MUST is unspecified.** Lines 529-533 assert as fact that `sender_replay_epoch` "is gated by a monotone, non-rollbackable control-plane attestation counter," and on that assertion rests the MUST that "A declared restore or backup rollback MUST NOT resurrect an accepted proof." But lines 772-778 list "the concrete non-rollbackable ratchet source" as still open, and the one attestation-driven counter the platform has (LLP 0060 `admissionEpoch`) is explicitly rejected here (lines 513-518) as the wrong epoch. So a normative anti-replay guarantee depends on a primitive the Spec neither identifies nor confirms exists. *Resolution:* name the actual control-plane counter (or its LLP) that provides monotone non-rollbackability, or downgrade the restore-resurrection rule to an explicitly open guarantee rather than a MUST, so a reader cannot treat an unbacked defense as contractual.
+
+2. **Moderate — the Spec cannot yet be implemented by a second client, which is in tension with the "Spec" type.** Lines 798-801 concede the complete `AuthCustodyV3` schema and `BoundGrantAuthorityV2` shape are deferred to open questions (789-791, 786-788), and line 690's `AuthCustodyV3` description is a "V2 plus" prose sketch, not a closed schema. A Spec that only a second *server* can be built against is really a server-wire Spec plus a client design note. *Resolution:* either retitle/scope the document honestly as the server-wire contract with a companion client spec to follow, or close the two schema open questions before advancing past Draft.
+
+3. **Minor — the conformance retention rule and the code's retention model are keyed differently.** The Conformance list pins "replay retention to `iat+30+1`" (line 810), i.e. iat-keyed, but the code (and the HTTP-binding prose at 406-409) key retention on commit-time `now+35` (sender_proof.rs:348-351). A commit-now+35 store with an exclusive `< now` purge is also boundary-safe, so the two are not equivalent phrasings of one rule. *Resolution:* state the retention invariant once, in terms of the acceptance-instant bound it must strictly exceed, and let both iat-keyed and now-keyed realizations satisfy it.
+
+4. **Minor — the absent-header → `SNAPBACK_AUTH_REQUIRED` precedence is asserted as handled upstream but not traced in this Spec's own admission function.** `admit_sender_constrained_request` with no proof and no resolvable family returns a `_REQUIRED` sender challenge (sender_proof.rs:765-773), not `AUTH_REQUIRED`; the Spec relies on LLP 0057/0059 rejecting the absent header before sender admission is reached (lines 425-426). That layering is plausible but is stated, not shown. *Resolution:* cite the upstream check point (route/middleware) so the uniform-diagnostic claim is anchored to a verifiable seam rather than an assumed ordering.
+
+5. **Minor — defect 2 (bare-bearer grant paths) is the highest-severity live seam yet is disclosed only in prose.** The every-use grant-bound-proof rule (lines 624-628) is the core security property, and its violation (connection-token HTTP acts and WS upgrade accepting the bare grant) is exactly the "seam admits a bare bearer" case the review is asked to hunt. It is honestly recorded, but as a self-reported ledger item without a cited failing/pending test. *Resolution:* add the specific pending negative tests (per grant carrier and route) to the Acceptance matrix so defect 2 has an enumerated close condition, as defect 9 now does.
+
+5. **Suggestions**
+
+- Give each ledger defect a one-line "negative test that closes it" pointer the way defect 9 now names the tombstone test (lines 604-610); several (2, 3, 6, 12) still lack a named closing test.
+- The cover-nonce residual-oracle open question (lines 452-455, 779-780) and the unknown-carrier uninstalled-nonce behavior (sender_proof.rs:694, 723-726) interact; a short note on whether the uninstalled random nonce is itself a timing/shape distinguishable from an installed one would tighten the anti-oracle argument.
+- Consider stating the retention/window invariant with a worked boundary example inline (the T0+35 straddle), since it has now been mis-stated across revisions and an example is harder to get subtly wrong than prose.
+
+6. **Open questions** (the author must still decide)
+
+- The concrete, existence-confirmed non-rollbackable ratchet source for `sender_replay_epoch` (concern 1) — this is the one open question that is load-bearing for a security MUST, not merely a realization detail.
+- The complete closed `AuthCustodyV3` and `BoundGrantAuthorityV2` schemas, without which no second client is implementable (lines 786-791).
+- The logout-lost-response recovery mechanism: the bounded revoked-family tombstone is now the default (lines 598-610), but its retention bound, resolution path, and convergence to `SESSION_EXPIRED` are still to be pinned (lines 768-771).
+- Whether unknown carriers must receive a stable keyed cover nonce or the live-bound-family existence signal is acceptable (lines 779-780).
+- The LLP 0059 amendment defining the versioned sender-bound grant's equality/invalidation rules (lines 786-788, 638-641).
+
+7. **Verdict**
+
+Verdict: NOT READY — the document is otherwise well-disciplined and its checkpoint is verifiably accurate, but a normative security MUST (no proof resurrection across restore) rests on a non-rollbackable control-plane counter the Spec asserts exists yet leaves unidentified, and that single concern should be resolved before the Spec advances.
