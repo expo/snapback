@@ -5,8 +5,8 @@
 **Systems:** Documents, Collaboration, Sync, Offline, Realtime, Auth, Storage, Client integration, Code generation, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 (initial proposal for LLP 0063's document pressure test)
-**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0018, LLP 0037, LLP 0043, LLP 0053, LLP 0063
+**Revised:** 2026-07-23 (research corroboration from the LLP 0082–0085 prior-art passes added — two first-party core-CRDT retreats and the industry convergence on typed-document carve-outs — plus an explicit build-vs-integrate section naming the Yjs alternative and a matching open question; no change to the proposed semantics). 2026-07-20 (initial proposal for LLP 0063's document pressure test)
+**Related:** LLP 0000, LLP 0004, LLP 0008, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0018, LLP 0022, LLP 0037, LLP 0043, LLP 0053, LLP 0063, LLP 0083, LLP 0084, LLP 0085
 
 ## Summary
 
@@ -42,6 +42,39 @@ declines to make the generic ephemeral subsystem a CRDT database.
 The document pressure test in LLP 0063 therefore needs a named semantic bridge.
 The bridge must preserve Snapback's existing application, authorization,
 version, and target boundaries instead of becoming a second hidden database.
+
+## Prior art and external corroboration (2026-07-23)
+
+The 2026-07 prior-art passes ([LLP 0082](./0082-instantdb.research.md)–
+[LLP 0085](./0085-jazz.research.md), with
+[LLP 0022](./0022-electric-powersync-turso.research.md)) bear directly on this
+RFC's central boundary — an operation-log CRDT for one document profile, and
+nothing else — and support it from both directions. [inferred, from confirmed
+findings in the cited passes]
+
+**Against CRDTs in the core, the record is now first-party and dated.**
+ElectricSQL built generic CRDT sync and retreated in 2024 (LLP 0022); Jazz
+built cryptographic-CRDT foundations and retreated in 2026, moving to a
+trusted server with field-level last-write-wins
+([LLP 0085](./0085-jazz.research.md)); every surviving close peer — PowerSync,
+Turso, InstantDB, Triplit — ships server-authoritative LWW
+([LLP 0022](./0022-electric-powersync-turso.research.md),
+[LLP 0082](./0082-instantdb.research.md),
+[LLP 0084](./0084-triplit-ditto.research.md)). Ditto, the one thriving
+production-CRDT vendor, requires mesh-without-a-server markets to justify the
+model and instructs customers to derive business state at read time rather
+than trust merge semantics (LLP 0084). This RFC's refusal to treat ordinary
+rows as replicated registers is the cohort-wide conclusion, not a local taste.
+
+**For the carve-out, the industry converges on the same shape this RFC
+proposes.** ElectricSQL's only flagged CRDT reintroduction is scoped to
+Yjs-style collaborative documents (LLP 0022); Cloudflare ships Y-PartyServer —
+Yjs rooms on Durable Objects, Snapback's own hosted substrate
+([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md)); and Jazz v2,
+having abandoned CRDT replay as its foundation, retains rich-text merging as a
+*per-type merge strategy* inside a server-authoritative system (LLP 0085).
+"CRDT as a typed document primitive under server authority" is where the field
+lands; this RFC is Snapback's version of that landing.
 
 ## Scope
 
@@ -308,6 +341,39 @@ Its retained receipt names the exact target profile, two repository revisions,
 schema/artifact hashes, client platforms, reducer corpus hash, snapshot hashes,
 limits, and every GAP.
 
+## Build vs integrate — the Yjs alternative, named
+
+The Scope section excludes "arbitrary third-party editor update formats," which
+implicitly rejects integrating an existing CRDT library such as Yjs. The
+2026-07 research makes that a decision with a live, cheaper-than-before
+alternative rather than a default, so the trade is recorded here explicitly.
+[inferred]
+
+**Integrating Yjs would buy:** a mature ecosystem of editor bindings
+(ProseMirror/TipTap, CodeMirror, and others) instead of building adapters atom
+by atom; battle-tested sequence-CRDT internals; and, on the hosted target, an
+existing room server on Snapback's own substrate (Y-PartyServer,
+[LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md)).
+
+**Integrating Yjs would cost:** the properties this RFC is built around. Yjs
+updates are an opaque binary format, which defeats the atom-level authorization
+witnesses, the canonical reference reducer, the deterministic
+golden-corpus acceptance gates, and the bounded, inspectable operation payloads
+specified below; server-side validation would collapse to "accept the blob."
+Compaction, history, and per-block authorization would follow Yjs's model, not
+Snapback's. The bespoke model keeps the document lane inside Snapback's
+authorization and acceptance story at the price of building and proving the
+reducer on every client platform and writing editor adapters ourselves.
+
+A middle path exists and is already half-acknowledged by Open question 1: keep
+this RFC's canonical model as the wire and storage truth, and generate
+editor-facing adapters (including, potentially, a Yjs-compatible binding) over
+it. That preserves the authorization/acceptance properties while renting the
+editor ecosystem, at the cost of an adapter layer whose fidelity needs its own
+witnesses. The choice among bespoke-only, Yjs-integrated, and
+canonical-model-with-adapters is an author decision recorded as Open question
+5; this revision does not make it.
+
 ## Non-goals and claim boundary
 
 This RFC does not claim generic CRDT support, Google Docs fidelity, arbitrary
@@ -332,3 +398,9 @@ witnesses above.
    Exact Native, the Contract Hermes carrier, or both?
 4. Should block moves remain one winning placement register, or be represented
    as delete-plus-insert with a newly allocated block identity?
+5. Bespoke-only, Yjs-integrated, or canonical-model-with-generated-adapters
+   (see "Build vs integrate")? The bespoke model preserves the authorization
+   and acceptance contract; Yjs rents the editor ecosystem and, on the hosted
+   target, Y-PartyServer ([LLP 0083](./0083-cloudflare-do-d1-prior-art.research.md));
+   the adapter path attempts both at the cost of a fidelity layer needing its
+   own witnesses.
