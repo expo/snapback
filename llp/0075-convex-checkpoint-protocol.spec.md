@@ -373,10 +373,11 @@ satisfies the same complete profile without semantic substitutions.
 
 This is a direct author adjudication. As of that date (2026-07-22), no
 separate model-family review of LLP 0075 had been received, and the LLP 0074
-review artifacts do not count as reviews of this Spec. On 2026-07-23 two
+review artifacts do not count as reviews of this Spec. On 2026-07-23 four
 model-family review rounds were received and recorded under
-`llp/reviews/0075-*` (round 1: Fable NOT READY, Codex NOT READY; round 2:
-Fable READY, Codex NOT READY); protocol amendments v0.1 and v0.2 respond to
+`llp/reviews/0075-*` (round 1: Fable NOT READY, Codex NOT READY; rounds 2-3:
+Fable READY, Codex NOT READY; round 4, a Fable-only confirmation of the
+post-v0.3 revision: READY); protocol amendments v0.1 through v0.3 respond to
 them prospectively. Whether Accepted stands on author authority over the
 recorded NOT READY verdicts, or the Spec reverts to Review, is an open author
 decision. The adapter replacement is prospective treatment work. Before a
