@@ -1819,3 +1819,208 @@ directly, and stop retaining the duplicate production view tree while keeping
 fine-grained effects, compiled expressions, source attribution, and on-demand
 authorized editable IR. Until that larger S2 slice is implemented and
 remeasured, the memory claim remains red.
+
+## 2026-07-23 — a real iOS IME found a Contract custody bug
+
+Synthetic composition tests had not exposed the production failure. On iOS
+26.5 Mobile Safari, the Japanese Romaji keyboard wrote marked text into the
+native Description control, but Contract's direct web host forwarded each
+composing `input` and immediately reapplied the stale controlled value. The
+candidate buffer visibly snapped back. This was an Exact/Contract bug, not a
+Snapback subscription or Partitime form bug.
+
+Exact `72ea2d978…` now leaves marked text under browser ownership from
+`compositionstart` through `compositionend`, skips controlled-value writes
+during that interval, publishes the final value once, and suppresses Safari's
+duplicate post-composition `input`. The compatibility DOM mirror follows the
+same rule. Focused tests retain the preview across an unrelated Contract
+commit and prove one Japanese final callback. The 89-test host slice, the
+registered IME acceptance gate, and all JavaScript typecheck profiles pass.
+
+The rebuilt production Partitime candidate was then exercised with actual
+system-keyboard taps for `kanpai`, not injected text. The screenshot shows
+underlined `かんぱい`; selecting the first native candidate leaves `乾杯`
+visible, and the simulator Accessibility tree reports the Description value as
+`乾杯`. The receipt binds the Snapback and Exact revisions, production asset,
+browser/OS builds, screenshots, and local evidence digests. This is one real
+iOS-current citizenship row, not a general mobile-forms claim.
+
+The current−1 lane was instructive in a different way. The available iOS
+26.3.1 simulator returned the correct semantic control value, but a system-only
+Safari probe rendered all Japanese and emoji glyphs as missing boxes in both
+body text and a native form value. The same probe renders normally on iOS
+26.5. That runtime is retained as an invalid environment receipt; none of its
+five rows is promoted.
+
+Fresh Chrome and Firefox runs pass focus restoration and native find. Desktop
+Safari could not be rerun after the Exact change because the remote macOS
+console became non-interactive: Safari scripting saw a document while System
+Events saw no frontmost process and zero Accessibility windows. The harness
+now fences Safari process exit between WebDriver and ordinary native-Find
+phases, but the locked console remains a red environmental prerequisite rather
+than a product pass.
+
+Compared with React plus a data service, the failure shape is specific to a
+controlled compiled host: the data layer was not involved, while Contract's
+host had to state explicitly when the browser temporarily owns the value.
+Partitime's strict citizenship runbook helped here—the missing mobile and
+locked-console rows stayed red, and stale desktop receipts were not carried
+across the Exact candidate change. No Snapback guide gap was encountered in
+this slice.
+
+## 2026-07-23 — the corrected native lane reached the production-runtime boundary
+
+The ratified v2 native method now has real collectors on both sides. They pair
+the same simulator host, alternate carrier order, keep warmups out of reported
+samples, require Release/Simulator Hermes HBC with Acto and debug overlays off,
+take first frame from the native host, and accept first authoritative data only
+from a structured Partitime product marker. The Exact app entry-point isolation
+also had to be carried into the working Exact branch so the ordinary Release
+target—not the dedicated acceptance target—could compile.
+
+The first implementation still used Exact's startup-artifact endpoint. Its
+2,561,112-byte HBC across 265 modules contains no agent module, but inspection
+found the `__exactDevModules` envelope: it is a smaller development carrier,
+not the production-bundled HBC the amendment requires. I rejected that sample
+before committing it. The corrected path builds one production Vite/Rollup
+graph instead. It is 1,515,793 bytes, maps 358 source modules, and omits the
+development module table, but it still contains five lazy dynamic imports for
+development/inspection surfaces. Hermes cannot turn that graph into the
+required single HBC. This is now an explicit fail-closed preflight rather than
+a mislabeled green artifact.
+
+For completeness, forcibly staging the rejected module-table HBC reached a
+second boundary: the ordinary ExactApp Release target built, installed, and
+launched, but stopped before the bytecode-evaluation mark. Exact's authenticated
+armed-runtime resources explain that refusal: Ibex does not yet advertise an
+executable Exact Apple target because its report-derived CapSec cells are
+incomplete. A diagnostic runtime would bypass this, but would violate the
+ratified production lane, so all four native performance rows stay red.
+
+This was mostly an Exact production-carrier gap, not a Snapback subscription or
+Contract application-size problem. Snapback's contribution is the paired
+custody and product-data witness; it behaved as intended by distinguishing a
+development HBC, a production bundle, and an executable production launch.
+Compared with Expo, Exact still needs both a single-HBC-safe production graph
+and the authenticated executable runtime that make release performance
+collection routine. No Snapback guide gap was encountered.
+
+## 2026-07-23 — the H1 production regression was real, and the repaired holdout is still red
+
+The first full holdout against Exact's H1 hydration candidate stopped at the
+first Contract cell. Source-map tracing found an Exact runtime read of
+`def.file.uses.find(...)`; production Contract modules deliberately remove
+that compiler-only inventory. Adding only optional chaining would have hidden
+the crash while also losing the ratified diagnostic for opaque author code
+that runs during candidate preparation.
+
+Exact `f5251ef80…` instead retains a minimal production table containing only
+each opaque import's spec and span. Full descriptors and ordinary imports stay
+out of the client artifact. A production-shaped hydration regression proves
+the diagnostic still names its authored locus, and codegen tests prove a
+declared pure import retains no runtime descriptor metadata. The focused and
+neighboring suites pass 101 tests, all JavaScript typecheck profiles pass, and
+the actual Contract × Snapback production cell boots and records metrics.
+
+The clean full holdout then completed all twelve web cells and all twelve
+production/incremental build cells against the original committed calibration.
+There were no cleanup errors and all four remote/local backends were healthy.
+Of 44 Contract validation rows, 34 now pass. Cold startup, authoritative/live
+data, idle network, update fan-out, DOM patches, and both build-latency
+categories are green. The remaining ten failures are:
+
+- warm startup in all four cells (Snapback misses by 0.1 ms; the other cells
+  miss by 10.8–15 ms);
+- memory in all four cells (roughly 1.64–1.91 MB observed against
+  roughly 1.39–1.61 MB allowed); and
+- idle CPU in Contract × Snapback and Contract × Supabase.
+
+The aggregate budget receipt improves to 15 pass / 11 red. It also shows that
+minified JavaScript remains slightly over threshold for the three non-Snapback
+Contract cells, authored source and push freshness remain red, and native v2
+has no admissible holdout. Production web remains 11/12 because the strict
+citizenship matrix is still incomplete. This is useful evidence, but not Step
+4 exit and not a reason to move either frozen claim to green.
+
+The experience is sharper than the earlier quick probes: the remaining web
+miss is not one generalized “Contract is slow” result. Most runtime categories
+are green, build latency is now comfortably green, and the hard remainder is
+the production representation/memory project already identified at Exact LLP
+0185 plus smaller startup/idle work. No Snapback guide gap was encountered.
+
+## 2026-07-23 — Safari remote automation was enabled, but the console stayed locked
+
+The current clean Safari 26.5.2 rerun reached a ready Partitime page through
+safaridriver, so Developer → Allow Remote Automation is correctly enabled.
+Its native click still never reached the create trigger: after the click, the
+feed and trigger were present, the trigger remained focused, and no overlay
+existed. At the same time, System Events reported the Safari process with zero
+Accessibility windows and no frontmost process. The ordinary Safari document
+existed by scripting, but native Find could not see its visible copy.
+
+The collector now retains that post-click DOM state. This matters because the
+same timeout could otherwise look like a Contract focus-scope regression.
+Here both native input and Accessibility failed at the host-console boundary,
+while browser script execution remained available. The complete 0/2 receipt is
+claim-eligible evidence of a red environment prerequisite, not a product pass
+and not a skipped row. No Snapback guide gap was encountered.
+
+The cumulative collector initially threw away those two completed failures and
+reconstructed them as generic “evidence missing” rows. That preserved the red
+count but lost the useful distinction between an unrun check and a clean
+machine invalidation. It now admits both outcomes from a complete, clean,
+source-bound WebDriver receipt: green results become passing rows, while
+failures retain the receipt hash and diagnostic under an explicit machine-check
+failure code. The cumulative result stays 5/21; its Safari reds are now
+auditable evidence rather than absence.
+
+## 2026-07-23 — the H2 producer boundary is safer, and the fresh holdout remains red
+
+Charlie ratified Exact LLP 0386 §3.8 and both dated WS8 invalidations. Exact
+`8659784e0…` now validates hydration producers before emission: static export
+fails closed, request-time and direct SSR report diagnostics without changing
+the frozen v1 response contract, real serialized HTML is parsed back against
+the manifest, and duplicate component anchors no longer silently select the
+last record. The implementation passes the focused 129-test
+hydration/server/renderer corpus, all JavaScript typecheck profiles, both
+hydration check scripts, and a real release web build.
+
+The independent full holdout at Snapback `baa1082e…` and that Exact revision
+consumed the unchanged committed calibration `b991f364…`. All twelve browser
+cells and all twelve production/incremental build cells completed, the four
+providers were healthy, and cleanup was clean. Thirty of 44 Contract rows pass.
+The fourteen failures are all four warm-startup, subscription-memory, and
+production-build rows, plus idle CPU for Snapback and Supabase. This run is a
+little noisier than the preceding H1 holdout: production-build p95 crossed the
+frozen boundary in all four cells. The values are retained rather than
+discarded or rebaselined.
+
+The aggregate is therefore 14 pass / 12 red / 9 nonclaims. Production web
+remains 11/12 because citizenship is still red. The producer checks add about
+377 minified bytes to each Contract cell; Contract × Snapback remains
+comfortably below its threshold, deterministic gzip remains green everywhere,
+and the three other minified cells remain about 9.2 KB over. This is a useful
+H2 safety checkpoint, not Step 4 exit. No Snapback guide gap was encountered.
+
+## 2026-07-23 — memory needed two questions, not one mislabeled number
+
+Exact LLP 0381's production-program work made a measurement flaw concrete.
+The existing Partitime row called `memoryPerActiveSubscriptionBytes` observes
+one warm subscription and reports the target's total post-GC heap. It is useful
+as a footprint constraint, but it cannot tell us whether Contract has a large
+fixed runtime, an expensive per-subscriber representation, or both.
+
+The proposed WS8 amendment now keeps both questions. It retains total heap for
+one canonical subscription and separately fits marginal heap across 1, 8, 32,
+and 64 independent logical subscribers. The marginal judgment uses the
+one-sided upper confidence bound, so measurement uncertainty makes the result
+harder—not easier—to pass. Thresholds come only from same-backend React
+calibration, the already-frozen 1.10 multiplier, and a fixed 4,096-byte
+resolution floor; Contract observations cannot select their own target.
+
+Writing the method before the collector was valuable. It forced us to specify
+provider deduplication, independent callback/disposer ownership, count
+randomization, cohort isolation, cleanup recovery, and invalid-sample policy.
+A fail-closed validator makes those choices executable. The amendment remains
+proposed, so I did not run calibration or turn this design into a performance
+claim. No Snapback guide gap was encountered.

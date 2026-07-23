@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "partitime.memory-construct-amendment.v1",
+  "amendmentId": "partitime-ws8-memory-construct-v2-2026-07-23",
+  "date": "2026-07-23",
+  "status": "proposed",
+  "proposedBy": "Codex, implementing Exact LLP 0381 P0a and Snapback LLP 0063 WS8",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": null,
+  "ratificationStatement": null,
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "supersedesMetric": {
+    "methodId": "partitime-ws8-performance-v2",
+    "name": "memoryPerActiveSubscriptionBytes",
+    "disposition": "retained historical one-subscription total-heap result; it is never relabelled as a fitted marginal cost"
+  },
+  "replacement": {
+    "methodId": "partitime-ws8-memory-v2",
+    "workloadVersion": "partitime.web-memory-fit.v2",
+    "thresholdFormulaSetId": "partitime-ws8-memory-threshold-formulas-v2",
+    "thresholdSetId": "derived-at-calibration",
+    "claimId": "STEP4.MEMORY_V2",
+    "passRule": "Every Contract cell passes both warmHeapTotalBytesP95 and marginalHeapBytesPerLogicalSubscriptionUpper95 against its same-backend React threshold in the independent holdout."
+  },
+  "construct": {
+    "total": {
+      "name": "warmHeapTotalBytesP95",
+      "definition": "Runtime.getHeapUsage usedSize after first-live-data, closure of the sibling cache-prime target, two requestAnimationFrame turns, and forced garbage collection in the measured target with one canonical feed subscription.",
+      "thresholdFormula": "floor(react_same_cell_calibration_p95 * 1.10)",
+      "judgedCellFeedsOwnThreshold": false
+    },
+    "marginal": {
+      "name": "marginalHeapBytesPerLogicalSubscriptionUpper95",
+      "definition": "The one-sided 95% upper confidence bound of the OLS slope of post-GC Runtime.getHeapUsage usedSize against active logical subscriber count in the measurement-only sibling entry.",
+      "counts": [
+        1,
+        8,
+        32,
+        64
+      ],
+      "subscriberShape": "Each subscriber observes the same canonical feed descriptor through its arm's public binding API. Provider-level dedup remains enabled; each subscriber owns an independent delivery callback and disposer. No subscriber emits DOM or host nodes.",
+      "regression": {
+        "estimator": "ordinary least squares with intercept over all 28 retained cohort observations",
+        "upperBound": "slope + t_0.95(df=26) * standard_error(slope)",
+        "negativeSlopePolicy": "retain the signed fitted slope and uncertainty; do not clamp observations or the Contract result"
+      },
+      "thresholdFormula": "floor(max(react_same_cell_calibration_upper95 * 1.10, 4096))",
+      "absoluteFloorBytes": 4096,
+      "absoluteFloorRationale": "Pre-frozen measurement-resolution allowance. It is constant across cells and does not depend on a judged Contract measurement.",
+      "judgedCellFeedsOwnThreshold": false
+    },
+    "conjunctionRequired": true
+  },
+  "sampling": {
+    "browser": "current stable desktop Chrome on the frozen host profile",
+    "warmupsPerCount": 2,
+    "calibrationSamplesPerCount": 7,
+    "holdoutSamplesPerCount": 7,
+    "countOrder": "Fisher-Yates permutation from receipt-recorded seed before every cohort round",
+    "outlierPolicy": "retain every valid observation; invalidate only a receipt-recorded collector, browser, backend-health, or cleanup failure",
+    "cohortIsolation": "Commit calibration thresholds before holdout. Holdout reads them from the explicit committed calibration revision and never from the mutable worktree.",
+    "cleanup": "After every observation dispose all subscriber handles, force garbage collection, and require heap recovery within max(65536 bytes, 5% of the count-1 pre-subscription heap)."
+  },
+  "cells": [
+    "react:snapback",
+    "react:supabase",
+    "react:convex",
+    "react:sqlite",
+    "contract:snapback",
+    "contract:supabase",
+    "contract:convex",
+    "contract:sqlite"
+  ],
+  "targetDerivationInputs": {
+    "allowed": [
+      "same-backend React calibration measurements",
+      "the pre-frozen 1.10 multiplier",
+      "the pre-frozen 4096-byte slope-resolution floor"
+    ],
+    "forbidden": [
+      "the judged Contract cell's calibration or holdout value",
+      "post-hoc exclusions",
+      "a threshold selected from the desired pass/fail outcome"
+    ]
+  },
+  "artifacts": {
+    "calibration": "demos/partiful-matrix/acceptance/results/step4-memory-v2-calibration.json",
+    "holdout": "demos/partiful-matrix/acceptance/results/step4-memory-v2-holdout.json",
+    "historicalV2Holdout": {
+      "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+      "role": "immutable pre-amendment evidence; not a replacement calibration"
+    }
+  },
+  "changeControl": {
+    "beforeRatification": "Design, validator, and non-default collector work only. No threshold derivation, keep decision, or claim promotion.",
+    "afterRatification": "Run calibration once, commit it, then run one independently bound holdout. A method change requires a new dated amendment and identities.",
+    "thresholdLoosening": "forbidden outside the ratified invalidation procedure"
+  }
+}
