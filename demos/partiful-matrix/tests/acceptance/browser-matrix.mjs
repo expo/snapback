@@ -783,6 +783,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     const created = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('create-event');
       await taskPage.key('Enter');
+      await taskPage.waitForNavigation();
       if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard create-route boot');
       await taskPage.pollText('create-panel', 'plan', 5_000);
       await tabTo(taskPage, (state) => state.testId === 'event-title');
@@ -792,6 +793,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       await tabTo(taskPage, (state) => state.testId === 'create-event-submit');
       const beforeSubmit = await taskPage.eval(`(()=>({activeTestId:document.activeElement?.getAttribute('data-testid')??null,title:document.querySelector('[data-testid="event-title"]')?.value??null,location:document.querySelector('[data-testid="event-location"]')?.value??null,description:document.querySelector('[data-testid="event-description"]')?.value??null}))()`);
       await taskPage.key('Enter');
+      await taskPage.waitForNavigation();
       const outcome = await taskPage.pollText(cell.arm === 'react' ? 'event-page' : 'feed', 'Keyboard Picnic', 8_000);
       if (!outcome?.includes('Keyboard Picnic')) {
         const afterSubmit = await taskPage.eval(`(()=>({activeTestId:document.activeElement?.getAttribute('data-testid')??null,path:location.pathname,summary:document.querySelector('[data-testid="form-error-summary"]')?.textContent?.trim()??null,titleError:document.querySelector('[data-testid="event-title-error"]')?.textContent?.trim()??null,locationError:document.querySelector('[data-testid="event-location-error"]')?.textContent?.trim()??null}))()`);
@@ -803,12 +805,14 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     const menu = await withPhase4KeyboardPage(cdp, cell, baseUrl, '/', async (taskPage) => {
       await taskPage.focus('open-event_sunset');
       await taskPage.key('Enter');
+      await taskPage.waitForNavigation();
       if (cell.arm === 'contract') await waitForMatrixBoot(taskPage, 'keyboard open-event boot');
       await taskPage.pollText('event-page', 'Sunset Supper Club', 15_000);
       await taskPage.focus('event-options-trigger');
       await taskPage.key('Enter');
       await taskPage.pollText('event-options-menu', 'Copy invite link', 5_000);
-      await taskPage.eval('new Promise(r=>requestAnimationFrame(r))');
+      if (selectedBrowser === 'safari' || isIosSafari) await sleep(50);
+      else await taskPage.eval('new Promise(r=>requestAnimationFrame(r))');
       const first = await taskPage.active();
       await taskPage.key('ArrowDown');
       const second = await taskPage.active();
@@ -856,7 +860,16 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
       return { pending, posted: 'Keyboard picnic' };
     }, reusableKeyboardPage);
 
-    return { claimId: 'STEP4.UI.KEYBOARD', cell: cellId, created, menu, rsvp, guest, wall };
+    return {
+      claimId: 'STEP4.UI.KEYBOARD',
+      cell: cellId,
+      tabTraversalKey: selectedBrowser === 'safari' ? 'Option+Tab (Safari full-control traversal)' : 'Tab',
+      created,
+      menu,
+      rsvp,
+      guest,
+      wall,
+    };
   });
 
   await phase4Claim(activeSuite, 'STEP4.UI.FOCUS', `${label} traps and restores every overlay`, async () => {
@@ -1010,7 +1023,12 @@ async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
   await page.waitForNavigation();
   const boot = await waitForMatrixBoot(page);
   if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
-  await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
+  // Safari can strand an asynchronous WebDriver callback when navigation
+  // retires the script context between animation frames. The boot receipt
+  // above already proves the successor document is live; settle its paint
+  // from the harness process before querying the route root.
+  if (selectedBrowser === 'safari' || isIosSafari) await sleep(100);
+  else await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
   const routeRoot = pathname.includes('/events/new/')
     ? 'create-panel'
     : pathname.includes('/events/')
@@ -1027,13 +1045,16 @@ async function waitForTestId(page, testId, label, timeoutMs = 5_000) {
 }
 
 async function tabTo(page, predicate, limit = 16) {
+  const traversal = [];
   for (let index = 0; index < limit; index += 1) {
     const state = await page.active();
     if (predicate(state)) return state;
+    traversal.push(state);
     await page.key('Tab');
   }
   const state = await page.active();
-  throw new Error(`Tab traversal did not reach the requested target: ${JSON.stringify(state)}`);
+  traversal.push(state);
+  throw new Error(`Tab traversal did not reach the requested target: ${JSON.stringify({ state, traversal })}`);
 }
 
 async function assertFocused(page, testId, label) {
@@ -1333,14 +1354,20 @@ function createWebDriverHarness({ browserName }) {
         });
         let closed = false;
         const evalRaw = async (expression) => {
-          const envelope = await webdriverRequest(driver.url, `${base}/execute/async`, {
-            method: 'POST',
-            body: {
-              script: `const expression=arguments[0],done=arguments[arguments.length-1];Promise.resolve().then(()=>eval(expression)).then(value=>done({ok:true,value}),error=>done({ok:false,error:{message:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:null}}));`,
-              args: [expression],
-            },
-            timeoutMs: 35_000,
-          });
+          let envelope;
+          try {
+            envelope = await webdriverRequest(driver.url, `${base}/execute/async`, {
+              method: 'POST',
+              body: {
+                script: `const expression=arguments[0],done=arguments[arguments.length-1];Promise.resolve().then(()=>eval(expression)).then(value=>done({ok:true,value}),error=>done({ok:false,error:{message:error instanceof Error?error.message:String(error),stack:error instanceof Error?error.stack:null}}));`,
+                args: [expression],
+              },
+              timeoutMs: 35_000,
+            });
+          } catch (error) {
+            const command = expression.replace(/\s+/g, ' ').slice(0, 180);
+            throw new Error(`${browserName} script command failed (${command}): ${error.message}`);
+          }
           if (!envelope?.ok) throw new Error(`${browserName} script failed: ${envelope?.error?.message ?? 'unknown error'}${envelope?.error?.stack ? `\n${envelope.error.stack}` : ''}`);
           return envelope.value;
         };
@@ -1361,7 +1388,10 @@ function createWebDriverHarness({ browserName }) {
         const page = {
           navigate: (pageUrl) => webdriverRequest(driver.url, `${base}/url`, { method: 'POST', body: { url: pageUrl }, timeoutMs: 35_000 }),
           close,
-          waitForNavigation: () => sleep(50),
+          // Safari can retire the current script context after a keyboard-
+          // activated link or form submission. Match the CDP settle window so
+          // the next async-script command attaches to the successor document.
+          waitForNavigation: () => sleep(300),
           setScriptExecutionDisabled: async (value) => {
             if (value) throw new Error(`${browserName} WebDriver does not expose script-disable emulation`);
           },
@@ -1379,9 +1409,19 @@ function createWebDriverHarness({ browserName }) {
           key: async (key) => {
             const keys = { Enter: '\uE007', Space: ' ', Tab: '\uE004', Escape: '\uE00C', ArrowLeft: '\uE012', ArrowUp: '\uE013', ArrowRight: '\uE014', ArrowDown: '\uE015', Home: '\uE011', End: '\uE010' };
             const value = keys[key] ?? key;
+            const actions = browserName === 'safari' && key === 'Tab'
+              // macOS Safari uses Option+Tab for full-control traversal when
+              // its user preference leaves plain Tab scoped to text fields.
+              ? [
+                  { type: 'keyDown', value: '\uE00A' },
+                  { type: 'keyDown', value },
+                  { type: 'keyUp', value },
+                  { type: 'keyUp', value: '\uE00A' },
+                ]
+              : [{ type: 'keyDown', value }, { type: 'keyUp', value }];
             await webdriverRequest(driver.url, `${base}/actions`, {
               method: 'POST',
-              body: { actions: [{ type: 'key', id: 'keyboard', actions: [{ type: 'keyDown', value }, { type: 'keyUp', value }] }] },
+              body: { actions: [{ type: 'key', id: 'keyboard', actions }] },
             });
           },
           insertText: async (text) => {
