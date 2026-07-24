@@ -30,6 +30,41 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 July 23 authority ratification):** 2026-07-24 (Charlie
+Cheever supplied the exact preregistered statements ratifying
+`partitime-ws8-memory-construct-v2-2026-07-23`,
+`partitime-ws8-web-instrument-v3-2026-07-23`,
+`partitime-ws8-authored-source-v3-2026-07-23`, and
+`partitime-ws8-native-observer-v3-2026-07-23`. Their authority files and the
+comparison-protocol registry now record the transition. This authorizes the
+specified calibration and independent-holdout lanes; it does not promote a
+claim before their retained receipts pass.)
+**Revised (Step 4 web-v3 pre-ratification probe):** 2026-07-24 (The complete
+12-cell web and 12-cell build quick path ran from clean Snapback `e62175b2…`
+and Exact `d71e12389…` sources against the proposed web-v3 invalidation. Local
+Snapback/SQLite and remote Supabase/Convex fixtures were all healthy with three
+rows, and teardown reported no cleanup errors. The retained receipt is
+`acceptance/results/step4-performance-v3-quick.json` (sha256
+`8297b48bae05a85a58b5f52a0efafef706c4fd0642843ad65cd56b988182a13b`) and
+binds invalidation sha256
+`445cf49e9f5a327d4de5af5ca45b83a33513ddb13a680bf6bc65714be3b40a13`.
+It uses zero warmups, one sample, and a 200 ms idle window; therefore its
+measurements are diagnostic only. The receipt has `claimEligible=false`,
+freezes no threshold, and does not substitute for ratification, the full
+calibration cohort, or an independent holdout.)
+**Revised (Step 4 native-observer pre-ratification probe):** 2026-07-24 (The
+preregistered non-claim quick probe passed from clean Snapback `7408c7d3…`,
+Exact `d71e12389…`, and the feature-bound Ibex observer archive on the iOS
+26.3 iPhone 17 Pro simulator. All six required substitution/runtime markers
+were observed, the diagnostic runtime and agent were absent before first
+frame, the product emitted its structured authoritative-data marker, and
+cleanup was clean. The retained receipt is
+`acceptance/results/step4-native-exact-performance-observer-v3-quick.json`
+(sha256 `96e3dc34caa98fa0213558f5d2abbde8ccd8aced45d7b7f92af9a30cabd4ec71`).
+Its single diagnostic sample was 19 ms Hermes evaluation, 2,179,871 HBC bytes,
+1,448 ms cold launch, and 1,341 ms first authoritative data. The receipt has
+`claimEligible=false`, freezes no threshold, and does not substitute for
+ratification, calibration, or holdout.)
 **Revised (Step 4 proposal ratification-integrity checkpoint):** 2026-07-24
 (The four proposed July 23 authorities now preregister their exact required
 owner statements. Memory, web-v3, native-observer-v3, and authored-source-v3
