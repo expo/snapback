@@ -22,3 +22,15 @@ authenticated-but-ineligible principals; authority-bearing-table refusal
 bound to the app authority domain with
 `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`; the unique-conflict
 owner-partitioned-or-declared-disclosure rule. M-sized.
+
+**Progress (2026-07-24):** the codegen-local items landed (existence-secrecy
+collapse with the real-server byte-indistinguishability witness; required
+owner-leading `listIndex` with index-sequence ordering; integer-only `now`;
+authority-bearing-table refusal; `discloseUniqueConflicts`; guide/type/demo
+surface updated; package suite + fixture type-check + guide check +
+standard-patterns v1 acceptance green). Remaining in this ticket, both
+needing runtime support beyond codegen: the opaque versioned cursor binding
+(app authority domain + plan id + direction + boundary,
+`SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`) and the principal profile-class
+refusal (`SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED` for bare
+servicePrincipal / non-delegated autonomous agents reaching admission).
