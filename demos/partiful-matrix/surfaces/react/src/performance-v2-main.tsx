@@ -116,7 +116,12 @@ async function boot() {
       name: 'guestList',
       args: { eventId: EVENT_ID },
       userId: USER_ID,
-      authority: USER_ID,
+      // Each benchmark slot represents one independently retained logical
+      // subscription. The product adapter correctly deduplicates equal
+      // external-store identities, so the metrology surface must give each
+      // slot a distinct ownership identity while preserving the same query,
+      // actor, and server workload.
+      authority: `${USER_ID}:${slot}`,
     });
     const grace = snapshot.rows.find((row) => row.userId === USER_ID);
     return (

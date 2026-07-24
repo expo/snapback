@@ -1482,3 +1482,38 @@ This amendment authorizes v2 preregistration and the already-selected
 correctness-reset ordering. It does not make the historical 1,394,100-byte or
 6/8 diagnostic figures normative, does not complete P0a/P0b/P0c, and promotes
 no Step 4 claim.
+
+## Amendment A2 (2026-07-24) — P0c comparator instrument invalidation and recovery
+
+The first governed P0c comparator cycle stopped after three retained invalid
+attempts, exactly as A1 required. Every attempt timed out waiting for eight
+active React subscriptions. Investigation found a benchmark-only adapter
+defect: all eight rendered slots used the same external-store authority
+identity, so the production React adapter correctly deduplicated them into one
+retained subscription while the instrument required eight. No sample was
+accepted, no metric was aggregated, no threshold was derived, and the Contract
+holdout remained unopened.
+
+This amendment ratifies the narrow invalidation procedure permitted by A1:
+
+1. preserve all three red receipts and the original v2 protocol, P0a receipt,
+   P0b receipt, and identities;
+2. change only the React benchmark slot ownership identity so each slot is an
+   independently retained logical subscription while query arguments, actor,
+   backend, schedules, metrics, formulas, gates, and workload behavior remain
+   unchanged;
+3. mint a prospective protocol/collector identity and require P0a correctness
+   witnesses from both `react:snapback` and `contract:snapback`, each proving
+   eight active subscriptions and one canonical authoritative update without
+   reading heap values;
+4. rebind the unchanged isolated P0b correction receipt to the replacement P0a
+   digest; and
+5. rerun P0c from its first complete comparator cycle. Earlier red attempts
+   remain ineligible for aggregation and do not consume or replace a warmup or
+   sample in the replacement identity.
+
+This is an instrument correction, not a gate revision. It does not alter the
+two warmups, seven samples, count permutations, p95 method, 110% comparator
+formulas, five conjunctive metrics, invalid-run rules, environment pins, or
+holdout order. Any further comparator failure remains subject to the same
+three-attempt stop rule and requires a new preserved-artifact disposition.
