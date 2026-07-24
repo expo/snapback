@@ -11159,6 +11159,109 @@ mod guarded_commit_tests {
         );
     }
 
+    // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
+    //   to a server-evaluated conditional plan: read, owner guard, write in
+    //   one authoritative transaction. The guard consumes the transaction's
+    //   own read — a concurrent owner transfer landing between preview and
+    //   commit is seen, refused with the collapsed public code, and neither
+    //   commit order loses or misattributes a write.
+    #[test]
+    fn conditional_owner_guard_reads_commit_state_not_preview_state() {
+        let owner_guard_plan = || {
+            let owner_eq = ValueExpr::Binary {
+                op: crate::manifest::BinaryOp::Eq,
+                left: Box::new(ValueExpr::Field {
+                    base: Box::new(ValueExpr::Binding("row".to_owned())),
+                    key: "title".to_owned(),
+                }),
+                right: Box::new(ValueExpr::AuthUserId),
+            };
+            let mut patch_values = BTreeMap::new();
+            patch_values.insert("rank".to_owned(), ValueExpr::Literal(json!(5)));
+            MutationPlan {
+                steps: vec![
+                    MutationStep::Get {
+                        table: "items".to_owned(),
+                        id: ValueExpr::Literal(json!("row-1")),
+                        bind_as: "row".to_owned(),
+                        else_error: Some("SNAPBACK_ROW_NOT_FOUND".to_owned()),
+                    },
+                    MutationStep::Guard {
+                        cond: owner_eq,
+                        else_error: "SNAPBACK_ROW_NOT_FOUND".to_owned(),
+                    },
+                    MutationStep::Patch {
+                        table: "items".to_owned(),
+                        id: ValueExpr::Literal(json!("row-1")),
+                        values: patch_values,
+                    },
+                ],
+                return_value: Some(ReturnValue::ChangedCount),
+            }
+        };
+        let owner_input = |user: &str| HandlerInput {
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        };
+        let transfer_to = |db: &mut LocalDatabase, new_owner: &str| {
+            db.commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Patch {
+                    table: "items".to_owned(),
+                    id: "row-1".to_owned(),
+                    values: Map::from_iter([("title".to_owned(), json!(new_owner))]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect("handwritten owner transfer");
+        };
+        let seed = |db: &mut LocalDatabase| {
+            db.seed(SeedData {
+                tables: BTreeMap::from([(
+                    "items".to_owned(),
+                    vec![json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
+                        .as_object()
+                        .cloned()
+                        .expect("seed row")],
+                )]),
+            })
+            .expect("seed owned row");
+        };
+
+        // Order 1: the transfer lands between the update's preview and its
+        // guarded commit. The commit-time guard must see the new owner and
+        // refuse with the collapsed public code; the row is untouched.
+        let mut db = database();
+        seed(&mut db);
+        let input = owner_input("user-a");
+        let plan = owner_guard_plan();
+        db.dry_run_mutation(&plan, &input)
+            .expect("preview against the pre-transfer owner succeeds");
+        transfer_to(&mut db, "user-b");
+        let error = db
+            .execute_mutation_guarded(&plan, &input, || Ok(()), || Ok(()))
+            .expect_err("commit-time guard must see the concurrent transfer");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
+        let row = db.scan_table("items", 10, 0).unwrap();
+        assert_eq!(row.rows[0]["title"], json!("user-b"), "transfer is not lost");
+        assert_eq!(row.rows[0]["rank"], json!(1), "refused update wrote nothing");
+
+        // Order 2: the update commits first, then the transfer. Both writes
+        // land; nothing is lost or misattributed.
+        let mut db = database();
+        seed(&mut db);
+        db.execute_mutation_guarded(&owner_guard_plan(), &owner_input("user-a"), || Ok(()), || Ok(()))
+            .expect("owner update before the transfer succeeds");
+        transfer_to(&mut db, "user-b");
+        let rows = db.scan_table("items", 10, 0).unwrap();
+        assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
+        assert_eq!(rows.rows[0]["title"], json!("user-b"), "later transfer wins the field");
+    }
+
     // @ref LLP 0007#index-contract — the duplicate-order-key witness: the
     //   implicit trailing `_id` component totalizes scan order while a unique
     //   index over the same declared fields still refuses duplicates.
