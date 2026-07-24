@@ -6292,9 +6292,17 @@ fn create_index(
     // **unique** index must not: `_id` is per-row unique, so including it would
     // make the whole key trivially unique and silently defeat the declared
     // uniqueness invariant (LLP 0056 relies on true `(principal, resource)`
-    // uniqueness). The declared columns must be non-null for it to be total —
-    // enforced by schema validation for both ordinary and membership indexes.
-    // @ref LLP 0007#index-contract — ordinary unique indexes are true and total.
+    // uniqueness). This split is now the normative rule: every declared index
+    // carries a framework-generated implicit trailing ascending `_id`
+    // component that is scan-order only — the uniqueness constraint, the
+    // complete-ordered-key semantics, and relational output keys stay over
+    // the declared fields alone. The declared columns must be non-null for
+    // the constraint to be total — enforced by schema validation for both
+    // ordinary and membership indexes.
+    // @ref LLP 0007#index-contract — implicit trailing `_id` is scan-order
+    //   only; unique constraints stay declared-fields-only.
+    // @ref LLP 0080#1-closed-relational-plan — the suffix makes the `_id`
+    //   tie-break index-servable without becoming author-indexable.
     // @ref LLP 0056#declaring-a-membership-table — membership pair uniqueness
     //   uses the same physical invariant.
     if !unique {
@@ -11148,6 +11156,127 @@ mod guarded_commit_tests {
         assert_eq!(
             error.diagnostic.code,
             "SNAPBACK_SCHEMA_UNIQUE_INDEX_OPTIONAL_FIELD"
+        );
+    }
+
+    // @ref LLP 0007#index-contract — the duplicate-order-key witness: the
+    //   implicit trailing `_id` component totalizes scan order while a unique
+    //   index over the same declared fields still refuses duplicates.
+    #[test]
+    fn implicit_index_id_suffix_is_scan_order_only() {
+        let mut suffix_schema = schema();
+        suffix_schema.tables[0].indexes = vec![
+            crate::manifest::IndexManifest {
+                name: "by_rank".to_owned(),
+                fields: vec!["rank".to_owned()],
+                unique: false,
+            },
+            crate::manifest::IndexManifest {
+                name: "by_title".to_owned(),
+                fields: vec!["title".to_owned()],
+                unique: true,
+            },
+        ];
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(suffix_schema).expect("apply index schema");
+
+        let index_columns = |db: &LocalDatabase, physical: &str| -> Vec<String> {
+            let mut statement = db
+                .conn
+                .prepare(&format!(
+                    "PRAGMA index_info({})",
+                    quote_ident(physical).unwrap()
+                ))
+                .unwrap();
+            let columns = statement
+                .query_map([], |row| row.get::<_, String>(2))
+                .unwrap()
+                .collect::<Result<Vec<_>, _>>()
+                .unwrap();
+            columns
+        };
+        assert_eq!(
+            index_columns(&db, "items_by_rank"),
+            ["rank", "_id"],
+            "non-unique declared index carries the implicit scan-order _id suffix"
+        );
+        assert_eq!(
+            index_columns(&db, "items_by_title"),
+            ["title"],
+            "unique index stays declared-fields-only so the constraint is not vacuous"
+        );
+
+        // Duplicate order keys inserted in shuffled id order: scan order must
+        // be (rank, _id) ascending regardless of insertion order.
+        let mut rows: Vec<Map<String, Value>> = Vec::new();
+        for value in 0..64u32 {
+            let id = format!("row-{:02}", (value * 37) % 64);
+            rows.push(
+                json!({
+                    "_id": id,
+                    "title": format!("title-{}", id),
+                    "rank": (value % 2) as i64,
+                })
+                .as_object()
+                .cloned()
+                .expect("seed row"),
+            );
+        }
+        db.seed(SeedData {
+            tables: BTreeMap::from([("items".to_owned(), rows)]),
+        })
+        .expect("seed duplicate order keys");
+        let result = db
+            .query(
+                &QueryPlan {
+                    table: "items".to_owned(),
+                    filters: Vec::new(),
+                    order: vec![crate::manifest::OrderExpr {
+                        field: "rank".to_owned(),
+                        direction: OrderDirection::Asc,
+                    }],
+                    limit: None,
+                    membership_filters: Vec::new(),
+                    indexed_by: Some("by_rank".to_owned()),
+                },
+                &HandlerInput::default(),
+            )
+            .expect("indexed duplicate-key query");
+        let observed: Vec<(i64, String)> = result
+            .rows
+            .iter()
+            .map(|row| {
+                (
+                    row["rank"].as_i64().expect("rank"),
+                    row["_id"].as_str().expect("id").to_owned(),
+                )
+            })
+            .collect();
+        let mut expected = observed.clone();
+        expected.sort();
+        assert_eq!(observed, expected, "scan order is (rank, _id) ascending");
+        assert_eq!(observed.len(), 64);
+
+        // The unique constraint ignores the implicit suffix: a duplicate
+        // declared key with a fresh _id still loses at commit.
+        let error = db
+            .commit_buffered_writes(
+                &HandlerInput::default(),
+                vec![BufferedWrite::Insert {
+                    table: "items".to_owned(),
+                    id: "row-fresh".to_owned(),
+                    values: Map::from_iter([
+                        ("title".to_owned(), json!("title-row-00")),
+                        ("rank".to_owned(), json!(9)),
+                    ]),
+                }],
+                Vec::new(),
+                Value::Null,
+            )
+            .expect_err("duplicate declared unique key must lose despite a fresh _id");
+        assert_eq!(
+            error.diagnostic.code,
+            "SNAPBACK_UNIQUE_CONSTRAINT_VIOLATION"
         );
     }
 
