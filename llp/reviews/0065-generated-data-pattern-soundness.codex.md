@@ -126,3 +126,35 @@ The proposal has a strong core, but circular gating and unresolved authorization
 Verdict: NOT READY
 
 The live-invalidation contradiction and remaining principal, secrecy, pagination, ceiling, artifact, tenant, and owner-relational gating gaps prevent spec-level acceptance.
+## Round 3 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+| Item | Verdict | Verification |
+|---|---|---|
+| N1 | RESOLVED | [§§2, 4, 6](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:111) disable the skip, require conservative resnapshot, and record the disabled refinement. |
+| N2 | PARTIALLY RESOLVED | The order and fixtures match, except `system` and admin cannot reach profile admission under accepted LLP 0058. |
+| N3 | RESOLVED | [§2](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:149) universally collapses missing/invisible outcomes and confines distinction to the audit channel. |
+| N4 | RESOLVED | [§3](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:204) pins index selection, ordering, versioned DTOs, continuation semantics, and Rust-manifest identities. |
+| N5 | RESOLVED | [§3](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:235) binds cursors/live keys/capabilities to the authority domain; [§6](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:344) adds the two-app negative. |
+| P7 | RESOLVED | [§1](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0065-generated-data-pattern-soundness.rfc.md:76) requires computed, versioned `EffectCeilingV1` facts with the requested dimensions. |
+| P10 | RESOLVED | [LLP 0080 §Acceptance](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0080-portable-relational-queries-and-projections.rfc.md:545) explicitly requires accepted LLP 0065 for owner-visible relational work. |
+
+### New blockers
+
+- **MEDIUM — unwitnessable system/admin refusal.** LLP 0065 expects `system` and admin authority to reach profile admission and receive `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`. Accepted LLP 0058 instead defines `authenticated` as requiring a resolved user, rejects authenticated cron/system targets at manifest load, and keeps admin bypass anonymous ([§Closed function requirement](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:215), [gate matrix](/Users/ccheever/projects/snapback-review-0065-0080-0081/llp/0058-shared-invocation-authority-and-staged-auth-mode-protocol.spec.md:1134)). Preserve their inherited pre-profile refusals or explicitly reconcile LLP 0058.
+
+Verdict: NOT READY
+
+N2 still contains a governing-corpus contradiction that makes two required acceptance cases impossible.
+## Round 4 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+N2: RESOLVED
+
+New blockers: None.
+
+Verdict: READY
+
+The revised gate order and acceptance witnesses now match LLP 0058’s admin-bypass and system/cron behavior without contradiction.

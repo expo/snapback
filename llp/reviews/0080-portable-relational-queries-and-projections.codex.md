@@ -220,3 +220,14 @@ New blocker:
 Verdict: NOT READY
 
 N3 still leaves a load-bearing uniqueness ambiguity and its requested acceptance witness incomplete.
+## Round 4 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+N3/HIGH — RESOLVED: The scan-only `_id` suffix is consistently excluded from uniqueness, join-cardinality keys, and output-key tuples; the acceptance fixture covers both ordering and duplicate rejection.
+
+New blockers: None.
+
+Verdict: READY
+
+The remaining ambiguity is closed without introducing contradictions.

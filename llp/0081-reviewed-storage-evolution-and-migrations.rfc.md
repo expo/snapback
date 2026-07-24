@@ -5,7 +5,19 @@
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (GPT round-1 reconciliation: semantic acceptance
+**Revised:** 2026-07-24 (loop close-out, rounds 2–4: authority-bearing-table
+steps refused pending a `hostOps:migrate` writer class; the fence closes a
+capability-derived lane registry including egress lanes; idempotence keyed
+by `operationId` plus audience; cancellation pre-publication-only with a
+journaled `published-held` state and schema-enumerated transition relation;
+`storageGeneration` named apart from LLP 0072's `activationGeneration`;
+republish fires LLP 0053 activation obligations with an enforced downtime
+ceiling; the plan-digest preimage defined once with pinned planner
+tie-breaks; `ContentDigestV1` frames bound fail-closed to the LLP 0051
+JSON-transport bytes; deterministic UUIDv7 IDs with the 48-bit range check
+and the LLP 0080 projection-identity carve-out; both families ended READY —
+Fable re-review, Codex round 4); 2026-07-24 (GPT round-1 reconciliation:
+semantic acceptance
 decoupled from the implementation corpus; `MigrationPlanArtifactV1` pinned to
 the corpus's RFC 8785/JCS + SHA-256 canonical encoding with domain separation
 and golden vectors; authenticated `MigrationApprovalV1` and barrier-time
@@ -29,7 +41,7 @@ with LLP 0014's shared alarm dispatcher); 2026-07-20 (post-review
 reconciliation: deterministic inputs, independent data proof, retained-client
 publication semantics, control-plane approval/backup custody, and resumable
 hosted execution are pinned)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0043, LLP 0046, LLP 0051, LLP 0053, LLP 0062, LLP 0063, LLP 0070, LLP 0072, LLP 0080
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0010, LLP 0012, LLP 0014, LLP 0018, LLP 0036, LLP 0037, LLP 0041, LLP 0043, LLP 0046, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0062, LLP 0063, LLP 0070, LLP 0072, LLP 0080
 
 ## Summary
 
@@ -135,7 +147,9 @@ is `migration-v1:<planDigest>`; and neither outer field appears inside
 committed schema ships golden vectors so independent implementations prove
 byte agreement. Plan generation is itself deterministic: the planner emits
 steps in a pinned normative order — schema-manifest declaration order, then
-declared-intent order, ties broken lexicographically by qualified target
+declared-intent order with each intent's own dependency chain kept in its
+required sequence (validate before tighten, copy before retire), ties broken
+lexicographically by qualified target
 name and then by step type — and each step ID is the
 canonical string `s<ordinal>:<stepType>:<qualified target>`, so two clean
 checkouts derive identical step sequences and IDs from identical inputs. The execution strategy (single-transaction versus shadow
@@ -384,7 +398,9 @@ this profile, but v1 does not leave the mechanism implicit.
 
 A crash before publication reopens the predecessor and resumes or discards the
 unpublished shadow generation according to the journal. A crash after
-publication reopens only the successor and resumes cleanup; it never rolls back
+release reopens only the successor and resumes cleanup (a crash while
+`published-held` follows that state's rule above: reopen still fenced,
+explicit release or rollback); it never rolls back
 implicitly or exposes a mixture. An ambiguous publication record fails closed
 and requires inspection—guessing from physical tables is forbidden.
 

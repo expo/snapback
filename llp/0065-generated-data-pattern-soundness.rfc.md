@@ -5,7 +5,16 @@
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (dual-family round-1 reconciliation: semantic acceptance
+**Revised:** 2026-07-24 (loop close-out, rounds 2–4: the LLP 0053
+disjointness-skip refinement is disabled for v1 with `authScopeField` as
+invalidation routing only; refusal gate order pinned with LLP 0058's
+admin-bypass and system-target behavior inherited; the public
+missing/invisible disclosure escape removed in favor of the audit channel;
+explicit `listIndex`, versioned helper DTOs in the Rust-owned manifest, and
+`EffectCeilingV1`; cursors, live keys, and capabilities bound to the
+application authority domain; autonomous agents named on the refused side;
+both families ended READY — Fable round 2 + delta verify, Codex round 4);
+2026-07-24 (dual-family round-1 reconciliation: semantic acceptance
 decoupled from implementation receipts; public existence secrecy collapsed by
 default with owner-partitioned uniqueness; principal admission pinned to the
 canonical user subject; generated queries classified callable/`live_replace`
@@ -15,7 +24,7 @@ update/delete lowered to the LLP 0051 conditional plan; authority-bearing
 tables ineligible; ceiling traversal total and default-deny); 2026-07-20
 (clarify that this RFC's owner-only floor governs standard generated patterns;
 LLP 0080 separately owns an explicit query-only public-read profile)
-**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0063, LLP 0080, LLP 0081
+**Related:** LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0037, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0058, LLP 0063, LLP 0080, LLP 0081
 
 ## Summary
 
@@ -122,10 +131,14 @@ projects the canonical user subject under LLP 0055's effective-principal
 rules: a signed-in user, or a delegated agent whose authority resolves to the
 delegating user's subject. Refusals follow the inherited gate order — target,
 credential, and grant-scope refusals first, then the authentication gate
-(an anonymous caller fails there with the existing `AUTH_REQUIRED` code and
-never reaches profile admission), and only then profile-class admission: an
-authenticated principal that does not project a user subject — a bare
-`servicePrincipal`, system or admin authority, or an autonomous agent
+(an anonymous caller fails there with the existing `SNAPBACK_AUTH_REQUIRED` code and
+never reaches profile admission — under LLP 0058 this also covers admin
+bypass, which is anonymous, and system/cron targets, which manifest load
+already rejects for authenticated functions), and only then profile-class
+admission: an
+authenticated principal that reaches admission without projecting a user
+subject — a bare
+`servicePrincipal`, or an autonomous agent
 (LLP 0055 `kind: "agent"` acting on its own authority, not under
 delegation) — is refused with
 `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; a future profile may admit
@@ -336,8 +349,10 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
 - trusted `now`/`id` fields reject client-supplied values and use recorded host
   answers under replay;
 - an anonymous caller is refused by the authentication gate with its
-  existing `AUTH_REQUIRED` code before profile admission; authenticated
-  non-user principals — a bare `servicePrincipal`, system, admin, and
+  existing `SNAPBACK_AUTH_REQUIRED` code before profile admission, and system/cron
+  targeting and admin bypass are refused by their inherited LLP 0058 gates
+  (manifest-load rejection and anonymous bypass respectively); authenticated
+  non-user principals that reach admission — a bare `servicePrincipal` and
   non-delegated autonomous agents — are refused with
   `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; and a delegated agent
   resolves to the delegating user's subject;

@@ -5,7 +5,18 @@
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (GPT round-1 reconciliation: root access is
+**Revised:** 2026-07-24 (loop close-out, rounds 2–4: closed output-key
+grammar with stored-identity `_id` derivation as an approved activation
+input; opaque handlers barred from output-table reads and maintenance
+authority defined; plan-level-only inspection; anonymous retention
+disallowed pending an LLP 0053 anonymous lease class;
+`RelationalResultEncodingV1`; the framework-generated `_id` index suffix
+pinned scan-order-only via the same-landing LLP 0007 amendment;
+reverse-index-entry fan-out counting; unpaired-surrogate rejection; the
+accepted-LLP-0065 owner-mode subgate named; concurrency and cursor
+acceptance witnesses aligned to §2; both families ended READY — Fable
+targeted verify, Codex round 4); 2026-07-24 (GPT round-1 reconciliation:
+root access is
 index-served with examined-entry bounds; the pagination pipeline, cursor
 binding, and `root-window-v1` semantics are normative; join-key equality gets
 a portable byte-equality comparator with binary-collation index requirements;
@@ -614,7 +625,8 @@ A separate implementation-conformance suite — the LLP 0080 half of
   reverse-index-entry counting rule bounds the scan; and a chain or
   diamond of projections is refused at generation;
 - a raw HostPlan read of an output table without the output visibility
-  predicate is refused at generation, and a mutable shared joined source
+  predicate is refused at generation, an opaque handler's output-table read
+  is refused at ceiling admission, and a mutable shared joined source
   feeding an owner output is refused without `sharedFanOutDisclosure`, with
   disclosed-fixture capacity behavior witnessed at 0, 1, 1,023, and 1,024
   references;
