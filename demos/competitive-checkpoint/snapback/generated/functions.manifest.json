@@ -8,6 +8,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "applyReplyProgress",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "applyReplyProgress",
       "id": "competitive-checkpoint:applyReplyProgress",
       "kind": "Mutation",
@@ -44,6 +64,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "cancelReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "cancelReply",
       "id": "competitive-checkpoint:cancelReply",
       "kind": "Mutation",
@@ -80,6 +120,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "completeReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "completeReply",
       "id": "competitive-checkpoint:completeReply",
       "kind": "Mutation",
@@ -119,6 +179,22 @@
         "userId"
       ],
       "bundleEntrypoint": "conversationBySlug",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_slug",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "conversationBySlug",
       "id": "competitive-checkpoint:conversationBySlug",
       "kind": "LiveQuery",
@@ -172,6 +248,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "createConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeId",
+          "runtimeNow"
+        ],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
       "exportedName": "createConversation",
       "id": "competitive-checkpoint:createConversation",
       "kind": "Mutation",
@@ -237,6 +333,28 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "deleteConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "delete"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
       "exportedName": "deleteConversation",
       "id": "competitive-checkpoint:deleteConversation",
       "kind": "Mutation",
@@ -316,6 +434,22 @@
         "userId"
       ],
       "bundleEntrypoint": "firstConversationPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_page_key",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "firstConversationPage",
       "id": "competitive-checkpoint:firstConversationPage",
       "kind": "LiveQuery",
@@ -370,6 +504,21 @@
         "userId"
       ],
       "bundleEntrypoint": "getConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "getConversation",
       "id": "competitive-checkpoint:getConversation",
       "kind": "LiveQuery",
@@ -426,6 +575,22 @@
         "userId"
       ],
       "bundleEntrypoint": "listConversations",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_created",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listConversations",
       "id": "competitive-checkpoint:listConversations",
       "kind": "LiveQuery",
@@ -480,6 +645,21 @@
         "userId"
       ],
       "bundleEntrypoint": "listMessages",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listMessages",
       "id": "competitive-checkpoint:listMessages",
       "kind": "LiveQuery",
@@ -517,6 +697,22 @@
         "userId"
       ],
       "bundleEntrypoint": "nextConversationPage",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_page_key",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "nextConversationPage",
       "id": "competitive-checkpoint:nextConversationPage",
       "kind": "LiveQuery",
@@ -575,6 +771,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "settleReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "settleReply",
       "id": "competitive-checkpoint:settleReply",
       "kind": "Mutation",
@@ -611,6 +827,30 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "startReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "conversations"
+          },
+          {
+            "access": "query",
+            "table": "messages"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "startReply",
       "id": "competitive-checkpoint:startReply",
       "kind": "Mutation",
@@ -648,6 +888,21 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "streamReply",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "messages"
+          }
+        ]
+      },
       "exportedName": "streamReply",
       "id": "competitive-checkpoint:streamReply",
       "kind": "Action",
@@ -683,6 +938,30 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "updateConversation",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [
+          "runtimeNow"
+        ],
+        "reads": [
+          {
+            "access": "point",
+            "table": "conversations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "conversations"
+          }
+        ]
+      },
       "exportedName": "updateConversation",
       "id": "competitive-checkpoint:updateConversation",
       "kind": "Mutation",

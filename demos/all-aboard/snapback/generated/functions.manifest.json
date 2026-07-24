@@ -87,6 +87,46 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "applyFeedTick",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "feedRefreshState"
+          },
+          {
+            "access": "query",
+            "table": "feedTicks"
+          },
+          {
+            "access": "query",
+            "table": "trainStatus"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "feedRefreshState"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "liveDepartures"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "trainStatus"
+          }
+        ]
+      },
       "exportedName": "applyFeedTick",
       "id": "all-aboard:applyFeedTick",
       "kind": "Mutation",
@@ -127,6 +167,46 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "applyLiveFeedSnapshot",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "feedRefreshState"
+          },
+          {
+            "access": "query",
+            "table": "liveDepartures"
+          },
+          {
+            "access": "query",
+            "table": "trainStatus"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "feedRefreshState"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "liveDepartures"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "trainStatus"
+          }
+        ]
+      },
       "exportedName": "applyLiveFeedSnapshot",
       "id": "all-aboard:applyLiveFeedSnapshot",
       "kind": "Mutation",
@@ -167,6 +247,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "claimFeedPoll",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "feedRefreshState"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "feedRefreshState"
+          }
+        ]
+      },
       "exportedName": "claimFeedPoll",
       "id": "all-aboard:claimFeedPoll",
       "kind": "Mutation",
@@ -203,6 +303,19 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "feedState",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "feedRefreshState"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "feedState",
       "id": "all-aboard:feedState",
       "kind": "LiveQuery",
@@ -243,6 +356,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "liveDepartures",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_time",
+            "table": "liveDepartures"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "liveDepartures",
       "id": "all-aboard:liveDepartures",
       "kind": "LiveQuery",
@@ -288,6 +415,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "liveTrainStatus",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_pattern",
+            "table": "trainStatus"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "liveTrainStatus",
       "id": "all-aboard:liveTrainStatus",
       "kind": "LiveQuery",
@@ -333,6 +474,33 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "refreshFeed",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "feedRefreshState"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "liveDepartures"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "trainStatus"
+          }
+        ]
+      },
       "exportedName": "refreshFeed",
       "id": "all-aboard:refreshFeed",
       "kind": "Action",
@@ -371,6 +539,46 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "resetFeed",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "feedRefreshState"
+          },
+          {
+            "access": "query",
+            "table": "liveDepartures"
+          },
+          {
+            "access": "query",
+            "table": "trainStatus"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "feedRefreshState"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "liveDepartures"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "trainStatus"
+          }
+        ]
+      },
       "exportedName": "resetFeed",
       "id": "all-aboard:resetFeed",
       "kind": "Mutation",
@@ -411,6 +619,14 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "routeEstimate",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "routeEstimate",
       "id": "all-aboard:routeEstimate",
       "kind": "Action",
@@ -445,6 +661,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "stationsQuery",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_order",
+            "table": "stations"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "stationsQuery",
       "id": "all-aboard:stationsQuery",
       "kind": "Query",
@@ -489,6 +719,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "stopTimesByStation",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_station",
+            "table": "stopTimes"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "stopTimesByStation",
       "id": "all-aboard:stopTimesByStation",
       "kind": "Query",
@@ -536,6 +780,19 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "tripsQuery",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "trips"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "tripsQuery",
       "id": "all-aboard:tripsQuery",
       "kind": "Query",

@@ -1526,6 +1526,14 @@ pub struct FunctionDefinition {
     pub read_set_summary: DependencySummary,
     #[serde(default, rename = "writeSetSummary", alias = "write_set_summary")]
     pub write_set_summary: DependencySummary,
+    /// The versioned conservative effect ceiling. Codegen computes it by a
+    /// total default-deny traversal of the closed plan vocabulary for
+    /// HostPlans (`basis: "static"`) and records author declarations for
+    /// opaque handlers (`basis: "declared"`). Optional so pre-ceiling
+    /// manifests keep loading; enforcement remains the runtime subset check.
+    /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
+    #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
+    pub effect_ceiling: Option<EffectCeiling>,
     #[serde(
         default,
         rename = "permissionEpochBumps",
@@ -1566,6 +1574,7 @@ impl FunctionDefinition {
             syncability_class: Some(syncability_class.to_owned()),
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
+            effect_ceiling: None,
             permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
             uses: Vec::new(),
@@ -1617,6 +1626,48 @@ pub struct SourceSpan {
     pub file: String,
     pub line: u32,
     pub column: u32,
+}
+
+/// EffectCeilingV1 (LLP 0065 §1): the versioned conservative effect ceiling —
+/// operations, tables, index ranges, host operations, and authorization
+/// dependencies — recorded per generated function. `basis` is `"static"`
+/// when the ceiling was proved by codegen's total default-deny traversal of
+/// the closed plan vocabulary and `"declared"` when it restates author
+/// declarations for an opaque handler.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeiling {
+    pub version: String,
+    pub basis: String,
+    #[serde(default)]
+    pub reads: Vec<EffectCeilingRead>,
+    #[serde(default)]
+    pub writes: Vec<EffectCeilingWrite>,
+    #[serde(default, rename = "hostOperations", alias = "host_operations")]
+    pub host_operations: Vec<String>,
+    #[serde(
+        default,
+        rename = "authorizationInputs",
+        alias = "authorization_inputs"
+    )]
+    pub authorization_inputs: Vec<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeilingRead {
+    pub table: String,
+    /// `"point"` or `"query"`.
+    pub access: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub index: Option<String>,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct EffectCeilingWrite {
+    pub table: String,
+    pub operations: Vec<String>,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1905,6 +1956,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             syncability_class,
             read_set_summary,
             write_set_summary,
+            effect_ceiling: _,
             permission_epoch_bumps,
             bundle_entrypoint,
             uses,

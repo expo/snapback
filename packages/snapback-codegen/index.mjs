@@ -27,6 +27,7 @@ import {
 import { join, resolve, dirname, relative, isAbsolute, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse as parseJavaScript } from 'acorn';
+import { computeEffectCeiling } from './effect-ceiling.mjs';
 import { build as esbuild } from 'esbuild';
 import ts from 'typescript';
 import { OUTGREW_IR_CLASSES, PINNED_FUNCTIONS } from './define.mjs';
@@ -3072,6 +3073,15 @@ function decorateFunctions(appId, functions) {
   return functions.map((fn) => {
     const reads = readSummary(fn);
     const writes = writeSummary(fn);
+    // @ref LLP 0065#1-fact-classes — fail closed: a plan node the ceiling
+    //   walker does not recognize aborts generation instead of shipping a
+    //   function whose effects escaped the recorded ceiling.
+    let effectCeiling;
+    try {
+      effectCeiling = computeEffectCeiling(fn);
+    } catch (error) {
+      throw new Error(`${fn.name}: ${error.message}`, { cause: error });
+    }
     return {
       id: functionId(appId, fn.name),
       name: fn.name,
@@ -3089,6 +3099,7 @@ function decorateFunctions(appId, functions) {
       syncabilityClass: syncabilityClass(fn),
       readSetSummary: reads,
       writeSetSummary: writes,
+      effectCeiling,
       bundleEntrypoint: fn.name,
       uses: fn.uses ?? [],
       runtime: fn.runtime,

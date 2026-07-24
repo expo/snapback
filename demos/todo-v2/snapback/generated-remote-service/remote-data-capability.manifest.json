@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:b843895b8aa1e2331ee78f85e4cd0f6db874132d475e7b0aeaaa04de14cd247e"
+    "sha256": "sha256:c3fee0358530ba7cb1ce34d0b286835042f60875348369bbb0ff1f55dc3db52c"
   },
   "manifestVersion": 1,
   "operations": [

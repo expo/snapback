@@ -8,6 +8,21 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "createTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "createTodo",
       "id": "todo:createTodo",
       "kind": "Mutation",
@@ -42,6 +57,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "deleteTodo",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "deleteTodo",
       "id": "todo:deleteTodo",
       "kind": "Mutation",
@@ -78,6 +113,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "editTitle",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "point",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "patch"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "editTitle",
       "id": "todo:editTitle",
       "kind": "Mutation",
@@ -133,6 +188,21 @@
         "userId"
       ],
       "bundleEntrypoint": "listTodos",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listTodos",
       "id": "todo:listTodos",
       "kind": "LiveQuery",
@@ -170,6 +240,22 @@
         "userId"
       ],
       "bundleEntrypoint": "listTodosOnce",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listTodosOnce",
       "id": "todo:listTodosOnce",
       "kind": "Query",
@@ -220,6 +306,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "setCompleted",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "todos"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "todos"
+          }
+        ]
+      },
       "exportedName": "setCompleted",
       "id": "todo:setCompleted",
       "kind": "Mutation",

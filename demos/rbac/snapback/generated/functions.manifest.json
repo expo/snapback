@@ -9,6 +9,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "acceptInvite",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "acceptInvite",
       "id": "rbac:acceptInvite",
       "kind": "Mutation",
@@ -44,6 +59,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "inviteApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "inviteApp",
       "id": "rbac:inviteApp",
       "kind": "Mutation",
@@ -79,6 +109,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "joinApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "joinApp",
       "id": "rbac:joinApp",
       "kind": "Mutation",
@@ -114,6 +159,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "leaveApp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "leaveApp",
       "id": "rbac:leaveApp",
       "kind": "Mutation",
@@ -151,6 +211,21 @@
         "userId"
       ],
       "bundleEntrypoint": "listAnnouncements",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "announcements"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listAnnouncements",
       "id": "rbac:listAnnouncements",
       "kind": "LiveQuery",
@@ -207,6 +282,26 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "postAnnouncement",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "appMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "announcements"
+          }
+        ]
+      },
       "exportedName": "postAnnouncement",
       "id": "rbac:postAnnouncement",
       "kind": "Mutation",
@@ -244,6 +339,21 @@
       "authRequirement": "authenticated",
       "authorityCreating": true,
       "bundleEntrypoint": "rawJoin",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "appMembers"
+          }
+        ]
+      },
       "exportedName": "rawJoin",
       "id": "rbac:rawJoin",
       "kind": "Mutation",

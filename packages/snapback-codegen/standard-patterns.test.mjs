@@ -329,6 +329,33 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.equal(Object.hasOwn(createSchema.properties, 'createdAt'), false, 'trusted time must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'updatedAt'), false, 'trusted time must not be client-forgeable');
 
+  // @ref LLP 0065#6-acceptance — generation asserts each constructor's exact
+  //   expected EffectCeilingV1; the runtime subset check stays enforcement.
+  assert.deepEqual(byName.get('listTodos').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [{ table: 'todos', access: 'query', index: 'by_owner_created' }],
+    writes: [],
+    hostOperations: [],
+    authorizationInputs: ['authUserId'],
+  });
+  assert.deepEqual(byName.get('updateTodo').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [{ table: 'todos', access: 'point' }],
+    writes: [{ table: 'todos', operations: ['patch'] }],
+    hostOperations: ['runtimeNow'],
+    authorizationInputs: ['authUserId'],
+  });
+  assert.deepEqual(byName.get('createTodo').effectCeiling, {
+    version: 'EffectCeilingV1',
+    basis: 'static',
+    reads: [],
+    writes: [{ table: 'todos', operations: ['insert'] }],
+    hostOperations: ['runtimeId', 'runtimeNow'],
+    authorizationInputs: ['authUserId'],
+  });
+
   const listTodos = byName.get('listTodos');
   assert.equal(listTodos.runtime.HostPlan.Query.indexed_by, 'by_owner_created');
   assert.deepEqual(

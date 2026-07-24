@@ -9,6 +9,33 @@
       "authRequirement": "optional-user",
       "authorityCreating": true,
       "bundleEntrypoint": "createEvent",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "eventMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "events"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "invites"
+          }
+        ]
+      },
       "exportedName": "createEvent",
       "id": "shindig:createEvent",
       "kind": "Mutation",
@@ -48,6 +75,21 @@
         "userId"
       ],
       "bundleEntrypoint": "eventDetails",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "eventDetails",
       "id": "shindig:eventDetails",
       "kind": "LiveQuery",
@@ -110,6 +152,22 @@
         "userId"
       ],
       "bundleEntrypoint": "eventWall",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_event",
+            "table": "posts"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "eventWall",
       "id": "shindig:eventWall",
       "kind": "LiveQuery",
@@ -177,6 +235,23 @@
         "opaque"
       ],
       "bundleEntrypoint": "getEvent",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "eventMembers"
+          },
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "getEvent",
       "id": "shindig:getEvent",
       "kind": "Query",
@@ -214,6 +289,22 @@
         "userId"
       ],
       "bundleEntrypoint": "guestList",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "membershipPredicate"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_event",
+            "table": "invites"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "guestList",
       "id": "shindig:guestList",
       "kind": "LiveQuery",
@@ -278,6 +369,30 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "invite",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "eventMembers"
+          },
+          {
+            "access": "query",
+            "table": "events"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "invites"
+          }
+        ]
+      },
       "exportedName": "invite",
       "id": "shindig:invite",
       "kind": "Mutation",
@@ -318,6 +433,22 @@
         "userId"
       ],
       "bundleEntrypoint": "myFeed",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_user",
+            "table": "invites"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "myFeed",
       "id": "shindig:myFeed",
       "kind": "LiveQuery",
@@ -369,6 +500,26 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "postToWall",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "eventMembers"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "posts"
+          }
+        ]
+      },
       "exportedName": "postToWall",
       "id": "shindig:postToWall",
       "kind": "Mutation",
@@ -406,6 +557,32 @@
       "authRequirement": "optional-user",
       "authorityCreating": true,
       "bundleEntrypoint": "rsvp",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "invites"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "eventMembers"
+          },
+          {
+            "operations": [
+              "declared"
+            ],
+            "table": "invites"
+          }
+        ]
+      },
       "exportedName": "rsvp",
       "id": "shindig:rsvp",
       "kind": "Mutation",

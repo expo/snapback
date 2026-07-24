@@ -20,6 +20,14 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "egressProbe",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "egressProbe",
       "id": "tests:egressProbe",
       "kind": "Action",
@@ -57,6 +65,19 @@
         "opaque"
       ],
       "bundleEntrypoint": "queryProbe",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "declared",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "table": "probe"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "queryProbe",
       "id": "tests:queryProbe",
       "kind": "Query",

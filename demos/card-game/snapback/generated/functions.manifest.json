@@ -8,6 +8,23 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "acceptHandCard",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "hands"
+          }
+        ]
+      },
       "exportedName": "acceptHandCard",
       "id": "card-game:acceptHandCard",
       "kind": "Mutation",
@@ -66,6 +83,22 @@
         "userId"
       ],
       "bundleEntrypoint": "myHand",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_owner_game",
+            "table": "hands"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "myHand",
       "id": "card-game:myHand",
       "kind": "LiveQuery",
@@ -125,6 +158,23 @@
     {
       "authRequirement": "authenticated",
       "bundleEntrypoint": "signalReady",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "readySignals"
+          }
+        ]
+      },
       "exportedName": "signalReady",
       "id": "card-game:signalReady",
       "kind": "Mutation",

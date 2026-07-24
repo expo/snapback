@@ -8,6 +8,20 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "listCells",
+      "effectCeiling": {
+        "authorizationInputs": [],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [
+          {
+            "access": "query",
+            "index": "by_board",
+            "table": "cells"
+          }
+        ],
+        "version": "EffectCeilingV1",
+        "writes": []
+      },
       "exportedName": "listCells",
       "id": "graffiti:listCells",
       "kind": "LiveQuery",
@@ -61,6 +75,23 @@
     {
       "authRequirement": "optional-user",
       "bundleEntrypoint": "paintCell",
+      "effectCeiling": {
+        "authorizationInputs": [
+          "authUserId"
+        ],
+        "basis": "static",
+        "hostOperations": [],
+        "reads": [],
+        "version": "EffectCeilingV1",
+        "writes": [
+          {
+            "operations": [
+              "insert"
+            ],
+            "table": "cells"
+          }
+        ]
+      },
       "exportedName": "paintCell",
       "id": "graffiti:paintCell",
       "kind": "Mutation",
