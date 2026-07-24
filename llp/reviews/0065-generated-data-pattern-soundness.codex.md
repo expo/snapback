@@ -78,3 +78,51 @@ The proposal’s core idea is good: generated convenience must not invent securi
 Verdict: NOT READY
 
 The proposal has a strong core, but circular gating and unresolved authorization, noninterference, pagination, ceiling, and transactional semantics leave multiple HIGH blockers to acceptance.
+## Round 2 — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec` orchestrated by /llp-review. Reviewed the round-1-reconciled revision; permitted to read its own round-1 artifact only. The reviewer noted an accidental sibling-review excerpt surfaced by a search and re-derived findings in a clean pass (see its integrity note).
+
+> **Review-integrity note:** This review targets the round‑1-reconciled snapshot present at the start: commit `ce700efff5e8e3d589150de899021f851a56c1f5`, LLP 0065 SHA‑256 `80d9077f…`. The shared worktree advanced during review. A coordinating search also accidentally surfaced a short sibling-review excerpt; it was excluded, and the findings below were re-derived in a clean GPT-family pass using only the frozen corpus and the permitted Codex round‑1 review.
+
+## 1. Per-concern resolution table
+
+| # | Round‑1 concern | Resolution | Verification |
+|---|---|---|---|
+| 1 | Circular acceptance/implementation gate | **RESOLVED** | LLP 0065 §6 makes acceptance semantic and implementation-authorizing, while conformance receipts separately gate `Implemented` and `STEP5.DECLARATION_REDUCTION`, consistent with LLP 0063 §Sequence. |
+| 2 | Generated-query capabilities and LLP 0053 composition | **PARTIALLY RESOLVED** | §4 now limits queries to callable/`live_replace`, disclaims retention, and inherits LLP 0053; however, §2 emits `authScopeField` as a disjointness fact while §4 claims no disjoint skip, contradicting LLP 0053 §§Negative deltas / Two orthogonal declarations. |
+| 3 | Authority subject and tenant boundary | **PARTIALLY RESOLVED** | §2 binds ownership to the effective `ctx.auth.userId` and one app authority domain, but autonomous/dev-impersonation modes remain unclassified, “sealed service” is non-canonical, and §6 lacks LLP 0063’s required cross-app negative. |
+| 4 | Public noninterference and existence channels | **PARTIALLY RESOLVED** | §2 now collapses missing/invisible outcomes by default and governs unique-conflict disclosure, but its per-target public-disclosure escape conflicts with §6’s universal byte-indistinguishability requirement and LLP 0080 §3’s audit-only distinction. |
+| 5 | Authority-bearing-table eligibility | **RESOLVED** | §3 rejects mutating helpers over membership and `permissionBacking` tables before emission, with a matching §6 negative, preserving LLP 0055/0056 effect-site gates. |
+| 6 | CRUD/keyset contracts are not portable public specifications | **PARTIALLY RESOLVED** | §3 adds indexes, total list order, bounds, strict keyset continuation, cursor validation, and concurrency limits, but still omits exact DTOs, continuation/end shape, ordered cursor types, direction/limit surface, and deterministic list-index selection. |
+| 7 | Ceiling completeness undefined and unproven | **PARTIALLY RESOLVED** | §1 adds total traversal, unknown-node default denial, exact-constructor tests, and opaque-handler exclusion, but still says codegen “may” compute the ceiling and defines no versioned fact schema or granularity for operations, ranges, host effects, or auth dependencies. |
+| 8 | Transactional owner guard unreconciled | **RESOLVED** | §2 explicitly selects LLP 0051 D2’s server-evaluated read → guard → write lowering in one authoritative transaction, rejects a client baseline, requires LLP 0004/0007 reconciliation, and §6 races transfer/delete in both commit orders. |
+| 9 | Generated artifact authority and conformance | **PARTIALLY RESOLVED** | §4 inherits LLP 0004’s stable function identity and LLP 0037’s drift gate, but does not define the promised DTOs or Rust-owned profile/helper manifest fields, nor a complete target/profile corpus-admission matrix. |
+| 10 | LLP 0080 owner-profile dependency | **PARTIALLY RESOLVED** | §2 says owner-visible LLP 0080 outputs additionally require LLP 0065 acceptance, but LLP 0063 §Sequence and LLP 0080 §Acceptance still omit that owner-mode subgate from their claimed-complete entry conditions. |
+
+## 2. New concerns
+
+1. **HIGH — `authScopeField` both enables and disclaims disjointness skipping.**  
+   LLP 0065 §2 emits the field for disjointness, while §§4/6 promise resnapshot on dependency commits and no skip. LLP 0053 defines that field as an explicit skip refinement requiring convergence proof.  
+   **Resolution:** either omit/disable it for v1, or admit the skip and add cross-owner-skip/own-owner-wake convergence and negative-delivery tests.
+
+2. **MEDIUM — The anonymous principal diagnostic is unwitnessable under the inherited gate order.**  
+   An authenticated function rejects an anonymous caller with `AUTH_REQUIRED` before `owner.v1` can return `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; target, credential, and grant-scope refusals similarly precede profile admission.  
+   **Resolution:** specify target/credential/grant → authentication → profile-class → owner-predicate ordering, retaining governing codes and reserving the pattern code for otherwise-admitted but profile-ineligible principals.
+
+3. **MEDIUM — The disclosure escape contradicts conformance.**  
+   §2 permits public missing/invisible distinction through a target declaration, while §6 requires every claimed adapter to remain byte-indistinguishable and LLP 0080 permits distinction only through a gated audit channel.  
+   **Resolution:** remove the escape or define a separately versioned disclosure profile with exact DTO, inspection, capability, and acceptance semantics.
+
+4. **MEDIUM — The revised list/page plan remains underdetermined.**  
+   Multiple owner-leading indexes leave list ordering ambiguous, and pagination does not fully specify LLP 0007’s `_id`-terminated order, first/next DTOs, limits, direction, or cursor bindings.  
+   **Resolution:** require an explicit `listIndex` and define complete versioned `OwnedCrudV1`/`OwnedPageV1` arguments, results, ordering, cursor identity, and end-of-stream behavior.
+
+5. **MEDIUM — App isolation is asserted but neither represented nor witnessed.**  
+   The RFC does not normatively bind cursors, live keys, and capabilities to the application authority domain, and §6 lacks a same-subject/two-app collision fixture.  
+   **Resolution:** bind the relevant app/deployment/database/issuer/stream identity and add the cross-app negative required by LLP 0063.
+
+## 3. Verdict
+
+Verdict: NOT READY
+
+The live-invalidation contradiction and remaining principal, secrecy, pagination, ceiling, artifact, tenant, and owner-relational gating gaps prevent spec-level acceptance.

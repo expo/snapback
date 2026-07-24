@@ -182,3 +182,48 @@ Reviewed against stable SHA-256 `1140fdda644260a0e8e7f59a4e1a45f29c2ad565f86cd40
 Verdict: NOT READY
 
 Multiple HIGH and MEDIUM blockers remain in authority-bearing writes, fencing, approval/proof formats, governing-corpus amendments, operation identity, rollback activation, cancellation, and enforceable downtime.
+## Round 3 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+| Item | Verdict | Verification |
+|---|---|---|
+| P2 | PARTIALLY RESOLVED | §2 adds the framing and step-ID form, but says both “SHA-256 over body bytes” and prefix/newline/body; the promised tie-break is not specified. |
+| P3 | RESOLVED | `releaseId` joins the complete audience; authenticated carrier mechanics may remain Open Question 3. |
+| P4 | PARTIALLY RESOLVED | Frames, streams, and checkpoints are named, but their exact byte encoding remains undefined; LLP 0051 contains no canonical scalar codec covering LLP 0007’s full numeric domain. |
+| P6 | RESOLVED | §4 fixes the two event types, payload, high-water participation, and unchanged cut invariant; the actual LLP 0007 edit is correctly required in the acceptance landing. |
+| P7 | PARTIALLY RESOLVED | Fencing and cancellation are fixed, but unnamed “cleanup substates” make the claimed closed set open-ended, and no exhaustive transition relation is defined. |
+| P9 | RESOLVED | §6 names `generationRepublish` and Acceptance requires the corresponding LLP 0072 amendment in the same landing. |
+| P12 | RESOLVED | Durable timing checks, safe pre-publication abort, stable diagnostic, and post-publication inapplicability are explicit. |
+| P13 | RESOLVED | Out-of-range UUIDv7 timestamps are refused and the 48/4/2/74-bit layout is pinned. |
+| N1 | RESOLVED | Authority-bearing-table steps are refused; future `hostOps:migrate` is the named validated escape. |
+| N2 | RESOLVED | The capability-derived registry is closed, covers action/cron/egress lanes, and is crash-tested per lane. |
+| N3 | RESOLVED | Admission, journal lookup, replay, cancellation, and receipts use `operationId` plus audience. |
+| N4 | RESOLVED | Cancellation is pre-publication only; `published-held` exits solely through release or audited rollback, matching Acceptance. |
+| N5 | RESOLVED | Storage generation is explicitly distinct from traffic `activationGeneration`. |
+| N6 | RESOLVED | Republish atomically fires LLP 0053 activation obligations for the predecessor. |
+| N7 | RESOLVED | Covered completely by P12. |
+| Claude: `published-held` | RESOLVED | Naming is consistent across execution, rollback, deadline, and Acceptance text. |
+| Claude: projection ID | PARTIALLY RESOLVED | The §0080 reference is correct, but the gloss incorrectly says “plan identity”; LLP 0080 specifies revision-stable stored projection identity plus output key. |
+| Claude: rollback timestamp | RESOLVED | Rollback monotonicity matches the forward rule and round-2 row-version resolution. |
+| Claude: UUIDv7 layout | RESOLVED | The corrected layout coheres with P13. |
+| Claude: rollback authority | RESOLVED | Rollback is an audited action under the original approval and LLP 0072 on hosted targets. |
+
+No new blockers. Remaining carryovers are HIGH for P2 and P4, and MEDIUM for P7. The projection-ID wording mismatch is LOW and non-blocking.
+
+Verdict: NOT READY
+
+The plan/content digest contracts still cannot be implemented independently byte-for-byte, and the durable state machine remains non-exhaustive.
+## Round 4 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+- P2 HIGH — RESOLVED: `planDigest` has one exact domain-separated preimage definition, and planner ordering/tie-breaks are fully pinned.
+- P4 HIGH — RESOLVED: row framing uses length-prefixed RFC 8785 re-canonicalization of LLP 0051 JSON-transport bytes and refuses non-lossless declared types at plan validation; no scalar-codec overclaim remains.
+- P7 MEDIUM — RESOLVED: the state set is closed, with one constrained `cleanup-pending` tail and an exhaustive schema-enumerated transition relation.
+- LOW — RESOLVED: the projection-ID gloss now matches LLP 0080 §5’s revision-stable stored identity plus output-key rule.
+- New blockers: None.
+
+Verdict: READY
+
+All four round-3 carryovers are resolved without introducing a new contradiction in the targeted scope.

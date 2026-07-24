@@ -73,8 +73,10 @@ Codegen classifies every generated fact into one of three classes:
   delivery facts. These may prove that an execution stayed inside a declared
   ceiling, but may never widen the ceiling or create authority.
 
-For a closed HostPlan, codegen may compute the union of every statically
-reachable read and write as its conservative ceiling. That computation is a
+For a closed HostPlan, codegen computes the union of every statically
+reachable read and write as its conservative ceiling, recorded as a
+versioned `EffectCeilingV1` fact covering operations, tables, index ranges,
+host operations, and authorization dependencies. That computation is a
 total recursive traversal of the closed plan vocabulary and is default-deny:
 an unrecognized node, operator, or call target fails generation rather than
 being skipped, so a future plan-vocabulary extension cannot silently escape
@@ -106,19 +108,28 @@ mandatory:
 
 - generated functions require authenticated authority;
 - every generated query executes `field == ctx.auth.userId` in its query plan;
-- the generated read summary also carries `authScopeField` for invalidation
-  and disjointness facts, but that metadata is not treated as enforcement;
+- the generated read summary records the owner field as `authScopeField` for
+  invalidation routing, but v1 does **not** activate LLP 0053's
+  disjointness-skip refinement that field can enable: the skip is disabled,
+  §4's conservative resnapshot governs every delivery, and no convergence
+  fixture is owed until a future profile claims the skip — and the metadata
+  is never treated as enforcement;
 - update and delete first read the row and execute an in-transaction owner
   guard before the write.
 
 **Principal admission.** "Authenticated authority" means a principal that
 projects the canonical user subject under LLP 0055's effective-principal
 rules: a signed-in user, or a delegated agent whose authority resolves to the
-delegating user's subject. Anonymous, sealed service, system, admin, and
-autonomous agent principals (LLP 0055 `kind: "agent"` acting on their own
-authority, not under delegation) do not satisfy `owner.v1` and are refused with
+delegating user's subject. Refusals follow the inherited gate order — target,
+credential, and grant-scope refusals first, then the authentication gate
+(an anonymous caller fails there with the existing `AUTH_REQUIRED` code and
+never reaches profile admission), and only then profile-class admission: an
+authenticated principal that does not project a user subject — a bare
+`servicePrincipal`, system or admin authority, or an autonomous agent
+(LLP 0055 `kind: "agent"` acting on its own authority, not under
+delegation) — is refused with
 `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; a future profile may admit
-them explicitly. Ownership equality is exact string equality between the
+such principals explicitly. Ownership equality is exact string equality between the
 declared owner field and that canonical subject. The v1 owner profile is
 scoped to one application authority domain: cross-tenant isolation is app
 isolation, and a composite tenant-plus-owner profile is future work with its
@@ -140,11 +151,12 @@ the server's structured trace, but the public boundary collapses them by
 default: generated get returns an empty result, and generated update and
 delete return one indistinguishable refusal — the same status, code
 (`SNAPBACK_ROW_NOT_FOUND`), and body shape — whether the row is absent or
-another owner's. Delete does not report whether a row existed. A target that
-distinguishes them publicly must carry an explicit per-target disclosure
-declaration; distinction is never a default. This mirrors LLP 0080 §3's
+another owner's. Delete does not report whether a row existed. The public
+boundary never distinguishes the two cases on any claimed target; the
+distinguishing record lives only in LLP 0080 §3's separately authorized,
+scoped, and redacted audit channel. This mirrors LLP 0080 §3's
 invisible-equals-absent rule, so the generated and relational surfaces share
-one secrecy posture. Uniqueness is existence disclosure by conflict: a
+one secrecy posture and one conformance requirement. Uniqueness is existence disclosure by conflict: a
 client-observable unique constraint consumed by generated create or update
 must either include the owner field (owner-partitioned) or carry an explicit
 disclosure declaration naming what the conflict reveals; otherwise generation
@@ -189,13 +201,24 @@ field update is last-write-wins within its transaction's read-set validation,
 and no version precondition exists in v1. Every helper's top-level options
 object is closed; misspelled or future options fail rather than being ignored.
 
-The generated list requires a declared index whose leading field is the owner
-field; without one, generation fails with
+The generated list requires an explicitly named `listIndex` — a declared
+index whose leading field is the owner field; when a table has several
+owner-leading indexes, the author's option selects one, so index choice is
+never inferred. Without one, generation fails with
 `SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED` rather than emitting an
-unindexed owner scan. List results order by the declared index sequence and
+unindexed owner scan. List results order by the declared index sequence in
+its declared direction and
 always end with the root `_id` tie-break, making ordering total and
 deterministic across targets, and are bounded by an explicit `take` within
 LLP 0007's application-query limit.
+
+The helpers' wire contracts are versioned: `owned-crud.v1` and
+`owned-keyset-pages.v1` pin exact argument and result DTOs — for pages, the
+first/next argument shapes, the result's item array in page order, and an
+opaque continuation token that is present exactly while more rows may
+remain and absent at end-of-stream — and those DTO schemas land in the
+Rust-owned artifact manifest (LLP 0037) with the standard-pattern profile
+and helper identity fields, so drift fails the existing gate.
 
 `defineOwnedUniqueLookup` requires a declared unique index containing the owner
 field. It returns a definition map keyed by the required operation name,
@@ -209,8 +232,12 @@ order. Merely containing those fields is insufficient: a third index field
 could make the compound index unique while leaving duplicate cursors inside
 one owner's partition, and the strict continuation filter would then skip
 rows. The next page uses a strict ordered comparison over the exact unique
-boundary. The continuation cursor is opaque and versioned: it binds the plan
-identifier, direction, and the exact unique boundary values. A malformed
+boundary. The continuation cursor is opaque and versioned: it binds the
+application authority domain — app, deployment/database, and stream identity
+under the corpus's existing identity vocabulary — plus the plan
+identifier, direction, and the exact unique boundary values, and live-query
+keys and capability artifacts carry the same domain binding, so no cursor,
+subscription, or capability crosses applications even for the same subject. A malformed
 cursor, a cursor issued by a different plan, or a cursor whose bound owner
 does not match the caller is refused with
 `SNAPBACK_STANDARD_PATTERN_CURSOR_INVALID`, never silently repositioned.
@@ -308,10 +335,14 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
   requirements, refusal codes, and read summaries (posture parity);
 - trusted `now`/`id` fields reject client-supplied values and use recorded host
   answers under replay;
-- non-user principals — anonymous, sealed service, system, admin, and
+- an anonymous caller is refused by the authentication gate with its
+  existing `AUTH_REQUIRED` code before profile admission; authenticated
+  non-user principals — a bare `servicePrincipal`, system, admin, and
   non-delegated autonomous agents — are refused with
-  `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`, and a delegated agent
+  `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; and a delegated agent
   resolves to the delegating user's subject;
+- a same-subject two-app fixture proves cursors, live queries, and
+  capability artifacts do not cross the application authority domain;
 - a concurrent owner transfer (performed by a handwritten transferring
   function, since generated update cannot transfer ownership) and a
   concurrent delete each race the conditional guard in both
@@ -324,7 +355,8 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
   operation, generation tests assert each constructor's exact expected
   ceiling, and a fault test exercises an out-of-ceiling operation;
 - a live generated query resnapshots on a dependency commit under LLP 0053's
-  conservative rules and claims no skip or `live_delta`;
+  conservative rules and claims no skip or `live_delta`, and the capability
+  artifact records the disjointness-skip refinement as disabled;
 - every claimed pattern has an executable receipt, and the Step 5 Partitime
   receipt (or the admitted Step 5 fixture) proves the frozen
   backend-declaration reduction without relaxing its threshold — this receipt

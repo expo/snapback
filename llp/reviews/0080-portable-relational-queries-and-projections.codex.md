@@ -198,3 +198,25 @@ Several HIGH blockers leave bounded execution, pagination, authorization deliver
 Verdict: NOT READY
 
 The revision resolves most round-1 defects, but maintained-output identity and authorization remain HIGH blockers, with additional retention, index, encoding, and bounded-work collisions still open.
+## Round 3 (targeted verification) — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec`.
+
+| Item | Verdict | Verification |
+|---|---|---|
+| N1 | RESOLVED | Output identity is closed and injective; null/collision behavior is atomic, and activation inputs align with LLP 0081’s canonical-plan and 48-bit UUIDv7 rules. |
+| P6 | RESOLVED | All opaque-handler output-table reads are forbidden; maintenance authority is internal, plan-named, non-grantable, and absent from `ctx.auth`. |
+| P7 | RESOLVED | Ordinary inspection is plan-level only; row facts use the audit channel, and acceptance now covers transport behavior. |
+| N2 | RESOLVED | Anonymous retention is forbidden, authenticated retention requires a server-resolved principal, and retained evaluation only decodes the snapshot. |
+| N3 | PARTIALLY RESOLVED | The same-landing amendment mechanism is valid, but `_id` suffix participation in uniqueness and complete-key arity remains undefined; the requested large duplicate-order-key fixture is also absent. |
+| N4 | RESOLVED | `RelationalResultEncodingV1` closes encoding, ordering, omission/null, scalar, and golden-vector rules consistently with LLP 0051. |
+| N5 | RESOLVED | Every matching reverse-index entry counts, including filtered-out roots, with the required large fixture. |
+| N6 | RESOLVED | Unpaired surrogates are rejected at the portable boundary and covered by the corpus. |
+
+New blocker:
+
+- **HIGH — Implicit `_id` suffix versus uniqueness.** If `_id` participates in a unique index, duplicate declared keys become legal, collapsing joined cardinality and output-key injectivity. If it is scan-order-only, the amendment must explicitly exclude it from unique-key equality and declared/complete tuple arity.
+
+Verdict: NOT READY
+
+N3 still leaves a load-bearing uniqueness ambiguity and its requested acceptance witness incomplete.

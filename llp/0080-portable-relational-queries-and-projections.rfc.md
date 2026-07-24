@@ -104,7 +104,12 @@ ordering is the index sequence (after the pinned prefix) ending in the root
 author-declared: a same-landing LLP 0007 amendment gives every declared
 index an implicit trailing ascending `_id` component under binary collation,
 so the tie-break is declarable without treating `_id` as an author-indexable
-field — LLP 0065 §3's rule stands. A plan whose filters or ordering the index cannot serve
+field — LLP 0065 §3's rule stands. The implicit component is **scan-order
+only**: it never participates in uniqueness. A unique index's constraint,
+its "complete ordered key" as used by the join-cardinality proof, and the
+output-key tuple are all over the declared fields alone — two rows equal on
+every declared unique field remain a constraint violation regardless of
+`_id`, so the suffix cannot legalize duplicate keys or break injectivity. A plan whose filters or ordering the index cannot serve
 fails generation with `SNAPBACK_RELATIONAL_ROOT_INDEX_REQUIRED` rather than
 degrading to a scan. A bounded result is therefore also a bounded root
 access: targets may not examine an unbounded region to fill a sparse page,
@@ -541,7 +546,10 @@ Acceptance is semantic. This RFC may move to Accepted when its rules are
 internally consistent, reconciled with the governing corpus, and reviewed
 under LLP 0005; acceptance authorizes implementation and satisfies the
 "accepted semantics" half of LLP 0063's Step 5 entry conjunction, but claims
-no executable result. Acceptance amends LLP 0004's and LLP 0007's
+no executable result. An owner-visible plan consumes LLP 0065's owner
+profile, so the Step 5 entry conjunction for owner-visible relational work
+additionally requires accepted LLP 0065 — an explicit subgate, not an
+implication left to the reader. Acceptance amends LLP 0004's and LLP 0007's
 deferred-work/status sections to point here as the controlling first
 relational profile, and carries the same-landing LLP 0007 amendment giving
 every declared index its implicit trailing ascending `_id` component.
@@ -563,7 +571,10 @@ A separate implementation-conformance suite — the LLP 0080 half of
 - generation is byte-identical and schema/result drift fails before runtime;
 - an instrumented large, sparse, mostly-invisible fixture proves the
   index-served root bound: examined entries stay within the admitted window
-  and no target scans to fill a page;
+  and no target scans to fill a page; a large duplicate-order-key fixture
+  proves the implicit `_id` suffix totalizes ordering across evaluators
+  while a unique index over the same declared fields still refuses
+  duplicates;
 - cross-user negative tests prove root visibility runs before
   ordering/`take`, every joined predicate runs before projection, an invisible
   top-N root consumes no slot, and output visibility cannot widen; tenant
