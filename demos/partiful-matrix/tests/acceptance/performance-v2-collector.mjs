@@ -32,6 +32,7 @@ import {
   canonicalizeJson,
   cycleMetricValues,
   deriveTargets,
+  metricVerdicts,
   thresholdIdentityPayload,
   thresholdSetId,
 } from './performance-v2-math.mjs';
@@ -71,19 +72,28 @@ function option(name) {
 
 const emitP0aPath = option('emit-p0a');
 const collectPhase = option('collect');
+const deriveThresholdsRequested = process.argv.includes('--derive-thresholds');
+const aggregateRequested = process.argv.includes('--aggregate');
 const selectedArm = option('arm');
 const outputOverride = option('output');
 const exactCheckout = option('exact-checkout') ?? process.env.EXACT_CHECKOUT ?? null;
-const checkOnly = process.argv.includes('--check') || (!emitP0aPath && !collectPhase);
+const checkOnly = process.argv.includes('--check')
+  || (!emitP0aPath && !collectPhase && !deriveThresholdsRequested && !aggregateRequested);
 const allowedPhases = new Set(['P0c-comparator', 'P0c-holdout']);
 const allowedArms = new Set(['react:snapback', 'contract:snapback']);
 
 if (collectPhase && !allowedPhases.has(collectPhase)) {
   throw new Error(`PARTITIME_V2_PHASE_INVALID: unknown --collect ${collectPhase}`);
 }
-if ((collectPhase || emitP0aPath) && !exactCheckout) {
+if ((collectPhase || emitP0aPath || deriveThresholdsRequested || aggregateRequested)
+    && !exactCheckout) {
   throw new Error('PARTITIME_V2_EXACT_CHECKOUT_REQUIRED: pass --exact-checkout');
 }
+assert.ok(
+  [Boolean(emitP0aPath), Boolean(collectPhase), deriveThresholdsRequested, aggregateRequested]
+    .filter(Boolean).length <= 1,
+  'PARTITIME_V2_MODE_CONFLICT: choose one collector mode',
+);
 if (collectPhase && !allowedArms.has(selectedArm)) {
   throw new Error(`PARTITIME_V2_ARM_INVALID: unknown --arm ${selectedArm}`);
 }
@@ -159,6 +169,48 @@ function sourceIdentity() {
     exactDirty: git(exactRoot, ['status', '--porcelain']).length > 0,
     packageLockSha256: packageLockIdentity(),
   };
+}
+
+function verifyAuthorityAndFixtures() {
+  let authorityBindingsVerified = 0;
+  for (const binding of protocol.authority.amendments) {
+    const checkout = binding.repository === 'ccheever/exact'
+      ? resolve(exactCheckout)
+      : repoRoot;
+    const shown = spawnSync('git', [
+      'show',
+      `${binding.revision}:${binding.path}`,
+    ], {
+      cwd: checkout,
+      encoding: null,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    assert.equal(
+      shown.status,
+      0,
+      `PARTITIME_V2_AUTHORITY_READ: ${shown.stderr.toString('utf8').trim()}`,
+    );
+    assert.equal(
+      sha256(shown.stdout),
+      binding.sha256,
+      `PARTITIME_V2_AUTHORITY_DIGEST: ${binding.repository}:${binding.path}`,
+    );
+    authorityBindingsVerified += 1;
+  }
+  const snapbackBinding = protocol.authority.amendments.find(
+    ({ repository }) => repository === 'ccheever/snapback',
+  );
+  assert.ok(snapbackBinding, 'PARTITIME_V2_SNAPBACK_AUTHORITY_MISSING');
+  let fixtureTreesVerified = 0;
+  for (const fixture of protocol.workload.fixtureTrees) {
+    assert.equal(
+      git(repoRoot, ['rev-parse', `${snapbackBinding.revision}:${fixture.path}`]),
+      fixture.gitTree,
+      `PARTITIME_V2_FIXTURE_TREE: ${fixture.path}`,
+    );
+    fixtureTreesVerified += 1;
+  }
+  return { authorityBindingsVerified, fixtureTreesVerified };
 }
 
 function environmentIdentity(externalNetworkRequests = 0) {
@@ -646,21 +698,7 @@ async function preparedBrowser(arm) {
 async function emitP0a() {
   const manifest = collectorManifest();
   const source = sourceIdentity();
-  assertCleanSource(source);
   const environment = environmentIdentity();
-  assertPinnedEnvironment(environment);
-  const { staticUrl, cdp } = await preparedBrowser('contract:snapback');
-  const page = await cdp.newContextPage();
-  let witness;
-  try {
-    await page.navigate(`${staticUrl}/performance-v2.html`);
-    await waitForBenchmarkApi(page);
-    witness = await correctnessWitness(page);
-    assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
-    assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
-  } finally {
-    await page.close();
-  }
   const protocolFrozenAtRevision = git(repoRoot, [
     'log',
     '-1',
@@ -668,28 +706,76 @@ async function emitP0a() {
     '--',
     relative(repoRoot, protocolPath),
   ]);
+  let authorityBindingsVerified = 0;
+  let fixtureTreesVerified = 0;
+  let witness = null;
+  let failure = null;
+  try {
+    assertCleanSource(source);
+    assertPinnedEnvironment(environment);
+    ({
+      authorityBindingsVerified,
+      fixtureTreesVerified,
+    } = verifyAuthorityAndFixtures());
+    const { staticUrl, cdp } = await preparedBrowser('contract:snapback');
+    const page = await cdp.newContextPage();
+    try {
+      await page.navigate(`${staticUrl}/performance-v2.html`);
+      await waitForBenchmarkApi(page);
+      witness = await correctnessWitness(page);
+      assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
+      assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
+    } finally {
+      await page.close();
+    }
+  } catch (error) {
+    failure = error;
+  }
   const receipt = {
     schemaVersion: 'partitime.performance-v2-receipt.v1',
     kind: 'p0a-preregistration',
     protocol: protocolIdentity(),
     source,
     environment,
-    valid: true,
-    invalidReasons: [],
+    valid: failure === null,
+    invalidReasons: failure === null ? [] : [{
+      code: 'PARTITIME_V2_P0A_INVALID',
+      message: failure instanceof Error ? failure.message : String(failure),
+    }],
     dependencies: dependencies(manifest),
     p0a: {
       protocolFrozenAtRevision,
       protocolFrozenBeforeCollector: protocolFrozenAtRevision !== source.snapbackRevision,
       governedSamplesCollected: false,
-      authorityBindingsVerified: 3,
-      fixtureTreesVerified: 3,
+      authorityBindingsVerified,
+      fixtureTreesVerified,
       collectorSha256: manifestDigest(manifest),
       collectorManifest: manifest,
-      correctnessWitness: witness,
-      p0aComplete: true,
-      remaining: [],
+      ...(witness ? { correctnessWitness: witness } : {}),
+      p0aComplete: failure === null,
+      remaining: failure === null ? [] : ['valid clean-environment correctness witness'],
     },
   };
+  if (failure !== null) {
+    const requested = resolve(repoRoot, emitP0aPath);
+    const invalidDirectory = resolve(dirname(requested), 'performance-v2/invalid');
+    const priorAttempts = existsSync(invalidDirectory)
+      ? readdirSync(invalidDirectory).filter((name) => /^p0a-attempt-\d+\.json$/.test(name)).length
+      : 0;
+    assert.ok(priorAttempts < 3, 'PARTITIME_V2_INSTRUMENT_RED: three invalid P0a attempts');
+    const invalidPath = relative(
+      repoRoot,
+      resolve(invalidDirectory, `p0a-attempt-${priorAttempts + 1}.json`),
+    );
+    const output = writeReceipt(invalidPath, receipt);
+    console.error(JSON.stringify({
+      ok: false,
+      mode: 'p0a',
+      output,
+      invalidReasons: receipt.invalidReasons,
+    }, null, 2));
+    throw failure;
+  }
   const output = writeReceipt(emitP0aPath, receipt);
   console.log(JSON.stringify({ ok: true, mode: 'p0a', output, witness }, null, 2));
 }
@@ -698,6 +784,84 @@ function defaultCycleDirectory() {
   return collectPhase === 'P0c-comparator'
     ? protocol.artifacts.comparatorRawDirectory
     : protocol.artifacts.holdoutRawDirectory;
+}
+
+function assertCommittedPath(path, code) {
+  const relativePath = relative(repoRoot, path);
+  assert.equal(
+    git(repoRoot, ['status', '--porcelain', '--', relativePath]),
+    '',
+    `${code}: ${relativePath}`,
+  );
+}
+
+function loadAcceptedCycles(directoryPath, { arm, phase }) {
+  assert.ok(existsSync(directoryPath), `PARTITIME_V2_CYCLE_DIRECTORY_MISSING: ${directoryPath}`);
+  const receipts = readdirSync(directoryPath)
+    .filter((name) => name.endsWith('.json'))
+    .sort()
+    .map((name) => {
+      const path = join(directoryPath, name);
+      const receipt = readJson(path);
+      assert.ok(
+        validateReceipt(receipt),
+        `PARTITIME_V2_RETAINED_RECEIPT_INVALID: ${name}\n`
+        + new Ajv2020().errorsText(validateReceipt.errors),
+      );
+      assert.equal(receipt.kind, 'cycle', `PARTITIME_V2_CYCLE_KIND: ${name}`);
+      assert.equal(receipt.protocol.sha256, sha256(protocolBytes), `PARTITIME_V2_PROTOCOL_DRIFT: ${name}`);
+      assert.equal(receipt.cycle.arm, arm, `PARTITIME_V2_CYCLE_ARM: ${name}`);
+      assert.equal(receipt.cycle.phase, phase, `PARTITIME_V2_CYCLE_PHASE: ${name}`);
+      return {
+        path: relative(repoRoot, path),
+        sha256: sha256(readFileSync(path)),
+        receipt,
+      };
+    });
+  const accepted = receipts.filter(({ receipt }) => receipt.valid);
+  const warmups = accepted.filter(({ receipt }) => receipt.cycle.warmup);
+  const samples = accepted.filter(({ receipt }) => !receipt.cycle.warmup);
+  assert.equal(warmups.length, 2, 'PARTITIME_V2_WARMUP_COUNT');
+  assert.equal(samples.length, 7, 'PARTITIME_V2_SAMPLE_COUNT');
+  for (const [index, item] of warmups.sort(
+    (left, right) => left.receipt.cycle.cycleIndex - right.receipt.cycle.cycleIndex,
+  ).entries()) {
+    assert.equal(item.receipt.cycle.cycleIndex, index, 'PARTITIME_V2_WARMUP_INDEX');
+    assert.deepEqual(
+      item.receipt.cycle.schedule,
+      protocol.workload.warmupSchedules[index],
+      'PARTITIME_V2_WARMUP_SCHEDULE',
+    );
+  }
+  for (const [index, item] of samples.sort(
+    (left, right) => left.receipt.cycle.cycleIndex - right.receipt.cycle.cycleIndex,
+  ).entries()) {
+    assert.equal(item.receipt.cycle.cycleIndex, index, 'PARTITIME_V2_SAMPLE_INDEX');
+    assert.deepEqual(
+      item.receipt.cycle.schedule,
+      protocol.workload.sampleSchedules[index],
+      'PARTITIME_V2_SAMPLE_SCHEDULE',
+    );
+  }
+  return { receipts, warmups, samples };
+}
+
+function comparatorDependencies(samples) {
+  return samples.map(({ path, sha256: digest }) => ({
+    kind: 'react-comparator',
+    path,
+    sha256: digest,
+    arm: 'react:snapback',
+  }));
+}
+
+function holdoutDependencies(samples) {
+  return samples.map(({ path, sha256: digest }) => ({
+    kind: 'contract-holdout',
+    path,
+    sha256: digest,
+    arm: 'contract:snapback',
+  }));
 }
 
 function assertPhaseEntry(source) {
@@ -751,75 +915,92 @@ async function collectCycles() {
   );
   mkdirSync(outputDirectory, { recursive: true });
   const retained = [];
+  let invalidAttempts = 0;
   for (const descriptor of schedules) {
-    const page = await cdp.newContextPage();
-    let receipt;
-    try {
-      await page.navigate(`${staticUrl}/performance-v2.html`);
-      await waitForBenchmarkApi(page);
-      const measured = await measureCycle(page, descriptor.schedule);
-      assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
-      assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
-      receipt = {
-        schemaVersion: 'partitime.performance-v2-receipt.v1',
-        kind: 'cycle',
-        protocol: protocolIdentity(),
-        source,
-        environment,
-        valid: true,
-        invalidReasons: [],
-        dependencies: dependencies(manifest),
-        cycle: {
-          phase: collectPhase,
-          arm: selectedArm,
-          attempt: 1,
-          warmup: descriptor.warmup,
-          cycleIndex: descriptor.cycleIndex,
-          schedule: descriptor.schedule,
-          observations: measured.observations,
-          regression: measured.regression,
-          metrics: measured.metrics,
-        },
-      };
-      retained.push(receipt);
-    } catch (error) {
-      receipt = {
-        schemaVersion: 'partitime.performance-v2-receipt.v1',
-        kind: 'cycle',
-        protocol: protocolIdentity(),
-        source,
-        environment: environmentIdentity(page.state.externalRequests.length),
-        valid: false,
-        invalidReasons: [{
-          code: 'PARTITIME_V2_CYCLE_INVALID',
-          message: error instanceof Error ? error.message : String(error),
-        }],
-        dependencies: dependencies(manifest),
-        cycle: {
-          phase: collectPhase,
-          arm: selectedArm,
-          attempt: 1,
-          warmup: descriptor.warmup,
-          cycleIndex: descriptor.cycleIndex,
-          schedule: descriptor.schedule,
-          observations: [],
-        },
-      };
-    } finally {
-      await page.close();
-    }
     const label = descriptor.warmup ? 'warmup' : 'sample';
-    writeReceipt(
-      relative(repoRoot, join(
-        outputDirectory,
-        `${label}-${String(descriptor.cycleIndex + 1).padStart(2, '0')}-attempt-1.json`,
-      )),
-      receipt,
-    );
-    if (!receipt.valid) {
+    let accepted = null;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      const page = await cdp.newContextPage();
+      let receipt;
+      try {
+        await page.navigate(`${staticUrl}/performance-v2.html`);
+        await waitForBenchmarkApi(page);
+        const measured = await measureCycle(page, descriptor.schedule);
+        assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
+        assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
+        const cycleEnvironment = environmentIdentity();
+        assertPinnedEnvironment(cycleEnvironment);
+        receipt = {
+          schemaVersion: 'partitime.performance-v2-receipt.v1',
+          kind: 'cycle',
+          protocol: protocolIdentity(),
+          source,
+          environment: cycleEnvironment,
+          valid: true,
+          invalidReasons: [],
+          dependencies: dependencies(manifest),
+          cycle: {
+            phase: collectPhase,
+            arm: selectedArm,
+            attempt,
+            warmup: descriptor.warmup,
+            cycleIndex: descriptor.cycleIndex,
+            schedule: descriptor.schedule,
+            observations: measured.observations,
+            regression: measured.regression,
+            metrics: measured.metrics,
+          },
+        };
+      } catch (error) {
+        invalidAttempts += 1;
+        receipt = {
+          schemaVersion: 'partitime.performance-v2-receipt.v1',
+          kind: 'cycle',
+          protocol: protocolIdentity(),
+          source,
+          environment: environmentIdentity(page.state.externalRequests.length),
+          valid: false,
+          invalidReasons: [{
+            code: 'PARTITIME_V2_CYCLE_INVALID',
+            message: error instanceof Error ? error.message : String(error),
+          }],
+          dependencies: dependencies(manifest),
+          cycle: {
+            phase: collectPhase,
+            arm: selectedArm,
+            attempt,
+            warmup: descriptor.warmup,
+            cycleIndex: descriptor.cycleIndex,
+            schedule: descriptor.schedule,
+            observations: [],
+          },
+        };
+      } finally {
+        await page.close();
+      }
+      writeReceipt(
+        relative(repoRoot, join(
+          outputDirectory,
+          `${label}-${String(descriptor.cycleIndex + 1).padStart(2, '0')}`
+          + `-attempt-${attempt}.json`,
+        )),
+        receipt,
+      );
+      if (receipt.valid) {
+        accepted = receipt;
+        retained.push(receipt);
+        break;
+      }
+      if (invalidAttempts >= 3) {
+        throw new Error(
+          `PARTITIME_V2_INSTRUMENT_RED: three invalid ${collectPhase}/${selectedArm} attempts`,
+        );
+      }
+    }
+    if (accepted === null) {
       throw new Error(
         `PARTITIME_V2_INVALID_CYCLE: ${label} ${descriptor.cycleIndex + 1}; `
-        + 'repeat the complete cycle under the invalid-run policy',
+        + 'three complete attempts did not produce a valid receipt',
       );
     }
   }
@@ -834,6 +1015,155 @@ async function collectCycles() {
     warmups: retained.length - samples.length,
     samples: samples.length,
     aggregate,
+  }, null, 2));
+}
+
+async function deriveThresholdReceipt() {
+  const manifest = collectorManifest();
+  const source = sourceIdentity();
+  assertCleanSource(source);
+  const environment = environmentIdentity();
+  assertPinnedEnvironment(environment);
+  const comparatorDirectory = resolve(repoRoot, protocol.artifacts.comparatorRawDirectory);
+  assertCommittedPath(comparatorDirectory, 'PARTITIME_V2_COMPARATOR_UNCOMMITTED');
+  assert.equal(
+    existsSync(resolve(repoRoot, protocol.artifacts.holdoutRawDirectory)),
+    false,
+    'PARTITIME_V2_HOLDOUT_ALREADY_OPENED',
+  );
+  const comparator = loadAcceptedCycles(comparatorDirectory, {
+    arm: 'react:snapback',
+    phase: 'P0c-comparator',
+  });
+  for (const { receipt } of comparator.receipts) {
+    assert.equal(
+      receipt.dependencies.some(({ kind }) => (
+        kind === 'contract-holdout' || kind === 'threshold-set'
+      )),
+      false,
+      'PARTITIME_V2_JUDGED_ANCESTOR',
+    );
+  }
+  const comparatorMetrics = aggregateMetricValues(
+    comparator.samples.map(({ receipt }) => receipt),
+  );
+  const targets = deriveTargets(
+    comparatorMetrics,
+    protocol.targetDerivation.marginNumerator,
+    protocol.targetDerivation.marginDenominator,
+  );
+  const comparatorReceiptDependencies = comparatorDependencies(comparator.samples);
+  const identityPayload = thresholdIdentityPayload({
+    protocolId: protocol.protocolId,
+    workloadVersion: protocol.workloadVersion,
+    thresholdFormulaSetId: protocol.thresholdFormulaSetId,
+    comparatorReceiptDependencies,
+    comparatorMetrics,
+    targets,
+  });
+  const identity = thresholdSetId(identityPayload);
+  const receipt = {
+    schemaVersion: 'partitime.performance-v2-receipt.v1',
+    kind: 'thresholds',
+    protocol: protocolIdentity(),
+    source,
+    environment,
+    valid: true,
+    invalidReasons: [],
+    dependencies: [
+      ...dependencies(manifest),
+      ...comparatorReceiptDependencies,
+    ],
+    thresholds: {
+      phase: 'P0c',
+      comparatorArm: 'react:snapback',
+      sampleCount: 7,
+      aggregation: 'nearest-rank-p95',
+      comparatorMetrics,
+      targets,
+      thresholdSetId: identity,
+      judgedArmDependencyCount: 0,
+      committedBeforeHoldout: true,
+    },
+  };
+  const output = writeReceipt(
+    outputOverride ?? protocol.artifacts.thresholdReceiptPath,
+    receipt,
+  );
+  console.log(JSON.stringify({
+    ok: true,
+    mode: 'thresholds',
+    output,
+    thresholdSetId: identity,
+    comparatorMetrics,
+    targets,
+  }, null, 2));
+}
+
+async function aggregateHoldout() {
+  const manifest = collectorManifest();
+  const source = sourceIdentity();
+  assertCleanSource(source);
+  const environment = environmentIdentity();
+  assertPinnedEnvironment(environment);
+  const comparatorDirectory = resolve(repoRoot, protocol.artifacts.comparatorRawDirectory);
+  const holdoutDirectory = resolve(repoRoot, protocol.artifacts.holdoutRawDirectory);
+  const thresholdPath = resolve(repoRoot, protocol.artifacts.thresholdReceiptPath);
+  for (const [path, code] of [
+    [comparatorDirectory, 'PARTITIME_V2_COMPARATOR_UNCOMMITTED'],
+    [holdoutDirectory, 'PARTITIME_V2_HOLDOUT_UNCOMMITTED'],
+    [thresholdPath, 'PARTITIME_V2_THRESHOLD_UNCOMMITTED'],
+  ]) {
+    assertCommittedPath(path, code);
+  }
+  const thresholdReceipt = readJson(thresholdPath);
+  assert.ok(validateReceipt(thresholdReceipt), 'PARTITIME_V2_THRESHOLD_RECEIPT_INVALID');
+  assert.equal(thresholdReceipt.valid, true, 'PARTITIME_V2_THRESHOLD_RECEIPT_RED');
+  const comparator = loadAcceptedCycles(comparatorDirectory, {
+    arm: 'react:snapback',
+    phase: 'P0c-comparator',
+  });
+  const holdout = loadAcceptedCycles(holdoutDirectory, {
+    arm: 'contract:snapback',
+    phase: 'P0c-holdout',
+  });
+  const actual = aggregateMetricValues(holdout.samples.map(({ receipt }) => receipt));
+  const verdicts = metricVerdicts(actual, thresholdReceipt.thresholds.targets);
+  const receipt = {
+    schemaVersion: 'partitime.performance-v2-receipt.v1',
+    kind: 'aggregate',
+    protocol: protocolIdentity(),
+    source,
+    environment,
+    valid: true,
+    invalidReasons: [],
+    dependencies: [
+      ...dependencies(manifest),
+      {
+        kind: 'threshold-set',
+        path: relative(repoRoot, thresholdPath),
+        sha256: sha256(readFileSync(thresholdPath)),
+      },
+      ...comparatorDependencies(comparator.samples),
+      ...holdoutDependencies(holdout.samples),
+    ],
+    aggregate: {
+      phase: 'P0c',
+      thresholdSetId: thresholdReceipt.thresholds.thresholdSetId,
+      comparatorSampleCount: 7,
+      holdoutSampleCount: 7,
+      verdicts,
+      pass: verdicts.every(({ pass }) => pass),
+    },
+  };
+  const output = writeReceipt(outputOverride ?? protocol.artifacts.aggregatePath, receipt);
+  console.log(JSON.stringify({
+    ok: true,
+    mode: 'aggregate',
+    output,
+    actual,
+    verdicts,
+    pass: receipt.aggregate.pass,
   }, null, 2));
 }
 
@@ -882,6 +1212,8 @@ let primaryError = NO_PRIMARY_FAILURE;
 try {
   if (checkOnly) await check();
   else if (emitP0aPath) await emitP0a();
+  else if (deriveThresholdsRequested) await deriveThresholdReceipt();
+  else if (aggregateRequested) await aggregateHoldout();
   else await collectCycles();
 } catch (error) {
   primaryError = error;
