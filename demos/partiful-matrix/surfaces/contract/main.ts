@@ -348,9 +348,9 @@ const onRouteChange = (event: Event) => {
     : null;
   void mountCurrentRoute().then(() => {
     if (!focusTestId) return;
-    requestAnimationFrame(() => {
+    setTimeout(() => {
       document.querySelector<HTMLElement>(`[data-testid="${focusTestId}"]`)?.focus();
-    });
+    }, 0);
   });
 };
 addEventListener('popstate', onRouteChange);
