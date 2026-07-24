@@ -832,17 +832,37 @@
             throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "response body is already locked to a reader");
           }
           locked = true;
+          var reading = false;
           var reader = {
             read: async function() {
               if (closed) {
                 return { done: true, value: undefined };
               }
-              var chunk = await host("action.streamRead", { streamId: streamId });
+              // @ref LLP 0076#surface — one in-flight pull per cursor: the
+              // bridge serializes read() so application backpressure stays
+              // the default and host buffering stays bounded.
+              if (reading) {
+                throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "the response stream already has a pull in flight");
+              }
+              reading = true;
+              var chunk;
+              try {
+                chunk = await host("action.streamRead", { streamId: streamId });
+              } finally {
+                reading = false;
+              }
               if (chunk.done) closed = true;
               var value = chunk.done
                 ? undefined
                 : trustedReflectConstruct(TrustedUint8Array, [chunk.bytes || []]);
-              return { done: !!chunk.done, value: value };
+              // @ref LLP 0076#author-decisions--2026-07-23 — decision 6: the
+              // host-owned monotonic progress clock rides every read result.
+              return {
+                done: !!chunk.done,
+                value: value,
+                elapsedMs: chunk.elapsedMs || 0,
+                deltaMs: chunk.deltaMs || 0
+              };
             },
             cancel: async function() {
               if (!closed) await host("action.streamCancel", { streamId: streamId });

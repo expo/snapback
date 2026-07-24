@@ -126,6 +126,14 @@ pub struct ActionStreamChunk {
     pub done: bool,
     pub bytes: Vec<u8>,
     pub total_bytes: u64,
+    /// Host-owned monotonic milliseconds since the stream opened (LLP 0076
+    /// author decision 6): the supported progress clock that lets an action
+    /// obey the 100 ms commit spacing without an ambient wall clock.
+    #[serde(default)]
+    pub elapsed_ms: u64,
+    /// Milliseconds since the previous delivered byte on this cursor.
+    #[serde(default)]
+    pub delta_ms: u64,
 }
 
 /// The seam through which an action reaches instance state. Actions can

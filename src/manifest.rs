@@ -3389,17 +3389,30 @@ impl CapabilityManifest {
                 },
                 // @ref LLP 0076#surface — the v1 bounded response-stream
                 // profile limits the local host actually checks. The 64 KiB
-                // buffered-bytes bound is deliberately reported `Missing`:
-                // the local host has no buffered-byte counter yet (LLP 0076
-                // Evidence-status "64 KiB buffer accounting" gap), and a
-                // manifest row must not claim enforcement ahead of a witness.
+                // buffered-bytes bound is enforced structurally (one
+                // in-flight 16 KiB pull per cursor x the 4-cursor cap) and
+                // witnessed by a real per-invocation materialized-byte
+                // counter with a slow-consumer high-water-mark test; the
+                // wall row is the absolute mid-read ceiling.
                 ResourceLimit {
                     name: "bounded_response_stream_total_bytes".to_owned(),
                     status: ResourceLimitStatus::Enforced,
                 },
                 ResourceLimit {
                     name: "bounded_response_stream_buffered_bytes".to_owned(),
-                    status: ResourceLimitStatus::Missing,
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_read_bytes".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_open_cursors".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_wall_clock".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
                 },
                 ResourceLimit {
                     name: "bounded_response_stream_idle_timeout".to_owned(),

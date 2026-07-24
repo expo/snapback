@@ -7,7 +7,7 @@
   },
   "dataCapabilityManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/remote-data-capability.manifest.json",
-    "sha256": "sha256:1ff8603fa5f5e53fcd730f5d5f28c1ba536f1275b528523a9d37873e9105f9bc"
+    "sha256": "sha256:ff2c610ae8cc9fdd905ca56b2bae90d9a66507c9a3f1a3239775e189e84deefa"
   },
   "dataTier": {
     "caseCount": 37,
@@ -46,7 +46,7 @@
   "schemaVersion": "snapback.v0",
   "serverCapabilityManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/capability.manifest.json",
-    "sha256": "sha256:a5b209f8c51c34af12b430d44bd563b407261b69f10f8356fa984630b7364d9d"
+    "sha256": "sha256:88c0c850f4e8ebdb6fd6c2002dc33ebfb38822d84547ecbe64b526e6bcc126d8"
   },
   "targetProfileId": "remote-service-sqlite-ibex"
 }

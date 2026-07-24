@@ -4,11 +4,11 @@
   "capabilityId": "snapback.data.todo-v2",
   "capabilityManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/capability.manifest.json",
-    "sha256": "sha256:a5b209f8c51c34af12b430d44bd563b407261b69f10f8356fa984630b7364d9d"
+    "sha256": "sha256:88c0c850f4e8ebdb6fd6c2002dc33ebfb38822d84547ecbe64b526e6bcc126d8"
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:71d04024c335080242e20cae9a887f4910e8f1ba62d296f10e6891098aee7962"
+    "sha256": "sha256:b843895b8aa1e2331ee78f85e4cd0f6db874132d475e7b0aeaaa04de14cd247e"
   },
   "manifestVersion": 1,
   "operations": [
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:e313c843d3c4a00131cbc63eb134e4d05506af82231be86571e1b8584bf3a52c"
+    "sha256": "sha256:904d4687cceda4415bda3ac60f34d5cac1fd4187d7b3f9c43f2dfe293a68af28"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",

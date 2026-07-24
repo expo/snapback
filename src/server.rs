@@ -761,12 +761,80 @@ const ACTION_STREAM_CHUNK_BYTES_MAX: usize = 16_384;
 const ACTION_STREAM_WALL_MS: u64 = 30_000;
 const ACTION_STREAM_IDLE_MS: u64 = 5_000;
 const ACTION_STREAM_OPEN_MAX: usize = 4;
+/// Settlement grace reserved between the stream wall ceiling and the action
+/// watchdog, so a default action that exhausts the full stream budget can
+/// still reach and durably settle its timeout before abandonment
+/// (LLP 0076 boundedness ticket).
+const ACTION_STREAM_SETTLE_GRACE_MS: u64 = 2_000;
 
+/// One pull request: the maximum byte count the helper may materialize.
+struct StreamPullRequest {
+    requested: usize,
+}
+
+/// One bounded upstream cursor, pull-driven through a dedicated reader
+/// thread. The channels give the host: (a) an absolute wall-clock bound on
+/// the pull itself (`recv_timeout` fires even while the socket read is still
+/// blocked), (b) structurally at most one in-flight pull per cursor (the
+/// rendezvous channel holds a single request), and (c) a physical close on
+/// drop — dropping `pull_tx` ends the helper, which drops the ureq reader
+/// and closes the socket within one socket-timeout window.
+// @ref LLP 0076#surface — 4 cursors x one 16 KiB in-flight chunk each is
+//   exactly the 64 KiB application-visible buffering ceiling; the accounting
+//   domain is host-materialized bytes (queued chunk + handoff copy), with
+//   kernel socket buffers excluded (they are bounded by the TCP window and
+//   never visible to the application).
 struct OpenActionResponseStream {
-    reader: Box<dyn Read + Send + Sync>,
+    pull_tx: std::sync::mpsc::SyncSender<StreamPullRequest>,
+    chunk_rx: std::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>,
     opened_at: Instant,
+    /// Absolute per-stream wall deadline: `min(open + 30 s, action watchdog
+    /// deadline - settle grace)` — never later than the profile ceiling, and
+    /// always leaving room to durably settle before abandonment.
+    wall_deadline: Instant,
     last_byte_at: Instant,
     total_bytes: u64,
+}
+
+/// Spawn the cursor's reader thread. The helper owns the response reader;
+/// it materializes at most one bounded chunk per pull request and counts
+/// those bytes against the shared per-invocation buffered-byte accounting.
+fn spawn_stream_reader_thread(
+    mut reader: Box<dyn Read + Send + Sync>,
+    buffered_bytes: Arc<AtomicU64>,
+    buffered_peak: Arc<AtomicU64>,
+) -> (
+    std::sync::mpsc::SyncSender<StreamPullRequest>,
+    std::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>,
+) {
+    let (pull_tx, pull_rx) = std::sync::mpsc::sync_channel::<StreamPullRequest>(1);
+    let (chunk_tx, chunk_rx) = std::sync::mpsc::sync_channel::<std::io::Result<Vec<u8>>>(1);
+    std::thread::spawn(move || {
+        while let Ok(StreamPullRequest { requested }) = pull_rx.recv() {
+            let mut bytes = vec![0; requested.max(1)];
+            let outcome = match reader.read(&mut bytes) {
+                Ok(read) => {
+                    bytes.truncate(read);
+                    Ok(bytes)
+                }
+                Err(error) => Err(error),
+            };
+            let len = outcome.as_ref().map(|bytes| bytes.len() as u64).unwrap_or(0);
+            if len > 0 {
+                let now = buffered_bytes.fetch_add(len, Ordering::SeqCst) + len;
+                buffered_peak.fetch_max(now, Ordering::SeqCst);
+            }
+            if chunk_tx.send(outcome).is_err() {
+                if len > 0 {
+                    buffered_bytes.fetch_sub(len, Ordering::SeqCst);
+                }
+                return;
+            }
+        }
+        // The host dropped its pull sender: the cursor is closed. Dropping
+        // `reader` here closes the upstream socket.
+    });
+    (pull_tx, chunk_rx)
 }
 
 fn action_watchdog_timeout_ms() -> u64 {
@@ -813,6 +881,12 @@ struct DetachedActionHost {
     /// Control-plane identity of this exact invocation for the
     /// `StreamAttemptV1` lease and trusted terminalizer (LLP 0076).
     stream_runner: crate::stream_attempt::StreamRunnerIdentity,
+    /// Per-invocation application-visible buffered-byte accounting: bytes the
+    /// host has materialized (queued chunk + handoff copy) and the invocation
+    /// has not yet consumed, summed across all cursors, plus its high-water
+    /// mark. Kernel socket buffers are excluded by definition.
+    stream_buffered_bytes: Arc<AtomicU64>,
+    stream_buffered_peak: Arc<AtomicU64>,
     /// True for automatically re-dispatched cron/durable invocations, which
     /// are excluded from streamed actions until resumable retry semantics
     /// exist (LLP 0076 §Evidence-status, retry-fencing gap).
@@ -1593,11 +1667,28 @@ impl IbexActionHost for DetachedActionHost {
             }
         }
         let now = Instant::now();
+        // Absolute per-stream wall deadline, with settlement grace reserved
+        // ahead of the action watchdog so the timeout can be durably settled
+        // before abandonment.
+        let watchdog_bounded = self
+            .deadline
+            .checked_sub(Duration::from_millis(ACTION_STREAM_SETTLE_GRACE_MS))
+            .unwrap_or(now);
+        let wall_deadline = (now + Duration::from_millis(ACTION_STREAM_WALL_MS))
+            .min(watchdog_bounded)
+            .max(now);
+        let (pull_tx, chunk_rx) = spawn_stream_reader_thread(
+            response.into_reader(),
+            self.stream_buffered_bytes.clone(),
+            self.stream_buffered_peak.clone(),
+        );
         self.response_streams.insert(
             stream_id.clone(),
             OpenActionResponseStream {
-                reader: response.into_reader(),
+                pull_tx,
+                chunk_rx,
                 opened_at: now,
+                wall_deadline,
                 last_byte_at: now,
                 total_bytes: 0,
             },
@@ -1621,6 +1712,8 @@ impl IbexActionHost for DetachedActionHost {
                     done: true,
                     bytes: Vec::new(),
                     total_bytes: 0,
+                    elapsed_ms: 0,
+                    delta_ms: 0,
                 });
             }
             return Err(action_stream_error(
@@ -1630,7 +1723,7 @@ impl IbexActionHost for DetachedActionHost {
                 json!({ "expected": "an open invocation-local stream", "received": "unknown stream id" }),
             ));
         };
-        if stream.opened_at.elapsed() >= Duration::from_millis(ACTION_STREAM_WALL_MS) {
+        if Instant::now() >= stream.wall_deadline {
             self.close_response_stream_cursor(stream_id);
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_TIMEOUT",
@@ -1656,12 +1749,15 @@ impl IbexActionHost for DetachedActionHost {
             .cursor_attempt_terminal(stream_id)
         {
             let total_bytes = stream.total_bytes;
+            let elapsed_ms = stream.opened_at.elapsed().as_millis() as u64;
             drop(stream);
             self.close_response_stream_cursor(stream_id);
             return Ok(ActionStreamChunk {
                 done: true,
                 bytes: Vec::new(),
                 total_bytes,
+                elapsed_ms,
+                delta_ms: 0,
             });
         }
         // Pre-pull leg of the per-read authority fence.
@@ -1676,10 +1772,63 @@ impl IbexActionHost for DetachedActionHost {
         } else {
             ACTION_STREAM_CHUNK_BYTES_MAX.min(remaining as usize)
         };
-        let mut bytes = vec![0; requested];
-        let read = match stream.reader.read(&mut bytes) {
-            Ok(read) => read,
-            Err(error) if error.kind() == std::io::ErrorKind::TimedOut => {
+        // Dispatch the pull to the cursor's reader thread. The rendezvous
+        // channel holds one request, so a second in-flight pull on the same
+        // cursor is structurally impossible; a full channel is a protocol
+        // violation, not a queue.
+        if stream
+            .pull_tx
+            .try_send(StreamPullRequest { requested })
+            .is_err()
+        {
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "read",
+                "the response stream already has a pull in flight",
+                json!({ "expected": "one in-flight pull per cursor", "received": "overlapping pull" }),
+            ));
+        }
+        // The absolute wall ceiling bounds THIS pull: recv_timeout fires at
+        // the deadline even while the socket read is still blocked, and the
+        // dropped stream retires the reader thread within one socket-timeout
+        // window. Idle is enforced separately by the socket read timeout.
+        let wall_remaining = stream
+            .wall_deadline
+            .saturating_duration_since(Instant::now())
+            .max(Duration::from_millis(1));
+        let pulled = match stream.chunk_rx.recv_timeout(wall_remaining) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                drop(stream);
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_TIMEOUT",
+                    "read",
+                    "the response stream exceeded its wall-clock limit",
+                    json!({ "limitMs": ACTION_STREAM_WALL_MS, "received": "wall limit elapsed mid-read" }),
+                ));
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                drop(stream);
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                    "read",
+                    "the upstream response stream failed while reading",
+                    json!({ "received": "reader thread ended" }),
+                ));
+            }
+        };
+        let bytes = match pulled {
+            Ok(bytes) => bytes,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) =>
+            {
                 self.close_response_stream_cursor(stream_id);
                 return Err(action_stream_error(
                     "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
@@ -1698,11 +1847,18 @@ impl IbexActionHost for DetachedActionHost {
                 ));
             }
         };
+        let read = bytes.len();
+        let release_buffered = |counter: &Arc<AtomicU64>| {
+            if read > 0 {
+                counter.fetch_sub(read as u64, Ordering::SeqCst);
+            }
+        };
         // Post-pull leg of the per-read authority fence: authority may have
         // been terminalized while this pull was blocked awaiting bytes. Late
         // bytes are discarded — the cursor closes and the authority refusal,
         // not the data, reaches the action.
         if let Err(error) = self.validate_stream_authority("fetchStream.read") {
+            release_buffered(&self.stream_buffered_bytes);
             drop(stream);
             self.close_response_stream_cursor(stream_id);
             return Err(error);
@@ -1713,9 +1869,12 @@ impl IbexActionHost for DetachedActionHost {
                 done: true,
                 bytes: Vec::new(),
                 total_bytes: stream.total_bytes,
+                elapsed_ms: stream.opened_at.elapsed().as_millis() as u64,
+                delta_ms: 0,
             });
         }
         if stream.total_bytes.saturating_add(read as u64) > ACTION_STREAM_TOTAL_BYTES_MAX {
+            release_buffered(&self.stream_buffered_bytes);
             self.close_response_stream_cursor(stream_id);
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
@@ -1724,15 +1883,24 @@ impl IbexActionHost for DetachedActionHost {
                 json!({ "limitBytes": ACTION_STREAM_TOTAL_BYTES_MAX, "received": "oversized response" }),
             ));
         }
-        bytes.truncate(read);
+        let delta_ms = stream.last_byte_at.elapsed().as_millis() as u64;
         stream.total_bytes += read as u64;
         stream.last_byte_at = Instant::now();
         let total_bytes = stream.total_bytes;
+        let elapsed_ms = stream.opened_at.elapsed().as_millis() as u64;
         self.response_streams.insert(stream_id.to_owned(), stream);
+        // Handoff complete: the chunk now belongs to the application; the
+        // host-materialized accounting releases it.
+        release_buffered(&self.stream_buffered_bytes);
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 6: every read
+        // result carries host-owned monotonic elapsed milliseconds so
+        // authored code can gate progress commits without a wall clock.
         Ok(ActionStreamChunk {
             done: false,
             bytes,
             total_bytes,
+            elapsed_ms,
+            delta_ms,
         })
     }
 
@@ -2040,6 +2208,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     closed_response_streams: BTreeSet::new(),
                     last_stream_progress_commit: None,
                     stream_runner: stream_runner.clone(),
+                    stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
+                    stream_buffered_peak: Arc::new(AtomicU64::new(0)),
                     automatic_retry_invocation,
                 };
                 let input = invocation.canonicalize_input(input);
@@ -29522,6 +29692,8 @@ globalThis.__snapbackHandlers = {
             stream_runner: crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
                 AtomicBool::new(false),
             )),
+            stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
+            stream_buffered_peak: Arc::new(AtomicU64::new(0)),
             automatic_retry_invocation: false,
         }
     }
@@ -29692,18 +29864,29 @@ globalThis.__snapbackHandlers = {
         let mut host = held_action_host(state, &staged);
         host.deadline = Instant::now() + Duration::from_secs(60);
 
-        let wall_id = "wall-limit".to_owned();
-        host.response_streams.insert(
-            wall_id.clone(),
+        let stream_fixture = |host: &DetachedActionHost,
+                              wall_deadline: Instant,
+                              last_byte_at: Instant| {
+            let (pull_tx, chunk_rx) = super::spawn_stream_reader_thread(
+                Box::new(std::io::Cursor::new(vec![b'x'])),
+                host.stream_buffered_bytes.clone(),
+                host.stream_buffered_peak.clone(),
+            );
             super::OpenActionResponseStream {
-                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
-                opened_at: Instant::now()
-                    .checked_sub(Duration::from_millis(super::ACTION_STREAM_WALL_MS + 1))
-                    .expect("wall fixture instant"),
-                last_byte_at: Instant::now(),
+                pull_tx,
+                chunk_rx,
+                opened_at: Instant::now(),
+                wall_deadline,
+                last_byte_at,
                 total_bytes: 0,
-            },
-        );
+            }
+        };
+        let wall_id = "wall-limit".to_owned();
+        let expired_wall = Instant::now()
+            .checked_sub(Duration::from_millis(1))
+            .expect("wall fixture instant");
+        let wall_stream = stream_fixture(&host, expired_wall, Instant::now());
+        host.response_streams.insert(wall_id.clone(), wall_stream);
         assert_eq!(
             host.read_response_stream(&wall_id)
                 .expect_err("wall limit refuses read")
@@ -29713,17 +29896,15 @@ globalThis.__snapbackHandlers = {
         );
 
         let idle_id = "idle-limit".to_owned();
-        host.response_streams.insert(
-            idle_id.clone(),
-            super::OpenActionResponseStream {
-                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
-                opened_at: Instant::now(),
-                last_byte_at: Instant::now()
-                    .checked_sub(Duration::from_millis(super::ACTION_STREAM_IDLE_MS + 1))
-                    .expect("idle fixture instant"),
-                total_bytes: 0,
-            },
+        let idle_last_byte = Instant::now()
+            .checked_sub(Duration::from_millis(super::ACTION_STREAM_IDLE_MS + 1))
+            .expect("idle fixture instant");
+        let idle_stream = stream_fixture(
+            &host,
+            Instant::now() + Duration::from_millis(super::ACTION_STREAM_WALL_MS),
+            idle_last_byte,
         );
+        host.response_streams.insert(idle_id.clone(), idle_stream);
         assert_eq!(
             host.read_response_stream(&idle_id)
                 .expect_err("idle limit refuses read")
@@ -29732,15 +29913,13 @@ globalThis.__snapbackHandlers = {
             "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
         );
 
-        host.response_streams.insert(
-            "progress-rate".to_owned(),
-            super::OpenActionResponseStream {
-                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
-                opened_at: Instant::now(),
-                last_byte_at: Instant::now(),
-                total_bytes: 0,
-            },
+        let progress_stream = stream_fixture(
+            &host,
+            Instant::now() + Duration::from_millis(super::ACTION_STREAM_WALL_MS),
+            Instant::now(),
         );
+        host.response_streams
+            .insert("progress-rate".to_owned(), progress_stream);
         host.last_stream_progress_commit = Some(Instant::now());
         assert_eq!(
             host.run_mutation("hostPlanWrite", HandlerInput::default())
@@ -29849,6 +30028,200 @@ globalThis.__snapbackHandlers = {
             observed.effect_may_have_executed,
             "an in-flight cursor folds into the effect fact"
         );
+    }
+
+    #[test]
+    fn slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors() {
+        // @ref LLP 0076#surface — 64 KiB application-visible buffering: the
+        // accounting domain is host-materialized bytes (queued chunk +
+        // handoff copy) per invocation; one in-flight 16 KiB pull per cursor
+        // times the 4-cursor cap is the structural ceiling, witnessed here by
+        // the real high-water-mark counter under deliberately slow reads.
+        const PER_STREAM_BYTES: usize = 128 * 1024;
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind slow-consumer fixture");
+        let address = listener.local_addr().expect("slow-consumer address");
+        let upstream = std::thread::spawn(move || {
+            let mut served = 0;
+            while served < 4 {
+                let Ok((mut socket, _)) = listener.accept() else {
+                    return;
+                };
+                served += 1;
+                std::thread::spawn(move || {
+                    let mut request = [0_u8; 2_048];
+                    let _ = std::io::Read::read(&mut socket, &mut request);
+                    let _ = write!(
+                        socket,
+                        "HTTP/1.1 200 OK\r\nContent-Length: {PER_STREAM_BYTES}\r\nConnection: close\r\n\r\n"
+                    );
+                    // Serve the whole body as fast as the socket accepts it:
+                    // the host must stay bounded regardless of upstream pace.
+                    let block = vec![b'y'; 32 * 1024];
+                    let mut remaining = PER_STREAM_BYTES;
+                    while remaining > 0 {
+                        let visible = remaining.min(block.len());
+                        if socket.write_all(&block[..visible]).is_err() {
+                            return;
+                        }
+                        remaining -= visible;
+                    }
+                });
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("slow-consumer host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(30);
+
+        let mut streams = Vec::new();
+        for index in 0..4 {
+            let opened = host
+                .open_response_stream(ActionStreamRequest {
+                    url: format!("http://{address}/slow-{index}"),
+                    method: "GET".to_owned(),
+                    headers: BTreeMap::new(),
+                    body: None,
+                    idempotency_key: None,
+                    attempt_token: None,
+                })
+                .expect("open slow-consumer stream");
+            streams.push((opened.stream_id, 0_usize, false));
+        }
+        // Interleave slow pulls across all four cursors until EOF.
+        let mut remaining = 4;
+        while remaining > 0 {
+            for (stream_id, received, done) in &mut streams {
+                if *done {
+                    continue;
+                }
+                std::thread::sleep(Duration::from_millis(2));
+                let chunk = host
+                    .read_response_stream(stream_id)
+                    .expect("slow-consumer pull");
+                if chunk.done {
+                    *done = true;
+                    remaining -= 1;
+                    assert_eq!(*received, PER_STREAM_BYTES, "ordered complete body");
+                } else {
+                    *received += chunk.bytes.len();
+                    assert!(chunk.bytes.len() <= super::ACTION_STREAM_CHUNK_BYTES_MAX);
+                }
+            }
+        }
+        let peak = host.stream_buffered_peak.load(Ordering::SeqCst);
+        assert!(peak > 0, "the counter must actually observe materialization");
+        assert!(
+            peak <= 64 * 1024,
+            "application-visible buffering exceeded the 64 KiB profile bound: {peak}"
+        );
+        assert_eq!(
+            host.stream_buffered_bytes.load(Ordering::SeqCst),
+            0,
+            "every materialized byte is released at handoff"
+        );
+        upstream.join().expect("slow-consumer fixture joins");
+    }
+
+    #[test]
+    fn wall_ceiling_bounds_a_blocked_read_absolutely() {
+        // A source that produces headers and then nothing: the pull blocks,
+        // and the absolute wall ceiling must fire mid-read rather than
+        // waiting for the socket's idle timeout.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind blocked-read fixture");
+        let address = listener.local_addr().expect("blocked-read address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept blocked-read request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let _ = socket.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+            );
+            std::thread::sleep(Duration::from_secs(2));
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("blocked-read host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(30);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/blocked"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+            })
+            .expect("open blocked-read stream");
+        // Pin this stream's wall deadline 300 ms out; the idle window is
+        // 5 s, so only the absolute mid-read ceiling can end the pull early.
+        host.response_streams
+            .get_mut(&opened.stream_id)
+            .expect("stream present")
+            .wall_deadline = Instant::now() + Duration::from_millis(300);
+        let started = Instant::now();
+        let refusal = host
+            .read_response_stream(&opened.stream_id)
+            .expect_err("the wall ceiling ends the blocked pull");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_TIMEOUT");
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed >= Duration::from_millis(250) && elapsed < Duration::from_millis(1_500),
+            "the ceiling must bound the read itself, got {elapsed:?}"
+        );
+        upstream.join().expect("blocked-read fixture joins");
+    }
+
+    #[test]
+    fn stream_wall_deadline_reserves_settlement_grace_before_the_watchdog() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind grace fixture");
+        let address = listener.local_addr().expect("grace fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept grace request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let _ = socket.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+            );
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("grace host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        // A watchdog tighter than the 30 s stream wall: the per-stream
+        // deadline must leave the settle grace unspent.
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/grace"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+            })
+            .expect("open grace stream");
+        let stream = host
+            .response_streams
+            .get(&opened.stream_id)
+            .expect("stream present");
+        let latest_allowed = host.deadline
+            - Duration::from_millis(super::ACTION_STREAM_SETTLE_GRACE_MS - 50);
+        assert!(
+            stream.wall_deadline < latest_allowed,
+            "the stream wall must reserve settlement grace ahead of the watchdog"
+        );
+        upstream.join().expect("grace fixture joins");
     }
 
     #[test]

@@ -1,6 +1,18 @@
 # Boundedness: 64 KiB buffer accounting, one in-flight pull, absolute wall clock
 
-**Status:** Open
+**Status:** Open — local arm landed 2026-07-24. Done: accounting domain
+defined (host-materialized bytes per invocation, one queued chunk per cursor
+plus handoff copy; kernel/socket buffers explicitly out of scope), real
+counter + four-cursor slow-consumer high-water witness under 64 KiB;
+one-in-flight-pull-per-cursor serialized structurally (rendezvous channel)
+and in the shared bridge reader; separate connect/idle/per-read/wall timers
+with the 30 s ceiling absolute on the read itself (blocked-read witness) and
+2 s terminalization grace reserved ahead of the watchdog (witnessed);
+decision 6's monotonic elapsedMs/deltaMs on every read result; local
+manifest buffered-bytes row flipped to real `Enforced` plus
+read-size/cursor/wall rows. `cargo test --lib` 1138; instrument PASS 6/6.
+Remaining before close: the Workerd arm legs of every bullet (blocked on the
+unlanded Workerd streaming baseline; see the program index).
 **Severity:** P2
 **Systems:** Actions, Runtime, Outbound fetch, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

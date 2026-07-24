@@ -37,7 +37,8 @@ Boundedness, authority, and honesty:
   landed 2026-07-24; open on the ServicePrincipal end-to-end witness and the
   Workerd arm
 - `20260723-llp0076-boundedness.md` — 64 KiB buffer accounting, one in-flight
-  pull per cursor, absolute wall-clock timers
+  pull per cursor, absolute wall-clock timers — local arm landed 2026-07-24;
+  open on the Workerd arm only
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
   capability admission resolved against the served instance manifest
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction

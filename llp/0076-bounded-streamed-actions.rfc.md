@@ -5,7 +5,16 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (per-read authority fence landed on the local arm:
+**Revised:** 2026-07-24 (boundedness landed on the local arm: per-cursor
+reader threads behind one-slot rendezvous channels make the 30 s wall an
+absolute mid-read ceiling with 2 s settlement grace reserved ahead of the
+watchdog, serialize one in-flight pull per cursor, and carry a real
+per-invocation materialized-byte counter whose four-cursor slow-consumer
+witness stays under the 64 KiB domain — defined as host-materialized bytes,
+kernel buffers excluded; decision 6's monotonic `elapsedMs`/`deltaMs` now
+rides every read result; local manifest rows updated (buffered-bytes
+`Enforced`, read-size/cursor/wall rows added); residue: the Workerd arm).
+2026-07-24 (per-read authority fence landed on the local arm:
 pre- and post-pull revalidation of abandonment/generation/deadline plus the
 lock-free process-fence tier of service authority, late-byte discard on a
 blocked read, and the direct attempt-to-cursor cancellation signal with
@@ -566,18 +575,30 @@ a fix before gate 2:
   crash-durable — the durable write-ahead substrate rides the
   initiation-state ticket; the Workerd arm has no attempt record; and the
   reference authored pattern does not yet reference the token.
-- **Absolute wall-clock enforcement.** The local host bounds the upstream
-  request timeout at the idle window and checks the wall limit only at read
-  boundaries, so a productive stream can fail near 5 s and be mislabeled, and
-  the 30 s ceiling is not enforced as an absolute bound on the read itself.
-  Separate overall, idle, connect, and per-read timers are required.
-- **64 KiB buffer accounting.** The accounting domain is undefined and the
-  local host has no buffered-byte counter at all (only Workerd enforces a
-  per-chunk bound); the shared reader permits unlimited concurrent `read()`
-  calls from its single owner. The contract must define per-cursor-versus-
-  invocation scope and which host/bridge/VM/network queues count, serialize
-  pulls per cursor, and mark the manifest row non-enforced until a
-  slow-consumer witness passes.
+- **Absolute wall-clock enforcement (local arm landed 2026-07-24).** Each
+  cursor now owns a dedicated reader thread behind a one-slot rendezvous
+  channel: the host's `recv_timeout` against the per-stream wall deadline
+  bounds the pull itself, firing mid-read even while the socket read is
+  still blocked (witnessed by a blocked-read test that trips the ceiling in
+  ~300 ms against a 5 s idle window). Timers are now separate: connect and
+  metadata ride the idle window, per-read idle rides the socket timeout,
+  and the wall deadline is absolute — computed as
+  `min(open + 30 s, watchdog deadline − 2 s settlement grace)`, so a
+  default action can reach and durably settle its stream timeout before
+  abandonment (witnessed). Residue: the Workerd arm (unlanded baseline).
+- **64 KiB buffer accounting (local arm landed 2026-07-24).** The
+  accounting domain is defined as host-materialized bytes per invocation —
+  the one queued chunk per cursor plus the handoff copy — summed across
+  cursors; kernel/socket buffers are excluded by definition (bounded by the
+  TCP window, never application-visible). Enforcement is structural: one
+  in-flight 16 KiB pull per cursor (rendezvous channel; an overlapping pull
+  is refused, and the shared bridge reader also serializes `read()`) times
+  the 4-cursor cap is exactly the 64 KiB ceiling. A real counter witnesses
+  it: a four-cursor slow-consumer test records a peak-buffered high-water
+  mark under the bound and full ordered delivery. The local manifest's
+  buffered-bytes row flips to `Enforced`, with read-size, cursor-cap, and
+  wall rows added. Residue: the Workerd arm still enforces only a
+  per-chunk bound (unlanded baseline).
 - **Capability admission.** The raw dev loader installs a stream-requiring
   artifact without resolving `require_capabilities`, while complete-pair
   preflight checks a static declaration instead of the live instance
