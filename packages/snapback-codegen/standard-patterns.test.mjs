@@ -329,6 +329,21 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.equal(Object.hasOwn(createSchema.properties, 'createdAt'), false, 'trusted time must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'updatedAt'), false, 'trusted time must not be client-forgeable');
 
+  // @ref LLP 0065#3-common-pattern-contracts — every generated function
+  //   carries its versioned helper/profile identity.
+  for (const [fnName, helper] of [
+    ['listTodos', 'owned-crud.v1'], ['getTodo', 'owned-crud.v1'],
+    ['createTodo', 'owned-crud.v1'], ['updateTodo', 'owned-crud.v1'],
+    ['deleteTodo', 'owned-crud.v1'], ['todoBySlug', 'owned-unique-lookup.v1'],
+    ['firstTodoPage', 'owned-keyset-pages.v1'], ['nextTodoPage', 'owned-keyset-pages.v1'],
+  ]) {
+    assert.deepEqual(
+      byName.get(fnName).standardPattern,
+      { helper, profile: 'owner.v1' },
+      `${fnName} must carry its versioned standard-pattern identity`,
+    );
+  }
+
   // @ref LLP 0065#6-acceptance — generation asserts each constructor's exact
   //   expected EffectCeilingV1; the runtime subset check stays enforcement.
   assert.deepEqual(byName.get('listTodos').effectCeiling, {

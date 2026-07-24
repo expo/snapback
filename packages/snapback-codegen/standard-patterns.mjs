@@ -313,6 +313,7 @@ export function defineOwnedCrud(options) {
       index: listIndex,
       auth: 'authenticated',
       authScopeField: ownerField,
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
     }),
     [names.get]: defineLiveQuery({
       table: facts.name,
@@ -320,16 +321,19 @@ export function defineOwnedCrud(options) {
       filter: [eq(ownerField, authUserId()), eq('_id', arg(idArg))],
       auth: 'authenticated',
       authScopeField: ownerField,
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
     }),
     [names.create]: defineMutation({
       args: create.args,
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: insert(facts.name, create.values, { bindIdAs: createIdBind }),
       returns: returnDocument(facts.name, bindingRef(createIdBind)),
     }),
     [names.update]: defineMutation({
       args: { ...getArgs, ...update.args },
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: [
         ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
         patch(facts.name, arg(idArg), update.values),
@@ -339,6 +343,7 @@ export function defineOwnedCrud(options) {
     [names.delete]: defineMutation({
       args: getArgs,
       auth: 'authenticated',
+      standardPattern: { helper: 'owned-crud.v1', profile: 'owner.v1' },
       plan: [
         ...ownedRowGuard(facts.name, idArg, ownerField, rowBind),
         del(facts.name, arg(idArg)),
@@ -382,6 +387,7 @@ export function defineOwnedUniqueLookup(options) {
     index,
     auth: 'authenticated',
     authScopeField: ownerField,
+    standardPattern: { helper: 'owned-unique-lookup.v1', profile: 'owner.v1' },
   };
   const definition = live ? defineLiveQuery(query) : defineLiveQuery({ ...query, defaultLive: false });
   return Object.freeze({ [name]: definition });
@@ -448,6 +454,7 @@ export function defineOwnedKeysetPages(options) {
     index,
     auth: 'authenticated',
     authScopeField: ownerField,
+    standardPattern: { helper: 'owned-keyset-pages.v1', profile: 'owner.v1' },
   };
   return Object.freeze({
     [names.first]: defineLiveQuery({

@@ -1534,6 +1534,12 @@ pub struct FunctionDefinition {
     /// @ref LLP 0065#1-fact-classes — EffectCeilingV1.
     #[serde(default, rename = "effectCeiling", alias = "effect_ceiling")]
     pub effect_ceiling: Option<EffectCeiling>,
+    /// Stable versioned standard-pattern identity — which generated helper
+    /// and visibility profile produced this function (e.g. `owned-crud.v1`,
+    /// `owner.v1`). Absent on free-form definitions.
+    /// @ref LLP 0065#3-common-pattern-contracts — versioned identifiers.
+    #[serde(default, rename = "standardPattern", alias = "standard_pattern")]
+    pub standard_pattern: Option<StandardPatternIdentity>,
     #[serde(
         default,
         rename = "permissionEpochBumps",
@@ -1575,6 +1581,7 @@ impl FunctionDefinition {
             read_set_summary: DependencySummary::default(),
             write_set_summary: DependencySummary::default(),
             effect_ceiling: None,
+            standard_pattern: None,
             permission_epoch_bumps: Vec::new(),
             bundle_entrypoint: Some(name),
             uses: Vec::new(),
@@ -1668,6 +1675,15 @@ pub struct EffectCeilingRead {
 pub struct EffectCeilingWrite {
     pub table: String,
     pub operations: Vec<String>,
+}
+
+/// The versioned helper/profile identity a standard-pattern function carries
+/// (LLP 0065 §3).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternIdentity {
+    pub helper: String,
+    pub profile: String,
 }
 
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
@@ -1957,6 +1973,7 @@ impl From<FunctionDefinition> for PublicFunctionDefinition {
             read_set_summary,
             write_set_summary,
             effect_ceiling: _,
+            standard_pattern: _,
             permission_epoch_bumps,
             bundle_entrypoint,
             uses,

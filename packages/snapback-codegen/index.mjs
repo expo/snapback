@@ -1236,6 +1236,7 @@ export async function generateInProcess(backendDir, options = {}) {
         declaredReads: queryReads,
         declaredWrites: [],
         authScopeField: def.authScopeField ?? null,
+        ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
         authorizationDependence: hostPlanAuthorizationDependence(def),
         syncabilityClass: def.__kind === 'LiveQuery' ? 'syncable-live' : 'online-only',
       });
@@ -1362,6 +1363,7 @@ export async function generateInProcess(backendDir, options = {}) {
         declaredReads: mutationReadTables(def.plan),
         declaredWrites: [...writes],
         syncabilityClass: 'mutation',
+        ...(def.standardPattern ? { standardPattern: def.standardPattern } : {}),
       });
       contractMutations[name] = {
         name,
@@ -3100,6 +3102,7 @@ function decorateFunctions(appId, functions) {
       readSetSummary: reads,
       writeSetSummary: writes,
       effectCeiling,
+      ...(fn.standardPattern ? { standardPattern: fn.standardPattern } : {}),
       bundleEntrypoint: fn.name,
       uses: fn.uses ?? [],
       runtime: fn.runtime,

@@ -1,7 +1,7 @@
 {
   "appId": "competitive-checkpoint",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:b195ce66431d505e",
+  "bundleHash": "sha256:b23cbbe0d9c53616",
   "config": [],
   "cronJobs": [],
   "functions": [
@@ -237,6 +237,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-unique-lookup.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -320,6 +324,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
@@ -418,6 +426,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
@@ -490,6 +502,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -561,6 +577,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -631,6 +651,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -760,6 +784,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-keyset-pages.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "syncable-live",
       "uses": [],
       "writeSetSummary": {
@@ -1041,6 +1069,10 @@
         }
       },
       "sourceSpan": null,
+      "standardPattern": {
+        "helper": "owned-crud.v1",
+        "profile": "owner.v1"
+      },
       "syncabilityClass": "mutation",
       "uses": [],
       "writeSetSummary": {
@@ -1053,7 +1085,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "64b9699a3786184ed01dfd2673d5343be44fb2d70f9890efb54fcedf5f0e124c",
+  "inputsHash": "2369f9fec69d8aefd8b4fe6814c0526d7031caa08194b53f9d3fea0a10065c34",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
