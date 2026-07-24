@@ -1,0 +1,695 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://snapback.dev/schemas/partitime-comparison-protocol-v2.schema.json",
+  "title": "Partitime prospective comparison protocol v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "$schema",
+    "schemaVersion",
+    "status",
+    "protocolId",
+    "workloadVersion",
+    "thresholdFormulaSetId",
+    "authority",
+    "identities",
+    "workload",
+    "environment",
+    "collector",
+    "sampling",
+    "metrics",
+    "targetDerivation",
+    "phaseRules",
+    "invalidRunPolicy",
+    "artifacts"
+  ],
+  "properties": {
+    "$schema": {
+      "const": "./comparison-protocol.v2.schema.json"
+    },
+    "schemaVersion": {
+      "const": "partitime.comparison-protocol.v2"
+    },
+    "status": {
+      "const": "preregistered-no-governed-samples"
+    },
+    "protocolId": {
+      "const": "partitime-method-rubric-v2"
+    },
+    "workloadVersion": {
+      "const": "partitime.web-3x4+apple-native-2x2x4.v2"
+    },
+    "thresholdFormulaSetId": {
+      "const": "partitime-threshold-formulas-v2"
+    },
+    "authority": {
+      "$ref": "#/$defs/authority"
+    },
+    "identities": {
+      "$ref": "#/$defs/identities"
+    },
+    "workload": {
+      "$ref": "#/$defs/workload"
+    },
+    "environment": {
+      "$ref": "#/$defs/environment"
+    },
+    "collector": {
+      "$ref": "#/$defs/collector"
+    },
+    "sampling": {
+      "$ref": "#/$defs/sampling"
+    },
+    "metrics": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "$ref": "#/$defs/metric"
+      }
+    },
+    "targetDerivation": {
+      "$ref": "#/$defs/targetDerivation"
+    },
+    "phaseRules": {
+      "$ref": "#/$defs/phaseRules"
+    },
+    "invalidRunPolicy": {
+      "$ref": "#/$defs/invalidRunPolicy"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/artifacts"
+    }
+  },
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "gitRevision": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "gitObject": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{40}$"
+    },
+    "repoPath": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(?!/)(?!.*(?:^|/)\\.\\.(?:/|$)).+$"
+    },
+    "authorityBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "path",
+        "revision",
+        "sha256",
+        "amendment"
+      ],
+      "properties": {
+        "repository": {
+          "enum": [
+            "ccheever/exact",
+            "ccheever/snapback"
+          ]
+        },
+        "path": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "revision": {
+          "$ref": "#/$defs/gitRevision"
+        },
+        "sha256": {
+          "$ref": "#/$defs/sha256"
+        },
+        "amendment": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "authority": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "selectedBranch",
+        "phaseOrder",
+        "amendments",
+        "preservedV1",
+        "ratifier"
+      ],
+      "properties": {
+        "selectedBranch": {
+          "const": "correctness-baseline-reset-exception"
+        },
+        "phaseOrder": {
+          "const": [
+            "P0a",
+            "P0b",
+            "P0c"
+          ]
+        },
+        "amendments": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/authorityBinding"
+          }
+        },
+        "preservedV1": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "protocolId",
+            "protocolPath",
+            "protocolSha256",
+            "thresholdFormulaSetId",
+            "thresholdSetId",
+            "thresholdSourcePath",
+            "thresholdSourceSha256",
+            "workloadVersion",
+            "disposition"
+          ],
+          "properties": {
+            "protocolId": {
+              "const": "partitime-method-rubric-v1"
+            },
+            "protocolPath": {
+              "const": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json"
+            },
+            "protocolSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "thresholdFormulaSetId": {
+              "const": "partitime-threshold-formulas-v1"
+            },
+            "thresholdSetId": {
+              "const": "partitime-thresholds-v1-sha256-343dcc1429e20e07"
+            },
+            "thresholdSourcePath": {
+              "const": "demos/partiful-matrix/acceptance/results/step0-attribution.json"
+            },
+            "thresholdSourceSha256": {
+              "$ref": "#/$defs/sha256"
+            },
+            "workloadVersion": {
+              "const": "partitime.web-3x4+apple-native-2x2x4.v1"
+            },
+            "disposition": {
+              "const": "immutable-history-not-revised-or-promoted-by-v2"
+            }
+          }
+        },
+        "ratifier": {
+          "const": "Charlie Cheever, as the ratifying source named by LLP 0000"
+        }
+      }
+    },
+    "identities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "collectorId",
+        "receiptSchemaId",
+        "scheduleId",
+        "thresholdSetNamespace",
+        "thresholdSetId"
+      ],
+      "properties": {
+        "collectorId": {
+          "const": "partitime-chrome-cdp-memory-and-dom-v2"
+        },
+        "receiptSchemaId": {
+          "const": "partitime.performance-v2-receipt.v1"
+        },
+        "scheduleId": {
+          "const": "partitime-subscription-schedule-v2-literal-2w7s"
+        },
+        "thresholdSetNamespace": {
+          "const": "partitime-thresholds-v2"
+        },
+        "thresholdSetId": {
+          "type": "null"
+        }
+      }
+    },
+    "fixtureTree": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "path",
+        "gitTree"
+      ],
+      "properties": {
+        "path": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "gitTree": {
+          "$ref": "#/$defs/gitObject"
+        }
+      }
+    },
+    "schedule": {
+      "type": "array",
+      "minItems": 7,
+      "maxItems": 7,
+      "items": {
+        "type": "integer",
+        "enum": [
+          0,
+          1,
+          2,
+          4,
+          8,
+          16,
+          32
+        ]
+      }
+    },
+    "workload": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scope",
+        "backend",
+        "comparatorArm",
+        "judgedArm",
+        "fixtureTrees",
+        "canonicalActiveSubscriptions",
+        "subscriptionCounts",
+        "randomization",
+        "warmupSchedules",
+        "sampleSchedules",
+        "benchmarkControlApi"
+      ],
+      "properties": {
+        "scope": {
+          "const": "unchanged Partitime product fixture; v2 adds only the prospective memory and update-economy measurement profile"
+        },
+        "backend": {
+          "const": "snapback"
+        },
+        "comparatorArm": {
+          "const": "react:snapback"
+        },
+        "judgedArm": {
+          "const": "contract:snapback"
+        },
+        "fixtureTrees": {
+          "type": "array",
+          "minItems": 3,
+          "maxItems": 3,
+          "items": {
+            "$ref": "#/$defs/fixtureTree"
+          }
+        },
+        "canonicalActiveSubscriptions": {
+          "const": 8
+        },
+        "subscriptionCounts": {
+          "const": [
+            0,
+            1,
+            2,
+            4,
+            8,
+            16,
+            32
+          ]
+        },
+        "randomization": {
+          "const": "literal-permutations-v1; no runtime shuffle or replacement"
+        },
+        "warmupSchedules": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/schedule"
+          }
+        },
+        "sampleSchedules": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "$ref": "#/$defs/schedule"
+          }
+        },
+        "benchmarkControlApi": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "global",
+            "methods",
+            "availability"
+          ],
+          "properties": {
+            "global": {
+              "const": "__partitimePerformanceV2"
+            },
+            "methods": {
+              "const": [
+                "reset",
+                "awaitStable",
+                "snapshotCounters",
+                "applyCanonicalUpdate"
+              ]
+            },
+            "availability": {
+              "const": "benchmark build only; absent from ordinary production output"
+            }
+          }
+        }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "osProduct",
+        "osVersion",
+        "osBuild",
+        "cpu",
+        "memoryBytes",
+        "browser",
+        "bunVersion",
+        "power",
+        "network",
+        "browserIsolation"
+      ],
+      "properties": {
+        "osProduct": {
+          "const": "macOS"
+        },
+        "osVersion": {
+          "const": "26.5.2"
+        },
+        "osBuild": {
+          "const": "25F84"
+        },
+        "cpu": {
+          "const": "Apple M5 Max"
+        },
+        "memoryBytes": {
+          "const": 137438953472
+        },
+        "browser": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "name",
+            "version",
+            "executable"
+          ],
+          "properties": {
+            "name": {
+              "const": "Google Chrome"
+            },
+            "version": {
+              "const": "150.0.7871.186"
+            },
+            "executable": {
+              "const": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+            }
+          }
+        },
+        "bunVersion": {
+          "const": "1.3.12"
+        },
+        "power": {
+          "const": "AC power; Low Power Mode disabled; recorded by every receipt"
+        },
+        "network": {
+          "const": "loopback-only deterministic Snapback backend; external network access is an invalid run"
+        },
+        "browserIsolation": {
+          "const": "fresh browser context per cycle and unique user-data-dir per invocation"
+        }
+      }
+    },
+    "collector": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "memory",
+        "fanout",
+        "domPatches",
+        "stability",
+        "regression"
+      ],
+      "properties": {
+        "memory": {
+          "const": "CDP HeapProfiler.collectGarbage followed immediately by Runtime.getHeapUsage.usedSize"
+        },
+        "fanout": {
+          "const": "benchmark adapter count of logical subscription delivery callbacks caused by exactly one canonical server-authoritative update"
+        },
+        "domPatches": {
+          "const": "MutationObserver record count caused by that update: each childList, attributes, or characterData record counts one; observer starts after warm stability and drains before the update"
+        },
+        "stability": {
+          "const": "benchmark awaitStable succeeds, requested active-subscription count is exact, then three consecutive requestAnimationFrame turns produce no delivery callback and no MutationObserver record"
+        },
+        "regression": {
+          "const": "nonnegative least squares y=intercept+slope*x; enumerate feasible unconstrained, intercept-zero, and slope-zero candidates and choose minimum SSE, breaking ties by lower slope then lower intercept"
+        }
+      }
+    },
+    "sampling": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "warmupCycles",
+        "sampleCycles",
+        "aggregation",
+        "outlierPolicy",
+        "cycleLifecycle"
+      ],
+      "properties": {
+        "warmupCycles": {
+          "const": 2
+        },
+        "sampleCycles": {
+          "const": 7
+        },
+        "aggregation": {
+          "const": "nearest-rank p95 over seven retained valid cycle values (rank ceil(0.95*7)=7); equality passes"
+        },
+        "outlierPolicy": {
+          "const": "retain every valid sample; no trimming, winsorization, replacement, or post-observation exclusion"
+        },
+        "cycleLifecycle": {
+          "const": "fresh browser context, reset arm, execute the literal schedule, collect all counts, close context; warmups are retained but never enter targets or verdicts"
+        }
+      }
+    },
+    "metric": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "unit",
+        "cycleValue",
+        "formula",
+        "conjunct"
+      ],
+      "properties": {
+        "id": {
+          "enum": [
+            "totalWarmJsHeapBytesP95",
+            "fixedWarmJsHeapBytesP95",
+            "memoryPerActiveSubscriptionBytesP95",
+            "updateFanoutCountP95",
+            "domPatchCountP95"
+          ]
+        },
+        "unit": {
+          "enum": [
+            "bytes",
+            "bytes-per-active-subscription",
+            "callbacks",
+            "mutation-records"
+          ]
+        },
+        "cycleValue": {
+          "type": "string",
+          "minLength": 1
+        },
+        "formula": {
+          "type": "string",
+          "pattern": "^floor\\(react_same_workload_[a-zA-Z0-9]+ \\* 110 / 100\\)$"
+        },
+        "conjunct": {
+          "const": true
+        }
+      }
+    },
+    "targetDerivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "marginNumerator",
+        "marginDenominator",
+        "rounding",
+        "permittedInputs",
+        "forbiddenInputs",
+        "dependencyRule",
+        "freezeRule"
+      ],
+      "properties": {
+        "marginNumerator": {
+          "const": 110
+        },
+        "marginDenominator": {
+          "const": 100
+        },
+        "rounding": {
+          "const": "integer floor after multiplication and before comparison"
+        },
+        "permittedInputs": {
+          "const": [
+            "react:snapback comparator samples collected under this protocol",
+            "constants committed in this protocol"
+          ]
+        },
+        "forbiddenInputs": {
+          "const": [
+            "any post-fix contract:snapback observation",
+            "the historical 1564980-byte diagnostic",
+            "the historical 1394100-byte diagnostic target",
+            "the historical 6/8 fanout/patch observation",
+            "quick-run or calibration outcomes from the judged arm"
+          ]
+        },
+        "dependencyRule": {
+          "const": "the threshold receipt graph contains only protocol-constant and react-comparator ancestors; any direct or transitive judged-arm ancestor is a hard validation failure"
+        },
+        "freezeRule": {
+          "const": "derive all five numeric targets, serialize canonical JSON, mint partitime-thresholds-v2-sha256-<first16>, commit it on a clean tree, then and only then permit the judged holdout"
+        }
+      }
+    },
+    "phaseRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry",
+        "allowed",
+        "exit"
+      ],
+      "properties": {
+        "entry": {
+          "type": "string",
+          "minLength": 1
+        },
+        "allowed": {
+          "type": "string",
+          "minLength": 1
+        },
+        "exit": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "phaseRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "P0a",
+        "P0b",
+        "P0c"
+      ],
+      "properties": {
+        "P0a": {
+          "$ref": "#/$defs/phaseRule"
+        },
+        "P0b": {
+          "$ref": "#/$defs/phaseRule"
+        },
+        "P0c": {
+          "$ref": "#/$defs/phaseRule"
+        }
+      }
+    },
+    "invalidRunPolicy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "invalidReasons",
+        "retention",
+        "retry",
+        "stopRule",
+        "skipRule"
+      ],
+      "properties": {
+        "invalidReasons": {
+          "type": "array",
+          "minItems": 10,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "retention": {
+          "const": "retain the complete invalid receipt, raw observations, logs, reason code, and attempt ordinal; invalid observations never enter aggregation"
+        },
+        "retry": {
+          "const": "repeat only the complete invalid cycle under the identical protocol; never replace an individual count or cherry-pick a partial cycle"
+        },
+        "stopRule": {
+          "const": "after three invalid attempts for the same phase and arm, stop with a red instrument disposition; further attempts require the ratified invalidation or unavailability procedure"
+        },
+        "skipRule": {
+          "const": "a skip is never a pass and never enters aggregation"
+        }
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schemaPath",
+        "protocolPath",
+        "receiptSchemaPath",
+        "preregistrationReceiptPath",
+        "thresholdReceiptPath",
+        "comparatorRawDirectory",
+        "holdoutRawDirectory",
+        "aggregatePath"
+      ],
+      "properties": {
+        "schemaPath": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "protocolPath": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "receiptSchemaPath": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "preregistrationReceiptPath": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "thresholdReceiptPath": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "comparatorRawDirectory": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "holdoutRawDirectory": {
+          "$ref": "#/$defs/repoPath"
+        },
+        "aggregatePath": {
+          "$ref": "#/$defs/repoPath"
+        }
+      }
+    }
+  }
+}

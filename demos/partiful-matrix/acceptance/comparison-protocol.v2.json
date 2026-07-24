@@ -1,0 +1,319 @@
+{
+  "$schema": "./comparison-protocol.v2.schema.json",
+  "schemaVersion": "partitime.comparison-protocol.v2",
+  "status": "preregistered-no-governed-samples",
+  "protocolId": "partitime-method-rubric-v2",
+  "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v2",
+  "thresholdFormulaSetId": "partitime-threshold-formulas-v2",
+  "authority": {
+    "selectedBranch": "correctness-baseline-reset-exception",
+    "phaseOrder": [
+      "P0a",
+      "P0b",
+      "P0c"
+    ],
+    "amendments": [
+      {
+        "repository": "ccheever/exact",
+        "path": "llp/0373-contract-and-exact-after-partitime.plan.md",
+        "revision": "168b7373e8c1b7d9a0083ea72df47d3c259a3f17",
+        "sha256": "4eb474fa30dd03778ff8f42a5463c3a25e5f9ed53319b8092aad841045900048",
+        "amendment": "A2"
+      },
+      {
+        "repository": "ccheever/exact",
+        "path": "llp/0204-contract-web-ship-and-ssr.plan.md",
+        "revision": "168b7373e8c1b7d9a0083ea72df47d3c259a3f17",
+        "sha256": "5533e223ae463cebb563381822b4cf1a324ba59579962ced5cd95e18fdbcc5e3",
+        "amendment": "A2"
+      },
+      {
+        "repository": "ccheever/snapback",
+        "path": "llp/0063-partitime-platform-roadmap.plan.md",
+        "revision": "2604597f08e46d74527c77140eef08984e9062ce",
+        "sha256": "4a5f3b6e6cec9cbcbba68c8913a6cb6eda994f87036ee17db0f008a9b5f6feda",
+        "amendment": "A1"
+      }
+    ],
+    "preservedV1": {
+      "protocolId": "partitime-method-rubric-v1",
+      "protocolPath": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
+      "protocolSha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe",
+      "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
+      "thresholdSetId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
+      "thresholdSourcePath": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
+      "thresholdSourceSha256": "1d0d8acae306367ed9a54c656a322dabebb0101ae1092312a5a154f89c99abaa",
+      "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+      "disposition": "immutable-history-not-revised-or-promoted-by-v2"
+    },
+    "ratifier": "Charlie Cheever, as the ratifying source named by LLP 0000"
+  },
+  "identities": {
+    "collectorId": "partitime-chrome-cdp-memory-and-dom-v2",
+    "receiptSchemaId": "partitime.performance-v2-receipt.v1",
+    "scheduleId": "partitime-subscription-schedule-v2-literal-2w7s",
+    "thresholdSetNamespace": "partitime-thresholds-v2",
+    "thresholdSetId": null
+  },
+  "workload": {
+    "scope": "unchanged Partitime product fixture; v2 adds only the prospective memory and update-economy measurement profile",
+    "backend": "snapback",
+    "comparatorArm": "react:snapback",
+    "judgedArm": "contract:snapback",
+    "fixtureTrees": [
+      {
+        "path": "demos/partiful-matrix/surfaces/react",
+        "gitTree": "58a5387c0ea3d98d1fa58ae6a2023f47032a9305"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract",
+        "gitTree": "ddd9d16cd243a4c0cf971926dc45414c6bbd6f0a"
+      },
+      {
+        "path": "demos/partiful-matrix/snapback",
+        "gitTree": "2b5b7de882b6546c92d08d83431b88e8f213df69"
+      }
+    ],
+    "canonicalActiveSubscriptions": 8,
+    "subscriptionCounts": [
+      0,
+      1,
+      2,
+      4,
+      8,
+      16,
+      32
+    ],
+    "randomization": "literal-permutations-v1; no runtime shuffle or replacement",
+    "warmupSchedules": [
+      [
+        0,
+        8,
+        1,
+        16,
+        2,
+        32,
+        4
+      ],
+      [
+        32,
+        4,
+        16,
+        1,
+        8,
+        0,
+        2
+      ]
+    ],
+    "sampleSchedules": [
+      [
+        1,
+        16,
+        4,
+        32,
+        0,
+        8,
+        2
+      ],
+      [
+        8,
+        0,
+        32,
+        2,
+        16,
+        4,
+        1
+      ],
+      [
+        4,
+        2,
+        8,
+        1,
+        32,
+        16,
+        0
+      ],
+      [
+        16,
+        32,
+        1,
+        4,
+        2,
+        0,
+        8
+      ],
+      [
+        2,
+        8,
+        16,
+        0,
+        4,
+        1,
+        32
+      ],
+      [
+        32,
+        1,
+        0,
+        16,
+        8,
+        2,
+        4
+      ],
+      [
+        0,
+        4,
+        2,
+        8,
+        1,
+        32,
+        16
+      ]
+    ],
+    "benchmarkControlApi": {
+      "global": "__partitimePerformanceV2",
+      "methods": [
+        "reset",
+        "awaitStable",
+        "snapshotCounters",
+        "applyCanonicalUpdate"
+      ],
+      "availability": "benchmark build only; absent from ordinary production output"
+    }
+  },
+  "environment": {
+    "osProduct": "macOS",
+    "osVersion": "26.5.2",
+    "osBuild": "25F84",
+    "cpu": "Apple M5 Max",
+    "memoryBytes": 137438953472,
+    "browser": {
+      "name": "Google Chrome",
+      "version": "150.0.7871.186",
+      "executable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    },
+    "bunVersion": "1.3.12",
+    "power": "AC power; Low Power Mode disabled; recorded by every receipt",
+    "network": "loopback-only deterministic Snapback backend; external network access is an invalid run",
+    "browserIsolation": "fresh browser context per cycle and unique user-data-dir per invocation"
+  },
+  "collector": {
+    "memory": "CDP HeapProfiler.collectGarbage followed immediately by Runtime.getHeapUsage.usedSize",
+    "fanout": "benchmark adapter count of logical subscription delivery callbacks caused by exactly one canonical server-authoritative update",
+    "domPatches": "MutationObserver record count caused by that update: each childList, attributes, or characterData record counts one; observer starts after warm stability and drains before the update",
+    "stability": "benchmark awaitStable succeeds, requested active-subscription count is exact, then three consecutive requestAnimationFrame turns produce no delivery callback and no MutationObserver record",
+    "regression": "nonnegative least squares y=intercept+slope*x; enumerate feasible unconstrained, intercept-zero, and slope-zero candidates and choose minimum SSE, breaking ties by lower slope then lower intercept"
+  },
+  "sampling": {
+    "warmupCycles": 2,
+    "sampleCycles": 7,
+    "aggregation": "nearest-rank p95 over seven retained valid cycle values (rank ceil(0.95*7)=7); equality passes",
+    "outlierPolicy": "retain every valid sample; no trimming, winsorization, replacement, or post-observation exclusion",
+    "cycleLifecycle": "fresh browser context, reset arm, execute the literal schedule, collect all counts, close context; warmups are retained but never enter targets or verdicts"
+  },
+  "metrics": [
+    {
+      "id": "totalWarmJsHeapBytesP95",
+      "unit": "bytes",
+      "cycleValue": "Runtime.getHeapUsage.usedSize at exactly 8 active subscriptions",
+      "formula": "floor(react_same_workload_totalWarmJsHeapBytesP95 * 110 / 100)",
+      "conjunct": true
+    },
+    {
+      "id": "fixedWarmJsHeapBytesP95",
+      "unit": "bytes",
+      "cycleValue": "nonnegative least-squares fixed intercept across all seven subscription counts",
+      "formula": "floor(react_same_workload_fixedWarmJsHeapBytesP95 * 110 / 100)",
+      "conjunct": true
+    },
+    {
+      "id": "memoryPerActiveSubscriptionBytesP95",
+      "unit": "bytes-per-active-subscription",
+      "cycleValue": "nonnegative least-squares slope across all seven subscription counts",
+      "formula": "floor(react_same_workload_memoryPerActiveSubscriptionBytesP95 * 110 / 100)",
+      "conjunct": true
+    },
+    {
+      "id": "updateFanoutCountP95",
+      "unit": "callbacks",
+      "cycleValue": "logical delivery callbacks after one canonical update at exactly 8 active subscriptions",
+      "formula": "floor(react_same_workload_updateFanoutCountP95 * 110 / 100)",
+      "conjunct": true
+    },
+    {
+      "id": "domPatchCountP95",
+      "unit": "mutation-records",
+      "cycleValue": "MutationObserver records after the same canonical update at exactly 8 active subscriptions",
+      "formula": "floor(react_same_workload_domPatchCountP95 * 110 / 100)",
+      "conjunct": true
+    }
+  ],
+  "targetDerivation": {
+    "marginNumerator": 110,
+    "marginDenominator": 100,
+    "rounding": "integer floor after multiplication and before comparison",
+    "permittedInputs": [
+      "react:snapback comparator samples collected under this protocol",
+      "constants committed in this protocol"
+    ],
+    "forbiddenInputs": [
+      "any post-fix contract:snapback observation",
+      "the historical 1564980-byte diagnostic",
+      "the historical 1394100-byte diagnostic target",
+      "the historical 6/8 fanout/patch observation",
+      "quick-run or calibration outcomes from the judged arm"
+    ],
+    "dependencyRule": "the threshold receipt graph contains only protocol-constant and react-comparator ancestors; any direct or transitive judged-arm ancestor is a hard validation failure",
+    "freezeRule": "derive all five numeric targets, serialize canonical JSON, mint partitime-thresholds-v2-sha256-<first16>, commit it on a clean tree, then and only then permit the judged holdout"
+  },
+  "phaseRules": {
+    "P0a": {
+      "entry": "the three authority amendments are content-bound and v1 remains unchanged",
+      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, and immutable pre-fix correctness evidence; governed post-fix Contract samples are forbidden",
+      "exit": "protocol/schema/collector digests and the P0a entry receipt are committed and mirrored before the P0b repair merge"
+    },
+    "P0b": {
+      "entry": "a machine receipt binds the three amendments and complete P0a digest closure",
+      "allowed": "merge the enumerated LLP 0381 correctness repair on correctness evidence only; historical and diagnostic performance observations remain non-normative",
+      "exit": "correctness gates pass and no governed post-fix Contract performance sample exists"
+    },
+    "P0c": {
+      "entry": "P0b correctness is green and the tree is clean",
+      "allowed": "collect React comparator cycles, derive and commit the threshold receipt, then unlock the untouched Contract holdout",
+      "exit": "all five conjunctive metrics have complete raw receipts and the aggregate records an honest green or red verdict"
+    }
+  },
+  "invalidRunPolicy": {
+    "invalidReasons": [
+      "authority amendment digest mismatch",
+      "protocol, schema, collector, workload, or fixture identity mismatch",
+      "OS, hardware, memory, Chrome, Bun, power, or network identity mismatch",
+      "dirty source tree or unrecorded package identity",
+      "browser launch, CDP attach, fresh-context creation, or teardown failure",
+      "external network request",
+      "uncaught page error or browser process crash",
+      "benchmark control API missing or wrong method inventory",
+      "reset, stability, exact active-subscription count, or canonical update failure",
+      "garbage collection or heap read failure",
+      "delivery or MutationObserver counter missing, negative, non-integral, or contaminated by pre-update work",
+      "literal schedule, warmup count, sample count, or cycle completeness mismatch",
+      "P0c comparator collection after any governed judged-arm sample",
+      "holdout opened before the committed threshold-set identity exists",
+      "raw artifact, log, receipt, or dependency-graph digest mismatch"
+    ],
+    "retention": "retain the complete invalid receipt, raw observations, logs, reason code, and attempt ordinal; invalid observations never enter aggregation",
+    "retry": "repeat only the complete invalid cycle under the identical protocol; never replace an individual count or cherry-pick a partial cycle",
+    "stopRule": "after three invalid attempts for the same phase and arm, stop with a red instrument disposition; further attempts require the ratified invalidation or unavailability procedure",
+    "skipRule": "a skip is never a pass and never enters aggregation"
+  },
+  "artifacts": {
+    "schemaPath": "demos/partiful-matrix/acceptance/comparison-protocol.v2.schema.json",
+    "protocolPath": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
+    "receiptSchemaPath": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
+    "preregistrationReceiptPath": "demos/partiful-matrix/acceptance/results/performance-v2-preregistration.json",
+    "thresholdReceiptPath": "demos/partiful-matrix/acceptance/results/performance-v2-thresholds.json",
+    "comparatorRawDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/raw/react-snapback",
+    "holdoutRawDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/raw/contract-snapback",
+    "aggregatePath": "demos/partiful-matrix/acceptance/results/performance-v2-aggregate.json"
+  }
+}
