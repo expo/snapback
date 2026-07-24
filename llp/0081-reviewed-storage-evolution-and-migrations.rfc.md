@@ -228,11 +228,16 @@ row plus the plan's explicit migration constants. They cannot call application
 handlers, read ambient time/randomness, perform network I/O, access secrets, or
 read an undeclared table. The executor replays constants as data and derives IDs
 only through the plan's pinned deterministic namespace rule: a synthesized ID
-is a UUIDv7-compatible value whose time bits carry the plan's approved
-`publicationTimestamp` and whose remaining bits derive from a domain-separated
+is a UUIDv7-compatible value: the 48 time bits carry the plan's approved
+`publicationTimestamp`, the version and variant fields hold their fixed
+UUIDv7 values, and exactly the 74 `rand_a`/`rand_b` bits derive from a
+domain-separated
 SHA-256 over plan digest, step ID, source table and row key, destination
 table and generation, and output ordinal — collision-scoped per destination,
 satisfying LLP 0007's UUIDv7 contract, and shipped with conformance vectors.
+Maintained-projection output rows are exempt: their `_id` follows LLP 0080
+§5's plan-identity-plus-output-key rule so maintenance and rebuild agree on
+row identity.
 
 V1 represents a rename or type change as add/copy/validate/publish/retire. It
 does not issue an in-place semantic rename or cast that one target happens to
@@ -267,8 +272,14 @@ The barrier itself is durable: admission writes a persisted migration fence
 that every application lane — query, mutation, subscription, job, worker —
 consults before opening. A crash between reopen and resume therefore cannot
 readmit application writes: the fence outlives the process and clears only
-when the journal reaches a terminal state (published, rolled back, cancelled,
-or abandoned by an authorized operator action recorded in the journal). Each
+when the journal reaches a terminal state. Publication enters a journaled
+`published-held` state in which the fence still closes traffic and workers;
+a distinct journaled release transition opens them, and §6's fast rollback is
+available exactly while the journal shows `published-held`. Terminal states
+are released, rolled back, cancelled,
+or abandoned by an authorized operator action recorded in the journal. A
+crash while `published-held` reopens only the successor, still fenced, and
+resume either releases or rolls back explicitly. Each
 batch commits its shadow writes, progress cursor, digest-accumulator state,
 and journal transition in one target transaction — or defines idempotent
 replay from the last committed batch — so no component of progress can lead
@@ -457,10 +468,17 @@ admission reserves commit-version budget for this allocation, so a forward
 publication cannot occupy a version from which `R` is unallocatable. Row
 versions follow a rollback expected-value evaluator, not raw checkpoint
 bytes: a row whose visible content changes from successor back to predecessor
-receives `_version = R` and the plan's explicit rollback timestamp, while
-rows unchanged between the two generations preserve their system fields —
+receives `_version = R` and the plan's explicit rollback timestamp — which
+admission requires to be at least `publicationTimestamp` and the maximum
+`_updatedAt` among restamped rows, the same monotonicity rule as forward
+publication — while
+rows unchanged between the two generations preserve their system fields;
 LLP 0007's rule that `_version` names the commit that last changed the row
-holds through rollback. It emits a
+holds through rollback. The rollback command itself is an authorized,
+audited operator action under the original operation's approval — which
+acknowledged the rollback boundary — recorded in the journal like every
+other transition; on hosted targets it is an LLP 0072 control-plane
+operation. It emits a
 digest-sealed `MigrationRollbackReceiptV1`. The original forward receipt remains
 immutable; replaying the completed forward operation returns it, replaying the
 completed rollback returns the rollback receipt, and migrating the republished

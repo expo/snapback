@@ -114,8 +114,9 @@ mandatory:
 **Principal admission.** "Authenticated authority" means a principal that
 projects the canonical user subject under LLP 0055's effective-principal
 rules: a signed-in user, or a delegated agent whose authority resolves to the
-delegating user's subject. Anonymous, sealed service, system, and admin
-principals do not satisfy `owner.v1` and are refused with
+delegating user's subject. Anonymous, sealed service, system, admin, and
+autonomous agent principals (LLP 0055 `kind: "agent"` acting on their own
+authority, not under delegation) do not satisfy `owner.v1` and are refused with
 `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`; a future profile may admit
 them explicitly. Ownership equality is exact string equality between the
 declared owner field and that canonical subject. The v1 owner profile is
@@ -295,9 +296,10 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
   list/unique/pagination index, wrong pagination index shape, open options
   object — each fail with their stable code;
 - cross-user reads, unique lookups, updates, and deletes cannot observe or
-  mutate another owner's row in the real server, and the public refusal for a
-  missing row is byte-indistinguishable from the refusal for another owner's
-  row on get, update, and delete across every claimed adapter;
+  mutate another owner's row in the real server, and the public outcome for a
+  missing row is byte-indistinguishable from the outcome for another owner's
+  row — an empty result on get, one collapsed refusal on update and delete —
+  across every claimed adapter;
 - a cross-owner unique conflict discloses nothing without a disclosure
   declaration, witnessed on an owner-partitioned and a declared-disclosure
   fixture;
@@ -306,10 +308,13 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
   requirements, refusal codes, and read summaries (posture parity);
 - trusted `now`/`id` fields reject client-supplied values and use recorded host
   answers under replay;
-- non-user principals — anonymous, sealed service, admin — are refused with
+- non-user principals — anonymous, sealed service, system, admin, and
+  non-delegated autonomous agents — are refused with
   `SNAPBACK_STANDARD_PATTERN_PRINCIPAL_UNSUPPORTED`, and a delegated agent
   resolves to the delegating user's subject;
-- concurrent owner transfer and delete race the conditional guard in both
+- a concurrent owner transfer (performed by a handwritten transferring
+  function, since generated update cannot transfer ownership) and a
+  concurrent delete each race the conditional guard in both
   commit orders without a lost or misattributed write;
 - a duplicate-order-key corpus returns byte-identical list and page results
   across the pure evaluator and SQLite, pagination skips and duplicates no
@@ -323,8 +328,8 @@ LLP 0063's `STEP5.DECLARATION_REDUCTION` claim:
 - every claimed pattern has an executable receipt, and the Step 5 Partitime
   receipt (or the admitted Step 5 fixture) proves the frozen
   backend-declaration reduction without relaxing its threshold — this receipt
-  is a pre-entry witness consumed by LLP 0063's gate, produced after semantic
-  acceptance, and does not gate acceptance itself; and
+  is a Step 5 claim witness consumed by LLP 0063's gate, produced after
+  semantic acceptance, and does not gate acceptance itself; and
 - the no-Exact-core and package-artifact gates rerun.
 
 The current implementation in `packages/snapback-codegen/standard-patterns.*`

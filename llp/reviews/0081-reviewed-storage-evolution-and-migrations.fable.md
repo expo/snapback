@@ -170,3 +170,16 @@ rollback is implicit, and the fast-rollback acceptance bullet could name its
 content-digest oracle more explicitly. Neither was judged to weaken a
 load-bearing claim. The reviewer recommended author acceptance; this review
 does not perform that status transition.
+
+## Re-review — 2026-07-24 (post GPT-round reconciliation)
+
+**Provider / runtime:** claude-code sub-agent (Fable, fresh session — not the authoring or reconciling session)
+**Method:** sub-agent
+
+**READY.** The document was substantially revised on 2026-07-24 to reconcile the GPT family's round 1 (see the .codex.md artifact). This fresh-session re-review verified all seven prior READY-gate areas HOLD — several strictly strengthened (canonical artifact encoding with golden vectors, `ContentDigestV1` with a resumable accumulator, sampling demoted to a face-labeled `sampled-audit` class, the LLP 0014 shared-alarm registration, the LLP 0072 lock order) — and adversarially cross-checked the new material against LLP 0007/0072/0080/0053/0070/0014/0063/0062:
+
+- The maintenance-window fast-rollback restriction coheres with the fence lifecycle; `_version = R` restamping is consistent with LLP 0007's version rule and computable from checkpoint + plan + constants; commit-version budget reservation is a decidable admission precondition under the frozen head.
+- The same-landing LLP 0007 journal-grammar amendment closes the previously implicit dialect with no acceptance-ordering hazard; the retained-work narrowing to `empty`/`dual-compatible` is a claim reduction, not a coverage loss, and matches LLP 0070's successor-job contract.
+- The typed `MigrationApprovalV1`/`MigrationAdmissionV1` records bind identity fields that all exist in LLP 0072.
+
+Five LOW precision residues were reported (the `published-held` state was implicit; projection-output IDs needed an explicit carve-out to LLP 0080 §5's rule; rollback-timestamp monotonicity was witnessed but not normative; the UUIDv7 bit layout could be misread; the rollback command's invoking authority was implicit). All five were fixed after this review with sentence-level edits. The reviewer recommended the document as READY for author acceptance; this review performs no status transition.

@@ -55,3 +55,20 @@ The residual problems are spec-level, not directional: an existence-oracle defau
 Verdict: NOT READY
 
 The direction, taxonomy, and scope discipline are right and the coupled-document coherence with 0080/0063 is largely sound, but five MEDIUM issues — the unwitnessed existence-oracle default, the uncarried 0053 `authScopeField`/convergence obligations, the Step 5 acceptance-ordering circularity, the unpinned principal-universe interaction, and non-total list ordering — are each pinning-level fixes that must land before this can serve as the accepted authorization/visibility floor Step 5 waits on.
+
+## Round 2 — 2026-07-24
+
+**Provider / runtime:** claude-code sub-agent (Fable, fresh session — not the authoring or reconciling session)
+**Method:** sub-agent
+
+**READY.** All five round-1 MEDIUM concerns and all four LOW concerns verified RESOLVED against the 2026-07-24 revision, with on-page pins and named witnesses coherent with LLP 0007/0051/0053/0055/0056/0063/0080:
+
+- Existence secrecy is collapsed by default (§2), with the code split named in §5, uniqueness-conflict disclosure owner-partitioned or declared, and byte-indistinguishability plus cross-owner unique-conflict fixtures in §6.
+- The new §4 classifies generated queries callable/`live_replace` with no v1 retention claim, inherits LLP 0053 unconditionally, and puts the `authScopeField` declaration-passthrough argument on the page; no convergence-fixture obligation is left dangling.
+- Semantic acceptance is decoupled from the implementation-conformance suite, matching LLP 0063's gate structure.
+- Principal admission is pinned to LLP 0055's effective-principal projection with a stable refusal code and negative acceptance case.
+- List/pagination ordering is total (owner-leading index, `_id` tie-break, versioned cursor with cross-plan/cross-owner/malformed refusal) with a cross-target duplicate-order-key witness.
+
+The reviewer verified no new corpus collisions: the table-ineligibility rule is generation-time-decidable under LLP 0056's schema-level membership metadata (and weaker than 0056's own HostPlan refusal, consistently); the mutation lowering correctly claims LLP 0051's server-evaluated conditional extension with the LLP 0004/0007 same-landing pointer; new diagnostics collide with nothing.
+
+Three LOW wording residues were reported (a "pre-entry" mislabel in the receipt bullet, autonomous agents classified only by elimination, and the unnamed owner-transfer actor in the race witness); all three were fixed after this review with one-clause edits. The reviewer recommended the document as READY for author acceptance; this review performs no status transition.

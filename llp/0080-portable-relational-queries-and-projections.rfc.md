@@ -261,7 +261,10 @@ trace that records which predicate refused a row is a separately authorized,
 scoped, and redacted audit channel, not part of the application or default
 inspection surface. The claim is semantic noninterference — equal observable
 bytes and codes — not a constant-work timing claim; timing-channel hardening
-is future work and is not asserted.
+is future work and is not asserted. This boundary governs missing-versus-
+invisible on read paths; the separately declared `sharedFanOutDisclosure`
+capacity channel (§3, maintained projections) is a write-path signal outside
+this claim, which is exactly why it requires its own declaration.
 
 The complete conservative dependency set includes both source tables, every
 filter and join index, and every authorization-backing relation declared by the
@@ -321,9 +324,15 @@ projection leaves plus the output key, from source state at commit version V.
 At commit version V, the output table's logical rows in canonical key order
 must byte-equal `materializeAll(core, V)`. System fields are defined by a
 separate deterministic rule, not by `materializeAll`: an output row's `_id`
-derives from a domain-separated digest of the plan identity plus the output
-key, so the same key always owns the same row identity across maintenance and
-rebuilds; `_createdAt` is fixed at the row's first materialization;
+derives from a domain-separated digest of the projection's **stored
+identity** plus the output key. The stored identity is assigned at first
+activation, carries its own activation timestamp, and is revision-stable —
+§6's hash comparison detects that a plan changed; it does not re-key rows —
+so the same output key owns the same row identity across maintenance,
+rebuilds, and plan revisions. The digest maps into LLP 0007's UUIDv7 shape
+the way LLP 0081 §3 pins, except the time bits carry the stored identity's
+activation timestamp constant rather than a per-migration value, keeping the
+mapping key-stable; `_createdAt` is fixed at the row's first materialization;
 `_version` and `_updatedAt` come from the maintaining mutation's commit — or,
 under an LLP 0081 rebuild, from that RFC's publication constants
 (`publicationTimestamp`, publication version) for rows whose logical bytes
@@ -377,11 +386,17 @@ Plan activation runs under LLP 0081's exclusive barrier and performs the same
 proof over existing data and all already active projections. The bound is per
 source table in either role: for each table, the worst-case sum of one direct
 write plus every active plan's output writes triggered by a single-row
-mutation of that table — one output row per plan rooted on it, up to
+**non-key-moving** mutation of that table — one output row per plan rooted on
+it, up to
 `fanOutLimit` rows per plan joined to it — must stay within 1,024. Activation
-refuses when adding the plan would let any single-row write exceed that
+refuses when adding the plan would let any such write exceed that
 ceiling, so a table rooted or joined into many plans cannot accumulate an
 always-refusing write path that ordinary admission could not have created.
+A key-moving update touches the union of pre- and post-image keys and may
+therefore exceed what a non-key-moving write proves; it is refused
+dynamically by the per-mutation proof and remains expressible as a
+delete-then-insert pair of separately bounded mutations — activation
+guarantees the non-key-moving path, not atomic key moves at maximum fan-out.
 
 The mapper is deterministic over committed source values. It cannot read wall
 time, generate identifiers, perform network I/O, call opaque handlers, or read
@@ -518,10 +533,13 @@ A separate implementation-conformance suite — the LLP 0080 half of
   `left` plan deriving owner identity from the joined side is refused;
 - pagination tests prove inner omission may produce a short page without
   refill, an all-omitted window still returns a progressing continuation,
-  `take: 0` and end-of-stream behave as pinned, the next root cursor
-  duplicates or skips no untouched admitted root, and malformed, cross-plan,
-  cross-user, stale-authority, and concurrently-mutated cursors are refused
-  with `SNAPBACK_RELATIONAL_CURSOR_INVALID`;
+  `take: 0` and end-of-stream behave as pinned, and malformed, cross-plan,
+  cross-argument-set, cross-user, stale-authority, and
+  order-schema-invalid-boundary cursors are each refused
+  with `SNAPBACK_RELATIONAL_CURSOR_INVALID`; concurrent-mutation fixtures
+  witness §2's stated bound — no skipped and no duplicated untouched root,
+  with boundary movement tolerated for concurrently mutated roots — rather
+  than a refusal §2 does not define;
 - a two-instance live test proves both dependency tables trigger replacement,
   authority rotation fences predecessor results, and no `live_delta` claim is
   emitted; an obligation-fault test proves a lost shrinking replacement is

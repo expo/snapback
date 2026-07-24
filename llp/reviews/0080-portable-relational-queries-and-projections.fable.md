@@ -173,3 +173,16 @@ cross-plan summed wedge, and projection same-subject language could more
 explicitly be static rather than caller-relative. Both were clarified after the
 review. The reviewer recommended author acceptance; this review does not perform
 that status transition.
+
+## Re-review — 2026-07-24 (post GPT-round reconciliation)
+
+**Provider / runtime:** claude-code sub-agent (Fable, fresh session — not the authoring or reconciling session)
+**Method:** sub-agent
+
+The document was substantially revised on 2026-07-24 to reconcile the GPT family's round 1 (see the .codex.md artifact). This fresh-session re-review verified all five prior READY-gate areas HOLD (core/callable separation and `materializeAll`; fan-out proof coherence; `public-read` semantics; evaluator lists, including the exact 2,048-overfetch fit; 0080/0081 coupling via `RELATIONAL_MIGRATION_COUPLED_SUITE_V1`), and cleared the new material's index-served filter restriction, byte-equality comparator, cursor binding versus the buffered overlay, `sharedFanOutDisclosure` versus the widening ban, and the output-table raw-read rule.
+
+Initial verdict was **NOT READY** on two MEDIUM findings introduced by the reconciliation itself: the acceptance corpus demanded a concurrent-mutation cursor refusal §2 forbids and cannot witness, and the output-row `_id` rule digested an undefined "plan identity" whose only defined reading (the plan hash) contradicted the document's own preservation rules and LLP 0081's inherited-`_id` rule; plus two LOW findings (the activation bound's worst-case model excluded key-moving doubling; the noninterference claim was unscoped against the disclosure channel).
+
+## Targeted verification — 2026-07-24
+
+**READY.** All four findings verified RESOLVED after fixes: the pagination bullet now witnesses §2's stated concurrency bound with exactly §2's refusal classes; §5 digests the revision-stable stored projection identity (activation-timestamp time bits, LLP 0081 §3's UUIDv7 layout) consistently with §6 and LLP 0081; the activation bound is scoped to non-key-moving mutations consistently with the exact-fit fan-out witness; and the noninterference boundary names the write-path disclosure channel as outside its claim. No new contradictions; prior gate areas untouched. The remaining LOW test-coverage nit (cross-argument-set and order-schema-invalid cursor refusals not separately named as witnesses) was fixed after the review. The reviewer recommended the document as READY for author acceptance; this review performs no status transition.
