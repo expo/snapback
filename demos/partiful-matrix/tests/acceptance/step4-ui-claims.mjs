@@ -38,10 +38,16 @@ mkdirSync(resultsRoot, { recursive: true });
 const iosSimulatorPreparation = selectedBrowser === 'ios-safari'
   ? prepareIosSimulatorAccessibility(iosSimulatorUdid)
   : null;
+const macosSafariPreparation = selectedBrowser === 'safari'
+  ? prepareMacosSafariAccessibility()
+  : null;
 let iosSimulatorRestoration = null;
 let iosSimulatorRestored = false;
+let macosSafariRestoration = null;
+let macosSafariRestored = false;
 process.once('exit', () => {
   if (iosSimulatorPreparation && !iosSimulatorRestored) restoreIosSimulatorAccessibility(iosSimulatorPreparation);
+  if (macosSafariPreparation && !macosSafariRestored) restoreMacosSafariAccessibility(macosSafariPreparation);
 });
 const runs = [];
 try {
@@ -82,7 +88,9 @@ try {
   }
 } finally {
   if (iosSimulatorPreparation) iosSimulatorRestoration = restoreIosSimulatorAccessibility(iosSimulatorPreparation);
+  if (macosSafariPreparation) macosSafariRestoration = restoreMacosSafariAccessibility(macosSafariPreparation);
   iosSimulatorRestored = true;
+  macosSafariRestored = true;
 }
 
 const a11y = compareA11y(runs);
@@ -110,6 +118,9 @@ const report = {
   browser: selectedBrowser,
   iosSimulatorAccessibility: iosSimulatorPreparation
     ? { preparation: iosSimulatorPreparation.attestation, restoration: iosSimulatorRestoration }
+    : null,
+  macosSafariAccessibility: macosSafariPreparation
+    ? { preparation: macosSafariPreparation.attestation, restoration: macosSafariRestoration }
     : null,
   isolation: `Each arm × claim cell starts a fresh in-memory Snapback server, gateway, Vite server, ${selectedBrowser} process/session, and page. Mutating keyboard evidence therefore cannot alter visual or accessibility fixtures.`,
   arms,
@@ -159,6 +170,64 @@ function digest(path) {
 function gitRevision(cwd) {
   const result = spawnSync('git', ['rev-parse', 'HEAD'], { cwd, encoding: 'utf8' });
   return result.status === 0 ? result.stdout.trim() : null;
+}
+
+function prepareMacosSafariAccessibility() {
+  const before = readMacosPreference('com.apple.universalaccess', 'reduceMotion');
+  const changed = before !== true;
+  if (changed) writeMacosPreference('com.apple.universalaccess', 'reduceMotion', true);
+  const during = readMacosPreference('com.apple.universalaccess', 'reduceMotion');
+  if (during !== true) {
+    throw new Error(`macOS Safari accessibility preflight failed: ${JSON.stringify({ before, during })}`);
+  }
+  return {
+    before,
+    changed,
+    attestation: {
+      domain: 'com.apple.universalaccess',
+      preference: 'reduceMotion',
+      before,
+      during,
+      changed,
+      policy: 'Reduce Motion is enabled before desktop Safari evidence; the prior value is restored afterward. SafariDriver reads the host preference when each isolated session starts.',
+    },
+  };
+}
+
+function restoreMacosSafariAccessibility(preparation) {
+  if (preparation.changed) {
+    if (preparation.before === null) deleteMacosPreference('com.apple.universalaccess', 'reduceMotion');
+    else writeMacosPreference('com.apple.universalaccess', 'reduceMotion', preparation.before);
+  }
+  const restored = readMacosPreference('com.apple.universalaccess', 'reduceMotion');
+  const ok = restored === preparation.before;
+  if (!ok) {
+    throw new Error(`macOS Safari accessibility restoration failed: ${JSON.stringify({ expected: preparation.before, restored })}`);
+  }
+  return { restored, ok };
+}
+
+function readMacosPreference(domain, preference) {
+  const result = spawnSync('/usr/bin/defaults', ['read', domain, preference], { encoding: 'utf8' });
+  if (result.status !== 0) return null;
+  const value = result.stdout.trim();
+  if (value === '1') return true;
+  if (value === '0') return false;
+  throw new Error(`unexpected macOS preference ${domain} ${preference}: ${JSON.stringify(value)}`);
+}
+
+function writeMacosPreference(domain, preference, value) {
+  const result = spawnSync('/usr/bin/defaults', ['write', domain, preference, '-bool', value ? 'YES' : 'NO'], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(`defaults write ${domain} ${preference} failed: ${(result.stderr || result.stdout).trim()}`);
+  }
+}
+
+function deleteMacosPreference(domain, preference) {
+  const result = spawnSync('/usr/bin/defaults', ['delete', domain, preference], { encoding: 'utf8' });
+  if (result.status !== 0) {
+    throw new Error(`defaults delete ${domain} ${preference} failed: ${(result.stderr || result.stdout).trim()}`);
+  }
 }
 
 function prepareIosSimulatorAccessibility(udid) {
