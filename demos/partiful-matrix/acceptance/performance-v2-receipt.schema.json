@@ -191,6 +191,88 @@
           }
         }
       }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "p0a-preregistration"
+          },
+          "valid": {
+            "const": true
+          }
+        },
+        "required": [
+          "kind",
+          "valid"
+        ]
+      },
+      "then": {
+        "properties": {
+          "p0a": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/p0a"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "correctnessWitness"
+                ],
+                "properties": {
+                  "correctnessWitness": true,
+                  "p0aComplete": {
+                    "const": true
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "cycle"
+          },
+          "valid": {
+            "const": true
+          }
+        },
+        "required": [
+          "kind",
+          "valid"
+        ]
+      },
+      "then": {
+        "properties": {
+          "cycle": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/cycle"
+              },
+              {
+                "type": "object",
+                "required": [
+                  "regression",
+                  "metrics"
+                ],
+                "properties": {
+                  "regression": true,
+                  "metrics": true,
+                  "observations": {
+                    "type": "array",
+                    "minItems": 7,
+                    "maxItems": 7
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
     }
   ],
   "$defs": {
@@ -432,7 +514,6 @@
         "fixtureTreesVerified",
         "collectorSha256",
         "collectorManifest",
-        "correctnessWitness",
         "p0aComplete"
       ],
       "properties": {
@@ -586,9 +667,7 @@
         "warmup",
         "cycleIndex",
         "schedule",
-        "observations",
-        "regression",
-        "metrics"
+        "observations"
       ],
       "properties": {
         "phase": {
@@ -636,7 +715,7 @@
         },
         "observations": {
           "type": "array",
-          "minItems": 7,
+          "minItems": 0,
           "maxItems": 7,
           "items": {
             "$ref": "#/$defs/observation"
