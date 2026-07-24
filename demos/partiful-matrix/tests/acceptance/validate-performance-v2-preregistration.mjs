@@ -254,6 +254,35 @@ if (exactCheckout) {
         'Exact mirror omitted or drifted the retained invalid P0a receipt',
       );
     }
+    const authorityP0aPath = resolve(
+      repoRoot,
+      protocol.artifacts.preregistrationReceiptPath,
+    );
+    if (existsSync(authorityP0aPath)) {
+      const authorityP0aBytes = readFileSync(authorityP0aPath);
+      assert.equal(
+        sha256(gitShow(
+          repoRoot,
+          mirrorSource.revision,
+          protocol.artifacts.preregistrationReceiptPath,
+        )),
+        mirrorSource.p0aReceiptSha256,
+        'Exact mirror source revision does not contain the mirrored valid P0a receipt',
+      );
+      assert.equal(
+        mirrorSource.p0aReceiptSha256,
+        sha256(authorityP0aBytes),
+        'Exact mirror omitted or drifted the valid P0a receipt',
+      );
+      assert.equal(
+        sha256(readFileSync(resolve(
+          mirrorRoot,
+          'performance-v2-preregistration.json',
+        ))),
+        mirrorSource.p0aReceiptSha256,
+        'Exact valid P0a mirror bytes differ from the Snapback authority',
+      );
+    }
     exactMirrorVerified = true;
   }
 }
