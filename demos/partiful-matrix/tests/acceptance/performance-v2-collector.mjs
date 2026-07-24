@@ -55,6 +55,8 @@ const protocol = readJson(protocolPath);
 const protocolBytes = readFileSync(protocolPath);
 const protocolSchemaBytes = readFileSync(protocolSchemaPath);
 const receiptSchemaBytes = readFileSync(receiptSchemaPath);
+const exactP0bReceiptRelativePath =
+  'docs/reports/contract-production-p0b-v2-receipt.v1.json';
 const chromeBin = protocol.environment.browser.executable;
 const serverBin = resolve(repoRoot, 'target/debug/snapback');
 const apiMethods = Object.freeze([
@@ -123,6 +125,33 @@ const run = (command, args, { cwd = repoRoot, encoding = 'utf8' } = {}) => {
   return String(result.stdout).trim();
 };
 const git = (cwd, args) => run('git', args, { cwd });
+
+function gitBytes(cwd, args) {
+  const result = spawnSync('git', args, {
+    cwd,
+    encoding: null,
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  assert.equal(
+    result.status,
+    0,
+    `PARTITIME_V2_GIT_FAILED: git ${args.join(' ')}\n`
+    + result.stderr.toString('utf8').trim(),
+  );
+  return result.stdout;
+}
+
+function gitIsAncestor(cwd, ancestor, descendant = 'HEAD') {
+  const result = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, descendant], {
+    cwd,
+    stdio: 'ignore',
+  });
+  assert.ok(
+    result.status === 0 || result.status === 1,
+    `PARTITIME_V2_GIT_ANCESTRY_FAILED: ${ancestor} ${descendant}`,
+  );
+  return result.status === 0;
+}
 
 function validateSchemas() {
   const ajv = new Ajv2020({ allErrors: true, strict: true });
@@ -786,13 +815,35 @@ function defaultCycleDirectory() {
     : protocol.artifacts.holdoutRawDirectory;
 }
 
-function assertCommittedPath(path, code) {
-  const relativePath = relative(repoRoot, path);
+function assertCommittedPathAt(checkout, path, code) {
+  assert.ok(existsSync(path), `${code}: missing ${path}`);
+  const relativePath = relative(checkout, path);
+  assert.ok(
+    relativePath !== '..'
+      && !relativePath.startsWith(`..${sep}`)
+      && !relativePath.startsWith(sep),
+    `${code}: path escapes checkout: ${path}`,
+  );
   assert.equal(
-    git(repoRoot, ['status', '--porcelain', '--', relativePath]),
+    git(checkout, ['status', '--porcelain', '--', relativePath]),
     '',
     `${code}: ${relativePath}`,
   );
+  const tracked = git(checkout, ['ls-files', '--', relativePath])
+    .split('\n')
+    .filter(Boolean);
+  assert.ok(tracked.length > 0, `${code}: untracked ${relativePath}`);
+  if (statSync(path).isFile()) {
+    assert.equal(
+      sha256(readFileSync(path)),
+      sha256(gitBytes(checkout, ['show', `HEAD:${relativePath}`])),
+      `${code}: working bytes differ from HEAD for ${relativePath}`,
+    );
+  }
+}
+
+function assertCommittedPath(path, code) {
+  assertCommittedPathAt(repoRoot, path, code);
 }
 
 function loadAcceptedCycles(directoryPath, { arm, phase }) {
@@ -864,14 +915,171 @@ function holdoutDependencies(samples) {
   }));
 }
 
-function assertPhaseEntry(source) {
-  assertCleanSource(source);
+function assertValidP0aReceipt(source) {
+  const manifest = collectorManifest();
   const p0aPath = resolve(repoRoot, protocol.artifacts.preregistrationReceiptPath);
-  assert.ok(existsSync(p0aPath), 'PARTITIME_V2_P0A_RECEIPT_MISSING');
+  assertCommittedPath(p0aPath, 'PARTITIME_V2_P0A_RECEIPT_UNCOMMITTED');
   const p0a = readJson(p0aPath);
+  assert.ok(
+    validateReceipt(p0a),
+    'PARTITIME_V2_P0A_RECEIPT_INVALID:\n'
+    + new Ajv2020().errorsText(validateReceipt.errors),
+  );
+  assert.equal(p0a.kind, 'p0a-preregistration', 'PARTITIME_V2_P0A_RECEIPT_KIND');
   assert.equal(p0a.valid, true, 'PARTITIME_V2_P0A_RECEIPT_RED');
   assert.equal(p0a.p0a?.p0aComplete, true, 'PARTITIME_V2_P0A_INCOMPLETE');
-  if (collectPhase === 'P0c-comparator') {
+  assert.equal(
+    p0a.p0a.governedSamplesCollected,
+    false,
+    'PARTITIME_V2_P0A_GOVERNED_SAMPLE_LEAK',
+  );
+  assert.deepEqual(
+    p0a.protocol,
+    protocolIdentity(),
+    'PARTITIME_V2_P0A_PROTOCOL_DRIFT',
+  );
+  assert.deepEqual(
+    p0a.p0a.collectorManifest,
+    manifest,
+    'PARTITIME_V2_P0A_COLLECTOR_MANIFEST_DRIFT',
+  );
+  assert.equal(
+    p0a.p0a.collectorSha256,
+    manifestDigest(manifest),
+    'PARTITIME_V2_P0A_COLLECTOR_DIGEST_DRIFT',
+  );
+  assert.deepEqual(
+    p0a.dependencies,
+    dependencies(manifest),
+    'PARTITIME_V2_P0A_DEPENDENCY_DRIFT',
+  );
+  assert.equal(
+    p0a.p0a.authorityBindingsVerified,
+    protocol.authority.amendments.length,
+    'PARTITIME_V2_P0A_AUTHORITY_COUNT',
+  );
+  assert.equal(
+    p0a.p0a.fixtureTreesVerified,
+    protocol.workload.fixtureTrees.length,
+    'PARTITIME_V2_P0A_FIXTURE_COUNT',
+  );
+  assert.equal(
+    gitIsAncestor(repoRoot, p0a.source.snapbackRevision),
+    true,
+    'PARTITIME_V2_P0A_SNAPBACK_LINEAGE',
+  );
+  assert.equal(
+    gitIsAncestor(resolve(exactCheckout), p0a.source.exactRevision),
+    true,
+    'PARTITIME_V2_P0A_EXACT_LINEAGE',
+  );
+  assert.equal(
+    p0a.source.packageLockSha256,
+    source.packageLockSha256,
+    'PARTITIME_V2_P0A_PACKAGE_LOCK_DRIFT',
+  );
+  return {
+    path: relative(repoRoot, p0aPath),
+    sha256: sha256(readFileSync(p0aPath)),
+    receipt: p0a,
+  };
+}
+
+function assertExactP0bReceipt(p0a) {
+  const exactRoot = resolve(exactCheckout);
+  const receiptPath = resolve(exactRoot, exactP0bReceiptRelativePath);
+  assertCommittedPathAt(
+    exactRoot,
+    receiptPath,
+    'PARTITIME_V2_P0B_RECEIPT_UNCOMMITTED',
+  );
+  const receipt = readJson(receiptPath);
+  assert.equal(
+    receipt.schemaVersion,
+    'exact.contract-production-p0b-v2-receipt.v1',
+    'PARTITIME_V2_P0B_RECEIPT_SCHEMA',
+  );
+  assert.equal(receipt.authority, 'Exact LLP 0381 P0b');
+  assert.equal(receipt.status, 'complete', 'PARTITIME_V2_P0B_INCOMPLETE');
+  assert.equal(receipt.claimEligible, false, 'PARTITIME_V2_P0B_CLAIM_LEAK');
+  assert.equal(
+    receipt.claimPromotionAuthorized,
+    false,
+    'PARTITIME_V2_P0B_PROMOTION_LEAK',
+  );
+  assert.deepEqual(receipt.p0aEntryReceipt, {
+    repository: 'ccheever/snapback',
+    path: p0a.path,
+    sha256: p0a.sha256,
+    protocolSha256: sha256(protocolBytes),
+    collectorSha256: p0a.receipt.p0a.collectorSha256,
+    milestone: 'P0a-M0',
+    d1Branch: 'correctness-baseline-reset-exception',
+    p0aComplete: true,
+    authorizesP0bEntry: true,
+  }, 'PARTITIME_V2_P0B_P0A_BINDING');
+
+  const change = receipt.isolatedChange;
+  assert.match(change.beforeRevision, /^[a-f0-9]{40}$/);
+  assert.match(change.afterRevision, /^[a-f0-9]{40}$/);
+  assert.equal(change.commitCount, 1);
+  assert.equal(change.subject, 'fix(contract): centralize production dev boundary');
+  assert.equal(change.registeredGate, 'contract-production-dev-boundary');
+  assert.equal(
+    git(exactRoot, ['rev-list', '--count', `${change.beforeRevision}..${change.afterRevision}`]),
+    '1',
+    'PARTITIME_V2_P0B_NOT_ISOLATED',
+  );
+  assert.equal(
+    git(exactRoot, ['show', '-s', '--format=%s', change.afterRevision]),
+    change.subject,
+    'PARTITIME_V2_P0B_SUBJECT_DRIFT',
+  );
+  assert.equal(
+    gitIsAncestor(exactRoot, change.afterRevision),
+    true,
+    'PARTITIME_V2_P0B_CORRECTION_NOT_IN_LINEAGE',
+  );
+
+  const boundaryPath = resolve(exactRoot, change.boundaryArtifactPath);
+  assertCommittedPathAt(
+    exactRoot,
+    boundaryPath,
+    'PARTITIME_V2_P0B_BOUNDARY_ARTIFACT_UNCOMMITTED',
+  );
+  assert.equal(
+    sha256(readFileSync(boundaryPath)),
+    change.boundaryArtifactSha256,
+    'PARTITIME_V2_P0B_BOUNDARY_ARTIFACT_DRIFT',
+  );
+
+  const registry = readJson(resolve(exactRoot, 'exact-verify.json'));
+  const check = registry.checks.find(({ id }) => id === change.registeredGate);
+  assert.ok(check, 'PARTITIME_V2_P0B_REGISTERED_GATE_MISSING');
+  assert.ok(
+    check.artifacts?.includes(change.boundaryArtifactPath),
+    'PARTITIME_V2_P0B_REGISTERED_GATE_ARTIFACT',
+  );
+  run('zsh', ['-lc', check.command], {
+    cwd: resolve(exactRoot, check.cwd ?? '.'),
+  });
+
+  assert.deepEqual(receipt.conclusion, {
+    correctnessRemediationLanded: true,
+    p0bComplete: true,
+    governedPostFixContractPerformanceSamples: 0,
+    thresholdEvaluated: false,
+    targetOrPassFailDerivedFromJudgedCell: false,
+    p0cComparatorRequired: true,
+  }, 'PARTITIME_V2_P0B_CONCLUSION');
+  return receipt;
+}
+
+function assertPhaseEntry(source, phase = collectPhase) {
+  assertCleanSource(source);
+  const p0a = assertValidP0aReceipt(source);
+  assertExactP0bReceipt(p0a);
+  if (phase === 'P0c-comparator') {
     assert.equal(
       existsSync(resolve(repoRoot, protocol.artifacts.holdoutRawDirectory)),
       false,
@@ -1021,7 +1229,7 @@ async function collectCycles() {
 async function deriveThresholdReceipt() {
   const manifest = collectorManifest();
   const source = sourceIdentity();
-  assertCleanSource(source);
+  assertPhaseEntry(source, 'P0c-comparator');
   const environment = environmentIdentity();
   assertPinnedEnvironment(environment);
   const comparatorDirectory = resolve(repoRoot, protocol.artifacts.comparatorRawDirectory);
@@ -1103,7 +1311,7 @@ async function deriveThresholdReceipt() {
 async function aggregateHoldout() {
   const manifest = collectorManifest();
   const source = sourceIdentity();
-  assertCleanSource(source);
+  assertPhaseEntry(source, 'P0c-holdout');
   const environment = environmentIdentity();
   assertPinnedEnvironment(environment);
   const comparatorDirectory = resolve(repoRoot, protocol.artifacts.comparatorRawDirectory);

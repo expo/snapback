@@ -211,7 +211,18 @@ const invalidP0aReceipts = existsSync(invalidP0aDirectory)
       );
       assert.equal(receipt.valid, false, `${name} is retained as invalid`);
       assert.equal(receipt.p0a.p0aComplete, false, `${name} cannot complete P0a`);
-      assert.equal(receipt.p0a.collectorSha256, collectorSha256, `${name} collector drifted`);
+      assert.equal(
+        receipt.p0a.collectorSha256,
+        sha256(Buffer.from(canonicalizeJson(receipt.p0a.collectorManifest), 'utf8')),
+        `${name} collector manifest digest drifted internally`,
+      );
+      for (const input of receipt.p0a.collectorManifest) {
+        assert.equal(
+          sha256(gitShow(repoRoot, receipt.source.snapbackRevision, input.path)),
+          input.sha256,
+          `${name} retained collector input drifted at its source revision: ${input.path}`,
+        );
+      }
       return {
         path: `demos/partiful-matrix/acceptance/results/performance-v2/invalid/${name}`,
         sha256: sha256(readFileSync(path)),
