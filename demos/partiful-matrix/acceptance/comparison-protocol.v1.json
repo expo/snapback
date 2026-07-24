@@ -78,19 +78,19 @@
       "id": "partitime-ws8-native-observer-v3-2026-07-23",
       "date": "2026-07-23",
       "path": "demos/partiful-matrix/acceptance/native-performance-observer-amendment.2026-07-23.json",
-      "status": "proposed"
+      "status": "ratified"
     },
     {
       "id": "partitime-ws8-memory-construct-v2-2026-07-23",
       "date": "2026-07-23",
       "path": "demos/partiful-matrix/acceptance/memory-construct-amendment.2026-07-23.json",
-      "status": "proposed"
+      "status": "ratified"
     },
     {
       "id": "partitime-ws8-web-instrument-v3-2026-07-23",
       "date": "2026-07-23",
       "path": "demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json",
-      "status": "proposed"
+      "status": "ratified"
     },
     {
       "id": "partitime-ws8-authored-source-v2-2026-07-23",
@@ -102,7 +102,7 @@
       "id": "partitime-ws8-authored-source-v3-2026-07-23",
       "date": "2026-07-23",
       "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
-      "status": "proposed"
+      "status": "ratified"
     }
   ],
   "changePolicy": {

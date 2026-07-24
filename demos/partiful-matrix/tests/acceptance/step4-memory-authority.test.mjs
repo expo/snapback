@@ -22,7 +22,7 @@ const protocol = JSON.parse(readFileSync(
 test('accepts the frozen two-part memory construct', () => {
   const result = validateMemoryConstructAmendment(amendment);
   validateMemoryConstructRegistration(protocol, amendment);
-  assert.equal(result.status, 'proposed');
+  assert.equal(result.status, 'ratified');
   assert.deepEqual(result.metricNames, [
     'warmHeapTotalBytesP95',
     'marginalHeapBytesPerLogicalSubscriptionUpper95',
@@ -33,10 +33,10 @@ test('rejects a registry status that diverges from the authority', () => {
   const mutated = structuredClone(protocol);
   const registration = mutated.amendments.find(({ id }) =>
     id === amendment.amendmentId);
-  registration.status = 'ratified';
+  registration.status = 'proposed';
   assert.throws(
     () => validateMemoryConstructRegistration(mutated, amendment),
-    /ratified.*proposed/,
+    /proposed.*ratified/,
   );
 });
 
