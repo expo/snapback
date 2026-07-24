@@ -19,6 +19,22 @@ const releaseLane = {
   firstFrameObserver: 'native-host',
   authoritativeDataObserver: 'structured-product-marker',
 };
+const candidateObserver = {
+  id: 'capsec-simulator-performance-observer-v1',
+  targetAdvertisementSubstituted: true,
+  rootLoopbackFetchSubstituted: true,
+  ordinaryAbiPreserved: true,
+  runtimeMarkers: {
+    ibexAuthenticatedSubstitution: true,
+    ibexLoopbackFetchSubstituted: true,
+    ibexPostureVerified: true,
+    exactObserverEnabled: true,
+    exactObserverRuntimeCreated: true,
+    exactCarrierDispatchInstalled: true,
+  },
+  diagnosticRuntimeObserved: false,
+  agentObservedBeforeFirstFrame: false,
+};
 
 function writeFixture(root, reactSample, exactSample) {
   const hostIdentity = { os: 'darwin-test', machine: 'fixture' };
@@ -31,6 +47,10 @@ function writeFixture(root, reactSample, exactSample) {
   writeFileSync(resolve(root, 'exact.json'), `${JSON.stringify({
     ok: true,
     source: { snapback: { dirty: false }, exact: { dirty: false } },
+    observer: {
+      id: candidateObserver.id,
+      build: { featureBound: true },
+    },
     performance: { sample: exactSample },
   })}\n`);
   writeFileSync(resolve(root, 'inputs.json'), `${JSON.stringify({
@@ -53,7 +73,11 @@ test('native performance collector aggregates only comparable structured samples
       coldLaunchMs: 20,
       firstAuthoritativeDataMs: 30,
     };
-    writeFixture(root, sample, { ...sample, hermesEvaluationMs: 11 });
+    writeFixture(root, sample, {
+      ...sample,
+      hermesEvaluationMs: 11,
+      candidateObserver,
+    });
     const output = resolve(root, 'report.json');
     const child = spawnSync(process.execPath, [collector, '--quick', '--inputs', resolve(root, 'inputs.json'), '--out', output], {
       encoding: 'utf8',
@@ -82,6 +106,7 @@ test('native performance collector rejects a v2 sample from the wrong lane', () 
     writeFixture(root, sample, {
       ...sample,
       lane: { ...releaseLane, buildConfiguration: 'Debug' },
+      candidateObserver,
     });
     const child = spawnSync(process.execPath, [
       collector,
@@ -91,6 +116,35 @@ test('native performance collector rejects a v2 sample from the wrong lane', () 
     ], { encoding: 'utf8' });
     assert.notEqual(child.status, 0);
     assert.match(child.stderr, /did not attest the paired release lane/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('native performance collector rejects receipts from a different host', () => {
+  const root = mkdtempSync(resolve(tmpdir(), 'partitime-native-performance-host-test-'));
+  try {
+    const sample = {
+      definitionVersion: 'partitime.native-launch-stage.v2',
+      lane: releaseLane,
+      hermesEvaluationMs: 10,
+      startupAssetWeightBytes: 100,
+      coldLaunchMs: 20,
+      firstAuthoritativeDataMs: 30,
+    };
+    writeFixture(root, sample, { ...sample, candidateObserver });
+    const exactPath = resolve(root, 'exact.json');
+    const exact = JSON.parse(readFileSync(exactPath, 'utf8'));
+    exact.environment = { os: 'darwin-test', machine: 'other-fixture' };
+    writeFileSync(exactPath, `${JSON.stringify(exact)}\n`);
+    const child = spawnSync(process.execPath, [
+      collector,
+      '--quick',
+      '--inputs', resolve(root, 'inputs.json'),
+      '--out', resolve(root, 'report.json'),
+    ], { encoding: 'utf8' });
+    assert.notEqual(child.status, 0);
+    assert.match(child.stderr, /Exact receipt host identity differs/);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
