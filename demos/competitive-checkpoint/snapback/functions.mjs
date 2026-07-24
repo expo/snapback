@@ -38,6 +38,7 @@ export const {
   createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
   immutable: ['slug', 'pageKey', 'createdAt'],
+  listIndex: 'by_owner_created',
 });
 
 export const { conversationBySlug } = defineOwnedUniqueLookup({

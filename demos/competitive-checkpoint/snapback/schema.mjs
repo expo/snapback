@@ -11,6 +11,7 @@ export const conversations = defineTable({
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner_created', ['ownerId', 'createdAt'])
   .sync();
 
 export const messages = defineTable({

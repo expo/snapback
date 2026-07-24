@@ -33,7 +33,8 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     optionalKey: v.optional(v.string()),
   })
     .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
-    .index('by_owner_created_slug', ['ownerId', 'createdAt', 'slug'], { unique: true });
+    .index('by_owner_created_slug', ['ownerId', 'createdAt', 'slug'], { unique: true })
+    .index('by_slug_only', ['slug']);
   defineSchema({ todos });
   const names = {
     list: 'listTodos',
@@ -121,6 +122,98 @@ const patternsUrl = pathToFileURL(join(packageDir, 'standard-patterns.mjs')).hre
     'immutable fields must not be silently changed by trusted update defaults',
   );
   assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+    }),
+    /SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED/,
+    'the generated list must name an owner-leading index, never an unindexed owner scan',
+  );
+  assert.throws(
+    () => defineOwnedCrud({
+      table: todos,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      listIndex: 'by_slug_only',
+    }),
+    /SNAPBACK_STANDARD_PATTERN_LIST_INDEX_REQUIRED: listIndex by_slug_only must be a declared index whose leading field is ownerId/,
+    'a list index whose leading field is not the owner field cannot serve the owner scan',
+  );
+  {
+    const rated = defineTable({
+      ownerId: v.string(),
+      title: v.string(),
+      score: v.real(),
+    }).index('by_owner', ['ownerId']);
+    defineSchema({ rated });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: rated,
+        names,
+        visibility: { kind: 'owner', field: 'ownerId' },
+        listIndex: 'by_owner',
+        createDefaults: { score: 'now' },
+      }),
+      /SNAPBACK_STANDARD_PATTERN_INVALID: createDefaults.score uses now but is not an integer millisecond field/,
+      'trusted now binds only to integer millisecond fields, never floats',
+    );
+  }
+  {
+    const memberships = defineTable({
+      userId: v.principal(),
+      eventId: v.string(),
+      role: v.string(),
+    })
+      .index('by_user', ['userId'])
+      .membership({
+        scope: 'resource',
+        principal: 'userId',
+        resource: 'eventId',
+        role: 'role',
+        roles: ['host', 'guest'],
+      });
+    defineSchema({ memberships });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: memberships,
+        names,
+        visibility: { kind: 'owner', field: 'userId' },
+        listIndex: 'by_user',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_TABLE_INELIGIBLE/,
+      'generic CRUD must not own authority-bearing membership writes',
+    );
+  }
+  {
+    const invites = defineTable({
+      ownerId: v.string(),
+      email: v.string(),
+      note: v.string(),
+    })
+      .index('by_owner', ['ownerId'])
+      .index('by_email', ['email'], { unique: true });
+    defineSchema({ invites });
+    assert.throws(
+      () => defineOwnedCrud({
+        table: invites,
+        names,
+        visibility: { kind: 'owner', field: 'ownerId' },
+        listIndex: 'by_owner',
+      }),
+      /SNAPBACK_STANDARD_PATTERN_DISCLOSURE_REQUIRED/,
+      'a global unique index reachable by generated writes is an existence channel and must be declared',
+    );
+    const disclosed = defineOwnedCrud({
+      table: invites,
+      names,
+      visibility: { kind: 'owner', field: 'ownerId' },
+      listIndex: 'by_owner',
+      discloseUniqueConflicts: ['by_email'],
+    });
+    assert.equal(typeof disclosed.listTodos, 'object', 'an explicit disclosure declaration admits the table');
+  }
+  assert.throws(
     () => defineOwnedUniqueLookup({
       table: todos,
       name: 'todoBySlug',
@@ -157,6 +250,7 @@ export const todos = defineTable({
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
   .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner_created', ['ownerId', 'createdAt'])
   .sync();
 export default defineSchema({ todos }, { auth: { mode: 'sessions' } });
 `);
@@ -181,6 +275,7 @@ export const { listTodos, getTodo, createTodo, updateTodo, deleteTodo } = define
   createDefaults: { pageKey: 'id', createdAt: 'now', updatedAt: 'now' },
   updateDefaults: { updatedAt: 'now' },
   immutable: ['slug', 'pageKey', 'createdAt'],
+  listIndex: 'by_owner_created',
 });
 
 export const { todoBySlug } = defineOwnedUniqueLookup({
@@ -234,10 +329,23 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   assert.equal(Object.hasOwn(createSchema.properties, 'createdAt'), false, 'trusted time must not be client-forgeable');
   assert.equal(Object.hasOwn(createSchema.properties, 'updatedAt'), false, 'trusted time must not be client-forgeable');
 
+  const listTodos = byName.get('listTodos');
+  assert.equal(listTodos.runtime.HostPlan.Query.indexed_by, 'by_owner_created');
+  assert.deepEqual(
+    listTodos.runtime.HostPlan.Query.order.map((entry) => entry.field),
+    ['createdAt'],
+    'list order is the declared index sequence; the storage _id suffix totalizes it',
+  );
+
   const update = byName.get('updateTodo');
   const updateSteps = update.runtime.HostPlan.Mutation.steps;
   assert.equal(updateSteps[0].Get.table, 'todos');
-  assert.equal(updateSteps[1].Guard.else_error, 'SNAPBACK_ROW_NOT_VISIBLE');
+  assert.equal(
+    updateSteps[1].Guard.else_error,
+    'SNAPBACK_ROW_NOT_FOUND',
+    'missing and invisible collapse to one public refusal',
+  );
+  assert.equal(updateSteps[0].Get.else_error, 'SNAPBACK_ROW_NOT_FOUND');
   assert.equal(updateSteps[1].Guard.cond.Binary.right, 'AuthUserId');
   assert.equal(updateSteps[2].Patch.values.updatedAt, 'RuntimeNow');
 

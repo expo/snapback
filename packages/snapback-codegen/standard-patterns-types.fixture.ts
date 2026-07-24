@@ -12,7 +12,8 @@ const todos = defineTable({
   title: v.string(),
 })
   .index('by_owner_slug', ['ownerId', 'slug'], { unique: true })
-  .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true });
+  .index('by_owner_page_key', ['ownerId', 'pageKey'], { unique: true })
+  .index('by_owner', ['ownerId']);
 defineSchema({ todos });
 
 const crud = defineOwnedCrud({
@@ -27,6 +28,7 @@ const crud = defineOwnedCrud({
   visibility: { kind: 'owner', field: 'ownerId' },
   createDefaults: { pageKey: 'id' },
   immutable: ['slug', 'pageKey'],
+  listIndex: 'by_owner',
 });
 crud.listTodos;
 crud.updateTodo;
@@ -66,6 +68,7 @@ defineOwnedCrud({
   },
   // @ts-expect-error owner visibility fields must exist on the table
   visibility: { kind: 'owner', field: 'tenantId' },
+  listIndex: 'by_owner',
 });
 
 defineOwnedCrud({
@@ -78,6 +81,7 @@ defineOwnedCrud({
     delete: 'badOwnerDefaultDelete',
   },
   visibility: { kind: 'owner', field: 'ownerId' },
+  listIndex: 'by_owner',
   createDefaults: {
     // @ts-expect-error runtime ids cannot manufacture authority principals
     ownerId: 'id',
@@ -94,6 +98,7 @@ defineOwnedCrud({
     delete: 'badDefaultsDelete',
   },
   visibility: { kind: 'owner', field: 'ownerId' },
+  listIndex: 'by_owner',
   createDefaults: {
     // @ts-expect-error trusted defaults must name a table field
     generatedAt: 'now',
