@@ -29,6 +29,35 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 proposal ratification-integrity checkpoint):** 2026-07-24
+(The four proposed July 23 authorities now preregister their exact required
+owner statements. Memory, web-v3, native-observer-v3, and authored-source-v3
+claim samplers fail closed if a document is merely relabelled `ratified`
+without recording that exact statement; the aggregate independently enforces
+the web and source statements, while the memory authority validator and native
+sampler own their corresponding checks. This changes no proposal status,
+threshold, measurement, or claim.)
+**Revised (Step 4 final authored-source authority proposal):** 2026-07-23
+(The fail-closed aggregate found that the unratified source-v2 candidate
+described the earlier partial UI: the completed React product inventory is
+41,447 bytes rather than 27,517. Source v2 is preserved as superseded,
+never-ratified evidence. Proposed amendment
+`partitime-ws8-authored-source-v3-2026-07-23` freezes the completed symmetric
+workload at 41,447 React bytes and 36,212 Contract bytes, derives the 45,591
+Contract threshold solely from the React control and the unchanged 1.10
+multiplier, and remains ineligible for claim promotion until owner
+ratification.)
+**Revised (Step 4 strict browser citizenship checkpoint):** 2026-07-23
+(The clean cumulative receipt now passes all 21 required rows with no skips or
+cleanup errors. Hash-bound native evidence covers iOS Safari 26.5 and 26.4
+plus physical Android 16 Chrome 150 Stable: real Japanese IME composition,
+native autofill, focus containment/restoration, bfcache state restoration, and
+native Find usability. Fresh source-bound Safari 26.5.2 and Firefox 152
+receipts plus Chrome 150's 19/19 product gate and Find receipt cover both
+desktop assertions against Exact `ab8e87a6…`. The strict citizenship claim is
+green. Its clean downstream aggregate now passes all 12 immutable production,
+hydration, routing, metadata, push, Exact-registry, and residual-citizenship
+requirements, so `STEP4.PRODUCTION_WEB` is green as well.)
 **Revised (Step 4 v3 web/source authority proposal):** 2026-07-23 (The
 committed v2 calibration/holdout proved the optimized build rows green but
 exposed two invalid instruments. First UI was first observed only at

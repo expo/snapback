@@ -75,9 +75,19 @@ assert.equal(invalidation.invalidates.methodId, previousInvalidation.replacement
 assert.equal(invalidation.invalidates.thresholdSetId, previousInvalidation.replacement.thresholdSetId);
 assert(Number.isFinite(invalidation.replacement.idleCpuResolutionFloorMsPerSecond));
 assert(invalidation.replacement.idleCpuResolutionFloorMsPerSecond >= 0);
+assert.equal(
+  invalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-web-instrument-v3-2026-07-23.',
+  'performance v3 ratification statement drifted',
+);
 if (!quick) {
   assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
-  assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v2 claim-eligible sampling');
+  assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v3 claim-eligible sampling');
+  assert.equal(
+    invalidation.ratificationStatement,
+    invalidation.requiredRatificationStatement,
+    'performance v3 sampling requires the exact owner ratification statement',
+  );
 }
 assert(existsSync(serverBin), `missing Snapback server: ${serverBin}`);
 assert(existsSync(chromeBin), `missing Chrome: ${chromeBin}`);

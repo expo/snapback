@@ -2214,3 +2214,91 @@ source-workload rollover. The proposed replacement compares complete shared
 product-authoring bytes and reports asymmetric platform support separately.
 The current product row is 21,618 Contract bytes against 27,517 React bytes;
 neither proposal can promote a claim before ratification.
+
+## 2026-07-23 — locale-default formatting broke otherwise-correct hydration
+
+A source-bound immutable-production rerun failed Exact's adoption gate even
+though static rendering and client rendering each looked right in isolation.
+Partitime's `fmtWhen` helper delegated both field selection and punctuation to
+locale-default `toLocaleString`: Bun rendered `Sat, Aug 1 at 6:00 PM`, while
+Chrome rendered `Sat, Aug 1, 6:00 PM`. Exact correctly treated those as
+different authored bytes and recreated the tree instead of claiming adoption.
+
+The app now pins the `en-US` calendar and `America/Los_Angeles` product time
+zone, reads named `formatToParts` fields, and owns the punctuation joining
+them. A focused probe requires Node and Bun to render all three fixture dates
+identically; the immutable browser gate remains the browser-side proof.
+
+This was app-authoring friction shared by React SSR and Contract SSG rather
+than a fundamental Contract defect. Exact's capability index already marks
+`ssg.static-export` as an owned Guide GAP, so there was no page that falsely
+promised a locale-determinism paved road. The failure mode was unusually good:
+the adoption gate rejected the mismatch and made the non-deterministic helper
+obvious instead of silently replacing the first paint.
+
+## 2026-07-23 — physical Android closed the last citizenship rows
+
+The remaining Android rows needed browser-owned behavior, not a desktop
+emulation or synthetic DOM events. A physical Nothing A069P running Android
+16 supplied Chrome 150 Stable, Gboard's Japanese QWERTY layout, Google
+Autofill, hardware key delivery, the system Back action, and Chrome's native
+Find UI. Chrome 150 was admitted as current because it was the broadly
+released Android Stable major on the run date; the Chrome 151 announcement
+explicitly described an early-Stable rollout to only a small percentage of
+users.
+
+The real IME path produced visibly marked `かんぱい`, then committed the native
+`乾杯` candidate through exactly one `compositionend` with no non-composing
+input before it. Chrome's synthetic local address profile populated
+`123 Market Street` through one input and one change event while the Contract
+dialog stayed open. Hardware Enter, Shift-Tab, Tab, and Escape proved the
+dialog trap and opener restoration. A document leave followed by Android Back
+returned with `pageshow.persisted === true`, retained the unsubmitted wall
+draft, and accepted another edit. Native Find reported `1/1` for the visible
+event title, and a physical tap still opened the event after the Find UI was
+dismissed.
+
+Each row is tied to one device receipt plus the relevant screenshots and
+content hashes. The phone's font scale was the normal `1.0`; the run therefore
+also exposed narrow-screen visual pressure in the event detail layout that
+the five citizenship assertions do not themselves judge. That should remain
+visible as product-UI work rather than being mislabeled as an IME, autofill,
+focus, bfcache, or Find failure.
+
+The desktop Safari, Firefox, and Chrome receipts were then rerun from clean
+Snapback commits against the current Exact `ab8e87a6…` source. The cumulative
+collector admitted all 21 rows with no skips or cleanup errors, making the
+strict citizenship result claim-eligible. The separately invoked
+production-web aggregate then consumed that committed receipt and passed all
+12 requirements, including immutable artifacts, no-JavaScript authority,
+zero-recreation hydration, history, metadata, non-root base paths, push, and
+the Exact capability registry. Neither result promotes an unratified
+performance instrument. No Snapback guide gap was encountered.
+
+Merging the later product-UI work exposed an evidence-custody collision: the
+older Exact LLP 0211 bridge and the newer strict Partitime collector both wrote
+`step4-web-citizenship.json`, while the downstream validators expected the
+older envelope. The two receipts now have distinct paths. Production and UI
+closure validate the 21-row Partitime receipt—including every local evidence
+hash and source receipt—while the incomplete Exact bridge remains available as
+independent red evidence. This is the kind of integration failure a typed,
+single-writer artifact registry would have prevented; the fail-closed
+aggregate caught it before claim promotion.
+
+The first post-merge budget preflight caught a second integration drift before
+sampling: the proposed source-v2 comparison still described the partial UI,
+not the final 156-variant product workload. React had grown from the proposed
+27,517 bytes to 41,447 and Contract from 21,618 to 36,212 as both arms gained
+the full form, validation, menu, sheet, RSVP, wall, responsive, and visual
+states. Because v2 was never ratified, it is retained as superseded evidence
+rather than treated as an authority. The v3 proposal freezes the final file
+inventory and hashes and still derives its 45,591-byte Contract limit solely
+from React plus the existing 1.10 multiplier. Contract is below it, but that
+fact is not a claim until the proposal is ratified.
+
+Before handing those decisions back to the owner, I tightened the authority
+edge itself. Each July 23 proposal now carries the exact statement that
+ratifies it, and every claim-eligible collector rejects a status-only edit or
+an approximate approval. That was a small but useful reminder that a
+fail-closed benchmark needs to protect not only numbers and source hashes, but
+also the transition that gives them authority.

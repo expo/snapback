@@ -43,7 +43,7 @@ const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/con
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
 const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json';
 const nativePerformanceInvalidationPath = 'demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json';
-const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23.json';
+const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
@@ -87,6 +87,17 @@ const protocolInvalidation = protocol.amendments.find(({ id }) => id === perform
 assert(protocolInvalidation, `protocol does not register ${performanceInvalidation.amendmentId}`);
 assert.equal(protocolInvalidation.path, performanceInvalidationPath);
 assert.equal(protocolInvalidation.status, performanceInvalidation.status);
+assert.equal(
+  performanceInvalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-web-instrument-v3-2026-07-23.',
+);
+if (performanceInvalidation.status === 'ratified') {
+  assert.equal(
+    performanceInvalidation.ratificationStatement,
+    performanceInvalidation.requiredRatificationStatement,
+    'web performance v3 authority lacks the exact owner ratification statement',
+  );
+}
 const protocolNativeInvalidation = protocol.amendments.find(
   ({ id }) => id === nativePerformanceInvalidation.amendmentId,
 );
@@ -99,6 +110,17 @@ const protocolAuthoredSourceInvalidation = protocol.amendments.find(
 assert(protocolAuthoredSourceInvalidation, `protocol does not register ${authoredSourceInvalidation.amendmentId}`);
 assert.equal(protocolAuthoredSourceInvalidation.path, authoredSourceInvalidationPath);
 assert.equal(protocolAuthoredSourceInvalidation.status, authoredSourceInvalidation.status);
+assert.equal(
+  authoredSourceInvalidation.requiredRatificationStatement,
+  'I ratify partitime-ws8-authored-source-v3-2026-07-23.',
+);
+if (authoredSourceInvalidation.status === 'ratified') {
+  assert.equal(
+    authoredSourceInvalidation.ratificationStatement,
+    authoredSourceInvalidation.requiredRatificationStatement,
+    'authored-source v3 authority lacks the exact owner ratification statement',
+  );
+}
 const performanceInvalidationIdentity = identity(performanceInvalidationPath);
 const webPerformanceReceiptsCurrent = [performanceCalibration, performanceHoldout].every((receipt) =>
   receipt?.methodId === performanceInvalidation.replacement.methodId
@@ -109,7 +131,7 @@ const webPerformanceGovernanceRatified = performanceAmendment.status === 'ratifi
 const webPerformanceStatus = webPerformanceGovernanceRatified && webPerformanceReceiptsCurrent
   ? 'ratified'
   : webPerformanceGovernanceRatified
-    ? 'ratified-but-v2-receipts-missing'
+    ? 'ratified-but-v3-receipts-missing'
     : performanceInvalidation.status;
 const nativePerformanceInvalidationIdentity = identity(nativePerformanceInvalidationPath);
 const nativePerformanceReceiptsCurrent = [nativePerformanceCalibration, nativePerformanceHoldout].every(
@@ -213,6 +235,14 @@ const productSourceInventory = {
   react: inventorySubset('react', productSourcePaths.react),
   contract: inventorySubset('contract', productSourcePaths.contract),
 };
+assert.deepEqual(
+  {
+    react: productSourceInventory.react.files,
+    contract: productSourceInventory.contract.files,
+  },
+  authoredSourceInvalidation.replacement.frozenInventory,
+  'ratification-candidate product source inventory drifted; issue a new dated source amendment',
+);
 const glueInventory = {
   react: inventorySubset('react', supportSourcePaths.react),
   contract: inventorySubset('contract', supportSourcePaths.contract),
@@ -437,10 +467,10 @@ const requirements = [
     ),
   }),
   requirement('authored-source-lines', sourcePass ? 'pass' : 'red', sourcePass
-    ? 'STEP4_BUDGET_SOURCE_VOLUME_V2_PASSED'
+    ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_PASSED'
     : authoredSourceInvalidation.status === 'ratified'
-      ? 'STEP4_BUDGET_SOURCE_VOLUME_V2_EXCEEDS_THRESHOLDS'
-      : 'STEP4_BUDGET_SOURCE_VOLUME_V2_AMENDMENT_NOT_RATIFIED', {
+      ? 'STEP4_BUDGET_SOURCE_VOLUME_V3_EXCEEDS_THRESHOLDS'
+      : 'STEP4_BUDGET_SOURCE_VOLUME_V3_AMENDMENT_NOT_RATIFIED', {
     methodId: authoredSourceInvalidation.replacement.methodId,
     workloadVersion: authoredSourceInvalidation.replacement.workloadVersion,
     thresholdFormulaSetId: authoredSourceInvalidation.replacement.thresholdFormulaSetId,

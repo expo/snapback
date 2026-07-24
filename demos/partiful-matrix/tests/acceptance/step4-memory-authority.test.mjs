@@ -40,6 +40,18 @@ test('rejects a registry status that diverges from the authority', () => {
   );
 });
 
+test('requires the exact owner statement when authority becomes ratified', () => {
+  const mutated = structuredClone(amendment);
+  mutated.status = 'ratified';
+  mutated.ratifiedAt = '2026-07-24';
+  mutated.ratificationStatement =
+    'I generally approve partitime-ws8-memory-construct-v2-2026-07-23.';
+  assert.throws(
+    () => validateMemoryConstructAmendment(mutated),
+    /exact required ratification statement/,
+  );
+});
+
 test('rejects a judged-cell-dependent target', () => {
   const mutated = structuredClone(amendment);
   mutated.construct.total.judgedCellFeedsOwnThreshold = true;

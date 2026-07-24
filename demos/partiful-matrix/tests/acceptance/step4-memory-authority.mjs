@@ -30,6 +30,8 @@ const EXPECTED_CELLS = [
   'contract:convex',
   'contract:sqlite',
 ];
+const REQUIRED_RATIFICATION_STATEMENT =
+  'I ratify partitime-ws8-memory-construct-v2-2026-07-23.';
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, 'utf8'));
@@ -50,12 +52,18 @@ export function validateMemoryConstructAmendment(amendment) {
     amendment.status === 'proposed' || amendment.status === 'ratified',
     'memory amendment status must be proposed or ratified',
   );
+  assert.equal(
+    amendment.requiredRatificationStatement,
+    REQUIRED_RATIFICATION_STATEMENT,
+    'memory amendment ratification statement drifted',
+  );
   if (amendment.status === 'ratified') {
     assert.equal(amendment.ratifier, 'Charlie Cheever, as named by partitime.comparison-protocol.v1');
     assert.match(amendment.ratifiedAt ?? '', /^2026-\d\d-\d\d(?:T.*Z)?$/);
-    assert.match(
-      amendment.ratificationStatement ?? '',
-      /partitime-ws8-memory-construct-v2-2026-07-23/,
+    assert.equal(
+      amendment.ratificationStatement,
+      REQUIRED_RATIFICATION_STATEMENT,
+      'memory amendment must record the exact required ratification statement',
     );
   } else {
     assert.equal(amendment.ratifiedAt, null);
