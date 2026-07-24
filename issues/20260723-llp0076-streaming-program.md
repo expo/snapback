@@ -22,6 +22,9 @@ first):
 
 - `20260723-llp0076-attempt-control-plane.md` — host-owned `StreamAttemptV1`,
   trusted terminalizer, single-runner lease; durable winner returned verbatim
+  — RESOLVED 2026-07-24 (landed on the local arm; residue reassigned to the
+  initiation-state and per-read-fence tickets, the Workerd-arm note, and the
+  prospective LLP 0075 amendment; see `issues/closed/`)
 - `20260723-llp0076-initiation-state.md` — the crash-safe write-ahead
   `initiationState` and host-derived effect-certainty column
 

@@ -816,7 +816,8 @@
             method: req.method || "GET",
             headers: req.headers || {},
             body: req.body == null ? null : req.body,
-            idempotencyKey: req.idempotencyKey == null ? null : req.idempotencyKey
+            idempotencyKey: req.idempotencyKey == null ? null : req.idempotencyKey,
+            attemptToken: req.attemptToken == null ? null : req.attemptToken
           });
         } finally {
           if (hostCallFn === ibexHostCall) {
@@ -885,12 +886,33 @@
           body: body
         };
       };
+      // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+      // surface: an opaque attempt token binding fetch (via the request's
+      // attemptToken field), progress, and terminal settlement under the
+      // single-runner lease. settle() returns the committed durable winner
+      // verbatim, which the action must return rather than local inference.
+      ctx.streamAttempt = {
+        start: function(clientKey) {
+          return host("action.streamAttemptStart", { clientKey: clientKey });
+        },
+        settle: function(attemptToken, cause) {
+          return host("action.streamAttemptSettle", { attemptToken: attemptToken, cause: cause });
+        }
+      };
     } else {
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
       };
       ctx.fetchStream = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "fetchStream");
+      };
+      ctx.streamAttempt = {
+        start: function() {
+          throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "streamAttempt");
+        },
+        settle: function() {
+          throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "streamAttempt");
+        }
       };
       // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
       // The imperative role-gate twin, available in queries and mutations only

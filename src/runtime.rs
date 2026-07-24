@@ -100,6 +100,10 @@ pub struct ActionStreamRequest {
     pub body: Option<String>,
     #[serde(default)]
     pub idempotency_key: Option<String>,
+    /// Optional host-issued `StreamAttemptV1` token binding this upstream
+    /// request as a child cursor of the named attempt (LLP 0076 decision 3).
+    #[serde(default)]
+    pub attempt_token: Option<String>,
 }
 
 fn default_stream_method() -> String {
@@ -160,6 +164,30 @@ pub trait IbexActionHost {
             "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
             "runtime",
             "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+    // control plane: opaque attempt tokens, the single-runner lease, and
+    // compare-and-set terminal settlement returned verbatim.
+    fn start_stream_attempt(
+        &mut self,
+        _client_key: &str,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptStart> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement stream attempt settlement",
+        ))
+    }
+    fn settle_stream_attempt(
+        &mut self,
+        _attempt_token: &str,
+        _cause: crate::stream_attempt::StreamAttemptCause,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement stream attempt settlement",
         ))
     }
 }
@@ -1427,6 +1455,54 @@ impl<'a> IbexHostContext<'a> {
                     .ok_or_else(action_host_missing)?;
                 host.cancel_response_stream(&stream_id)?;
                 Ok(Value::Null)
+            }
+            "action.streamAttemptStart" => {
+                self.ensure_action("streamAttempt.start")?;
+                let client_key = required_string(&args, "clientKey")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.start_stream_attempt(&client_key)?).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the stream attempt record could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "attemptStart", "error": error.to_string() }))
+                })
+            }
+            "action.streamAttemptSettle" => {
+                self.ensure_action("streamAttempt.settle")?;
+                let attempt_token = required_string(&args, "attemptToken")?;
+                let cause = required_string(&args, "cause")?;
+                let Some(cause) = crate::stream_attempt::StreamAttemptCause::parse(&cause) else {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "stream attempt settlement requires one of the five terminal causes",
+                    )
+                    .with_details(json!({
+                        "operation": "settle",
+                        "expected": "complete|failed|cancelled|timed_out|ambiguous",
+                        "received": "unknown cause",
+                        "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                    })));
+                };
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.settle_stream_attempt(&attempt_token, cause)?).map_err(
+                    |error| {
+                        SnapbackError::error(
+                            "SNAPBACK_ACTION_STREAM_INVALID",
+                            "runtime",
+                            "the stream attempt terminal record could not be serialized",
+                        )
+                        .with_details(json!({ "operation": "settle", "error": error.to_string() }))
+                    },
+                )
             }
             // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
             // The imperative twin, decomposed so LLP 0053's one-class-per-op

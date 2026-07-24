@@ -810,6 +810,13 @@ struct DetachedActionHost {
     response_streams: BTreeMap<String, OpenActionResponseStream>,
     closed_response_streams: BTreeSet<String>,
     last_stream_progress_commit: Option<Instant>,
+    /// Control-plane identity of this exact invocation for the
+    /// `StreamAttemptV1` lease and trusted terminalizer (LLP 0076).
+    stream_runner: crate::stream_attempt::StreamRunnerIdentity,
+    /// True for automatically re-dispatched cron/durable invocations, which
+    /// are excluded from streamed actions until resumable retry semantics
+    /// exist (LLP 0076 §Evidence-status, retry-fencing gap).
+    automatic_retry_invocation: bool,
 }
 
 struct ScopedLocalSnapbackGuard {
@@ -861,6 +868,14 @@ impl Drop for ScopedLocalSnapbackGuard {
 }
 
 impl DetachedActionHost {
+    /// Retire a cursor everywhere at once: the read-side closed set (so a
+    /// post-cancel read returns EOF) and the attempt registry's child record
+    /// (so the parent's certainty fold stops treating it as in flight).
+    fn close_response_stream_cursor(&mut self, stream_id: &str) {
+        self.closed_response_streams.insert(stream_id.to_owned());
+        crate::stream_attempt::global_stream_attempt_registry().close_cursor(stream_id);
+    }
+
     fn validate_live(&self, op: &str) -> SnapbackResult<()> {
         if self.abandoned.load(Ordering::SeqCst) {
             return Err(action_abandoned(op));
@@ -1053,6 +1068,11 @@ impl IbexActionHost for DetachedActionHost {
         // rate fence emits the profile-neutral
         // `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, not the retired
         // fixture-flavored `SNAPBACK_REPLY_*` name.
+        // @ref LLP 0076#settlement-and-retry — the single-runner lease: a
+        // runner that does not hold the attempt lease cannot commit progress,
+        // and late commits against a terminal attempt are fenced by the host.
+        crate::stream_attempt::global_stream_attempt_registry()
+            .progress_guard(&self.stream_runner)?;
         if !self.response_streams.is_empty() {
             if self
                 .last_stream_progress_commit
@@ -1099,10 +1119,18 @@ impl IbexActionHost for DetachedActionHost {
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                match outcome {
+                let output = match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
+                };
+                if output.is_ok() {
+                    // @ref LLP 0076#settlement-and-retry — a successful
+                    // nested commit while an attempt cursor is open counts as
+                    // durable progress; retry is prohibited afterwards.
+                    crate::stream_attempt::global_stream_attempt_registry()
+                        .record_progress_commit(&self.stream_runner);
                 }
+                output
             }
             StagedNestedMutation::Detached(staged) => {
                 let crate::local::DetachedIbexMutation { binding, read } = *staged;
@@ -1171,10 +1199,18 @@ impl IbexActionHost for DetachedActionHost {
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                match outcome {
+                let output = match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
+                };
+                if output.is_ok() {
+                    // @ref LLP 0076#settlement-and-retry — a successful
+                    // nested commit while an attempt cursor is open counts as
+                    // durable progress; retry is prohibited afterwards.
+                    crate::stream_attempt::global_stream_attempt_registry()
+                        .record_progress_commit(&self.stream_runner);
                 }
+                output
             }
         }
     }
@@ -1186,6 +1222,18 @@ impl IbexActionHost for DetachedActionHost {
         // @ref LLP 0076#authority-and-lifecycle — stream ownership stays
         // inside this exact detached action host and every operation passes
         // validate_host_call before dispatch.
+        // @ref LLP 0076#settlement-and-retry — automatically re-dispatched
+        // cron/durable invocations are excluded from streamed actions until
+        // resumable retry semantics exist: an automatic retry cannot prove
+        // the prior runner's upstream request never initiated.
+        if self.automatic_retry_invocation {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "automatically retried invocations are excluded from streamed actions",
+                json!({ "expected": "a first-dispatch invocation", "received": "an automatic retry dispatch" }),
+            ));
+        }
         if self.response_streams.len() >= ACTION_STREAM_OPEN_MAX {
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
@@ -1262,6 +1310,18 @@ impl IbexActionHost for DetachedActionHost {
         if remaining.is_zero() {
             return Err(action_deadline_elapsed("fetchStream.open"));
         }
+        // Mint the cursor id and bind it as a child record of the named
+        // attempt BEFORE the request bytes reach the outbound stack: the
+        // write-ahead pre-mark leaves `initiation_possible` standing unless a
+        // provably pre-send failure narrows it (LLP 0076 §Settlement).
+        let stream_id = Uuid::new_v4().to_string();
+        if let Some(attempt_token) = &request.attempt_token {
+            crate::stream_attempt::global_stream_attempt_registry().bind_cursor(
+                attempt_token,
+                &stream_id,
+                &self.stream_runner,
+            )?;
+        }
         let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
         let agent = ureq::AgentBuilder::new()
             .timeout_connect(request_timeout)
@@ -1292,11 +1352,29 @@ impl IbexActionHost for DetachedActionHost {
         };
         let response = match response {
             Ok(response) | Err(ureq::Error::Status(_, response)) => response,
-            Err(ureq::Error::Transport(_)) => {
+            Err(ureq::Error::Transport(transport)) => {
                 // @ref LLP 0076#settlement-and-retry — classification is by
                 // host-provable phase and ambiguity over-approximates: a
                 // non-idempotent transport failure that cannot be proven
-                // pre-initiation is ambiguous, never silently retried.
+                // pre-initiation is ambiguous, never silently retried. Only a
+                // provable pre-send failure (DNS, connection refused, an
+                // unusable URL) narrows the pre-mark to
+                // `definitely_not_initiated`; everything else stays at the
+                // fail-safe `initiation_possible`.
+                let registry = crate::stream_attempt::global_stream_attempt_registry();
+                if matches!(
+                    transport.kind(),
+                    ureq::ErrorKind::Dns
+                        | ureq::ErrorKind::ConnectionFailed
+                        | ureq::ErrorKind::InvalidUrl
+                        | ureq::ErrorKind::UnknownScheme
+                ) {
+                    registry.cursor_initiation(
+                        &stream_id,
+                        crate::stream_attempt::StreamInitiationState::DefinitelyNotInitiated,
+                    );
+                }
+                registry.close_cursor(&stream_id);
                 let timed_out = started.elapsed() >= request_timeout;
                 let (code, message) = if timed_out {
                     (
@@ -1325,6 +1403,12 @@ impl IbexActionHost for DetachedActionHost {
             }
         };
         self.validate_live("fetchStream.open")?;
+        // Response metadata arrived: the certainty axis advances to its
+        // absorbing `response_observed` state.
+        crate::stream_attempt::global_stream_attempt_registry().cursor_initiation(
+            &stream_id,
+            crate::stream_attempt::StreamInitiationState::ResponseObserved,
+        );
         let status = response.status();
         let status_text = response.status_text().to_owned();
         let final_url = response.get_url().to_owned();
@@ -1334,7 +1418,6 @@ impl IbexActionHost for DetachedActionHost {
                 headers.insert(name, value.chars().take(8_192).collect());
             }
         }
-        let stream_id = Uuid::new_v4().to_string();
         let now = Instant::now();
         self.response_streams.insert(
             stream_id.clone(),
@@ -1374,7 +1457,7 @@ impl IbexActionHost for DetachedActionHost {
             ));
         };
         if stream.opened_at.elapsed() >= Duration::from_millis(ACTION_STREAM_WALL_MS) {
-            self.closed_response_streams.insert(stream_id.to_owned());
+            self.close_response_stream_cursor(stream_id);
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_TIMEOUT",
                 "read",
@@ -1383,7 +1466,7 @@ impl IbexActionHost for DetachedActionHost {
             ));
         }
         if stream.last_byte_at.elapsed() >= Duration::from_millis(ACTION_STREAM_IDLE_MS) {
-            self.closed_response_streams.insert(stream_id.to_owned());
+            self.close_response_stream_cursor(stream_id);
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
                 "read",
@@ -1401,7 +1484,7 @@ impl IbexActionHost for DetachedActionHost {
         let read = match stream.reader.read(&mut bytes) {
             Ok(read) => read,
             Err(error) if error.kind() == std::io::ErrorKind::TimedOut => {
-                self.closed_response_streams.insert(stream_id.to_owned());
+                self.close_response_stream_cursor(stream_id);
                 return Err(action_stream_error(
                     "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
                     "read",
@@ -1410,7 +1493,7 @@ impl IbexActionHost for DetachedActionHost {
                 ));
             }
             Err(_) => {
-                self.closed_response_streams.insert(stream_id.to_owned());
+                self.close_response_stream_cursor(stream_id);
                 return Err(action_stream_error(
                     "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
                     "read",
@@ -1420,7 +1503,7 @@ impl IbexActionHost for DetachedActionHost {
             }
         };
         if read == 0 {
-            self.closed_response_streams.insert(stream_id.to_owned());
+            self.close_response_stream_cursor(stream_id);
             return Ok(ActionStreamChunk {
                 done: true,
                 bytes: Vec::new(),
@@ -1428,7 +1511,7 @@ impl IbexActionHost for DetachedActionHost {
             });
         }
         if stream.total_bytes.saturating_add(read as u64) > ACTION_STREAM_TOTAL_BYTES_MAX {
-            self.closed_response_streams.insert(stream_id.to_owned());
+            self.close_response_stream_cursor(stream_id);
             return Err(action_stream_error(
                 "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
                 "read",
@@ -1452,7 +1535,7 @@ impl IbexActionHost for DetachedActionHost {
         if self.response_streams.remove(stream_id).is_some()
             || self.closed_response_streams.contains(stream_id)
         {
-            self.closed_response_streams.insert(stream_id.to_owned());
+            self.close_response_stream_cursor(stream_id);
             return Ok(());
         }
         Err(action_stream_error(
@@ -1461,6 +1544,33 @@ impl IbexActionHost for DetachedActionHost {
             "the response stream id is unknown to this action invocation",
             json!({ "expected": "an invocation-local stream", "received": "unknown stream id" }),
         ))
+    }
+
+    // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+    // record: idempotent start by client key under the single-runner lease.
+    fn start_stream_attempt(
+        &mut self,
+        client_key: &str,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptStart> {
+        self.validate_live("streamAttempt.start")?;
+        crate::stream_attempt::global_stream_attempt_registry().start(
+            Arc::as_ptr(&self.state) as usize,
+            client_key,
+            &self.stream_runner,
+        )
+    }
+
+    fn settle_stream_attempt(
+        &mut self,
+        attempt_token: &str,
+        cause: crate::stream_attempt::StreamAttemptCause,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        self.validate_live("streamAttempt.settle")?;
+        crate::stream_attempt::global_stream_attempt_registry().settle(
+            attempt_token,
+            cause,
+            &self.stream_runner,
+        )
     }
 }
 
@@ -1660,6 +1770,12 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     let abandoned = Arc::new(AtomicBool::new(false));
     let commit_gate = Arc::new(StdMutex::new(()));
     let active_reservation = Arc::new(StdMutex::new(None));
+    // @ref LLP 0076#settlement-and-retry — one control-plane identity per
+    // invocation: the StreamAttemptV1 lease binds to it, and the trusted
+    // terminalizer settles its attempts when it can no longer commit.
+    let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
+    let automatic_retry_invocation = metadata.attempt > 1
+        || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -1669,6 +1785,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
             let active_reservation = active_reservation.clone();
+            let stream_runner = stream_runner.clone();
             move || {
                 let crate::local::DetachedIbexAction {
                     module,
@@ -1693,6 +1810,8 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     response_streams: BTreeMap::new(),
                     closed_response_streams: BTreeSet::new(),
                     last_stream_progress_commit: None,
+                    stream_runner: stream_runner.clone(),
+                    automatic_retry_invocation,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = runtime.invoke_ibex_action_prepared(
@@ -1736,6 +1855,32 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     }
                     Err(error) => Err(error),
                 };
+                // @ref LLP 0076#settlement-and-retry — the trusted
+                // terminalizer's completion leg: whatever the authored path
+                // did, every attempt this invocation still holds open gets a
+                // durable winner. An attempt the action settled is untouched;
+                // an unsettled one maps the invocation outcome onto the five
+                // frozen causes (watchdog/deadline → timed_out, fence loss →
+                // cancelled, anything else — including an action that simply
+                // returned without settling — → failed).
+                let terminal_cause = match &fenced {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_ACTION_TIMEOUT" => {
+                        crate::stream_attempt::StreamAttemptCause::TimedOut
+                    }
+                    Err(error)
+                        if matches!(
+                            error.diagnostic.code.as_str(),
+                            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+                                | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+                                | "SNAPBACK_AUTH_STREAM_RESET"
+                        ) =>
+                    {
+                        crate::stream_attempt::StreamAttemptCause::Cancelled
+                    }
+                    _ => crate::stream_attempt::StreamAttemptCause::Failed,
+                };
+                crate::stream_attempt::global_stream_attempt_registry()
+                    .terminalize_invocation(&stream_runner, terminal_cause);
                 fenced
                     // This is the earliest common envelope boundary and
                     // carries the staging-time values, so rotation cannot
@@ -1759,11 +1904,19 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     }
     match tokio::time::timeout(Duration::from_millis(timeout_ms), &mut receiver).await {
         Ok(Ok(result)) => result,
-        Ok(Err(_closed)) => Err(SnapbackError::error(
-            "SNAPBACK_ACTION_THREAD_FAILED",
-            "runtime",
-            "action execution thread terminated without reporting a result",
-        )),
+        Ok(Err(_closed)) => {
+            // The worker died without publishing a result; its attempts
+            // still need a durable winner.
+            crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
+                &stream_runner,
+                crate::stream_attempt::StreamAttemptCause::Failed,
+            );
+            Err(SnapbackError::error(
+                "SNAPBACK_ACTION_THREAD_FAILED",
+                "runtime",
+                "action execution thread terminated without reporting a result",
+            ))
+        }
         Err(_elapsed) => {
             // Linearize timeout against the bounded commit gate, independent
             // of the global instance lock. A nested handler can be permanently
@@ -1792,6 +1945,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 )
                 .with_details(json!({ "error": error.to_string() }))
             })?;
+            // @ref LLP 0076#settlement-and-retry — the trusted terminalizer's
+            // abandonment leg: abandonment is linearized under the commit
+            // gate above, so no progress commit can land after this settle
+            // writes the durable winner. The hung worker's own completion
+            // settle then loses the compare-and-set and observes this row.
+            crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
+                &stream_runner,
+                crate::stream_attempt::StreamAttemptCause::TimedOut,
+            );
 
             // Hermes' own async-break deadline should already be unwinding
             // the VM. Give that bounded termination path a short grace window
@@ -29127,6 +29289,10 @@ globalThis.__snapbackHandlers = {
             response_streams: BTreeMap::new(),
             closed_response_streams: BTreeSet::new(),
             last_stream_progress_commit: None,
+            stream_runner: crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
+                AtomicBool::new(false),
+            )),
+            automatic_retry_invocation: false,
         }
     }
 
@@ -29174,6 +29340,7 @@ globalThis.__snapbackHandlers = {
                 headers: BTreeMap::new(),
                 body: None,
                 idempotency_key: None,
+                attempt_token: None,
             })
             .expect("open bounded response stream");
         assert_eq!(opened.status, 200);
@@ -29212,6 +29379,7 @@ globalThis.__snapbackHandlers = {
                 headers: BTreeMap::new(),
                 body: None,
                 idempotency_key: None,
+                attempt_token: None,
             })
             .expect_err("non-http stream URL fails closed");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
@@ -29263,6 +29431,7 @@ globalThis.__snapbackHandlers = {
                 headers: BTreeMap::new(),
                 body: None,
                 idempotency_key: None,
+                attempt_token: None,
             })
             .expect("open oversized response stream");
 
@@ -29349,6 +29518,273 @@ globalThis.__snapbackHandlers = {
                 .diagnostic
                 .code,
             "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn automatically_retried_invocations_cannot_open_response_streams() {
+        let mut snapback = LocalSnapback::memory().expect("retry exclusion host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.automatic_retry_invocation = true;
+        let refusal = host
+            .open_response_stream(ActionStreamRequest {
+                url: "http://127.0.0.1:9/never".to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+            })
+            .expect_err("automatic retries are excluded from streamed actions");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+    }
+
+    #[test]
+    fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
+        let mut snapback = LocalSnapback::memory().expect("lease host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut holder = held_action_host(state.clone(), &staged);
+        let mut second = held_action_host(state, &staged);
+
+        let started = holder
+            .start_stream_attempt("lease-fence")
+            .expect("first runner starts the attempt");
+        assert!(started.lease_held);
+        let joined = second
+            .start_stream_attempt("lease-fence")
+            .expect("second runner joins the attempt");
+        assert_eq!(joined.attempt_token, started.attempt_token);
+        assert!(!joined.lease_held, "a live holder keeps the lease");
+
+        // The lease-less runner cannot commit progress at all.
+        assert_eq!(
+            second
+                .run_mutation("hostPlanWrite", HandlerInput::default())
+                .expect_err("a runner without the lease cannot commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_INVALID"
+        );
+        // The holder still can.
+        holder
+            .run_mutation("hostPlanWrite", HandlerInput::default())
+            .expect("the lease holder commits progress");
+
+        // Retry fencing: bind one cursor, commit progress, and a reopen under
+        // the same attempt is refused.
+        crate::stream_attempt::global_stream_attempt_registry()
+            .bind_cursor(&started.attempt_token, "lease-cursor", &holder.stream_runner)
+            .expect("first upstream bind");
+        holder
+            .run_mutation("hostPlanWrite", HandlerInput::default())
+            .expect("progress while the cursor is open");
+        assert_eq!(
+            crate::stream_attempt::global_stream_attempt_registry()
+                .bind_cursor(
+                    &started.attempt_token,
+                    "lease-cursor-2",
+                    &holder.stream_runner
+                )
+                .expect_err("retry after the first durable progress commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_INVALID"
+        );
+
+        // Authored settle under the lease wins; the second runner's settle
+        // receives the committed winner verbatim.
+        let winner = holder
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Cancelled,
+            )
+            .expect("authored settle");
+        let observed = second
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Complete,
+            )
+            .expect("terminal attempt returns the winner");
+        assert_eq!(observed, winner);
+        assert_eq!(
+            observed.cause,
+            crate::stream_attempt::StreamAttemptCause::Cancelled
+        );
+        assert!(
+            observed.effect_may_have_executed,
+            "an in-flight cursor folds into the effect fact"
+        );
+    }
+
+    #[tokio::test]
+    async fn watchdog_abandonment_terminalizes_stream_attempts_with_timed_out() {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "hungAttempt",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"globalThis.__snapbackHandlers = {
+  async hungAttempt(ctx, args) {
+    const started = await ctx.streamAttempt.start(args.clientKey);
+    const begun = Date.now();
+    while (Date.now() - begun < 2000) {}
+    return { started: started };
+  }
+};"#
+                    .to_owned(),
+                    export: "hungAttempt".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("hung attempt state");
+        snapback.load_functions(manifest);
+        let state = Arc::new(Mutex::new(snapback));
+        let counters = isolated_worker_counters();
+
+        let stage = |state: &SharedSnapback| {
+            let state = state.clone();
+            async move {
+                let action = super::with_snapback(&state, |snapback| {
+                    snapback.stage_action_invocation("hungAttempt")
+                })
+                .await
+                .expect("stage hung attempt action");
+                let StagedAction::Detached(action) = action else {
+                    panic!("Ibex action must detach");
+                };
+                action
+            }
+        };
+
+        let action = stage(&state).await;
+        let timed_out = super::run_detached_ibex_action_with_admission_counters_and_timeout(
+            &state,
+            action,
+            HandlerInput {
+                args: json!({ "clientKey": "watchdog-attempt" }),
+                ..HandlerInput::default()
+            },
+            crate::local::manual_action_metadata("test", "hungAttempt"),
+            Arc::new(Semaphore::new(1)),
+            1,
+            counters,
+            150,
+        )
+        .await
+        .expect_err("the watchdog abandons the hung action");
+        assert_eq!(timed_out.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+
+        // The trusted terminalizer wrote the durable winner while the hung
+        // worker was still spinning: a later runner observes timed_out from
+        // the terminalizer and takes the lease over.
+        let action = stage(&state).await;
+        let observed = super::run_detached_ibex_action_with_admission_counters_and_timeout(
+            &state,
+            action,
+            HandlerInput {
+                args: json!({ "clientKey": "watchdog-attempt" }),
+                ..HandlerInput::default()
+            },
+            crate::local::manual_action_metadata("test", "hungAttempt2"),
+            Arc::new(Semaphore::new(1)),
+            1,
+            counters,
+            5_000,
+        )
+        .await
+        .expect("the follow-up runner completes");
+        assert_eq!(
+            observed["started"]["terminal"]["cause"],
+            json!("timed_out")
+        );
+        assert_eq!(
+            observed["started"]["terminal"]["settledBy"],
+            json!("terminalizer")
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_path() {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "attemptAction",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"globalThis.__snapbackHandlers = {
+  async attemptAction(ctx, args) {
+    const started = await ctx.streamAttempt.start(args.clientKey);
+    if (args.settle) {
+      const settled = await ctx.streamAttempt.settle(started.attemptToken, args.cause || "complete");
+      return { started: started, settled: settled };
+    }
+    return { started: started };
+  }
+};"#
+                    .to_owned(),
+                    export: "attemptAction".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("attempt action state");
+        snapback.load_functions(manifest);
+        let state = Arc::new(Mutex::new(snapback));
+
+        let run = |args: Value| {
+            let state = state.clone();
+            async move {
+                let action = super::with_snapback(&state, |snapback| {
+                    snapback.stage_action_invocation("attemptAction")
+                })
+                .await
+                .expect("stage attempt action");
+                let StagedAction::Detached(action) = action else {
+                    panic!("Ibex action must detach");
+                };
+                super::run_detached_ibex_action(
+                    &state,
+                    action,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                    crate::local::manual_action_metadata("test", "attemptAction"),
+                )
+                .await
+                .expect("attempt action completes")
+            }
+        };
+
+        // First runner starts and settles `complete` under its lease.
+        let first = run(json!({ "clientKey": "e2e-attempt", "settle": true })).await;
+        assert_eq!(first["started"]["leaseHeld"], json!(true));
+        assert_eq!(first["started"]["terminal"], Value::Null);
+        assert_eq!(first["settled"]["cause"], json!("complete"));
+        assert_eq!(first["settled"]["settledBy"], json!("authored"));
+
+        // A later invocation with the same client key observes the durable
+        // winner verbatim — its own divergent settle cause is ignored.
+        let second = run(json!({ "clientKey": "e2e-attempt", "settle": true, "cause": "failed" })).await;
+        assert_eq!(second["started"]["leaseHeld"], json!(false));
+        assert_eq!(second["started"]["terminal"]["cause"], json!("complete"));
+        assert_eq!(second["settled"]["cause"], json!("complete"));
+        assert_eq!(second["settled"]["settledBy"], json!("authored"));
+
+        // An action that returns WITHOUT settling forfeits the authored path:
+        // the trusted terminalizer writes the durable winner.
+        let unsettled = run(json!({ "clientKey": "e2e-forfeit", "settle": false })).await;
+        assert_eq!(unsettled["started"]["leaseHeld"], json!(true));
+        let observed = run(json!({ "clientKey": "e2e-forfeit", "settle": false })).await;
+        assert_eq!(observed["started"]["terminal"]["cause"], json!("failed"));
+        assert_eq!(
+            observed["started"]["terminal"]["settledBy"],
+            json!("terminalizer")
         );
     }
 

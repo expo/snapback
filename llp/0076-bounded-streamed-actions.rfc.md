@@ -5,7 +5,15 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (the shared reader-surface baseline previously
+**Revised:** 2026-07-24 (StreamAttemptV1 control plane landed on the local
+arm: host-owned attempt registry with opaque tokens
+(`ctx.streamAttempt.start`/`settle`, `attemptToken` on the stream request),
+atomic single-runner lease with dead-holder takeover, trusted compare-and-set
+terminalizer across the watchdog/fence-loss/forfeiture legs, retry refusal
+after the first durable progress commit, and the automatic-retry cron
+exclusion; the terminalizer/lease/StreamAttemptV1 ledger rows move to
+landed-local with named residue — crash-durable substrate, Workerd arm, and
+fixture reconciliation remain open; status remains Draft). 2026-07-23 (the shared reader-surface baseline previously
 implemented only in a non-landed working tree is now landed on main via the
 gate-2 program worktree: runtime stream DTOs + host-op dispatch, the local
 detached-host implementation with total/idle/wall/read-boundary checks and the
@@ -472,33 +480,51 @@ a fix before gate 2:
   the operation. An authority terminalization that lands during a blocked read
   can still return bytes. The contract requires an exact permit held through
   pull and byte handoff, or an equivalent fenced post-pull check.
-- **Trusted terminalizer (specified above; unimplemented).** The contract now
-  requires a trusted compare-and-set terminalizer or lease-expiry reconciler
-  and a direct attempt-to-cursor cancellation signal, raced for every
-  lifecycle cause. The reference pattern still leaves durable terminal
-  settlement to an authored mutation that cannot run once the action is
-  abandoned, so the attempt row can remain `running`; closing this is required
-  before gate 2.
-- **Single-runner lease and retry fencing (specified above; unimplemented).**
-  `ActionStreamRequest` carries no attempt identity or execution generation,
-  and the reference `startReply` returns the same attempt to concurrent
-  callers without a lease, so two callers can reopen the upstream request
-  before either commits progress. The contract requires distinct
-  client-operation-key / Snapback-attempt-id / provider-key identities, the
-  atomic single-runner lease binding every progress and terminal mutation, and
-  duplicate-sequence acceptance only when byte offset and digest agree. Until
-  it lands, automatically retried cron/LLP 0070 durable invocations are
-  excluded from streamed actions.
+- **Trusted terminalizer (landed on the local arm 2026-07-24; residue
+  tracked).** The local host now owns a compare-and-set terminalizer with
+  three legs: watchdog abandonment (linearized under the commit gate, so no
+  progress commit can land after the terminal write), fence-loss completion
+  (generation retirement and authority terminalization map to `cancelled` when
+  the invocation ends), and authored forfeiture (an action that returns
+  without settling gets `failed`). A durable winner therefore always exists
+  for every attempt a local invocation opened, and the action receives the
+  committed winner verbatim — witnessed by unit, barrier-race, and
+  real-action-path tests including a hung-action watchdog witness. Residue:
+  the direct attempt-to-cursor cancellation signal (aborting an in-flight
+  pull) stays with the per-read-authority-fence ticket, and the Workerd arm
+  has no attempt control plane at all.
+- **Single-runner lease and retry fencing (landed on the local arm
+  2026-07-24; residue tracked).** `StreamAttemptV1` binds an atomic
+  single-runner lease at start: a concurrent `start` on the same client key
+  receives the same attempt without the lease and cannot commit progress or
+  settle; lease takeover requires a dead holder and bumps the runner
+  generation; retry after the first durable progress commit is refused at
+  cursor bind. `ActionStreamRequest` now carries an optional `attemptToken`
+  binding the upstream request as a child cursor. Automatically re-dispatched
+  cron invocations (attempt > 1 or recovery trigger) are refused
+  `fetchStream` outright — the conservative exclusion stays until resumable
+  retry semantics exist. Residue: duplicate-sequence acceptance by byte
+  offset and digest remains authored-pattern work, and the frozen LLP 0075
+  fixture still uses its legacy authored row (reconciliation rides the
+  prospective LLP 0075 amendment noted below); the lease refusal deliberately
+  rides the `SNAPBACK_ACTION_STREAM_INVALID` family rather than minting a
+  ninth code.
 - **Host `initiationState` write-ahead mark (specified above; unimplemented).**
   The host does not yet durably pre-mark `initiation_possible` before the send
   or expose the three-state `initiationState`; today the open path infers
   retry-safety from method/idempotency-key alone. The write-ahead mark is what
   makes the effect-certainty axis crash-safe and transport-agnostic.
-- **Host-owned `StreamAttemptV1` record (specified above; unimplemented).**
-  `ActionStreamRequest` carries no attempt token, and the reference progress
-  schema owns the status field itself; the fence-critical fields must move to
-  a host-owned attempt record with an opaque token so the trusted terminalizer
-  and lease can act after the authored action is gone.
+- **Host-owned `StreamAttemptV1` record (landed on the local arm 2026-07-24;
+  residue tracked).** The runtime now owns the attempt identity, runner
+  lease, per-cursor `initiationState`, and terminal cause+certainty in a
+  host-owned registry, issuing an opaque token via
+  `ctx.streamAttempt.start`/`settle` and binding cursors through the
+  request's `attemptToken` (decisions 2 and 3: certainty persists on the host
+  record; parent attempt with per-cursor children whose certainty folds
+  pessimistically). Residue: the record is process-durable, not yet
+  crash-durable — the durable write-ahead substrate rides the
+  initiation-state ticket; the Workerd arm has no attempt record; and the
+  reference authored pattern does not yet reference the token.
 - **Absolute wall-clock enforcement.** The local host bounds the upstream
   request timeout at the idle window and checks the wall limit only at read
   boundaries, so a productive stream can fail near 5 s and be mislabeled, and
