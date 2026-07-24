@@ -84,7 +84,7 @@ export function App({ provider, initialPersona }: { provider: MatrixProvider; in
   }, [variant]);
   const returnToFeed = () => {
     navigate({ kind: 'feed' });
-    requestAnimationFrame(() => requestAnimationFrame(() => document.querySelector<HTMLElement>('[data-testid="create-event"]')?.focus()));
+    setTimeout(() => document.querySelector<HTMLElement>('[data-testid="create-event"]')?.focus(), 0);
   };
   return (
     <div className={`app-shell variant-${variant}`} data-testid="product-shell">
@@ -250,7 +250,7 @@ function FocusOverlay({ open, title, description, testId, panelClassName = '', i
   useEffect(() => {
     if (!open) return;
     const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    requestAnimationFrame(() => panel.current?.querySelector<HTMLElement>(`[data-testid="${initialFocusTestId}"]`)?.focus());
+    queueMicrotask(() => panel.current?.querySelector<HTMLElement>(`[data-testid="${initialFocusTestId}"]`)?.focus());
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.preventDefault(); onClose(); return; }
       if (event.key !== 'Tab' || !panel.current) return;
