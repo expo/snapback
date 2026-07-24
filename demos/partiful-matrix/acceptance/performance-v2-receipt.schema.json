@@ -220,10 +220,10 @@
               {
                 "type": "object",
                 "required": [
-                  "correctnessWitness"
+                  "correctnessWitnesses"
                 ],
                 "properties": {
-                  "correctnessWitness": true,
+                  "correctnessWitnesses": true,
                   "protocolFrozenBeforeCollector": {
                     "const": true
                   },
@@ -627,61 +627,69 @@
             }
           }
         },
-        "correctnessWitness": {
-          "type": "object",
-          "additionalProperties": false,
-          "required": [
-            "arm",
-            "activeSubscriptions",
-            "apiMethods",
-            "beforeGraceStatus",
-            "afterGraceStatus",
-            "authoritativeDeliveries",
-            "domPatchRecords",
-            "heapReadAttempted"
-          ],
-          "properties": {
-            "arm": {
-              "const": "contract:snapback"
-            },
-            "activeSubscriptions": {
-              "const": 8
-            },
-            "apiMethods": {
-              "type": "array",
-              "minItems": 4,
-              "maxItems": 4,
-              "items": {
+        "correctnessWitnesses": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "arm",
+              "activeSubscriptions",
+              "apiMethods",
+              "beforeGraceStatus",
+              "afterGraceStatus",
+              "authoritativeDeliveries",
+              "domPatchRecords",
+              "heapReadAttempted"
+            ],
+            "properties": {
+              "arm": {
                 "enum": [
-                  "reset",
-                  "awaitStable",
-                  "snapshotCounters",
-                  "applyCanonicalUpdate"
+                  "react:snapback",
+                  "contract:snapback"
                 ]
+              },
+              "activeSubscriptions": {
+                "const": 8
+              },
+              "apiMethods": {
+                "type": "array",
+                "minItems": 4,
+                "maxItems": 4,
+                "items": {
+                  "enum": [
+                    "reset",
+                    "awaitStable",
+                    "snapshotCounters",
+                    "applyCanonicalUpdate"
+                  ]
+                }
+              },
+              "beforeGraceStatus": {
+                "enum": [
+                  "going",
+                  "maybe"
+                ]
+              },
+              "afterGraceStatus": {
+                "enum": [
+                  "going",
+                  "maybe"
+                ]
+              },
+              "authoritativeDeliveries": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "domPatchRecords": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "heapReadAttempted": {
+                "const": false
               }
-            },
-            "beforeGraceStatus": {
-              "enum": [
-                "going",
-                "maybe"
-              ]
-            },
-            "afterGraceStatus": {
-              "enum": [
-                "going",
-                "maybe"
-              ]
-            },
-            "authoritativeDeliveries": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "domPatchRecords": {
-              "type": "integer",
-              "minimum": 1
-            },
-            "heapReadAttempted": {
-              "const": false
             }
           }
         },

@@ -30,9 +30,9 @@
       {
         "repository": "ccheever/snapback",
         "path": "llp/0063-partitime-platform-roadmap.plan.md",
-        "revision": "2604597f08e46d74527c77140eef08984e9062ce",
-        "sha256": "4a5f3b6e6cec9cbcbba68c8913a6cb6eda994f87036ee17db0f008a9b5f6feda",
-        "amendment": "A1"
+        "revision": "081a9c7c443d786badc16613adb14976ae829a0f",
+        "sha256": "1a660a54d2a49df01473cb8092a81c1e274d44e494bdf11ca24be44788399b3c",
+        "amendment": "A2"
       }
     ],
     "preservedV1": {
@@ -63,7 +63,7 @@
     "fixtureTrees": [
       {
         "path": "demos/partiful-matrix/surfaces/react",
-        "gitTree": "58a5387c0ea3d98d1fa58ae6a2023f47032a9305"
+        "gitTree": "c83f40e40cce07883f9a8c54c1ea8711322c7772"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract",
@@ -272,7 +272,7 @@
   "phaseRules": {
     "P0a": {
       "entry": "the three authority amendments are content-bound and v1 remains unchanged",
-      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, and immutable pre-fix correctness evidence; the P0a correctness witness may exercise reset, eight live subscriptions, and one canonical update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
+      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, immutable pre-fix correctness evidence, and the A2 prospective instrument-recovery identity; the replacement P0a correctness witnesses must exercise both react:snapback and contract:snapback through reset, eight independently retained live subscriptions, and one canonical update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
       "exit": "protocol/schema/collector digests and the P0a entry receipt are committed and mirrored before the P0b repair merge"
     },
     "P0b": {
