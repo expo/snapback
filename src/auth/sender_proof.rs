@@ -27,6 +27,14 @@ const DEFAULT_NONCE_CAPACITY: u64 = 100_000;
 // inclusive. Retain its id for the following second as well so an exclusive
 // expiry purge cannot reopen the final accepted instant.
 const REPLAY_RETENTION_AFTER_IAT_SECONDS: u64 = PAST_WINDOW_SECONDS + 1;
+/// Bounded revoked-family sender tombstone horizon: the maximum session
+/// sliding TTL plus tolerated clock skew, hard-capped at 30 days — the
+/// 30-day cap binds, because the sliding window already equals it.
+///
+/// @ref LLP 0077#author-decisions--2026-07-23 — decision 2: after this bound
+/// every credential the tombstone could refuse has itself expired, so a
+/// long-offline client lands in ordinary re-authentication.
+const SENDER_TOMBSTONE_RETENTION_MS: u64 = 30 * 24 * 60 * 60 * 1_000;
 const REPLAY_TABLE: &str = "_snapback_sender_proof_replay";
 const NONCE_TABLE: &str = "_snapback_sender_nonce";
 const EPOCH_TABLE: &str = "_snapback_sender_replay_epoch";
@@ -203,6 +211,11 @@ pub enum SenderAdmissionRejectionKind {
     Invalid,
     Replayed,
     Unavailable,
+    /// A committed logout (or another durable-delete-class revocation) left
+    /// this custody stranded: the post-logout signed request resolved
+    /// against the bounded revoked-family tombstone and must receive the
+    /// terminal `durableDelete` outcome instead of a nonce challenge.
+    TerminalDurableDelete,
 }
 
 #[derive(Clone, Eq, PartialEq)]
@@ -1045,6 +1058,58 @@ pub fn admit_sender_constrained_request(
         )?);
     };
     let Some(family_jwk_thumbprint) = family else {
+        // Bounded revoked-family tombstone (decision 2): a fully valid proof
+        // over a durable-delete-revoked family's bound key receives the
+        // terminal outcome and consumes its proof id without touching nonce
+        // state. Anything less than a valid proof — including a malformed or
+        // wrong-key one — stays behind the anti-oracle cover challenge, so a
+        // bearer-only holder learns nothing about the family's existence.
+        if let Some(bearer) = session_bearer.as_ref() {
+            let now_ms = now_seconds
+                .checked_mul(1_000)
+                .ok_or_else(|| rejection(SenderAdmissionRejectionKind::Invalid, None))?;
+            let tombstoned =
+                tombstoned_sender_family(connection, bearer.token_hash().as_bytes(), now_ms)
+                    .map_err(|_| rejection(SenderAdmissionRejectionKind::Unavailable, None))?;
+            if let Some(tombstone_thumbprint) = tombstoned
+                && let Ok(claimed_nonce) = claimed_proof_nonce(compact_proof)
+            {
+                let expected = SenderProofExpectation {
+                    method,
+                    canonical_external_uri,
+                    access_token: access_token.as_bytes(),
+                    nonce: &claimed_nonce,
+                    family_jwk_thumbprint: &tombstone_thumbprint,
+                    server_unix_seconds: now_seconds,
+                };
+                if let Ok(verified) = verify_sender_proof(compact_proof, &expected) {
+                    let replay_expires_at = verified
+                        .issued_at_seconds
+                        .checked_add(REPLAY_RETENTION_AFTER_IAT_SECONDS)
+                        .ok_or_else(|| {
+                            rejection(SenderAdmissionRejectionKind::Unavailable, None)
+                        })?;
+                    return Err(
+                        match consume_sender_proof_id(
+                            connection,
+                            admission_epoch,
+                            verified.proof_id,
+                            now_seconds,
+                            replay_expires_at,
+                            replay_capacity,
+                        ) {
+                            Ok(()) => {
+                                rejection(SenderAdmissionRejectionKind::TerminalDurableDelete, None)
+                            }
+                            Err(ReplayConsumeError::Replay) => {
+                                rejection(SenderAdmissionRejectionKind::Replayed, None)
+                            }
+                            Err(_) => rejection(SenderAdmissionRejectionKind::Unavailable, None),
+                        },
+                    );
+                }
+            }
+        }
         return Err(fresh_challenge(
             connection,
             admission_epoch,
@@ -1453,7 +1518,6 @@ pub fn sender_constraint_for_presented_token(
 /// Atomically consume one verified proof id. SQLite is the shared serialized
 /// authority only for the declared single-process profile; a multi-replica
 /// adapter must replace this with an equivalent shared transactional store.
-#[cfg(test)]
 fn consume_sender_proof_id(
     connection: &mut Connection,
     admission_epoch: u64,
@@ -1599,6 +1663,81 @@ fn fixed_proof_id(encoded: &str) -> Result<[u8; 16], SenderProofError> {
     let mut fixed = [0_u8; 16];
     fixed.copy_from_slice(&proof_id);
     Ok(fixed)
+}
+
+/// Resolve the bounded revoked-family sender tombstone for a presented
+/// (revoked) token: the binding thumbprint survives a durable-delete-class
+/// revocation for the tombstone horizon so a stranded post-logout client can
+/// obtain its terminal outcome. Carrier-class endings (expiry, cap
+/// eviction) and horizons past the bound resolve to nothing — those clients
+/// recover through ordinary re-authentication and the anti-oracle cover
+/// challenge reveals no family fact.
+///
+/// @ref LLP 0077#issuance-refresh-and-recovery — the logout-lost-response
+/// tombstone (decision 2): lookup on the refusal path, no nonce rotation.
+fn tombstoned_sender_family(
+    connection: &Connection,
+    token_hash: &[u8],
+    now_ms: u64,
+) -> Result<Option<String>, ReplayConsumeError> {
+    if token_hash.len() != 32 || now_ms > i64::MAX as u64 {
+        return Err(ReplayConsumeError::Invalid);
+    }
+    let row: Option<(String, String, i64, i64)> = connection
+        .query_row(
+            "SELECT binding.jwk_thumbprint, session.id, session.generation,
+                    session.revoked_at_ms
+             FROM _auth_sessions AS session
+             JOIN _snapback_sender_family_binding AS binding
+               ON binding.session_id = session.id
+             WHERE session.token_hash = ?1
+               AND session.revoked_at_ms IS NOT NULL
+               AND (?2 - session.revoked_at_ms) <= ?3",
+            params![
+                token_hash,
+                now_ms as i64,
+                SENDER_TOMBSTONE_RETENTION_MS as i64,
+            ],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?)),
+        )
+        .optional()
+        .map_err(|_| ReplayConsumeError::Unavailable)?;
+    let Some((thumbprint, session_id, generation, revoked_at_ms)) = row else {
+        return Ok(None);
+    };
+    let (Ok(generation), Ok(revoked_at_ms)) =
+        (u64::try_from(generation), u64::try_from(revoked_at_ms))
+    else {
+        return Err(ReplayConsumeError::Invalid);
+    };
+    // Only a durable-delete-class ending (logout, alarm, reuse, reset,
+    // restore) is a custody-deletion fact; a missing/carrier-class witness
+    // stays private behind the ordinary cover challenge.
+    let reason = crate::storage::auth::read_session_terminal_cause_on(
+        connection,
+        &session_id,
+        generation,
+        revoked_at_ms,
+    )
+    .map_err(|_| ReplayConsumeError::Unavailable)?;
+    let durable_delete = reason.is_some_and(|reason| {
+        matches!(
+            reason.authority_disposition(),
+            crate::auth::session_projection::TerminalAuthorityDisposition::DurableDelete
+        )
+    });
+    Ok(durable_delete.then_some(thumbprint))
+}
+
+/// The nonce value a compact proof claims, decoded with the same strict
+/// codec as full verification. The tombstone path verifies every binding
+/// axis except installed-nonce equality (a tombstoned family never installs
+/// or rotates one), so the claimed value substitutes for the expectation.
+fn claimed_proof_nonce(compact: &str) -> Result<String, SenderProofError> {
+    let (_, encoded_payload, _, _) = compact_parts(compact)?;
+    let payload: SenderProofPayload = serde_json::from_slice(&decode_canonical(encoded_payload)?)
+        .map_err(|_| SenderProofError::Malformed)?;
+    Ok(payload.nonce)
 }
 
 pub fn verify_sender_proof(
@@ -2922,6 +3061,259 @@ mod tests {
                 .unwrap(),
             0,
             "reset clears the replay space with the epoch advance",
+        );
+    }
+
+    #[test]
+    fn logout_tombstone_delivers_terminal_outcome_without_touching_nonce_state() {
+        // @ref LLP 0077#issuance-refresh-and-recovery — decision 2: a
+        // committed logout whose response was lost resolves against the
+        // bounded revoked-family tombstone by thumbprint, receives the
+        // terminal durableDelete outcome, and consumes its proof id without
+        // rotating or freshly generating a nonce; anything less than a valid
+        // proof stays behind the anti-oracle cover challenge.
+        let mut connection = Connection::open_in_memory().unwrap();
+        connection
+            .execute_batch(
+                "PRAGMA foreign_keys = ON;
+                 CREATE TABLE _auth_sessions (
+                    id TEXT PRIMARY KEY,
+                    token_hash BLOB NOT NULL,
+                    generation INTEGER NOT NULL,
+                    revoked_at_ms INTEGER
+                 ) STRICT;
+                 CREATE TABLE _auth_session_tokens (
+                    token_hash BLOB PRIMARY KEY,
+                    session_id TEXT NOT NULL REFERENCES _auth_sessions(id),
+                    superseded_at_ms INTEGER NOT NULL
+                 ) STRICT;
+                 CREATE TABLE _snapback_meta (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL
+                 ) STRICT;",
+            )
+            .unwrap();
+        initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+        let bearer = SessionBearer::generate(&OsRandom).unwrap();
+        let revoked_at_ms: u64 = 900_000;
+        let now_seconds: u64 = 1_000;
+        let session_id = uuid::Uuid::now_v7().hyphenated().to_string();
+        connection
+            .execute(
+                "INSERT INTO _auth_sessions(id, token_hash, generation, revoked_at_ms)
+                 VALUES (?3, ?1, 4, ?2)",
+                params![
+                    bearer.token_hash().as_bytes(),
+                    revoked_at_ms as i64,
+                    session_id
+                ],
+            )
+            .unwrap();
+        let key = proof_key();
+        let transaction = connection.transaction().unwrap();
+        bind_issued_session_sender_constraint(&transaction, &session_id, &key.thumbprint).unwrap();
+        crate::storage::auth::write_session_terminal_cause_in(
+            &transaction,
+            &session_id,
+            4,
+            revoked_at_ms,
+            crate::auth::session_projection::RevocationReason::Logout,
+        )
+        .unwrap();
+        transaction.commit().unwrap();
+        let cover = SenderCoverNonceKey::from_bytes([5_u8; 32]);
+        let nonce_rows = |connection: &Connection| {
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {NONCE_TABLE}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap()
+        };
+
+        // Missing proof: the tombstone stays private behind the cover
+        // challenge and no nonce state appears.
+        let unproven = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            None,
+            now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(unproven.kind, SenderAdmissionRejectionKind::Required);
+        assert!(unproven.challenge().is_some());
+        assert_eq!(nonce_rows(&connection), 0);
+
+        // A wrong-key proof is indistinguishable from an unknown carrier.
+        let stranger = proof_key();
+        let wrong_key = sign_proof(
+            &stranger,
+            bearer.expose_secret(),
+            &"n".repeat(43),
+            now_seconds,
+            [41_u8; 16],
+        );
+        let wrong = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&wrong_key),
+            now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(wrong.kind, SenderAdmissionRejectionKind::Required);
+
+        // The bound key's valid proof (nonce necessarily stale/arbitrary)
+        // receives the terminal outcome and consumes its jti.
+        let proof = sign_proof(
+            &key,
+            bearer.expose_secret(),
+            &"m".repeat(43),
+            now_seconds,
+            [42_u8; 16],
+        );
+        let terminal = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&proof),
+            now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(
+            terminal.kind,
+            SenderAdmissionRejectionKind::TerminalDurableDelete,
+        );
+        assert!(terminal.challenge().is_none(), "no nonce accompanies it");
+        assert_eq!(
+            nonce_rows(&connection),
+            0,
+            "tombstones never touch nonce state"
+        );
+
+        // The consumed proof id refuses replay.
+        let replayed = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&proof),
+            now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(replayed.kind, SenderAdmissionRejectionKind::Replayed);
+
+        // A carrier-class ending (expiry/eviction) is not a deletion fact:
+        // rewrite the witness and the same valid proof stays behind the
+        // cover challenge.
+        let transaction = connection.transaction().unwrap();
+        transaction
+            .execute("DELETE FROM _snapback_meta", [])
+            .unwrap();
+        crate::storage::auth::write_session_terminal_cause_in(
+            &transaction,
+            &session_id,
+            4,
+            revoked_at_ms,
+            crate::auth::session_projection::RevocationReason::CapEviction,
+        )
+        .unwrap();
+        transaction.commit().unwrap();
+        let carrier_proof = sign_proof(
+            &key,
+            bearer.expose_secret(),
+            &"m".repeat(43),
+            now_seconds,
+            [43_u8; 16],
+        );
+        let carrier = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&carrier_proof),
+            now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(carrier.kind, SenderAdmissionRejectionKind::Required);
+
+        // Past the tombstone horizon the family resolves to nothing at all.
+        connection
+            .execute("UPDATE _auth_sessions SET revoked_at_ms = 0", [])
+            .unwrap();
+        let transaction = connection.transaction().unwrap();
+        transaction
+            .execute("DELETE FROM _snapback_meta", [])
+            .unwrap();
+        crate::storage::auth::write_session_terminal_cause_in(
+            &transaction,
+            &session_id,
+            4,
+            0,
+            crate::auth::session_projection::RevocationReason::Logout,
+        )
+        .unwrap();
+        transaction.commit().unwrap();
+        let expired_now_seconds = SENDER_TOMBSTONE_RETENTION_MS / 1_000 + 10;
+        let late_proof = sign_proof(
+            &key,
+            bearer.expose_secret(),
+            &"m".repeat(43),
+            expired_now_seconds,
+            [44_u8; 16],
+        );
+        let late = admit_sender_constrained_request(
+            &mut connection,
+            1,
+            "POST",
+            "https://app.example.test/query",
+            bearer.expose_secret(),
+            Some(&late_proof),
+            expired_now_seconds,
+            120,
+            true,
+            None,
+            None,
+            Some(&cover),
+        )
+        .unwrap_err();
+        assert_eq!(
+            late.kind,
+            SenderAdmissionRejectionKind::Required,
+            "a long-offline client lands in ordinary re-authentication",
         );
     }
 

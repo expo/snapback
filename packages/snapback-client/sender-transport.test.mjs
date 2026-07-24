@@ -669,6 +669,92 @@ try {
   globalThis.fetch = originalFetch;
 }
 
+// LLP 0077 decision 2 (logout tombstone): a committed logout whose response
+// was lost strands custody until the next signed request obtains the
+// terminal durableDelete outcome from the revoked-family tombstone; the
+// client must then delete sender custody (bearer, key, nonce) rather than
+// loop on challenges or keep a dead family.
+const tombstoneRequests = [];
+let tombstoneMode = false;
+globalThis.fetch = async (url, init = {}) => {
+  const request = {
+    url,
+    method: init.method,
+    headers: new Headers(init.headers),
+    body: init.body === undefined ? null : JSON.parse(init.body),
+  };
+  tombstoneRequests.push(request);
+  if (url.endsWith('/auth/session') && !request.headers.has('authorization')) {
+    return Response.json(handshake({ authenticated: false }));
+  }
+  if (url.endsWith('/auth/exchange')) {
+    return Response.json(credential, { headers: { 'dpop-nonce': NONCE_1 } });
+  }
+  if (request.headers.has('dpop') && tombstoneMode) {
+    // Every signed post-logout request resolves against the tombstone: the
+    // terminal outcome carries no nonce header.
+    return Response.json({
+      diagnostic: {
+        code: 'SNAPBACK_AUTH_SESSION_EXPIRED',
+        message: 'authentication session is expired',
+        details: { authorityDisposition: 'durableDelete' },
+      },
+    }, { status: 401 });
+  }
+  if (url.endsWith('/auth/session')) {
+    return Response.json(handshake({ authenticated: true }), {
+      headers: { 'dpop-nonce': NONCE_2 },
+    });
+  }
+  throw new Error(`unexpected sender tombstone request: ${request.method} ${url}`);
+};
+
+try {
+  const tombstoneStorage = createMemoryAuthCustodyStorage();
+  const tombstoneCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage: tombstoneStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const tombstoneClient = new SnapbackClient('https://app.example.test', {
+    authCoordinator: tombstoneCoordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    senderConstrained: true,
+  });
+  await tombstoneClient.authExchange({
+    challengeId: 'tombstone-challenge',
+    code: '123456',
+  });
+  const stranded = tombstoneStorage.snapshot(APP);
+  assert.equal(stranded.formatVersion, 3);
+  assert.equal(stranded.bearer, BEARER);
+
+  // The committed logout's response is lost; every later signed request
+  // resolves against the server-side tombstone.
+  tombstoneMode = true;
+  await assert.rejects(
+    tombstoneClient.query('post_logout_probe'),
+    (error) => (
+      error?.diagnostic?.code === 'SNAPBACK_AUTH_SESSION_EXPIRED'
+      && error?.authorityDisposition === 'durableDelete'
+    ),
+    'the terminal durableDelete outcome surfaces to the caller',
+  );
+  const cleared = tombstoneStorage.snapshot(APP);
+  assert.equal(cleared.formatVersion, 2, 'sender custody settles to anonymous v2');
+  assert.equal(cleared.authority.kind, 'anonymous');
+  assert.equal('senderConstraint' in cleared, false, 'the key and nonce are deleted');
+  assert.equal(
+    JSON.stringify(cleared).includes(BEARER),
+    false,
+    'no bearer survives the terminal outcome',
+  );
+} finally {
+  globalThis.fetch = originalFetch;
+}
+
 const invalidationRequests = [];
 const originalWebSocket = globalThis.WebSocket;
 let invalidationSocket = null;
@@ -842,4 +928,4 @@ try {
   globalThis.WebSocket = originalWebSocket;
 }
 
-console.log('sender-transport.test.mjs: issuance, resource, challenge recovery, refresh, expiry/reset/logout/invalidation recovery, and reflected-secret redaction pass');
+console.log('sender-transport.test.mjs: issuance, resource, challenge recovery, refresh, expiry/reset/logout/tombstone/invalidation recovery, and reflected-secret redaction pass');

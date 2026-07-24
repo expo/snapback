@@ -8917,6 +8917,23 @@ fn sender_admission_response(
     {
         return ApiError::from(error).into_response();
     }
+    // @ref LLP 0077#issuance-refresh-and-recovery — a committed logout whose
+    // response was lost: the tombstone-resolved signed request receives the
+    // terminal durableDelete outcome (LLP 0057's SESSION_EXPIRED shape) so
+    // the stranded client can safely delete custody; no nonce accompanies it.
+    if rejection.kind == SenderAdmissionRejectionKind::TerminalDurableDelete {
+        let mut response = ApiError::from(
+            SnapbackError::error(
+                "SNAPBACK_AUTH_SESSION_EXPIRED",
+                "auth",
+                "authentication session is expired",
+            )
+            .with_details(json!({ "authorityDisposition": "durableDelete" })),
+        )
+        .into_response();
+        *response.status_mut() = StatusCode::UNAUTHORIZED;
+        return response;
+    }
     let (code, status) = match rejection.kind {
         SenderAdmissionRejectionKind::Required => (
             "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
@@ -8934,6 +8951,9 @@ fn sender_admission_response(
             "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",
             StatusCode::SERVICE_UNAVAILABLE,
         ),
+        SenderAdmissionRejectionKind::TerminalDurableDelete => {
+            unreachable!("the terminal durable-delete outcome returns above")
+        }
     };
     let mut response = ApiError::from(SnapbackError::error(
         code,
@@ -26331,6 +26351,167 @@ globalThis.__snapbackHandlers = {
             .await
             .expect("reopen sender-bound grant under the new epoch");
         assert_eq!(reopened.status(), StatusCode::OK);
+    }
+
+    #[tokio::test]
+    async fn committed_logout_with_lost_response_recovers_through_the_sender_tombstone() {
+        // @ref LLP 0077#issuance-refresh-and-recovery — decision 2: after a
+        // committed logout whose response was lost, the next signed request
+        // resolves against the bounded revoked-family tombstone, receives the
+        // terminal durableDelete outcome (no nonce, before body polling), and
+        // its proof id still burns in the shared replay authority.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let mut state = state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, false, false, false),
+            )
+            .expect("install hosted sender sessions posture");
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let provider = state
+            .auth_provider
+            .as_ref()
+            .expect("hosted fixture provider")
+            .clone();
+        let now_ms = provider.now_ms();
+        let state = state
+            .with_hosted_serving_authority(hosted_serving_authority(now_ms))
+            .expect("install hosted sender authority");
+        let router = app(state.clone());
+
+        let (challenge_id, code) =
+            request_hosted_sender_challenge(&router, &provider, "tombstone@example.com").await;
+        let sender_key = HostedSenderProofKey::generate();
+        let issuance_proof =
+            sender_key.issuance_proof(&challenge_id, provider.now_ms() / 1_000, [71_u8; 16]);
+        let exchange = hosted_sender_exchange_response(
+            &router,
+            &challenge_id,
+            &code,
+            sender_key.public_jwk(),
+            &issuance_proof,
+        )
+        .await;
+        assert_eq!(exchange.status(), StatusCode::OK);
+        let nonce_one = exchange
+            .headers()
+            .get(super::SENDER_NONCE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .expect("issuance successor nonce")
+            .to_owned();
+        let bearer = response_json(exchange).await["token"]
+            .as_str()
+            .expect("issued hosted sender bearer")
+            .to_owned();
+
+        // Commit the logout; the response (and its terminal fact) is
+        // "lost" — the client never observes it.
+        let logout_proof = sender_key.resource_proof(
+            "POST",
+            "https://app.example.test/auth/logout",
+            &bearer,
+            &nonce_one,
+            provider.now_ms() / 1_000,
+            [72_u8; 16],
+        );
+        let mut logout = session_auth_http_request(
+            "/auth/logout",
+            serde_json::to_vec(&json!({})).unwrap(),
+            &bearer,
+        );
+        logout.headers_mut().insert(
+            HeaderName::from_static(super::SENDER_PROOF_HEADER),
+            HeaderValue::from_str(&logout_proof).expect("sender logout proof header"),
+        );
+        let logout = router
+            .clone()
+            .oneshot(logout)
+            .await
+            .expect("commit hosted sender logout");
+        assert_eq!(logout.status(), StatusCode::NO_CONTENT);
+
+        // The stranded custody's next signed request: the nonce is
+        // consumed-unknown, so the proof carries an arbitrary stale value.
+        // It must obtain the terminal durableDelete outcome pre-body with no
+        // nonce header — not a challenge loop.
+        let stale_nonce = "m".repeat(43);
+        let terminal_proof = sender_key.resource_proof(
+            "GET",
+            "https://app.example.test/auth/session",
+            &bearer,
+            &stale_nonce,
+            provider.now_ms() / 1_000,
+            [73_u8; 16],
+        );
+        let mut terminal_request = Request::builder()
+            .method("GET")
+            .uri("/auth/session")
+            .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+            .header(super::SENDER_PROOF_HEADER, terminal_proof.clone())
+            .body(Body::new(PanicOnPollBody))
+            .expect("post-logout signed request");
+        offer_auth_client_protocol(&mut terminal_request);
+        let terminal = router
+            .clone()
+            .oneshot(terminal_request)
+            .await
+            .expect("deliver terminal durableDelete outcome");
+        assert_eq!(terminal.status(), StatusCode::UNAUTHORIZED);
+        let terminal_nonce_header = terminal.headers().get(super::SENDER_NONCE_HEADER).cloned();
+        let terminal_body = response_json(terminal).await;
+        assert!(
+            terminal_nonce_header.is_none(),
+            "a tombstoned family never rotates or freshly generates a nonce: {terminal_body}",
+        );
+        assert_eq!(
+            terminal_body["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SESSION_EXPIRED",
+        );
+        assert_eq!(
+            terminal_body["diagnostic"]["details"]["authorityDisposition"],
+            "durableDelete",
+        );
+
+        // The terminal outcome still consumed its proof id.
+        let mut replay_request = Request::builder()
+            .method("GET")
+            .uri("/auth/session")
+            .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+            .header(super::SENDER_PROOF_HEADER, terminal_proof)
+            .body(Body::new(PanicOnPollBody))
+            .expect("replayed post-logout request");
+        offer_auth_client_protocol(&mut replay_request);
+        let replayed = router
+            .clone()
+            .oneshot(replay_request)
+            .await
+            .expect("refuse replayed post-logout proof");
+        assert_eq!(replayed.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(replayed).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SENDER_PROOF_REPLAYED",
+        );
+
+        // Without a proof the tombstone stays private behind the ordinary
+        // anti-oracle challenge.
+        let mut bare_request = Request::builder()
+            .method("GET")
+            .uri("/auth/session")
+            .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+            .body(Body::empty())
+            .expect("bare post-logout request");
+        offer_auth_client_protocol(&mut bare_request);
+        let bare = router
+            .clone()
+            .oneshot(bare_request)
+            .await
+            .expect("cover-challenge the bare post-logout carrier");
+        assert_eq!(bare.status(), StatusCode::UNAUTHORIZED);
+        assert_eq!(
+            response_json(bare).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
+        );
     }
 
     #[tokio::test]

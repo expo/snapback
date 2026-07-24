@@ -802,12 +802,16 @@ proof id without rotating a nonce; a repeat request after the tombstone
 expires converges to LLP 0057's `SESSION_EXPIRED`. An anonymous-recovery
 handshake is an admissible alternative an author may substitute, but the
 tombstone is the default so defect 9 has a concrete negative test. A client
-offline longer than the tombstone horizon is not yet guaranteed eventual safe
-deletion — closing that requires either a retention bound covering the full
-custody lifetime or a durable key-bound anonymous-recovery witness, which is
-the open part of the mechanism decision below. This
-requirement is unimplemented (the sender lookup joins only current sessions);
-it is tracked as defect 9.
+offline longer than the tombstone horizon lands in ordinary
+re-authentication; decision 2 (§Author decisions item 2) accepted this as
+the eventual-safe-deletion answer because after the retention bound every
+credential the tombstone could refuse has itself expired. The mechanism is
+implemented as of 2026-07-24 (defect 9 fixed): the tombstone is realized
+over the durably retained revoked session row, its intact sender binding,
+and the durable-delete-class terminal-cause witness, with the 30-day-capped
+horizon enforced at lookup; only a fully valid proof over the bound key
+distinguishes the tombstone from an unknown carrier, so the anti-oracle
+matrix is preserved.
 
 ## WebSocket and connection binding
 
