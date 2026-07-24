@@ -1431,3 +1431,54 @@ exercises them.
 8. What exact condition triggers risk R6's escalation (elapsed time, a named
    Exact sequencing decision, or a step-entry deadline), and who owns the
    resulting re-scope or re-order decision?
+
+## Amendment A1 (2026-07-24) — Prospective Partitime v2 correctness-baseline reset
+
+This amendment is joint with Exact LLP 0373 A2 and LLP 0204 A2 and records the
+LLP 0381 D1 owner decision. It does not revise or retire
+`partitime-method-rubric-v1`,
+`partitime-threshold-formulas-v1`,
+`partitime-thresholds-v1-sha256-343dcc1429e20e07`, their workload, or any v1
+result. All v1 red claims and missed-instrument dispositions remain preserved.
+
+The selected exception branch is P0a → P0b → P0c:
+
+1. **P0a preregistration.** Before the LLP 0381 P0b correctness repair merges,
+   a new committed comparison protocol and schema mint distinct workload,
+   method, formula-set, collector, environment, and threshold-set identities.
+   They freeze:
+   - a seeded randomized subscription-count schedule;
+   - post-GC total warm JavaScript heap, a fitted fixed intercept, and a
+     per-active-subscription slope as three conjunctive memory gates;
+   - update fan-out and DOM/host patch count as a separate conjunctive gate;
+   - the exact collector, explicit-GC/stabilization procedure, controls,
+     warmups, samples, regression and aggregation methods, invalid-run rules,
+     calibration/holdout split, raw-sample schema, and digest closure; and
+   - target formulas whose variable inputs are limited to the same-workload
+     React comparator/control measurements and preregistered constants.
+2. **P0b correctness repair.** Its entry receipt must bind this three-document
+   amendment and the P0a digests. The repair may merge on correctness evidence,
+   but no governed post-fix Contract performance sample may be collected before
+   the P0c numeric freeze. Historical Contract diagnostic observations remain
+   non-normative ledger inputs and are ineligible for target derivation or
+   holdout adjudication.
+3. **P0c numeric freeze and holdout.** The harness first collects only the
+   preregistered React comparator and control measurements, derives every
+   numeric target from those permitted inputs, and freezes a content-addressed
+   threshold-set identity. The receipt graph and aggregate validator reject any
+   direct or transitive dependency from the judged post-fix Contract cell into
+   its own target. Only after that freeze is the untouched Contract holdout
+   opened.
+
+All gates are conjunctive and fail closed: one memory dimension cannot offset
+another, memory cannot offset fan-out, a skip is not a pass, and an invalid run
+is retained and repeated only under the preregistered rule. Quick or
+calibration results never promote a claim. A valid v2 baseline may only
+tighten. A proven instrument defect, instrument unavailability, or workload
+change follows this Plan's existing preserved-artifact, impact-report,
+new-identity, both-arms-and-controls prospective-rerun procedure.
+
+This amendment authorizes v2 preregistration and the already-selected
+correctness-reset ordering. It does not make the historical 1,394,100-byte or
+6/8 diagnostic figures normative, does not complete P0a/P0b/P0c, and promotes
+no Step 4 claim.
