@@ -1,6 +1,6 @@
 # 0081: verification proof, receipts, and generationRepublish rollback
 
-**Status:** Open
+**Status:** Deferred (phase C)
 **Severity:** P2
 **Systems:** Migrations, Storage, Deployment
 **Author:** Claude (Fable 5), directed by Charlie Cheever

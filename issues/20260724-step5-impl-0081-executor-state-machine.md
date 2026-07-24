@@ -1,6 +1,6 @@
 # 0081: durable executor, admission fence, lifecycle (local SQLite profile)
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Migrations, Storage
 **Author:** Claude (Fable 5), directed by Charlie Cheever

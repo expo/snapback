@@ -1,6 +1,6 @@
 # RELATIONAL_MIGRATION_COUPLED_SUITE_V1 — join gate for 0080/0081 Implemented
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Testing, Migrations, Query planning
 **Author:** Claude (Fable 5), directed by Charlie Cheever

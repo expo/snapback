@@ -1,6 +1,6 @@
 # 0080: transactionally maintained projections + global fan-out proof
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Storage, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever

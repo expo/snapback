@@ -1,6 +1,6 @@
 # 0081: schema-transition journal events, 0053 activation, client handshake
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Migrations, Storage, Live Queries, Auth
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -1,6 +1,6 @@
 # 0081: acceptance corpus (0081 half of the coupled suite)
 
-**Status:** Open
+**Status:** Deferred (phase C)
 **Severity:** P2
 **Systems:** Testing, Migrations, Storage
 **Author:** Claude (Fable 5), directed by Charlie Cheever

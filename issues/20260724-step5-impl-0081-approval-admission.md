@@ -1,6 +1,6 @@
 # 0081: approval/admission records + migrate CLI surface
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Migrations, CLI, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever

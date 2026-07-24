@@ -1,6 +1,6 @@
 # 0081: MigrationPlanArtifactV1 — canonical bytes, deterministic planner, deterministic IDs
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Migrations, Codegen
 **Author:** Claude (Fable 5), directed by Charlie Cheever

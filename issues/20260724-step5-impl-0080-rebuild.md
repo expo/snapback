@@ -1,6 +1,6 @@
 # 0080: shadow rebuild under the 0081 barrier with the split oracle
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Storage, Migrations
 **Author:** Claude (Fable 5), directed by Charlie Cheever

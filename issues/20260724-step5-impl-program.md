@@ -19,6 +19,24 @@ Three lanes run in parallel; the coupled suite joins the 0080/0081 lanes at
 the end. `20260724-step5-impl-0007-implicit-id-suffix.md` is a shared early
 dependency of both the 0065 and 0080 lanes.
 
+**Phasing (author-ratified 2026-07-24):**
+
+- **Phase A (now):** the 0007 implicit-suffix ticket, the full 0065 lane,
+  and the 0080 callable-query slice (plan codegen, root-window evaluator,
+  live/0053). Rationale: highest value density — generated CRUD removes
+  boilerplate from every app and feeds `STEP5.DECLARATION_REDUCTION`;
+  bounded joins are the most user-visible gap. No maintained-projection or
+  migration machinery required.
+- **Phase B (next):** maintained projections + rebuild, the minimal 0081
+  slice they force (barrier/executor, journal events, plan artifact +
+  approval for `RebuildMaintainedProjection`), and the coupled suite.
+- **Phase C (when real deployments need schema changes):** the rest of the
+  0081 lane. 0081 is safety machinery and should land essentially whole —
+  do not trim it; defer it. The hosted DO executor stays deferred behind an
+  LLP 0072 target selection.
+- Step 0's exit remains the critical path for *claiming* any Step 5 gate
+  and outranks Phase B/C work when capacity is contended.
+
 LLP 0065 lane (standard patterns):
 - `20260724-step5-impl-0065-candidate-conformance.md` — move the shipped
   candidate to the accepted spec

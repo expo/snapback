@@ -1,6 +1,6 @@
 # 0081: hosted Durable Object executor profile (deferred)
 
-**Status:** Open
+**Status:** Deferred (LLP 0072 target selection)
 **Severity:** P3
 **Systems:** Migrations, Deployment, Cloudflare
 **Author:** Claude (Fable 5), directed by Charlie Cheever

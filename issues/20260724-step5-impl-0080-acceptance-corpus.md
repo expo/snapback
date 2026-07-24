@@ -1,6 +1,6 @@
 # 0080: acceptance corpus (0080 half of the coupled suite)
 
-**Status:** Open
+**Status:** Deferred (phase B)
 **Severity:** P2
 **Systems:** Testing, Query planning, Authorization
 **Author:** Claude (Fable 5), directed by Charlie Cheever

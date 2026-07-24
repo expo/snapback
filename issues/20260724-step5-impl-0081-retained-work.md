@@ -1,6 +1,6 @@
 # 0081: retained-work postures (empty / dual-compatible)
 
-**Status:** Open
+**Status:** Deferred (phase C)
 **Severity:** P3
 **Systems:** Migrations, Background work
 **Author:** Claude (Fable 5), directed by Charlie Cheever

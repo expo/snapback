@@ -1,6 +1,6 @@
 # 0081: ContentDigestV1 — framed streaming proof digest
 
-**Status:** Open
+**Status:** Deferred (phase C)
 **Severity:** P2
 **Systems:** Migrations, Storage, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

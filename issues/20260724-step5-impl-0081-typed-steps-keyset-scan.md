@@ -1,6 +1,6 @@
 # 0081: closed step vocabulary + MigrationKeysetScanV1
 
-**Status:** Open
+**Status:** Deferred (phase C)
 **Severity:** P2
 **Systems:** Migrations, Storage, Codegen
 **Author:** Claude (Fable 5), directed by Charlie Cheever
