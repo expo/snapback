@@ -970,7 +970,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
           } catch (error) {
             throw new Error(`${state.id}/${theme.id}/${viewport.id} setup failed: ${error.message}`);
           }
-          await visualPage.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+          await waitForFontsAndPaint(visualPage);
           const structural = await visualPage.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
           const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
           if (invalid.length > 0) {
@@ -1042,6 +1042,24 @@ async function waitForTestId(page, testId, label, timeoutMs = 5_000) {
   const result = await page.eval(`(async()=>{const d=Date.now()+${timeoutMs};let node=null;while(Date.now()<d){node=document.querySelector('[data-testid=${JSON.stringify(testId)}]');if(node)return {found:true,testId:node.getAttribute('data-testid'),path:location.pathname,readyState:document.readyState};await new Promise(r=>setTimeout(r,50));}return {found:false,testId:${JSON.stringify(testId)},path:location.pathname,readyState:document.readyState,bodyText:document.body?.textContent?.trim().slice(0,500)??null}})()`);
   if (!result?.found) throw new Error(`${label} did not render required target: ${JSON.stringify(result)}`);
   return result;
+}
+
+async function waitForFontsAndPaint(page) {
+  if (selectedBrowser !== 'safari' && !isIosSafari) {
+    await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+    return;
+  }
+  const deadline = Date.now() + 5_000;
+  let status = null;
+  while (Date.now() < deadline) {
+    status = await page.eval(`document.fonts?.status??'loaded'`);
+    if (status === 'loaded') {
+      await sleep(100);
+      return;
+    }
+    await sleep(50);
+  }
+  throw new Error(`Safari fonts did not settle before visual inspection: ${status}`);
 }
 
 async function tabTo(page, predicate, limit = 16) {
