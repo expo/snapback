@@ -1,0 +1,48 @@
+name: PartitimeSafariTextCarrier
+
+options:
+  createIntermediateGroups: true
+
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+
+targets:
+  CarrierHost:
+    type: application
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - Sources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.snapback.partitime.safari-text-carrier.host
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+
+  SafariTextCarrierUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    deploymentTarget: "18.0"
+    sources:
+      - Tests
+    dependencies:
+      - target: CarrierHost
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.snapback.partitime.safari-text-carrier.tests
+        GENERATE_INFOPLIST_FILE: YES
+        CODE_SIGNING_ALLOWED: NO
+        TEST_TARGET_NAME: CarrierHost
+
+schemes:
+  PartitimeSafariTextCarrier:
+    build:
+      targets:
+        CarrierHost: all
+        SafariTextCarrierUITests: [test]
+    test:
+      targets:
+        - name: SafariTextCarrierUITests
+          parallelizable: false
+          randomExecutionOrder: false
