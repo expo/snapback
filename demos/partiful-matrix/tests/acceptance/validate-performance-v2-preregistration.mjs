@@ -298,6 +298,11 @@ if (existsSync(p0aReceiptPath)) {
   assert.equal(p0aReceipt.valid, true, 'the P0a completion receipt must be valid');
   assert.equal(p0aReceipt.p0a.p0aComplete, true);
   assert.equal(p0aReceipt.p0a.collectorSha256, collectorSha256);
+  assert.deepEqual(
+    p0aReceipt.p0a.correctnessWitnesses.map(({ arm }) => arm),
+    ['react:snapback', 'contract:snapback'],
+    'P0a must witness both comparator and holdout control APIs before P0c',
+  );
 }
 
 const result = {

@@ -664,7 +664,7 @@ const graceStatusExpression = `(() => {
   return null;
 })()`;
 
-async function correctnessWitness(page) {
+async function correctnessWitness(page, arm) {
   await page.evaluate('window.__partitimePerformanceV2.reset(8)');
   const stable = await page.evaluate('window.__partitimePerformanceV2.awaitStable()');
   assert.equal(stable.activeSubscriptions, 8, 'PARTITIME_V2_SUBSCRIPTION_COUNT');
@@ -680,7 +680,7 @@ async function correctnessWitness(page) {
   assert.ok(counters.deliveryCallbacks >= 1, 'PARTITIME_V2_DELIVERY_MISSING');
   assert.ok(counters.domPatchRecords >= 1, 'PARTITIME_V2_PATCH_MISSING');
   return {
-    arm: 'contract:snapback',
+    arm,
     activeSubscriptions: counters.activeSubscriptions,
     apiMethods: [...apiMethods],
     beforeGraceStatus,
@@ -749,7 +749,7 @@ async function emitP0a() {
   ]);
   let authorityBindingsVerified = 0;
   let fixtureTreesVerified = 0;
-  let witness = null;
+  const witnesses = [];
   let failure = null;
   try {
     assertCleanSource(source);
@@ -758,16 +758,18 @@ async function emitP0a() {
       authorityBindingsVerified,
       fixtureTreesVerified,
     } = verifyAuthorityAndFixtures());
-    const { staticUrl, cdp } = await preparedBrowser('contract:snapback');
-    const page = await cdp.newContextPage();
-    try {
-      await page.navigate(`${staticUrl}/performance-v2.html`);
-      await waitForBenchmarkApi(page);
-      witness = await correctnessWitness(page);
-      assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
-      assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
-    } finally {
-      await page.close();
+    for (const arm of ['react:snapback', 'contract:snapback']) {
+      const { staticUrl, cdp } = await preparedBrowser(arm);
+      const page = await cdp.newContextPage();
+      try {
+        await page.navigate(`${staticUrl}/performance-v2.html`);
+        await waitForBenchmarkApi(page);
+        witnesses.push(await correctnessWitness(page, arm));
+        assert.deepEqual(page.state.pageErrors, [], 'PARTITIME_V2_PAGE_ERRORS');
+        assert.deepEqual(page.state.externalRequests, [], 'PARTITIME_V2_EXTERNAL_NETWORK');
+      } finally {
+        await page.close();
+      }
     }
   } catch (error) {
     failure = error;
@@ -792,7 +794,7 @@ async function emitP0a() {
       fixtureTreesVerified,
       collectorSha256: manifestDigest(manifest),
       collectorManifest: manifest,
-      ...(witness ? { correctnessWitness: witness } : {}),
+      ...(witnesses.length > 0 ? { correctnessWitnesses: witnesses } : {}),
       p0aComplete: failure === null,
       remaining: failure === null ? [] : ['valid clean-environment correctness witness'],
     },
@@ -818,7 +820,7 @@ async function emitP0a() {
     throw failure;
   }
   const output = writeReceipt(emitP0aPath, receipt);
-  console.log(JSON.stringify({ ok: true, mode: 'p0a', output, witness }, null, 2));
+  console.log(JSON.stringify({ ok: true, mode: 'p0a', output, witnesses }, null, 2));
 }
 
 function defaultCycleDirectory() {
@@ -940,6 +942,11 @@ function assertValidP0aReceipt(source) {
   assert.equal(p0a.kind, 'p0a-preregistration', 'PARTITIME_V2_P0A_RECEIPT_KIND');
   assert.equal(p0a.valid, true, 'PARTITIME_V2_P0A_RECEIPT_RED');
   assert.equal(p0a.p0a?.p0aComplete, true, 'PARTITIME_V2_P0A_INCOMPLETE');
+  assert.deepEqual(
+    p0a.p0a.correctnessWitnesses.map(({ arm }) => arm),
+    ['react:snapback', 'contract:snapback'],
+    'PARTITIME_V2_P0A_ARM_COVERAGE',
+  );
   assert.equal(
     p0a.p0a.governedSamplesCollected,
     false,
