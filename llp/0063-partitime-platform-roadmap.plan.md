@@ -1,23 +1,6 @@
 # LLP 0063: Partitime platform roadmap
 
-**Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-24 (all three
-Step 5 semantic authorities are now **Accepted** after dual-family LLP 0005
-loops — Fable and Codex both READY on the final texts, artifacts in
-`llp/reviews/`: LLP 0065 (generated-pattern soundness and
-authorization/visibility floor), LLP 0080 (portable relational
-queries/projections), LLP 0081 (reviewed migrations), with same-landing
-amendments to LLP 0004/0007/0072. Acceptance satisfies the "accepted
-semantics" half of the Step 5 entry conjunction and authorizes
-implementation; the executable acceptance witnesses
-(`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` and LLP 0065's conformance suite)
-do not yet exist, step 0 remains the conjunctive prerequisite, and no Step 5
-claim is promoted by this checkpoint. Owner-visible LLP 0080 work carries
-the explicit accepted-LLP-0065 subgate.); 2026-07-20 (Draft LLP
-0065 proposed the generated-pattern soundness and authorization/visibility
-floor; Draft LLP 0080 proposed the first portable bounded-join and
-transactionally maintained-projection profile; and Draft LLP 0081 proposed the
-reviewed migration workflow — none yet accepted, authorizing no
-implementation and promoting no Step 5 claim.)
+**Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-24 (LLP 0065/0080/0081 are now **Accepted** after dual-family LLP 0005 loops — Fable and Codex both READY on the final texts, artifacts in `llp/reviews/` — with same-landing amendments to LLP 0004/0007/0072. Acceptance satisfies the "accepted semantics" half of the Step 5 entry conjunction and authorizes implementation; the executable witnesses (`RELATIONAL_MIGRATION_COUPLED_SUITE_V1`, LLP 0065's conformance suite) do not yet exist, step 0 remains the conjunctive prerequisite, no Step 5 claim is promoted, and owner-visible LLP 0080 work carries the explicit accepted-LLP-0065 subgate.); 2026-07-20 (Draft LLP 0065/0080/0081 proposed the three Workstream 6 semantic authorities — none yet accepted, authorizing no implementation and promoting no Step 5 claim.)
 
 **Revised (Step 6 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLPs
 0068–0073 now propose the missing convergence, payment, durable-work,
