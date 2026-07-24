@@ -28,8 +28,14 @@ export function navigatePartitimeCollection(key: string): void {
   const activeDescendant = owner.getAttribute('aria-activedescendant');
   const activeOption = activeDescendant ? document.getElementById(activeDescendant) : null;
   const focusedOption = active?.getAttribute('role') === 'option' ? active : null;
-  const current = Math.max(0, items.indexOf(owner.getAttribute('role') === 'listbox' ? (focusedOption ?? activeOption as HTMLElement) : active!));
-  const next = key === 'Home'
+  const current = items.indexOf(
+    owner.getAttribute('role') === 'listbox'
+      ? (focusedOption ?? activeOption as HTMLElement)
+      : active!,
+  );
+  const next = current < 0
+    ? key === 'ArrowUp' || key === 'End' ? items.length - 1 : 0
+    : key === 'Home'
     ? 0
     : key === 'End'
       ? items.length - 1
