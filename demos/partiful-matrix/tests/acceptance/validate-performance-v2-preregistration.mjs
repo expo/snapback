@@ -247,13 +247,12 @@ if (exactCheckout) {
       '--',
       ...protocol.artifacts.collectorPaths,
     ]).toString('utf8').trim());
-    for (const invalid of invalidP0aReceipts) {
-      assert.equal(
-        mirrorSource.invalidP0aReceiptSha256,
-        invalid.sha256,
-        'Exact mirror omitted or drifted the retained invalid P0a receipt',
-      );
-    }
+    assert.ok(
+      invalidP0aReceipts.some(
+        ({ sha256: digest }) => digest === mirrorSource.invalidP0aReceiptSha256,
+      ),
+      'Exact mirror omitted or drifted its named retained invalid P0a receipt',
+    );
     const authorityP0aPath = resolve(
       repoRoot,
       protocol.artifacts.preregistrationReceiptPath,
