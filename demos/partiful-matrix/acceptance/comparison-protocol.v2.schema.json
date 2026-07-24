@@ -467,6 +467,7 @@
         "warmupCycles",
         "sampleCycles",
         "aggregation",
+        "actualMetricRounding",
         "outlierPolicy",
         "cycleLifecycle"
       ],
@@ -479,6 +480,9 @@
         },
         "aggregation": {
           "const": "nearest-rank p95 over seven retained valid cycle values (rank ceil(0.95*7)=7); equality passes"
+        },
+        "actualMetricRounding": {
+          "const": "ceil each nonnegative cycle metric before p95 aggregation; integer heap and counter observations are unchanged"
         },
         "outlierPolicy": {
           "const": "retain every valid sample; no trimming, winsorization, replacement, or post-observation exclusion"
@@ -536,9 +540,11 @@
         "marginNumerator",
         "marginDenominator",
         "rounding",
+        "canonicalization",
         "permittedInputs",
         "forbiddenInputs",
         "dependencyRule",
+        "identityRule",
         "freezeRule"
       ],
       "properties": {
@@ -550,6 +556,9 @@
         },
         "rounding": {
           "const": "integer floor after multiplication and before comparison"
+        },
+        "canonicalization": {
+          "const": "RFC 8785 JSON Canonicalization Scheme encoded as UTF-8"
         },
         "permittedInputs": {
           "const": [
@@ -568,6 +577,9 @@
         },
         "dependencyRule": {
           "const": "the threshold receipt graph contains only protocol-constant and react-comparator ancestors; any direct or transitive judged-arm ancestor is a hard validation failure"
+        },
+        "identityRule": {
+          "const": "partitime-thresholds-v2-sha256-<first16> where the digest is SHA-256 over RFC-8785 canonical JSON of {protocolId,workloadVersion,thresholdFormulaSetId,comparatorReceiptDependencies,comparatorMetrics,targets}; thresholdSetId itself is excluded"
         },
         "freezeRule": {
           "const": "derive all five numeric targets, serialize canonical JSON, mint partitime-thresholds-v2-sha256-<first16>, commit it on a clean tree, then and only then permit the judged holdout"
@@ -658,6 +670,7 @@
         "schemaPath",
         "protocolPath",
         "receiptSchemaPath",
+        "collectorPaths",
         "preregistrationReceiptPath",
         "thresholdReceiptPath",
         "comparatorRawDirectory",
@@ -673,6 +686,14 @@
         },
         "receiptSchemaPath": {
           "$ref": "#/$defs/repoPath"
+        },
+        "collectorPaths": {
+          "type": "array",
+          "minItems": 7,
+          "maxItems": 7,
+          "items": {
+            "$ref": "#/$defs/repoPath"
+          }
         },
         "preregistrationReceiptPath": {
           "$ref": "#/$defs/repoPath"

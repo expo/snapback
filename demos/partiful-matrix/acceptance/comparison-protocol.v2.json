@@ -208,6 +208,7 @@
     "warmupCycles": 2,
     "sampleCycles": 7,
     "aggregation": "nearest-rank p95 over seven retained valid cycle values (rank ceil(0.95*7)=7); equality passes",
+    "actualMetricRounding": "ceil each nonnegative cycle metric before p95 aggregation; integer heap and counter observations are unchanged",
     "outlierPolicy": "retain every valid sample; no trimming, winsorization, replacement, or post-observation exclusion",
     "cycleLifecycle": "fresh browser context, reset arm, execute the literal schedule, collect all counts, close context; warmups are retained but never enter targets or verdicts"
   },
@@ -252,6 +253,7 @@
     "marginNumerator": 110,
     "marginDenominator": 100,
     "rounding": "integer floor after multiplication and before comparison",
+    "canonicalization": "RFC 8785 JSON Canonicalization Scheme encoded as UTF-8",
     "permittedInputs": [
       "react:snapback comparator samples collected under this protocol",
       "constants committed in this protocol"
@@ -264,6 +266,7 @@
       "quick-run or calibration outcomes from the judged arm"
     ],
     "dependencyRule": "the threshold receipt graph contains only protocol-constant and react-comparator ancestors; any direct or transitive judged-arm ancestor is a hard validation failure",
+    "identityRule": "partitime-thresholds-v2-sha256-<first16> where the digest is SHA-256 over RFC-8785 canonical JSON of {protocolId,workloadVersion,thresholdFormulaSetId,comparatorReceiptDependencies,comparatorMetrics,targets}; thresholdSetId itself is excluded",
     "freezeRule": "derive all five numeric targets, serialize canonical JSON, mint partitime-thresholds-v2-sha256-<first16>, commit it on a clean tree, then and only then permit the judged holdout"
   },
   "phaseRules": {
@@ -310,6 +313,15 @@
     "schemaPath": "demos/partiful-matrix/acceptance/comparison-protocol.v2.schema.json",
     "protocolPath": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
     "receiptSchemaPath": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
+    "collectorPaths": [
+      "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
+      "demos/partiful-matrix/tests/acceptance/performance-v2-math.mjs",
+      "demos/partiful-matrix/surfaces/react/performance-v2.html",
+      "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
+      "demos/partiful-matrix/surfaces/contract/performance-v2.html",
+      "demos/partiful-matrix/surfaces/contract/performance-v2-main.ts",
+      "demos/partiful-matrix/surfaces/contract/performance-v2.contract"
+    ],
     "preregistrationReceiptPath": "demos/partiful-matrix/acceptance/results/performance-v2-preregistration.json",
     "thresholdReceiptPath": "demos/partiful-matrix/acceptance/results/performance-v2-thresholds.json",
     "comparatorRawDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/raw/react-snapback",
