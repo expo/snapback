@@ -7,6 +7,8 @@
   var TrustedFunction = Function;
   var TrustedMap = Map;
   var TrustedPromise = Promise;
+  var TrustedUint8Array = Uint8Array;
+  var trustedAsyncIterator = typeof Symbol === "function" ? Symbol.asyncIterator : null;
   var trustedString = String;
   var trustedJsonParse = JSON.parse;
   var trustedJsonStringify = JSON.stringify;
@@ -799,9 +801,96 @@
           secretSlots: slots
         });
       };
+      // @ref LLP 0076#surface — pull one host-bounded byte chunk per read;
+      // durable application progress still crosses ctx.runMutation and the
+      // ordinary commit/live-query path.
+      ctx.fetchStream = async function(request) {
+        var req = request || {};
+        var opened;
+        if (hostCallFn === ibexHostCall) {
+          host("action.externalEffectBegin", trustedCreate(null));
+        }
+        try {
+          opened = await host("action.streamOpen", {
+            url: req.url,
+            method: req.method || "GET",
+            headers: req.headers || {},
+            body: req.body == null ? null : req.body,
+            idempotencyKey: req.idempotencyKey == null ? null : req.idempotencyKey
+          });
+        } finally {
+          if (hostCallFn === ibexHostCall) {
+            host("action.externalEffectInitiated", trustedCreate(null));
+          }
+        }
+        var streamId = opened.streamId;
+        var locked = false;
+        var closed = false;
+        function makeReader() {
+          if (locked) {
+            throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "response body is already locked to a reader");
+          }
+          locked = true;
+          var reader = {
+            read: async function() {
+              if (closed) {
+                return { done: true, value: undefined };
+              }
+              var chunk = await host("action.streamRead", { streamId: streamId });
+              if (chunk.done) closed = true;
+              var value = chunk.done
+                ? undefined
+                : trustedReflectConstruct(TrustedUint8Array, [chunk.bytes || []]);
+              return { done: !!chunk.done, value: value };
+            },
+            cancel: async function() {
+              if (!closed) await host("action.streamCancel", { streamId: streamId });
+              closed = true;
+            },
+            // @ref LLP 0076#surface — deliberate deviation from the Web
+            // reader contract: releaseLock throws unless the stream reached
+            // EOF or was cancelled.
+            releaseLock: function() {
+              if (!closed) {
+                throw snapbackError("SNAPBACK_ACTION_STREAM_INVALID", "releaseLock requires EOF or cancellation in the v1 reader profile");
+              }
+            }
+          };
+          return reader;
+        }
+        var body = { getReader: makeReader };
+        if (trustedAsyncIterator) {
+          trustedDefineProperty(body, trustedAsyncIterator, {
+            value: function() {
+              var reader = makeReader();
+              var iterator = {
+                next: reader.read,
+                return: function() {
+                  return trustedReflectApply(trustedPromiseThen, reader.cancel(), [
+                    function() { return { done: true, value: undefined }; }
+                  ]);
+                }
+              };
+              trustedDefineProperty(iterator, trustedAsyncIterator, { value: function() { return iterator; } });
+              return iterator;
+            }
+          });
+        }
+        return {
+          status: opened.status,
+          statusText: opened.statusText,
+          ok: opened.status >= 200 && opened.status < 300,
+          url: opened.url,
+          headers: opened.headers || {},
+          body: body
+        };
+      };
     } else {
       ctx.runMutation = function() {
         throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "runMutation");
+      };
+      ctx.fetchStream = function() {
+        throw snapbackError("SNAPBACK_ACTION_CONTEXT_UNAVAILABLE", "fetchStream");
       };
       // LLP 0056 M3: ctx.permissions.<declaration>.requireRole(resource, ...roles).
       // The imperative role-gate twin, available in queries and mutations only

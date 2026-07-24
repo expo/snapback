@@ -1,0 +1,148 @@
+{
+  "artifactKind": "capabilityManifest",
+  "assetUpload": false,
+  "authImpersonation": true,
+  "authProtocols": {
+    "bootstrap": 1,
+    "invocation": 1,
+    "provider": 1,
+    "stagedMode": 1
+  },
+  "capabilityGaps": [
+    "postgres",
+    "cloudflare",
+    "hosted_untrusted_code",
+    "external_auth",
+    "assets",
+    "notifications",
+    "ephemeral_hosted_adapter",
+    "ephemeral_multi_instance_sticky_routing"
+  ],
+  "cron": true,
+  "ephemeralHostedAdapter": false,
+  "ephemeralLocalRoomAuthority": true,
+  "ephemeralRealtime": true,
+  "ephemeralWebSocketPublish": true,
+  "hostedAuth": {
+    "authenticationThrottle": "processLocal",
+    "clientCredentialPosture": "bearerV1XssExposed",
+    "effectiveSource": "unavailable",
+    "externalTls": "unavailable",
+    "sessionInvalidation": "singleProcess"
+  },
+  "liveSubscriptions": true,
+  "localServerLifecycle": true,
+  "mutationIsolationMode": "handler-captured-read-set-validation",
+  "notifications": false,
+  "offlineRetention": true,
+  "onlineOnlyQueries": true,
+  "optimisticReplay": true,
+  "outboundActions": true,
+  "permissionDiagnostics": false,
+  "portabilityOptOuts": [],
+  "replaceOnlyQueries": true,
+  "resourceLimits": [
+    {
+      "name": "wall_clock_timeout",
+      "status": "Missing"
+    },
+    {
+      "name": "action_wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_total_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_buffered_bytes",
+      "status": "Missing"
+    },
+    {
+      "name": "bounded_response_stream_idle_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_progress_rate",
+      "status": "Enforced"
+    },
+    {
+      "name": "cpu_budget",
+      "status": "Missing"
+    },
+    {
+      "name": "maximum_result_size",
+      "status": "Advisory"
+    },
+    {
+      "name": "maximum_subscription_count",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_value_size",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_publish_rate",
+      "status": "Enforced"
+    },
+    {
+      "name": "ephemeral_durable_lane_priority",
+      "status": "Enforced"
+    }
+  ],
+  "runtimeEngine": "ibex",
+  "schemaVersion": "snapback.v0",
+  "storageEngine": "sqlite",
+  "supportedArtifactAuthPairs": [
+    {
+      "authMode": "dev",
+      "schemaVersion": "snapback.v0"
+    },
+    {
+      "authMode": "sessions",
+      "schemaVersion": "snapback.v1"
+    }
+  ],
+  "supportedArtifactVersions": [
+    "snapback.v0",
+    "snapback.v1"
+  ],
+  "supportedAuthModes": [
+    "dev",
+    "sessions"
+  ],
+  "supportedCapabilities": [
+    "auth.sessions.v1",
+    "bounded_response_stream_v1",
+    "cron",
+    "cron_action_run_mutation",
+    "host_plan_runtime",
+    "ibex_ctx_db_host_bridge",
+    "live_subscriptions",
+    "mutation_read_set_validation",
+    "permission_epoch_resync"
+  ],
+  "supportedQueryForms": [
+    "host-plan-single-table-eq",
+    "host-plan-single-table-in",
+    "host-plan-single-table-range",
+    "host-plan-live-replace",
+    "ibex-ctx-db-single-table-eq",
+    "ibex-ctx-db-single-table-in",
+    "ibex-ctx-db-single-table-range",
+    "ibex-live-eq-replace",
+    "ibex-live-in-replace",
+    "ibex-live-range-replace",
+    "ibex-live-limited-boundary-replace",
+    "websocket-live-replace",
+    "ephemeral-latest-state-local",
+    "websocket-ephemeral-publish",
+    "cron-fixed-interval-local",
+    "cron-calendar-local",
+    "cron-action-run-mutation"
+  ],
+  "syncableLiveQueries": true,
+  "targetProfileId": "local-dev-sqlite-ibex",
+  "vmLifecycle": "fresh-per-invocation"
+}

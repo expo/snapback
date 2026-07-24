@@ -5,7 +5,19 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (author decisions: open questions 1, 2, 3, 4, 5, 8, 9,
+**Revised:** 2026-07-23 (the shared reader-surface baseline previously
+implemented only in a non-landed working tree is now landed on main via the
+gate-2 program worktree: runtime stream DTOs + host-op dispatch, the local
+detached-host implementation with total/idle/wall/read-boundary checks and the
+conservative nested-mutation rate fence, envelope passthrough for the seven
+stream codes, reviewed HTTP statuses, the instance-live
+`bounded_response_stream_v1` capability predicate with regenerated committed
+manifests, codegen admission requirements, and the `ctx.fetchStream` bridge;
+the progress-rate code lands renamed `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`
+per §Author decisions item 4, with the fixture's authored handler updated in
+the same change under protocol amendment v0.4; the LLP 0075 local-streaming
+instrument passes 6/6 against this baseline. The Workerd arm and every staged
+gap below remain open; status remains Draft). 2026-07-23 (author decisions: open questions 1, 2, 3, 4, 5, 8, 9,
 and 10 resolved — see §Author decisions — 2026-07-23; OQ6 and OQ7 remain
 open; the certainty column is host-persisted, attempts gain per-cursor child
 records, non-GET retry idempotency becomes declaration-or-downgrade, the
@@ -118,7 +130,7 @@ for (;;) {
   // `Date.now()`, and `ctx.runtime.now` is fixed per invocation — so flushing
   // every two reads keeps spacing above the fence against the witness cadence
   // (chunks every 80 ms; fixture floor ~50 ms). A per-chunk commit would trip
-  // SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED. A host-provided progress helper that
+  // SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED. A host-provided progress helper that
   // owns coalescing and the terminal CAS is the intended v1 direction.
   if (++sinceCommit >= 2) { await ctx.runMutation('applyProgress', { attemptId, bytes: batch }); batch = []; sinceCommit = 0; }
 }
@@ -360,11 +372,13 @@ be a profile change.
 
 The host additionally rate-fences **all** nested mutations while any cursor
 is open — not only the progress pattern's — emitting
-`SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED` as a conservative transport-level
+`SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` as a conservative transport-level
 guard; the pattern's own row-level throttle reuses the same code for the
-application commit protocol. The shared, fixture-flavored name is a v1
-compromise; whether it is renamed before the code becomes load-bearing in
-receipts is an open question.
+application commit protocol. The code is the profile-neutral host name
+resolved by §Author decisions item 4 (2026-07-23); the retired
+fixture-flavored `SNAPBACK_REPLY_*` spelling no longer exists in code, and
+protocol amendment v0.4 records that receipts treat the two spellings as the
+same diagnostic across the rename boundary.
 
 Existing generation, authority, and action-watchdog diagnostics retain
 precedence when they are the real cause.
@@ -412,7 +426,26 @@ logs, or a single terminal replacement cannot pass.
 
 The living record of what is witnessed versus staged, so the Draft does not
 overstate itself; new revisions add entries here rather than treating it as a
-historical annex. Seeded from the `llp/reviews/0076-*` reviews. Witnessed today: the happy path through the real
+historical annex. Seeded from the `llp/reviews/0076-*` reviews.
+
+2026-07-23 (baseline landing): the reader-surface implementation this ledger
+describes as witnessed previously existed only as uncommitted work in a
+non-landed working tree — main itself had no `ctx.fetchStream`, no stream host
+ops, and no `bounded_response_stream_v1` registry entry. The gate-2 program
+worktree ported the local arm onto main (runtime DTOs/dispatch/envelope, the
+detached-host reader with total/idle/wall/read-boundary enforcement and the
+nested-mutation rate fence, reviewed HTTP statuses, the instance-live
+capability predicate with regenerated committed manifests, codegen admission
+requirements, and the harness bridge), applied the decision-4 rename
+(`SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, fixture updated in the same change
+under protocol amendment v0.4), and re-ran the LLP 0075 local-streaming
+instrument: PASS 6/6 (three-plus intermediate native-push commits, start-row
+idempotency, durable cancellation with zero late patches, idle `timed_out`,
+`failed` versus `ambiguous`). The Workerd/Cloudflare arm of the same baseline
+remains unlanded (still only in that working tree); every staged gap below is
+unchanged by this landing.
+
+Witnessed today: the happy path through the real
 action → nested mutation → commit → native-push chain with three-plus
 intermediate commits and a blocked negative actor; start-row idempotency;
 durable cancellation with the late-patch fence; idle settlement;

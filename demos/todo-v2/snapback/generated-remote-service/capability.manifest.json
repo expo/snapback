@@ -15,6 +15,7 @@
     "external_auth",
     "assets",
     "outbound_actions",
+    "bounded_response_stream_v1",
     "notifications",
     "ephemeral_hosted_adapter",
     "ephemeral_multi_instance_sticky_routing"
@@ -49,6 +50,22 @@
     },
     {
       "name": "action_wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_total_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_buffered_bytes",
+      "status": "Missing"
+    },
+    {
+      "name": "bounded_response_stream_idle_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_progress_rate",
       "status": "Enforced"
     },
     {

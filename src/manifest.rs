@@ -2962,13 +2962,16 @@ pub struct SupportedArtifactAuthPair {
 /// App artifacts retain string fields for v0 compatibility; every v1 string
 /// is parsed through this enum before target support is consulted.
 ///
-/// @ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed to eight ids.
+/// @ref LLP 0058#the-two-admissible-tuples — the v1 registry is closed and
+/// LLP 0076 adds the ninth id with an exact positive runtime predicate.
 #[derive(
     Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize, schemars::JsonSchema,
 )]
 pub enum TargetCapabilityId {
     #[serde(rename = "auth.sessions.v1")]
     AuthSessionsV1,
+    #[serde(rename = "bounded_response_stream_v1")]
+    BoundedResponseStreamV1,
     #[serde(rename = "cron")]
     Cron,
     #[serde(rename = "cron_action_run_mutation")]
@@ -2986,8 +2989,9 @@ pub enum TargetCapabilityId {
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::AuthSessionsV1,
+        Self::BoundedResponseStreamV1,
         Self::Cron,
         Self::CronActionRunMutation,
         Self::HostPlanRuntime,
@@ -3000,6 +3004,7 @@ impl TargetCapabilityId {
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::AuthSessionsV1 => "auth.sessions.v1",
+            Self::BoundedResponseStreamV1 => "bounded_response_stream_v1",
             Self::Cron => "cron",
             Self::CronActionRunMutation => "cron_action_run_mutation",
             Self::HostPlanRuntime => "host_plan_runtime",
@@ -3022,6 +3027,12 @@ impl TargetCapabilityId {
                 facts.paired_v1_parser_registered
                     && facts.shared_invocation_gate_registered
                     && facts.staged_mode_registered
+            }
+            // @ref LLP 0076#target-contract — the stream capability is an
+            // instance-live predicate: the implementation must be registered
+            // AND this exact process must have outbound egress enabled.
+            Self::BoundedResponseStreamV1 => {
+                manifest.outbound_actions && facts.bounded_response_stream_v1_registered
             }
             Self::HostPlanRuntime => facts.host_plan_runtime,
             Self::IbexCtxDbHostBridge => facts.ibex_ctx_db_host_bridge_available,
@@ -3065,6 +3076,7 @@ impl FromStr for TargetCapabilityId {
 /// turn assertions into target authority.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct TargetCapabilityFacts {
+    bounded_response_stream_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3077,6 +3089,7 @@ pub struct TargetCapabilityFacts {
 impl TargetCapabilityFacts {
     fn local_auth_aware() -> Self {
         Self {
+            bounded_response_stream_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -3284,6 +3297,7 @@ pub fn local_v0_default_capability_gaps() -> Vec<String> {
         "external_auth".to_owned(),
         "assets".to_owned(),
         "outbound_actions".to_owned(),
+        "bounded_response_stream_v1".to_owned(),
         "notifications".to_owned(),
         "ephemeral_hosted_adapter".to_owned(),
         "ephemeral_multi_instance_sticky_routing".to_owned(),
@@ -3373,6 +3387,28 @@ impl CapabilityManifest {
                     name: "action_wall_clock_timeout".to_owned(),
                     status: ResourceLimitStatus::Enforced,
                 },
+                // @ref LLP 0076#surface — the v1 bounded response-stream
+                // profile limits the local host actually checks. The 64 KiB
+                // buffered-bytes bound is deliberately reported `Missing`:
+                // the local host has no buffered-byte counter yet (LLP 0076
+                // Evidence-status "64 KiB buffer accounting" gap), and a
+                // manifest row must not claim enforcement ahead of a witness.
+                ResourceLimit {
+                    name: "bounded_response_stream_total_bytes".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_buffered_bytes".to_owned(),
+                    status: ResourceLimitStatus::Missing,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_idle_timeout".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
+                ResourceLimit {
+                    name: "bounded_response_stream_progress_rate".to_owned(),
+                    status: ResourceLimitStatus::Enforced,
+                },
                 ResourceLimit {
                     name: "cpu_budget".to_owned(),
                     status: ResourceLimitStatus::Missing,
@@ -3406,6 +3442,34 @@ impl CapabilityManifest {
             vm_lifecycle: vm_lifecycle_fresh(),
             runtime_facts: None,
         };
+        manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
+        manifest
+    }
+
+    /// The code-owned declaration for a local process configured with the
+    /// outbound-action gate enabled. Codegen embeds this exact variant when
+    /// its matching authoring switch is on, while `/inspect` remains the
+    /// authority for the process that actually serves the artifact.
+    pub fn local_v0_outbound_actions_declared() -> Self {
+        Self::local_v0_instance(local_v0_default_capability_gaps(), true)
+    }
+
+    /// Apply the process-live outbound-action gate to the local declaration.
+    /// The committed target artifact remains conservative; `/inspect` is the
+    /// authority for whether this exact process enabled egress and therefore
+    /// the bounded response-stream profile.
+    // @ref LLP 0076#target-contract — capability truth is instance-live, not
+    // a static declaration: the served manifest reflects this process.
+    pub(crate) fn local_v0_instance(
+        mut capability_gaps: Vec<String>,
+        outbound_actions: bool,
+    ) -> Self {
+        if outbound_actions {
+            capability_gaps
+                .retain(|gap| gap != "outbound_actions" && gap != "bounded_response_stream_v1");
+        }
+        let mut manifest = Self::local_v0(capability_gaps);
+        manifest.outbound_actions = outbound_actions;
         manifest.refresh_supported_capabilities(TargetCapabilityFacts::local_auth_aware());
         manifest
     }
@@ -3542,6 +3606,7 @@ impl CapabilityManifest {
             "handler_captured_read_set_validation".to_owned(),
             "assets".to_owned(),
             "outbound_actions".to_owned(),
+            "bounded_response_stream_v1".to_owned(),
             "notifications".to_owned(),
             "cron".to_owned(),
             "ephemeral_realtime".to_owned(),
@@ -3709,6 +3774,25 @@ impl ArtifactDiagnosticExt for SnapbackError {
 mod membership_manifest_grammar_tests {
     use super::*;
     use serde_json::json;
+
+    #[test]
+    fn bounded_stream_capability_requires_both_implementation_and_live_egress() {
+        let declared = CapabilityManifest::local_v0_declared();
+        assert!(!declared.outbound_actions);
+        assert!(
+            !declared
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+
+        let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
+        assert!(enabled.outbound_actions);
+        assert!(
+            enabled
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+    }
 
     fn table_json() -> Value {
         json!({

@@ -480,6 +480,32 @@ globalThis.__snapbackHandlers = {
     },
   });
 
+  const streamed = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    const response = await ctx.fetchStream({ url: 'https://example.com' });
+    await response.body.getReader().cancel();
+    return { status: response.status };
+  }
+};
+`,
+    },
+  });
+  const streamedFunctions = JSON.parse(readFileSync(join(streamed.outDir, 'functions.manifest.json'), 'utf8'));
+  const streamedCapabilities = JSON.parse(readFileSync(join(streamed.outDir, 'capability.manifest.json'), 'utf8'));
+  assert(
+    streamedFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'ctx.fetchStream must add the named admission requirement',
+  );
+  assert.equal(streamedCapabilities.outboundActions, true, 'egress codegen embeds the Rust-owned enabled target variant');
+  assert(
+    streamedCapabilities.supportedCapabilities.includes('bounded_response_stream_v1'),
+    'paired capability artifact must positively support the streamed action requirement',
+  );
+
   const diagnostics = await invalidCase({
     functions: jsActionFunctions,
     handlers: {

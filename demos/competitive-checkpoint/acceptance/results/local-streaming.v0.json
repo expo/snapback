@@ -1,7 +1,9 @@
 {
   "schemaVersion": "snapback.competitive-checkpoint.local-streaming.v0",
   "protocol": "llp-0075-convex-checkpoint-v0",
-  "targetProfile": "local-ibex-sqlite.v1",
+  "targetProfile": "local-dev-sqlite-ibex",
+  "targetIdentitySource": "GET /inspect targetProfileId",
+  "capabilityManifestSha256": "2c0aec33ee24d60dc67eebbc915d6f245c9b4e4f39281533b71e56b8d7da8c35",
   "title": "competitive checkpoint / local streamed actions",
   "passed": 6,
   "skipped": 0,
@@ -17,7 +19,14 @@
         "visibility": {
           "kind": "owner",
           "field": "ownerId"
-        }
+        },
+        "crossUserDenialsWitnessed": [
+          "list",
+          "uniqueLookup",
+          "keysetPage",
+          "update",
+          "delete"
+        ]
       }
     },
     {

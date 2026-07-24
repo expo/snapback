@@ -83,6 +83,47 @@ pub struct IbexQueryRun {
     pub read_dependencies: Vec<CapturedReadDependency>,
 }
 
+/// One bounded response-stream request crossing the action-only host seam.
+/// Header/body values are application data and must never be copied into
+/// diagnostics; implementations report only shape and limit facts.
+// @ref LLP 0076#surface — the shared harness exposes one pull-driven reader
+// over these target-neutral open/read/cancel host operations.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamRequest {
+    pub url: String,
+    #[serde(default = "default_stream_method")]
+    pub method: String,
+    #[serde(default)]
+    pub headers: BTreeMap<String, String>,
+    #[serde(default)]
+    pub body: Option<String>,
+    #[serde(default)]
+    pub idempotency_key: Option<String>,
+}
+
+fn default_stream_method() -> String {
+    "GET".to_owned()
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamOpened {
+    pub stream_id: String,
+    pub status: u16,
+    pub status_text: String,
+    pub url: String,
+    pub headers: BTreeMap<String, String>,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ActionStreamChunk {
+    pub done: bool,
+    pub bytes: Vec<u8>,
+    pub total_bytes: u64,
+}
+
 /// The seam through which an action reaches instance state. Actions can
 /// mutate only through an explicitly named mutation; direct reads are not a
 /// capability of this host at all. The Rust host-call dispatcher separately
@@ -94,6 +135,33 @@ pub trait IbexActionHost {
     /// not only a nested mutation commit, to its staging app generation.
     fn validate_host_call(&mut self, op: &str) -> SnapbackResult<()>;
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput>;
+    // @ref LLP 0076#target-contract — a target that does not implement the
+    // bounded response-stream profile must refuse with the stable
+    // `_UNSUPPORTED` code rather than buffering or silently degrading.
+    fn open_response_stream(
+        &mut self,
+        _request: ActionStreamRequest,
+    ) -> SnapbackResult<ActionStreamOpened> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    fn read_response_stream(&mut self, _stream_id: &str) -> SnapbackResult<ActionStreamChunk> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
+    fn cancel_response_stream(&mut self, _stream_id: &str) -> SnapbackResult<()> {
+        Err(SnapbackError::error(
+            "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
+            "runtime",
+            "this invocation target does not implement bounded response streaming",
+        ))
+    }
 }
 
 /// A mutation handler's completed, still-uncommitted effect buffer. Detached
@@ -1291,6 +1359,75 @@ impl<'a> IbexHostContext<'a> {
                 let output = host.run_mutation(&name, input)?;
                 Ok(output.result)
             }
+            "action.streamOpen" => {
+                self.ensure_action("fetchStream")?;
+                if !outbound_actions_enabled() {
+                    return Err(SnapbackError::error(
+                        "SNAPBACK_HANDLER_AMBIENT_CAPABILITY_DENIED",
+                        "runtime",
+                        "ctx.fetchStream requires the deployment's outbound-actions capability",
+                    )
+                    .with_details(json!({
+                        "operation": "open",
+                        "expected": "SNAPBACK_OUTBOUND_ACTIONS=1",
+                        "received": "outbound actions disabled",
+                        "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                    })));
+                }
+                let request =
+                    serde_json::from_value::<ActionStreamRequest>(args).map_err(|error| {
+                        SnapbackError::error(
+                            "SNAPBACK_ACTION_STREAM_INVALID",
+                            "runtime",
+                            "ctx.fetchStream received an invalid request shape",
+                        )
+                        .with_details(json!({
+                            "operation": "open",
+                            "expected": "{url, method?, headers?, body?, idempotencyKey?}",
+                            "received": "nonconforming request object",
+                            "repair": "guide/backend/actions-and-fetch#stream-a-response",
+                            "error": error.to_string(),
+                        }))
+                    })?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.open_response_stream(request)?).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the bounded response stream metadata could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "open", "error": error.to_string() }))
+                })
+            }
+            "action.streamRead" => {
+                self.ensure_action("fetchStream.read")?;
+                let stream_id = required_string(&args, "streamId")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                serde_json::to_value(host.read_response_stream(&stream_id)?).map_err(|error| {
+                    SnapbackError::error(
+                        "SNAPBACK_ACTION_STREAM_INVALID",
+                        "runtime",
+                        "the bounded response stream chunk could not be serialized",
+                    )
+                    .with_details(json!({ "operation": "read", "error": error.to_string() }))
+                })
+            }
+            "action.streamCancel" => {
+                self.ensure_action("fetchStream.cancel")?;
+                let stream_id = required_string(&args, "streamId")?;
+                let host = self
+                    .action_host
+                    .as_deref_mut()
+                    .ok_or_else(action_host_missing)?;
+                host.cancel_response_stream(&stream_id)?;
+                Ok(Value::Null)
+            }
             // LLP 0056 M3 — `ctx.permissions.<decl>.requireRole(resource, ...)`.
             // The imperative twin, decomposed so LLP 0053's one-class-per-op
             // rule holds exactly: the membership read (DatabaseCaptured, both
@@ -2421,7 +2558,7 @@ fn warm_setup_source(module: &IbexModule) -> String {
 /// mutations stay fully denied. This is the [LLP 0027#external-data-and-action-egress]
 /// seam — sandbox-policy territory owned by [LLP 0009], so the default posture is
 /// unchanged (everything denied, strict).
-fn outbound_actions_enabled() -> bool {
+pub(crate) fn outbound_actions_enabled() -> bool {
     matches!(
         std::env::var("SNAPBACK_OUTBOUND_ACTIONS").ok().as_deref(),
         Some("1") | Some("true") | Some("TRUE")
@@ -2766,6 +2903,15 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_CONTEXT_UNAVAILABLE"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
         | "SNAPBACK_ACTION_TIMEOUT"
+        // @ref LLP 0076#diagnostics — every promised stream refusal family
+        // must survive the handler envelope with its exact code.
+        | "SNAPBACK_ACTION_STREAM_CANCELLED"
+        | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_INVALID"
+        | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
+        | "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"

@@ -48,3 +48,22 @@ Decisions (forks to resolve, not code):
 
 A concurrent session added an InstantDB-Streams prior-art subsection to the RFC
 (no contract change); it does not affect these tickets.
+
+## Baseline landing (2026-07-23, this worktree)
+
+Program-start discovery: the reader-surface baseline the RFC ledger describes
+as "witnessed" existed on **no** ref — it lived only as uncommitted working-tree
+state in the primary checkout (entangled there with unrelated LLP 0077 and
+deploy-plane work in the same files). The tickets all patch that baseline, so
+the program's first landing ports the streaming-only hunks of the local arm
+onto current main: runtime DTOs + host-op dispatch + envelope codes, the
+detached-host reader implementation and rate fence, reviewed HTTP statuses,
+the instance-live capability predicate + regenerated committed manifests +
+codegen admission requirement, the `ctx.fetchStream` harness bridge, and the
+decision-4 progress-rate rename with the fixture handler updated in the same
+change (protocol amendment v0.4 pre-authorizes it). Witness: the pinned LLP
+0075 local-streaming instrument passes 6/6 against this baseline. The
+Workerd/Cloudflare arm of the stranded baseline is **not** yet landed; tickets
+whose Done-when says "both hosts" cannot close until it is (tracked per
+ticket). A guide gap also surfaced: stream diagnostics point at
+`guide/backend/actions-and-fetch#stream-a-response`, which does not exist yet.

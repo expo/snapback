@@ -76,7 +76,7 @@ async function applyReplyProgress(ctx, args) {
   if (args.sequence !== row.sequence + 1) fail('SNAPBACK_REPLY_SEQUENCE_GAP', 'reply sequence is not contiguous');
   const now = ctx.runtime.now();
   if (row.sequence > 0 && now - row.lastProgressAt < 100) {
-    fail('SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');
+    fail('SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED', 'reply progress exceeds ten commits per second');
   }
   await ctx.db.patch('messages', row._id, {
     content: row.content + args.delta,

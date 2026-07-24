@@ -93,6 +93,7 @@ const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
   'auth.sessions.v1',
+  'bounded_response_stream_v1',
   'cron',
   'cron_action_run_mutation',
   'host_plan_runtime',
@@ -3133,7 +3134,18 @@ function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
-  if (fn.kind === 'Action') return [runtimeCapability, 'cron_action_run_mutation'];
+  if (fn.kind === 'Action') {
+    const required = [runtimeCapability, 'cron_action_run_mutation'];
+    // @ref LLP 0076#target-contract — a streamed action must be refused at
+    // artifact admission on targets without the named reader profile, before
+    // the handler reaches an external effect. IbexModule source is the closed
+    // bundle codegen already owns; this conservative module-level scan can
+    // over-require sibling actions but can never invent target authority.
+    if (/\bfetchStream\s*\(/u.test(fn.runtime?.IbexModule?.source ?? '')) {
+      required.push('bounded_response_stream_v1');
+    }
+    return required;
+  }
   return [runtimeCapability];
 }
 
@@ -5412,12 +5424,15 @@ function packageDir() {
 // P2 / LLP 0037): generated from the Rust core by tests/capability_v0.rs
 // (SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_) and embedded — this
 // module asserts nothing about server capabilities on its own.
-function canonicalCapabilityManifestPath(targetConfig) {
-  return join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', targetConfig.capabilityManifest);
+function canonicalCapabilityManifestPath(targetProfile, targetConfig) {
+  const manifest = targetProfile === TARGET_PROFILE_LOCAL && egressAllowedAtCodegen()
+    ? 'capability.manifest.local-dev-sqlite-ibex.outbound-actions.json'
+    : targetConfig.capabilityManifest;
+  return join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', manifest);
 }
 
 function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
-  const path = canonicalCapabilityManifestPath(targetConfig);
+  const path = canonicalCapabilityManifestPath(targetProfile, targetConfig);
   let source;
   let sourceBytes;
   try {

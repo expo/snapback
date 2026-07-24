@@ -56,7 +56,7 @@
     },
     {
       "name": "bounded_response_stream_buffered_bytes",
-      "status": "Enforced"
+      "status": "Missing"
     },
     {
       "name": "bounded_response_stream_idle_timeout",

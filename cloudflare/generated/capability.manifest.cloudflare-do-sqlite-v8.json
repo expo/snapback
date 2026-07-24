@@ -83,6 +83,7 @@
     "handler_captured_read_set_validation",
     "assets",
     "outbound_actions",
+    "bounded_response_stream_v1",
     "notifications",
     "cron",
     "ephemeral_realtime",

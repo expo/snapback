@@ -70,7 +70,9 @@ use crate::manifest::{
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
 };
-use crate::runtime::{CapabilityState, IbexActionHost};
+use crate::runtime::{
+    ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
+};
 use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
@@ -91,6 +93,7 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 use std::future::Future;
+use std::io::Read;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::OnceLock;
@@ -750,6 +753,21 @@ const ACTION_WATCHDOG_MAX_MS: u64 = 15 * 60 * 1_000;
 /// CPU-bound JavaScript while keeping the native-host fallback finite.
 const ACTION_INTERRUPT_GRACE_MS: u64 = 2_000;
 const ACTION_LOCK_POLL_MS: u64 = 5;
+// @ref LLP 0076#surface — the v1 bounded response-stream profile limits. LLP
+// 0076 is the sole numeric authority; the first five match LLP 0075's frozen
+// fixture, the 16 KiB host read size and 4-cursor cap are v1 profile limits.
+const ACTION_STREAM_TOTAL_BYTES_MAX: u64 = 1_048_576;
+const ACTION_STREAM_CHUNK_BYTES_MAX: usize = 16_384;
+const ACTION_STREAM_WALL_MS: u64 = 30_000;
+const ACTION_STREAM_IDLE_MS: u64 = 5_000;
+const ACTION_STREAM_OPEN_MAX: usize = 4;
+
+struct OpenActionResponseStream {
+    reader: Box<dyn Read + Send + Sync>,
+    opened_at: Instant,
+    last_byte_at: Instant,
+    total_bytes: u64,
+}
 
 fn action_watchdog_timeout_ms() -> u64 {
     parse_action_watchdog_timeout(std::env::var("SNAPBACK_ACTION_TIMEOUT_MS").ok().as_deref())
@@ -789,6 +807,9 @@ struct DetachedActionHost {
     authority: PreparedAuthority,
     external_effect_open: bool,
     external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
+    response_streams: BTreeMap<String, OpenActionResponseStream>,
+    closed_response_streams: BTreeSet<String>,
+    last_stream_progress_commit: Option<Instant>,
 }
 
 struct ScopedLocalSnapbackGuard {
@@ -1024,6 +1045,28 @@ impl IbexActionHost for DetachedActionHost {
     }
 
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
+        // @ref LLP 0076#surface — while an upstream reader is open, every
+        // nested mutation is conservatively treated as progress and admitted
+        // at no more than ten commits per second. EOF/cancel removes the
+        // cursor before terminal settlement, so completion is not delayed.
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 4: the host
+        // rate fence emits the profile-neutral
+        // `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, not the retired
+        // fixture-flavored `SNAPBACK_REPLY_*` name.
+        if !self.response_streams.is_empty() {
+            if self
+                .last_stream_progress_commit
+                .is_some_and(|last| last.elapsed() < Duration::from_millis(100))
+            {
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
+                    "progress",
+                    "stream progress exceeds ten authoritative commits per second",
+                    json!({ "limitPerSecond": 10, "received": "progress commit too soon" }),
+                ));
+            }
+            self.last_stream_progress_commit = Some(Instant::now());
+        }
         let mut snapback = self.lock_live("runMutation")?;
         let authority = self
             .authority
@@ -1135,6 +1178,308 @@ impl IbexActionHost for DetachedActionHost {
             }
         }
     }
+
+    fn open_response_stream(
+        &mut self,
+        request: ActionStreamRequest,
+    ) -> SnapbackResult<ActionStreamOpened> {
+        // @ref LLP 0076#authority-and-lifecycle — stream ownership stays
+        // inside this exact detached action host and every operation passes
+        // validate_host_call before dispatch.
+        if self.response_streams.len() >= ACTION_STREAM_OPEN_MAX {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "open",
+                "the action already owns the maximum number of open response streams",
+                json!({ "limit": ACTION_STREAM_OPEN_MAX, "received": "additional stream" }),
+            ));
+        }
+        if request.url.len() > 4_096
+            || !(request.url.starts_with("http://") || request.url.starts_with("https://"))
+            || request.url.chars().any(char::is_control)
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream requires a bounded absolute HTTP(S) URL",
+                json!({ "expected": "absolute http(s) URL <= 4096 bytes", "received": "invalid URL shape" }),
+            ));
+        }
+        let method = request.method.to_ascii_uppercase();
+        if !matches!(
+            method.as_str(),
+            "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE"
+        ) {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream received an unsupported HTTP method",
+                json!({ "expected": "GET|HEAD|POST|PUT|PATCH|DELETE", "received": "unsupported method" }),
+            ));
+        }
+        if request.headers.len() > 64
+            || request.headers.iter().any(|(name, value)| {
+                name.is_empty()
+                    || name.len() > 256
+                    || value.len() > 8_192
+                    || name.chars().any(char::is_control)
+                    || value.contains(['\r', '\n'])
+            })
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream headers exceeded the safe shape",
+                json!({ "expected": "at most 64 bounded single-line headers", "received": "invalid header shape" }),
+            ));
+        }
+        if request
+            .idempotency_key
+            .as_ref()
+            .is_some_and(|key| key.is_empty() || key.len() > 8_192 || key.contains(['\r', '\n']))
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream received an invalid idempotency key",
+                json!({ "expected": "a non-empty single-line key <= 8192 bytes", "received": "invalid idempotency key shape" }),
+            ));
+        }
+        if request
+            .body
+            .as_ref()
+            .is_some_and(|body| body.len() as u64 > ACTION_STREAM_TOTAL_BYTES_MAX)
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "open",
+                "ctx.fetchStream request body exceeded the v1 byte limit",
+                json!({ "limitBytes": ACTION_STREAM_TOTAL_BYTES_MAX, "received": "oversized body" }),
+            ));
+        }
+
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(action_deadline_elapsed("fetchStream.open"));
+        }
+        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(request_timeout)
+            .timeout_read(request_timeout)
+            .timeout_write(request_timeout)
+            .build();
+        let mut outbound = agent
+            .request(&method, &request.url)
+            .timeout(request_timeout);
+        for (name, value) in &request.headers {
+            outbound = outbound.set(name, value);
+        }
+        // @ref LLP 0076#surface — a caller-supplied idempotency key is
+        // provider-visible: it is forwarded as the upstream `Idempotency-Key`
+        // header unless the author set that header explicitly.
+        if let Some(key) = &request.idempotency_key
+            && !request
+                .headers
+                .keys()
+                .any(|name| name.eq_ignore_ascii_case("idempotency-key"))
+        {
+            outbound = outbound.set("Idempotency-Key", key);
+        }
+        let started = Instant::now();
+        let response = match &request.body {
+            Some(body) => outbound.send_string(body),
+            None => outbound.call(),
+        };
+        let response = match response {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
+            Err(ureq::Error::Transport(_)) => {
+                // @ref LLP 0076#settlement-and-retry — classification is by
+                // host-provable phase and ambiguity over-approximates: a
+                // non-idempotent transport failure that cannot be proven
+                // pre-initiation is ambiguous, never silently retried.
+                let timed_out = started.elapsed() >= request_timeout;
+                let (code, message) = if timed_out {
+                    (
+                        "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                        "the upstream did not produce response metadata within the idle limit",
+                    )
+                } else if matches!(method.as_str(), "GET" | "HEAD")
+                    || request.idempotency_key.is_some()
+                {
+                    (
+                        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                        "the upstream request failed before response metadata was available",
+                    )
+                } else {
+                    (
+                        "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+                        "the non-idempotent upstream request lost transport after initiation",
+                    )
+                };
+                return Err(action_stream_error(
+                    code,
+                    "open",
+                    message,
+                    json!({ "received": "transport failure", "retrySafe": matches!(method.as_str(), "GET" | "HEAD") || request.idempotency_key.is_some() }),
+                ));
+            }
+        };
+        self.validate_live("fetchStream.open")?;
+        let status = response.status();
+        let status_text = response.status_text().to_owned();
+        let final_url = response.get_url().to_owned();
+        let mut headers = BTreeMap::new();
+        for name in response.headers_names().into_iter().take(64) {
+            if let Some(value) = response.header(&name) {
+                headers.insert(name, value.chars().take(8_192).collect());
+            }
+        }
+        let stream_id = Uuid::new_v4().to_string();
+        let now = Instant::now();
+        self.response_streams.insert(
+            stream_id.clone(),
+            OpenActionResponseStream {
+                reader: response.into_reader(),
+                opened_at: now,
+                last_byte_at: now,
+                total_bytes: 0,
+            },
+        );
+        Ok(ActionStreamOpened {
+            stream_id,
+            status,
+            status_text,
+            url: final_url,
+            headers,
+        })
+    }
+
+    fn read_response_stream(&mut self, stream_id: &str) -> SnapbackResult<ActionStreamChunk> {
+        let Some(mut stream) = self.response_streams.remove(stream_id) else {
+            // @ref LLP 0076#diagnostics — a read after cancellation returns
+            // end-of-stream, not an error; `SNAPBACK_ACTION_STREAM_CANCELLED`
+            // stays a reserved internal reason no v1 read path emits.
+            if self.closed_response_streams.contains(stream_id) {
+                return Ok(ActionStreamChunk {
+                    done: true,
+                    bytes: Vec::new(),
+                    total_bytes: 0,
+                });
+            }
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "read",
+                "the response stream id is unknown to this action invocation",
+                json!({ "expected": "an open invocation-local stream", "received": "unknown stream id" }),
+            ));
+        };
+        if stream.opened_at.elapsed() >= Duration::from_millis(ACTION_STREAM_WALL_MS) {
+            self.closed_response_streams.insert(stream_id.to_owned());
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_TIMEOUT",
+                "read",
+                "the response stream exceeded its wall-clock limit",
+                json!({ "limitMs": ACTION_STREAM_WALL_MS, "received": "wall limit elapsed" }),
+            ));
+        }
+        if stream.last_byte_at.elapsed() >= Duration::from_millis(ACTION_STREAM_IDLE_MS) {
+            self.closed_response_streams.insert(stream_id.to_owned());
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                "read",
+                "the response stream exceeded its idle limit",
+                json!({ "limitMs": ACTION_STREAM_IDLE_MS, "received": "idle limit elapsed" }),
+            ));
+        }
+        let remaining = ACTION_STREAM_TOTAL_BYTES_MAX.saturating_sub(stream.total_bytes);
+        let requested = if remaining == 0 {
+            1
+        } else {
+            ACTION_STREAM_CHUNK_BYTES_MAX.min(remaining as usize)
+        };
+        let mut bytes = vec![0; requested];
+        let read = match stream.reader.read(&mut bytes) {
+            Ok(read) => read,
+            Err(error) if error.kind() == std::io::ErrorKind::TimedOut => {
+                self.closed_response_streams.insert(stream_id.to_owned());
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                    "read",
+                    "the upstream produced no response bytes within the idle limit",
+                    json!({ "limitMs": ACTION_STREAM_IDLE_MS, "received": "read timeout" }),
+                ));
+            }
+            Err(_) => {
+                self.closed_response_streams.insert(stream_id.to_owned());
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                    "read",
+                    "the upstream response stream failed while reading",
+                    json!({ "received": "transport read failure" }),
+                ));
+            }
+        };
+        if read == 0 {
+            self.closed_response_streams.insert(stream_id.to_owned());
+            return Ok(ActionStreamChunk {
+                done: true,
+                bytes: Vec::new(),
+                total_bytes: stream.total_bytes,
+            });
+        }
+        if stream.total_bytes.saturating_add(read as u64) > ACTION_STREAM_TOTAL_BYTES_MAX {
+            self.closed_response_streams.insert(stream_id.to_owned());
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "read",
+                "the upstream response exceeded the v1 total-byte limit",
+                json!({ "limitBytes": ACTION_STREAM_TOTAL_BYTES_MAX, "received": "oversized response" }),
+            ));
+        }
+        bytes.truncate(read);
+        stream.total_bytes += read as u64;
+        stream.last_byte_at = Instant::now();
+        let total_bytes = stream.total_bytes;
+        self.response_streams.insert(stream_id.to_owned(), stream);
+        Ok(ActionStreamChunk {
+            done: false,
+            bytes,
+            total_bytes,
+        })
+    }
+
+    fn cancel_response_stream(&mut self, stream_id: &str) -> SnapbackResult<()> {
+        if self.response_streams.remove(stream_id).is_some()
+            || self.closed_response_streams.contains(stream_id)
+        {
+            self.closed_response_streams.insert(stream_id.to_owned());
+            return Ok(());
+        }
+        Err(action_stream_error(
+            "SNAPBACK_ACTION_STREAM_INVALID",
+            "cancel",
+            "the response stream id is unknown to this action invocation",
+            json!({ "expected": "an invocation-local stream", "received": "unknown stream id" }),
+        ))
+    }
+}
+
+// @ref LLP 0012#diagnostic-schema — stream refusals carry operation, expected
+// shape/limit, a value-free received summary, and the guide repair anchor;
+// URLs, headers, bodies, and response bytes never enter a default diagnostic.
+fn action_stream_error(
+    code: &'static str,
+    operation: &'static str,
+    message: &'static str,
+    details: Value,
+) -> SnapbackError {
+    let mut details = details.as_object().cloned().unwrap_or_default();
+    details.insert("operation".to_owned(), json!(operation));
+    details.insert(
+        "repair".to_owned(),
+        json!("guide/backend/actions-and-fetch#stream-a-response"),
+    );
+    SnapbackError::error(code, "runtime", message).with_details(Value::Object(details))
 }
 
 fn action_authorization_reservation_stale(name: &str) -> SnapbackError {
@@ -1345,6 +1690,9 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     authority: invocation.authority().clone(),
                     external_effect_open: false,
                     external_effect_permit: None,
+                    response_streams: BTreeMap::new(),
+                    closed_response_streams: BTreeSet::new(),
+                    last_stream_progress_commit: None,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = runtime.invoke_ibex_action_prepared(
@@ -17376,6 +17724,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        // @ref LLP 0076#diagnostics — reserved internal cancellation reason;
+        // no v1 read path surfaces it, but its reviewed status is a conflict
+        // with the durable terminal row.
+        | "SNAPBACK_ACTION_STREAM_CANCELLED"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
@@ -17478,22 +17830,33 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
+        | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_VALUE_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
+        | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
+        "SNAPBACK_ACTION_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
+        // @ref LLP 0076#settlement-and-retry — transport failure and
+        // ambiguity are upstream outcomes, distinct from malformed author
+        // input and from Snapback's own internal failures.
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS" => StatusCode::BAD_GATEWAY,
         // @ref LLP 0058#admitted-body-ingestion — the admitted ingest deadline
         // is a client fault: the request body never finished arriving.
         "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
+        | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
@@ -17561,6 +17924,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // its producer deliberately chooses a client class.
         "SNAPBACK_ARG_MISSING"
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
+        | "SNAPBACK_ACTION_STREAM_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_INVALID"
@@ -17835,6 +18199,8 @@ mod tests {
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
+    use crate::runtime::ActionStreamRequest;
+    use std::io::Write;
     use crate::auth::crypto::{AgentCredential, OsRandom, SessionBearer};
     use crate::auth::invalidation::{
         AuthorizationInvalidationConnection, IssuerId, LiveInvalidationIssuer, QueryNamespace,
@@ -27625,6 +27991,7 @@ globalThis.__snapbackHandlers = {
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
+        "SNAPBACK_ACTION_STREAM_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
@@ -27903,6 +28270,7 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
         // LLP 0056 M2 write invariants that conflict with durable state.
@@ -27938,6 +28306,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
@@ -27947,6 +28316,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
@@ -27965,12 +28335,23 @@ globalThis.__snapbackHandlers = {
     const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
 
     const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+        "SNAPBACK_ACTION_STREAM_TIMEOUT",
         "SNAPBACK_ACTION_TIMEOUT",
         "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED",
     ];
 
+    // @ref LLP 0076#settlement-and-retry — upstream transport outcomes are a
+    // distinct reviewed family: the upstream failed or is ambiguous, which is
+    // neither author fault nor Snapback's own internal failure.
+    const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+    ];
+
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
@@ -28132,6 +28513,7 @@ globalThis.__snapbackHandlers = {
         (StatusCode::TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DIAGNOSTICS),
         (StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT_DIAGNOSTICS),
         (StatusCode::GATEWAY_TIMEOUT, GATEWAY_TIMEOUT_DIAGNOSTICS),
+        (StatusCode::BAD_GATEWAY, BAD_GATEWAY_DIAGNOSTICS),
         (
             StatusCode::SERVICE_UNAVAILABLE,
             SERVICE_UNAVAILABLE_DIAGNOSTICS,
@@ -28742,7 +29124,232 @@ globalThis.__snapbackHandlers = {
             authority: action.invocation.authority().clone(),
             external_effect_open: false,
             external_effect_permit: None,
+            response_streams: BTreeMap::new(),
+            closed_response_streams: BTreeSet::new(),
+            last_stream_progress_commit: None,
         }
+    }
+
+    #[test]
+    fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind deterministic stream fixture");
+        let address = listener.local_addr().expect("stream fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept stream request");
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("bound request read");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request)
+                .expect("read stream request headers");
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write stream response headers");
+            socket.flush().expect("flush response headers");
+            for index in 0..16 {
+                let chunk = format!("chunk-{index:02}\n");
+                write!(socket, "{:X}\r\n{}\r\n", chunk.len(), chunk)
+                    .expect("write deterministic stream chunk");
+                socket.flush().expect("flush deterministic stream chunk");
+                std::thread::sleep(Duration::from_millis(60));
+            }
+            socket
+                .write_all(b"0\r\n\r\n")
+                .expect("finish deterministic stream");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("stream host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/sixteen-chunks"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+            })
+            .expect("open bounded response stream");
+        assert_eq!(opened.status, 200);
+
+        let mut received = Vec::new();
+        let mut progress_reads = 0;
+        loop {
+            let chunk = host
+                .read_response_stream(&opened.stream_id)
+                .expect("pull bounded response chunk");
+            if chunk.done {
+                break;
+            }
+            progress_reads += 1;
+            received.extend_from_slice(&chunk.bytes);
+        }
+        let expected = (0..16)
+            .map(|index| format!("chunk-{index:02}\n"))
+            .collect::<String>();
+        assert_eq!(received, expected.as_bytes());
+        assert!(
+            progress_reads >= 3,
+            "pull-driven fixture must expose multiple intermediate reads, got {progress_reads}"
+        );
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("cancel after EOF is idempotent");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("repeat cancel after EOF is idempotent");
+        upstream.join().expect("stream fixture joins");
+
+        let secret_path = "never-log-this-private-prompt";
+        let error = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("file:///{secret_path}"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+            })
+            .expect_err("non-http stream URL fails closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+        assert!(
+            !serde_json::to_string(&error)
+                .expect("serialize stream diagnostic")
+                .contains(secret_path),
+            "stream diagnostics must not retain URL path data"
+        );
+    }
+
+    #[test]
+    fn bounded_action_stream_refuses_the_first_byte_past_the_total_limit() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind oversized stream fixture");
+        let address = listener.local_addr().expect("oversized stream address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept oversized request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let response_bytes = super::ACTION_STREAM_TOTAL_BYTES_MAX + 1;
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Length: {response_bytes}\r\nConnection: close\r\n\r\n"
+            )
+            .expect("write oversized response headers");
+            let block = vec![b'x'; 64 * 1024];
+            let mut remaining = response_bytes;
+            while remaining > 0 {
+                let visible =
+                    usize::try_from(remaining.min(block.len() as u64)).expect("bounded write size");
+                if socket.write_all(&block[..visible]).is_err() {
+                    break;
+                }
+                remaining -= visible as u64;
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("oversized stream host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/one-byte-too-many"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+            })
+            .expect("open oversized response stream");
+
+        let mut delivered = 0_u64;
+        let refusal = loop {
+            match host.read_response_stream(&opened.stream_id) {
+                Ok(chunk) if !chunk.done => delivered += chunk.bytes.len() as u64,
+                Ok(_) => panic!("oversized response reached EOF without a typed refusal"),
+                Err(error) => break error,
+            }
+        };
+        assert_eq!(delivered, super::ACTION_STREAM_TOTAL_BYTES_MAX);
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
+        );
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("cancel after limit refusal is idempotent");
+        upstream.join().expect("oversized stream fixture joins");
+    }
+
+    #[test]
+    fn bounded_action_stream_enforces_wall_idle_and_progress_rate_codes() {
+        let mut snapback = LocalSnapback::memory().expect("bounded stream limit host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(60);
+
+        let wall_id = "wall-limit".to_owned();
+        host.response_streams.insert(
+            wall_id.clone(),
+            super::OpenActionResponseStream {
+                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
+                opened_at: Instant::now()
+                    .checked_sub(Duration::from_millis(super::ACTION_STREAM_WALL_MS + 1))
+                    .expect("wall fixture instant"),
+                last_byte_at: Instant::now(),
+                total_bytes: 0,
+            },
+        );
+        assert_eq!(
+            host.read_response_stream(&wall_id)
+                .expect_err("wall limit refuses read")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        );
+
+        let idle_id = "idle-limit".to_owned();
+        host.response_streams.insert(
+            idle_id.clone(),
+            super::OpenActionResponseStream {
+                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
+                opened_at: Instant::now(),
+                last_byte_at: Instant::now()
+                    .checked_sub(Duration::from_millis(super::ACTION_STREAM_IDLE_MS + 1))
+                    .expect("idle fixture instant"),
+                total_bytes: 0,
+            },
+        );
+        assert_eq!(
+            host.read_response_stream(&idle_id)
+                .expect_err("idle limit refuses read")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        );
+
+        host.response_streams.insert(
+            "progress-rate".to_owned(),
+            super::OpenActionResponseStream {
+                reader: Box::new(std::io::Cursor::new(vec![b'x'])),
+                opened_at: Instant::now(),
+                last_byte_at: Instant::now(),
+                total_bytes: 0,
+            },
+        );
+        host.last_stream_progress_commit = Some(Instant::now());
+        assert_eq!(
+            host.run_mutation("hostPlanWrite", HandlerInput::default())
+                .expect_err("progress commits above ten per second fail closed")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
+        );
     }
 
     #[tokio::test]

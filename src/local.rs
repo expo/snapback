@@ -4333,7 +4333,13 @@ impl LocalSnapback {
     pub(crate) fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
-        let mut capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
+        // @ref LLP 0076#target-contract — the served manifest is instance-live:
+        // it reflects whether THIS process enabled outbound egress and so the
+        // bounded response-stream profile, not the conservative declaration.
+        let mut capability_manifest = CapabilityManifest::local_v0_instance(
+            capability_gaps.clone(),
+            crate::runtime::outbound_actions_enabled(),
+        );
         // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
         // report the live VM lifecycle honestly (warm is opt-out-able via
         // SNAPBACK_FRESH_VM=1, so this is per-instance state, not a constant).
@@ -4385,6 +4391,10 @@ impl LocalSnapback {
             capability_gaps.retain(|gap| gap != "ibex_cli");
         } else {
             capability_gaps.push("ibex_cli".to_owned());
+        }
+        if crate::runtime::outbound_actions_enabled() {
+            capability_gaps
+                .retain(|gap| gap != "outbound_actions" && gap != "bounded_response_stream_v1");
         }
         capability_gaps
     }
