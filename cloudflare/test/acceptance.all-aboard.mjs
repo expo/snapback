@@ -196,7 +196,7 @@ async function main() {
         manifest.supportedArtifactAuthPairs?.length === 1 &&
         manifest.supportedArtifactAuthPairs[0]?.schemaVersion === 'snapback.v0' &&
         manifest.supportedArtifactAuthPairs[0]?.authMode === 'dev' &&
-        manifest.supportedCapabilities?.join(',') === 'cron,live_subscriptions' &&
+        manifest.supportedCapabilities?.join(',') === 'bounded_response_stream_v1,cron,live_subscriptions' &&
         !Object.hasOwn(manifest, 'authProtocols') &&
         manifest.hostedAuth?.externalTls === 'unavailable' &&
         manifest.hostedAuth?.effectiveSource === 'unavailable' &&

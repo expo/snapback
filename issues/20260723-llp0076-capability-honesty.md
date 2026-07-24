@@ -11,8 +11,12 @@ limit rows are all genuinely enforced and witnessed (boundedness commit) and
 main's Cloudflare manifest carries only the honest gap row. Remaining before
 close: (1) the explicit proposed/experimental maturity marker — an LLP 0058
 registry-semantics schema design deferred to the author/review loop; (2) the
-Workerd loader/manifest arm (blocked on the unlanded Workerd streaming
-baseline). `cargo test --lib` 1140; codegen suite pass; envelope suite 5/5.
+Workerd deploy path (`ensureApp`), which still installs artifacts without
+resolving `requiredCapabilities` against the served manifest. The Workerd
+MANIFEST leg landed 2026-07-24: honest all-aboard rows (six enforced stream
+limits, no wall row) and a witness-bounded runtime fact that also names what
+the target does NOT have (no StreamAttemptV1 control plane; attempt tokens
+refused fail-closed, witnessed).
 **Severity:** P2
 **Systems:** Actions, Runtime, Code generation, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

@@ -33,20 +33,22 @@ first):
 Boundedness, authority, and honesty:
 
 - `20260723-llp0076-per-read-authority-fence.md` — post-read revalidation +
-  service-authority + attempt-to-cursor cancellation signal — local arm
-  landed 2026-07-24; open on the ServicePrincipal end-to-end witness and the
-  Workerd arm
+  service-authority + attempt-to-cursor cancellation signal — local and
+  Workerd legs landed 2026-07-24; open ONLY on the ServicePrincipal
+  end-to-end witness
 - `20260723-llp0076-boundedness.md` — 64 KiB buffer accounting, one in-flight
-  pull per cursor, absolute wall-clock timers — local arm landed 2026-07-24;
-  open on the Workerd arm only
+  pull per cursor, absolute wall-clock timers — RESOLVED 2026-07-24 (local
+  arm in full; Workerd leg with named structural residues in the ledger; see
+  `issues/closed/`)
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
   capability admission resolved against the served instance manifest — local
-  arm largely landed 2026-07-24 (served-instance admission + AST inference +
-  honest rows); open on the maturity-marker design (author/LLP 0058) and the
-  Workerd arm
+  admission + AST inference + honest manifests (both targets) landed
+  2026-07-24; open on the maturity-marker design (author/LLP 0058) and the
+  Workerd `ensureApp` admission leg
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction
-  on `ctx.fetchStream` — local arm landed 2026-07-24; open on the hosted
-  descriptor seam and retained-receipt scans
+  on `ctx.fetchStream` — RESOLVED 2026-07-24 (local value-mode + hosted
+  descriptor seam, both witnessed; retained-receipt scans reassigned; see
+  `issues/closed/`)
 - `20260723-llp0076-diagnostic-envelope.md` — preserve `_UNSUPPORTED` and the
   progress-rate code end-to-end; structured detail through the FFI/envelope
   — RESOLVED 2026-07-24 (landed on the local arm with an out-of-band
@@ -78,13 +80,41 @@ an author/LLP 0058 choice — + Workerd arm). Evidence baseline at 065484e6:
 authoring-validation pass, capability_v0 3/3, LLP 0075 local-streaming
 instrument PASS 6/6, ref-check clean, check-generated-artifacts clean.
 
-What gate 2 still needs beyond this program's open residue: re-landing the
-Workerd/Cloudflare streaming arm (still stranded uncommitted outside main;
-see the baseline note below), the prospective LLP 0075 amendment
-reconciling the frozen fixture's authored pattern with `StreamAttemptV1`
-tokens and the certainty mirror, per-bullet acceptance receipts, and the
-`single-instance-container-vm.v1` hosted receipt (decision 7). The guide
-gap for the `#stream-a-response` repair anchor is filed as ENG-25423.
+What gate 2 still needs beyond this program's open residue: the prospective
+LLP 0075 amendment reconciling the frozen fixture's authored pattern with
+`StreamAttemptV1` tokens and the certainty mirror, per-bullet acceptance
+receipts, and the `single-instance-container-vm.v1` hosted receipt
+(decision 7). The guide gap for the `#stream-a-response` repair anchor is
+filed as ENG-25423.
+
+## Workerd arm re-land (2026-07-24)
+
+The stranded Workerd/Cloudflare streaming arm is re-landed on main. Method:
+the streaming-slice diffs were copied read-only out of the primary
+checkout's uncommitted working tree (base b77f9c92; the six touched files
+had zero drift against main, so the hunks applied cleanly) and then adapted
+to the landed contract — nothing was committed from, modified in, or
+cleaned out of the primary checkout. Entanglement resolution: only
+`cloudflare/src/{coordinator,host-ops}.js`, the stream probes in
+`cloudflare/app/all-aboard.app.js`, and the three test files were taken;
+the primary's harness/envelope diffs were already superseded by this
+program's landed bridge, its generated-manifest diffs were reproduced
+honestly rather than copied (the stranded runtime fact overclaimed
+idle/wall/progress/watchdog/settlement evidence), and its LLP 0077 /
+deploy-plane changes were left behind untouched. Deployment identities were
+regenerated (`cloudflare/scripts/generate-deployment-identity.mjs`) because
+the app and manifest digests changed. Adaptations beyond the port:
+decision-4 rename, decision-5 safe-method-only downgrade, decision-6
+`elapsedMs`/`deltaMs`, pre/post-pull abandonment revalidation with
+late-byte discard, one-in-flight-pull-per-cursor, invocation-wide
+carry-over accounting with a 64 KiB refusal path, fail-closed attempt-token
+refusal (no control plane on this target), the LLP 0036 descriptor
+placement seam with the authored-URL rule, and six new Miniflare witnesses.
+Evidence: cloudflare local gate 21/21 suites, egress acceptance 27/27
+checks (ten stream checks). Ticket effects: boundedness and
+secret-scrubbing move to `issues/closed/`; per-read-authority-fence narrows
+to the single ServicePrincipal-witness item; capability-honesty narrows to
+the maturity marker plus the Workerd `ensureApp` admission leg.
 
 ## Baseline landing (2026-07-23, this worktree)
 

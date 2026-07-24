@@ -5,7 +5,21 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (capability honesty advanced on the local arm:
+**Revised:** 2026-07-24 (the stranded Workerd/Cloudflare streaming arm is
+re-landed on main, ported from the primary checkout's uncommitted working
+tree and adapted to the landed contract: the decision-4 rename and
+decision-5 safe-method-only downgrade, decision-6 `elapsedMs`/`deltaMs` on
+read results, pre- and post-pull abandonment revalidation with late-byte
+discard, one-in-flight-pull-per-cursor, invocation-wide carry-over
+accounting with a 64 KiB refusal path, fail-closed refusal of stream
+attempt tokens (this target has no StreamAttemptV1 control plane), the LLP
+0036 descriptor placement seam at the coordinator stream-open boundary with
+the authored-URL rule, and an honest all-aboard manifest (six enforced
+limit rows, no wall row, witness-bounded runtime fact). Witnessed by ten
+stream checks in the Miniflare/workerd egress acceptance (27/27) including
+secret placement value-freeness, the renamed progress-rate fence, the
+4-cursor cap, and the exact idle-timeout code; the Workerd residue rows
+below narrow accordingly; status remains Draft). 2026-07-24 (capability honesty advanced on the local arm:
 admission now resolves every declared requirement against the served
 instance manifest in one preflight shared by all local loader paths, with
 outbound-disabled negative and egress-enabled positive witnesses; codegen
@@ -536,7 +550,12 @@ a fix before gate 2:
   predicate logic is shared with the reviewed
   `validate_prepared_service_authority` process-fence tier, but a
   streamed-action run under real scoped-token authority has not been
-  executed), and the Workerd arm still checks only before the operation.
+  executed). The Workerd leg landed 2026-07-24: reads revalidate the
+  action-abandonment signal before AND after the pull, discarding late
+  bytes, and on that target the abandonment signal is the complete
+  revalidation predicate — hosted auth (and with it scoped-token service
+  authority) is `unavailable` on `cloudflare-do-sqlite-v8`, so no
+  service-authority tier exists there to check.
 - **Trusted terminalizer (landed on the local arm 2026-07-24; residue
   tracked).** The local host now owns a compare-and-set terminalizer with
   three legs: watchdog abandonment (linearized under the commit gate, so no
@@ -603,7 +622,12 @@ a fix before gate 2:
   and the wall deadline is absolute — computed as
   `min(open + 30 s, watchdog deadline − 2 s settlement grace)`, so a
   default action can reach and durably settle its stream timeout before
-  abandonment (witnessed). Residue: the Workerd arm (unlanded baseline).
+  abandonment (witnessed). The Workerd leg landed 2026-07-24: the pull is
+  race-bounded by `min(idle, wall remaining)`, so the ceiling fires
+  mid-read; that bound is structural (no 30 s witness is retained and no
+  wall manifest row is published), and settle grace is meaningless on a
+  target without the attempt control plane — both stated in the manifest's
+  runtime fact.
 - **64 KiB buffer accounting (local arm landed 2026-07-24).** The
   accounting domain is defined as host-materialized bytes per invocation —
   the one queued chunk per cursor plus the handoff copy — summed across
@@ -615,8 +639,12 @@ a fix before gate 2:
   it: a four-cursor slow-consumer test records a peak-buffered high-water
   mark under the bound and full ordered delivery. The local manifest's
   buffered-bytes row flips to `Enforced`, with read-size, cursor-cap, and
-  wall rows added. Residue: the Workerd arm still enforces only a
-  per-chunk bound (unlanded baseline).
+  wall rows added. The Workerd leg landed 2026-07-24: one in-flight pull
+  per cursor is refused structurally, the 16 KiB visible-chunk cap and
+  4-cursor cap are witnessed through real workerd, and host-retained
+  carry-over is accounted invocation-wide with a 64 KiB refusal path;
+  residue: that refusal path is structural, not a witnessed high-water
+  counter (stated in the manifest's runtime fact).
 - **Capability admission (local arm landed 2026-07-24).** Every local
   loader path — raw dev, complete-pair provisioning, direct embedding —
   funnels through one preflight that resolves every declared
@@ -631,7 +659,9 @@ a fix before gate 2:
   computed string access, and destructuring aliases of `fetchStream` mark
   the module while comments and unrelated strings do not (an unparseable
   bundle falls back to the conservative textual scan, which can only
-  over-require). Residue: the Workerd loader arm.
+  over-require). Residue: the Workerd deploy path (`ensureApp`) still
+  installs artifacts without resolving `requiredCapabilities` against the
+  served manifest — the Workerd loader-admission leg remains open.
 - **Two-axis settlement (host side landed on the local arm 2026-07-24;
   authored-pattern side open).** The host-owned attempt record now carries
   `terminalCause` plus the orthogonal `effectMayHaveExecuted` certainty
@@ -656,10 +686,14 @@ a fix before gate 2:
   `secretSlots` placement shape as ordinary host-mediated fetch and forwards
   descriptors opaquely; the local profile refuses descriptor slots with a
   typed diagnostic (they resolve only at a hosted fetch boundary — the same
-  posture as local `ctx.fetch`, which has no host-fetch op at all). Residue:
-  the hosted/Workerd descriptor-resolution seam for stream open rides the
-  unlanded Workerd baseline, and secret/private-data scans over RETAINED
-  stream receipts (durable rows) remain with the acceptance-receipts work.
+  posture as local `ctx.fetch`, which has no host-fetch op at all). The
+  hosted descriptor seam landed 2026-07-24: the coordinator resolves stream
+  secret slots at its own open boundary exactly like ordinary host-mediated
+  fetch, returns the handler-authored URL (never the substituted one), and
+  the Miniflare witness proves the placement authenticates the upstream
+  while the resolved value never re-enters the isolate or the action
+  result. Residue: secret/private-data scans over RETAINED stream receipts
+  (durable rows) remain with the acceptance-receipts work.
 - **Positive capability overclaim (substantially narrowed 2026-07-24;
   maturity marker still open).** The substance of the overclaim is resolved
   on the local arm: the terminal/lease guarantees are now host-enforced
@@ -690,13 +724,14 @@ a fix before gate 2:
   structured details (unlanded Workerd baseline), and per-family HTTP-path
   shape witnesses beyond INVALID ride the existing unit and instrument
   coverage.
-- **Cross-authority accuracy.** The Workerd open path's Begin/Initiated cut
-  does not visibly match LLP 0059's normalize-before-Begin rule; the Workerd
-  manifest claims idle, wall, progress-rate, watchdog, and typed-settlement
-  evidence its witness does not earn; and the retained local witness still
-  hardcodes the retired `local-ibex-sqlite.v1` target alias that LLP 0075's
-  protocol amendment prohibits, so it must derive identity from the served
-  manifest and rerun prospectively.
+- **Cross-authority accuracy (largely resolved).** The Workerd manifest
+  now claims only what its witness earns (2026-07-24: witness-bounded
+  runtime fact, six enforced rows, no wall row); the retained local witness
+  alias defect was fixed by the LLP 0075 instrument corrections (identity
+  derived from the served manifest). Remaining: the Workerd open path's
+  Begin/Initiated cut versus LLP 0059's normalize-before-Begin rule —
+  moot in practice on this target (no service-authority fence exists
+  there), revisit if hosted auth reaches the Cloudflare profile.
 
 The reference fixture also uses string mutation names and a client-key start
 dedup, which a prospective LLP 0075 amendment must reconcile with that Spec's

@@ -1,16 +1,8 @@
 # LLP 0036 secret placement and redaction on ctx.fetchStream
 
-**Status:** Open — local arm landed 2026-07-24. Done: value-mode parity with
-ordinary local fetch (staged `ctx.secrets` values + the LLP 0036 staged-value
-redactor on every stream error envelope), witnessed through the real HTTP
-action path in both directions (rethrown-leak scrubbed to `[REDACTED]`;
-untouched structured refusal value-free with the secret in URL and headers);
-`secretSlots` placement parity on the bridge with a typed refusal for
-descriptor slots the value-mode profile cannot resolve (same posture as local
-`ctx.fetch`). `cargo test --lib` 1139; envelope suite 5/5. Remaining before
-close: the hosted/Workerd descriptor-resolution seam for stream open (blocked
-on the unlanded Workerd streaming baseline) and secret/private-data scans
-over retained durable stream receipts (acceptance-receipts work).
+**Status:** Resolved (2026-07-24 — local value-mode parity and the hosted
+descriptor seam both landed and witnessed; retained-receipt scans
+reassigned to the acceptance-receipts work; see Resolution)
 **Severity:** P1
 **Systems:** Actions, Outbound fetch, Security, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -35,3 +27,26 @@ streams, so a stream cannot yet place an API key the way an ordinary action can.
   redaction as ordinary fetch" claim becomes true (or, if v1 instead excludes
   secret-bearing streams, that narrowing is stated explicitly and the AI-provider
   use case is re-scoped).
+
+## Resolution (2026-07-24)
+
+Local arm (commit edaac601): value-mode parity with ordinary local fetch —
+staged `ctx.secrets` values with the LLP 0036 staged-value redactor on
+every stream error envelope, witnessed through the real HTTP action path in
+both the rethrown-leak (`[REDACTED]`) and untouched-refusal (value-free
+with the secret in URL and headers) directions; `secretSlots` bridge parity
+with a typed refusal for descriptor slots the value-mode profile cannot
+resolve.
+
+Hosted descriptor seam (this commit): the coordinator resolves stream
+secret slots at its own open boundary exactly like ordinary host-mediated
+fetch (LLP 0049 placement, query-param and header), returns the
+handler-authored URL — never the host-substituted, secret-bearing one —
+and refuses unresolvable slots and unsupported placements with typed,
+value-free diagnostics. Witnessed through real workerd in the 27/27 egress
+acceptance: the header placement authenticates the mock upstream, and the
+resolved value never re-enters the isolate or the serialized action result.
+
+Residue, reassigned rather than held here: secret/private-data scans over
+RETAINED durable stream receipts ride the per-bullet acceptance-receipts
+work tracked in the program index.

@@ -15,6 +15,7 @@
     }
   ],
   "supportedCapabilities": [
+    "bounded_response_stream_v1",
     "cron",
     "live_subscriptions"
   ],
@@ -56,6 +57,30 @@
   "resourceLimits": [
     {
       "name": "wall_clock_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_total_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_buffered_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_read_bytes",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_open_cursors",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_idle_timeout",
+      "status": "Enforced"
+    },
+    {
+      "name": "bounded_response_stream_progress_rate",
       "status": "Enforced"
     },
     {
@@ -119,6 +144,7 @@
     "kitProtocol": "kit wire protocol served (connection grants, /query/:name, /mutation/:name, /action/:name, /live/:name/subscribe, /live/:id/stream); GET /outbox/:id drains empty by design — socket loss recovers through fresh snapshot-with-subscribe, and the HTTP poll fallback carries no deltas on this target",
     "outboundActions": "NOT a general claim (gap generalized_outbound_actions): exactly the action shapes LLP 0049 proves — host-mediated fetch with secret placement slots, query-param (refreshFeed api_key) and header (routeEstimate Authorization) both proven against real 511/OpenRouteService endpoints; values unwrap only at the coordinator fetch boundary; .expose()/.asBearer() fail closed in the isolate; NO destination allowlist yet (gap egress_destination_allowlist); wall-clock watchdog enforced; actions run on a dedicated handler isolate so slow fetches block no transactional work",
     "cron": "demand-armed Durable Object alarm only (the LLP 0049-ratified shape): subscribe arms, last-unsubscribe cancels, hardened durable runner with (jobName, scheduledAt) idempotency claims; an idle deployment arms ZERO warm-poll wakeups; deploy-time-static Cron Triggers / calendar schedules are NOT implemented (gap calendar_cron_triggers); the minute Cron Trigger fallback was not taken, so no per-minute idle invocations exist to declare",
-    "configBackend": "deploy-time-binding (LLP 0036): gateway-Worker secret bindings, one JSON-array secret per pooled entry, descriptor-only action grants, guided config.set via cloudflare/config-set.mjs with SNAPBACK_CONFIG_GENERATION attestation; richer set/unset automation, non-secret entries, and acquisition automation are named gaps"
+    "configBackend": "deploy-time-binding (LLP 0036): gateway-Worker secret bindings, one JSON-array secret per pooled entry, descriptor-only action grants, guided config.set via cloudflare/config-set.mjs with SNAPBACK_CONFIG_GENERATION attestation; richer set/unset automation, non-secret entries, and acquisition automation are named gaps",
+    "boundedResponseStreamV1": "earned by the ten stream checks in cloudflare/test/acceptance.egress.mjs through ordinary authored actions on the shared ctx.fetchStream surface: complete pull-driven delivery, <=16 KiB visible chunks, the 1 MiB total-byte refusal, idempotent cancellation with a terminal reader, the exact idle-timeout code, the SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED nested-mutation fence, the 4-cursor cap, fail-closed refusal of stream attempt tokens (this target has NO StreamAttemptV1 control plane: no lease, no trusted terminalizer, no durable initiationState pre-mark), and LLP 0036 descriptor placement resolving only at the coordinator stream-open boundary with value-free results. Honest bounds of this claim: the 30 s wall ceiling is race-enforced mid-read but not separately witnessed (no wall row is published); buffered-byte enforcement is the per-chunk ceiling plus the invocation-wide carry-over refusal path, not a witnessed high-water counter; failed-versus-ambiguous settlement classification (decision 5: safe-method-only downgrade) is implemented at open but not witnessed on this target."
   }
 }

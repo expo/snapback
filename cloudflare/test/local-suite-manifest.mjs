@@ -68,7 +68,7 @@ export const LOCAL_SUITES = Object.freeze([
   {
     id: 'acceptance-egress',
     file: 'cloudflare/test/acceptance.egress.mjs',
-    evidence: ['cloudflare egress acceptance: 17/17 checks passed'],
+    evidence: ['cloudflare egress acceptance: 27/27 checks passed'],
   },
   {
     id: 'acceptance-live-and-diagnostics-hardening',

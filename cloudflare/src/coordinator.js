@@ -71,6 +71,12 @@ const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
 const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
 const MAX_HOST_RESPONSE_BYTES = 1_000_000;
+const ACTION_STREAM_TOTAL_BYTES_MAX = 1024 * 1024;
+const ACTION_STREAM_BUFFER_BYTES_MAX = 64 * 1024;
+const ACTION_STREAM_CHUNK_BYTES_MAX = 16 * 1024;
+const ACTION_STREAM_WALL_MS = 30_000;
+const ACTION_STREAM_IDLE_MS = 5_000;
+const ACTION_STREAM_OPEN_MAX = 4;
 const DEFAULT_ACTION_TIMEOUT_MS = 30_000;
 const MAX_ACTION_TIMEOUT_MS = 15 * 60 * 1000;
 const SUBSCRIPTION_SCHEMA_VERSION = 3;
@@ -1710,6 +1716,481 @@ export class Coordinator {
     return { ok: true, value: result.value };
   }
 
+  // @ref LLP 0076#target-contract — the Cloudflare adapter owns response
+  // readers in the trusted coordinator; the stripped action isolate sees
+  // only opaque ids and one pull-bounded Uint8Array per host call.
+  createActionResponseStreams(control, capabilities) {
+    const streams = new Map();
+    const closed = new Map();
+    // Invocation-wide host-retained byte accounting (LLP 0076 §Surface): the
+    // carry-over slices stashed across pulls, summed over every cursor.
+    // Kernel/network buffers are excluded by definition; the visible handoff
+    // chunk is bounded separately at 16 KiB.
+    const scope = { bufferedBytes: 0 };
+    return {
+      hasOpen: () => streams.size > 0,
+      open: (request) => this.openActionResponseStream(request, control, streams, capabilities, scope),
+      read: (streamId) => this.readActionResponseStream(streamId, streams, closed, scope),
+      cancel: (streamId) => this.cancelActionResponseStream(streamId, streams, closed),
+      closeAll: async () => {
+        const pending = [...streams.values()].map((stream) => this.closeActionResponseStream(stream));
+        streams.clear();
+        await Promise.allSettled(pending);
+      },
+    };
+  }
+
+  actionStreamFailure(code, operation, message, details = {}) {
+    return {
+      ok: false,
+      code,
+      message,
+      details: {
+        operation,
+        repair: 'guide/backend/actions-and-fetch#stream-a-response',
+        ...details,
+      },
+    };
+  }
+
+  async openActionResponseStream(request, control, streams, capabilities, scope) {
+    if (streams.size >= ACTION_STREAM_OPEN_MAX) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED',
+        'open',
+        'the action already owns the maximum number of open response streams',
+        { limit: ACTION_STREAM_OPEN_MAX, received: 'additional stream' },
+      );
+    }
+    // @ref LLP 0076#settlement-and-retry — the StreamAttemptV1 control plane
+    // (lease, terminalizer, durable pre-mark) is not implemented on this
+    // target yet. Refusing a presented attempt token fails closed: an author
+    // must never believe the late-effect fence holds where it does not.
+    if (request.attemptToken != null) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'the stream attempt control plane is not available on this target',
+        { expected: 'no attemptToken on this target profile', received: 'a stream attempt token' },
+      );
+    }
+    const urlText = String(request.url || '');
+    let url;
+    try { url = new URL(urlText); } catch (_) { url = null; }
+    if (!url || !['http:', 'https:'].includes(url.protocol) || urlText.length > 4096) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream requires a bounded absolute HTTP(S) URL',
+        { expected: 'absolute http(s) URL <= 4096 bytes', received: 'invalid URL shape' },
+      );
+    }
+    const method = String(request.method || 'GET').toUpperCase();
+    if (!['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream received an unsupported HTTP method',
+        { expected: 'GET|HEAD|POST|PUT|PATCH|DELETE', received: 'unsupported method' },
+      );
+    }
+    const headerEntries = Object.entries(request.headers || {});
+    if (
+      headerEntries.length > 64
+      || headerEntries.some(([name, value]) => (
+        !name || name.length > 256 || String(value).length > 8192
+        || /[\u0000-\u001f\u007f]/.test(name) || /[\r\n]/.test(String(value))
+      ))
+    ) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream headers exceeded the safe shape',
+        { expected: 'at most 64 bounded single-line headers', received: 'invalid header shape' },
+      );
+    }
+    const body = request.body == null ? null : String(request.body);
+    if (
+      request.idempotencyKey != null
+      && (
+        String(request.idempotencyKey).length === 0
+        || UTF8_ENCODER.encode(String(request.idempotencyKey)).byteLength > 8192
+        || /[\r\n]/.test(String(request.idempotencyKey))
+      )
+    ) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'open',
+        'ctx.fetchStream received an invalid idempotency key',
+        { expected: 'a non-empty single-line key <= 8192 bytes', received: 'invalid idempotency key shape' },
+      );
+    }
+    if (body && UTF8_ENCODER.encode(body).byteLength > ACTION_STREAM_TOTAL_BYTES_MAX) {
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED',
+        'open',
+        'ctx.fetchStream request body exceeded the v1 byte limit',
+        { limitBytes: ACTION_STREAM_TOTAL_BYTES_MAX, received: 'oversized body' },
+      );
+    }
+    const headers = Object.fromEntries(headerEntries.map(([name, value]) => [name, String(value)]));
+    if (request.idempotencyKey != null && !headerEntries.some(([name]) => name.toLowerCase() === 'idempotency-key')) {
+      headers['Idempotency-Key'] = String(request.idempotencyKey);
+    }
+    // @ref LLP 0036#runtime-exposure-d5-d8 — the same opaque placement seam
+    // as ordinary host-mediated fetch (LLP 0049 §Action Egress): descriptors
+    // unwrap to values HERE and only here, into the query-param or header the
+    // slot names. The opened metadata below returns the handler-authored URL,
+    // never the host-substituted one, so no resolved value re-enters the
+    // isolate; stream refusal details are static and value-free by shape.
+    for (const slot of request.secretSlots || []) {
+      const descriptor = slot && slot.secret;
+      const capabilityId = descriptor && descriptor.capabilityId;
+      const capability = typeof capabilityId === 'string' && capabilities instanceof Map
+        ? capabilities.get(capabilityId)
+        : null;
+      if (!capability) {
+        return this.actionStreamFailure(
+          'SNAPBACK_ACTION_STREAM_INVALID',
+          'open',
+          'a stream secret slot carried no resolvable descriptor',
+          { expected: 'an invocation-scoped secret descriptor', received: 'unresolvable slot' },
+        );
+      }
+      const value = this.resolveSecretValue(capability.entryName, capability.cursor);
+      if (value == null) {
+        return this.actionStreamFailure(
+          'SNAPBACK_CONFIG_MISSING',
+          'open',
+          `${capability.entryName} has no value set`,
+          { expected: 'a configured secret value', received: 'unset entry' },
+        );
+      }
+      if (slot.placement === 'query-param') {
+        url.searchParams.set(String(slot.name), value);
+      } else if (slot.placement === 'header') {
+        headers[String(slot.name)] = value;
+      } else {
+        return this.actionStreamFailure(
+          'SNAPBACK_ACTION_STREAM_INVALID',
+          'open',
+          'unsupported stream secret placement',
+          { expected: 'query-param|header', received: 'unsupported placement kind' },
+        );
+      }
+    }
+    const controller = new AbortController();
+    const abortForAction = () => controller.abort(control?.code || 'SNAPBACK_ACTION_TIMEOUT');
+    if (control?.abortController?.signal.aborted) abortForAction();
+    else control?.abortController?.signal.addEventListener('abort', abortForAction, { once: true });
+    const metadataTimer = setTimeout(() => controller.abort('SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT'), ACTION_STREAM_IDLE_MS);
+    let response;
+    try {
+      response = await fetch(url.toString(), {
+        method,
+        headers,
+        body: body == null ? undefined : body,
+        signal: controller.signal,
+      });
+    } catch (_) {
+      clearTimeout(metadataTimer);
+      control?.abortController?.signal.removeEventListener('abort', abortForAction);
+      const timedOut = controller.signal.aborted && controller.signal.reason === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT';
+      // @ref LLP 0076#author-decisions--2026-07-23 — decision 5: safe
+      // methods are idempotent by grammar; a bare authored idempotency key
+      // no longer confers retry semantics, and this host cannot prove a
+      // pre-send failure through fetch(), so every non-safe transport loss
+      // stays at the fail-safe ambiguous classification.
+      const retrySafe = method === 'GET' || method === 'HEAD';
+      return this.actionStreamFailure(
+        timedOut
+          ? 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT'
+          : retrySafe
+            ? 'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED'
+            : 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS',
+        'open',
+        timedOut
+          ? 'the upstream did not produce response metadata within the idle limit'
+          : retrySafe
+            ? 'the upstream request failed before response metadata was available'
+            : 'the non-idempotent upstream request lost transport after initiation',
+        { received: 'transport failure', retrySafe },
+      );
+    }
+    clearTimeout(metadataTimer);
+    const streamId = crypto.randomUUID();
+    let reader = null;
+    let byob = false;
+    if (response.body) {
+      try {
+        reader = response.body.getReader({ mode: 'byob' });
+        byob = true;
+      } catch (_) {
+        reader = response.body.getReader();
+      }
+    }
+    const now = Date.now();
+    streams.set(streamId, {
+      reader,
+      byob,
+      controller,
+      abortForAction,
+      actionSignal: control?.abortController?.signal || null,
+      openedAt: now,
+      lastByteAt: now,
+      totalBytes: 0,
+      buffered: new Uint8Array(0),
+      pulling: false,
+      scope,
+    });
+    const responseHeaders = {};
+    let headerCount = 0;
+    for (const [name, value] of response.headers.entries()) {
+      if (headerCount >= 64) break;
+      responseHeaders[name] = String(value).slice(0, 8192);
+      headerCount += 1;
+    }
+    return {
+      ok: true,
+      value: {
+        streamId,
+        status: response.status,
+        statusText: response.statusText,
+        // The handler-authored URL, never the host-substituted one: the
+        // latter is a secret-bearing representation even when encoded.
+        url: urlText,
+        headers: responseHeaders,
+      },
+    };
+  }
+
+  // The pre/post-pull leg of the per-read authority fence on this target
+  // (LLP 0076 §Authority and lifecycle): the action-abandonment signal is
+  // revalidated before the pull is dispatched and again after bytes arrive,
+  // so a terminalization that lands during a blocked pull discards the late
+  // bytes rather than handing them to the isolate.
+  actionStreamAbandonRefusal(stream, when) {
+    if (!stream.actionSignal || !stream.actionSignal.aborted) return null;
+    const reason = stream.actionSignal.reason;
+    const code = typeof reason === 'string' && reason.startsWith('SNAPBACK_')
+      ? reason
+      : 'SNAPBACK_ACTION_TIMEOUT';
+    return this.actionStreamFailure(
+      code,
+      'read',
+      'the action invocation was terminalized; stream bytes are discarded',
+      { received: when },
+    );
+  }
+
+  async readActionResponseStream(streamId, streams, closed, scope) {
+    const stream = streams.get(streamId);
+    if (!stream) {
+      if (closed.has(streamId)) {
+        return {
+          ok: true,
+          value: { done: true, bytes: [], totalBytes: closed.get(streamId), elapsedMs: 0, deltaMs: 0 },
+        };
+      }
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'read',
+        'the response stream id is unknown to this action invocation',
+        { expected: 'an open invocation-local stream', received: 'unknown stream id' },
+      );
+    }
+    const preAbandoned = this.actionStreamAbandonRefusal(stream, 'terminalized before pull');
+    if (preAbandoned) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return preAbandoned;
+    }
+    // One in-flight pull per cursor (LLP 0076 §Surface): the shared bridge
+    // reader serializes read(), and the host refuses an overlap structurally.
+    if (stream.pulling) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_INVALID',
+        'read',
+        'the response stream already has a pull in flight',
+        { expected: 'one in-flight pull per cursor', received: 'overlapping pull' },
+      );
+    }
+    const now = Date.now();
+    if (now - stream.openedAt >= ACTION_STREAM_WALL_MS) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_TIMEOUT',
+        'read',
+        'the response stream exceeded its wall-clock limit',
+        { limitMs: ACTION_STREAM_WALL_MS, received: 'wall limit elapsed' },
+      );
+    }
+    if (now - stream.lastByteAt >= ACTION_STREAM_IDLE_MS) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT',
+        'read',
+        'the response stream exceeded its idle limit',
+        { limitMs: ACTION_STREAM_IDLE_MS, received: 'idle limit elapsed' },
+      );
+    }
+    if (stream.buffered.byteLength > 0) {
+      const deltaMs = Date.now() - stream.lastByteAt;
+      const visible = stream.buffered.slice(0, ACTION_STREAM_CHUNK_BYTES_MAX);
+      stream.buffered = stream.buffered.slice(visible.byteLength);
+      scope.bufferedBytes -= visible.byteLength;
+      stream.totalBytes += visible.byteLength;
+      stream.lastByteAt = Date.now();
+      return this.actionStreamChunk(streamId, stream, visible, streams, closed, deltaMs);
+    }
+    if (!stream.reader) {
+      const elapsedMs = Date.now() - stream.openedAt;
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return { ok: true, value: { done: true, bytes: [], totalBytes: stream.totalBytes, elapsedMs, deltaMs: 0 } };
+    }
+    const wallRemaining = Math.max(1, ACTION_STREAM_WALL_MS - (Date.now() - stream.openedAt));
+    const waitMs = Math.min(ACTION_STREAM_IDLE_MS, wallRemaining);
+    let timer;
+    const timed = new Promise((resolve) => {
+      timer = setTimeout(() => resolve({ timeout: true }), waitMs);
+    });
+    stream.pulling = true;
+    let outcome;
+    try {
+      const reading = (stream.byob
+        ? stream.reader.read(new Uint8Array(ACTION_STREAM_CHUNK_BYTES_MAX))
+        : stream.reader.read())
+        .then((value) => ({ value }), () => ({ failed: true }));
+      outcome = await Promise.race([reading, timed]);
+    } finally {
+      stream.pulling = false;
+      clearTimeout(timer);
+    }
+    if (outcome.timeout) {
+      const wallExpired = Date.now() - stream.openedAt >= ACTION_STREAM_WALL_MS;
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        wallExpired ? 'SNAPBACK_ACTION_STREAM_TIMEOUT' : 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT',
+        'read',
+        wallExpired
+          ? 'the response stream exceeded its wall-clock limit'
+          : 'the upstream produced no response bytes within the idle limit',
+        wallExpired
+          ? { limitMs: ACTION_STREAM_WALL_MS, received: 'read timeout' }
+          : { limitMs: ACTION_STREAM_IDLE_MS, received: 'read timeout' },
+      );
+    }
+    if (outcome.failed) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED',
+        'read',
+        'the upstream response stream failed while reading',
+        { received: 'transport read failure' },
+      );
+    }
+    // Post-pull revalidation: late bytes from a pull that was blocked across
+    // an action terminalization are discarded, never handed to the isolate.
+    const postAbandoned = this.actionStreamAbandonRefusal(stream, 'terminalized during pull');
+    if (postAbandoned) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return postAbandoned;
+    }
+    if (outcome.value.done) {
+      const elapsedMs = Date.now() - stream.openedAt;
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return { ok: true, value: { done: true, bytes: [], totalBytes: stream.totalBytes, elapsedMs, deltaMs: 0 } };
+    }
+    const bytes = new Uint8Array(
+      outcome.value.value.buffer,
+      outcome.value.value.byteOffset,
+      outcome.value.value.byteLength,
+    );
+    if (bytes.byteLength > ACTION_STREAM_BUFFER_BYTES_MAX) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED',
+        'read',
+        'the upstream produced a chunk larger than the v1 buffer ceiling',
+        { limitBytes: ACTION_STREAM_BUFFER_BYTES_MAX, received: 'oversized upstream chunk' },
+      );
+    }
+    const deltaMs = Date.now() - stream.lastByteAt;
+    const visible = bytes.slice(0, ACTION_STREAM_CHUNK_BYTES_MAX);
+    stream.buffered = bytes.slice(visible.byteLength);
+    scope.bufferedBytes += stream.buffered.byteLength;
+    stream.totalBytes += visible.byteLength;
+    stream.lastByteAt = Date.now();
+    // Invocation-wide host-retained accounting (LLP 0076 §Surface): the sum
+    // of carry-over slices across every cursor stays under the 64 KiB
+    // application-visible ceiling; kernel/network buffers are out of scope.
+    if (scope.bufferedBytes > ACTION_STREAM_BUFFER_BYTES_MAX) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED',
+        'read',
+        'host-retained stream bytes exceeded the v1 buffered ceiling',
+        { limitBytes: ACTION_STREAM_BUFFER_BYTES_MAX, received: 'invocation-wide buffered overflow' },
+      );
+    }
+    return this.actionStreamChunk(streamId, stream, visible, streams, closed, deltaMs);
+  }
+
+  async actionStreamChunk(streamId, stream, bytes, streams, closed, deltaMs) {
+    if (stream.totalBytes > ACTION_STREAM_TOTAL_BYTES_MAX) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return this.actionStreamFailure(
+        'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED',
+        'read',
+        'the upstream response exceeded the v1 total-byte limit',
+        { limitBytes: ACTION_STREAM_TOTAL_BYTES_MAX, received: 'oversized response' },
+      );
+    }
+    return {
+      ok: true,
+      value: {
+        done: false,
+        bytes: Array.from(bytes),
+        totalBytes: stream.totalBytes,
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 6: the
+        // host-owned monotonic progress clock on every read result.
+        elapsedMs: Date.now() - stream.openedAt,
+        deltaMs,
+      },
+    };
+  }
+
+  async finishActionResponseStream(streamId, stream, streams, closed) {
+    if (stream.scope && stream.buffered) {
+      stream.scope.bufferedBytes -= stream.buffered.byteLength;
+      stream.buffered = new Uint8Array(0);
+    }
+    streams.delete(streamId);
+    closed.set(streamId, stream.totalBytes);
+    await this.closeActionResponseStream(stream);
+  }
+
+  async closeActionResponseStream(stream) {
+    stream.actionSignal?.removeEventListener('abort', stream.abortForAction);
+    try { await stream.reader?.cancel(); } catch (_) {}
+    try { stream.controller.abort('SNAPBACK_ACTION_STREAM_CANCELLED'); } catch (_) {}
+  }
+
+  async cancelActionResponseStream(streamId, streams, closed) {
+    const stream = streams.get(streamId);
+    if (stream) {
+      await this.finishActionResponseStream(streamId, stream, streams, closed);
+      return { ok: true, value: null };
+    }
+    if (closed.has(streamId)) return { ok: true, value: null };
+    return this.actionStreamFailure(
+      'SNAPBACK_ACTION_STREAM_INVALID',
+      'cancel',
+      'the response stream id is unknown to this action invocation',
+      { expected: 'an invocation-local stream', received: 'unknown stream id' },
+    );
+  }
+
   // The host-mediated fetch boundary (LLP 0049 §Action Egress): descriptors
   // unwrap to values HERE and only here; placement slots cover query-param
   // (511's api_key) and header (directions' Authorization); and every
@@ -2474,6 +2955,9 @@ export class Coordinator {
     const token = crypto.randomUUID();
     const epoch = `${Date.now()}-${token}`;
     let host;
+    const hostStreams = mode === 'action'
+      ? this.createActionResponseStreams(options.control || null, grants.capabilities)
+      : null;
     const control = options.control || null;
     const actionIdempotencyKey = mode === 'action' && options.actionIdempotencyKey != null
       ? String(options.actionIdempotencyKey)
@@ -2519,6 +3003,7 @@ export class Coordinator {
               })
           : null,
       hostFetch: mode === 'action' ? (request) => this.hostActionFetch(request, grants.capabilities, control) : null,
+      hostStreams,
     });
     if (control) {
       control.host = host;
@@ -2594,6 +3079,7 @@ export class Coordinator {
       const parsed = classifyHandlerPlatformFailure(parseHandlerEnvelope(result.envelope), { maxRowBytes: MAX_ROW_BYTES });
       return { ...parsed, host, observedVersion: host.observedVersion || this.currentVersion() };
     } finally {
+      await host?.closeResponseStreams();
       this.activeInvocations.delete(token);
     }
   }
