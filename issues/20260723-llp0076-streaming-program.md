@@ -26,7 +26,9 @@ first):
   initiation-state and per-read-fence tickets, the Workerd-arm note, and the
   prospective LLP 0075 amendment; see `issues/closed/`)
 - `20260723-llp0076-initiation-state.md` — the crash-safe write-ahead
-  `initiationState` and host-derived effect-certainty column
+  `initiationState` and host-derived effect-certainty column — RESOLVED
+  2026-07-24 (landed on the local arm: `_snapback_stream_attempts` SQLite
+  substrate, startup reconciler, decision-5 downgrade; see `issues/closed/`)
 
 Boundedness, authority, and honesty:
 

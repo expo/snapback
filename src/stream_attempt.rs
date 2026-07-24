@@ -114,12 +114,79 @@ struct CursorRecord {
 
 struct AttemptRecord {
     token: String,
+    namespace: usize,
+    client_key: String,
     runner_generation: u64,
     holder: Option<RunnerHolder>,
     progress_commits: u64,
     cursors_opened: u64,
     cursors: BTreeMap<String, CursorRecord>,
     terminal: Option<StreamAttemptTerminal>,
+}
+
+/// The durable shape of one attempt row (`_snapback_stream_attempts.record_json`).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedStreamCursor {
+    pub initiation_state: StreamInitiationState,
+    pub open: bool,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PersistedStreamAttempt {
+    pub token: String,
+    pub client_key: String,
+    pub runner_generation: u64,
+    pub progress_commits: u64,
+    pub cursors_opened: u64,
+    #[serde(default)]
+    pub cursors: BTreeMap<String, PersistedStreamCursor>,
+    #[serde(default)]
+    pub terminal: Option<StreamAttemptTerminal>,
+}
+
+impl PersistedStreamAttempt {
+    pub fn to_row(&self) -> SnapbackResult<(String, String, String)> {
+        let json = serde_json::to_string(self).map_err(|error| {
+            SnapbackError::error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "runtime",
+                "the stream attempt record could not be serialized",
+            )
+            .with_details(json!({ "operation": "persist", "error": error.to_string() }))
+        })?;
+        Ok((self.token.clone(), self.client_key.clone(), json))
+    }
+}
+
+/// Startup reconciliation for a persisted attempt row whose runner died with
+/// the process: a non-terminal row gains a `failed` terminal from the
+/// terminalizer, with the effect fact folded conservatively from the
+/// write-ahead cursor states (`initiation_possible` reads as
+/// effect-may-have-executed). Returns the updated JSON, or None when the row
+/// already carries its durable winner.
+// @ref LLP 0076#settlement-and-retry — a crash after the pre-mark leaves
+//   `initiation_possible`, which is the conservative reading; resolution of
+//   the uncertainty is LLP 0070's lookup path, never a silent retry.
+pub fn reconcile_orphaned_record(record_json: &str) -> Option<String> {
+    let mut persisted: PersistedStreamAttempt = serde_json::from_str(record_json).ok()?;
+    if persisted.terminal.is_some() {
+        return None;
+    }
+    let effect = persisted
+        .cursors
+        .values()
+        .any(|cursor| cursor.initiation_state != StreamInitiationState::DefinitelyNotInitiated);
+    persisted.terminal = Some(StreamAttemptTerminal {
+        cause: StreamAttemptCause::Failed,
+        effect_may_have_executed: effect,
+        settled_by: StreamAttemptSettledBy::Terminalizer,
+    });
+    for cursor in persisted.cursors.values_mut() {
+        cursor.open = false;
+    }
+    serde_json::to_string(&persisted).ok()
 }
 
 impl AttemptRecord {
@@ -146,6 +213,38 @@ struct RegistryInner {
     by_client_key: BTreeMap<(usize, String), String>,
     by_invocation: BTreeMap<String, BTreeSet<String>>,
     by_cursor: BTreeMap<String, String>,
+    /// Tokens whose durable row is stale. Drained by the host's flush points;
+    /// watchdog-leg terminals are deliberately write-behind (the watchdog must
+    /// never wait on the instance lock) and ride the next flush or, after a
+    /// crash, the startup reconciler.
+    dirty: BTreeSet<String>,
+}
+
+impl RegistryInner {
+    fn snapshot(&self, token: &str) -> Option<PersistedStreamAttempt> {
+        let record = self.by_token.get(token)?;
+        Some(PersistedStreamAttempt {
+            token: record.token.clone(),
+            client_key: record.client_key.clone(),
+            runner_generation: record.runner_generation,
+            progress_commits: record.progress_commits,
+            cursors_opened: record.cursors_opened,
+            cursors: record
+                .cursors
+                .iter()
+                .map(|(id, cursor)| {
+                    (
+                        id.clone(),
+                        PersistedStreamCursor {
+                            initiation_state: cursor.initiation_state,
+                            open: cursor.open,
+                        },
+                    )
+                })
+                .collect(),
+            terminal: record.terminal.clone(),
+        })
+    }
 }
 
 /// Identity of one detached action invocation as the control plane sees it:
@@ -200,6 +299,7 @@ impl StreamAttemptRegistry {
         namespace: usize,
         client_key: &str,
         runner: &StreamRunnerIdentity,
+        persisted: Option<&PersistedStreamAttempt>,
     ) -> SnapbackResult<StreamAttemptStart> {
         if client_key.is_empty() || client_key.len() > 512 || client_key.contains(['\r', '\n']) {
             return Err(attempt_error(
@@ -215,6 +315,7 @@ impl StreamAttemptRegistry {
                 .by_token
                 .get_mut(&token)
                 .expect("client-key index points at a live attempt record");
+            let mut took_over = false;
             let lease_held = match (&record.terminal, &record.holder) {
                 (Some(_), _) => false,
                 (None, Some(holder)) if holder.invocation_id == runner.invocation_id => true,
@@ -229,6 +330,7 @@ impl StreamAttemptRegistry {
                         abandoned: runner.abandoned.clone(),
                         finished: runner.finished.clone(),
                     });
+                    took_over = true;
                     true
                 }
             };
@@ -240,6 +342,9 @@ impl StreamAttemptRegistry {
                 terminal: record.terminal.clone(),
             };
             let token = record.token.clone();
+            if took_over {
+                inner.dirty.insert(token.clone());
+            }
             inner
                 .by_invocation
                 .entry(runner.invocation_id.clone())
@@ -247,22 +352,60 @@ impl StreamAttemptRegistry {
                 .insert(token);
             return Ok(start);
         }
-        let token = Uuid::new_v4().to_string();
+        // Adopt a durable row this process has not seen (the previous runner
+        // died with its process; the startup reconciler already settled it,
+        // but adopt defensively either way): the durable identity survives,
+        // the runner generation advances, and this runner takes the lease
+        // only when no durable winner exists.
+        let (token, runner_generation, progress_commits, cursors_opened, cursors, terminal) =
+            match persisted {
+                Some(row) => (
+                    row.token.clone(),
+                    row.runner_generation + 1,
+                    row.progress_commits,
+                    row.cursors_opened,
+                    row.cursors
+                        .iter()
+                        .map(|(id, cursor)| {
+                            (
+                                id.clone(),
+                                CursorRecord {
+                                    initiation_state: cursor.initiation_state,
+                                    open: false,
+                                },
+                            )
+                        })
+                        .collect(),
+                    row.terminal.clone(),
+                ),
+                None => (
+                    Uuid::new_v4().to_string(),
+                    1,
+                    0,
+                    0,
+                    BTreeMap::new(),
+                    None,
+                ),
+            };
+        let lease_held = terminal.is_none();
         let record = AttemptRecord {
             token: token.clone(),
-            runner_generation: 1,
-            holder: Some(RunnerHolder {
+            namespace,
+            client_key: client_key.to_owned(),
+            runner_generation,
+            holder: lease_held.then(|| RunnerHolder {
                 invocation_id: runner.invocation_id.clone(),
                 abandoned: runner.abandoned.clone(),
                 finished: runner.finished.clone(),
             }),
-            progress_commits: 0,
-            cursors_opened: 0,
-            cursors: BTreeMap::new(),
-            terminal: None,
+            progress_commits,
+            cursors_opened,
+            cursors,
+            terminal: terminal.clone(),
         };
         inner.by_client_key.insert(key, token.clone());
         inner.by_token.insert(token.clone(), record);
+        inner.dirty.insert(token.clone());
         inner
             .by_invocation
             .entry(runner.invocation_id.clone())
@@ -270,11 +413,36 @@ impl StreamAttemptRegistry {
             .insert(token.clone());
         Ok(StreamAttemptStart {
             attempt_token: token,
-            runner_generation: 1,
-            lease_held: true,
-            progress_commits: 0,
-            terminal: None,
+            runner_generation,
+            lease_held,
+            progress_commits,
+            terminal,
         })
+    }
+
+    /// Snapshot the dirty rows of one instance namespace for durable upsert.
+    /// Dirty flags are cleared separately AFTER the upsert commits, so a
+    /// failed write leaves the rows queued for the next flush point.
+    pub fn dirty_snapshots(&self, namespace: usize) -> Vec<PersistedStreamAttempt> {
+        let inner = self.lock();
+        inner
+            .dirty
+            .iter()
+            .filter(|token| {
+                inner
+                    .by_token
+                    .get(*token)
+                    .is_some_and(|record| record.namespace == namespace)
+            })
+            .filter_map(|token| inner.snapshot(token))
+            .collect()
+    }
+
+    pub fn clear_dirty(&self, tokens: &[String]) {
+        let mut inner = self.lock();
+        for token in tokens {
+            inner.dirty.remove(token);
+        }
     }
 
     /// Bind an upstream cursor (child record, decision 3) to an attempt
@@ -332,6 +500,7 @@ impl StreamAttemptRegistry {
         inner
             .by_cursor
             .insert(cursor_id.to_owned(), attempt_token.to_owned());
+        inner.dirty.insert(attempt_token.to_owned());
         Ok(())
     }
 
@@ -348,6 +517,7 @@ impl StreamAttemptRegistry {
             && cursor.initiation_state != StreamInitiationState::ResponseObserved
         {
             cursor.initiation_state = state;
+            inner.dirty.insert(token);
         }
     }
 
@@ -360,6 +530,7 @@ impl StreamAttemptRegistry {
             && let Some(cursor) = record.cursors.get_mut(cursor_id)
         {
             cursor.open = false;
+            inner.dirty.insert(token);
         }
     }
 
@@ -416,6 +587,7 @@ impl StreamAttemptRegistry {
                 && record.open_cursor_count() > 0
             {
                 record.progress_commits += 1;
+                inner.dirty.insert(token);
             }
         }
     }
@@ -456,6 +628,7 @@ impl StreamAttemptRegistry {
         for cursor in record.cursors.values_mut() {
             cursor.open = false;
         }
+        inner.dirty.insert(attempt_token.to_owned());
         Ok(terminal)
     }
 
@@ -490,6 +663,7 @@ impl StreamAttemptRegistry {
                 for cursor in record.cursors.values_mut() {
                     cursor.open = false;
                 }
+                inner.dirty.insert(token);
                 settled.push(terminal);
             }
         }
@@ -529,17 +703,17 @@ mod tests {
         let registry = registry();
         let first = runner();
         let second = runner();
-        let started = registry.start(1, "client-key", &first).expect("start");
+        let started = registry.start(1, "client-key", &first, None).expect("start");
         assert!(started.lease_held);
         assert_eq!(started.runner_generation, 1);
 
-        let joined = registry.start(1, "client-key", &second).expect("join");
+        let joined = registry.start(1, "client-key", &second, None).expect("join");
         assert_eq!(joined.attempt_token, started.attempt_token);
         assert!(!joined.lease_held, "a live holder keeps the lease");
         assert_eq!(joined.runner_generation, 1);
 
         // The same invocation re-starting still holds its lease.
-        let same = registry.start(1, "client-key", &first).expect("restart");
+        let same = registry.start(1, "client-key", &first, None).expect("restart");
         assert!(same.lease_held);
     }
 
@@ -548,9 +722,9 @@ mod tests {
         let registry = registry();
         let first = runner();
         let second = runner();
-        let started = registry.start(7, "key", &first).expect("start");
+        let started = registry.start(7, "key", &first, None).expect("start");
         first.abandoned.store(true, Ordering::SeqCst);
-        let taken = registry.start(7, "key", &second).expect("takeover");
+        let taken = registry.start(7, "key", &second, None).expect("takeover");
         assert_eq!(taken.attempt_token, started.attempt_token);
         assert!(taken.lease_held);
         assert_eq!(taken.runner_generation, 2);
@@ -578,7 +752,7 @@ mod tests {
     fn settle_is_compare_and_set_and_returns_the_durable_winner_verbatim() {
         let registry = registry();
         let holder = runner();
-        let started = registry.start(1, "cas", &holder).expect("start");
+        let started = registry.start(1, "cas", &holder, None).expect("start");
         registry
             .bind_cursor(&started.attempt_token, "cursor-1", &holder)
             .expect("bind");
@@ -601,7 +775,7 @@ mod tests {
     fn abandoned_invocation_terminalization_race_has_exactly_one_winner() {
         let registry = Arc::new(registry());
         let holder = runner();
-        let started = registry.start(3, "race", &holder).expect("start");
+        let started = registry.start(3, "race", &holder, None).expect("start");
         registry
             .bind_cursor(&started.attempt_token, "cursor-race", &holder)
             .expect("bind");
@@ -650,7 +824,7 @@ mod tests {
     fn retry_after_first_durable_progress_commit_is_refused() {
         let registry = registry();
         let holder = runner();
-        let started = registry.start(1, "retry", &holder).expect("start");
+        let started = registry.start(1, "retry", &holder, None).expect("start");
         registry
             .bind_cursor(&started.attempt_token, "cursor-a", &holder)
             .expect("first upstream open");
@@ -661,7 +835,7 @@ mod tests {
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
 
         // Before any progress commit a reopen (idempotent retry) is legal.
-        let fresh = registry.start(1, "retry-fresh", &holder).expect("start");
+        let fresh = registry.start(1, "retry-fresh", &holder, None).expect("start");
         registry
             .bind_cursor(&fresh.attempt_token, "cursor-c", &holder)
             .expect("first open");
@@ -675,7 +849,7 @@ mod tests {
     fn late_progress_against_a_terminal_attempt_with_open_cursor_is_fenced() {
         let registry = registry();
         let holder = runner();
-        let started = registry.start(1, "late", &holder).expect("start");
+        let started = registry.start(1, "late", &holder, None).expect("start");
         registry
             .bind_cursor(&started.attempt_token, "cursor-late", &holder)
             .expect("bind");
@@ -698,7 +872,7 @@ mod tests {
     fn initiation_narrowing_and_response_observed_fold_into_certainty() {
         let registry = registry();
         let holder = runner();
-        let started = registry.start(1, "fold", &holder).expect("start");
+        let started = registry.start(1, "fold", &holder, None).expect("start");
         registry
             .bind_cursor(&started.attempt_token, "cursor-1", &holder)
             .expect("bind");
@@ -710,7 +884,7 @@ mod tests {
             "a provable pre-send failure carries no effect uncertainty"
         );
 
-        let second = registry.start(1, "fold-2", &holder).expect("start");
+        let second = registry.start(1, "fold-2", &holder, None).expect("start");
         registry
             .bind_cursor(&second.attempt_token, "cursor-2", &holder)
             .expect("bind");

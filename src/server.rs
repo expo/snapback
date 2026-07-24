@@ -870,10 +870,82 @@ impl Drop for ScopedLocalSnapbackGuard {
 impl DetachedActionHost {
     /// Retire a cursor everywhere at once: the read-side closed set (so a
     /// post-cancel read returns EOF) and the attempt registry's child record
-    /// (so the parent's certainty fold stops treating it as in flight).
+    /// (so the parent's certainty fold stops treating it as in flight). The
+    /// durable row follows best-effort; a skipped write stays queued and the
+    /// on-disk state remains conservatively `open`/`initiation_possible`.
     fn close_response_stream_cursor(&mut self, stream_id: &str) {
         self.closed_response_streams.insert(stream_id.to_owned());
         crate::stream_attempt::global_stream_attempt_registry().close_cursor(stream_id);
+        self.flush_stream_attempts_trusted();
+    }
+
+    /// Required durable flush: the write-ahead pre-mark and the attempt-row
+    /// creation must commit before their operation proceeds, so failures
+    /// propagate. Runs under the ordinary live-validated instance lock; the
+    /// registry namespace is the instance's own nonce, resolved under that
+    /// lock.
+    fn flush_stream_attempts_required(&self, op: &str) -> SnapbackResult<()> {
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let mut snapback = self.lock_live(op)?;
+        let namespace = snapback.stream_attempt_namespace();
+        let snapshots = registry.dirty_snapshots(namespace);
+        if snapshots.is_empty() {
+            return Ok(());
+        }
+        let mut rows = Vec::with_capacity(snapshots.len());
+        let mut tokens = Vec::with_capacity(snapshots.len());
+        for snapshot in &snapshots {
+            rows.push(snapshot.to_row()?);
+            tokens.push(snapshot.token.clone());
+        }
+        snapback.persist_stream_attempts(&rows)?;
+        drop(snapback);
+        registry.clear_dirty(&tokens);
+        Ok(())
+    }
+
+    /// Trusted best-effort flush for terminalizer and close paths: bypasses
+    /// the action-authority fence (writing settlement bookkeeping is the
+    /// host's own job even after abandonment) but never blocks unboundedly —
+    /// rows left dirty ride the next flush point or, after a crash, the
+    /// startup reconciler.
+    fn flush_stream_attempts_trusted(&self) {
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let deadline = Instant::now() + Duration::from_millis(250);
+        loop {
+            if let Ok(guard) = self.state.clone().try_lock_owned() {
+                if guard.managed_local_handoff().is_closed() {
+                    drop(guard);
+                } else {
+                    let scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+                    let mut guard = ScopedLocalSnapbackGuard {
+                        guard: Some(guard),
+                        scope: Some(scope),
+                    };
+                    let namespace = guard.stream_attempt_namespace();
+                    let snapshots = registry.dirty_snapshots(namespace);
+                    if snapshots.is_empty() {
+                        return;
+                    }
+                    let mut rows = Vec::with_capacity(snapshots.len());
+                    let mut tokens = Vec::with_capacity(snapshots.len());
+                    for snapshot in &snapshots {
+                        let Ok(row) = snapshot.to_row() else { return };
+                        rows.push(row);
+                        tokens.push(snapshot.token.clone());
+                    }
+                    if guard.persist_stream_attempts(&rows).is_ok() {
+                        drop(guard);
+                        registry.clear_dirty(&tokens);
+                    }
+                    return;
+                }
+            }
+            if Instant::now() >= deadline {
+                return;
+            }
+            std::thread::park_timeout(Duration::from_millis(ACTION_LOCK_POLL_MS));
+        }
     }
 
     fn validate_live(&self, op: &str) -> SnapbackResult<()> {
@@ -1321,6 +1393,14 @@ impl IbexActionHost for DetachedActionHost {
                 &stream_id,
                 &self.stream_runner,
             )?;
+            // The write-ahead pre-mark MUST be durable before any request
+            // byte reaches the outbound stack: a crash from here on is
+            // recovered as `initiation_possible`, the conservative reading.
+            if let Err(error) = self.flush_stream_attempts_required("fetchStream.open") {
+                crate::stream_attempt::global_stream_attempt_registry()
+                    .close_cursor(&stream_id);
+                return Err(error);
+            }
         }
         let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
         let agent = ureq::AgentBuilder::new()
@@ -1375,15 +1455,28 @@ impl IbexActionHost for DetachedActionHost {
                     );
                 }
                 registry.close_cursor(&stream_id);
+                self.flush_stream_attempts_trusted();
+                // @ref LLP 0076#author-decisions--2026-07-23 — decision 5:
+                // safe methods are idempotent by grammar; a bare authored
+                // idempotency key no longer confers retry semantics. Until a
+                // deployment-pinned provider idempotency declaration exists,
+                // every keyed non-GET downgrades to non-idempotent and an
+                // unprovable transport failure settles ambiguous.
+                let provable_pre_send = matches!(
+                    transport.kind(),
+                    ureq::ErrorKind::Dns
+                        | ureq::ErrorKind::ConnectionFailed
+                        | ureq::ErrorKind::InvalidUrl
+                        | ureq::ErrorKind::UnknownScheme
+                );
+                let retry_safe = matches!(method.as_str(), "GET" | "HEAD");
                 let timed_out = started.elapsed() >= request_timeout;
                 let (code, message) = if timed_out {
                     (
                         "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
                         "the upstream did not produce response metadata within the idle limit",
                     )
-                } else if matches!(method.as_str(), "GET" | "HEAD")
-                    || request.idempotency_key.is_some()
-                {
+                } else if retry_safe || provable_pre_send {
                     (
                         "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
                         "the upstream request failed before response metadata was available",
@@ -1398,17 +1491,20 @@ impl IbexActionHost for DetachedActionHost {
                     code,
                     "open",
                     message,
-                    json!({ "received": "transport failure", "retrySafe": matches!(method.as_str(), "GET" | "HEAD") || request.idempotency_key.is_some() }),
+                    json!({ "received": "transport failure", "retrySafe": retry_safe }),
                 ));
             }
         };
         self.validate_live("fetchStream.open")?;
         // Response metadata arrived: the certainty axis advances to its
-        // absorbing `response_observed` state.
+        // absorbing `response_observed` state. The durable advance is
+        // best-effort — a skipped write leaves `initiation_possible`, which
+        // is the conservative direction.
         crate::stream_attempt::global_stream_attempt_registry().cursor_initiation(
             &stream_id,
             crate::stream_attempt::StreamInitiationState::ResponseObserved,
         );
+        self.flush_stream_attempts_trusted();
         let status = response.status();
         let status_text = response.status_text().to_owned();
         let final_url = response.get_url().to_owned();
@@ -1548,16 +1644,36 @@ impl IbexActionHost for DetachedActionHost {
 
     // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
     // record: idempotent start by client key under the single-runner lease.
+    // The durable row is consulted first, so a winner settled in a previous
+    // process life (or by the startup reconciler) is returned verbatim.
     fn start_stream_attempt(
         &mut self,
         client_key: &str,
     ) -> SnapbackResult<crate::stream_attempt::StreamAttemptStart> {
         self.validate_live("streamAttempt.start")?;
-        crate::stream_attempt::global_stream_attempt_registry().start(
-            Arc::as_ptr(&self.state) as usize,
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let (namespace, persisted) = {
+            let snapback = self.lock_live("streamAttempt.start")?;
+            let persisted = snapback.stream_attempt_record(client_key)?.and_then(
+                |(_, record_json)| {
+                    serde_json::from_str::<crate::stream_attempt::PersistedStreamAttempt>(
+                        &record_json,
+                    )
+                    .ok()
+                },
+            );
+            (snapback.stream_attempt_namespace(), persisted)
+        };
+        let started = registry.start(
+            namespace,
             client_key,
             &self.stream_runner,
-        )
+            persisted.as_ref(),
+        )?;
+        // The attempt row itself is durable before the caller can bind
+        // cursors or commit progress against it.
+        self.flush_stream_attempts_required("streamAttempt.start")?;
+        Ok(started)
     }
 
     fn settle_stream_attempt(
@@ -1566,11 +1682,15 @@ impl IbexActionHost for DetachedActionHost {
         cause: crate::stream_attempt::StreamAttemptCause,
     ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
         self.validate_live("streamAttempt.settle")?;
-        crate::stream_attempt::global_stream_attempt_registry().settle(
+        let terminal = crate::stream_attempt::global_stream_attempt_registry().settle(
             attempt_token,
             cause,
             &self.stream_runner,
-        )
+        )?;
+        // The authored settle is a durable terminal fact: persist it before
+        // the action observes success.
+        self.flush_stream_attempts_required("streamAttempt.settle")?;
+        Ok(terminal)
     }
 }
 
@@ -1881,6 +2001,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 };
                 crate::stream_attempt::global_stream_attempt_registry()
                     .terminalize_invocation(&stream_runner, terminal_cause);
+                host.flush_stream_attempts_trusted();
                 fenced
                     // This is the earliest common envelope boundary and
                     // carries the staging-time values, so rotation cannot
@@ -29619,6 +29740,225 @@ globalThis.__snapbackHandlers = {
             observed.effect_may_have_executed,
             "an in-flight cursor folds into the effect fact"
         );
+    }
+
+    #[test]
+    fn stream_attempt_rows_survive_process_death_and_reconcile_conservatively() {
+        let dir = tempfile::tempdir().expect("stream attempt tempdir");
+        let path = dir.path().join("attempts.sqlite");
+
+        // First process life: start an attempt and durably pre-mark a cursor,
+        // then "crash" (drop everything without settling — the registry
+        // entries become unreachable because the reopened instance has a new
+        // namespace, exactly like a new process).
+        {
+            let mut snapback = LocalSnapback::open(&path).expect("open stream attempt db");
+            snapback.load_functions(generation_test_manifest());
+            let state = Arc::new(Mutex::new(snapback));
+            let staged = stage_held_action(&state);
+            let mut host = held_action_host(state, &staged);
+            let started = host
+                .start_stream_attempt("crash-key")
+                .expect("start durable attempt");
+            assert!(started.lease_held);
+            crate::stream_attempt::global_stream_attempt_registry()
+                .bind_cursor(&started.attempt_token, "crash-cursor", &host.stream_runner)
+                .expect("bind pre-marked cursor");
+            host.flush_stream_attempts_required("test.premark")
+                .expect("write-ahead pre-mark commits before the send");
+        }
+
+        // Second process life: the startup reconciler settles the orphaned
+        // row `failed` with the conservative effect fact, and a new runner
+        // observes that durable winner verbatim.
+        let mut snapback = LocalSnapback::open(&path).expect("reopen stream attempt db");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        let recovered = host
+            .start_stream_attempt("crash-key")
+            .expect("start against the recovered attempt");
+        assert!(!recovered.lease_held, "a settled attempt has no lease");
+        let terminal = recovered.terminal.expect("a durable winner always exists");
+        assert_eq!(
+            terminal.cause,
+            crate::stream_attempt::StreamAttemptCause::Failed
+        );
+        assert_eq!(
+            terminal.settled_by,
+            crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
+        );
+        assert!(
+            terminal.effect_may_have_executed,
+            "a crash after the pre-mark leaves initiation_possible — the conservative reading"
+        );
+
+        // A fresh client key on the recovered instance still starts cleanly.
+        let fresh = host
+            .start_stream_attempt("crash-key-2")
+            .expect("fresh attempt after recovery");
+        assert!(fresh.lease_held);
+        assert!(fresh.terminal.is_none());
+    }
+
+    #[test]
+    fn keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_failed() {
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 5: a bare
+        // idempotency key no longer downgrades ambiguity; only a safe method
+        // or a provable pre-send failure settles `failed`.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind mid-handshake fixture");
+        let address = listener.local_addr().expect("fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept keyed request");
+            let mut request = [0_u8; 512];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            drop(socket); // destroy after initiation, before response metadata
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("classification host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+
+        let keyed_loss = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/keyed"),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: Some("provider-key-1".to_owned()),
+                attempt_token: None,
+            })
+            .expect_err("mid-handshake loss cannot succeed");
+        assert_eq!(
+            keyed_loss.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+            "a bare key no longer proves provider idempotency"
+        );
+        upstream.join().expect("fixture joins");
+
+        // Connection refused is provably pre-send: still `failed`, and an
+        // attempt-bound cursor narrows to definitely_not_initiated so the
+        // terminal carries no effect uncertainty.
+        let refused_port = {
+            let probe = std::net::TcpListener::bind("127.0.0.1:0").expect("probe port");
+            let port = probe.local_addr().expect("probe address").port();
+            drop(probe);
+            port
+        };
+        let started = host
+            .start_stream_attempt("pre-send-key")
+            .expect("start pre-send attempt");
+        let refused = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://127.0.0.1:{refused_port}/refused"),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: Some("provider-key-2".to_owned()),
+                attempt_token: Some(started.attempt_token.clone()),
+            })
+            .expect_err("connection refused cannot succeed");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        );
+        let settled = host
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Failed,
+            )
+            .expect("settle pre-send failure");
+        assert!(
+            !settled.effect_may_have_executed,
+            "a provable pre-send failure carries no effect uncertainty"
+        );
+    }
+
+    #[test]
+    fn cancelled_and_timed_out_after_initiation_carry_the_effect_fact() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind effect fixture");
+        let address = listener.local_addr().expect("effect fixture address");
+        let upstream = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept() else {
+                    return;
+                };
+                let mut request = [0_u8; 512];
+                let _ = std::io::Read::read(&mut socket, &mut request);
+                let _ = socket.write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody",
+                );
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("effect host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+
+        // Cancelled after initiation: response metadata observed, explicit
+        // cancel, then a cancelled settle — the effect fact must survive.
+        let cancelled = host
+            .start_stream_attempt("effect-cancel")
+            .expect("start cancel attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/cancel"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(cancelled.attempt_token.clone()),
+            })
+            .expect("open cancel stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("explicit cancel");
+        let terminal = host
+            .settle_stream_attempt(
+                &cancelled.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Cancelled,
+            )
+            .expect("settle cancelled");
+        assert!(
+            terminal.effect_may_have_executed,
+            "cancelled-after-initiation must carry the effect fact"
+        );
+
+        // Timed out after initiation: same shape, timed_out cause.
+        let timed = host
+            .start_stream_attempt("effect-timeout")
+            .expect("start timeout attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/timeout"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(timed.attempt_token.clone()),
+            })
+            .expect("open timeout stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("close cursor before settle");
+        let terminal = host
+            .settle_stream_attempt(
+                &timed.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::TimedOut,
+            )
+            .expect("settle timed_out");
+        assert!(
+            terminal.effect_may_have_executed,
+            "timed-out-after-initiation must carry the effect fact"
+        );
+        upstream.join().expect("effect fixture joins");
     }
 
     #[tokio::test]

@@ -2288,6 +2288,11 @@ pub struct ConfigVerifyOutcome {
 
 pub struct LocalSnapback {
     db: LocalDatabase,
+    /// Process-unique registry namespace for this instance's StreamAttemptV1
+    /// records (LLP 0076). A monotonic nonce, never a pointer: allocator
+    /// reuse must not let a new instance observe a dead instance's live
+    /// registry entries.
+    stream_attempt_namespace: usize,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
     // are hashes, not manifest bodies, so they can never supply a missing
@@ -2983,6 +2988,29 @@ impl LocalSnapback {
             self.db.terminalize_expired_service_authority(&deadline)?;
         }
         Ok(())
+    }
+
+    /// Host-owned StreamAttemptV1 persistence (LLP 0076): the detached action
+    /// host performs these short writes under the instance lock. The durable
+    /// row — not the in-process registry — is what the startup reconciler
+    /// reads after a crash, so the pre-mark must commit before the upstream
+    /// send.
+    pub(crate) fn stream_attempt_record(
+        &self,
+        client_key: &str,
+    ) -> SnapbackResult<Option<(String, String)>> {
+        self.db.stream_attempt_by_client_key(client_key)
+    }
+
+    pub(crate) fn stream_attempt_namespace(&self) -> usize {
+        self.stream_attempt_namespace
+    }
+
+    pub(crate) fn persist_stream_attempts(
+        &mut self,
+        rows: &[(String, String, String)],
+    ) -> SnapbackResult<()> {
+        self.db.upsert_stream_attempts(rows, now_millis())
     }
 
     /// Revalidate the durable and carrier axes before every retained live
@@ -9529,6 +9557,25 @@ impl LocalSnapback {
         // @ref LLP 0059#durable-authorization-stream — both dev and sessions
         // create the stream record before an app-data listener can bind.
         db.ensure_authorization_stream_incarnation()?;
+        // @ref LLP 0076#settlement-and-retry — the startup reconciler: a
+        // persisted StreamAttemptV1 row whose runner died with its process is
+        // settled `failed` with the conservative effect fact folded from the
+        // write-ahead cursor pre-marks, so a durable winner exists before any
+        // new runner can start against the same client key.
+        {
+            let rows = db.load_stream_attempts()?;
+            let mut reconciled = Vec::new();
+            for (token, client_key, record_json) in rows {
+                if let Some(updated) =
+                    crate::stream_attempt::reconcile_orphaned_record(&record_json)
+                {
+                    reconciled.push((token, client_key, updated));
+                }
+            }
+            if !reconciled.is_empty() {
+                db.upsert_stream_attempts(&reconciled, now_millis())?;
+            }
+        }
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
@@ -9545,8 +9592,12 @@ impl LocalSnapback {
         })));
 
         let app_generation = next_app_generation()?;
+        static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
             db,
+            stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,

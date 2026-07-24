@@ -5,7 +5,15 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (StreamAttemptV1 control plane landed on the local
+**Revised:** 2026-07-24 (write-ahead `initiationState` landed on the local
+arm: the `_snapback_stream_attempts` SQLite substrate durably pre-marks an
+attempt-bound cursor `initiation_possible` before the send, narrows only on
+provable pre-send failures, advances to the absorbing `response_observed` on
+metadata, and a startup reconciler settles orphaned rows `failed` with the
+conservative effect fold; decision 5's declaration-or-downgrade also landed —
+a bare idempotency key no longer downgrades `ambiguous` to `failed`; the
+initiationState and two-axis-settlement(host-side) ledger rows move to
+landed-local; status remains Draft). 2026-07-24 (StreamAttemptV1 control plane landed on the local
 arm: host-owned attempt registry with opaque tokens
 (`ctx.streamAttempt.start`/`settle`, `attemptToken` on the stream request),
 atomic single-runner lease with dead-holder takeover, trusted compare-and-set
@@ -295,14 +303,18 @@ inference and the durable row's committed terminal state disagree — for
 example a cancellation/timeout race — the durable winner is authoritative and
 the action must return it.
 
-Classification currently keys on whether the request carries an idempotency
-key: a keyed non-GET is treated as idempotent-class and a transport failure on
-it settles `failed`, not `ambiguous`. That is the author's assertion that the
-provider recognizes the key, not a machine-checked fact (open question 2), and
-it is why an unrecognized key can under-report uncertainty. Making key
-recognition a trusted, provider-founded declaration — after which only a
-recognized key downgrades `ambiguous` to `failed` — is the intended
-direction, tracked as a gap.
+Classification no longer keys on whether the request carries an idempotency
+key (decision 5, landed 2026-07-24): a bare authored key does not confer
+idempotency, so a keyed non-GET whose transport failure cannot be proven
+pre-send settles `ambiguous` exactly like an unkeyed one, while a provable
+pre-send failure (DNS, connection refused, an unusable URL) settles `failed`
+on any method and narrows the cursor's pre-mark to
+`definitely_not_initiated`. The key is still forwarded provider-visible as
+the `Idempotency-Key` header. The deployment-pinned provider idempotency
+declaration — provider identity, key header, scope, verified by the host,
+binding the effective key and a canonical request digest into the attempt
+record, after which a recognized key may downgrade `ambiguous` to `failed`
+and re-earn retry semantics — remains staged work.
 
 For the fence promise (no late continuation writes after cancellation,
 timeout, deployment change, or authority loss) to hold, the model specifies
@@ -509,11 +521,22 @@ a fix before gate 2:
   prospective LLP 0075 amendment noted below); the lease refusal deliberately
   rides the `SNAPBACK_ACTION_STREAM_INVALID` family rather than minting a
   ninth code.
-- **Host `initiationState` write-ahead mark (specified above; unimplemented).**
-  The host does not yet durably pre-mark `initiation_possible` before the send
-  or expose the three-state `initiationState`; today the open path infers
-  retry-safety from method/idempotency-key alone. The write-ahead mark is what
-  makes the effect-certainty axis crash-safe and transport-agnostic.
+- **Host `initiationState` write-ahead mark (landed on the local arm
+  2026-07-24).** The substrate is the `_snapback_stream_attempts` table in
+  the instance SQLite: an attempt-bound cursor is durably pre-marked
+  `initiation_possible` under a short instance-lock write BEFORE any request
+  byte reaches the outbound stack (the open refuses to proceed if the
+  pre-mark cannot commit), narrows to `definitely_not_initiated` only on a
+  provable pre-send failure (DNS, connection refused, unusable URL), and
+  advances to the absorbing `response_observed` on metadata. Hot-path cost:
+  at most two short instance-lock upserts per upstream open and none per
+  read; terminalizer and close paths flush best-effort (a skipped write
+  leaves the conservative on-disk reading). A startup reconciler settles any
+  orphaned non-terminal row `failed` with the effect fact folded from the
+  persisted cursor pre-marks, witnessed by a two-process-life recovery test.
+  Residue: attempt-less streams (no `attemptToken`) have no durable
+  settlement row by design — the authored pattern's adoption rides the
+  prospective LLP 0075 amendment; the Workerd arm has no substrate.
 - **Host-owned `StreamAttemptV1` record (landed on the local arm 2026-07-24;
   residue tracked).** The runtime now owns the attempt identity, runner
   lease, per-cursor `initiationState`, and terminal cause+certainty in a
@@ -546,13 +569,18 @@ a fix before gate 2:
   outbound-disabled negative admission witness. Codegen inference is also a
   textual `fetchStream(` match; an AST-derived or explicit function
   capability would close the alias gap.
-- **Two-axis settlement.** The durable row carries only a single status
-  today; the required orthogonal upstream-effect-certainty axis is
-  unimplemented in the reference pattern and both hosts, there is no
-  host-exposed `initiated` fact for the authored mutation to read, and the
-  fixture's `requiredSettlementKinds` is single-axis. The host must expose the
-  initiation fact and the pattern must record the certainty, with the
-  acceptance bullet above witnessing it, before gate 2.
+- **Two-axis settlement (host side landed on the local arm 2026-07-24;
+  authored-pattern side open).** The host-owned attempt record now carries
+  `terminalCause` plus the orthogonal `effectMayHaveExecuted` certainty
+  (decision 2), derived from the write-ahead cursor pre-marks and returned to
+  the action on every start/settle — the host-exposed initiation fact exists.
+  Witnessed: cancelled-after-initiation and timed-out-after-initiation carry
+  the effect fact while a provable pre-initiation `failed` does not (host
+  tests), and the crash path folds conservatively (recovery test). Open: the
+  reference authored pattern's durable row is still single-status — its
+  mirror of the certainty rides the prospective LLP 0075 amendment — and the
+  frozen fixture's `requiredSettlementKinds` stays the five kinds unchanged
+  (the certainty is retained evidence, not a sixth kind).
 - **Secret scrubbing on streamed fetch.** `ctx.fetchStream` forwards raw URL,
   headers, body, and key and performs none of the LLP 0036 opaque-descriptor
   resolution and value-aware redaction that ordinary `ctx.fetch` does, so a
