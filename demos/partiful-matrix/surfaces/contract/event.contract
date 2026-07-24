@@ -208,7 +208,7 @@ component PartifulEvent
                     text guest.guestName size=13 weight=700 color=textFor(visualVariant) flex=1
                     text statusLabel(guest.status) size=9 color=mutedFor(visualVariant)
       when pendingRsvp != ""
-        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 testId="rsvp-confirm-overlay"
+        stack portalTarget="root" portalLevel=120 portalPresentation="modal" presence="entered" position="fixed" left=0 top=0 width="100%" height="100%" zIndex=120 align="center" justify="center" padding=24 testId="rsvp-confirm-overlay"
           button press=cancelRespond label="Cancel RSVP change" position="absolute" left=0 top=0 width="100%" height="100%" zIndex=0 background="rgba(0,0,0,0.62)" borderWidth=0 testId="rsvp-confirm-backdrop"
           section role="dialog" label="Confirm RSVP" accessibilityModal=true focusTrap=true focusRestore=true dismiss=cancelRespond presence="entered" testId="rsvp-confirm-dialog" zIndex=1 width="100%" maxWidth=460 padding=30 gap=18 style=surfaceStyle(visualVariant, "panel")
             text "Confirm RSVP" headingLevel=2 size=27 weight=800 color=textFor(visualVariant)
