@@ -3,16 +3,16 @@
   "kind": "p0a-preregistration",
   "protocol": {
     "id": "partitime-method-rubric-v2",
-    "sha256": "99094cb62a17defcc6eebe518e4a0559ad69e1023555b374b048d5db7ecfffdf",
+    "sha256": "25101bbcaabfcd69e5ebaa72d958598130672db4a7292e5e11042633584904d1",
     "schemaSha256": "ff33f7a8086b14701cb875ee276eacaddf09560f98ab4ee3763c12153d4b352c",
-    "receiptSchemaSha256": "cdf2c3ff54d39cd1be1ece3086a5a4107f19417b590700cd1c8d9065aa37350d",
+    "receiptSchemaSha256": "ce0ffe6f85242a7402b5eab1d2e2947d1e8a6abc47071e4adc5e55f1ed13251a",
     "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v2",
     "thresholdFormulaSetId": "partitime-threshold-formulas-v2",
     "collectorId": "partitime-chrome-cdp-memory-and-dom-v2"
   },
   "source": {
-    "snapbackRevision": "358eaea355f1a77598e81b4b484968da831b9c2f",
-    "exactRevision": "8eb70f0aaf8c47fb46418a6fd17bca219b35b0bc",
+    "snapbackRevision": "98a98c949a921e7d7e54f70ce4907058f0736324",
+    "exactRevision": "9798611d6d424d4d2eb1351c7cf4ed5fbeb42f87",
     "snapbackDirty": false,
     "exactDirty": false,
     "packageLockSha256": "4b64ab1d1c2d5991196a91ba3a0cb68e71186395f91b81b80f0492f348cece86"
@@ -36,7 +36,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v2.json",
-      "sha256": "99094cb62a17defcc6eebe518e4a0559ad69e1023555b374b048d5db7ecfffdf"
+      "sha256": "25101bbcaabfcd69e5ebaa72d958598130672db4a7292e5e11042633584904d1"
     },
     {
       "kind": "protocol-constant",
@@ -46,7 +46,7 @@
     {
       "kind": "protocol-constant",
       "path": "demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json",
-      "sha256": "cdf2c3ff54d39cd1be1ece3086a5a4107f19417b590700cd1c8d9065aa37350d"
+      "sha256": "ce0ffe6f85242a7402b5eab1d2e2947d1e8a6abc47071e4adc5e55f1ed13251a"
     },
     {
       "kind": "authority-amendment",
@@ -61,12 +61,12 @@
     {
       "kind": "authority-amendment",
       "path": "llp/0063-partitime-platform-roadmap.plan.md",
-      "sha256": "4a5f3b6e6cec9cbcbba68c8913a6cb6eda994f87036ee17db0f008a9b5f6feda"
+      "sha256": "1a660a54d2a49df01473cb8092a81c1e274d44e494bdf11ca24be44788399b3c"
     },
     {
       "kind": "collector",
       "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-      "sha256": "78ffd55b87eaa359aa231d84b7f89e9de3dd656871b9ae2acd31997a63fb8c14"
+      "sha256": "293b9066826fb295b8101ddaead73fc131f1d800df29aa43cb35ebcac32e808d"
     },
     {
       "kind": "collector",
@@ -81,7 +81,7 @@
     {
       "kind": "collector",
       "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
-      "sha256": "77d33900add238cd9af8eb6714a7fcb3987786245066effbeda79dd9a67d7531"
+      "sha256": "5d8576c4ba1fe1fd6154718d5d712c5b42e0c8cd73b568120e7cab1bd0cbabb3"
     },
     {
       "kind": "collector",
@@ -101,12 +101,12 @@
     {
       "kind": "fixture",
       "path": "demos/partiful-matrix/surfaces/react",
-      "sha256": "679d3b7f6680f40f7e0ec64c6f9aff36e3572f69d4ec391c86eb61a10dbc3f29"
+      "sha256": "c21a3ade339bae22408a966038cd6c2a564553c69e847a11ab9d8d9cbccb3705"
     },
     {
       "kind": "fixture",
       "path": "demos/partiful-matrix/surfaces/contract",
-      "sha256": "deebd1b53e27638613e53ebef3e1da85e64438e6c0e9c094fae65f267bc3594b"
+      "sha256": "543f194e4811863b06948a2318513afa413c4ea7b06af6e574ba34e1d4ef1c3c"
     },
     {
       "kind": "fixture",
@@ -115,16 +115,16 @@
     }
   ],
   "p0a": {
-    "protocolFrozenAtRevision": "cdcb3a6ed2f5e0a727769401798378e882440b26",
+    "protocolFrozenAtRevision": "c07d06450d364ff10355f02ceee20d5c84c464aa",
     "protocolFrozenBeforeCollector": true,
     "governedSamplesCollected": false,
     "authorityBindingsVerified": 3,
     "fixtureTreesVerified": 3,
-    "collectorSha256": "99f38186115bfe774bd83467749740edb9bad42b6c8dd707111f9b462b136e48",
+    "collectorSha256": "6c2a8214c609034440c3241efd409fe9a1d16731a6fb113ec640858f5c20f6b5",
     "collectorManifest": [
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-collector.mjs",
-        "sha256": "78ffd55b87eaa359aa231d84b7f89e9de3dd656871b9ae2acd31997a63fb8c14"
+        "sha256": "293b9066826fb295b8101ddaead73fc131f1d800df29aa43cb35ebcac32e808d"
       },
       {
         "path": "demos/partiful-matrix/tests/acceptance/performance-v2-math.mjs",
@@ -136,7 +136,7 @@
       },
       {
         "path": "demos/partiful-matrix/surfaces/react/src/performance-v2-main.tsx",
-        "sha256": "77d33900add238cd9af8eb6714a7fcb3987786245066effbeda79dd9a67d7531"
+        "sha256": "5d8576c4ba1fe1fd6154718d5d712c5b42e0c8cd73b568120e7cab1bd0cbabb3"
       },
       {
         "path": "demos/partiful-matrix/surfaces/contract/performance-v2.html",
@@ -151,21 +151,38 @@
         "sha256": "1c67ec7a4a5a049a5fac8276efc69ba0134661b6d4fce7fa9219127675ab9ba5"
       }
     ],
-    "correctnessWitness": {
-      "arm": "contract:snapback",
-      "activeSubscriptions": 8,
-      "apiMethods": [
-        "reset",
-        "awaitStable",
-        "snapshotCounters",
-        "applyCanonicalUpdate"
-      ],
-      "beforeGraceStatus": "going",
-      "afterGraceStatus": "maybe",
-      "authoritativeDeliveries": 8,
-      "domPatchRecords": 16,
-      "heapReadAttempted": false
-    },
+    "correctnessWitnesses": [
+      {
+        "arm": "react:snapback",
+        "activeSubscriptions": 8,
+        "apiMethods": [
+          "reset",
+          "awaitStable",
+          "snapshotCounters",
+          "applyCanonicalUpdate"
+        ],
+        "beforeGraceStatus": "going",
+        "afterGraceStatus": "maybe",
+        "authoritativeDeliveries": 8,
+        "domPatchRecords": 16,
+        "heapReadAttempted": false
+      },
+      {
+        "arm": "contract:snapback",
+        "activeSubscriptions": 8,
+        "apiMethods": [
+          "reset",
+          "awaitStable",
+          "snapshotCounters",
+          "applyCanonicalUpdate"
+        ],
+        "beforeGraceStatus": "going",
+        "afterGraceStatus": "maybe",
+        "authoritativeDeliveries": 8,
+        "domPatchRecords": 16,
+        "heapReadAttempted": false
+      }
+    ],
     "p0aComplete": true,
     "remaining": []
   }
