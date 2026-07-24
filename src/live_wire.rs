@@ -137,6 +137,13 @@ pub enum LiveDeltaOpKind {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case")]
 pub enum LiveSocketServerFrame {
+    /// First successful frame on a sender-constrained browser socket. Browser
+    /// code cannot read the upgrade response headers, so this repeats the
+    /// already-committed successor nonce in-band before application delivery.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — the custody queue releases
+    /// only after this observable successor is durably installed.
+    SenderNonce { nonce: String },
     /// Terminal authority loss for the exact socket/grant generation. The
     /// frame intentionally carries no authority identifier; a client applies
     /// it only to the capture that owns this socket and then treats close code

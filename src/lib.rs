@@ -15,6 +15,7 @@ pub mod config;
 pub mod contract_exact;
 pub mod cron;
 pub mod data_tier;
+pub mod deploy;
 pub mod diagnostic;
 pub mod ephemeral;
 pub mod exec_guard;

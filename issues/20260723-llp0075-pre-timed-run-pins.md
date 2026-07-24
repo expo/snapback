@@ -1,4 +1,4 @@
-# DECISION: pin the pre-timed-run amendments (assistance, statistics, rubric, frontend, run capsule)
+# DECISION: pin the pre-timed-run amendments
 
 **Status:** Open (author decisions; blocks the first timed run)
 **Severity:** P1
@@ -14,6 +14,15 @@ these are the anti-gaming fail-closed gates. Each is an author decision; they
 land together as one versioned amendment. Fairness inputs come from
 `20260723-llp0075-comparison-fairness.md`.
 
+**Progress (2026-07-24):** executable, content-addressed candidates now exist
+for the statistics implementation, metric event/aggregation definitions,
+complete machine gate matrix, run-capsule verifier, and mechanical scoring
+engine; their tests pass. They remain candidates, not ratified amendments. No
+run capsule exists yet, and the scoring engine intentionally supplies no
+confidence anchors. Assistance, frontend hosting, application auth, Convex
+local-leg topology, provider/region/plan, credentials, and rubric/scorer
+choices still require author input. Timed runs remain blocked.
+
 **Resolved when** each is pinned:
 
 - **Assistance policy:** one identical agent model/tool configuration across
@@ -28,6 +37,12 @@ land together as one versioned amendment. Fairness inputs come from
   retained transcript.
 - **Frontend hosting boundary:** each arm's frontend host, credentials, and
   timed-vs-excluded provisioning boundary for the timed hosted "live URL" path.
+- **Metric definitions:** exact timer events, wrapper/command policy,
+  token/tool-call accounting, aggregation rules, and expected-refusal taxonomy.
+- **Application auth:** identity provider, two-principal fixture, credential
+  provisioning, and timed-vs-excluded setup boundary for each arm.
+- **Comparator local leg:** cloud development, account-free local, or a pinned
+  sensitivity arm.
 - **Run capsule:** the content-addressed neutral prompt bytes, both scaffold tree
   digests, harness/analysis digests, machine image, hardware/network policy,
   exact package integrities, provider/region/plan, and credential preconditions.

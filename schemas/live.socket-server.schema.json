@@ -423,6 +423,23 @@
   "description": "A control-lane frame the server sends on the live WebSocket (the durable\nlane's [`LiveEnvelope`] payloads arrive on the same socket, unwrapped —\na socket client dispatches on `kind` across both families).",
   "oneOf": [
     {
+      "description": "First successful frame on a sender-constrained browser socket. Browser\ncode cannot read the upgrade response headers, so this repeats the\nalready-committed successor nonce in-band before application delivery.\n\n@ref LLP 0077#author-decisions--2026-07-23 — the custody queue releases\nonly after this observable successor is durably installed.",
+      "properties": {
+        "kind": {
+          "const": "sender_nonce",
+          "type": "string"
+        },
+        "nonce": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "nonce"
+      ],
+      "type": "object"
+    },
+    {
       "description": "Terminal authority loss for the exact socket/grant generation. The\nframe intentionally carries no authority identifier; a client applies\nit only to the capture that owns this socket and then treats close code\n4401 as terminal rather than reconnectable.\n\n@ref LLP 0059#typed-terminal-auth-error — terminal live closure is a\n  closed, identifier-free wire event.",
       "properties": {
         "authorityDisposition": {

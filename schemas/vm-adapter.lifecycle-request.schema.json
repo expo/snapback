@@ -1,0 +1,984 @@
+{
+  "$defs": {
+    "AdapterLifecycleOperation": {
+      "enum": [
+        "acquireLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "rollback",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "activateRestoredGeneration",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "AdapterLifecycleRequestVersion": {
+      "enum": [
+        "snapback.vm-adapter-lifecycle-request.v1"
+      ],
+      "type": "string"
+    },
+    "AdapterOperationPlan": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeployPlan"
+        },
+        {
+          "$ref": "#/$defs/BackupPlan"
+        },
+        {
+          "$ref": "#/$defs/RollbackPlan"
+        },
+        {
+          "$ref": "#/$defs/RestorePlan"
+        },
+        {
+          "$ref": "#/$defs/RestoreActivationPlan"
+        }
+      ]
+    },
+    "BackupPlan": {
+      "additionalProperties": false,
+      "description": "Exact proposal for creating and read-back-verifying one immutable backup.\n\n@ref LLP 0072#backup-and-restore — backup identity, consistency, component\nverification, secret exclusion, and retention are explicit control facts.",
+      "properties": {
+        "applyEligible": {
+          "type": "boolean"
+        },
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "confirmation": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActiveReleaseId": {
+          "type": "string"
+        },
+        "observedSchemaGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "retentionPolicy": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/BackupPlanStep"
+          },
+          "type": "array"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetDescriptorSha256": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetObservationSha256": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "planId",
+        "operationId",
+        "reason",
+        "targetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "targetDescriptorSha256",
+        "targetObservationSha256",
+        "observedActivationGeneration",
+        "observedActiveReleaseId",
+        "observedSchemaGeneration",
+        "retentionPolicy",
+        "steps",
+        "blockers",
+        "applyEligible",
+        "confirmation",
+        "createdAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "BackupPlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "acquireLease",
+        "createVerifiedBackup",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "DeployPlan": {
+      "additionalProperties": false,
+      "description": "Content-addressed, non-mutating deployment proposal. `apply_eligible` is a\nderived fact; a plan retaining any blocker cannot be applied.\n\n@ref LLP 0072#cli-and-automation-contract — production and destructive\noperations consume an immutable plan digest and exact confirmation.",
+      "properties": {
+        "applyEligible": {
+          "type": "boolean"
+        },
+        "artifactKind": {
+          "$ref": "#/$defs/DeployPlanArtifactKind"
+        },
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "confirmation": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActiveReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "preparedReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "preparedReleaseManifestSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "releaseId": {
+          "type": "string"
+        },
+        "releaseManifestSha256": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/DeployPlanVersion"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/DeployPlanStep"
+          },
+          "type": "array"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetDescriptorSha256": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetObservationSha256": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifactKind",
+        "schemaVersion",
+        "planId",
+        "operationId",
+        "reason",
+        "targetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "targetDescriptorSha256",
+        "targetObservationSha256",
+        "observedActivationGeneration",
+        "releaseId",
+        "releaseManifestSha256",
+        "steps",
+        "blockers",
+        "applyEligible",
+        "confirmation",
+        "createdAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "DeployPlanArtifactKind": {
+      "enum": [
+        "deployPlan"
+      ],
+      "type": "string"
+    },
+    "DeployPlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "acquireLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "releaseLease",
+        "rollbackOnFailure"
+      ],
+      "type": "string"
+    },
+    "DeployPlanVersion": {
+      "enum": [
+        "snapback.deploy-plan.v1"
+      ],
+      "type": "string"
+    },
+    "DeploymentLease": {
+      "additionalProperties": false,
+      "description": "Provider-enforced lease over one deployment mutation train. The lease id is\nan opaque fence, not a credential; provider credentials remain behind the\ndescriptor's external secret-store handle.",
+      "properties": {
+        "acquiredAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expectedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "leaseId": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "leaseId",
+        "targetId",
+        "operationId",
+        "expectedActivationGeneration",
+        "acquiredAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "ReleaseGap": {
+      "additionalProperties": false,
+      "properties": {
+        "blocking": {
+          "type": "boolean"
+        },
+        "id": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "reason",
+        "blocking"
+      ],
+      "type": "object"
+    },
+    "RestoreActivationPlan": {
+      "additionalProperties": false,
+      "description": "Explicit second-stage activation of one verified, effects-fenced restore.\nIt binds the paused restore receipt and a fresh destination observation,\ngiving activation its own operation id, lease, expiry, and confirmation.",
+      "properties": {
+        "adapterQualificationId": {
+          "type": "string"
+        },
+        "adapterQualificationSha256": {
+          "type": "string"
+        },
+        "applicationSentinelSha256": {
+          "type": "string"
+        },
+        "applyEligible": {
+          "type": "boolean"
+        },
+        "backupId": {
+          "type": "string"
+        },
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "confirmation": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "preparedReleaseId": {
+          "type": "string"
+        },
+        "preparedReleaseManifestSha256": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "restoreReceiptId": {
+          "type": "string"
+        },
+        "restoredReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RestoreActivationPlanStep"
+          },
+          "type": "array"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetDescriptorSha256": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetObservationSha256": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "planId",
+        "operationId",
+        "reason",
+        "restoreReceiptId",
+        "backupId",
+        "targetId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetDescriptorSha256",
+        "targetObservationSha256",
+        "observedActivationGeneration",
+        "preparedReleaseId",
+        "preparedReleaseManifestSha256",
+        "adapterQualificationId",
+        "adapterQualificationSha256",
+        "applicationSentinelSha256",
+        "steps",
+        "blockers",
+        "applyEligible",
+        "confirmation",
+        "createdAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "RestoreActivationPlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "verifyPausedRestore",
+        "acquireLease",
+        "activateRestoredGeneration",
+        "verifyServedPath",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "RestorePlan": {
+      "additionalProperties": false,
+      "description": "Destructive restore proposal. Restore and activation are deliberately\nseparate artifacts: a successful apply leaves the destination inactive and\nall external effects fenced until an explicit activation consumes its\nreceipt.\n\n@ref LLP 0072#backup-and-restore — source backup, exact destination,\nreplacement sentinel, effect fence, verification, and later activation are\nindependent must-understand facts.",
+      "properties": {
+        "applyEligible": {
+          "type": "boolean"
+        },
+        "backupId": {
+          "type": "string"
+        },
+        "backupManifestSha256": {
+          "type": "string"
+        },
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "confirmation": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "destinationSentinelSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "destinationTargetId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActiveReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "replacementReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "sourceTargetId": {
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RestorePlanStep"
+          },
+          "type": "array"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetDescriptorSha256": {
+          "type": "string"
+        },
+        "targetObservationSha256": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "planId",
+        "operationId",
+        "reason",
+        "sourceTargetId",
+        "backupId",
+        "backupManifestSha256",
+        "destinationTargetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "targetDescriptorSha256",
+        "targetObservationSha256",
+        "observedActivationGeneration",
+        "steps",
+        "blockers",
+        "applyEligible",
+        "confirmation",
+        "createdAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "RestorePlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "acquireLease",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "RollbackPlan": {
+      "additionalProperties": false,
+      "description": "Exact, content-addressed proposal for switching code and traffic to a\npreviously prepared compatible release without rewinding application data.\n\n@ref LLP 0072#migrations-and-rollback — code-only rollback is distinct\nfrom destructive data restore and must retain its compatibility proof.",
+      "properties": {
+        "applyEligible": {
+          "type": "boolean"
+        },
+        "blockers": {
+          "items": {
+            "$ref": "#/$defs/ReleaseGap"
+          },
+          "type": "array"
+        },
+        "compatibilitySha256": {
+          "type": "string"
+        },
+        "confirmation": {
+          "type": "string"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "destinationPreparedReleaseId": {
+          "type": "string"
+        },
+        "destinationReleaseId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "observedActiveReleaseId": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "planId": {
+          "type": "string"
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "steps": {
+          "items": {
+            "$ref": "#/$defs/RollbackPlanStep"
+          },
+          "type": "array"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetDescriptorSha256": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetObservationSha256": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "planId",
+        "operationId",
+        "reason",
+        "targetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "targetDescriptorSha256",
+        "targetObservationSha256",
+        "observedActivationGeneration",
+        "observedActiveReleaseId",
+        "destinationReleaseId",
+        "destinationPreparedReleaseId",
+        "compatibilitySha256",
+        "steps",
+        "blockers",
+        "applyEligible",
+        "confirmation",
+        "createdAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "RollbackPlanStep": {
+      "enum": [
+        "verifyIdentity",
+        "acquireLease",
+        "verifyCompatibility",
+        "rollback",
+        "verifyServedPath",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "TargetDescriptor": {
+      "additionalProperties": false,
+      "description": "Owner-only local registration of one never-reused hosted target.\nCredential values are deliberately absent; `credential_ref` identifies an\nOS/provider secret-store handle resolved by the adapter process.\n\n@ref LLP 0072#identities-and-objects — every operation binds exact target,\nenvironment, deployment, database, stream, profile, and adapter identity.",
+      "properties": {
+        "adapter": {
+          "$ref": "#/$defs/VmAdapterDescriptor"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/TargetDescriptorVersion"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "targetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "adapter",
+        "createdAtMs"
+      ],
+      "type": "object"
+    },
+    "TargetDescriptorVersion": {
+      "enum": [
+        "snapback.target-descriptor.v1"
+      ],
+      "type": "string"
+    },
+    "TargetProductionClass": {
+      "enum": [
+        "preview",
+        "production"
+      ],
+      "type": "string"
+    },
+    "VmAdapterDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "driverPath": {
+          "type": "string"
+        },
+        "driverSha256": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/VmAdapterKind"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "stateStoreRef": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "driverPath",
+        "driverSha256",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "credentialRef",
+        "stateStoreRef"
+      ],
+      "type": "object"
+    },
+    "VmAdapterKind": {
+      "enum": [
+        "singleInstanceContainerVm"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.lifecycle-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "One closed, secret-free mutating adapter call. The control CLI supplies the\ncomplete retained plan on stdin; no target selector, release id, or\ncredential is inferred from argv or ambient variables.\n\n@ref LLP 0072#deployment-state-machine — every step is idempotent under the\noperation id, lease-fenced, generation-compared, and digest-recorded.",
+  "properties": {
+    "attempt": {
+      "format": "uint32",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lease": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeploymentLease"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "operation": {
+      "$ref": "#/$defs/AdapterLifecycleOperation"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "plan": {
+      "$ref": "#/$defs/AdapterOperationPlan"
+    },
+    "releaseDirectory": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterLifecycleRequestVersion"
+    },
+    "target": {
+      "$ref": "#/$defs/TargetDescriptor"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "attempt",
+    "target",
+    "plan",
+    "releaseDirectory"
+  ],
+  "title": "AdapterLifecycleRequest",
+  "type": "object"
+}

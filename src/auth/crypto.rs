@@ -16,6 +16,7 @@ use zeroize::{Zeroize as _, Zeroizing};
 const CHALLENGE_PREFIX: &str = "sbc_";
 const KEY_PREFIX: &str = "sbak_";
 const SESSION_PREFIX: &str = "sbs_";
+const SENDER_SESSION_PREFIX: &str = "sbs2_";
 const IMPERSONATION_PREFIX: &str = "sbic_";
 const CODE_DIGEST_DOMAIN: &[u8] = b"snapback.auth.email-code.v1";
 // @ref LLP 0039#dated-amendment-operation-bound-step-up-2026-07-15 — login
@@ -386,6 +387,26 @@ impl SessionBearer {
         mint_bearer(random, SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
     }
 
+    pub(crate) fn parse_sender_v2(input: &str) -> Result<Self, CryptoError> {
+        parse_bearer(input, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn parse_any_version(input: &str) -> Result<Self, CryptoError> {
+        Self::parse(input).or_else(|_| Self::parse_sender_v2(input))
+    }
+
+    pub(crate) fn generate_sender_v2(random: &dyn RandomSource) -> Result<Self, CryptoError> {
+        mint_bearer(random, SENDER_SESSION_PREFIX).map(|value| Self(Zeroizing::new(value)))
+    }
+
+    pub(crate) fn into_sender_v2(&self) -> Result<Self, CryptoError> {
+        let body = self
+            .expose_secret()
+            .strip_prefix(SESSION_PREFIX)
+            .ok_or(CryptoError::InvalidBearer)?;
+        Self::parse_sender_v2(&format!("{SENDER_SESSION_PREFIX}{body}"))
+    }
+
     pub(crate) fn expose_secret(&self) -> &str {
         &self.0
     }
@@ -499,6 +520,9 @@ agent_secret_bearer!(PairingCode, PAIRING_CODE_PREFIX, "PairingCode([REDACTED])"
 pub enum CredentialClass {
     /// `sbs_` — human/app session bearer (LLP 0057/0039).
     Session,
+    /// `sbs2_` — sender-constrained browser session bearer. The v1 parser for
+    /// `sbs_` cannot accept this versioned spelling.
+    SenderSession,
     /// `sbic_` — the operator-plane impersonation-capability carrier (LLP 0057).
     ImpersonationCapability,
     /// `sbac_` — long-lived agent credential (LLP 0055).
@@ -521,6 +545,9 @@ pub enum CredentialClass {
     ConsoleCredential,
     /// `sct_` — a WebSocket connection token.
     ConnectionToken,
+    /// `sct2_` — a sender-constrained v2 connection token. A v1 connection
+    /// token parser cannot accept this structurally distinct spelling.
+    SenderConnectionToken,
     /// `sbrk_` — the secret-read root key.
     SecretReadRootKey,
     /// `sbrl_` — a secret-read lease bearer.
@@ -536,6 +563,7 @@ impl CredentialClass {
     pub fn prefix(self) -> &'static str {
         match self {
             Self::Session => SESSION_PREFIX,
+            Self::SenderSession => SENDER_SESSION_PREFIX,
             Self::ImpersonationCapability => IMPERSONATION_PREFIX,
             Self::AgentCredential => AGENT_CREDENTIAL_PREFIX,
             Self::ScopedToken => SCOPED_TOKEN_PREFIX,
@@ -547,11 +575,16 @@ impl CredentialClass {
             Self::AdminToken => "sbat_",
             Self::ConsoleCredential => "sbcc_",
             Self::ConnectionToken => "sct_",
+            Self::SenderConnectionToken => "sct2_",
             Self::SecretReadRootKey => "sbrk_",
             Self::SecretReadLease => "sbrl_",
             Self::SecretReadProofNonce => "sbrp_",
             Self::SecretReadProofMac => "sbrm_",
         }
+    }
+
+    pub fn is_session(self) -> bool {
+        matches!(self, Self::Session | Self::SenderSession)
     }
 
     /// Whether a value of this class can ever resolve to live authority when
@@ -578,6 +611,7 @@ impl CredentialClass {
 /// `starts_with` scan in [`classify_credential`] matches at most one class.
 pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     (SESSION_PREFIX, CredentialClass::Session),
+    (SENDER_SESSION_PREFIX, CredentialClass::SenderSession),
     (
         IMPERSONATION_PREFIX,
         CredentialClass::ImpersonationCapability,
@@ -598,6 +632,7 @@ pub const REGISTERED_CREDENTIAL_PREFIXES: &[(&str, CredentialClass)] = &[
     ("sbat_", CredentialClass::AdminToken),
     ("sbcc_", CredentialClass::ConsoleCredential),
     ("sct_", CredentialClass::ConnectionToken),
+    ("sct2_", CredentialClass::SenderConnectionToken),
     ("sbrk_", CredentialClass::SecretReadRootKey),
     ("sbrl_", CredentialClass::SecretReadLease),
     ("sbrp_", CredentialClass::SecretReadProofNonce),
@@ -901,7 +936,7 @@ mod tests {
 
     #[test]
     fn bearer_crc_shape_and_hash_fixed_vectors() {
-        let random = ScriptedRandom::new([vec![0_u8; 32], vec![0_u8; 32]]);
+        let random = ScriptedRandom::new([vec![0_u8; 32], vec![0_u8; 32], vec![0_u8; 32]]);
         let session = SessionBearer::generate(&random).unwrap();
         assert_eq!(
             session.expose_secret(),
@@ -912,6 +947,11 @@ mod tests {
             hex(session.token_hash().as_bytes()),
             "9d1a7107cb91bc1fe07a5a9222f52e48cbf1c226fb0f9ebf4937e703819abbeb"
         );
+        let sender = SessionBearer::generate_sender_v2(&random).unwrap();
+        assert!(sender.expose_secret().starts_with("sbs2_"));
+        assert!(SessionBearer::parse(sender.expose_secret()).is_err());
+        assert!(SessionBearer::parse_sender_v2(session.expose_secret()).is_err());
+        assert!(SessionBearer::parse_sender_v2(sender.expose_secret()).is_ok());
         assert!(SessionBearer::parse(session.expose_secret()).is_ok());
 
         let impersonation = ImpersonationBearer::generate(&random).unwrap();
@@ -990,6 +1030,10 @@ mod tests {
             .unwrap()
             .expose_secret()
             .to_string();
+        let sender_session = SessionBearer::generate_sender_v2(&random)
+            .unwrap()
+            .expose_secret()
+            .to_string();
         let impersonation = ImpersonationBearer::generate(&random)
             .unwrap()
             .expose_secret()
@@ -1015,8 +1059,9 @@ mod tests {
             .expose_secret()
             .to_string();
 
-        let samples: [(CredentialClass, &str); 7] = [
+        let samples: [(CredentialClass, &str); 8] = [
             (CredentialClass::Session, &session),
+            (CredentialClass::SenderSession, &sender_session),
             (CredentialClass::ImpersonationCapability, &impersonation),
             (CredentialClass::AgentCredential, &credential),
             (CredentialClass::ScopedToken, &token),
@@ -1036,6 +1081,7 @@ mod tests {
             for (other_class, other) in &samples {
                 let accepts = match class {
                     CredentialClass::Session => SessionBearer::parse(other).is_ok(),
+                    CredentialClass::SenderSession => SessionBearer::parse_sender_v2(other).is_ok(),
                     CredentialClass::ImpersonationCapability => {
                         ImpersonationBearer::parse(other).is_ok()
                     }

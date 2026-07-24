@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "ac46480ac5c8793d1e8c24337e47bf729c7d6645"
+    "commit": "06837831a05f6bb98f90b6660d150e93f9cd8179"
   },
   "nav": {
     ".": [
@@ -110,8 +110,13 @@
     ],
     "deploying": [
       {
-        "id": "deploying.cloudflare",
+        "id": "deploying.releases",
         "order": 1,
+        "title": "Build and plan an immutable release"
+      },
+      {
+        "id": "deploying.cloudflare",
+        "order": 2,
         "title": "Deploying the Cloudflare proof"
       }
     ],
@@ -389,20 +394,28 @@
       "targets": [
         "all"
       ],
-      "maturity": "shipped",
+      "maturity": "partial",
       "capabilities": [
-        "auth.target-honesty"
+        "auth.target-honesty",
+        "auth.sender-constrained-browser"
       ],
       "authorities": [
         "llp/0060-hosted-auth-security.rfc.md",
+        "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+        "llp/0077-sender-constrained-browser-auth.spec.md",
         "llp/0002-canonical-local-target.decision.md",
         "llp/0014-cloudflare-strategy.rfc.md",
+        "packages/snapback-client/hosted-browser.mjs",
         "README.md"
       ],
-      "examples": [],
-      "reviewed": "2026-07-17",
-      "reviewedCommit": "8a6bbd1ec980a49010aa67269ee908433a257c9a",
-      "sha256": "cdfd1f2436d714b9767f06662ac4dcb601df70fa5ba4155df71c40a0473fa3b2",
+      "examples": [
+        "packages/snapback-client/hosted-browser.test.mjs",
+        "packages/snapback-client/sender-transport.test.mjs",
+        "tests/sender_proof_cross_language.rs"
+      ],
+      "reviewed": "2026-07-24",
+      "reviewedCommit": "HEAD",
+      "sha256": "5013c6807a6c2bcb43be60099faf6afa4b26b6cafb9e565f235f49d906c16382",
       "snippets": []
     },
     "backend.actions-and-fetch": {
@@ -415,24 +428,30 @@
       ],
       "maturity": "shipped",
       "capabilities": [
-        "backend.actions"
+        "backend.actions",
+        "backend.action-streams"
       ],
       "authorities": [
         "llp/0004-application-data-api.rfc.md",
         "llp/0009-code-execution-security.rfc.md",
         "llp/0036-app-secrets-and-config.rfc.md",
         "llp/0055-agent-principals-and-scoped-grants.rfc.md",
+        "llp/0076-bounded-streamed-actions.rfc.md",
         "packages/snapback-codegen/define.mjs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "src/server.rs",
         "demos/all-aboard/snapback/functions.mjs",
         "demos/all-aboard/snapback/handlers.mjs",
-        "demos/all-aboard/tests/acceptance/egress.mjs"
+        "demos/all-aboard/tests/acceptance/egress.mjs",
+        "demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs"
       ],
       "examples": [
-        "demos/all-aboard"
+        "demos/all-aboard",
+        "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-07-18",
-      "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
-      "sha256": "955d45ead31446c4abed1b2e14bd479d49d5a2403df4dd592972273daef3dca3",
+      "reviewed": "2026-07-22",
+      "reviewedCommit": "HEAD",
+      "sha256": "37d16dda27f5955dc3c4f0ae503427b9425f902dc2ca54b995531977a03d764a",
       "snippets": [
         {
           "lang": "js",
@@ -448,6 +467,11 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/all-aboard/tests/acceptance/egress.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
         }
       ]
     },
@@ -659,7 +683,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "174e8075c7a1a0ae4cbceac36a6c5da47781df31f65850c1f18c9345b301faef",
+      "sha256": "bcc5096f3690bb6ec6fda2d21249da35c0f41aeec930cdb33c28b1f0cac3e6dd",
       "snippets": []
     },
     "clients.app-cli": {
@@ -799,8 +823,8 @@
         "demos/partiful-matrix/surfaces/vanilla"
       ],
       "reviewed": "2026-07-20",
-      "reviewedCommit": "506b622cd3",
-      "sha256": "f3215f2b86560342fc819f8db2f80e312e52c5552cc34dc0e02b617d22740e6b",
+      "reviewedCommit": "HEAD",
+      "sha256": "0ecaca5ecf497cd5456a319ba0a8c483e49d4401bf6dd9ac6064629ce70daa56",
       "snippets": [
         {
           "lang": "js",
@@ -829,22 +853,24 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
+        "llp/0074-convex-competitive-strategy.rfc.md",
         "packages/snapback-client/index.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs",
         "demos/partiful-matrix/tests/acceptance/native-react-expo.mjs"
       ],
       "examples": [
-        "demos/partiful-matrix/native/react-expo"
+        "demos/partiful-matrix/native/react-expo",
+        "demos/competitive-checkpoint/surfaces/react-expo"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "7914210856",
-      "sha256": "d4765cfced96c13b2a0b5686823803c083bfb7174038a33772e90e9cb1808e62",
+      "reviewed": "2026-07-22",
+      "reviewedCommit": "HEAD",
+      "sha256": "16404ca8ccc68f951e07b6f061eaba532513ca13861ea0348a62caf8ad334079",
       "snippets": [
         {
-          "lang": "js",
+          "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/partiful-matrix/native/react-expo/App.js"
+          "source": "demos/competitive-checkpoint/surfaces/react-expo/App.tsx"
         }
       ]
     },
@@ -863,21 +889,23 @@
       "authorities": [
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
+        "llp/0074-convex-competitive-strategy.rfc.md",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-react/index.mjs"
       ],
       "examples": [
         "demos/partiful-matrix/surfaces/react",
+        "demos/competitive-checkpoint/surfaces/react-expo",
         "packages/snapback-react/package.test.mjs"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "506b622cd3",
-      "sha256": "5e8f895dcbe9761d700fffa4d004011795cf9f97d89b66ef8723b329eae23d7e",
+      "reviewed": "2026-07-22",
+      "reviewedCommit": "HEAD",
+      "sha256": "19a6f1b41ab3764c2f1a981fefc66d9eedc8e8544f2fce629c8404c1181f17c3",
       "snippets": [
         {
           "lang": "tsx",
           "class": "transcluded",
-          "source": "demos/partiful-matrix/surfaces/react/src/App.tsx"
+          "source": "demos/competitive-checkpoint/surfaces/react-expo/App.tsx"
         }
       ]
     },
@@ -903,7 +931,7 @@
     "deploying.cloudflare": {
       "path": "guide/deploying/cloudflare.md",
       "title": "Deploying the Cloudflare proof",
-      "order": 1,
+      "order": 2,
       "status": "current",
       "targets": [
         "cloudflare"
@@ -926,7 +954,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "069843fa72278a049e490233c68744a28c7fad70",
-      "sha256": "2021fcce1b856fd1dc867033fff69a9d86eaee72bf5054e01e0e93e7c244aae4",
+      "sha256": "ccac39c624ecb56d19461803dbcfe9f5a071e9d11daba23a0652664251faa3e4",
       "snippets": [
         {
           "lang": "js",
@@ -934,6 +962,54 @@
           "source": "cloudflare/app/all-aboard.app.js"
         }
       ]
+    },
+    "deploying.releases": {
+      "path": "guide/deploying/releases.md",
+      "title": "Build and plan an immutable release",
+      "order": 1,
+      "status": "current",
+      "targets": [
+        "all"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "deploy.release-build",
+        "deploy.target-control"
+      ],
+      "authorities": [
+        "llp/0072-trusted-single-tenant-control-plane.rfc.md",
+        "packages/snapback-cli/index.mjs",
+        "packages/snapback-cli/deployment-control.mjs",
+        "src/auth/deployment.rs",
+        "schemas/release.manifest.schema.json",
+        "schemas/target.descriptor.schema.json",
+        "schemas/remote-drill.plan.schema.json",
+        "schemas/deploy.plan.schema.json",
+        "schemas/vm-adapter.lifecycle-request.schema.json",
+        "schemas/vm-adapter.lifecycle-response.schema.json",
+        "schemas/backup.manifest.schema.json",
+        "schemas/backup.plan.schema.json",
+        "schemas/control.audit-event.schema.json",
+        "schemas/deploy.receipt.schema.json",
+        "schemas/adapter.qualification.schema.json",
+        "schemas/hosted-auth.drill-receipt.schema.json",
+        "schemas/auth.hosted-admission-envelope.schema.json",
+        "schemas/auth.hosted-admission-key.schema.json",
+        "schemas/prepared-release.manifest.schema.json",
+        "schemas/rollback.plan.schema.json",
+        "schemas/restore.plan.schema.json",
+        "schemas/restore.activation-plan.schema.json",
+        "schemas/maintenance.receipt.schema.json",
+        "schemas/vm-adapter.query-request.schema.json",
+        "schemas/vm-adapter.query-response.schema.json"
+      ],
+      "examples": [
+        "demos/competitive-checkpoint"
+      ],
+      "reviewed": "2026-07-22",
+      "reviewedCommit": "HEAD",
+      "sha256": "7e5e6b2de711e63630ea6422071cefff0f44eb6c2606a799c3cbf4c7a7f6f0dd",
+      "snippets": []
     },
     "getting-started.the-authoring-loop": {
       "path": "guide/getting-started/the-authoring-loop.md",
@@ -965,7 +1041,7 @@
       ],
       "reviewed": "2026-07-21",
       "reviewedCommit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1",
-      "sha256": "5d94ca8684a282e7316c82a36c74b3f9ed52edc9ffe5e8c6b8ac6e517f088793",
+      "sha256": "67f94f24188344d8165a1fdf20e87760c72641dfc994f4a160f1e39b8b7da1f3",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1067,7 +1143,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "8befb72745dd14b01ce19751d0a3763b08eaa6f6811fc82fa0b3914bbe1be384",
+      "sha256": "a8c599aff98d19d071652ff22849566bef1b110431648ec74af45630d8240744",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1129,7 +1205,7 @@
       ],
       "reviewed": "2026-07-17",
       "reviewedCommit": "0ef40d4a2c1856b841585474602878b6d96a3c59",
-      "sha256": "de8409a6f2ba8a11dbffb19adb1e81c9c47c694fb071ad9d3be1391720e40e88",
+      "sha256": "9209e2da160f9940380aa311e95af51f430a4a1fdf3b03b538b982b6d68473b9",
       "snippets": [
         {
           "lang": "js",
@@ -1521,8 +1597,10 @@
       "auth.invalidation-barrier",
       "auth.scoped-queries",
       "auth.scoped-roles",
+      "auth.sender-constrained-browser",
       "auth.sessions",
       "auth.target-honesty",
+      "backend.action-streams",
       "backend.actions",
       "backend.codegen",
       "backend.cron",
@@ -1543,6 +1621,8 @@
       "clients.react",
       "clients.react-expo",
       "deploy.cloudflare",
+      "deploy.release-build",
+      "deploy.target-control",
       "operating.admin-console",
       "operating.diagnostics",
       "operating.guide-mcp",
@@ -1564,5 +1644,5 @@
     "routes": 68,
     "hostOps": 19
   },
-  "contentHash": "424631ec586440b995e385945ededd1466b8c62db46405b95fc91f3642da5161"
+  "contentHash": "731689b3eb93bef2ef6eb58f830364a442096cbc65dc2d21c364a883082b723a"
 }

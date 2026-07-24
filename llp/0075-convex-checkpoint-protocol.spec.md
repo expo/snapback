@@ -5,7 +5,37 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (third model-family review round — Fable READY, Codex
+**Revised:** 2026-07-24 (an executable candidate for the exact statistics and
+metric-event instruments is retained under
+`demos/competitive-checkpoint/acceptance/instruments/`, locked by
+`instrument-lock.candidate.v0.json` sha256
+`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+The complete machine gate matrix also has an executable candidate locked by
+`gate-matrix-lock.candidate.v0.json` sha256
+`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+A fail-closed run-capsule verifier contract is locked separately at sha256
+`73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`;
+it is not the still-missing capsule. The mechanical scoring engine is locked
+at sha256
+`9ea895ab25213197565c3226c90d381a8803c3e822604d5a38ac7e1dd83419be`,
+but it intentionally supplies no confidence anchors. The candidates now bind
+the current machine protocol's v0.4 identity rather than the stale v0.3
+identity. The run-capsule verifier additionally proves exact protocol bytes
+and amendment-backed authorization; complete, non-symlink scaffold and
+documentation trees; a path-by-path exact npm v3 public-registry closure with
+canonical SRI; and byte-bound policy, per-arm provisioning-plan, assistance,
+and credential-check instruments. The metric projection and
+scorer bind every observation to one capsule/run, require Convex-first
+alternation, retain immediate invalid-replacement slots, and exact-match the
+selected seven valid observations to the full observation closure. The
+ratified authority still
+ends at v0.3: v0.4 and all candidate locks remain unratified and authorize no
+timed run).
+2026-07-23 (Charlie Cheever explicitly ratified protocol
+amendments v0.1 through v0.3 and retained Accepted status. This resolves the
+open author-authority question after review; it does not authorize timed runs,
+which remain blocked until the protocol's listed prerequisites are complete).
+2026-07-23 (third model-family review round — Fable READY, Codex
 NOT READY — produced protocol amendment v0.3: rubric anchors now block timed
 runs and evidence reveal, not just scoring; the warmup wording is per-arm in
 both artifacts; generic `reprioritize` returns the named gap to LLP 0063 for
@@ -168,6 +198,17 @@ distinct intermediate authoritative commits observed by a second client before
 the terminal commit. Client animation, local token reveal, log lines, or one
 terminal replacement do not count.
 
+The complete symmetric application, stream, authorization, hosted lifecycle,
+cleanup, and compatibility facts are enumerated in the executable candidate
+[`gate-matrix.candidate.v0.json`](../demos/competitive-checkpoint/acceptance/instruments/gate-matrix.candidate.v0.json).
+Its lock sha256 is
+`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+The candidate requires one explicit decision for every required arm/gate pair,
+accepts expected refusals only for negative gates, separates Snapback-only
+authoring constraints, and permits provider-native equivalence without
+permitting omitted evidence or implicit `not-applicable`. It is not yet machine
+authority: a dated amendment must ratify this exact lock before timed runs.
+
 ## Snapback authored and generated boundary
 
 The Snapback arm uses LLP 0065's narrow owner-visibility profile:
@@ -206,6 +247,19 @@ entry blocks timed runs until a dated amendment pins the neutral prompt bytes,
 both scaffold tree digests, harness and analysis digests, machine image,
 hardware/network policy, exact package integrities, provider/region/plan, and
 credential preconditions.
+
+The candidate
+[`run-capsule.v0.mjs`](../demos/competitive-checkpoint/acceptance/instruments/run-capsule.v0.mjs)
+verifier now fails closed on placeholder choices, secret-shaped values,
+mutable machine images, incomplete or unsorted scaffold trees, drifted prompt/
+artifact/documentation bytes, non-exact package integrity, and any timed-run
+authorization not naming a dated ratifying amendment. Its verifier-contract
+lock sha256 is
+`73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`.
+That digest does not satisfy `runCapsule`: the neutral prompt, scaffold trees,
+machine/network facts, providers, topologies, auth/hosting boundaries,
+credentials, assistance, and documentation corpora still need to be selected,
+materialized, content-addressed, and ratified together.
 
 Snapback packages must come from the public npm registry. Tarballs, workspace
 links, Git dependencies, sibling paths, and repository-local runtime binaries
@@ -278,6 +332,18 @@ documented instrument failure — with a named documenter and retained rationale
 bootstrap target, resample count, seed, invalid-sample replacement) must be
 pinned by content digest in a dated amendment before the first timed sample.
 
+An executable candidate now supplies the missing exact statistics and metric
+event definitions. Its content-addressed lock is
+[`instrument-lock.candidate.v0.json`](../demos/competitive-checkpoint/acceptance/instruments/instrument-lock.candidate.v0.json),
+sha256
+`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+It fixes the even-sample median, nearest-rank p95, deterministic independent-arm
+bootstrap, replacement-slot behavior, monotonic event clock, command
+boundaries, assistance counters, and failure taxonomy in executable artifacts.
+This is implementation input to a future dated amendment, not that amendment:
+the protocol's `statistics-implementation` and `metric-definitions` prerequisites
+remain `unpinned-blocks-timed-runs` until the named author ratifies the lock.
+
 The first-hour non-inferiority rule is conjunctive:
 
 - median scaffold-to-first-local-live-row time is no more than 1.25× Convex
@@ -325,6 +391,18 @@ it with a retained dimension-level transcript, and managed-provider evidence
 may not be scored down merely for differing from Snapback's receipt
 vocabulary.
 
+The candidate
+[`scoring.v0.mjs`](../demos/competitive-checkpoint/acceptance/instruments/scoring.v0.mjs)
+now applies every first-hour conjunction, includes retained invalid
+observations in absolute-zero floors, requires all 16 arm/dimension decisions,
+enforces the independent-scorer record, and applies Stop → Reprioritize →
+Continue precedence. Its lock sha256 is
+`9ea895ab25213197565c3226c90d381a8803c3e822604d5a38ac7e1dd83419be`.
+The scorer is only machinery. Because its author has already seen Snapback
+evidence, it deliberately does not invent the missing per-arm anchor prose;
+an eligible independent anchor author must freeze those criteria before
+evidence reveal under a dated amendment.
+
 ## Continue, stop, and reprioritize
 
 Outcome precedence is Stop, then Reprioritize, then Continue: a run exhibiting
@@ -364,6 +442,13 @@ list/lookup/update denial but not yet cross-user delete refusal; both require
 a versioned instrument correction and a prospective rerun of the affected
 witness before any comparison run.
 
+An untimed 2026-07-24 rerun against the current uncommitted worktree now passes
+all six local-streaming checks with the canonical target derived from the
+served capability manifest and cross-user delete refusal retained in the
+receipt. This is implementation evidence for the current tree only: it does
+not rewrite the 2026-07-22 adjudication, ratify protocol v0.4, or authorize a
+timed comparison.
+
 The next tranche implements `trusted-single-tenant-app-complete.v1` through
 LLP 0072's selected `single-instance-container-vm.v1` adapter, per LLP 0063's
 sequencing decision — sequencing this Spec does not own. Public npm
@@ -378,12 +463,14 @@ model-family review rounds were received and recorded under
 `llp/reviews/0075-*` (round 1: Fable NOT READY, Codex NOT READY; rounds 2-3:
 Fable READY, Codex NOT READY; round 4, a Fable-only confirmation of the
 post-v0.3 revision: READY); protocol amendments v0.1 through v0.3 respond to
-them prospectively. Whether Accepted stands on author authority over the
-recorded NOT READY verdicts, or the Spec reverts to Review, is an open author
-decision. The adapter replacement is prospective treatment work. Before a
-comparison rerun, its exact provider/region, package identities, credential
-health, and instrument version must be pinned in a versioned protocol amendment
-under LLP 0063; v0's cutoff and evidence are not rewritten.
+them prospectively. On 2026-07-23 Charlie Cheever explicitly ratified those
+amendments and retained this Spec's Accepted status on named-author authority
+over the recorded NOT READY verdicts. That ratification does not authorize
+timed runs: the listed protocol prerequisites remain blocking. The adapter
+replacement is prospective treatment work. Before a comparison rerun, its
+exact provider/region, package identities, credential health, and instrument
+version must be pinned in a versioned protocol amendment under LLP 0063; v0's
+cutoff and evidence are not rewritten.
 
 ## Required artifacts
 

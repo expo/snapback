@@ -18,7 +18,9 @@
 use serde_json::Value;
 
 use crate::admin::AdminInspect;
-use crate::auth::deployment::{HostedAdmission, HostedAuthCapabilities};
+use crate::auth::deployment::{
+    HostedAdmission, HostedAdmissionEnvelope, HostedAdmissionKeyFile, HostedAuthCapabilities,
+};
 use crate::auth::handshake::AuthSessionResponse;
 use crate::auth::lease::AuthorizedLease;
 use crate::auth::wire::{
@@ -27,6 +29,14 @@ use crate::auth::wire::{
     RescueCollidingTableRequest,
 };
 use crate::data_tier::{DataTierCorpusCase, DataTierCorpusManifest, DataTierProfile};
+use crate::deploy::{
+    AdapterLifecycleRequest, AdapterLifecycleResponse, AdapterQualificationManifest,
+    AdapterQueryRequest, AdapterQueryResponse, AdapterRequest, AdapterResponse, BackupManifest,
+    BackupPlan, ControlAuditEvent, DeployPlan, DeployReceipt, ExternalReplayFloorAdvanceReceipt,
+    HostedAdmissionProjectionReceipt, HostedAdmissionRefreshReceipt, HostedAuthDrillReceipt,
+    MaintenanceReceipt, PreparedReleaseManifest, ReleaseManifest, RemoteDrillPlan,
+    RestoreActivationPlan, RestorePlan, RollbackPlan, TargetDescriptor,
+};
 use crate::diagnostic::Diagnostic;
 use crate::ephemeral::RealtimeEnvelope;
 use crate::host_ops::{DryRunReport, HostOpsResult, HostReadyDescriptor};
@@ -100,6 +110,26 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(HostedAdmission),
         ),
         finish(
+            "auth.hosted-admission-envelope.schema.json",
+            schemars::schema_for!(HostedAdmissionEnvelope),
+        ),
+        finish(
+            "auth.hosted-admission-key.schema.json",
+            schemars::schema_for!(HostedAdmissionKeyFile),
+        ),
+        finish(
+            "auth.external-replay-floor-advance.schema.json",
+            schemars::schema_for!(ExternalReplayFloorAdvanceReceipt),
+        ),
+        finish(
+            "auth.hosted-admission-projection.schema.json",
+            schemars::schema_for!(HostedAdmissionProjectionReceipt),
+        ),
+        finish(
+            "auth.hosted-admission-refresh.schema.json",
+            schemars::schema_for!(HostedAdmissionRefreshReceipt),
+        ),
+        finish(
             "remote-service.profile.schema.json",
             schemars::schema_for!(RemoteServiceProfile),
         ),
@@ -112,6 +142,84 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             schemars::schema_for!(RemoteDataCapabilityManifest),
         ),
         finish("diagnostic.schema.json", schemars::schema_for!(Diagnostic)),
+        finish(
+            "release.manifest.schema.json",
+            schemars::schema_for!(ReleaseManifest),
+        ),
+        finish(
+            "target.descriptor.schema.json",
+            schemars::schema_for!(TargetDescriptor),
+        ),
+        finish(
+            "remote-drill.plan.schema.json",
+            schemars::schema_for!(RemoteDrillPlan),
+        ),
+        finish(
+            "vm-adapter.request.schema.json",
+            schemars::schema_for!(AdapterRequest),
+        ),
+        finish(
+            "vm-adapter.response.schema.json",
+            schemars::schema_for!(AdapterResponse),
+        ),
+        finish(
+            "vm-adapter.lifecycle-request.schema.json",
+            schemars::schema_for!(AdapterLifecycleRequest),
+        ),
+        finish(
+            "vm-adapter.lifecycle-response.schema.json",
+            schemars::schema_for!(AdapterLifecycleResponse),
+        ),
+        finish(
+            "backup.manifest.schema.json",
+            schemars::schema_for!(BackupManifest),
+        ),
+        finish("backup.plan.schema.json", schemars::schema_for!(BackupPlan)),
+        finish(
+            "control.audit-event.schema.json",
+            schemars::schema_for!(ControlAuditEvent),
+        ),
+        finish(
+            "adapter.qualification.schema.json",
+            schemars::schema_for!(AdapterQualificationManifest),
+        ),
+        finish(
+            "hosted-auth.drill-receipt.schema.json",
+            schemars::schema_for!(HostedAuthDrillReceipt),
+        ),
+        finish(
+            "prepared-release.manifest.schema.json",
+            schemars::schema_for!(PreparedReleaseManifest),
+        ),
+        finish("deploy.plan.schema.json", schemars::schema_for!(DeployPlan)),
+        finish(
+            "deploy.receipt.schema.json",
+            schemars::schema_for!(DeployReceipt),
+        ),
+        finish(
+            "rollback.plan.schema.json",
+            schemars::schema_for!(RollbackPlan),
+        ),
+        finish(
+            "restore.plan.schema.json",
+            schemars::schema_for!(RestorePlan),
+        ),
+        finish(
+            "restore.activation-plan.schema.json",
+            schemars::schema_for!(RestoreActivationPlan),
+        ),
+        finish(
+            "maintenance.receipt.schema.json",
+            schemars::schema_for!(MaintenanceReceipt),
+        ),
+        finish(
+            "vm-adapter.query-request.schema.json",
+            schemars::schema_for!(AdapterQueryRequest),
+        ),
+        finish(
+            "vm-adapter.query-response.schema.json",
+            schemars::schema_for!(AdapterQueryResponse),
+        ),
         finish("inspect.schema.json", schemars::schema_for!(InspectState)),
         finish(
             "inspect.public.schema.json",

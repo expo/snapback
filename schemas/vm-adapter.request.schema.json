@@ -1,0 +1,165 @@
+{
+  "$defs": {
+    "AdapterOperation": {
+      "enum": [
+        "doctor",
+        "inspect"
+      ],
+      "type": "string"
+    },
+    "AdapterRequestVersion": {
+      "enum": [
+        "snapback.vm-adapter-request.v1"
+      ],
+      "type": "string"
+    },
+    "TargetDescriptor": {
+      "additionalProperties": false,
+      "description": "Owner-only local registration of one never-reused hosted target.\nCredential values are deliberately absent; `credential_ref` identifies an\nOS/provider secret-store handle resolved by the adapter process.\n\n@ref LLP 0072#identities-and-objects — every operation binds exact target,\nenvironment, deployment, database, stream, profile, and adapter identity.",
+      "properties": {
+        "adapter": {
+          "$ref": "#/$defs/VmAdapterDescriptor"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "productionClass": {
+          "$ref": "#/$defs/TargetProductionClass"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "$ref": "#/$defs/TargetDescriptorVersion"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "targetId",
+        "projectId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "productionClass",
+        "adapter",
+        "createdAtMs"
+      ],
+      "type": "object"
+    },
+    "TargetDescriptorVersion": {
+      "enum": [
+        "snapback.target-descriptor.v1"
+      ],
+      "type": "string"
+    },
+    "TargetProductionClass": {
+      "enum": [
+        "preview",
+        "production"
+      ],
+      "type": "string"
+    },
+    "VmAdapterDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "credentialRef": {
+          "type": "string"
+        },
+        "driverPath": {
+          "type": "string"
+        },
+        "driverSha256": {
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/VmAdapterKind"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "stateStoreRef": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "version",
+        "driverPath",
+        "driverSha256",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "credentialRef",
+        "stateStoreRef"
+      ],
+      "type": "object"
+    },
+    "VmAdapterKind": {
+      "enum": [
+        "singleInstanceContainerVm"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Secret-free request sent to the adapter over stdin. Nothing credential\nbearing is placed in argv or the environment by the control-plane CLI.",
+  "properties": {
+    "operation": {
+      "$ref": "#/$defs/AdapterOperation"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterRequestVersion"
+    },
+    "target": {
+      "$ref": "#/$defs/TargetDescriptor"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "target"
+  ],
+  "title": "AdapterRequest",
+  "type": "object"
+}

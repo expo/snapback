@@ -3,7 +3,7 @@
   "protocol": "llp-0075-convex-checkpoint-v0",
   "targetProfile": "local-dev-sqlite-ibex",
   "targetIdentitySource": "GET /inspect targetProfileId",
-  "capabilityManifestSha256": "fb6dd8a37f278336115e50be14c4f85cfff47d7e9b3e62a01016e07ebf5a067c",
+  "capabilityManifestSha256": "4b696ba7340e2658736e7716d5d25da0bcf0ab78069f9c342bdbf6ffbed8af8c",
   "title": "competitive checkpoint / local streamed actions",
   "passed": 6,
   "skipped": 0,

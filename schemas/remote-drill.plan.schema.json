@@ -1,0 +1,334 @@
+{
+  "$defs": {
+    "RemoteDrillCostBoundary": {
+      "additionalProperties": false,
+      "properties": {
+        "currency": {
+          "type": "string"
+        },
+        "estimateBasisSha256": {
+          "type": "string"
+        },
+        "estimatedMonthlyMinorUnits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "includedComponents": {
+          "items": {
+            "$ref": "#/$defs/RemoteDrillCostComponent"
+          },
+          "type": "array"
+        },
+        "maximumMonthlyMinorUnits": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "currency",
+        "estimatedMonthlyMinorUnits",
+        "maximumMonthlyMinorUnits",
+        "estimateBasisSha256",
+        "includedComponents"
+      ],
+      "type": "object"
+    },
+    "RemoteDrillCostComponent": {
+      "enum": [
+        "compute",
+        "persistentVolume",
+        "objectStorage",
+        "logs",
+        "dns",
+        "tls"
+      ],
+      "type": "string"
+    },
+    "RemoteDrillCredentials": {
+      "additionalProperties": false,
+      "properties": {
+        "admissionKeyRef": {
+          "type": "string"
+        },
+        "controlCredentialRef": {
+          "type": "string"
+        },
+        "controlStateStoreRef": {
+          "type": "string"
+        },
+        "replayFloorStoreRef": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "controlCredentialRef",
+        "controlStateStoreRef",
+        "admissionKeyRef",
+        "replayFloorStoreRef"
+      ],
+      "type": "object"
+    },
+    "RemoteDrillLogs": {
+      "additionalProperties": false,
+      "properties": {
+        "redactionProfile": {
+          "type": "string"
+        },
+        "retentionClass": {
+          "type": "string"
+        },
+        "sinkRef": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "sinkRef",
+        "retentionClass",
+        "redactionProfile"
+      ],
+      "type": "object"
+    },
+    "RemoteDrillNonclaim": {
+      "enum": [
+        "highAvailability",
+        "autoscaling",
+        "multiRegion",
+        "zeroDowntime",
+        "untrustedMultiTenancy",
+        "managedServiceSla"
+      ],
+      "type": "string"
+    },
+    "RemoteDrillPlanVersion": {
+      "enum": [
+        "snapback.remote-drill-plan.v1"
+      ],
+      "type": "string"
+    },
+    "RemoteDrillProvisioningAuthority": {
+      "enum": [
+        "confirmationRequired"
+      ],
+      "type": "string"
+    },
+    "RemoteDrillStorage": {
+      "additionalProperties": false,
+      "properties": {
+        "artifactStorageClass": {
+          "type": "string"
+        },
+        "artifactStoreRef": {
+          "type": "string"
+        },
+        "backupPermissionBoundary": {
+          "type": "string"
+        },
+        "backupStorageClass": {
+          "type": "string"
+        },
+        "backupStoreRef": {
+          "type": "string"
+        },
+        "computeClass": {
+          "type": "string"
+        },
+        "persistentVolumeClass": {
+          "type": "string"
+        },
+        "persistentVolumeEncrypted": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "computeClass",
+        "persistentVolumeClass",
+        "persistentVolumeEncrypted",
+        "artifactStoreRef",
+        "artifactStorageClass",
+        "backupStoreRef",
+        "backupStorageClass",
+        "backupPermissionBoundary"
+      ],
+      "type": "object"
+    },
+    "RemoteDrillSupervisor": {
+      "additionalProperties": false,
+      "properties": {
+        "interruptionResumeRequired": {
+          "type": "boolean"
+        },
+        "kind": {
+          "$ref": "#/$defs/RemoteDrillSupervisorKind"
+        },
+        "restartEvidenceRequired": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "restartEvidenceRequired",
+        "interruptionResumeRequired"
+      ],
+      "type": "object"
+    },
+    "RemoteDrillSupervisorKind": {
+      "enum": [
+        "providerSupervisor",
+        "systemd"
+      ],
+      "type": "string"
+    },
+    "RemoteDrillTls": {
+      "additionalProperties": false,
+      "properties": {
+        "automatedRenewal": {
+          "type": "boolean"
+        },
+        "independentlyAttestedOrigin": {
+          "type": "boolean"
+        },
+        "issuer": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "issuer",
+        "automatedRenewal",
+        "independentlyAttestedOrigin"
+      ],
+      "type": "object"
+    },
+    "TargetProductionClass": {
+      "enum": [
+        "preview",
+        "production"
+      ],
+      "type": "string"
+    },
+    "VmAdapterKind": {
+      "enum": [
+        "singleInstanceContainerVm"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/remote-drill.plan.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Content-addressed, confirmation-fenced selection of every provider-specific\ninput LLP 0072 requires before the first remote drill may provision\nanything. It carries handles and cost bounds, never credential values.\n\n@ref LLP 0072#adapter-contract-and-first-profile — provider, account,\nregion, stores, TLS, supervisor, logs, credentials, cost, and nonclaims are\nexecution facts with no portable or ambient defaults.",
+  "properties": {
+    "accountFingerprint": {
+      "type": "string"
+    },
+    "adapterKind": {
+      "$ref": "#/$defs/VmAdapterKind"
+    },
+    "adapterVersion": {
+      "type": "string"
+    },
+    "confirmation": {
+      "type": "string"
+    },
+    "cost": {
+      "$ref": "#/$defs/RemoteDrillCostBoundary"
+    },
+    "createdAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "credentials": {
+      "$ref": "#/$defs/RemoteDrillCredentials"
+    },
+    "driverSha256": {
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "logs": {
+      "$ref": "#/$defs/RemoteDrillLogs"
+    },
+    "nonclaims": {
+      "items": {
+        "$ref": "#/$defs/RemoteDrillNonclaim"
+      },
+      "type": "array"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "productionClass": {
+      "$ref": "#/$defs/TargetProductionClass"
+    },
+    "provider": {
+      "type": "string"
+    },
+    "provisioningAuthority": {
+      "$ref": "#/$defs/RemoteDrillProvisioningAuthority"
+    },
+    "publicOrigin": {
+      "type": "string"
+    },
+    "reason": {
+      "type": "string"
+    },
+    "region": {
+      "type": "string"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/RemoteDrillPlanVersion"
+    },
+    "storage": {
+      "$ref": "#/$defs/RemoteDrillStorage"
+    },
+    "supervisor": {
+      "$ref": "#/$defs/RemoteDrillSupervisor"
+    },
+    "targetDescriptorSha256": {
+      "type": "string"
+    },
+    "targetId": {
+      "type": "string"
+    },
+    "targetProfileId": {
+      "type": "string"
+    },
+    "tls": {
+      "$ref": "#/$defs/RemoteDrillTls"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "planId",
+    "reason",
+    "targetId",
+    "targetProfileId",
+    "productionClass",
+    "targetDescriptorSha256",
+    "adapterKind",
+    "adapterVersion",
+    "driverSha256",
+    "provider",
+    "accountFingerprint",
+    "region",
+    "publicOrigin",
+    "storage",
+    "tls",
+    "supervisor",
+    "logs",
+    "credentials",
+    "cost",
+    "nonclaims",
+    "provisioningAuthority",
+    "confirmation",
+    "createdAtMs",
+    "expiresAtMs"
+  ],
+  "title": "RemoteDrillPlan",
+  "type": "object"
+}

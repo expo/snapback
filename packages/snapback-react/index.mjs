@@ -17,6 +17,21 @@ import {
 const EMPTY_ROWS = Object.freeze([]);
 const providerRegistries = new WeakMap();
 
+function generatedReferenceName(reference, expectedKinds) {
+  if (typeof reference === 'string' && reference.length > 0) return reference;
+  if (
+    reference
+    && typeof reference === 'object'
+    && reference.artifactKind === 'functionReference'
+    && typeof reference.name === 'string'
+    && reference.name.length > 0
+    && expectedKinds.includes(reference.kind)
+  ) {
+    return reference.name;
+  }
+  throw new TypeError(`Snapback expected a generated ${expectedKinds.join('/')} function reference`);
+}
+
 function registryFor(provider) {
   let registry = providerRegistries.get(provider);
   if (!registry) {
@@ -33,6 +48,7 @@ export function useExternalQueryStore(store) {
 export function useSnapbackQuery({
   provider,
   name,
+  query,
   args = {},
   userId,
   authority = userId ?? 'default',
@@ -46,9 +62,14 @@ export function useSnapbackQuery({
     actual: protocol,
     provider: provider.backend ?? provider.name ?? 'snapback',
   });
+  const queryReference = query ?? name;
+  const queryName = generatedReferenceName(queryReference, ['Query', 'LiveQuery']);
+  const queryIdentity = typeof queryReference === 'object'
+    ? queryReference.id ?? queryName
+    : queryName;
   const identity = externalStoreIdentity({
     provider: provider.backend ?? provider.name ?? 'snapback',
-    query: name,
+    query: queryIdentity,
     args,
     authority,
   });
@@ -60,7 +81,7 @@ export function useSnapbackQuery({
     start(controller) {
       let latestRows = [...initialRows];
       controller.pending('connecting', latestRows);
-      return provider.subscribe(name, args, userId, (rows, connection, delivery = { kind: 'authoritative' }) => {
+      return provider.subscribe(queryName, args, userId, (rows, connection, delivery = { kind: 'authoritative' }) => {
         if (delivery.kind === 'connection') {
           controller.connection(connection);
           return;
@@ -78,8 +99,12 @@ export function useSnapbackQuery({
     },
   }), [provider, identity, protocol]);
   const snapshot = useExternalQueryStore(store);
-  const mutate = useCallback((mutationName, mutationArgs, options) => store.runMutation(
-    () => provider.mutate(mutationName, mutationArgs, userId),
+  const mutate = useCallback((mutationReference, mutationArgs, options) => store.runMutation(
+    () => provider.mutate(
+      generatedReferenceName(mutationReference, ['Mutation']),
+      mutationArgs,
+      userId,
+    ),
     options,
   ), [provider, store, userId]);
   return useMemo(() => Object.freeze({ ...snapshot, mutate, store }), [snapshot, mutate, store]);

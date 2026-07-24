@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, Client integration, Developer experience, Testing, Packaging, Admin console, Runtime
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-27
-**Revised:** 2026-07-12 (ENG-24374: Exact package-export probing/import now rejects malformed or traversing targets and symlink escapes by lexical plus realpath containment). 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
+**Revised:** 2026-07-22 (LLP 0074 public-package checkpoint: a live npm probe found `@snapback/cli@3.0.1` is an unrelated product and the current environment has no `@snapback` publication authority. The first public distribution therefore uses the existing `ccheever` publication preset, mapping source/import names such as `@snapback/contract` to registry names such as `@ccheever/snapback-contract`; immutable staged manifests preserve the mapping and rewrite internal dependencies with npm aliases. The source namespace remains stable, and a future organization-owned brand scope may replace only the public alias). 2026-07-12 (ENG-24374: Exact package-export probing/import now rejects malformed or traversing targets and symlink escapes by lexical plus realpath containment). 2026-07-05 (admin-console serving language caught up with LLP 0017's single-UI model: no-dist is now a missing-dist diagnostic, and stale/browser-only dists still fail native Exact artifact requests with structured diagnostics. Earlier: 2026-07-01 linked LLP 0030 as the managed Snapback/Vite dev lifecycle RFC; earlier review passes: Codex draft, independent Claude review, GPT-5 close-out, and a Claude re-review that corrected `ContractDataManifest` ownership to Exact 0263 — Snapback owns the projection, not the schema — and resolved the Valet LLP 0088 ownership (Valet retired; this Plan is the successor home); plus LLP 0012 race-handling, the LLP 0020 gate, Exact descriptor-module/provider-lifecycle constraints, diary-evidenced binding constraints, provider-conformance discovery evidence, the first Exact-owned provider-conformance pass, package-export Exact consumption, Exact project-check validation of generated descriptors and row shapes, and adapter-owned quiet headless Contract mounting)
 **Related:** LLP 0005, LLP 0012, LLP 0016, LLP 0017, LLP 0020, LLP 0023, LLP 0030, Diary 0001, Diary 0002, Diary 0003, Valet LLP 0088 (retired prior-art), Exact 0263, Exact 0265, Exact 0268
 
 ## Summary
@@ -390,16 +390,16 @@ code remains the compatibility event LLP 0012 defines.
 ## Open Questions
 
 - ~~What is the package name: `@expo/snapback/contract`, `@snapback/contract`,
-  or another namespace?~~ **Decided 2026-07-02 (LLP 0032 P6), then reopened
-  at the first-publication probe on 2026-07-21:** the source/import namespace
-  remains `@snapback/*`, but the npm namespace is not available as one coherent
-  product closure. `@snapback/cli` is an unrelated public package at version
-  3.x, owned outside this project. The publication tool therefore stages the
-  explicitly provisional `@ccheever/snapback-*` prerelease identities and
-  preserves source imports through npm aliases. No stable namespace decision
-  follows from that probe; the first successful public prerelease plus its
-  registry-install receipt must precede author ratification of the durable
-  public names.
+  or another namespace?~~ **Source namespace decided 2026-07-02 (LLP 0032
+  P6); public alias decided 2026-07-22 (LLP 0074 checkpoint).** Workspace and
+  authored imports remain `@snapback/*`. The first public registry artifacts
+  use `@ccheever/snapback-*` (`@snapback/contract` maps to
+  `@ccheever/snapback-contract`) because a live probe found the public
+  `@snapback/cli` name occupied by an unrelated product and this project has no
+  recorded authority over that scope. `scripts/snapback-publish.mjs` stages
+  immutable manifests, rewrites internal dependencies with npm aliases, and
+  records both identities. A later organization-owned brand scope changes the
+  public mapping, not application source imports.
 - Exact 0263 (§4.2, decision 7) already specifies `ContractDataManifest` as the
   Exact-owned Contract-facing schema, so the live question is not "who owns the
   shape" but how Snapback's native LLP 0012 manifest **maps onto** it. Resolve the
@@ -569,9 +569,10 @@ Done:
 
 Open:
 
-- [ ] Decide the public package name (`@snapback/contract`,
-  `@expo/snapback/contract`, or another namespace) and publish/install it
-  rather than relying on a repo-local package-equivalent.
+- [ ] Publish and install the decided first public alias
+  (`@ccheever/snapback-contract`, preserving the `@snapback/contract` source
+  import through the staged dependency map) rather than relying on a
+  repo-local package-equivalent.
 - [ ] Get to a new Contract Snapback surface without custom Vite aliases or
   app-local post-build rewrites.
 - [ ] Resolve app dev-serve and managed-backend lifecycle through

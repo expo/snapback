@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "scripts": {
+    "test": "node acceptance/instruments/instruments.test.mjs && node acceptance/instruments/gate-matrix.test.mjs && node acceptance/instruments/run-capsule.test.mjs && node acceptance/instruments/scoring.test.mjs"
+  },
   "dependencies": {
     "@snapback/client": "workspace:*",
     "@snapback/codegen": "workspace:*"

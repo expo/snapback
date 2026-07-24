@@ -278,6 +278,8 @@ async fn p6_ready_file_descriptor_is_written_and_validates() {
         allow_auth_downgrade: false,
         allow_insecure_dev_auth: false,
         auth_deployment: snapback::auth::deployment::AuthDeploymentTarget::Local,
+        hosted_admission: None,
+        hosted_admission_key: None,
     };
     let server = tokio::spawn(snapback::cli::run(args));
 

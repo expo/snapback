@@ -1,7 +1,6 @@
 # LLP 0074: Convex-competitive strategy
 
 **Revised (Priority 1 lifecycle checkpoint):** 2026-07-22 (exact target/plan fencing, idempotent lifecycle orchestration, verified backups, interruption resume, and rollback now pass a non-remote harness; provider drills and npm remain open.)
-
 **Revised (checkpoint author adjudication):** 2026-07-22 (Charlie Cheever
 accepted LLP 0075 v0 and adjudicated the current checkpoint `reprioritize`.
 The next tranche implements LLP 0072's complete trusted single-tenant profile
@@ -37,7 +36,36 @@ not gate 1 closure: public packages and the hosted profile remain open.)
 **Systems:** Product strategy, Developer experience, Runtime, Actions, Codegen, Client integration, React/Expo, Contract/Exact, Deployment, Control plane, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (LLP 0086 CC-6: dated positioning-batch section added —
+**Revised:** 2026-07-24 (the clean-Ubuntu proof lane now retains the exact
+tarballs, publication ledger, and a machine-bound cold-install receipt through
+a commit-pinned artifact uploader. The workflow is implemented but has not run
+against this uncommitted tree). 2026-07-24 (the corrected local-streaming
+instrument now passes all six untimed cases against the current worktree:
+derived canonical target identity, owner delete refusal, multiple authoritative
+native-push commits, idempotent retry, cancellation with no late patch,
+timeout, and transport ambiguity. This is current-tree evidence, not a timed
+comparison or ratification of protocol v0.4). 2026-07-24 (the first remote drill now has a content-addressed
+pre-provision plan contract that eliminates ambient provider/storage/TLS/
+supervisor/log/credential/cost defaults and retains the narrow profile's exact
+nonclaims plus a confirmation fence. No concrete choices are populated and no
+provisioning is authorized). 2026-07-24 (control-plane authority reads are descriptor-first,
+no-follow, single-link, and stable across the bounded read; authority writes
+now fsync file and directory. This closes the local pathname-swap/hardlink
+seam without claiming remote tamper resistance). 2026-07-24 (the package-owned qualification producers now close
+the positive-artifact construction seam: hosted-auth drill, exact eleven-claim
+adapter qualification, and prepared release are content-addressed from
+target-bound closed evidence inventories and rechecked by the production
+verifier. They deliberately cannot create provider evidence; the concrete
+remote drill remains open). 2026-07-24 (the provider-independent gate-1 Linux runtime package,
+relocatable loader path, selection map, publication closure, and clean-Ubuntu
+proof lane are implemented. The native hosted process also consumes and
+refreshes a MAC-authenticated target admission, reconciles the external replay
+floor before bind, and shares the exact envelope sealer/schema with the package
+control plane. The package now also implements the provider-neutral producer:
+content-addressed atomic-floor input, strict fresh boot projections, and
+identity-preserving authenticated refresh, all under Rust-owned receipt
+schemas. Linux execution/publication, the concrete provider floor/secret
+bindings, and the remote adapter drill remain open). 2026-07-23 (LLP 0086 CC-6: dated positioning-batch section added —
 competitive triangle, fragile-suppliers durability argument, boundary markers
 promoted from LLP 0001, benchmark-as-content — every claim evidence-class
 labeled; external publication gated per LLP 0086 governing constraint 2).
@@ -50,6 +78,31 @@ inventory extended to migrations/Agent Mode/Components/native clients,
 observation/conclusion split in the findings, symmetric preregistration
 pinning)
 **Related:** LLP 0000, LLP 0001, LLP 0004, LLP 0007, LLP 0012, LLP 0014, LLP 0033, LLP 0035, LLP 0036, LLP 0041, LLP 0051, LLP 0063, LLP 0064, LLP 0065, LLP 0068, LLP 0069, LLP 0070, LLP 0071, LLP 0072, LLP 0073, LLP 0075, LLP 0076, LLP 0077, LLP 0082, LLP 0084, LLP 0086, Diary 0016, Diary 0017
+
+**Checkpoint instrument candidate (2026-07-24):** The exact statistics and
+raw metric-event definitions now have an executable, content-addressed
+candidate lock, sha256
+`8855c5fbd5fa1cca40713c6f8de1d978ada31ea94bb51b2d8b54d19322bc06b4`.
+The symmetric gate matrix has a separate executable candidate lock, sha256
+`2d09f979732fce25e65ef0d87d416c8119de336522e850c0e4f13c0654625eda`.
+The fail-closed run-capsule verifier contract is locked at sha256
+`73197c8edbce94b3d62beb73b658a3991f54b30c1dd1d8cd4d8e1399764bcf3d`,
+but no complete run capsule exists yet. The mechanical scoring engine is
+locked at sha256
+`9ea895ab25213197565c3226c90d381a8803c3e822604d5a38ac7e1dd83419be`,
+but the required independent, pre-evidence anchors remain absent. The
+candidates now bind the current machine protocol's v0.4 identity. The
+run-capsule verifier proves exact protocol bytes and amendment-backed
+authorization, complete non-symlink scaffold/documentation trees, canonical
+public-npm SRI for the complete path-by-path npm v3 install closure, and
+byte-bound policy, per-arm provisioning-plan, assistance, and credential-check
+instruments. Its metric projection/scorer also binds every observation to one
+capsule/run, enforces Convex-first alternating slots with immediate retained
+invalid replacements, and exact-matches the selected seven valid samples to
+the full observation closure; the populated capsule still does not exist.
+Ratified authority
+ends at LLP 0075 v0.3, so v0.4 and all candidate locks remain unratified,
+timed runs remain unauthorized, and stage 4 stays closed.
 
 **Priority 1 maintenance checkpoint (2026-07-22):** Explicit code-only
 rollback, isolated destructive restore with paused verification and separate
@@ -73,7 +126,18 @@ browser artifact, exact positive static support, short-lived admission,
 operator/direct-bearer gates, handler compatibility, and live
 limiter/invalidation/serialized-authority health. The deterministic positive
 fixture exercises verifier shape only; no sender-constrained browser,
-authenticated producer, or remote drill exists yet.
+concrete provider primitive, or remote drill exists yet. The runtime handoff is no
+longer unreachable: hosted startup now requires strict owner-only
+MAC-authenticated admission/key files, reconciles the external replay floor
+before listener bind, and refreshes only the short admission lease. The
+package-owned sealer and Rust schemas share an exact cross-language vector.
+The package-owned producer now requires a content-addressed atomic floor
+advance before creating fresh exact-0600 boot projections and authenticates
+the existing envelope before an identity-preserving monotone refresh. No
+concrete provider currently supplies that external store, retrieves the key
+from a provider secret manager, supervises the refresh operation, or retains
+remote evidence, so this is provider-independent implementation progress
+rather than gate closure.
 
 **Priority 1 sender-proof checkpoint (2026-07-22):** Draft LLP 0077 now owns
 the required sender-constrained v2 wire/storage contract. An unexported
@@ -87,7 +151,8 @@ verification, and that atomic cut without resolving app authority. Registered
 HTTP middleware now calls it before any body poll and derives the target only
 from an authenticated hosted origin plus routed path; challenge/successor
 nonces survive later middleware exits through one no-store response cell. The
-hosted serving constructor remains unreachable from a production adapter.
+hosted serving constructor is now reachable only through the authenticated
+target-envelope startup gate; no concrete adapter produces that envelope yet.
 `AuthCustodyV3` now makes key, bearer, and nonce one
 coordinator-owned IndexedDB row and proves interrupted-transition recovery,
 structured-clone persistence, private/public-key match, dual-fenced rotation,
@@ -98,7 +163,8 @@ Connection-open binds the verified family thumbprint and admission epoch into
 the grant; WebSocket upgrade carries and consumes a second proof over that
 grant in a dedicated browser subprotocol. A real bound-server test passes the
 complete exchange → session → refresh → connection-open → WebSocket train.
-The closed codec/binding matrix, a real two-connection replay race, and
+The closed codec/binding matrix, real two-connection and two-process replay
+races, and
 forbidden-carrier/reflected-error sentinels also pass; that work found and
 closed missing fine-grained client redaction for reflected nonce/JWK/proof
 segments. A served replay-authority outage now refuses before body ingestion,
@@ -108,7 +174,23 @@ resolution, while the client preserves sender custody across carrier expiry
 and deletes it only after a changed-stream handshake or an exact empty-204
 logout whose nonce rotation completes under the captured generation. A typed
 live invalidation now performs the same exact-predecessor durable deletion and
-anonymous transport resume. Adapter admission production, the remaining
+anonymous transport resume. The hosted serving path now also installs the
+target-attested LLP 0060 D3 policy as one durable limiter for the
+trusted-single-instance profile: actual peer source, HMAC-only bucket keys,
+atomic charge-on-denial across global/source/subject/source-by-subject/family,
+bounded state and retry debt, and unavailable-authority refusal all have
+served coverage before proof parsing or body polling. The route-scoped
+forbidden-field check now follows sender admission and precedes ordinary
+session projection, closing LLP 0077 defect 12 without claiming a
+multi-replica limiter. A carrier-neutral grant gate now covers all ten HTTP
+grant routes and both WebSocket carriers before body polling, with the client
+signing the grant token and omitting the session bearer (defect 2 closed).
+Same-origin proof flights serialize through successor commit across HTTP,
+refresh, logout, connection open, grant HTTP, and socket initiation; missing
+successors produce a typed non-retryable indeterminate outcome and the
+post-socket request uses the bounded challenge resync (defects 5 and 7
+closed). The versioned grant-shape amendment remains open. Adapter admission
+production, the remaining
 served lifecycle and pressure matrix, independent review, and remote
 acceptance remain open, so hosted capability stays false.
 

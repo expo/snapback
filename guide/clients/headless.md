@@ -10,7 +10,7 @@ status: current
 targets: [local]
 maturity: shipped
 reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -46,6 +46,11 @@ development/operations methods. In sessions mode, pass an
 `AuthCoordinator`; do not also pass `bearerToken`, because that would
 bypass coordinator custody. `clientStoreId` binds authorization and retained
 query namespaces to one durable client store.
+
+`senderConstrained` is an internal composition option for the dedicated
+`@snapback/client/hosted-browser` entrypoint. Local applications should not set
+it directly, and no current hosted target has positive admission; see
+[target honesty](../auth/targets.md).
 
 CLI and daemon agents use `AgentAuthorityFence`, not the browser
 `AuthCoordinator`. Construct it from the scoped-token mint response plus its

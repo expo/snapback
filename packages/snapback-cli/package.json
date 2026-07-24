@@ -5,6 +5,8 @@
   "description": "Installable Snapback developer loop and native server launcher.",
   "files": [
     "cli.mjs",
+    "deployment-control.mjs",
+    "hosted-admission-producer.mjs",
     "index.mjs",
     "mcp-control.mjs",
     "templates"
@@ -14,13 +16,17 @@
   },
   "exports": {
     ".": "./index.mjs",
+    "./deployment-control": "./deployment-control.mjs",
+    "./hosted-admission-producer": "./hosted-admission-producer.mjs",
     "./package.json": "./package.json"
   },
   "dependencies": {
-    "@snapback/codegen": "workspace:*"
+    "@snapback/client": "0.1.0",
+    "@snapback/codegen": "0.1.0"
   },
   "optionalDependencies": {
-    "@snapback/runtime-darwin-arm64": "workspace:*"
+    "@snapback/runtime-darwin-arm64": "0.1.0",
+    "@snapback/runtime-linux-x64": "0.1.0"
   },
   "engines": {
     "node": ">=24.0.0"
@@ -29,6 +35,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs"
+    "test": "node package.test.mjs && node hosted-admission-producer.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs"
   }
 }

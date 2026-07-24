@@ -1,0 +1,28 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-instrument-lock.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "files": [
+    {
+      "path": "statistics.candidate.v0.json",
+      "sha256": "efc8266806d4641a1c9be33ac6d008231fceb56f532b5886b00359e0c6ed2fb0"
+    },
+    {
+      "path": "statistics.v0.mjs",
+      "sha256": "df6e97551d38afc4f1a200c7f23b88e597eb29469c9acee2440ed723c0c6f673"
+    },
+    {
+      "path": "metric-definitions.candidate.v0.json",
+      "sha256": "b05ce36c4f3d9e71d160b215feaf0ac1601cd354a8a6617c9517caffb2575d07"
+    },
+    {
+      "path": "metric-events.candidate.v0.schema.json",
+      "sha256": "13ab68f7155dc676eb1a22825bffc5168ea9242ff2633e54a308a158aa82204f"
+    },
+    {
+      "path": "metric-events.v0.mjs",
+      "sha256": "4f6c272cb76a93a4d1b941cf51ed413affd14399b05f96f599d602283a2f5c5c"
+    }
+  ]
+}

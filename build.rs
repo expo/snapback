@@ -30,11 +30,20 @@ fn main() {
     // externally started server is verifiable before any app bundle loads
     // (ENG-22798). Runs on every target, so it precedes the macOS-only rpath work.
     emit_build_identity();
+    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
+    if target_os == "linux" {
+        // @ref LLP 0041#runtime-distribution — the Linux platform package
+        // places libhermesvm.so at bin/../lib. Dependency build-script link
+        // args do not propagate to this final binary, so Snapback itself must
+        // carry the loader-relative RUNPATH.
+        println!("cargo:rustc-link-arg=-Wl,-rpath,$ORIGIN/../lib");
+        return;
+    }
+
     // Re-run if the prepared framework dir appears or changes (bootstrap copies
     // it in), so a first build after bootstrap picks up the real location.
     println!("cargo:rerun-if-changed=vendor/ibex/ios/Frameworks");
 
-    let target_os = std::env::var("CARGO_CFG_TARGET_OS").unwrap_or_default();
     if target_os != "macos" {
         // Only macOS resolves Hermes through an @rpath-relative framework; other
         // targets link libhermesvm differently (see vendor/ibex/build.rs).

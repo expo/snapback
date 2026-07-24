@@ -397,6 +397,47 @@ fn validate_auth_transport(
     )
 }
 
+/// Re-authenticate the provider-owned short admission lease in place. A
+/// refresh failure never preserves authority past the already-authenticated
+/// expiry; request admission fails closed until a valid successor appears.
+fn spawn_hosted_admission_refresh(
+    authority: crate::auth::deployment::HostedServingAuthority,
+    envelope_path: PathBuf,
+) -> tokio::task::JoinHandle<()> {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(15));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        interval.tick().await;
+        let mut refresh_failed = false;
+        loop {
+            interval.tick().await;
+            let observed_at_ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_millis() as u64)
+                .unwrap_or(0);
+            match authority.refresh_from_authenticated_envelope_file(&envelope_path, observed_at_ms)
+            {
+                Ok(()) => {
+                    if refresh_failed {
+                        eprintln!(
+                            "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_RECOVERED: authenticated hosted admission refresh resumed"
+                        );
+                    }
+                    refresh_failed = false;
+                }
+                Err(_) => {
+                    if !refresh_failed {
+                        eprintln!(
+                            "SNAPBACK_AUTH_HOSTED_ADMISSION_REFRESH_FAILED: hosted admission refresh is invalid or unavailable; serving will fail closed at the current admission expiry"
+                        );
+                    }
+                    refresh_failed = true;
+                }
+            }
+        }
+    })
+}
+
 /// Compose the build facts installed by the production serve path. The
 /// authority-descriptor implementation is present independently of the
 /// invalidation and authorized-retention layers, so queued replay must not be
@@ -491,10 +532,20 @@ pub struct Args {
     pub allow_insecure_dev_auth: bool,
 
     /// Require the serving target to enforce the complete hosted-auth edge and
-    /// browser contract. The local target refuses this must-understand request;
-    /// loopback plus a reverse proxy is not an attestation.
+    /// browser contract. Hosted mode additionally requires the provider-
+    /// authenticated admission envelope and secret-manager key files.
     #[arg(long, value_enum, default_value = "local")]
     pub auth_deployment: crate::auth::deployment::AuthDeploymentTarget,
+
+    /// Strict owner-only, MAC-authenticated hosted admission envelope emitted
+    /// by the selected target adapter for this handler boot.
+    #[arg(long)]
+    pub hosted_admission: Option<PathBuf>,
+
+    /// Strict owner-only provider-secret-manager projection used to
+    /// authenticate the hosted admission envelope and shared auth throttle.
+    #[arg(long)]
+    pub hosted_admission_key: Option<PathBuf>,
 
     /// Unit-test-only injection at the two fallible construction receipts.
     #[cfg(test)]
@@ -516,6 +567,8 @@ impl Default for Args {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            hosted_admission: None,
+            hosted_admission_key: None,
             #[cfg(test)]
             auth_construction_failure: None,
         }
@@ -1488,13 +1541,42 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     // This keeps profile/capture posture identical for numeric hosts and DNS
     // aliases without opening a listener early.
     let bind_ip = resolve_bind_ip(&args.host).await?;
-    // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — reject an explicit
-    // hosted request before opening target state; operator config is a request,
-    // never authority for target-owned TLS/proxy/throttle/invalidation facts.
-    crate::auth::deployment::validate_auth_deployment(
-        args.auth_deployment,
-        crate::auth::deployment::HostedAuthCapabilities::local_target(),
-    )?;
+    // @ref LLP 0060#d5-hosted-readiness-is-conjunctive — a hosted request
+    // crosses the pre-bind gate only with a target-authenticated, current
+    // admission. The two files are provider projections, not operator flags.
+    let hosted_serving_authority = match args.auth_deployment {
+        crate::auth::deployment::AuthDeploymentTarget::Local => {
+            anyhow::ensure!(
+                args.hosted_admission.is_none() && args.hosted_admission_key.is_none(),
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID: hosted admission files require --auth-deployment hosted"
+            );
+            crate::auth::deployment::validate_auth_deployment(
+                args.auth_deployment,
+                crate::auth::deployment::HostedAuthCapabilities::local_target(),
+            )?;
+            None
+        }
+        crate::auth::deployment::AuthDeploymentTarget::Hosted => {
+            let envelope_path = args.hosted_admission.as_deref().context(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID: --hosted-admission is required in hosted mode",
+            )?;
+            let key_path = args.hosted_admission_key.as_deref().context(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID: --hosted-admission-key is required in hosted mode",
+            )?;
+            let observed_at_ms = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map(|elapsed| elapsed.as_millis() as u64)
+                .unwrap_or(0);
+            Some(
+                crate::auth::deployment::HostedServingAuthority::from_authenticated_envelope_files(
+                    envelope_path,
+                    key_path,
+                    observed_at_ms,
+                )
+                .map_err(anyhow::Error::new)?,
+            )
+        }
+    };
     let (prepared_database_path, mut startup_target_reservation) = if args.memory {
         (None, None)
     } else {
@@ -1802,12 +1884,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     )
     .await?;
     auth_runtime.seed_durable_clock_floor(&mut snapback)?;
-    validate_auth_transport(
-        bind_ip,
-        startup_profile,
-        &auth_mode_state,
-        args.allow_insecure_dev_auth,
-    )?;
+    if hosted_serving_authority.is_none() {
+        validate_auth_transport(
+            bind_ip,
+            startup_profile,
+            &auth_mode_state,
+            args.allow_insecure_dev_auth,
+        )?;
+    }
 
     // ReadyV1 runs one bounded pass before bind. Missing/corrupt keyrings stay
     // in the provider health fact while the committed durable outcome carries
@@ -1895,8 +1979,14 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         )),
         None => app_state,
     };
-    let mut app_state = match impersonation_capabilities {
+    let app_state = match impersonation_capabilities {
         Some(registry) => app_state.with_impersonation_capabilities(registry),
+        None => app_state,
+    };
+    let mut app_state = match hosted_serving_authority.as_ref() {
+        Some(authority) => app_state
+            .with_hosted_serving_authority(authority.clone())
+            .map_err(anyhow::Error::new)?,
         None => app_state,
     };
     // Consume the connection-binding construction receipt before acquiring a
@@ -2076,6 +2166,10 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     let cron_scheduler = (auth_mode_state.app_data_availability
         == crate::auth::mode::AppDataAvailability::Available)
         .then(|| server::spawn_cron_scheduler(state.clone()));
+    let hosted_admission_refresh = hosted_serving_authority
+        .clone()
+        .zip(args.hosted_admission.clone())
+        .map(|(authority, path)| spawn_hosted_admission_refresh(authority, path));
     let maintenance_worker = server::spawn_maintenance_worker(app_state);
     let auth_maintenance_worker = crate::auth::runtime::spawn_auth_gc_worker(
         state,
@@ -2104,6 +2198,9 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
     };
     if let Some(scheduler) = cron_scheduler {
         scheduler.abort();
+    }
+    if let Some(worker) = hosted_admission_refresh {
+        worker.abort();
     }
     maintenance_worker.abort();
     if let Some(worker) = auth_maintenance_worker {
@@ -4508,6 +4605,8 @@ mod tests {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            hosted_admission: None,
+            hosted_admission_key: None,
             auth_construction_failure: None,
         })
         .await
@@ -4528,6 +4627,8 @@ mod tests {
             allow_auth_downgrade: false,
             allow_insecure_dev_auth: false,
             auth_deployment: crate::auth::deployment::AuthDeploymentTarget::Local,
+            hosted_admission: None,
+            hosted_admission_key: None,
             auth_construction_failure: None,
         }));
         let deadline = std::time::Instant::now() + Duration::from_secs(10);

@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "snapback.convex-checkpoint-run-capsule-verifier-lock.candidate.v0",
+  "status": "candidate-unratified-blocks-timed-runs",
+  "protocolId": "llp-0075-convex-checkpoint-v0",
+  "protocolVersion": "v0.4",
+  "files": [
+    {
+      "path": "run-capsule.v0.mjs",
+      "sha256": "b832ec599ff0c103667b7d2f7a9cd1d7336e7194d1d1a1c2cdf5428b96454045"
+    }
+  ],
+  "claimBoundary": "This locks the fail-closed verifier contract only. It proves exact protocol bytes and amendment-backed authorization, complete non-symlink scaffold/documentation trees, an exact path-by-path npm v3 public-registry package closure with canonical SRI, and byte-bound prerequisite instruments. It is not the content-addressed run capsule and cannot resolve any unpinned environment, topology, provider, auth, hosting, assistance, or credential choice."
+}

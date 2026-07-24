@@ -1,0 +1,128 @@
+{
+  "$defs": {
+    "HostedAdmissionProjectionVersion": {
+      "enum": [
+        "snapback.hosted-admission-projection.v1"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-admission-projection.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Non-secret result of projecting one fresh hosted boot authority. The key\nbytes and file paths are intentionally absent; the exact authenticated\nenvelope and external-floor receipt remain content-addressed.\n\n@ref LLP 0072#implemented-target-and-plan-slice — the adapter advances the\nexternal floor before writing strict owner-only boot projections.",
+  "properties": {
+    "admissionEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "browserArtifactSha256": {
+      "type": "string"
+    },
+    "configurationSha256": {
+      "type": "string"
+    },
+    "deploymentId": {
+      "type": "string"
+    },
+    "envelopeSha256": {
+      "type": "string"
+    },
+    "expiresAtMs": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "externalFloorAdvanceReceiptId": {
+      "type": "string"
+    },
+    "externalFloorStoreIdentitySha256": {
+      "type": "string"
+    },
+    "handlerIncarnation": {
+      "type": "string"
+    },
+    "handlerProtocolVersion": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "invalidationEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "issuedAtMs": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 0,
+      "type": "integer"
+    },
+    "keyId": {
+      "type": "string"
+    },
+    "keyProjectionCreated": {
+      "type": "boolean"
+    },
+    "limiterEpoch": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "projectionId": {
+      "type": "string"
+    },
+    "publicOrigin": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/HostedAdmissionProjectionVersion"
+    },
+    "senderReplayEpochFloor": {
+      "format": "uint64",
+      "maximum": 9007199254740991,
+      "minimum": 1,
+      "type": "integer"
+    },
+    "supportSha256": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "deploymentId",
+    "publicOrigin",
+    "keyId",
+    "browserArtifactSha256",
+    "configurationSha256",
+    "supportSha256",
+    "handlerProtocolVersion",
+    "handlerIncarnation",
+    "senderReplayEpochFloor",
+    "admissionEpoch",
+    "limiterEpoch",
+    "invalidationEpoch",
+    "issuedAtMs",
+    "expiresAtMs",
+    "externalFloorStoreIdentitySha256",
+    "externalFloorAdvanceReceiptId",
+    "envelopeSha256",
+    "keyProjectionCreated",
+    "remoteEvidence",
+    "projectionId"
+  ],
+  "title": "HostedAdmissionProjectionReceipt",
+  "type": "object"
+}

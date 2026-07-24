@@ -50,3 +50,26 @@ records Charlie Cheever's `reprioritize` adjudication, the selected
 `single-instance-container-vm.v1` next tranche, and the remaining blockers. In
 particular, local/Workerd streaming evidence is not a substitute for public npm
 publication or the complete hosted-profile drill.
+
+The deterministic statistics engine and event-derived metric ledger are
+implemented as explicitly unratified candidates under
+[`acceptance/instruments/`](./acceptance/instruments/README.md). Their tests
+lock implementation/schema digests and reject ambiguous event sequences, but
+they do not unblock timed runs until a dated LLP 0075 amendment ratifies those
+exact bytes.
+
+The same directory contains an independently locked candidate machine gate
+matrix. Its evaluator rejects missing arm/gate pairs, false positive treatment
+of expected refusals, duplicate decisions, and invented `not-applicable`
+outcomes. It is likewise unratified and cannot authorize evidence collection.
+
+A fail-closed run-capsule verifier is also present. It can validate and
+content-address the eventual prompt, scaffolds, harnesses, environment,
+packages, provider choices, credentials, agent configuration, and
+documentation corpora, but the populated capsule does not exist yet. The
+verifier deliberately refuses timed execution for an unratified envelope.
+
+The candidate scoring engine applies the exact first-hour conjunctions,
+absolute-zero floors, confidence totals, trust lead, and outcome precedence.
+It does not contain confidence-anchor prose; those anchors still require an
+eligible independent author before evidence reveal.

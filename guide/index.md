@@ -114,6 +114,9 @@ you never build around a feature because you didn't know it existed.
   debug through the privileged Contract system app.
 
 ### Deploying
+- [Immutable releases and deploy plans](./deploying/releases.md) — build the
+  target-neutral release, register an exact VM/container target, inspect its
+  provider identity, and retain a GAP-fenced content-addressed plan.
 - [Cloudflare proof](./deploying/cloudflare.md) — deploy and verify All
   Aboard on the honest partial hosted profile; explicit supported subset and gaps.
 

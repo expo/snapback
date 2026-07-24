@@ -35,10 +35,18 @@ bun install
 snapback dev snapback
 ```
 
-`@snapback/cli` supplies the `snapback` command. On Apple-silicon macOS its
-optional `@snapback/runtime-darwin-arm64` package carries the prebuilt server
-and Hermes framework; `doctor` launches that relocated binary with ambient
-dynamic-loader overrides removed. Other host tuples currently report
+The source package `@snapback/cli` supplies the `snapback` command. The first
+public registry alias is `@ccheever/snapback-cli`; its staged manifest preserves
+the same bin and maps internal `@snapback/*` dependencies to the corresponding
+`@ccheever/snapback-*` artifacts. On Apple-silicon macOS the mapped runtime
+package carries the prebuilt server and Hermes framework. `doctor` first
+launches that relocated binary with
+ambient dynamic-loader overrides removed, then creates a disposable app and
+database, generates and loads its bundle, invokes a query, commits a mutation,
+opens and closes a live subscription, stops the owned server through its ready
+descriptor, and removes the temporary state. Its `snapback.cli-doctor.v2`
+result reports one stable code per completed boundary; a launch-only result is
+test instrumentation and never the installed-product claim. Other host tuples currently report
 `SNAPBACK_IBEX_HOST_UNSUPPORTED`—they are not source-build fallbacks disguised
 as installs. Public registry publication is still pending. The `@snapback/cli`
 npm identity belongs to an unrelated product, so release probes use labeled

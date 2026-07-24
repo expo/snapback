@@ -35,6 +35,32 @@ use snapback::data_tier::{
     DataTierCaseExpectation, DataTierCaseSchema, DataTierCorpusCase, DataTierCorpusCaseEntry,
     DataTierCorpusManifest, DataTierProfile,
 };
+use snapback::deploy::{
+    AdapterEvidenceRef, AdapterLifecycleOperation, AdapterLifecycleRequest,
+    AdapterLifecycleRequestVersion, AdapterLifecycleResponse, AdapterLifecycleResponseVersion,
+    AdapterOperation, AdapterOperationPlan, AdapterQualificationClaim,
+    AdapterQualificationEvidence, AdapterQualificationManifest, AdapterQuery,
+    AdapterQueryOperation, AdapterQueryRequest, AdapterQueryRequestVersion, AdapterQueryResponse,
+    AdapterQueryResponseVersion, AdapterRequest, AdapterRequestVersion, AdapterResponse,
+    AdapterResponseVersion, AdapterSafeDiagnostic, AuthenticatedInspection, BackupComponent,
+    BackupManifest, ControlLogEntry, ControlLogPage, ControlOperationSummary, CredentialStatus,
+    DeployPlan, DeployPlanArtifactKind, DeployPlanStep, DeployPlanVersion, DeployReceipt,
+    DeployReceiptOutcome, DeployStepReceipt, DeployStepState, DeploymentLease, DeploymentState,
+    ExternalReplayFloorAdvanceReceipt, ExternalReplayFloorAdvanceVersion,
+    HostedAdmissionProjectionReceipt, HostedAdmissionProjectionVersion,
+    HostedAdmissionRefreshReceipt, HostedAdmissionRefreshVersion, HostedAuthDrillReceipt,
+    HostedAuthLiveHealth, InspectionFact, MaintenanceReceipt, MaintenanceReceiptKind,
+    MaintenanceReceiptOutcome, PreparedReleaseEvidence, PreparedReleaseEvidenceKind,
+    PreparedReleaseManifest, RedactedLogField, ReleaseArtifactKind, ReleaseCompatibility,
+    ReleaseCompatibilityEnvelope, ReleaseComponent, ReleaseGap, ReleaseManifest,
+    ReleaseManifestVersion, ReleaseScan, ReleaseSource, ReleaseToolchain, RemoteDrillCostBoundary,
+    RemoteDrillCostComponent, RemoteDrillCredentials, RemoteDrillLogs, RemoteDrillNonclaim,
+    RemoteDrillPlan, RemoteDrillPlanVersion, RemoteDrillProvisioningAuthority, RemoteDrillStorage,
+    RemoteDrillSupervisor, RemoteDrillSupervisorKind, RemoteDrillTls, RestoreActivationPlan,
+    RestoreActivationPlanStep, RestorePlan, RestorePlanStep, RestoreResult, RollbackMode,
+    RollbackPlan, RollbackPlanStep, TargetDescriptor, TargetDescriptorVersion, TargetObservation,
+    TargetProductionClass, VmAdapterDescriptor, VmAdapterKind,
+};
 use snapback::diagnostic::Diagnostic;
 use snapback::ephemeral::{EphemeralDiagnostics, EphemeralRoomDiagnostics, Scope};
 use snapback::local::{
@@ -94,12 +120,12 @@ fn representative_hosted_admission() -> HostedAdmission {
         configuration_sha256: "a".repeat(64),
         support_sha256: "b".repeat(64),
         admission_epoch: 7,
+        sender_replay_epoch_floor: 17,
         issued_at_ms: 1_000,
         expires_at_ms: 301_000,
         limiter_epoch: 11,
         authentication_throttle_config: representative_authentication_throttle_config(),
         invalidation_epoch: 13,
-        sender_replay_epoch_floor: 0,
         handler_protocol_version: 1,
         handler_incarnation: "handler-1".to_owned(),
         operator_surface: HostedOperatorSurface::Disabled,
@@ -111,6 +137,336 @@ fn representative_hosted_admission() -> HostedAdmission {
             session_invalidation: SessionInvalidation::GloballyFenced,
             client_credential_posture: BrowserCredentialPosture::SenderConstrainedV2,
         },
+    }
+}
+
+fn representative_release_manifest() -> ReleaseManifest {
+    ReleaseManifest {
+        artifact_kind: ReleaseArtifactKind::ReleaseManifest,
+        schema_version: ReleaseManifestVersion::V1,
+        release_id: format!("sha256:{}", "a".repeat(64)),
+        project_id: "checkpoint".to_owned(),
+        target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        activation_eligible: false,
+        source: ReleaseSource {
+            repository_name: "checkpoint".to_owned(),
+            revision: "b".repeat(40),
+            source_date_epoch: 1,
+            dirty: false,
+            dirty_paths_sha256: None,
+        },
+        toolchain: ReleaseToolchain {
+            snapback_cli_version: "0.1.0".to_owned(),
+            node_version: "v24.18.0".to_owned(),
+            package_manager: Some("bun@1.3.12".to_owned()),
+        },
+        compatibility: ReleaseCompatibility {
+            schema_version: SNAPBACK_SCHEMA_VERSION.to_owned(),
+            auth_mode: "dev".to_owned(),
+            schema_sha256: format!("sha256:{}", "c".repeat(64)),
+            functions_sha256: format!("sha256:{}", "d".repeat(64)),
+            capability_sha256: format!("sha256:{}", "e".repeat(64)),
+            inputs_sha256: format!("sha256:{}", "f".repeat(64)),
+        },
+        required_capabilities: vec!["live_subscriptions".to_owned()],
+        components: vec![ReleaseComponent {
+            path: "components/app/schema.manifest.json".to_owned(),
+            sha256: format!("sha256:{}", "1".repeat(64)),
+            bytes: 10,
+            media_type: "application/json".to_owned(),
+        }],
+        scan: ReleaseScan {
+            secret_scan: "passed".to_owned(),
+            source_maps: "refused".to_owned(),
+            symlinks: "refused".to_owned(),
+            scanned_files: 1,
+            scanned_bytes: 10,
+        },
+        gaps: vec![ReleaseGap {
+            id: "control-plane.adapter".to_owned(),
+            reason: "no hosted adapter has completed the profile".to_owned(),
+            blocking: true,
+        }],
+    }
+}
+
+fn representative_target_descriptor() -> TargetDescriptor {
+    TargetDescriptor {
+        schema_version: TargetDescriptorVersion::V1,
+        target_id: "target-preview-1".to_owned(),
+        project_id: "checkpoint".to_owned(),
+        environment_id: "preview-1".to_owned(),
+        deployment_id: "deployment-1".to_owned(),
+        database_id: "database-1".to_owned(),
+        stream_incarnation: "stream-1".to_owned(),
+        target_profile_id: TARGET_PROFILE_LOCAL_DEV_SQLITE_IBEX.to_owned(),
+        production_class: TargetProductionClass::Preview,
+        adapter: VmAdapterDescriptor {
+            kind: VmAdapterKind::SingleInstanceContainerVm,
+            version: "1.0.0".to_owned(),
+            driver_path: "/opt/snapback/vm-adapter".to_owned(),
+            driver_sha256: format!("sha256:{}", "2".repeat(64)),
+            provider: "fixture-provider".to_owned(),
+            account_fingerprint: "account-1".to_owned(),
+            region: "test-1".to_owned(),
+            public_origin: "https://preview.example.invalid".to_owned(),
+            credential_ref: "secret-store://snapback/preview-1".to_owned(),
+            state_store_ref: "object://snapback-control/preview-1".to_owned(),
+        },
+        created_at_ms: 1,
+    }
+}
+
+fn representative_target_observation() -> TargetObservation {
+    let target = representative_target_descriptor();
+    TargetObservation {
+        target_id: target.target_id,
+        environment_id: target.environment_id,
+        deployment_id: target.deployment_id,
+        database_id: target.database_id,
+        stream_incarnation: target.stream_incarnation,
+        target_profile_id: target.target_profile_id,
+        provider: target.adapter.provider,
+        account_fingerprint: target.adapter.account_fingerprint,
+        region: target.adapter.region,
+        public_origin: target.adapter.public_origin,
+        resource_id: "vm-fixture-1".to_owned(),
+        state: DeploymentState::Registered,
+        activation_generation: 0,
+        active_release_id: None,
+        application_sentinel_sha256: None,
+        credential_status: CredentialStatus::Ready,
+        provider_facts_sha256: format!("sha256:{}", "3".repeat(64)),
+        observed_at_ms: 2,
+        capability_gaps: vec!["hosted-auth".to_owned()],
+    }
+}
+
+fn representative_deployment_lease() -> DeploymentLease {
+    DeploymentLease {
+        lease_id: "lease-target-preview-1".to_owned(),
+        target_id: "target-preview-1".to_owned(),
+        operation_id: "plan-op".to_owned(),
+        expected_activation_generation: 0,
+        acquired_at_ms: 20,
+        expires_at_ms: 120_020,
+    }
+}
+
+fn representative_backup_manifest() -> BackupManifest {
+    BackupManifest {
+        schema_version: "snapback.backup-manifest.v1".to_owned(),
+        backup_id: format!("sha256:{}", "9".repeat(64)),
+        operation_id: "plan-op".to_owned(),
+        target_id: "target-preview-1".to_owned(),
+        deployment_id: "deployment-1".to_owned(),
+        database_id: "database-1".to_owned(),
+        stream_incarnation: "stream-1".to_owned(),
+        release_id: None,
+        schema_identity_sha256: format!("sha256:{}", "a".repeat(64)),
+        encryption_class: "external-key".to_owned(),
+        storage_class: "object-store".to_owned(),
+        retention_policy: "seven-days".to_owned(),
+        components: vec![BackupComponent {
+            kind: "sqliteSnapshot".to_owned(),
+            sha256: format!("sha256:{}", "b".repeat(64)),
+            bytes: 64,
+            objects: 1,
+            verified: true,
+        }],
+        excluded_secret_classes: vec![
+            "application-secrets".to_owned(),
+            "control-plane-credentials".to_owned(),
+        ],
+        created_at_ms: 30,
+        verified_at_ms: 31,
+    }
+}
+
+fn representative_deploy_plan() -> DeployPlan {
+    let target = representative_target_descriptor();
+    let observation = representative_target_observation();
+    DeployPlan {
+        artifact_kind: DeployPlanArtifactKind::DeployPlan,
+        schema_version: DeployPlanVersion::V1,
+        plan_id: format!("sha256:{}", "4".repeat(64)),
+        operation_id: "plan-op".to_owned(),
+        reason: "representative planning proof".to_owned(),
+        target_id: target.target_id,
+        project_id: target.project_id,
+        environment_id: target.environment_id,
+        deployment_id: target.deployment_id,
+        database_id: target.database_id,
+        stream_incarnation: target.stream_incarnation,
+        target_profile_id: target.target_profile_id,
+        production_class: target.production_class,
+        target_descriptor_sha256: format!("sha256:{}", "5".repeat(64)),
+        target_observation_sha256: format!("sha256:{}", "6".repeat(64)),
+        observed_activation_generation: observation.activation_generation,
+        observed_active_release_id: observation.active_release_id,
+        release_id: format!("sha256:{}", "7".repeat(64)),
+        release_manifest_sha256: format!("sha256:{}", "8".repeat(64)),
+        prepared_release_id: None,
+        prepared_release_manifest_sha256: None,
+        steps: vec![
+            DeployPlanStep::VerifyIdentity,
+            DeployPlanStep::AcquireLease,
+            DeployPlanStep::UploadImmutableRelease,
+            DeployPlanStep::ProvisionInactive,
+            DeployPlanStep::CompatibilityPreflight,
+            DeployPlanStep::CreateVerifiedBackup,
+            DeployPlanStep::StageRelease,
+            DeployPlanStep::ActivateGeneration,
+            DeployPlanStep::VerifyServedPath,
+            DeployPlanStep::ReleaseLease,
+            DeployPlanStep::RollbackOnFailure,
+        ],
+        blockers: vec![ReleaseGap {
+            id: "adapter.hosted-auth".to_owned(),
+            reason: "hosted auth remains a GAP".to_owned(),
+            blocking: true,
+        }],
+        apply_eligible: false,
+        confirmation: format!("confirm:sha256:{}", "4".repeat(64)),
+        created_at_ms: 10_000,
+        expires_at_ms: 910_000,
+    }
+}
+
+fn representative_rollback_plan() -> RollbackPlan {
+    let target = representative_target_descriptor();
+    RollbackPlan {
+        schema_version: "snapback.rollback-plan.v1".to_owned(),
+        plan_id: format!("sha256:{}", "1".repeat(64)),
+        operation_id: "rollback-op".to_owned(),
+        reason: "return to the prior compatible release".to_owned(),
+        target_id: target.target_id,
+        project_id: target.project_id,
+        environment_id: target.environment_id,
+        deployment_id: target.deployment_id,
+        database_id: target.database_id,
+        stream_incarnation: target.stream_incarnation,
+        target_profile_id: target.target_profile_id,
+        production_class: target.production_class,
+        target_descriptor_sha256: format!("sha256:{}", "2".repeat(64)),
+        target_observation_sha256: format!("sha256:{}", "3".repeat(64)),
+        observed_activation_generation: 7,
+        observed_active_release_id: format!("sha256:{}", "4".repeat(64)),
+        destination_release_id: format!("sha256:{}", "5".repeat(64)),
+        destination_prepared_release_id: format!("sha256:{}", "6".repeat(64)),
+        compatibility_sha256: format!("sha256:{}", "7".repeat(64)),
+        steps: vec![
+            RollbackPlanStep::VerifyIdentity,
+            RollbackPlanStep::AcquireLease,
+            RollbackPlanStep::VerifyCompatibility,
+            RollbackPlanStep::Rollback,
+            RollbackPlanStep::VerifyServedPath,
+            RollbackPlanStep::ReleaseLease,
+        ],
+        blockers: vec![],
+        apply_eligible: true,
+        confirmation: format!("confirm:sha256:{}", "1".repeat(64)),
+        created_at_ms: 100,
+        expires_at_ms: 900_100,
+    }
+}
+
+fn representative_restore_plan() -> RestorePlan {
+    let target = representative_target_descriptor();
+    RestorePlan {
+        schema_version: "snapback.restore-plan.v1".to_owned(),
+        plan_id: format!("sha256:{}", "8".repeat(64)),
+        operation_id: "restore-op".to_owned(),
+        reason: "isolated restore drill".to_owned(),
+        source_target_id: "target-source-1".to_owned(),
+        backup_id: format!("sha256:{}", "9".repeat(64)),
+        backup_manifest_sha256: format!("sha256:{}", "a".repeat(64)),
+        destination_target_id: target.target_id,
+        project_id: target.project_id,
+        environment_id: target.environment_id,
+        deployment_id: target.deployment_id,
+        database_id: target.database_id,
+        stream_incarnation: target.stream_incarnation,
+        target_profile_id: target.target_profile_id,
+        production_class: target.production_class,
+        target_descriptor_sha256: format!("sha256:{}", "b".repeat(64)),
+        target_observation_sha256: format!("sha256:{}", "c".repeat(64)),
+        observed_activation_generation: 0,
+        observed_active_release_id: None,
+        replacement_release_id: None,
+        destination_sentinel_sha256: None,
+        steps: vec![
+            RestorePlanStep::VerifyIdentity,
+            RestorePlanStep::AcquireLease,
+            RestorePlanStep::FenceExternalEffects,
+            RestorePlanStep::RestoreBackupInactive,
+            RestorePlanStep::VerifyRestoredComponents,
+            RestorePlanStep::VerifyRestoredApplication,
+            RestorePlanStep::ReleaseLease,
+        ],
+        blockers: vec![],
+        apply_eligible: true,
+        confirmation: format!("destroy-and-restore:sha256:{}", "8".repeat(64)),
+        created_at_ms: 100,
+        expires_at_ms: 900_100,
+    }
+}
+
+fn representative_restore_result() -> RestoreResult {
+    RestoreResult {
+        backup_id: format!("sha256:{}", "9".repeat(64)),
+        source_target_id: "target-source-1".to_owned(),
+        source_deployment_id: "source-deployment".to_owned(),
+        source_database_id: "source-database".to_owned(),
+        source_stream_incarnation: "source-stream".to_owned(),
+        destination_target_id: "target-preview-1".to_owned(),
+        destination_deployment_id: "deployment-1".to_owned(),
+        destination_database_id: "database-1".to_owned(),
+        destination_stream_incarnation: "stream-1".to_owned(),
+        restore_epoch: 1,
+        effects_fenced: true,
+        components_verified: true,
+        application_sentinel_sha256: format!("sha256:{}", "d".repeat(64)),
+        acceptance_sha256: format!("sha256:{}", "e".repeat(64)),
+        external_effects_disabled: true,
+        activated: false,
+    }
+}
+
+fn representative_restore_activation_plan() -> RestoreActivationPlan {
+    RestoreActivationPlan {
+        schema_version: "snapback.restore-activation-plan.v1".to_owned(),
+        plan_id: format!("sha256:{}", "0".repeat(64)),
+        operation_id: "restore-activate-op".to_owned(),
+        reason: "activate verified isolated restore".to_owned(),
+        restore_receipt_id: format!("sha256:{}", "1".repeat(64)),
+        backup_id: format!("sha256:{}", "9".repeat(64)),
+        target_id: "target-preview-1".to_owned(),
+        deployment_id: "deployment-1".to_owned(),
+        database_id: "database-1".to_owned(),
+        stream_incarnation: "stream-1".to_owned(),
+        target_descriptor_sha256: format!("sha256:{}", "2".repeat(64)),
+        target_observation_sha256: format!("sha256:{}", "3".repeat(64)),
+        observed_activation_generation: 1,
+        restored_release_id: None,
+        prepared_release_id: format!("sha256:{}", "4".repeat(64)),
+        prepared_release_manifest_sha256: format!("sha256:{}", "5".repeat(64)),
+        adapter_qualification_id: format!("sha256:{}", "6".repeat(64)),
+        adapter_qualification_sha256: format!("sha256:{}", "7".repeat(64)),
+        application_sentinel_sha256: format!("sha256:{}", "d".repeat(64)),
+        steps: vec![
+            RestoreActivationPlanStep::VerifyIdentity,
+            RestoreActivationPlanStep::VerifyPausedRestore,
+            RestoreActivationPlanStep::AcquireLease,
+            RestoreActivationPlanStep::ActivateRestoredGeneration,
+            RestoreActivationPlanStep::VerifyServedPath,
+            RestoreActivationPlanStep::ReleaseLease,
+        ],
+        blockers: vec![],
+        apply_eligible: true,
+        confirmation: format!("activate-restore:sha256:{}", "0".repeat(64)),
+        created_at_ms: 200,
+        expires_at_ms: 900_200,
     }
 }
 
@@ -1133,6 +1489,472 @@ fn dk7_representative_values_validate_against_committed_schemas() {
         &serde_json::to_value(FunctionManifest::default()).unwrap(),
     );
     assert_validates(
+        "release.manifest.schema.json",
+        &serde_json::to_value(representative_release_manifest()).unwrap(),
+    );
+    let target = representative_target_descriptor();
+    let observation = representative_target_observation();
+    assert_validates(
+        "target.descriptor.schema.json",
+        &serde_json::to_value(&target).unwrap(),
+    );
+    assert_validates(
+        "vm-adapter.request.schema.json",
+        &serde_json::to_value(AdapterRequest {
+            schema_version: AdapterRequestVersion::V1,
+            operation: AdapterOperation::Inspect,
+            operation_id: "inspect-op".to_owned(),
+            target: target.clone(),
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "vm-adapter.response.schema.json",
+        &serde_json::to_value(AdapterResponse {
+            schema_version: AdapterResponseVersion::V1,
+            operation: AdapterOperation::Inspect,
+            operation_id: "inspect-op".to_owned(),
+            ok: true,
+            observation: Some(observation.clone()),
+            diagnostics: vec![AdapterSafeDiagnostic {
+                code: "SNAPBACK_FIXTURE_OK".to_owned(),
+                severity: "info".to_owned(),
+                message: "fixture read-back completed".to_owned(),
+            }],
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "deploy.plan.schema.json",
+        &serde_json::to_value(representative_deploy_plan()).unwrap(),
+    );
+    let lease = representative_deployment_lease();
+    let backup = representative_backup_manifest();
+    let evidence = AdapterEvidenceRef {
+        kind: "fixtureEvidence".to_owned(),
+        uri: "fixture://provider/acquireLease".to_owned(),
+        sha256: format!("sha256:{}", "c".repeat(64)),
+        bytes: 0,
+        verified: true,
+    };
+    assert_validates(
+        "vm-adapter.lifecycle-request.schema.json",
+        &serde_json::to_value(AdapterLifecycleRequest {
+            schema_version: AdapterLifecycleRequestVersion::V1,
+            operation: AdapterLifecycleOperation::AcquireLease,
+            operation_id: "plan-op".to_owned(),
+            attempt: 1,
+            target: target.clone(),
+            plan: AdapterOperationPlan::Deploy(representative_deploy_plan()),
+            release_directory: "/var/lib/snapback/releases/example".to_owned(),
+            lease: None,
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "vm-adapter.lifecycle-response.schema.json",
+        &serde_json::to_value(AdapterLifecycleResponse {
+            schema_version: AdapterLifecycleResponseVersion::V1,
+            operation: AdapterLifecycleOperation::AcquireLease,
+            operation_id: "plan-op".to_owned(),
+            ok: true,
+            idempotent_replay: false,
+            remote_evidence: false,
+            input_sha256: format!("sha256:{}", "d".repeat(64)),
+            output_sha256: format!("sha256:{}", "e".repeat(64)),
+            lease: Some(lease.clone()),
+            observation: Some(observation.clone()),
+            evidence: vec![evidence.clone()],
+            backup: None,
+            restore: None,
+            diagnostics: vec![],
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "backup.manifest.schema.json",
+        &serde_json::to_value(&backup).unwrap(),
+    );
+    assert_validates(
+        "deploy.receipt.schema.json",
+        &serde_json::to_value(DeployReceipt {
+            schema_version: "snapback.deploy-receipt.v1".to_owned(),
+            receipt_id: format!("sha256:{}", "f".repeat(64)),
+            plan_id: representative_deploy_plan().plan_id,
+            operation_id: "plan-op".to_owned(),
+            target_id: target.target_id,
+            deployment_id: target.deployment_id,
+            database_id: target.database_id,
+            stream_incarnation: target.stream_incarnation,
+            release_id: representative_deploy_plan().release_id,
+            previous_release_id: None,
+            activation_generation_before: 0,
+            activation_generation_after: 1,
+            outcome: DeployReceiptOutcome::Activated,
+            remote_evidence: false,
+            adapter_kind: target.adapter.kind,
+            adapter_version: target.adapter.version,
+            provider_facts_sha256: observation.provider_facts_sha256,
+            backup: Some(backup),
+            steps: vec![DeployStepReceipt {
+                sequence: 1,
+                operation: AdapterLifecycleOperation::AcquireLease,
+                state: DeployStepState::Completed,
+                input_sha256: format!("sha256:{}", "d".repeat(64)),
+                output_sha256: format!("sha256:{}", "e".repeat(64)),
+                evidence: vec![evidence],
+                started_at_ms: 40,
+                finished_at_ms: 41,
+                idempotent_replay: false,
+                previous_fact_sha256: None,
+                fact_sha256: format!("sha256:{}", "0".repeat(64)),
+            }],
+            gaps: vec![ReleaseGap {
+                id: "control-plane.remote-evidence".to_owned(),
+                reason: "fixture is not remote evidence".to_owned(),
+                blocking: true,
+            }],
+            started_at_ms: 40,
+            finished_at_ms: 50,
+        })
+        .unwrap(),
+    );
+    let rollback_plan = representative_rollback_plan();
+    assert_validates(
+        "rollback.plan.schema.json",
+        &serde_json::to_value(&rollback_plan).unwrap(),
+    );
+    let restore_plan = representative_restore_plan();
+    assert_validates(
+        "restore.plan.schema.json",
+        &serde_json::to_value(&restore_plan).unwrap(),
+    );
+    assert_validates(
+        "restore.activation-plan.schema.json",
+        &serde_json::to_value(representative_restore_activation_plan()).unwrap(),
+    );
+    let restore = representative_restore_result();
+    assert_validates(
+        "maintenance.receipt.schema.json",
+        &serde_json::to_value(MaintenanceReceipt {
+            schema_version: "snapback.maintenance-receipt.v1".to_owned(),
+            receipt_id: format!("sha256:{}", "f".repeat(64)),
+            kind: MaintenanceReceiptKind::Restore,
+            plan_id: restore_plan.plan_id,
+            operation_id: restore_plan.operation_id,
+            target_id: restore_plan.destination_target_id,
+            deployment_id: restore_plan.deployment_id,
+            database_id: restore_plan.database_id,
+            stream_incarnation: restore_plan.stream_incarnation,
+            activation_generation_before: 0,
+            activation_generation_after: 1,
+            release_id_before: None,
+            release_id_after: None,
+            backup_id: Some(restore.backup_id.clone()),
+            restore: Some(restore),
+            outcome: MaintenanceReceiptOutcome::RestoredPaused,
+            remote_evidence: false,
+            steps: vec![],
+            gaps: vec![ReleaseGap {
+                id: "control-plane.remote-evidence".to_owned(),
+                reason: "fixture is not remote evidence".to_owned(),
+                blocking: true,
+            }],
+            started_at_ms: 100,
+            finished_at_ms: 200,
+        })
+        .unwrap(),
+    );
+    let inspection_fact = InspectionFact {
+        name: "publicHealth".to_owned(),
+        status: "ready".to_owned(),
+        value_sha256: format!("sha256:{}", "1".repeat(64)),
+    };
+    assert_validates(
+        "vm-adapter.query-request.schema.json",
+        &serde_json::to_value(AdapterQueryRequest {
+            schema_version: AdapterQueryRequestVersion::V1,
+            operation: AdapterQueryOperation::Logs,
+            operation_id: "logs-op".to_owned(),
+            target: representative_target_descriptor(),
+            query: AdapterQuery {
+                since_ms: 1,
+                until_ms: 2,
+                limit: 10,
+                cursor: None,
+            },
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "vm-adapter.query-response.schema.json",
+        &serde_json::to_value(AdapterQueryResponse {
+            schema_version: AdapterQueryResponseVersion::V1,
+            operation: AdapterQueryOperation::Logs,
+            operation_id: "logs-op".to_owned(),
+            ok: true,
+            remote_evidence: false,
+            input_sha256: format!("sha256:{}", "4".repeat(64)),
+            output_sha256: format!("sha256:{}", "5".repeat(64)),
+            observation: Some(representative_target_observation()),
+            logs: Some(ControlLogPage {
+                entries: vec![ControlLogEntry {
+                    timestamp_ms: 1,
+                    severity: "info".to_owned(),
+                    deployment_id: "deployment-1".to_owned(),
+                    release_id: None,
+                    activation_generation: 0,
+                    stream_incarnation: "stream-1".to_owned(),
+                    correlation_id: "logs-op".to_owned(),
+                    event_code: "SNAPBACK_FIXTURE_EVENT".to_owned(),
+                    event_version: 1,
+                    payload: vec![RedactedLogField {
+                        name: "result".to_owned(),
+                        value: "verified".to_owned(),
+                    }],
+                }],
+                next_cursor: None,
+                retention_class: "fixture-seven-days".to_owned(),
+                indexing_class: "deployment-and-operation".to_owned(),
+                delivery_latency_ms: 1,
+                dropped_events: 0,
+                backpressure: false,
+            }),
+            inspection: Some(AuthenticatedInspection {
+                target_id: "target-preview-1".to_owned(),
+                deployment_id: "deployment-1".to_owned(),
+                database_id: "database-1".to_owned(),
+                stream_incarnation: "stream-1".to_owned(),
+                active_release_id: None,
+                inactive_release_ids: vec![],
+                activation_generation: 0,
+                schema_generation: 1,
+                config_generation: 1,
+                auth_generation: 1,
+                worker_generation: 1,
+                capability_manifest_sha256: format!("sha256:{}", "2".repeat(64)),
+                capability_gaps: vec!["hosted-auth".to_owned()],
+                health: vec![inspection_fact.clone()],
+                dependencies: vec![],
+                migration: vec![],
+                backups: vec![],
+                queues: vec![],
+                connections: vec![],
+                resources: vec![],
+                operations: vec![ControlOperationSummary {
+                    operation_id: "logs-op".to_owned(),
+                    kind: "logs".to_owned(),
+                    outcome: "completed".to_owned(),
+                    finished_at_ms: 2,
+                    receipt_id: format!("sha256:{}", "3".repeat(64)),
+                }],
+                diagnostics: vec![],
+            }),
+            evidence: vec![],
+            diagnostics: vec![],
+        })
+        .unwrap(),
+    );
+    let qualification_target = representative_target_descriptor();
+    assert_validates(
+        "remote-drill.plan.schema.json",
+        &serde_json::to_value(RemoteDrillPlan {
+            schema_version: RemoteDrillPlanVersion::V1,
+            plan_id: format!("sha256:{}", "0".repeat(64)),
+            reason: "pin provider facts before provisioning".to_owned(),
+            target_id: qualification_target.target_id.clone(),
+            target_profile_id: "trusted-single-tenant-app-complete.v1".to_owned(),
+            production_class: qualification_target.production_class,
+            target_descriptor_sha256: format!("sha256:{}", "1".repeat(64)),
+            adapter_kind: qualification_target.adapter.kind,
+            adapter_version: qualification_target.adapter.version.clone(),
+            driver_sha256: qualification_target.adapter.driver_sha256.clone(),
+            provider: qualification_target.adapter.provider.clone(),
+            account_fingerprint: qualification_target.adapter.account_fingerprint.clone(),
+            region: qualification_target.adapter.region.clone(),
+            public_origin: qualification_target.adapter.public_origin.clone(),
+            storage: RemoteDrillStorage {
+                compute_class: "fixture-small".to_owned(),
+                persistent_volume_class: "fixture-encrypted".to_owned(),
+                persistent_volume_encrypted: true,
+                artifact_store_ref: "object://fixture/artifacts".to_owned(),
+                artifact_storage_class: "immutable".to_owned(),
+                backup_store_ref: "object://fixture/backups".to_owned(),
+                backup_storage_class: "retained".to_owned(),
+                backup_permission_boundary: "separateWriteGrant".to_owned(),
+            },
+            tls: RemoteDrillTls {
+                issuer: "fixture-acme".to_owned(),
+                automated_renewal: true,
+                independently_attested_origin: true,
+            },
+            supervisor: RemoteDrillSupervisor {
+                kind: RemoteDrillSupervisorKind::Systemd,
+                restart_evidence_required: true,
+                interruption_resume_required: true,
+            },
+            logs: RemoteDrillLogs {
+                sink_ref: "logs://fixture/control".to_owned(),
+                retention_class: "thirty-days".to_owned(),
+                redaction_profile: "snapback-secret-private-v1".to_owned(),
+            },
+            credentials: RemoteDrillCredentials {
+                control_credential_ref: "secret-store://fixture/control".to_owned(),
+                control_state_store_ref: "object://fixture/state".to_owned(),
+                admission_key_ref: "provider-secret://fixture/admission".to_owned(),
+                replay_floor_store_ref: "object://fixture/replay-floor".to_owned(),
+            },
+            cost: RemoteDrillCostBoundary {
+                currency: "USD".to_owned(),
+                estimated_monthly_minor_units: 1200,
+                maximum_monthly_minor_units: 2000,
+                estimate_basis_sha256: format!("sha256:{}", "2".repeat(64)),
+                included_components: vec![
+                    RemoteDrillCostComponent::Compute,
+                    RemoteDrillCostComponent::PersistentVolume,
+                    RemoteDrillCostComponent::ObjectStorage,
+                    RemoteDrillCostComponent::Logs,
+                    RemoteDrillCostComponent::Dns,
+                    RemoteDrillCostComponent::Tls,
+                ],
+            },
+            nonclaims: vec![
+                RemoteDrillNonclaim::HighAvailability,
+                RemoteDrillNonclaim::Autoscaling,
+                RemoteDrillNonclaim::MultiRegion,
+                RemoteDrillNonclaim::ZeroDowntime,
+                RemoteDrillNonclaim::UntrustedMultiTenancy,
+                RemoteDrillNonclaim::ManagedServiceSla,
+            ],
+            provisioning_authority: RemoteDrillProvisioningAuthority::ConfirmationRequired,
+            confirmation: format!("confirm:sha256:{}", "0".repeat(64)),
+            created_at_ms: 1,
+            expires_at_ms: 3_600_001,
+        })
+        .unwrap(),
+    );
+    let qualification_evidence = AdapterEvidenceRef {
+        kind: "remoteProviderAttestation".to_owned(),
+        uri: "fixture://remote/provider-attestation".to_owned(),
+        sha256: format!("sha256:{}", "1".repeat(64)),
+        bytes: 128,
+        verified: true,
+    };
+    let hosted_auth_drill = HostedAuthDrillReceipt {
+        schema_version: "snapback.hosted-auth-drill-receipt.v1".to_owned(),
+        receipt_id: format!("sha256:{}", "9".repeat(64)),
+        target_id: qualification_target.target_id.clone(),
+        target_profile_id: "trusted-single-tenant-app-complete.v1".to_owned(),
+        deployment_id: qualification_target.deployment_id.clone(),
+        provider: qualification_target.adapter.provider.clone(),
+        account_fingerprint: qualification_target.adapter.account_fingerprint.clone(),
+        region: qualification_target.adapter.region.clone(),
+        public_origin: qualification_target.adapter.public_origin.clone(),
+        browser_artifact_sha256: format!("sha256:{}", "8".repeat(64)),
+        admission: HostedAdmission {
+            version: 1,
+            deployment_id: qualification_target.deployment_id.clone(),
+            configuration_sha256: "a".repeat(64),
+            support_sha256: "b".repeat(64),
+            admission_epoch: 1,
+            sender_replay_epoch_floor: 1,
+            issued_at_ms: 1,
+            expires_at_ms: 101,
+            limiter_epoch: 1,
+            authentication_throttle_config: representative_authentication_throttle_config(),
+            invalidation_epoch: 1,
+            handler_protocol_version: 1,
+            handler_incarnation: "handler-1".to_owned(),
+            operator_surface: HostedOperatorSurface::Disabled,
+            browser_direct_bearer_seam: BrowserDirectBearerSeam::Excluded,
+            hosted_auth: HostedAuthCapabilities {
+                external_tls: ExternalTls::Enforced,
+                effective_source: EffectiveSource::Trusted,
+                authentication_throttle: AuthenticationThrottle::SharedEnforced,
+                session_invalidation: SessionInvalidation::GloballyFenced,
+                client_credential_posture: BrowserCredentialPosture::SenderConstrainedV2,
+            },
+        },
+        live_health: HostedAuthLiveHealth {
+            admission_epoch: 1,
+            sender_replay_epoch_floor: 1,
+            sender_replay_epoch_floor_current: true,
+            limiter_reachable: true,
+            invalidation_current: true,
+            serialized_authority_current: true,
+            handler_compatible: true,
+            serving_admitted: true,
+            observed_at_ms: 3,
+        },
+        evidence: vec![qualification_evidence.clone()],
+        gaps: vec![],
+        started_at_ms: 2,
+        finished_at_ms: 4,
+    };
+    assert_validates(
+        "hosted-auth.drill-receipt.schema.json",
+        &serde_json::to_value(hosted_auth_drill.clone()).unwrap(),
+    );
+    assert_validates(
+        "adapter.qualification.schema.json",
+        &serde_json::to_value(AdapterQualificationManifest {
+            schema_version: "snapback.adapter-qualification.v1".to_owned(),
+            qualification_id: format!("sha256:{}", "2".repeat(64)),
+            target_id: qualification_target.target_id.clone(),
+            target_profile_id: "trusted-single-tenant-app-complete.v1".to_owned(),
+            adapter_kind: qualification_target.adapter.kind,
+            adapter_version: qualification_target.adapter.version.clone(),
+            driver_sha256: qualification_target.adapter.driver_sha256.clone(),
+            provider: qualification_target.adapter.provider.clone(),
+            account_fingerprint: qualification_target.adapter.account_fingerprint.clone(),
+            region: qualification_target.adapter.region.clone(),
+            public_origin: qualification_target.adapter.public_origin.clone(),
+            remote_evidence: true,
+            hosted_auth_drill,
+            claims: vec![AdapterQualificationEvidence {
+                claim: AdapterQualificationClaim::IdentityFencing,
+                evidence: vec![qualification_evidence.clone()],
+            }],
+            gaps: vec![],
+            qualified_at_ms: 100,
+        })
+        .unwrap(),
+    );
+    assert_validates(
+        "prepared-release.manifest.schema.json",
+        &serde_json::to_value(PreparedReleaseManifest {
+            schema_version: "snapback.prepared-release.v1".to_owned(),
+            prepared_release_id: format!("sha256:{}", "3".repeat(64)),
+            base_release_id: format!("sha256:{}", "4".repeat(64)),
+            base_release_manifest_sha256: format!("sha256:{}", "5".repeat(64)),
+            project_id: qualification_target.project_id,
+            target_id: qualification_target.target_id,
+            target_profile_id: "trusted-single-tenant-app-complete.v1".to_owned(),
+            adapter_qualification_id: format!("sha256:{}", "2".repeat(64)),
+            adapter_qualification_sha256: format!("sha256:{}", "6".repeat(64)),
+            compatibility: ReleaseCompatibilityEnvelope {
+                minimum_readable_schema_generation: 0,
+                maximum_readable_schema_generation: 0,
+                write_schema_generation: 0,
+                minimum_retained_client_generation: 0,
+                minimum_job_generation: 0,
+                minimum_config_generation: 0,
+                migration_sha256: format!("sha256:{}", "7".repeat(64)),
+                migration_transactional: true,
+                irreversible_boundary: None,
+                rollback_mode: RollbackMode::CodeOnly,
+            },
+            evidence: vec![PreparedReleaseEvidence {
+                kind: PreparedReleaseEvidenceKind::RuntimeArtifact,
+                evidence: vec![qualification_evidence],
+            }],
+            gaps: vec![],
+            activation_eligible: true,
+            prepared_at_ms: 101,
+        })
+        .unwrap(),
+    );
+    assert_validates(
         "data-tier.profile.schema.json",
         &serde_json::to_value(DataTierProfile::current()).unwrap(),
     );
@@ -1371,6 +2193,89 @@ fn hosted_admission_schema_rejects_non_js_safe_numeric_facts() {
         let mut unsafe_admission = admission.clone();
         unsafe_admission[field] = json!(HOSTED_ADMISSION_MAX_SAFE_INTEGER + 1);
         assert_rejects("auth.hosted-admission.schema.json", &unsafe_admission);
+    }
+}
+
+#[test]
+fn hosted_admission_producer_receipt_schemas_are_closed_and_js_safe() {
+    let floor = ExternalReplayFloorAdvanceReceipt {
+        schema_version: ExternalReplayFloorAdvanceVersion::V1,
+        operation_id: "boot-operation-1".to_owned(),
+        deployment_id: "deployment-1".to_owned(),
+        store_identity_sha256: format!("sha256:{}", "d".repeat(64)),
+        previous_floor: 16,
+        sender_replay_epoch_floor: 17,
+        advanced_at_ms: 999,
+        receipt_id: format!("sha256:{}", "e".repeat(64)),
+    };
+    let projection = HostedAdmissionProjectionReceipt {
+        schema_version: HostedAdmissionProjectionVersion::V1,
+        operation_id: "boot-operation-1".to_owned(),
+        deployment_id: "deployment-1".to_owned(),
+        public_origin: "https://app.example.test".to_owned(),
+        key_id: "hosted-key-1".to_owned(),
+        browser_artifact_sha256: format!("sha256:{}", "c".repeat(64)),
+        configuration_sha256: "a".repeat(64),
+        support_sha256: "b".repeat(64),
+        handler_protocol_version: 1,
+        handler_incarnation: "handler-1".to_owned(),
+        sender_replay_epoch_floor: 17,
+        admission_epoch: 7,
+        limiter_epoch: 11,
+        invalidation_epoch: 13,
+        issued_at_ms: 1_000,
+        expires_at_ms: 121_000,
+        external_floor_store_identity_sha256: format!("sha256:{}", "d".repeat(64)),
+        external_floor_advance_receipt_id: format!("sha256:{}", "e".repeat(64)),
+        envelope_sha256: format!("sha256:{}", "f".repeat(64)),
+        key_projection_created: true,
+        remote_evidence: false,
+        projection_id: format!("sha256:{}", "1".repeat(64)),
+    };
+    let refresh = HostedAdmissionRefreshReceipt {
+        schema_version: HostedAdmissionRefreshVersion::V1,
+        deployment_id: "deployment-1".to_owned(),
+        public_origin: "https://app.example.test".to_owned(),
+        key_id: "hosted-key-1".to_owned(),
+        configuration_sha256: "a".repeat(64),
+        support_sha256: "b".repeat(64),
+        handler_protocol_version: 1,
+        handler_incarnation: "handler-1".to_owned(),
+        sender_replay_epoch_floor: 17,
+        admission_epoch: 8,
+        limiter_epoch: 12,
+        invalidation_epoch: 14,
+        issued_at_ms: 16_000,
+        expires_at_ms: 136_000,
+        envelope_sha256: format!("sha256:{}", "2".repeat(64)),
+        remote_evidence: false,
+        refresh_id: format!("sha256:{}", "3".repeat(64)),
+    };
+
+    let floor_json = serde_json::to_value(&floor).unwrap();
+    let projection_json = serde_json::to_value(&projection).unwrap();
+    let refresh_json = serde_json::to_value(&refresh).unwrap();
+    assert_validates(
+        "auth.external-replay-floor-advance.schema.json",
+        &floor_json,
+    );
+    assert_validates(
+        "auth.hosted-admission-projection.schema.json",
+        &projection_json,
+    );
+    assert_validates("auth.hosted-admission-refresh.schema.json", &refresh_json);
+
+    let mut leaked_key = projection_json;
+    leaked_key["keyMaterial"] = json!("forbidden");
+    assert_rejects("auth.hosted-admission-projection.schema.json", &leaked_key);
+    assert!(serde_json::from_value::<HostedAdmissionProjectionReceipt>(leaked_key).is_err());
+
+    for (schema, mut unsafe_value) in [
+        ("auth.external-replay-floor-advance.schema.json", floor_json),
+        ("auth.hosted-admission-refresh.schema.json", refresh_json),
+    ] {
+        unsafe_value["senderReplayEpochFloor"] = json!(HOSTED_ADMISSION_MAX_SAFE_INTEGER + 1);
+        assert_rejects(schema, &unsafe_value);
     }
 }
 

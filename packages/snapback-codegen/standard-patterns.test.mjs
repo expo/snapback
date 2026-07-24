@@ -399,7 +399,9 @@ export const { firstTodoPage, nextTodoPage } = defineOwnedKeysetPages({
   const next = byName.get('nextTodoPage');
   assert.equal(next.runtime.HostPlan.Query.filters[1].op, 'Gt');
   assert.equal(next.runtime.HostPlan.Query.limit, 50);
-  assert.equal(byName.get('todoBySlug').runtime.HostPlan.Query.limit, 1);
+  const uniqueLookup = byName.get('todoBySlug').runtime.HostPlan.Query;
+  assert.equal(uniqueLookup.limit, 1);
+  assert.equal(uniqueLookup.filters.length, 2, 'one owner predicate plus one unique-key predicate');
 
   const firstTree = snapshotTree(join(dir, 'generated'));
   const regenerated = await generate(dir);

@@ -5,7 +5,12 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
+**Revised:** 2026-07-24 (the LLP 0077 route-scoped reorder is implemented:
+hosted sender admission and its shared-throttle/proof cut complete first, then
+the forbidden-authority-field body check runs before ordinary `SessionAuth`
+projection; a served refresh test proves a valid proof plus forbidden body
+field is rejected without consuming the retained successor nonce).
+2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
 on sender-constrained hosted browser routes, sender-proof admission runs
 before the request body is polled, so this Spec's forbidden-authority-field
 body check runs immediately after sender admission rather than before bearer

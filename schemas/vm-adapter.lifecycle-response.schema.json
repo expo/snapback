@@ -1,0 +1,525 @@
+{
+  "$defs": {
+    "AdapterEvidenceRef": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "uri": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "uri",
+        "sha256",
+        "bytes",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "AdapterLifecycleOperation": {
+      "enum": [
+        "acquireLease",
+        "uploadImmutableRelease",
+        "provisionInactive",
+        "compatibilityPreflight",
+        "createVerifiedBackup",
+        "stageRelease",
+        "activateGeneration",
+        "verifyServedPath",
+        "rollback",
+        "fenceExternalEffects",
+        "restoreBackupInactive",
+        "verifyRestoredComponents",
+        "verifyRestoredApplication",
+        "activateRestoredGeneration",
+        "releaseLease"
+      ],
+      "type": "string"
+    },
+    "AdapterLifecycleResponseVersion": {
+      "enum": [
+        "snapback.vm-adapter-lifecycle-response.v1"
+      ],
+      "type": "string"
+    },
+    "AdapterSafeDiagnostic": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "severity": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "severity",
+        "message"
+      ],
+      "type": "object"
+    },
+    "BackupComponent": {
+      "additionalProperties": false,
+      "properties": {
+        "bytes": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "kind": {
+          "type": "string"
+        },
+        "objects": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sha256": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "sha256",
+        "bytes",
+        "objects",
+        "verified"
+      ],
+      "type": "object"
+    },
+    "BackupManifest": {
+      "additionalProperties": false,
+      "description": "Secret-free, read-back-verified backup identity. Required secret names and\ngenerations may be recorded by a later prepared-release artifact, but\ncredential values and control-plane handles never enter this manifest.",
+      "properties": {
+        "backupId": {
+          "type": "string"
+        },
+        "components": {
+          "items": {
+            "$ref": "#/$defs/BackupComponent"
+          },
+          "type": "array"
+        },
+        "createdAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "encryptionClass": {
+          "type": "string"
+        },
+        "excludedSecretClasses": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "releaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "retentionPolicy": {
+          "type": "string"
+        },
+        "schemaIdentitySha256": {
+          "type": "string"
+        },
+        "schemaVersion": {
+          "type": "string"
+        },
+        "storageClass": {
+          "type": "string"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "verifiedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schemaVersion",
+        "backupId",
+        "operationId",
+        "targetId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "schemaIdentitySha256",
+        "encryptionClass",
+        "storageClass",
+        "retentionPolicy",
+        "components",
+        "excludedSecretClasses",
+        "createdAtMs",
+        "verifiedAtMs"
+      ],
+      "type": "object"
+    },
+    "CredentialStatus": {
+      "enum": [
+        "ready",
+        "missing",
+        "invalid",
+        "unknown"
+      ],
+      "type": "string"
+    },
+    "DeploymentLease": {
+      "additionalProperties": false,
+      "description": "Provider-enforced lease over one deployment mutation train. The lease id is\nan opaque fence, not a credential; provider credentials remain behind the\ndescriptor's external secret-store handle.",
+      "properties": {
+        "acquiredAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expectedActivationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "expiresAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "leaseId": {
+          "type": "string"
+        },
+        "operationId": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "leaseId",
+        "targetId",
+        "operationId",
+        "expectedActivationGeneration",
+        "acquiredAtMs",
+        "expiresAtMs"
+      ],
+      "type": "object"
+    },
+    "DeploymentState": {
+      "enum": [
+        "registered",
+        "provisioning",
+        "inactive",
+        "staging",
+        "ready",
+        "active",
+        "degraded",
+        "draining",
+        "failed",
+        "restoring",
+        "retired"
+      ],
+      "type": "string"
+    },
+    "RestoreResult": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptanceSha256": {
+          "type": "string"
+        },
+        "activated": {
+          "type": "boolean"
+        },
+        "applicationSentinelSha256": {
+          "type": "string"
+        },
+        "backupId": {
+          "type": "string"
+        },
+        "componentsVerified": {
+          "type": "boolean"
+        },
+        "destinationDatabaseId": {
+          "type": "string"
+        },
+        "destinationDeploymentId": {
+          "type": "string"
+        },
+        "destinationStreamIncarnation": {
+          "type": "string"
+        },
+        "destinationTargetId": {
+          "type": "string"
+        },
+        "effectsFenced": {
+          "type": "boolean"
+        },
+        "externalEffectsDisabled": {
+          "type": "boolean"
+        },
+        "restoreEpoch": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "sourceDatabaseId": {
+          "type": "string"
+        },
+        "sourceDeploymentId": {
+          "type": "string"
+        },
+        "sourceStreamIncarnation": {
+          "type": "string"
+        },
+        "sourceTargetId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "backupId",
+        "sourceTargetId",
+        "sourceDeploymentId",
+        "sourceDatabaseId",
+        "sourceStreamIncarnation",
+        "destinationTargetId",
+        "destinationDeploymentId",
+        "destinationDatabaseId",
+        "destinationStreamIncarnation",
+        "restoreEpoch",
+        "effectsFenced",
+        "componentsVerified",
+        "applicationSentinelSha256",
+        "acceptanceSha256",
+        "externalEffectsDisabled",
+        "activated"
+      ],
+      "type": "object"
+    },
+    "TargetObservation": {
+      "additionalProperties": false,
+      "properties": {
+        "accountFingerprint": {
+          "type": "string"
+        },
+        "activationGeneration": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "activeReleaseId": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "applicationSentinelSha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "capabilityGaps": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "credentialStatus": {
+          "$ref": "#/$defs/CredentialStatus"
+        },
+        "databaseId": {
+          "type": "string"
+        },
+        "deploymentId": {
+          "type": "string"
+        },
+        "environmentId": {
+          "type": "string"
+        },
+        "observedAtMs": {
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "provider": {
+          "type": "string"
+        },
+        "providerFactsSha256": {
+          "type": "string"
+        },
+        "publicOrigin": {
+          "type": "string"
+        },
+        "region": {
+          "type": "string"
+        },
+        "resourceId": {
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/DeploymentState"
+        },
+        "streamIncarnation": {
+          "type": "string"
+        },
+        "targetId": {
+          "type": "string"
+        },
+        "targetProfileId": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "targetId",
+        "environmentId",
+        "deploymentId",
+        "databaseId",
+        "streamIncarnation",
+        "targetProfileId",
+        "provider",
+        "accountFingerprint",
+        "region",
+        "publicOrigin",
+        "resourceId",
+        "state",
+        "activationGeneration",
+        "credentialStatus",
+        "providerFactsSha256",
+        "observedAtMs",
+        "capabilityGaps"
+      ],
+      "type": "object"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/vm-adapter.lifecycle-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "backup": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BackupManifest"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "diagnostics": {
+      "items": {
+        "$ref": "#/$defs/AdapterSafeDiagnostic"
+      },
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/AdapterEvidenceRef"
+      },
+      "type": "array"
+    },
+    "idempotentReplay": {
+      "type": "boolean"
+    },
+    "inputSha256": {
+      "type": "string"
+    },
+    "lease": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/DeploymentLease"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "observation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TargetObservation"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "operation": {
+      "$ref": "#/$defs/AdapterLifecycleOperation"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "outputSha256": {
+      "type": "string"
+    },
+    "remoteEvidence": {
+      "type": "boolean"
+    },
+    "restore": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RestoreResult"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "schemaVersion": {
+      "$ref": "#/$defs/AdapterLifecycleResponseVersion"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "operationId",
+    "ok",
+    "idempotentReplay",
+    "remoteEvidence",
+    "inputSha256",
+    "outputSha256",
+    "evidence",
+    "diagnostics"
+  ],
+  "title": "AdapterLifecycleResponse",
+  "type": "object"
+}

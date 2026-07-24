@@ -3,14 +3,14 @@ title: Actions and outbound fetch
 id: backend.actions-and-fetch
 order: 3
 audience: agent-first
-capabilities: [backend.actions]
-authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, packages/snapback-codegen/define.mjs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs]
-examples: [demos/all-aboard]
+capabilities: [backend.actions, backend.action-streams]
+authorities: [llp/0004-application-data-api.rfc.md, llp/0009-code-execution-security.rfc.md, llp/0036-app-secrets-and-config.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0076-bounded-streamed-actions.rfc.md, packages/snapback-codegen/define.mjs, packages/snapback-harness/ctx-bootstrap.js, src/server.rs, demos/all-aboard/snapback/functions.mjs, demos/all-aboard/snapback/handlers.mjs, demos/all-aboard/tests/acceptance/egress.mjs, demos/competitive-checkpoint/tests/acceptance/local-streaming.mjs]
+examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-18
-reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
+reviewed: 2026-07-22
+reviewed-commit: HEAD
 ---
 
 # Actions and outbound fetch
@@ -93,6 +93,43 @@ egress. Queries and mutations remain denied even in that runtime:
 Action wall-clock limits and the detached watchdog still apply. A timed-out
 action cannot commit late, and a later invocation gets an isolated worker.
 
+## Stream a response
+
+Use `ctx.fetchStream` when the result must become visible before the upstream
+response completes. It is an action-only, pull-driven reader; each `read()`
+requests one host-bounded byte chunk. Apply progress through a named mutation
+so every update is an authoritative commit and ordinary live push:
+
+```js source=demos/competitive-checkpoint/snapback/handlers.mjs
+    const response = await ctx.fetchStream({
+      url: args.streamUrl,
+      method: args.method,
+      body: args.method === 'GET' ? null : '{}',
+      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,
+    });
+```
+
+The bounded v1 profile enforces a 1 MiB response ceiling, at most 16 KiB per
+application-visible read (within a 64 KiB buffer ceiling), 30 seconds total,
+five seconds idle, four open readers per action, and no more than ten durable
+progress mutations per second. `reader.cancel()` is idempotent. EOF, action
+completion, cancellation, timeout, authority loss, or application generation
+change closes the host cursor.
+
+Generate this backend with `SNAPBACK_OUTBOUND_ACTIONS=1`. Codegen then embeds
+the Rust-owned outbound-enabled target manifest and adds
+`bounded_response_stream_v1` to every action module that uses
+`ctx.fetchStream`. The serving process must enable the same gate; its live
+capability check refuses the function artifact before any handler effect when
+the configuration does not match.
+
+Store the attempt identity, monotonic sequence, accumulated content, and
+terminal state durably. A progress mutation must re-read the owned attempt and
+return its terminal state without patching when cancellation already won. The
+action then cancels the upstream reader. Keep `complete`, `failed`,
+`cancelled`, `timed_out`, and `ambiguous` distinct; do not infer settlement
+from a dropped client connection.
+
 ## Treat fetched text as data
 
 Egress does not make an action a general-purpose code loader. Direct or
@@ -134,3 +171,5 @@ reclassified as successful settlement by replacing reachable Promise hooks.
   source compilation is denied even for egress-enabled actions.
 - **Do not launch unobserved Promise chains.** Await or return them so their
   failure remains part of the handler's explicit result.
+- **Do not split a buffered body after receipt and call it streaming.** The
+  witness must observe multiple durable commits before upstream completion.
