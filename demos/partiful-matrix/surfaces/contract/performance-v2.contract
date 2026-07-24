@@ -1,0 +1,30 @@
+use guestList from "./data/provider.generated.ts"
+
+component PerformanceV2Root
+  props
+    slots: number[]
+
+  view
+    column testId="performance-v2-root"
+      each slot in slots key=slot
+        PerformanceV2Subscriber(slot=slot)
+
+component PerformanceV2Subscriber
+  props
+    slot: number
+
+  query guests = guestList({ eventId: "event_sunset" })
+
+  view
+    column testId=`performance-v2-subscriber-${slot}`
+      async guests
+        loading
+          text `${slot}:loading`
+        error err
+          text `${slot}:error:${err.message}`
+        empty
+          text `${slot}:missing`
+        ready rows
+          column
+            each guest in rows key=guest._id
+              text `${slot}:${guest.userId}:${guest.status}`
