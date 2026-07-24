@@ -1,6 +1,17 @@
 # Per-read authority fence and cursor cancellation signal
 
-**Status:** Open
+**Status:** Open — local arm landed 2026-07-24 (pre/post-pull revalidation
+with late-byte discard, attempt-to-cursor cancellation signal at the pull
+boundary with physical upstream closure, terminalization-during-read and
+indefinite-source socket-close witnesses; `cargo test --lib` 1135). Remaining
+before close: (1) an end-to-end witness under real ServicePrincipal
+authority — the fence's service tier shares the reviewed process-fence
+predicate but has not been executed through a streamed action with scoped
+tokens; needs the service-connection fixture; (2) the Workerd arm, which
+still validates only before the operation (blocked on the unlanded Workerd
+streaming baseline; see the program index's baseline-landing note). The
+local in-flight pull drains (bounded by the 5 s idle ceiling) rather than
+aborts — an abort would need a reader-thread redesign and is not claimed.
 **Severity:** P1
 **Systems:** Actions, Runtime, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

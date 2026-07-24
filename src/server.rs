@@ -948,6 +948,83 @@ impl DetachedActionHost {
         }
     }
 
+    /// The per-read authority fence (LLP 0076 §Authority and lifecycle): the
+    /// full stream predicate is abandonment + generation + deadline PLUS the
+    /// lock-free process-fence tier of the service-authority check, so an
+    /// authority terminalization that lands during a blocked pull is observed
+    /// before any byte is handed to the action. Terminal auth writers premark
+    /// the process fence before commit (LLP 0059), which is what makes this
+    /// tier exact without taking the instance lock on the read path.
+    // @ref LLP 0076#authority-and-lifecycle — every open/read revalidates the
+    //   exact invocation, generation, service authority, and deadline, and a
+    //   read revalidates AFTER awaiting bytes, discarding late bytes on loss.
+    fn validate_stream_authority(&self, op: &str) -> SnapbackResult<()> {
+        self.validate_live(op)?;
+        let ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            effective_user_id,
+            grant_id,
+            token_id,
+            credential_id,
+            credential_generation,
+            token_expires_at_ms,
+            ..
+        } = self.authority.resolved()
+        else {
+            return Ok(());
+        };
+        let (now_ms, monotonic_now) = self
+            .authority
+            .service_clock_sample(now_millis(), Instant::now());
+        let witness = match self
+            .authority
+            .resolve_service_authority_act(now_ms, monotonic_now)?
+        {
+            Some(ServiceAuthorityActResolution::Current(witness)) => witness,
+            Some(ServiceAuthorityActResolution::Terminal(disposition)) => {
+                let wire = match disposition {
+                    ServiceAuthorityDisposition::Carrier => "carrier",
+                    ServiceAuthorityDisposition::DurableDelete => "durableDelete",
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "scoped agent token authority is no longer current",
+                )
+                .with_details(json!({ "authorityDisposition": wire, "operation": op })));
+            }
+            Some(ServiceAuthorityActResolution::Unavailable) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority termination is unresolved",
+                ));
+            }
+            None => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority has no exact process fence",
+                ));
+            }
+        };
+        if witness.actor_user_id() != actor_user_id
+            || witness.effective_user_id() != effective_user_id.as_deref()
+            || witness.grant_id() != grant_id
+            || witness.token_id() != token_id
+            || witness.credential_id() != credential_id
+            || witness.credential_generation() != *credential_generation
+            || witness.expires_at_ms() != *token_expires_at_ms
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "finite service authority disagrees with its exact process fence",
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_live(&self, op: &str) -> SnapbackResult<()> {
         if self.abandoned.load(Ordering::SeqCst) {
             return Err(action_abandoned(op));
@@ -1294,6 +1371,7 @@ impl IbexActionHost for DetachedActionHost {
         // @ref LLP 0076#authority-and-lifecycle — stream ownership stays
         // inside this exact detached action host and every operation passes
         // validate_host_call before dispatch.
+        self.validate_stream_authority("fetchStream.open")?;
         // @ref LLP 0076#settlement-and-retry — automatically re-dispatched
         // cron/durable invocations are excluded from streamed actions until
         // resumable retry semantics exist: an automatic retry cannot prove
@@ -1495,7 +1573,7 @@ impl IbexActionHost for DetachedActionHost {
                 ));
             }
         };
-        self.validate_live("fetchStream.open")?;
+        self.validate_stream_authority("fetchStream.open")?;
         // Response metadata arrived: the certainty axis advances to its
         // absorbing `response_observed` state. The durable advance is
         // best-effort — a skipped write leaves `initiation_possible`, which
@@ -1570,6 +1648,28 @@ impl IbexActionHost for DetachedActionHost {
                 json!({ "limitMs": ACTION_STREAM_IDLE_MS, "received": "idle limit elapsed" }),
             ));
         }
+        // Direct attempt-to-cursor cancellation signal: a committed terminal
+        // settlement on the owning attempt closes this cursor at the next
+        // pull boundary — physically dropping the upstream reader — without
+        // waiting for the next progress mutation to observe the terminal row.
+        if crate::stream_attempt::global_stream_attempt_registry()
+            .cursor_attempt_terminal(stream_id)
+        {
+            let total_bytes = stream.total_bytes;
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Ok(ActionStreamChunk {
+                done: true,
+                bytes: Vec::new(),
+                total_bytes,
+            });
+        }
+        // Pre-pull leg of the per-read authority fence.
+        if let Err(error) = self.validate_stream_authority("fetchStream.read") {
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(error);
+        }
         let remaining = ACTION_STREAM_TOTAL_BYTES_MAX.saturating_sub(stream.total_bytes);
         let requested = if remaining == 0 {
             1
@@ -1598,6 +1698,15 @@ impl IbexActionHost for DetachedActionHost {
                 ));
             }
         };
+        // Post-pull leg of the per-read authority fence: authority may have
+        // been terminalized while this pull was blocked awaiting bytes. Late
+        // bytes are discarded — the cursor closes and the authority refusal,
+        // not the data, reaches the action.
+        if let Err(error) = self.validate_stream_authority("fetchStream.read") {
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(error);
+        }
         if read == 0 {
             self.close_response_stream_cursor(stream_id);
             return Ok(ActionStreamChunk {
@@ -29739,6 +29848,206 @@ globalThis.__snapbackHandlers = {
         assert!(
             observed.effect_may_have_executed,
             "an in-flight cursor folds into the effect fact"
+        );
+    }
+
+    #[test]
+    fn terminalization_during_read_discards_late_bytes_and_closes_the_cursor() {
+        // @ref LLP 0076#authority-and-lifecycle — a read revalidates AFTER
+        // awaiting bytes and discards late bytes if authority was lost. The
+        // generation fence stands in for the terminalization class; the
+        // service-authority tier shares the same revalidation seam.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind late-byte fixture");
+        let address = listener.local_addr().expect("late-byte fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept late-byte request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nearly-1\r\n").expect("early chunk");
+            socket.flush().expect("flush early chunk");
+            // The late byte arrives only after the terminalization below has
+            // landed; the blocked pull must return it to the host, which
+            // discards it.
+            std::thread::sleep(Duration::from_millis(900));
+            let _ = socket.write_all(b"6\r\nlate-1\r\n");
+            let _ = socket.write_all(b"0\r\n\r\n");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("late-byte host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/late"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+            })
+            .expect("open late-byte stream");
+        let first = host
+            .read_response_stream(&opened.stream_id)
+            .expect("first chunk before terminalization");
+        assert_eq!(first.bytes, b"early-1");
+
+        // Terminalize while the next pull is blocked: flip the generation
+        // fence from a sibling thread 200 ms into the ~900 ms stall.
+        let fence = host.app_generation_fence.clone();
+        let flipper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            fence.fetch_add(1, Ordering::SeqCst);
+        });
+        let discarded = host
+            .read_response_stream(&opened.stream_id)
+            .expect_err("late bytes must be discarded after terminalization");
+        assert_eq!(
+            discarded.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+        flipper.join().expect("fence flipper joins");
+        upstream.join().expect("late-byte fixture joins");
+
+        // The cursor is closed: a subsequent read observes end-of-stream.
+        // (validate_host_call would already refuse at dispatch; the closed
+        // set is defense in depth at the reader itself.)
+        let after = host.closed_response_streams.contains(&opened.stream_id);
+        assert!(after, "the discarding read must close the cursor");
+    }
+
+    #[test]
+    fn attempt_settlement_signals_the_cursor_without_a_progress_mutation() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind signal fixture");
+        let address = listener.local_addr().expect("signal fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept signal request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nchunk-1\r\n").expect("first chunk");
+            socket.flush().expect("flush first chunk");
+            // Keep the connection open; more bytes would be available, but
+            // the settled attempt must close the cursor first.
+            std::thread::sleep(Duration::from_millis(500));
+            let _ = socket.write_all(b"7\r\nchunk-2\r\n0\r\n\r\n");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("signal host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let started = host
+            .start_stream_attempt("signal-attempt")
+            .expect("start signal attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/signal"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(started.attempt_token.clone()),
+            })
+            .expect("open signal stream");
+        let first = host
+            .read_response_stream(&opened.stream_id)
+            .expect("first chunk");
+        assert_eq!(first.bytes, b"chunk-1");
+
+        // Durable terminal settlement — no progress mutation involved.
+        host.settle_stream_attempt(
+            &started.attempt_token,
+            crate::stream_attempt::StreamAttemptCause::Cancelled,
+        )
+        .expect("authored cancel settle");
+
+        // The very next pull observes closure via the direct
+        // attempt-to-cursor signal.
+        let closed = host
+            .read_response_stream(&opened.stream_id)
+            .expect("post-settle read returns EOF, not an error");
+        assert!(closed.done, "the settled attempt closes its cursor");
+        assert!(closed.bytes.is_empty(), "no late bytes are delivered");
+        upstream.join().expect("signal fixture joins");
+    }
+
+    #[test]
+    fn cancel_physically_closes_the_upstream_socket_of_an_indefinite_source() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind indefinite fixture");
+        let address = listener.local_addr().expect("indefinite fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept indefinite request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.flush().expect("flush headers");
+            // An indefinite no-more-bytes source: never send another byte.
+            // The only way this read completes quickly is the peer closing.
+            socket
+                .set_read_timeout(Some(Duration::from_secs(10)))
+                .expect("bound observation read");
+            let mut probe = [0_u8; 16];
+            match std::io::Read::read(&mut socket, &mut probe) {
+                Ok(0) => (),  // orderly close observed
+                Ok(_) => panic!("indefinite source received unexpected bytes"),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::ConnectionReset
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::BrokenPipe
+                    ) => {}
+                Err(error) => panic!("upstream socket was not closed by cancel: {error}"),
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("indefinite host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/indefinite"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+            })
+            .expect("open indefinite stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("explicit cancel");
+
+        // The fixture thread completes only when the upstream socket is
+        // physically closed; a leaked reader would hold it for 10 s.
+        let started = Instant::now();
+        upstream.join().expect("indefinite fixture joins");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "cancel must close the upstream socket promptly"
         );
     }
 

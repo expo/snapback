@@ -5,7 +5,13 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (write-ahead `initiationState` landed on the local
+**Revised:** 2026-07-24 (per-read authority fence landed on the local arm:
+pre- and post-pull revalidation of abandonment/generation/deadline plus the
+lock-free process-fence tier of service authority, late-byte discard on a
+blocked read, and the direct attempt-to-cursor cancellation signal with
+physical upstream-socket closure — drain-bounded by the idle ceiling, not an
+abort; residue: the ServicePrincipal-tier end-to-end witness and the Workerd
+arm; the fence ticket stays open on those two). 2026-07-24 (write-ahead `initiationState` landed on the local
 arm: the `_snapback_stream_attempts` SQLite substrate durably pre-marks an
 attempt-bound cursor `initiation_possible` before the send, narrows only on
 provable pre-send failures, advances to the absorbing `response_observed` on
@@ -486,12 +492,24 @@ acceptance item to a named witness.
 Known implementation gaps against this authority's contract, each requiring
 a fix before gate 2:
 
-- **Per-read authority fence.** Local host-op validation checks abandonment,
-  generation, and deadline but not service authority, and a blocking read has
-  no post-read revalidation before exposing bytes; Workerd checks only before
-  the operation. An authority terminalization that lands during a blocked read
-  can still return bytes. The contract requires an exact permit held through
-  pull and byte handoff, or an equivalent fenced post-pull check.
+- **Per-read authority fence (local arm largely landed 2026-07-24; two named
+  residues).** The local read path now revalidates the full predicate —
+  abandonment, generation, deadline, and the lock-free process-fence tier of
+  the service-authority check — both BEFORE and AFTER awaiting bytes; late
+  bytes are discarded (the authority refusal, not the data, reaches the
+  action, and the cursor closes), witnessed by a blocked-read
+  terminalization-during-read test. The direct attempt-to-cursor
+  cancellation signal also landed: a committed terminal settlement closes
+  the cursor at the next pull boundary, physically dropping the upstream
+  reader, decoupled from progress mutations (witnessed, including an
+  observable upstream-socket-close test against an indefinite
+  no-more-bytes source; the local in-flight pull drains rather than aborts,
+  bounded by the 5 s idle ceiling). Residue: the ServicePrincipal tier's
+  end-to-end witness needs the full service-connection fixture (the
+  predicate logic is shared with the reviewed
+  `validate_prepared_service_authority` process-fence tier, but a
+  streamed-action run under real scoped-token authority has not been
+  executed), and the Workerd arm still checks only before the operation.
 - **Trusted terminalizer (landed on the local arm 2026-07-24; residue
   tracked).** The local host now owns a compare-and-set terminalizer with
   three legs: watchdog abandonment (linearized under the commit gate, so no

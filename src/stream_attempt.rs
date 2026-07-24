@@ -521,6 +521,23 @@ impl StreamAttemptRegistry {
         }
     }
 
+    /// The direct attempt-to-cursor cancellation signal: whether the attempt
+    /// owning this cursor has a committed terminal settlement. The read path
+    /// consults this before every pull, so a durable cancellation reaches the
+    /// reader without waiting for the next progress mutation.
+    // @ref LLP 0076#authority-and-lifecycle — terminal settlement closes the
+    //   cursor and prevents another successful read.
+    pub fn cursor_attempt_terminal(&self, cursor_id: &str) -> bool {
+        let inner = self.lock();
+        let Some(token) = inner.by_cursor.get(cursor_id) else {
+            return false;
+        };
+        inner
+            .by_token
+            .get(token)
+            .is_some_and(|record| record.terminal.is_some())
+    }
+
     pub fn close_cursor(&self, cursor_id: &str) {
         let mut inner = self.lock();
         let Some(token) = inner.by_cursor.get(cursor_id).cloned() else {
