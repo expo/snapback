@@ -27,9 +27,11 @@ const here = dirname(new URL(import.meta.url).pathname);
 const repoRoot = resolve(here, '../../../..');
 const demoRoot = resolve(here, '../..');
 const amendmentPath = join(demoRoot, 'acceptance', 'performance-amendment.2026-07-21.json');
-const invalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-22.json');
+const previousInvalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-22.json');
+const invalidationPath = join(demoRoot, 'acceptance', 'performance-invalidation-amendment.2026-07-23.json');
 const protocolPath = join(demoRoot, 'acceptance', 'comparison-protocol.v1.json');
 const amendment = JSON.parse(readFileSync(amendmentPath, 'utf8'));
+const previousInvalidation = JSON.parse(readFileSync(previousInvalidationPath, 'utf8'));
 const invalidation = JSON.parse(readFileSync(invalidationPath, 'utf8'));
 const protocol = JSON.parse(readFileSync(protocolPath, 'utf8'));
 const serverBin = join(repoRoot, 'target', 'debug', 'snapback');
@@ -69,6 +71,10 @@ assert.equal(amendment.appliesToProtocolId, protocol.protocolId);
 assert.equal(amendment.appliesToWorkloadVersion, protocol.workloadVersion);
 assert.equal(invalidation.appliesToProtocolId, protocol.protocolId);
 assert.equal(invalidation.appliesToWorkloadVersion, protocol.workloadVersion);
+assert.equal(invalidation.invalidates.methodId, previousInvalidation.replacement.methodId);
+assert.equal(invalidation.invalidates.thresholdSetId, previousInvalidation.replacement.thresholdSetId);
+assert(Number.isFinite(invalidation.replacement.idleCpuResolutionFloorMsPerSecond));
+assert(invalidation.replacement.idleCpuResolutionFloorMsPerSecond >= 0);
 if (!quick) {
   assert.equal(amendment.status, 'ratified', 'performance amendment must be ratified before claim-eligible sampling');
   assert.equal(invalidation.status, 'ratified', 'performance invalidation amendment must be ratified before v2 claim-eligible sampling');
@@ -434,7 +440,10 @@ function deriveCalibrationThresholds(webCells, builds) {
       firstAuthoritativeDataMs: floorMargin(react.firstAuthoritativeDataMs.p95, 1.10),
       firstLiveDataMs: floorMargin(react.firstLiveDataMs.p95, 1.10),
       idleCpuTaskMsPerSecond: Math.min(
-        react.idleCpuTaskMsPerSecond.p95 * 1.05,
+        Math.max(
+          react.idleCpuTaskMsPerSecond.p95 * 1.05,
+          invalidation.replacement.idleCpuResolutionFloorMsPerSecond,
+        ),
         amendment.web.idle.absoluteCeilings.cpuTaskMsPerSecond,
       ),
       idleNetworkBytesPerSecond: Math.min(
@@ -765,8 +774,11 @@ function observerSource() {
       if(state.recording)for(const record of records){state.targets.add(record.target);state.patches+=record.type==='childList'?record.addedNodes.length+record.removedNodes.length:1;}
       scan();
     });
-    const start=()=>{observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});scan();};
-    document.readyState==='loading'?addEventListener('DOMContentLoaded',start,{once:true}):start();
+    // Observe parser mutations immediately. Waiting for DOMContentLoaded makes
+    // a prerendered product shell look as slow as the module graph that follows
+    // it and therefore does not measure first UI.
+    observer.observe(document,{subtree:true,childList:true,attributes:true,characterData:true});
+    scan();
     globalThis.__partitimePerf={
       snapshot:()=>({firstUiAt:state.firstUiAt,authoritativeAt:state.authoritativeAt,liveAt:state.liveAt,bootReadyAt:state.bootReadyAt}),
       beginUpdate:()=>{state.recording=true;state.targets.clear();state.patches=0;return true;},

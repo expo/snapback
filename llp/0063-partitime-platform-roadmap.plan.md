@@ -30,6 +30,22 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 v3 web/source authority proposal):** 2026-07-23 (The
+committed v2 calibration/holdout proved the optimized build rows green but
+exposed two invalid instruments. First UI was first observed only at
+`DOMContentLoaded`, after a prerendered Contract document's module evaluation,
+and relative-only CPU thresholds fell to 0.199–0.742 task ms/s while the same
+React controls moved by more than the five-percent margin between independent
+cohorts. A proposed v3 invalidation observes parser mutations from document
+start and establishes a 1 task-ms/s de minimis resolution floor below the
+unchanged 25 task-ms/s absolute ceiling. Separately, the frozen source-line
+control omitted React's 11,552-byte stylesheet and acquired later
+Contract-only hydration/prerender obligations without a workload rollover.
+The proposed source v2 row compares complete product-authoring bytes
+(Contract 21,618 against a 30,268-byte threshold derived only from React's
+27,517 bytes) and retains integration-support bytes/lines as non-gating
+inventory. Both proposals remain fail-closed until owner ratification and the
+web v3 calibration/committed holdout rerun.)
 **Revised (Step 4 production-path packaging checkpoint):** 2026-07-23
 (Exact `ee0186858…` keeps the released-v1 diagnostic validator intact while
 giving browser adoption a bounded production predicate, allocation-free
