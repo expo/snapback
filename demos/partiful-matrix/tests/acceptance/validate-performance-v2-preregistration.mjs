@@ -3,11 +3,13 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import Ajv2020 from 'ajv/dist/2020.js';
+
+import { canonicalizeJson } from './performance-v2-math.mjs';
 
 // @ref LLP 0063#amendment-a1-2026-07-24--prospective-partitime-v2-correctness-baseline-reset
 // — freeze and validate the comparator-only v2 protocol before any governed
@@ -61,7 +63,7 @@ const receiptSchema = JSON.parse(receiptSchemaBytes);
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validate = ajv.compile(schema);
 assert.ok(validate(protocol), ajv.errorsText(validate.errors, { separator: '\n' }));
-ajv.compile(receiptSchema);
+const validateReceipt = ajv.compile(receiptSchema);
 
 assert.equal(
   new Set(protocol.metrics.map(({ id }) => id)).size,
@@ -137,6 +139,13 @@ if (exactCheckout) {
   }
 }
 
+const collectorManifest = protocol.artifacts.collectorPaths.map((path) => {
+  const absolute = resolve(repoRoot, path);
+  assert.ok(existsSync(absolute), `frozen collector input is missing: ${path}`);
+  return { path, sha256: sha256(readFileSync(absolute)) };
+});
+const collectorSha256 = sha256(Buffer.from(canonicalizeJson(collectorManifest), 'utf8'));
+
 for (const fixture of protocol.workload.fixtureTrees) {
   assert.equal(
     gitObject(repoRoot, localAuthority[0].revision, fixture.path),
@@ -185,6 +194,72 @@ if (assertPreFreeze) {
   }
 }
 
+const invalidP0aDirectory = resolve(
+  acceptanceRoot,
+  'results/performance-v2/invalid',
+);
+const invalidP0aReceipts = existsSync(invalidP0aDirectory)
+  ? readdirSync(invalidP0aDirectory)
+    .filter((name) => /^p0a-attempt-\d+\.json$/.test(name))
+    .sort()
+    .map((name) => {
+      const path = resolve(invalidP0aDirectory, name);
+      const receipt = readJson(path);
+      assert.ok(
+        validateReceipt(receipt),
+        `${name}: ${ajv.errorsText(validateReceipt.errors, { separator: '\n' })}`,
+      );
+      assert.equal(receipt.valid, false, `${name} is retained as invalid`);
+      assert.equal(receipt.p0a.p0aComplete, false, `${name} cannot complete P0a`);
+      assert.equal(receipt.p0a.collectorSha256, collectorSha256, `${name} collector drifted`);
+      return {
+        path: `demos/partiful-matrix/acceptance/results/performance-v2/invalid/${name}`,
+        sha256: sha256(readFileSync(path)),
+        invalidReasons: receipt.invalidReasons,
+      };
+    })
+  : [];
+
+let exactMirrorVerified = false;
+if (exactCheckout) {
+  const mirrorRoot = resolve(exactCheckout, 'vendor/snapback-partitime');
+  const mirrorSourcePath = resolve(mirrorRoot, 'comparison-protocol.v2.source.json');
+  if (existsSync(mirrorSourcePath)) {
+    const mirrorSource = readJson(mirrorSourcePath);
+    assert.equal(mirrorSource.protocolSha256, sha256(protocolBytes));
+    assert.equal(mirrorSource.schemaSha256, sha256(schemaBytes));
+    assert.equal(mirrorSource.receiptSchemaSha256, sha256(receiptSchemaBytes));
+    assert.equal(mirrorSource.collectorRevision, runGit(repoRoot, [
+      'log',
+      '-1',
+      '--format=%H',
+      '--',
+      ...protocol.artifacts.collectorPaths,
+    ]).toString('utf8').trim());
+    for (const invalid of invalidP0aReceipts) {
+      assert.equal(
+        mirrorSource.invalidP0aReceiptSha256,
+        invalid.sha256,
+        'Exact mirror omitted or drifted the retained invalid P0a receipt',
+      );
+    }
+    exactMirrorVerified = true;
+  }
+}
+
+const p0aReceiptPath = resolve(repoRoot, protocol.artifacts.preregistrationReceiptPath);
+let p0aReceipt = null;
+if (existsSync(p0aReceiptPath)) {
+  p0aReceipt = readJson(p0aReceiptPath);
+  assert.ok(
+    validateReceipt(p0aReceipt),
+    ajv.errorsText(validateReceipt.errors, { separator: '\n' }),
+  );
+  assert.equal(p0aReceipt.valid, true, 'the P0a completion receipt must be valid');
+  assert.equal(p0aReceipt.p0a.p0aComplete, true);
+  assert.equal(p0aReceipt.p0a.collectorSha256, collectorSha256);
+}
+
 const result = {
   ok: true,
   schemaVersion: 'partitime.performance-v2-preregistration-check.v1',
@@ -216,13 +291,17 @@ const result = {
     counts: canonicalCounts,
     distinctPermutations: schedules.length,
   },
+  collector: {
+    sha256: collectorSha256,
+    files: collectorManifest,
+  },
+  retainedInvalidP0a: invalidP0aReceipts,
+  exactMirrorVerified,
   governedSamplesCollected: false,
-  p0aComplete: false,
-  remainingP0aInputs: [
-    'collector implementation and digest',
-    'immutable pre-fix correctness receipt',
-    'cross-repository mirrored validator receipt',
-  ],
+  p0aComplete: p0aReceipt !== null,
+  remainingP0aInputs: p0aReceipt === null
+    ? ['valid immutable pre-fix correctness receipt']
+    : [],
 };
 
 process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
