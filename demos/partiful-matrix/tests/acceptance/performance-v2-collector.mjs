@@ -37,9 +37,9 @@ import {
   thresholdSetId,
 } from './performance-v2-math.mjs';
 
-// @ref LLP 0063#amendment-a1-2026-07-24--prospective-partitime-v2-correctness-baseline-reset
-// — the only governed Partitime v2 collector. P0a correctness mode never
-// enables HeapProfiler or reads Runtime.getHeapUsage.
+// @ref LLP 0063#amendment-a2-2026-07-24--p0c-comparator-instrument-invalidation-and-recovery
+// — the only governed Partitime v2 collector. Recovery P0a witnesses both
+// arms without enabling HeapProfiler or reading Runtime.getHeapUsage.
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(here, '..', '..', '..', '..');
