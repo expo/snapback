@@ -5,8 +5,10 @@ import {
   SnapbackClient,
   createMemoryAgentAuthorityCustodyStorage,
 } from './index.mjs';
+import { SnapbackClient as OnlineSnapbackClient } from './online.mjs';
 
 assert.equal(typeof SnapbackClient, 'function');
+assert.equal(OnlineSnapbackClient, SnapbackClient);
 assert.equal(typeof AgentAuthorityFence, 'function');
 assert.equal(typeof createMemoryAgentAuthorityCustodyStorage, 'function');
 const client = new SnapbackClient('http://127.0.0.1:9');

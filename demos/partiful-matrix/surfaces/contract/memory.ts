@@ -1,9 +1,12 @@
 import {
+  createBoundaryContractDataProvider,
+  createContractMockQueryBoundary,
+  createProviderQueryHandle,
   type ContractDataProvider,
   type ContractQueryHandle,
 } from '@exact/contract/runtime';
 
-import { SnapbackClient } from '../../../_kit/client.mjs';
+import { SnapbackClient } from '../../../../packages/snapback-client/online.mjs';
 import { createOnlineSnapbackContractSurface } from '../../../../packages/snapback-contract/online-surface.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
@@ -18,6 +21,7 @@ import {
   type GeneratedProviderLinks,
 } from './data/provider.generated';
 import { GatewayContractProvider } from './provider';
+import { linksForProvider } from './production-hydration';
 import {
   PERSONAS,
   type Backend,
@@ -63,7 +67,11 @@ async function createSurface(): Promise<MemorySurface> {
       seed,
     });
     return createOnlineSnapbackContractSurface({
-      runtime: await import('@exact/contract/runtime'),
+      runtime: {
+        createBoundaryContractDataProvider,
+        createContractMockQueryBoundary,
+        createProviderQueryHandle,
+      },
       client,
       userId: PERSONAS[0].userId,
       manifest: contractDataManifest,
@@ -84,7 +92,7 @@ async function createSurface(): Promise<MemorySurface> {
     PERSONAS[0].userId,
   );
   return {
-    links: provider.links() as GeneratedProviderLinks,
+    links: linksForProvider(provider),
     provider,
     dispose: () => provider.dispose(),
   };

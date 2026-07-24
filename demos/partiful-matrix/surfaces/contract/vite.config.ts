@@ -13,7 +13,14 @@ export default ({ mode, command }: { mode: string; command: 'serve' | 'build' })
     plugins: [
       exactContractWeb({
         data: 'snapback',
-        app: { entry: memoryEntry ? '/memory.ts' : '/main.ts' },
+        // The surface owns index.html, so production needs the Contract
+        // compiler/boundary preset but not Exact's full dev-server agent
+        // plugin. Keep that authoring surface for `vite serve` only.
+        // @ref LLP 0063#workstream-8--performance-and-packaging-budgets —
+        // production-build latency measures the minimal shipped build path.
+        app: command === 'serve'
+          ? { entry: memoryEntry ? '/memory.ts' : '/main.ts' }
+          : false,
       }),
       partitimeCostAttribution(),
     ],

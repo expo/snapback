@@ -2096,3 +2096,90 @@ fallback, but ordinary minifier changes were not enough to close the gap.
 That makes the next step an Exact production-runtime representation problem,
 not a threshold rebaseline or a reason to remove browser correctness. No
 Snapback guide gap was encountered.
+
+## 2026-07-23 — real Safari autofill exposed one missing Contract semantic
+
+The strict citizenship run could not use WebDriver typing as an autofill
+witness. The iOS simulator instead received a committed, synthetic vCard and
+selected that contact as its local My Info identity. This kept the run
+non-sensitive while exercising Safari's real keyboard accessory and contact
+autofill path.
+
+The first native attempt exposed a small but important Contract gap: a built-in
+`input` diagnosed `autoComplete` as unknown, even though Exact's web host
+already safely passes that standard attribute through to the DOM. Exact
+`1974a6129…` added the schema-owned input attr, compiler and renderer tests,
+and regenerated reference/editor artifacts. Partitime then marked Location as
+`autoComplete="street-address"`.
+
+On iOS 26.5 Safari, focusing the resulting field presented both the native
+`AutoFill Contact` accessory and the synthetic home-address suggestion.
+Selecting it wrote `123 Market Street` through the ordinary controlled-input
+path, and the field remained editable. This is a much stronger witness than
+script injection: it crosses the browser-owned suggestion UI, Exact's direct
+DOM host, Contract's change binding, and the app's form state.
+
+The change was easier than a React workaround would have been once the schema
+authority was located: one semantic attr, no raw DOM escape, and the existing
+host sanitizer/lowering remained the single implementation path. The friction
+was discoverability—the supported attr list correctly refused the spelling but
+offered no paved substitute. That is an Exact/Contract capability gap, not a
+Snapback guide gap.
+
+## 2026-07-23 — the complete current−1 Safari runtime turned missing rows into real tests
+
+Installing iOS 26.4 replaced the invalid iOS 26.3.1 simulator image rather than
+papering over its broken Japanese/emoji font rendering. The new current−1
+runtime exercised the same product build with the native Japanese Romaji
+keyboard, committed synthetic contact, and Safari Page Menu as iOS 26.5.
+
+The current−1 IME produced visibly marked `かんぱい` and offered `乾杯` as a
+native candidate before Return committed the value. Its contact accessory
+offered the synthetic `123 Market Street` home address and populated the
+controlled Location input. Native Find reported `1 of 1` for `Sunset Supper
+Club`; after dismissing the Find UI, the event still opened. The current
+runtime supplied the matching autofill and Find observations. These are
+browser-owned behaviors, not JavaScript event injection.
+
+Focus and bfcache are better served by a machine receipt than screenshots
+alone, so the acceptance corpus now has a dedicated iOS Safari WebDriver
+collector. It binds the named simulator and built candidate, tests
+Tab/Shift-Tab/Escape containment, then retains an unsubmitted event-wall draft
+across a real document leave/back traversal, requires
+`pageshow.persisted === true`, edits the restored draft again, and returns to
+the feed. This division of labor felt right: native UI for IME/autofill/Find,
+and browser instrumentation for the otherwise invisible bfcache flag. No
+Snapback guide gap was encountered.
+
+## 2026-07-23 — narrow production entries closed the byte and build gaps
+
+The final Contract bundle work was mostly about reachable graphs, not missing
+minifier tricks. Exact now exposes a bounded production hydration reader and a
+frozen no-op adoption capture instead of making the browser retain the
+producer transcript. Its direct DOM host also carries the node selected by
+whole-tree preflight into commit, avoiding a second validation turn after the
+mutation boundary. Importantly, the ordinary diagnostic validator kept its
+human-readable messages; the size win is isolated to the production path.
+
+Snapback had the same shape of issue at a smaller boundary. The Online
+Partitime cell needs `SnapbackClient`, not every optional client capability, so
+`@snapback/client/online` now re-exports the identical class through a public,
+tree-shakeable entry. The Contract surface likewise passes the three Exact
+runtime functions the Snapback adapter actually calls instead of a runtime
+namespace. That put all four fresh Contract builds below their frozen byte
+limits: Snapback is 366,504 minified bytes, and the three gateway cells are
+213,102/213,092/213,092.
+
+Production build latency had a separate fixed cost. This app owns its HTML
+shell, but its Vite config loaded Exact's full development agent/server plugin
+for production builds. Keeping that plugin for `vite serve` while retaining
+the compiler and production boundary plugins for `vite build` cut quick
+one-sample builds from roughly 0.9–1.1 seconds to 0.47–0.55 seconds. Those
+probes are deliberately nonclaim; the ratified calibration/holdout still has
+to establish the result.
+
+This felt like a good paved-road outcome. Snapback and Exact both needed
+capability-scoped public entries, but the application did not lose hydration,
+push, diagnostics, or dev tooling to get there. The complete browser baseline
+remains 43/43. The headless-client guide now names the Online entry, so this
+did not create a new guide gap.

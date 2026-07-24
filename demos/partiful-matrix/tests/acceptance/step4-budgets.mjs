@@ -539,7 +539,14 @@ const report = finalizeReport({
       },
     },
     frozenThresholds: frozen.thresholds,
-    conclusion: 'Contract × Snapback minified bytes and every compressed-byte row pass. Three non-Snapback Contract minified-byte rows, authored source, red web holdout rows including the proposed two-part memory successor, and native evidence keep the aggregate budget claim red.',
+    conclusion: requirements.every(({ status }) => status === 'pass')
+      ? 'Every Step 4 budget requirement passes.'
+      : `The aggregate Step 4 budget claim remains red: ${
+        requirements
+          .filter(({ status }) => status === 'red')
+          .map(({ id }) => id)
+          .join(', ')
+      }.`,
   },
 });
 
