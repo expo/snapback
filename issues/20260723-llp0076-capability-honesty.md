@@ -1,6 +1,18 @@
 # Capability-manifest honesty and admission against the served instance manifest
 
-**Status:** Open
+**Status:** Open — local arm largely landed 2026-07-24. Done: every local
+loader (raw dev, provisioning, embedding) resolves declared requirements
+against the served instance manifest in one shared preflight, with the
+outbound-disabled negative admission witness (lib suite) and the
+egress-enabled positive twin (envelope integration suite); codegen inference
+is AST-derived (member/computed/destructuring-alias detection; comments and
+strings ignored; conservative textual fallback on parse failure); local
+limit rows are all genuinely enforced and witnessed (boundedness commit) and
+main's Cloudflare manifest carries only the honest gap row. Remaining before
+close: (1) the explicit proposed/experimental maturity marker — an LLP 0058
+registry-semantics schema design deferred to the author/review loop; (2) the
+Workerd loader/manifest arm (blocked on the unlanded Workerd streaming
+baseline). `cargo test --lib` 1140; codegen suite pass; envelope suite 5/5.
 **Severity:** P2
 **Systems:** Actions, Runtime, Code generation, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

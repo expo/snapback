@@ -3006,6 +3006,51 @@ impl LocalSnapback {
         self.stream_attempt_namespace
     }
 
+    /// Resolve every declared capability requirement against the served
+    /// instance manifest (LLP 0076 §Target contract): the same
+    /// instance-live declaration `/inspect` reports, never a static
+    /// committed artifact. Unknown (non-registry) strings are left to the
+    /// v1 grammar validation; a registry id the live instance does not
+    /// support is a fatal admission error.
+    fn validate_required_capabilities_against_instance(
+        &self,
+        manifest: &FunctionManifest,
+    ) -> Vec<Diagnostic> {
+        let served = crate::manifest::CapabilityManifest::local_v0_instance(
+            self.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
+        let mut diagnostics = Vec::new();
+        let mut refuse = |owner: &str, capability: &str| {
+            diagnostics.push(Diagnostic::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "runtime",
+                format!(
+                    "{owner} requires capability {capability}, which the served instance manifest does not support"
+                ),
+            ));
+        };
+        for function in &manifest.functions {
+            for capability in &function.required_capabilities {
+                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
+                    && !served.supported_capabilities.contains(&id)
+                {
+                    refuse(&format!("function {}", function.name), capability);
+                }
+            }
+        }
+        for job in &manifest.cron_jobs {
+            for capability in &job.required_capabilities {
+                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
+                    && !served.supported_capabilities.contains(&id)
+                {
+                    refuse(&format!("cron job {}", job.name), capability);
+                }
+            }
+        }
+        diagnostics
+    }
+
     pub(crate) fn persist_stream_attempts(
         &mut self,
         rows: &[(String, String, String)],
@@ -3344,6 +3389,13 @@ impl LocalSnapback {
         if let Err(error) = validate_function_schema_references(&manifest, self.db.schema()) {
             preflight.push(error.diagnostic);
         }
+        // @ref LLP 0076#target-contract — capability admission resolves
+        // against the SAME served instance manifest `/inspect` reports for
+        // this exact process, before any handler or nested-mutation code can
+        // run. Every local loader path (raw dev, provisioning, embedding)
+        // funnels through here, so a stream-requiring artifact cannot be
+        // installed on an egress-disabled instance.
+        preflight.extend(self.validate_required_capabilities_against_instance(&manifest));
         preflight.extend(validate_cron_manifest(&manifest));
         if preflight
             .iter()
@@ -14330,6 +14382,44 @@ globalThis.__snapbackHandlers = {
             "cron gate fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    #[test]
+    fn stream_requiring_artifact_is_refused_against_the_served_instance_manifest() {
+        // @ref LLP 0076#target-contract — the outbound-disabled negative
+        // admission witness: with egress off in THIS process, the served
+        // instance manifest does not support bounded_response_stream_v1 and
+        // the loader refuses the artifact before any handler can run.
+        assert!(
+            std::env::var("SNAPBACK_OUTBOUND_ACTIONS").is_err(),
+            "lib tests run with egress disabled"
+        );
+        let mut action = FunctionDefinition::new(
+            "streamRequiring",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source:
+                    "globalThis.__snapbackHandlers = { async streamRequiring() { return null; } };"
+                        .to_owned(),
+                export: "streamRequiring".to_owned(),
+            }),
+        );
+        action.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![action],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "SNAPBACK_CAPABILITY_UNSUPPORTED"
+                    && diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "egress-disabled admission must refuse: {diagnostics:?}"
+        );
+        // Nothing was installed: the function is unknown to the instance.
+        let run = snapback.run_function("streamRequiring", HandlerInput::default());
+        assert!(!run.ok, "refused artifact must not be invocable");
     }
 
     #[test]

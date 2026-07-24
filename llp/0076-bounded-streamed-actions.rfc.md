@@ -5,7 +5,13 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (secret scrubbing landed on the local arm: streamed
+**Revised:** 2026-07-24 (capability honesty advanced on the local arm:
+admission now resolves every declared requirement against the served
+instance manifest in one preflight shared by all local loader paths, with
+outbound-disabled negative and egress-enabled positive witnesses; codegen
+stream inference is AST-derived (aliases detected, comments ignored); the
+overclaim ledger row narrows to the open maturity-marker design question,
+deferred to the LLP 0058 review loop). 2026-07-24 (secret scrubbing landed on the local arm: streamed
 requests place secrets exactly like ordinary local actions — staged values
 with the LLP 0036 redactor on every stream error envelope, witnessed in both
 the rethrown-leak and untouched-refusal directions through the real HTTP
@@ -611,15 +617,21 @@ a fix before gate 2:
   buffered-bytes row flips to `Enforced`, with read-size, cursor-cap, and
   wall rows added. Residue: the Workerd arm still enforces only a
   per-chunk bound (unlanded baseline).
-- **Capability admission.** The raw dev loader installs a stream-requiring
-  artifact without resolving `require_capabilities`, while complete-pair
-  preflight checks a static declaration instead of the live instance
-  manifest — one path over-admits with egress disabled, the other
-  under-admits when egress is enabled. Both must resolve against the same
-  served instance manifest before any handler runs, with an
-  outbound-disabled negative admission witness. Codegen inference is also a
-  textual `fetchStream(` match; an AST-derived or explicit function
-  capability would close the alias gap.
+- **Capability admission (local arm landed 2026-07-24).** Every local
+  loader path — raw dev, complete-pair provisioning, direct embedding —
+  funnels through one preflight that resolves every declared
+  `requiredCapabilities` id (functions and cron jobs) against the SAME
+  served instance manifest `/inspect` reports for the exact process, before
+  any handler or nested-mutation code runs. Witnessed in both directions: an
+  egress-disabled instance refuses a stream-requiring artifact with
+  `SNAPBACK_CAPABILITY_UNSUPPORTED` and installs nothing (the
+  outbound-disabled negative), and an egress-enabled instance admits the
+  same requirement (positive twin in the envelope integration suite).
+  Codegen inference is now AST-derived via the bundle parser: member access,
+  computed string access, and destructuring aliases of `fetchStream` mark
+  the module while comments and unrelated strings do not (an unparseable
+  bundle falls back to the conservative textual scan, which can only
+  over-require). Residue: the Workerd loader arm.
 - **Two-axis settlement (host side landed on the local arm 2026-07-24;
   authored-pattern side open).** The host-owned attempt record now carries
   `terminalCause` plus the orthogonal `effectMayHaveExecuted` certainty
@@ -648,16 +660,19 @@ a fix before gate 2:
   the hosted/Workerd descriptor-resolution seam for stream open rides the
   unlanded Workerd baseline, and secret/private-data scans over RETAINED
   stream receipts (durable rows) remain with the acceptance-receipts work.
-- **Positive capability overclaim.** `bounded_response_stream_v1` is published
-  as a positive `supportedCapabilities` entry — which LLP 0058 reads as
-  present server support and LLP 0074 forbids for a Draft authority without
-  executable conformance — while the pattern's terminal, throttle, and retry
-  guarantees are not host-enforced; the manifest also marks buffered-bytes
-  `Enforced` with no accounting and omits the read-size and cursor limits, and
-  the Cloudflare runtime fact claims idle/wall/progress/watchdog/settlement
-  evidence its witness does not earn. Until conformance the capability should
-  carry a proposed/experimental maturity admission cannot treat as support,
-  and unproved limit rows should read `Missing`.
+- **Positive capability overclaim (substantially narrowed 2026-07-24;
+  maturity marker still open).** The substance of the overclaim is resolved
+  on the local arm: the terminal/lease guarantees are now host-enforced
+  (StreamAttemptV1 control plane), every published local limit row is
+  genuinely enforced and witnessed (including buffered-bytes via the real
+  counter), and main's Cloudflare manifest claims nothing beyond an honest
+  `bounded_response_stream_v1` gap row (the overclaiming Workerd manifest
+  never landed on main). What remains open is the marker itself: whether the
+  capability should carry an explicit proposed/experimental maturity field
+  while LLP 0076 is Draft is an LLP 0058 registry-semantics design choice
+  (schema change) deferred to the author/review loop rather than decided
+  here; until then the instance-live predicate plus the per-bullet witnesses
+  are the honesty mechanism.
 - **Diagnostic envelope coverage (local arm landed 2026-07-24).** All nine
   promised codes — the eight stream families plus
   `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` — now survive both the runtime and

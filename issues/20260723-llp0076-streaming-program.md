@@ -40,7 +40,10 @@ Boundedness, authority, and honesty:
   pull per cursor, absolute wall-clock timers — local arm landed 2026-07-24;
   open on the Workerd arm only
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
-  capability admission resolved against the served instance manifest
+  capability admission resolved against the served instance manifest — local
+  arm largely landed 2026-07-24 (served-instance admission + AST inference +
+  honest rows); open on the maturity-marker design (author/LLP 0058) and the
+  Workerd arm
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction
   on `ctx.fetchStream` — local arm landed 2026-07-24; open on the hosted
   descriptor seam and retained-receipt scans

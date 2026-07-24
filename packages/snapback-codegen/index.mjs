@@ -3139,14 +3139,72 @@ function requiredCapabilities(fn) {
     // @ref LLP 0076#target-contract — a streamed action must be refused at
     // artifact admission on targets without the named reader profile, before
     // the handler reaches an external effect. IbexModule source is the closed
-    // bundle codegen already owns; this conservative module-level scan can
+    // bundle codegen already owns; the AST-derived detection below can
     // over-require sibling actions but can never invent target authority.
-    if (/\bfetchStream\s*\(/u.test(fn.runtime?.IbexModule?.source ?? '')) {
+    if (moduleUsesFetchStream(fn.runtime?.IbexModule?.source ?? '')) {
       required.push('bounded_response_stream_v1');
     }
     return required;
   }
   return [runtimeCapability];
+}
+
+// @ref LLP 0076#target-contract — AST-derived rather than textual: a
+// `fetchStream` member access (`ctx.fetchStream(...)`, computed string
+// access, or a destructuring alias `const { fetchStream } = ctx`) marks the
+// module as stream-requiring; comments and unrelated string literals do not.
+// An unparseable bundle falls back to the conservative textual scan, which
+// can over-require but never widens target authority.
+function moduleUsesFetchStream(source) {
+  if (!source) return false;
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+    });
+  } catch (_) {
+    return /\bfetchStream\s*\(/u.test(source);
+  }
+  let found = false;
+  const walk = (node) => {
+    if (found || !node || typeof node.type !== 'string') return;
+    if (node.type === 'MemberExpression') {
+      const property = node.property;
+      if (
+        (!node.computed && property?.type === 'Identifier' && property.name === 'fetchStream')
+        || (node.computed && property?.type === 'Literal' && property.value === 'fetchStream')
+      ) {
+        found = true;
+        return;
+      }
+    }
+    if (node.type === 'Property') {
+      const key = node.key;
+      if (
+        (key?.type === 'Identifier' && key.name === 'fetchStream')
+        || (key?.type === 'Literal' && key.value === 'fetchStream')
+      ) {
+        found = true;
+        return;
+      }
+    }
+    for (const value of Object.values(node)) {
+      if (found) return;
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          if (child && typeof child.type === 'string') walk(child);
+        }
+      } else if (value && typeof value.type === 'string') {
+        walk(value);
+      }
+    }
+  };
+  walk(program);
+  return found;
 }
 
 function syncabilityClass(fn) {

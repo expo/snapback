@@ -506,6 +506,47 @@ globalThis.__snapbackHandlers = {
     'paired capability artifact must positively support the streamed action requirement',
   );
 
+  // AST-derived inference (LLP 0076): a comment that merely spells the call
+  // must not over-require, while a destructuring alias must still require.
+  const commentOnly = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe() {
+    // this comment mentions ctx.fetchStream( but the handler never streams
+    return { ok: true };
+  }
+};
+`,
+    },
+  });
+  const commentFunctions = JSON.parse(readFileSync(join(commentOnly.outDir, 'functions.manifest.json'), 'utf8'));
+  assert(
+    !commentFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'a comment mention must not add the stream requirement',
+  );
+  const aliased = await validCase({
+    functions: jsActionFunctions,
+    handlers: {
+      'handler.mjs': `
+globalThis.__snapbackHandlers = {
+  async probe(ctx) {
+    const { fetchStream } = ctx;
+    const response = await fetchStream({ url: 'https://example.com' });
+    await response.body.getReader().cancel();
+    return { status: response.status };
+  }
+};
+`,
+    },
+  });
+  const aliasedFunctions = JSON.parse(readFileSync(join(aliased.outDir, 'functions.manifest.json'), 'utf8'));
+  assert(
+    aliasedFunctions.functions[0].requiredCapabilities.includes('bounded_response_stream_v1'),
+    'a destructuring alias must still add the stream requirement',
+  );
+
   const diagnostics = await invalidCase({
     functions: jsActionFunctions,
     handlers: {

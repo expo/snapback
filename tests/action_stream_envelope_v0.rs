@@ -81,6 +81,11 @@ fn functions() -> FunctionManifest {
     leak_probe.uses = vec!["streamKey".to_owned()];
     let mut refusal_probe = define("secretStreamRefusalProbe", FunctionKind::Action);
     refusal_probe.uses = vec!["streamKey".to_owned()];
+    // Positive admission witness: with egress enabled in this process, the
+    // served instance manifest supports the stream capability and the loader
+    // admits a stream-requiring artifact (the lib suite carries the
+    // egress-disabled negative twin).
+    refusal_probe.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
     FunctionManifest {
         functions: vec![
             define("streamInvalidProbe", FunctionKind::Action),
