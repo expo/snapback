@@ -31,7 +31,7 @@ const SECRET_BINDINGS = {
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 27;
+const EXPECTED_CHECKS = 28;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -344,6 +344,22 @@ async function main() {
       'a stalled upstream settles the exact idle-timeout code',
       idleStream.ok === false &&
         idleStream.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT'
+    );
+    // The stream probes above all DECLARE bounded_response_stream_v1 and ran,
+    // which is the positive admission witness against the served manifest;
+    // this is the negative twin: a known registry id the manifest does not
+    // support refuses at function resolution, before the handler runs.
+    let unsupported = null;
+    try {
+      await client.action('probeUnsupportedRequirement', { args: {} });
+    } catch (error) {
+      unsupported = error;
+    }
+    check(
+      'a declared requirement the served manifest does not support is refused before the handler runs',
+      unsupported !== null &&
+        unsupported.status === 503 &&
+        unsupported.diagnostic?.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
     );
 
     // --- query/mutation ambient fetch remains denied -----------------------

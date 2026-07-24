@@ -30090,6 +30090,182 @@ globalThis.__snapbackHandlers = {
         );
     }
 
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn service_principal_terminalization_fences_stream_open_and_discards_late_bytes() {
+        // @ref LLP 0076#authority-and-lifecycle — the ServicePrincipal tier
+        // of the per-read fence, end to end: a REAL prepared scoped-token
+        // authority (sessions-mode admission, HttpAction source, registered
+        // service publication), a real terminal-gate commit racing a blocked
+        // pull, and the late bytes discarded with the exact authority code.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind service fence fixture");
+        let address = listener.local_addr().expect("service fence address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept service fence request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nearly-1\r\n").expect("early chunk");
+            socket.flush().expect("flush early chunk");
+            // The late byte arrives only after the terminal gate below has
+            // committed while the second pull is already blocked.
+            std::thread::sleep(Duration::from_millis(900));
+            let _ = socket.write_all(b"6\r\nlate-1\r\n0\r\n\r\n");
+        });
+
+        // A real ServicePrincipal PreparedAuthority: sessions-mode admission
+        // controller, the HttpAction source class that admits scoped-token
+        // authority, and a fence-registry publication whose witness identity
+        // the per-read revalidation must match exactly.
+        let digest =
+            |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "stream-fence-test".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+        };
+        let mode = AuthModeStateRecord {
+            format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 1,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: Some(deployment),
+            requested_deployment: None,
+            quarantine: None,
+        };
+        let controller =
+            crate::auth::admission::AdmissionController::from_mode_state(&mode)
+                .expect("sessions admission controller");
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let epoch_now_ms = super::now_millis();
+        let expires_at_ms = epoch_now_ms + 60_000;
+        let publication = registry
+            .synthetic_publication_for_test(
+                "stream-fence-token",
+                epoch_now_ms,
+                expires_at_ms,
+                monotonic,
+            )
+            .expect("register service publication");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpAction,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            controller
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("admit sessions action"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent-a".to_owned(),
+                credential_id: "credential-a".to_owned(),
+                credential_generation: 1,
+                grant_id: "durable-grant-a".to_owned(),
+                token_id: "stream-fence-token".to_owned(),
+                effective_user_id: Some("user-a".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: expires_at_ms,
+            },
+        )
+        .expect("prepare scoped-token action authority")
+        .with_service_publication(publication);
+
+        let mut snapback = LocalSnapback::memory().expect("service fence host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        host.authority = authority;
+
+        let (opened, discarded) = tokio::task::block_in_place(|| {
+            let opened = host
+                .open_response_stream(ActionStreamRequest {
+                    url: format!("http://{address}/service-fence"),
+                    method: "GET".to_owned(),
+                    headers: BTreeMap::new(),
+                    body: None,
+                    idempotency_key: None,
+                    attempt_token: None,
+                    secret_slots: Vec::new(),
+                })
+                .expect("open under live scoped-token authority");
+            let first = host
+                .read_response_stream(&opened.stream_id)
+                .expect("first chunk under live authority");
+            assert_eq!(first.bytes, b"early-1");
+
+            // Terminalize the service authority 200 ms into the ~900 ms
+            // stall, while the second pull is already blocked awaiting bytes.
+            let terminal_registry = registry.clone();
+            let terminal = std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(200));
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("terminal runtime");
+                runtime.block_on(async {
+                    let gate = terminal_registry
+                        .acquire_terminal_gate(
+                            &["stream-fence-token".to_owned()],
+                            ServiceAuthorityDisposition::DurableDelete,
+                        )
+                        .await
+                        .expect("close and drain service domain");
+                    with_service_authority_terminal_gate(gate, || {
+                        terminal_registry.prepare_terminal(
+                            &["stream-fence-token".to_owned()],
+                            ServiceAuthorityDisposition::DurableDelete,
+                        )
+                    })
+                    .expect("adopt terminal gate")
+                    .committed()
+                    .expect("commit terminal");
+                });
+            });
+            let discarded = host
+                .read_response_stream(&opened.stream_id)
+                .expect_err("late bytes must be discarded after terminalization");
+            terminal.join().expect("terminal thread joins");
+            (opened, discarded)
+        });
+        assert_eq!(
+            discarded.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+            "the service tier's exact authority refusal must surface"
+        );
+        assert!(
+            host.closed_response_streams.contains(&opened.stream_id),
+            "the discarding read must close the cursor"
+        );
+
+        // A new open under the terminalized authority is refused at the
+        // pre-open leg with the same code.
+        let refused = tokio::task::block_in_place(|| {
+            host.open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/service-fence-2"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("terminalized authority cannot open a stream")
+        });
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID");
+        upstream.join().expect("service fence fixture joins");
+    }
+
     #[test]
     fn slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors() {
         // @ref LLP 0076#surface — 64 KiB application-visible buffering: the

@@ -199,11 +199,15 @@ export const functions = [
   // Cross-target witness for LLP 0076: this is intentionally an ordinary
   // authored action using the shared ctx.fetchStream surface, not a direct
   // coordinator test.
-  { name: 'probeResponseStream', kind: 'Action', export: 'probeResponseStream', tables: [], testingOnly: true },
-  { name: 'probeStreamAttemptToken', kind: 'Action', export: 'probeStreamAttemptToken', tables: [], testingOnly: true },
-  { name: 'probeStreamSecret', kind: 'Action', export: 'probeStreamSecret', uses: ['directions'], tables: [], testingOnly: true },
-  { name: 'probeStreamRateFence', kind: 'Action', export: 'probeStreamRateFence', tables: ['trainStatus'], testingOnly: true },
-  { name: 'probeStreamCursorCap', kind: 'Action', export: 'probeStreamCursorCap', tables: [], testingOnly: true },
+  { name: 'probeResponseStream', kind: 'Action', export: 'probeResponseStream', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  { name: 'probeStreamAttemptToken', kind: 'Action', export: 'probeStreamAttemptToken', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  { name: 'probeStreamSecret', kind: 'Action', export: 'probeStreamSecret', requiredCapabilities: ['bounded_response_stream_v1'], uses: ['directions'], tables: [], testingOnly: true },
+  { name: 'probeStreamRateFence', kind: 'Action', export: 'probeStreamRateFence', requiredCapabilities: ['bounded_response_stream_v1'], tables: ['trainStatus'], testingOnly: true },
+  { name: 'probeStreamCursorCap', kind: 'Action', export: 'probeStreamCursorCap', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  // Negative admission witness: auth.sessions.v1 is a known registry id this
+  // target's served manifest does not support, so resolution must refuse
+  // before the handler can run.
+  { name: 'probeUnsupportedRequirement', kind: 'Action', export: 'probeUnsupportedRequirement', requiredCapabilities: ['auth.sessions.v1'], tables: [], testingOnly: true },
   { name: 'probeSecretForgery', kind: 'Action', export: 'probeSecretForgery', uses: ['directions'], tables: [], testingOnly: true },
   { name: 'probeSecretForgeryNoGrant', kind: 'Action', export: 'probeSecretForgery', tables: [], testingOnly: true },
   { name: 'probeSecretEcho', kind: 'Action', export: 'probeSecretEcho', uses: ['directions'], tables: [], testingOnly: true },
@@ -1008,6 +1012,9 @@ globalThis.__snapbackHandlers = {
       checksum,
       cancelled: false,
     };
+  },
+  async probeUnsupportedRequirement() {
+    return { unreachable: true };
   },
   // The StreamAttemptV1 control plane does not exist on this target: a
   // presented token must be refused fail-closed, never silently unfenced.

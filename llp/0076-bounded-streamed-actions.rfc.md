@@ -5,7 +5,20 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (the stranded Workerd/Cloudflare streaming arm is
+**Revised:** 2026-07-24 (the last two implementable residues closed: the
+ServicePrincipal tier of the per-read fence is witnessed end to end — a
+real scoped-token authority prepared through the production admission and
+invocation machinery, a real service terminal gate committed while a pull
+was blocked, late bytes discarded with the exact
+`SNAPBACK_AUTH_SCOPED_TOKEN_INVALID`, and post-terminal opens refused —
+and the Workerd admission leg landed: function resolution (the loader seam
+of a deploy-time-compiled target) refuses known registry ids the served
+manifest does not support with a typed 503 before any handler runs,
+witnessed positively and negatively through Miniflare. The
+per-read-authority-fence ticket closes; capability-honesty narrows to the
+single open author decision — the LLP 0058 maturity-marker design — which
+this revision deliberately does not make; status remains Draft).
+2026-07-24 (the stranded Workerd/Cloudflare streaming arm is
 re-landed on main, ported from the primary checkout's uncommitted working
 tree and adapted to the landed contract: the decision-4 rename and
 decision-5 safe-method-only downgrade, decision-6 `elapsedMs`/`deltaMs` on
@@ -550,7 +563,12 @@ a fix before gate 2:
   predicate logic is shared with the reviewed
   `validate_prepared_service_authority` process-fence tier, but a
   streamed-action run under real scoped-token authority has not been
-  executed). The Workerd leg landed 2026-07-24: reads revalidate the
+  executed — CLOSED 2026-07-24: the witness now exists; a real prepared
+  scoped-token authority, a real terminal-gate commit racing a blocked
+  pull, late-byte discard with the exact authority code, and pre-open
+  refusal are all executed in
+  `service_principal_terminalization_fences_stream_open_and_discards_late_bytes`).
+  The Workerd leg landed 2026-07-24: reads revalidate the
   action-abandonment signal before AND after the pull, discarding late
   bytes, and on that target the abandonment signal is the complete
   revalidation predicate — hosted auth (and with it scoped-token service
@@ -659,9 +677,15 @@ a fix before gate 2:
   computed string access, and destructuring aliases of `fetchStream` mark
   the module while comments and unrelated strings do not (an unparseable
   bundle falls back to the conservative textual scan, which can only
-  over-require). Residue: the Workerd deploy path (`ensureApp`) still
-  installs artifacts without resolving `requiredCapabilities` against the
-  served manifest — the Workerd loader-admission leg remains open.
+  over-require). The Workerd admission leg landed 2026-07-24: this target
+  is deploy-time compiled, so `/app/ensure` only hash-gates posted
+  artifacts and never installs them; the loader seam is function
+  resolution, and `functionByName` now refuses any known registry id the
+  served manifest does not support with a typed 503
+  `SNAPBACK_CAPABILITY_UNSUPPORTED` before the handler runs — witnessed
+  positively (the stream probes declare the capability and run) and
+  negatively (a probe declaring `auth.sessions.v1` is refused) through
+  Miniflare. No admission residue remains on either target.
 - **Two-axis settlement (host side landed on the local arm 2026-07-24;
   authored-pattern side open).** The host-owned attempt record now carries
   `terminalCause` plus the orthogonal `effectMayHaveExecuted` certainty

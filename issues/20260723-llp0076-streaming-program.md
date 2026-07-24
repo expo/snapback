@@ -33,18 +33,19 @@ first):
 Boundedness, authority, and honesty:
 
 - `20260723-llp0076-per-read-authority-fence.md` — post-read revalidation +
-  service-authority + attempt-to-cursor cancellation signal — local and
-  Workerd legs landed 2026-07-24; open ONLY on the ServicePrincipal
-  end-to-end witness
+  service-authority + attempt-to-cursor cancellation signal — RESOLVED
+  2026-07-24 (all legs witnessed, including the ServicePrincipal tier end
+  to end; see `issues/closed/`)
 - `20260723-llp0076-boundedness.md` — 64 KiB buffer accounting, one in-flight
   pull per cursor, absolute wall-clock timers — RESOLVED 2026-07-24 (local
   arm in full; Workerd leg with named structural residues in the ledger; see
   `issues/closed/`)
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
-  capability admission resolved against the served instance manifest — local
-  admission + AST inference + honest manifests (both targets) landed
-  2026-07-24; open on the maturity-marker design (author/LLP 0058) and the
-  Workerd `ensureApp` admission leg
+  capability admission resolved against the served instance manifest —
+  admission landed on BOTH targets 2026-07-24 (local loaders + Workerd
+  function-resolution seam, positive and negative witnesses); open SOLELY
+  as the tracking handle for the author's LLP 0058 maturity-marker
+  decision, which is deliberately not made on his behalf
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction
   on `ctx.fetchStream` — RESOLVED 2026-07-24 (local value-mode + hosted
   descriptor seam, both witnessed; retained-receipt scans reassigned; see
@@ -80,7 +81,11 @@ an author/LLP 0058 choice — + Workerd arm). Evidence baseline at 065484e6:
 authoring-validation pass, capability_v0 3/3, LLP 0075 local-streaming
 instrument PASS 6/6, ref-check clean, check-generated-artifacts clean.
 
-What gate 2 still needs beyond this program's open residue: the prospective
+Update 2026-07-24 (final ticket pass): six of seven implementation tickets
+are RESOLVED; capability-honesty remains open solely as the tracking handle
+for one undecided author question (the LLP 0058 proposed/experimental
+maturity marker for a Draft-authority capability). What gate 2 still needs
+beyond that author decision: the prospective
 LLP 0075 amendment reconciling the frozen fixture's authored pattern with
 `StreamAttemptV1` tokens and the certainty mirror, per-bullet acceptance
 receipts, and the `single-instance-container-vm.v1` hosted receipt

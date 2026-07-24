@@ -71,6 +71,21 @@ const CHANGE_JOURNAL_RETAIN_VERSIONS = 1000;
 const MAX_ROW_BYTES = Number(capabilityManifest.runtimeFacts.maxRowBytes);
 const MAX_REQUEST_BYTES = Math.max(4_000_000, MAX_ROW_BYTES * 2);
 const MAX_HOST_RESPONSE_BYTES = 1_000_000;
+// The closed v1 target-capability registry (LLP 0058; nine ids). Only ids
+// this registry knows participate in admission: an unknown string is a
+// grammar problem for codegen, never silent target authority.
+const KNOWN_TARGET_CAPABILITY_IDS = new Set([
+  'auth.sessions.v1',
+  'bounded_response_stream_v1',
+  'cron',
+  'cron_action_run_mutation',
+  'host_plan_runtime',
+  'ibex_ctx_db_host_bridge',
+  'live_subscriptions',
+  'mutation_read_set_validation',
+  'permission_epoch_resync',
+]);
+const SUPPORTED_TARGET_CAPABILITIES = new Set(capabilityManifest.supportedCapabilities || []);
 const ACTION_STREAM_TOTAL_BYTES_MAX = 1024 * 1024;
 const ACTION_STREAM_BUFFER_BYTES_MAX = 64 * 1024;
 const ACTION_STREAM_CHUNK_BYTES_MAX = 16 * 1024;
@@ -819,6 +834,23 @@ export class Coordinator {
     const fn = functions.find((entry) => entry.name === name);
     if (!fn) return null;
     if (fn.testingOnly === true && this.env.SNAPBACK_TESTING !== '1') return null;
+    // @ref LLP 0076#target-contract — capability admission resolves against
+    // the SAME served instance manifest this deployment publishes, before
+    // any handler code can run. This target is deploy-time compiled, so
+    // function resolution is its loader seam: /app/ensure only hash-gates
+    // posted artifacts and never installs them, which is why the check
+    // lives here rather than in kitEnsureApp.
+    for (const capability of fn.requiredCapabilities || []) {
+      if (
+        KNOWN_TARGET_CAPABILITY_IDS.has(capability)
+        && !SUPPORTED_TARGET_CAPABILITIES.has(capability)
+      ) {
+        throw codedError(
+          'SNAPBACK_CAPABILITY_UNSUPPORTED',
+          `${name} requires capability ${capability}, which the served instance manifest does not support`
+        );
+      }
+    }
     return fn;
   }
 
@@ -829,6 +861,19 @@ export class Coordinator {
     try {
       return await this.route(request);
     } catch (error) {
+      // A thrown coded refusal (e.g. capability admission at function
+      // resolution) surfaces as a typed diagnostic, never a bare 500.
+      if (error && typeof error.snapbackCode === 'string') {
+        return json(error.snapbackCode === 'SNAPBACK_CAPABILITY_UNSUPPORTED' ? 503 : 400, {
+          ok: false,
+          diagnostic: {
+            code: error.snapbackCode,
+            severity: 'error',
+            subsystem: 'runtime',
+            message: String(error.message || 'coded refusal'),
+          },
+        });
+      }
       const failure = classifyPlatformError(error, { maxRowBytes: MAX_ROW_BYTES });
       if (failure) return platformFailureResponse(path, failure);
       throw error;
