@@ -63,6 +63,29 @@ Decisions (forks to resolve, not code):
 A concurrent session added an InstantDB-Streams prior-art subsection to the RFC
 (no contract change); it does not affect these tickets.
 
+## Program status (2026-07-24, after the local-arm execution pass)
+
+Eight commits on main (ef6458e9 baseline, 6cd8898d control plane, dd26faaa
+initiationState, b66f46e1 per-read fence, c69c368e boundedness, cf3d77d9
+diagnostic envelope, edaac601 secret scrubbing, 065484e6 capability
+admission). Closed: attempt-control-plane, initiation-state,
+diagnostic-envelope (plus the pre-resolved semantics decisions). Open with
+the local arm landed: per-read-authority-fence (ServicePrincipal end-to-end
+witness), boundedness (Workerd arm), secret-scrubbing (hosted descriptor
+seam + retained-receipt scans), capability-honesty (maturity-marker design —
+an author/LLP 0058 choice — + Workerd arm). Evidence baseline at 065484e6:
+`cargo test --lib` 1140, `action_stream_envelope_v0` 5/5, codegen
+authoring-validation pass, capability_v0 3/3, LLP 0075 local-streaming
+instrument PASS 6/6, ref-check clean, check-generated-artifacts clean.
+
+What gate 2 still needs beyond this program's open residue: re-landing the
+Workerd/Cloudflare streaming arm (still stranded uncommitted outside main;
+see the baseline note below), the prospective LLP 0075 amendment
+reconciling the frozen fixture's authored pattern with `StreamAttemptV1`
+tokens and the certainty mirror, per-bullet acceptance receipts, and the
+`single-instance-container-vm.v1` hosted receipt (decision 7). The guide
+gap for the `#stream-a-response` repair anchor is filed as ENG-25423.
+
 ## Baseline landing (2026-07-23, this worktree)
 
 Program-start discovery: the reader-surface baseline the RFC ledger describes
