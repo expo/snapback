@@ -1,5 +1,34 @@
 {
   "$defs": {
+    "AuthenticationBucketPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "burst": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "intervalMs": {
+          "format": "uint64",
+          "maximum": 86400000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "maximumDenialDebtAttempts": {
+          "format": "uint64",
+          "maximum": 1000000,
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "intervalMs",
+        "burst",
+        "maximumDenialDebtAttempts"
+      ],
+      "type": "object"
+    },
     "AuthenticationThrottle": {
       "enum": [
         "unavailable",
@@ -82,6 +111,49 @@
         "globallyFenced"
       ],
       "type": "string"
+    },
+    "SharedAuthenticationThrottleConfig": {
+      "additionalProperties": false,
+      "description": "Exact target-published GCRA policy. A denied request advances every\napplicable bucket, with finite denial debt preventing attacker-controlled\ninteger growth.",
+      "properties": {
+        "family": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "global": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "maximumKeyCount": {
+          "format": "uint64",
+          "maximum": 9007199254740991,
+          "minimum": 2,
+          "type": "integer"
+        },
+        "retentionMs": {
+          "format": "uint64",
+          "maximum": 31536000000,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "source": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "sourceSubject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        },
+        "subject": {
+          "$ref": "#/$defs/AuthenticationBucketPolicy"
+        }
+      },
+      "required": [
+        "retentionMs",
+        "maximumKeyCount",
+        "global",
+        "source",
+        "subject",
+        "sourceSubject",
+        "family"
+      ],
+      "type": "object"
     }
   },
   "$id": "https://schemas.snapback.dev/snapback.v0/auth.hosted-admission.schema.json",
@@ -94,6 +166,9 @@
       "maximum": 9007199254740991,
       "minimum": 1,
       "type": "integer"
+    },
+    "authenticationThrottleConfig": {
+      "$ref": "#/$defs/SharedAuthenticationThrottleConfig"
     },
     "browserDirectBearerSeam": {
       "$ref": "#/$defs/BrowserDirectBearerSeam"
@@ -166,6 +241,7 @@
     "issuedAtMs",
     "expiresAtMs",
     "limiterEpoch",
+    "authenticationThrottleConfig",
     "invalidationEpoch",
     "handlerProtocolVersion",
     "handlerIncarnation",

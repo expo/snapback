@@ -896,6 +896,7 @@ pub(crate) struct ProviderSessionIssuancePlan {
     projected: ProjectedSessionInsert,
     eviction: Option<ProviderRevocationPlan>,
     challenge: Option<PlannedChallengeConsumption>,
+    sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
 }
 
 impl fmt::Debug for ProviderSessionIssuancePlan {
@@ -912,6 +913,7 @@ pub(crate) struct ProviderSessionIssuanceCommitPlan {
     projected: ProjectedSessionInsert,
     eviction: Option<ProviderRevocationPlan>,
     challenge: Option<PlannedChallengeConsumption>,
+    sender_issuance: Option<crate::auth::sender_proof::SenderIssuanceCommitment>,
 }
 
 impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
@@ -921,6 +923,16 @@ impl fmt::Debug for ProviderSessionIssuanceCommitPlan {
 }
 
 impl ProviderSessionIssuancePlan {
+    pub(crate) fn bind_sender_issuance(
+        &mut self,
+        commitment: crate::auth::sender_proof::SenderIssuanceCommitment,
+    ) -> ProviderResult<()> {
+        if self.sender_issuance.replace(commitment).is_some() {
+            return Err(provider_unavailable());
+        }
+        Ok(())
+    }
+
     pub(crate) fn projected_insert(&self) -> ProjectedSessionInsert {
         self.projected.clone()
     }
@@ -937,6 +949,7 @@ impl ProviderSessionIssuancePlan {
             projected: self.projected.clone(),
             eviction: self.eviction.clone(),
             challenge: self.challenge.clone(),
+            sender_issuance: self.sender_issuance.clone(),
         }
     }
 
@@ -969,6 +982,7 @@ impl ProviderSessionIssuancePlan {
             projected,
             eviction: None,
             challenge: None,
+            sender_issuance: None,
         }
     }
 
@@ -1512,12 +1526,13 @@ impl AuthAdmission {
 
     /// Uniform absent/deleted-row exchange path. It intentionally enters one
     /// writer transaction and performs one HMAC before returning `CODE_INVALID`.
-    pub fn exchange_unknown(
+    pub(crate) fn exchange_unknown(
         &self,
         database: &mut LocalDatabase,
         challenge_id: &str,
         code: &str,
         now_ms: u64,
+        sender_issuance: Option<&crate::auth::sender_proof::SenderIssuanceCommitment>,
     ) -> ProviderResult<CredentialIssue> {
         validate_now(now_ms)?;
         let challenge_id = ChallengeId::parse(challenge_id).map_err(|_| request_invalid())?;
@@ -1528,6 +1543,11 @@ impl AuthAdmission {
             .map_err(|_| provider_unavailable())?;
         database
             .with_auth_transaction(|transaction| {
+                if let Some(sender_issuance) = sender_issuance {
+                    sender_issuance
+                        .consume_rejected_outcome(transaction)
+                        .map_err(|_| internal_state_snapback())?;
+                }
                 let _: Option<i64> = transaction
                     .query_row(
                         "SELECT 1 FROM _auth_verification_codes WHERE challenge_id = ?1",
@@ -2104,6 +2124,7 @@ impl ExchangeAdmission {
         database: &mut LocalDatabase,
         code: &str,
         now_ms: u64,
+        sender_issuance: Option<&crate::auth::sender_proof::SenderIssuanceCommitment>,
     ) -> ProviderResult<RejectedExchangeCommit> {
         validate_now(now_ms)?;
         let code = VerificationCode::parse(code).map_err(|_| request_invalid())?;
@@ -2119,6 +2140,7 @@ impl ExchangeAdmission {
                         key,
                         &code,
                         now_ms,
+                        sender_issuance,
                     )
                 })
             })
@@ -2570,6 +2592,7 @@ impl AddressAdmission {
             projected,
             eviction,
             challenge: None,
+            sender_issuance: None,
         })
     }
 
@@ -3679,6 +3702,7 @@ fn plan_exchange_read(
             max_attempts,
             expires_at_ms: checked_stored_time(row.expires_at_ms)?,
         }),
+        sender_issuance: None,
     }))
 }
 
@@ -3690,6 +3714,7 @@ fn rejected_exchange_transaction(
     key: &AuthKeyMaterial,
     code: &VerificationCode,
     now_ms: u64,
+    sender_issuance: Option<&crate::auth::sender_proof::SenderIssuanceCommitment>,
 ) -> SnapbackResult<RejectedExchangeOutcome> {
     let row = transaction
         .query_row(
@@ -3715,6 +3740,11 @@ fn rejected_exchange_transaction(
         .optional()?;
     let Some(row) = row else {
         perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        if let Some(sender_issuance) = sender_issuance {
+            sender_issuance
+                .consume_rejected_outcome(transaction)
+                .map_err(|_| internal_state_snapback())?;
+        }
         return Ok(RejectedExchangeOutcome::Invalid);
     };
     let address = CanonicalAddress::parse(&row.address).map_err(|_| internal_state_snapback())?;
@@ -3734,10 +3764,20 @@ fn rejected_exchange_transaction(
     }
     if row.consumed || row.superseded || now_ms >= expires_at_ms {
         perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        if let Some(sender_issuance) = sender_issuance {
+            sender_issuance
+                .consume_rejected_outcome(transaction)
+                .map_err(|_| internal_state_snapback())?;
+        }
         return Ok(RejectedExchangeOutcome::Invalid);
     }
     if attempts == max_attempts {
         perform_dummy_hmac(provider, &coordination.challenge_id, code);
+        if let Some(sender_issuance) = sender_issuance {
+            sender_issuance
+                .consume_rejected_outcome(transaction)
+                .map_err(|_| internal_state_snapback())?;
+        }
         return Ok(RejectedExchangeOutcome::Locked);
     }
 
@@ -3766,6 +3806,11 @@ fn rejected_exchange_transaction(
     )?;
     if changed != 1 {
         return Err(internal_state_snapback());
+    }
+    if let Some(sender_issuance) = sender_issuance {
+        sender_issuance
+            .consume_rejected_outcome(transaction)
+            .map_err(|_| internal_state_snapback())?;
     }
     Ok(if next_attempts == max_attempts {
         RejectedExchangeOutcome::Locked
@@ -4223,6 +4268,11 @@ fn planned_session_issuance_transaction(
             if changed != 1 {
                 return Err(internal_state_snapback());
             }
+            if let Some(sender_issuance) = &plan.sender_issuance {
+                sender_issuance
+                    .consume_rejected_outcome(transaction)
+                    .map_err(|_| internal_state_snapback())?;
+            }
             return Ok(if next_attempts == challenge.max_attempts {
                 PlannedIssuanceCommit::CodeLocked
             } else {
@@ -4378,6 +4428,14 @@ fn planned_session_issuance_transaction(
             plan.projected.absolute_expires_at_ms as i64,
         ],
     )?;
+    if let Some(sender_issuance) = &plan.sender_issuance {
+        // @ref LLP 0077#issuance-refresh-and-recovery — family key binding,
+        // issuance-proof consumption, and the initial nonce are one atomic cut
+        // with session creation. There is no post-hoc bearer upgrade.
+        sender_issuance
+            .install(transaction, &plan.projected.session_id)
+            .map_err(|_| internal_state_snapback())?;
+    }
     if let Some(challenge) = &plan.challenge {
         let next_attempts = challenge
             .expected_attempts
@@ -4698,10 +4756,22 @@ fn reconcile_rejected_issuance(
     if lookup_session_snapshot(connection, &plan.projected.session_id)?.is_some() {
         return Err(internal_state_snapback());
     }
-    if challenge_is_exact_successor(connection, plan, false)? {
+    let sender_successor = match &plan.sender_issuance {
+        Some(sender) => sender
+            .is_rejected_successor(connection, &plan.projected.session_id)
+            .map_err(|_| internal_state_snapback())?,
+        None => true,
+    };
+    if challenge_is_exact_successor(connection, plan, false)? && sender_successor {
         return Ok(DurableRejectedIssuanceReconcile::ExactSuccessor);
     }
-    if challenge_is_exact_predecessor(connection, plan)? {
+    let sender_predecessor = match &plan.sender_issuance {
+        Some(sender) => sender
+            .is_exact_predecessor(connection, &plan.projected.session_id)
+            .map_err(|_| internal_state_snapback())?,
+        None => true,
+    };
+    if challenge_is_exact_predecessor(connection, plan)? && sender_predecessor {
         return Ok(DurableRejectedIssuanceReconcile::ExactPredecessor);
     }
     Ok(DurableRejectedIssuanceReconcile::DifferentValid)
@@ -4732,6 +4802,12 @@ fn reconcile_planned_issuance(
             || snapshot.current_digest != plan.projected.token_digest
             || !issuance_identity_is_exact_successor(connection, plan)?
             || !challenge_is_exact_successor(connection, plan, true)?
+            || match &plan.sender_issuance {
+                Some(sender) => !sender
+                    .is_exact_successor(connection, &plan.projected.session_id)
+                    .map_err(|_| internal_state_snapback())?,
+                None => false,
+            }
         {
             return Err(internal_state_snapback());
         }
@@ -4754,7 +4830,13 @@ fn reconcile_planned_issuance(
     let identity_predecessor = issuance_identity_is_exact_predecessor(connection, plan)?;
     let cap_predecessor = issuance_cap_is_exact_predecessor(connection, plan)?;
     let challenge_predecessor = challenge_is_exact_predecessor(connection, plan)?;
-    if identity_predecessor && cap_predecessor && challenge_predecessor {
+    let sender_predecessor = match &plan.sender_issuance {
+        Some(sender) => sender
+            .is_exact_predecessor(connection, &plan.projected.session_id)
+            .map_err(|_| internal_state_snapback())?,
+        None => true,
+    };
+    if identity_predecessor && cap_predecessor && challenge_predecessor && sender_predecessor {
         return Ok(DurableIssuanceReconcile::ExactPredecessor);
     }
     if plan.eviction.is_some() && !cap_predecessor {
@@ -5094,9 +5176,12 @@ fn _snapback<T>(result: SnapbackResult<T>) -> ProviderResult<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::auth::sender_proof::{SenderIssuanceCommitment, VerifiedSenderIssuance};
     use crate::auth::session_projection::{
         ProjectedTokenResolution, SessionProjection, TerminalAuthorityDisposition,
     };
+    use base64::Engine;
+    use base64::engine::general_purpose::URL_SAFE_NO_PAD;
     use serde_json::Value;
     use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
@@ -5802,7 +5887,13 @@ mod tests {
                 .is_none()
         );
         let error = admission
-            .exchange_unknown(&mut database, unknown_id.as_str(), "123456", now_ms + 2)
+            .exchange_unknown(
+                &mut database,
+                unknown_id.as_str(),
+                "123456",
+                now_ms + 2,
+                None,
+            )
             .expect_err("unknown challenge");
         assert_eq!(error.diagnostic().code, "SNAPBACK_AUTH_CODE_INVALID");
         assert_eq!(direct_stream_facts(&database), (0, 0));
@@ -6898,6 +6989,79 @@ mod tests {
                 ..
             }
         ));
+    }
+
+    #[tokio::test]
+    async fn planned_issuance_atomically_binds_sender_key_proof_and_initial_nonce() {
+        let now_ms = 45_000;
+        let (provider, mut database) = provider_database(now_ms);
+        database
+            .initialize_sender_proof_after_hosted_preflight()
+            .expect("initialize hosted sender authority");
+        let admission = provider
+            .admit_email("sender-issuance@example.com")
+            .await
+            .expect("issuance admission");
+        let mut plan = admission
+            .plan_mint_session(&database, now_ms)
+            .expect("issuance plan");
+        let commitment = SenderIssuanceCommitment::new(
+            VerifiedSenderIssuance {
+                proof_id: [3; 16],
+                jwk_thumbprint: URL_SAFE_NO_PAD.encode([4_u8; 32]),
+                issued_at_seconds: now_ms / 1_000,
+            },
+            now_ms / 1_000,
+            120,
+        )
+        .expect("sender commitment");
+        let expected_nonce = commitment.initial_nonce_for_transport().to_owned();
+        plan.bind_sender_issuance(commitment)
+            .expect("bind sender issuance to plan");
+        let commit_plan = plan.commit_plan();
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .expect("sender predecessor reconciliation"),
+            DurableIssuanceReconcile::ExactPredecessor
+        ));
+        assert!(matches!(
+            admission.commit_planned_issuance(&mut database, &commit_plan),
+            AuthTransactionAttempt::Committed(PlannedIssuanceCommit::Committed { .. })
+        ));
+        assert!(matches!(
+            database
+                .with_auth_read(|connection| reconcile_planned_issuance(connection, &commit_plan))
+                .expect("sender successor reconciliation"),
+            DurableIssuanceReconcile::ExactSuccessor { .. }
+        ));
+        let facts: (i64, i64, i64, String) = database
+            .with_auth_read(|connection| {
+                Ok((
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_family_binding",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT COUNT(*) FROM _snapback_sender_proof_replay",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT generation FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                    connection.query_row(
+                        "SELECT nonce FROM _snapback_sender_nonce",
+                        [],
+                        |row| row.get(0),
+                    )?,
+                ))
+            })
+            .expect("atomic sender issuance facts");
+        assert_eq!(facts, (1, 1, 1, expected_nonce));
     }
 
     #[tokio::test]

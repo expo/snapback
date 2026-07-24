@@ -1,4 +1,50 @@
 {
+  "$defs": {
+    "SenderExchangeConstraint": {
+      "additionalProperties": false,
+      "properties": {
+        "proof": {
+          "type": "string"
+        },
+        "protocol": {
+          "type": "string"
+        },
+        "publicJwk": {
+          "$ref": "#/$defs/SenderPublicJwk"
+        }
+      },
+      "required": [
+        "protocol",
+        "publicJwk",
+        "proof"
+      ],
+      "type": "object"
+    },
+    "SenderPublicJwk": {
+      "additionalProperties": false,
+      "properties": {
+        "crv": {
+          "type": "string"
+        },
+        "kty": {
+          "type": "string"
+        },
+        "x": {
+          "type": "string"
+        },
+        "y": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "crv",
+        "kty",
+        "x",
+        "y"
+      ],
+      "type": "object"
+    }
+  },
   "$id": "https://schemas.snapback.dev/snapback.v0/auth.exchange.input.schema.json",
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
@@ -8,6 +54,17 @@
     },
     "code": {
       "type": "string"
+    },
+    "senderConstraint": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SenderExchangeConstraint"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "description": "Hosted browser exchange binds a fresh non-extractable key before the\ncredential can be published. Local bearer-v1 exchange omits this\nmember; a hosted target requires it at the route boundary.\n\n@ref LLP 0077#issuance-refresh-and-recovery — an existing bearer is\nnever upgraded by attaching a key after issuance."
     }
   },
   "required": [

@@ -378,14 +378,7 @@ impl StreamAttemptRegistry {
                         .collect(),
                     row.terminal.clone(),
                 ),
-                None => (
-                    Uuid::new_v4().to_string(),
-                    1,
-                    0,
-                    0,
-                    BTreeMap::new(),
-                    None,
-                ),
+                None => (Uuid::new_v4().to_string(), 1, 0, 0, BTreeMap::new(), None),
             };
         let lease_held = terminal.is_none();
         let record = AttemptRecord {
@@ -575,8 +568,7 @@ impl StreamAttemptRegistry {
                     }
                 }
                 Some(terminal) => {
-                    if record.open_cursor_count() > 0
-                        && record.lease_held_by(&runner.invocation_id)
+                    if record.open_cursor_count() > 0 && record.lease_held_by(&runner.invocation_id)
                     {
                         return Err(attempt_error(
                             "progress",
@@ -720,17 +712,23 @@ mod tests {
         let registry = registry();
         let first = runner();
         let second = runner();
-        let started = registry.start(1, "client-key", &first, None).expect("start");
+        let started = registry
+            .start(1, "client-key", &first, None)
+            .expect("start");
         assert!(started.lease_held);
         assert_eq!(started.runner_generation, 1);
 
-        let joined = registry.start(1, "client-key", &second, None).expect("join");
+        let joined = registry
+            .start(1, "client-key", &second, None)
+            .expect("join");
         assert_eq!(joined.attempt_token, started.attempt_token);
         assert!(!joined.lease_held, "a live holder keeps the lease");
         assert_eq!(joined.runner_generation, 1);
 
         // The same invocation re-starting still holds its lease.
-        let same = registry.start(1, "client-key", &first, None).expect("restart");
+        let same = registry
+            .start(1, "client-key", &first, None)
+            .expect("restart");
         assert!(same.lease_held);
     }
 
@@ -778,7 +776,11 @@ mod tests {
         let settled = registry.terminalize_invocation(&holder, StreamAttemptCause::TimedOut);
         assert_eq!(settled.len(), 1);
         let authored = registry
-            .settle(&started.attempt_token, StreamAttemptCause::Complete, &holder)
+            .settle(
+                &started.attempt_token,
+                StreamAttemptCause::Complete,
+                &holder,
+            )
             .expect("late authored settle receives the winner");
         assert_eq!(authored.cause, StreamAttemptCause::TimedOut);
         assert_eq!(authored.settled_by, StreamAttemptSettledBy::Terminalizer);
@@ -852,7 +854,9 @@ mod tests {
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
 
         // Before any progress commit a reopen (idempotent retry) is legal.
-        let fresh = registry.start(1, "retry-fresh", &holder, None).expect("start");
+        let fresh = registry
+            .start(1, "retry-fresh", &holder, None)
+            .expect("start");
         registry
             .bind_cursor(&fresh.attempt_token, "cursor-c", &holder)
             .expect("first open");
@@ -874,7 +878,11 @@ mod tests {
         // flight; the cursor closes with the settle, so the guard passes
         // afterwards — the fence is the terminal row itself.
         registry
-            .settle(&started.attempt_token, StreamAttemptCause::Cancelled, &holder)
+            .settle(
+                &started.attempt_token,
+                StreamAttemptCause::Cancelled,
+                &holder,
+            )
             .expect("authored cancel");
         assert!(registry.progress_guard(&holder).is_ok());
 

@@ -24,9 +24,10 @@ use std::fs;
 use std::path::PathBuf;
 
 use snapback::auth::deployment::{
-    AuthenticationThrottle, BrowserCredentialPosture, BrowserDirectBearerSeam, EffectiveSource,
-    ExternalTls, HOSTED_ADMISSION_MAX_SAFE_INTEGER, HostedAdmission, HostedAuthCapabilities,
-    HostedOperatorSurface, SessionInvalidation,
+    AuthenticationBucketPolicy, AuthenticationThrottle, BrowserCredentialPosture,
+    BrowserDirectBearerSeam, EffectiveSource, ExternalTls, HOSTED_ADMISSION_MAX_SAFE_INTEGER,
+    HostedAdmission, HostedAuthCapabilities, HostedOperatorSurface, SessionInvalidation,
+    SharedAuthenticationThrottleConfig,
 };
 use snapback::cron::{CronInspectState, CronRunOutcome, CronRunRecord, CronRunTrigger};
 use snapback::data_tier::{
@@ -69,6 +70,23 @@ fn retention_info() -> ClientMutationRetentionInfo {
     }
 }
 
+fn representative_authentication_throttle_config() -> SharedAuthenticationThrottleConfig {
+    let policy = AuthenticationBucketPolicy {
+        interval_ms: 10,
+        burst: 200,
+        maximum_denial_debt_attempts: 100,
+    };
+    SharedAuthenticationThrottleConfig {
+        retention_ms: 900_000,
+        maximum_key_count: 100_000,
+        global: policy,
+        source: policy,
+        subject: policy,
+        source_subject: policy,
+        family: policy,
+    }
+}
+
 fn representative_hosted_admission() -> HostedAdmission {
     HostedAdmission {
         version: 1,
@@ -79,6 +97,7 @@ fn representative_hosted_admission() -> HostedAdmission {
         issued_at_ms: 1_000,
         expires_at_ms: 301_000,
         limiter_epoch: 11,
+        authentication_throttle_config: representative_authentication_throttle_config(),
         invalidation_epoch: 13,
         handler_protocol_version: 1,
         handler_incarnation: "handler-1".to_owned(),

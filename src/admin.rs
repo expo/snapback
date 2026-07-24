@@ -778,6 +778,9 @@ pub struct AppState {
     /// Item-5 process authority. Production construction publishes this only
     /// after the durable stream migration and complete pre-bind rebuild.
     pub(crate) auth_coordinator: Option<Arc<crate::auth::coordinator::AuthCoordinator>>,
+    /// Provider-authenticated hosted origin/admission authority. It is absent
+    /// on every local target and cannot be synthesized from request headers.
+    pub(crate) hosted_serving: Option<Arc<crate::auth::deployment::HostedServingAuthority>>,
     /// Whether startup observed an exact ReadyV1 catalog. Keyring readiness is
     /// intentionally revalidated on every health projection.
     pub(crate) auth_catalog_ready: bool,
@@ -866,6 +869,7 @@ impl AppState {
                 impersonation_capabilities: None,
                 auth_provider: None,
                 auth_coordinator: None,
+                hosted_serving: None,
                 auth_catalog_ready: false,
                 auth_invalidation: Arc::new(StdRwLock::new(None)),
                 authorized_lease_config: AuthorizedLeaseConfig::default(),
@@ -946,6 +950,46 @@ impl AppState {
         self.auth_coordinator = Some(coordinator);
         self.auth_catalog_ready = catalog_ready;
         self
+    }
+
+    /// Install the target-authenticated hosted serving authority and create
+    /// its replay/nonce tables before any request can observe hosted posture.
+    #[allow(dead_code)] // First concrete adapter composition is the next LLP 0072 tranche.
+    pub(crate) fn with_hosted_serving_authority(
+        mut self,
+        authority: crate::auth::deployment::HostedServingAuthority,
+    ) -> Result<Self, SnapbackError> {
+        if self.server.auth_deployment != crate::auth::deployment::AuthDeploymentTarget::Hosted {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+                "auth-deployment",
+                "hosted serving authority requires a hosted target context",
+            ));
+        }
+        {
+            let mut snapback = self.snapback.try_lock().map_err(|_| {
+                SnapbackError::error(
+                    "SNAPBACK_AUTH_SENDER_PROOF_AUTHORITY_UNAVAILABLE",
+                    "auth",
+                    "sender proof authority could not be initialized",
+                )
+            })?;
+            snapback
+                .auth_database_mut()
+                .initialize_sender_proof_after_hosted_preflight()?;
+            snapback
+                .auth_database_mut()
+                .initialize_authentication_throttle_after_hosted_preflight()
+                .map_err(|_| {
+                    SnapbackError::error(
+                        "SNAPBACK_AUTH_THROTTLE_UNAVAILABLE",
+                        "auth",
+                        "shared authentication throttle could not be initialized",
+                    )
+                })?;
+        }
+        self.hosted_serving = Some(Arc::new(authority));
+        Ok(self)
     }
 
     /// Configure a shorter per-app authorization lease duration. This trusted
@@ -1155,6 +1199,18 @@ impl AppState {
     /// @ref LLP 0060#d1-plaintext-listener-fence — this local listener check
     /// does not attest a public reverse proxy or any hosted edge capability.
     pub fn validate_auth_transport(&self) -> Result<(), SnapbackError> {
+        if self.server.auth_deployment == crate::auth::deployment::AuthDeploymentTarget::Hosted {
+            return self
+                .hosted_serving
+                .as_ref()
+                .ok_or_else(|| {
+                    crate::auth::deployment::deployment_unsupported(
+                        crate::auth::deployment::HostedAuthCapabilities::local_target(),
+                    )
+                })?
+                .admission_epoch_at(now_millis())
+                .map(|_| ());
+        }
         let state = self.auth_mode_state();
         let posture = self.policy_auth_posture();
         let active =

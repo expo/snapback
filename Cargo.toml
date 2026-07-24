@@ -25,6 +25,7 @@ http-body = "1"
 ibex-runtime = { path = "vendor/ibex" }
 libc = "0.2"
 regex = "1"
+ring = "0.17"
 rusqlite = { version = "0.31", features = ["backup", "bundled", "column_decltype"] }
 ryu-js = "1.0.2"
 schemars = "1.2.1"

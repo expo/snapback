@@ -1,6 +1,6 @@
 # Sender-bound grants: proof on every carrier and route (no bare-bearer grant path)
 
-**Status:** Open
+**Status:** In Progress (2026-07-24 — enforcement closed; decision-6 grant-epoch member pending)
 **Severity:** P1
 **Systems:** Auth, HTTP, WebSocket, Hosted runtime, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -15,6 +15,19 @@ ordinary connection-token authentication and act as **bare bearers**, and the
 generic client hashes the session bearer into `ath` where a grant is the
 presented credential. The Spec requires a valid proof on **every** grant use,
 on both permitted carriers, with `ath` covering the grant token.
+
+**Progress (2026-07-24, re-landed on main):** the enforcement defect is
+closed. One carrier-neutral pre-body gate handles every connection-grant
+route and both WebSocket carriers; the client signs the grant token into
+`ath`. The served matrix covers all ten header routes plus the browser
+subprotocol carrier and refuses missing, malformed, wrong-`ath`, replayed,
+and unavailable-authority proofs without polling the body
+(`hosted_sender_issuance_session_and_refresh_compose_through_the_router`).
+LLP 0059 §BoundGrantAuthorityV2 is already amended on main; remaining here:
+the grant binding records the serving admission epoch, not the decision-6
+issuance `sender_replay_epoch` — switching the member and its
+equality/invalidation to the durable epoch rides the sender-replay-epoch
+ticket, after which defect 2's row loses its residual note.
 
 Depends on the versioned `BoundGrantAuthorityV2` shape (thumbprint + admission
 epoch) and its equality/invalidation rules plus the LLP 0059 amendment, tracked

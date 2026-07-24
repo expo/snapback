@@ -1,12 +1,25 @@
 # Distinct durable sender_replay_epoch with an atomic reset transaction
 
-**Status:** Open
+**Status:** In Progress (2026-07-24 — durable epoch + atomic reset landed; floor, straddle tests, grant member pending)
 **Severity:** P1
 **Systems:** Auth, Storage, Control plane, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-23
 **Related:** LLP 0077 §Nonce protocol (epoch lifecycle) + defect 10, LLP 0060 (serving admission epoch), LLP 0059 (authorization-stream incarnation), src/auth/sender_proof.rs (tables key on admission_epoch), src/storage/auth.rs (reset), issues/20260723-llp0077-rollback-ratchet.md, issues/20260723-llp0077-senderauth-program.md
 **Marker:** llp-0077, sender-auth, replay-epoch, security
+
+**Progress (2026-07-24, re-landed on main):** the distinct durable
+`sender_replay_epoch` exists (`_snapback_sender_replay_epoch` singleton,
+preserved across restart/rollout — the per-rollout resync storm is gone),
+and the LLP 0059 stream-reset transaction atomically advances it and clears
+the replay/nonce tables inside the same destructive cut that revokes the
+auth catalog (`reset_and_seed_transaction` →
+`rotate_sender_authority_for_stream_reset`). Remaining: the decision-1
+control-plane monotone floor outside the rolled-back durable set (effective
+epoch = max(incarnation-derived, floor)), rollout/restart/reset/declared-
+restore straddle tests, and switching the connection-grant binding member
+from the serving admission epoch to the issuance `sender_replay_epoch`
+(decision 6; coordinates with the grant-binding ticket).
 
 Closes LLP 0077 ledger **defect 10**. Replay and nonce tables key on LLP 0060's
 serving `admission_epoch` rather than a distinct durable `sender_replay_epoch`,

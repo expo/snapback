@@ -76,6 +76,12 @@ pub(crate) mod authorization;
 #[path = "storage/auth_invalidation.rs"]
 pub(crate) mod auth_invalidation;
 
+#[path = "storage/auth_sender.rs"]
+pub(crate) mod auth_sender;
+
+#[path = "storage/auth_throttle.rs"]
+pub(crate) mod auth_throttle;
+
 #[path = "storage/authorized_lease.rs"]
 pub(crate) mod authorized_lease;
 
@@ -768,6 +774,10 @@ fn reset_and_seed_transaction(
     seed: Option<SeedData>,
     successor: &crate::auth::session_projection::AuthorizationStreamIncarnation,
 ) -> SnapbackResult<Option<MutationOutput>> {
+    // @ref LLP 0077#issuance-refresh-and-recovery — the stream-incarnation
+    // reset advances sender replay authority and clears old proof/nonce state
+    // inside this same destructive transaction.
+    auth_sender::rotate_sender_authority_for_stream_reset(tx)?;
     // @ref LLP 0057#catalog-write-and-lifecycle-rules — auth state is
     // deleted in dependency order inside the same transaction as app reset,
     // while the protected catalog DDL and marker remain installed.
@@ -13068,6 +13078,79 @@ mod guarded_commit_tests {
         };
         let reopened = LocalDatabase::open(&path).expect("reopen database");
         assert_eq!(reopened.authorization_version().unwrap(), committed);
+    }
+
+    #[test]
+    fn sender_replay_epoch_survives_restart_and_rotates_atomically_with_stream_reset() {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("sender-replay-epoch.sqlite3");
+        let predecessor = {
+            let mut db = LocalDatabase::open(&path).expect("database");
+            db.apply_schema(permission_schema(None))
+                .expect("permission schema");
+            db.activate_current_auth_catalog()
+                .expect("activate auth catalog");
+            db.initialize_sender_proof_after_hosted_preflight()
+                .expect("initialize sender authority");
+            let epoch = crate::auth::sender_proof::sender_replay_epoch(&db.conn)
+                .expect("initial sender epoch");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_sender_proof_replay
+                     (admission_epoch, proof_id, expires_at_seconds)
+                     VALUES (?1, zeroblob(16), 999)",
+                    params![epoch as i64],
+                )
+                .expect("seed replay state");
+            db.conn
+                .execute(
+                    "INSERT INTO _snapback_sender_nonce
+                     (admission_epoch, jwk_thumbprint, generation, nonce,
+                      expires_at_seconds)
+                     VALUES (?1, ?2, 1, ?3, 999)",
+                    params![epoch as i64, "A".repeat(43), "B".repeat(43)],
+                )
+                .expect("seed nonce state");
+            epoch
+        };
+
+        let mut reopened = LocalDatabase::open(&path).expect("reopen database");
+        reopened
+            .apply_schema(permission_schema(None))
+            .expect("reload permission schema");
+        assert_eq!(
+            crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
+                .expect("restart sender epoch"),
+            predecessor,
+            "an ordinary restart or serving rollout cannot rotate sender replay state",
+        );
+
+        let before_stream = reopened.authorization_version().unwrap();
+        reopened
+            .reset_and_seed_with_authorization(None)
+            .expect("stream reset");
+        let after_stream = reopened.authorization_version().unwrap();
+        assert_ne!(after_stream.incarnation, before_stream.incarnation);
+        assert_eq!(
+            crate::auth::sender_proof::sender_replay_epoch(&reopened.conn)
+                .expect("rotated sender epoch"),
+            predecessor + 1,
+        );
+        let retained: (i64, i64) = reopened
+            .conn
+            .query_row(
+                "SELECT
+                   (SELECT COUNT(*) FROM _snapback_sender_proof_replay),
+                   (SELECT COUNT(*) FROM _snapback_sender_nonce)",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .expect("post-reset sender facts");
+        assert_eq!(
+            retained,
+            (0, 0),
+            "epoch advance and proof/nonce clearing share the reset transaction",
+        );
     }
 
     #[test]

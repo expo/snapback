@@ -24,6 +24,13 @@ import {
   validateScopeId,
 } from '@snapback/contract/auth-invalidation';
 import { isAgentAuthorityFence } from './agent-authority-brand.mjs';
+import {
+  canonicalSenderExternalUri,
+  createSenderIssuanceProofForCustody,
+  createSenderProofForCustody,
+  generateSenderConstraintKey,
+  isCanonicalSenderNonce,
+} from './sender-proof.mjs';
 
 export {
   AgentAuthorityFence,
@@ -83,6 +90,43 @@ export const LIVE_RECONNECT_MAX_DELAY_MS = 10_000;
 // Provider poll floor: the declared HTTP outbox drain cadence used as the
 // stream fallback and emitted by codegen as the manifest `pollCadenceMs`.
 export const DEFAULT_POLL_CADENCE_MS = 1_500;
+const SENDER_PROTOCOL = 'snapback.sender-constrained.v2';
+const SENDER_ISSUANCE_PROTOCOL = 'snapback.sender-issuance.v2';
+const SENDER_NONCE_TTL_MS = 120_000;
+const CONNECTION_TOKEN_HEADER = 'x-snapback-connection-token';
+
+const senderProofId = () => {
+  const value = new Uint8Array(16);
+  crypto.getRandomValues(value);
+  return value;
+};
+
+const senderNonceRecord = (value, generation) => {
+  if (!isCanonicalSenderNonce(value)
+      || !Number.isSafeInteger(generation) || generation < 1) {
+    throw new Error('SNAPBACK_AUTH_SENDER_PROOF_INVALID: response nonce is invalid');
+  }
+  const expiresAtMs = Date.now() + SENDER_NONCE_TTL_MS;
+  if (!Number.isSafeInteger(expiresAtMs)) {
+    throw new Error('SNAPBACK_AUTH_SENDER_CUSTODY_GENERATION_EXHAUSTED: nonce deadline overflow');
+  }
+  return { value, generation, expiresAtMs };
+};
+
+const senderIndeterminateSuccessError = () => {
+  const error = new Error(
+    'SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE: protected success omitted its successor nonce',
+  );
+  error.code = 'SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE';
+  error.diagnostic = {
+    code: error.code,
+    message: 'the protected operation may have committed; retry only through application idempotency',
+  };
+  error.outcome = 'indeterminate';
+  error.effectMayHaveCommitted = true;
+  error.retryable = false;
+  return error;
+};
 // Grace before the fallback path re-subscribes after a socket loss, so the
 // server has processed the closing socket's disconnect (which drops the
 // connection's subscriptions) before the fresh subscribe_live lands.
@@ -153,6 +197,13 @@ const sameAuthorityCapture = (left, right) => {
   ];
   return axes.every((axis) => left?.[axis] === right?.[axis]);
 };
+
+const sameAuthorityLineage = (left, right) => Boolean(
+  left
+  && right
+  && left.authorityEpoch === right.authorityEpoch
+  && left.authorityKey === right.authorityKey
+);
 
 const processClientStoreId = (() => {
   const randomId = globalThis.crypto?.randomUUID?.();
@@ -924,6 +975,10 @@ const LOCAL_ISSUER_FAILURES = new Map([
     code: 'SNAPBACK_AUTH_REFRESH_SUPERSEDED',
     message: 'the session refresh was superseded',
   }],
+  ['POST /auth/refresh 401 SNAPBACK_AUTH_SENDER_PROOF_REQUIRED', {
+    code: 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED',
+    message: 'the sender proof nonce must be refreshed',
+  }],
 ]);
 
 const localIssuerFailure = (method, path, status, value) => {
@@ -1008,6 +1063,7 @@ export class SnapbackClient {
     authorizedLeaseProtocol = null,
     authCoordinator = null,
     agentAuthority = null,
+    senderConstrained = false,
     clientStoreId = processClientStoreId,
     authCounterCeiling = Number.MAX_SAFE_INTEGER,
   } = {}) {
@@ -1022,6 +1078,13 @@ export class SnapbackClient {
     if ((authCoordinator || agentAuthority) && bearerToken !== null) {
       throw new TypeError('bearerToken cannot bypass browser or agent custody');
     }
+    if (typeof senderConstrained !== 'boolean') {
+      throw new TypeError('senderConstrained must be boolean');
+    }
+    if (senderConstrained && !authCoordinator) {
+      throw new TypeError('senderConstrained browser transport requires AuthCoordinator custody');
+    }
+    if (senderConstrained) canonicalSenderExternalUri(this.baseUrl, '/auth/session');
     if (authClientProtocol === 1 && !authCoordinator && !agentAuthority) {
       throw new TypeError('authClientProtocol v1 requires browser or agent authority custody');
     }
@@ -1031,6 +1094,7 @@ export class SnapbackClient {
     }
     this.bearerToken = bearerToken;
     this.authCoordinator = authCoordinator;
+    this.senderConstrained = senderConstrained;
     this.agentAuthority = agentAuthority;
     this.authorityFence = authCoordinator ?? agentAuthority;
     this.clientStoreId = clientStoreId;
@@ -1879,15 +1943,205 @@ export class SnapbackClient {
     });
   }
 
-  async #fetchAuthSessionWithBearer(bearer) {
+  async #prepareSenderAttempt(
+    method,
+    path,
+    capture,
+    headers,
+    {
+      accessToken = null,
+      includeAuthorization = true,
+      credential: preparedCredential = null,
+    } = {},
+  ) {
+    const credential = preparedCredential
+      ?? this.authCoordinator.senderCredentialFor(capture);
+    const sender = credential.senderConstraint;
+    const proofAccessToken = accessToken ?? credential.bearer;
+    const proof = await createSenderProofForCustody({
+      privateKey: sender.privateKey,
+      publicJwk: sender.publicJwk,
+      method,
+      canonicalExternalUri: canonicalSenderExternalUri(this.baseUrl, path),
+      accessToken: proofAccessToken,
+      nonce: sender.nonce.value,
+      issuedAtSeconds: Math.floor(Date.now() / 1_000),
+      proofId: senderProofId(),
+    });
+    return {
+      credential,
+      forbiddenSecrets: [
+        credential.bearer,
+        sender.nonce.value,
+        sender.thumbprint,
+        sender.publicJwk.x,
+        sender.publicJwk.y,
+        proofAccessToken,
+        ...proof.split('.'),
+      ],
+      headers: {
+        ...(headers ?? {}),
+        ...(includeAuthorization
+          ? { authorization: `Bearer ${credential.bearer}` }
+          : {}),
+        dpop: proof,
+      },
+    };
+  }
+
+  // @ref LLP 0077#websocket-and-connection-binding — grant-token ath, not the unrelated session bearer, binds every socket proof.
+  async liveStreamProtocolsFor(grant, path, capture, preparedCredential = null) {
+    const offered = liveStreamProtocols(grant, this.authProtocols);
+    if (!this.senderConstrained) return offered;
+    const credential = preparedCredential
+      ?? this.authCoordinator.senderCredentialFor(capture);
+    const sender = credential.senderConstraint;
+    const proof = await createSenderProofForCustody({
+      privateKey: sender.privateKey,
+      publicJwk: sender.publicJwk,
+      method: 'GET',
+      canonicalExternalUri: canonicalSenderExternalUri(this.baseUrl, path),
+      accessToken: grant.token,
+      nonce: sender.nonce.value,
+      issuedAtSeconds: Math.floor(Date.now() / 1_000),
+      proofId: senderProofId(),
+    });
+    return [...offered, `snapback.sender-proof.${proof}`];
+  }
+
+  async #senderFetchJson(
+    method,
+    path,
+    body,
+    headers,
+    capture,
+    options = {},
+    challengeRetry = true,
+    serialized = false,
+    preparedCredential = null,
+  ) {
+    // @ref LLP 0077#browser-custody — proof creation, network completion, and successor CAS are one serialized flight.
+    if (!serialized) {
+      return this.authCoordinator.withSenderRequestSerialization(
+        capture,
+        ({ capture: currentCapture, credential }) => this.#senderFetchJson(
+          method,
+          path,
+          body,
+          headers,
+          currentCapture,
+          options,
+          challengeRetry,
+          true,
+          credential,
+        ),
+      );
+    }
+    const attempt = await this.#prepareSenderAttempt(method, path, capture, headers, {
+      credential: preparedCredential,
+    });
+    let nextCapture = null;
+    try {
+      const value = await this.#trackedFetchJson(method, path, body, attempt.headers, {
+        ...options,
+        forbiddenSecrets: [
+          ...(options.forbiddenSecrets ?? []),
+          ...attempt.forbiddenSecrets,
+        ],
+        onSenderNonce: async (value) => {
+          const rotated = await this.authCoordinator.compareAndRotateSenderCredential(capture, {
+            bearer: attempt.credential.bearer,
+            refreshAfterMs: attempt.credential.refreshAfterMs,
+            nonce: senderNonceRecord(
+              value,
+              attempt.credential.senderConstraint.nonce.generation + 1,
+            ),
+            expectedSenderGeneration:
+              attempt.credential.senderConstraint.custodyGeneration,
+          });
+          if (!rotated.rotated) throw staleAuthorityError();
+          nextCapture = rotated.capture;
+        },
+      });
+      if (nextCapture === null) {
+        throw senderIndeterminateSuccessError();
+      }
+      return { value, capture: nextCapture };
+    } catch (error) {
+      if (nextCapture !== null) markAuthorityCapture(error, nextCapture);
+      const code = error?.diagnostic?.code ?? error?.code;
+      if (
+        code === 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED'
+        && challengeRetry
+        && nextCapture !== null
+      ) {
+        return this.#senderFetchJson(
+          method,
+          path,
+          body,
+          headers,
+          nextCapture,
+          options,
+          false,
+          true,
+          null,
+        );
+      }
+      throw error;
+    }
+  }
+
+  async #fetchAuthSessionWithBearer(bearer, capture = null) {
     const offer = this.#authSessionOffer();
+    if (this.senderConstrained && bearer !== null && capture !== null) {
+      const sender = await this.#senderFetchJson(
+        'GET',
+        '/auth/session',
+        undefined,
+        this.#authOfferHeaders(true, bearer, offer),
+        capture,
+      );
+      return {
+        session: this.#validateAuthSession(sender.value, bearer, offer),
+        capture: sender.capture,
+      };
+    }
     const session = await this.#trackedFetchJson(
       'GET',
       '/auth/session',
       undefined,
       this.#authOfferHeaders(true, bearer, offer),
     );
-    return this.#validateAuthSession(session, bearer, offer);
+    return { session: this.#validateAuthSession(session, bearer, offer), capture };
+  }
+
+  async #recoverSenderStreamReplacement(capture, cacheGeneration) {
+    const coordinator = this.authCoordinator;
+    if (
+      !this.senderConstrained
+      || !coordinator
+      || !capture
+      || !coordinator.isCurrent(capture)
+    ) return null;
+    const predecessor = coordinator.credentialFor(capture).authority;
+    let session;
+    try {
+      ({ session } = await this.#fetchAuthSessionWithBearer(null));
+    } catch {
+      return null;
+    }
+    const observed = clientAuthorityFromHandshake(session);
+    if (
+      observed.kind !== 'anonymous'
+      || observed.authorizationStreamIncarnation
+        === predecessor.authorizationStreamIncarnation
+    ) return null;
+    const successor = await coordinator.transition(capture, {
+      authority: observed,
+      bearer: null,
+      refreshAfterMs: null,
+    }, 'sender_authorization_stream_replaced');
+    return this.#commitAuthSession(session, successor, cacheGeneration);
   }
 
   async #coordinatedAuthSession({
@@ -1900,7 +2154,7 @@ export class SnapbackClient {
 
     if (capture === null) {
       try {
-        const session = await this.#fetchAuthSessionWithBearer(null);
+        const { session } = await this.#fetchAuthSessionWithBearer(null);
         const authority = clientAuthorityFromHandshake(session);
         if (authority.kind !== 'anonymous') {
           throw staleAuthorityError();
@@ -1929,7 +2183,9 @@ export class SnapbackClient {
 
     const credential = coordinator.credentialFor(capture);
     try {
-      const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
+      const fetched = await this.#fetchAuthSessionWithBearer(credential.bearer, capture);
+      const session = fetched.session;
+      capture = fetched.capture;
       if (!coordinator.isCurrent(capture)) {
         if (retry) {
           return this.#coordinatedAuthSession({
@@ -1949,12 +2205,24 @@ export class SnapbackClient {
       }
       return await this.#commitAuthSession(session, capture, cacheGeneration);
     } catch (error) {
+      const code = error?.diagnostic?.code ?? error?.code;
+      const responseCapture = error?.[AUTHORITY_CAPTURE] ?? null;
+      if (responseCapture && coordinator.isCurrent(responseCapture)) {
+        capture = responseCapture;
+      }
       if (
         this.__authSessionCacheGeneration === cacheGeneration
         && !isUnavailableAuthTransport(error)
       ) {
         this.__authSessionLastSuccessful = null;
         this.__authSessionCapture = null;
+      }
+      if (code === 'SNAPBACK_AUTH_SENDER_PROOF_INVALID') {
+        const recovered = await this.#recoverSenderStreamReplacement(
+          capture,
+          cacheGeneration,
+        );
+        if (recovered !== null) return recovered;
       }
       if (
         (error?.code === 'SNAPBACK_CLIENT_AUTHORITY_STALE' || !coordinator.isCurrent(capture))
@@ -1971,7 +2239,9 @@ export class SnapbackClient {
 
   async #resumeAuthTransport(capture, stagePublication) {
     const credential = this.authCoordinator.credentialFor(capture);
-    const session = await this.#fetchAuthSessionWithBearer(credential.bearer);
+    const fetched = await this.#fetchAuthSessionWithBearer(credential.bearer, capture);
+    const session = fetched.session;
+    capture = fetched.capture;
     const observed = clientAuthorityFromHandshake(session);
     if (!sameClientAuthority(observed, credential.authority)) {
       const error = new Error(
@@ -2196,6 +2466,7 @@ export class SnapbackClient {
   async #request(method, path, body, headers, {
     admin = false,
     supersededRetry = true,
+    senderChallengeRetry = true,
     expectedAuthorityCapture = null,
   } = {}) {
     this.#assertAuthCountersAvailable();
@@ -2271,38 +2542,115 @@ export class SnapbackClient {
         ) : {}),
         ...(headers ?? {}),
       };
-      let requestTask = null;
-      if (this.authorityFence && capture) {
-        // Start the actual fetch synchronously inside the final durable
-        // comparison. Returning the Promise from this callback would violate
-        // the custody contract, so retain it locally and await only after the
-        // lock releases. A peer transition can therefore refuse the old
-        // intent, but can never reinterpret it as a successor-authority call.
-        const started = await this.commitAuthorityPublication(
-          expectedAuthorityCapture ?? capture,
-          () => {
-            requestTransportGeneration = this.__authTransportGeneration;
-            requestTask = this.#trackedFetchJson(method, path, wireBody, merged);
-          },
-        );
-        if (!started.committed || requestTask === null) throw staleAuthorityError();
-      } else {
-        requestTransportGeneration = this.__authTransportGeneration;
-        requestTask = this.#trackedFetchJson(method, path, wireBody, merged);
+      const connectionGrantToken = merged[CONNECTION_TOKEN_HEADER] ?? null;
+      if (connectionGrantToken !== null) {
+        delete merged.authorization;
       }
-      const result = await requestTask;
-      if (!this.authorityFence || !capture) return result;
-      if (
-        requestTransportGeneration !== this.__authTransportGeneration
-        || !this.authorityFence.isCurrent(capture)
-      ) throw staleAuthorityError();
-      const committed = await this.commitAuthorityPublication(capture, () => (
-        markAuthorityCapture(result, capture)
-      ));
-      if (!committed.committed) throw staleAuthorityError();
-      return committed.value;
+      let senderAttempt = null;
+      let senderNonceRotated = false;
+      const senderEligible = (
+        this.senderConstrained
+        && this.authCoordinator
+        && capture
+        && bearerUsed
+        && !admin
+      );
+      const dispatch = async (serializedPrepared = null) => {
+        if (serializedPrepared !== null) {
+          capture = serializedPrepared.capture;
+          bearerUsed = serializedPrepared.credential.bearer;
+          if (
+            expectedAuthorityCapture
+            && !sameAuthorityLineage(capture, expectedAuthorityCapture)
+          ) throw staleAuthorityError();
+          if (connectionGrantToken === null) {
+            merged.authorization = `Bearer ${bearerUsed}`;
+          } else {
+            delete merged.authorization;
+          }
+        }
+        if (senderEligible) {
+        senderAttempt = await this.#prepareSenderAttempt(method, path, capture, merged, {
+          accessToken: connectionGrantToken,
+          includeAuthorization: connectionGrantToken === null,
+          credential: serializedPrepared?.credential ?? null,
+        });
+        Object.assign(merged, senderAttempt.headers);
+        }
+        const senderFetchOptions = senderAttempt === null ? {} : {
+          forbiddenSecrets: senderAttempt.forbiddenSecrets,
+          onSenderNonce: async (value) => {
+            const rotated = await this.authCoordinator.compareAndRotateSenderCredential(capture, {
+              bearer: senderAttempt.credential.bearer,
+              refreshAfterMs: senderAttempt.credential.refreshAfterMs,
+              nonce: senderNonceRecord(
+                value,
+                senderAttempt.credential.senderConstraint.nonce.generation + 1,
+              ),
+              expectedSenderGeneration:
+                senderAttempt.credential.senderConstraint.custodyGeneration,
+            });
+            if (!rotated.rotated) throw staleAuthorityError();
+            capture = rotated.capture;
+            senderNonceRotated = true;
+          },
+        };
+        let requestTask = null;
+        if (this.authorityFence && capture) {
+          // Start the actual fetch synchronously inside the final durable
+          // comparison. Returning the Promise from this callback would violate
+          // the custody contract, so retain it locally and await only after the
+          // lock releases. A peer transition can therefore refuse the old
+          // intent, but can never reinterpret it as a successor-authority call.
+          const started = await this.commitAuthorityPublication(
+            senderAttempt === null ? (expectedAuthorityCapture ?? capture) : capture,
+            () => {
+              requestTransportGeneration = this.__authTransportGeneration;
+              requestTask = this.#trackedFetchJson(
+                method,
+                path,
+                wireBody,
+                merged,
+                senderFetchOptions,
+              );
+            },
+          );
+          if (!started.committed || requestTask === null) throw staleAuthorityError();
+        } else {
+          requestTransportGeneration = this.__authTransportGeneration;
+          requestTask = this.#trackedFetchJson(
+            method,
+            path,
+            wireBody,
+            merged,
+            senderFetchOptions,
+          );
+        }
+        const result = await requestTask;
+        if (senderAttempt !== null && !senderNonceRotated) {
+          throw senderIndeterminateSuccessError();
+        }
+        if (!this.authorityFence || !capture) return result;
+        if (
+          requestTransportGeneration !== this.__authTransportGeneration
+          || !this.authorityFence.isCurrent(capture)
+        ) throw staleAuthorityError();
+        const committed = await this.commitAuthorityPublication(capture, () => (
+          markAuthorityCapture(result, capture)
+        ));
+        if (!committed.committed) throw staleAuthorityError();
+        return committed.value;
+      };
+      return senderEligible
+        ? await this.authCoordinator.withSenderRequestSerialization(capture, dispatch)
+        : await dispatch();
     } catch (error) {
       const code = error?.diagnostic?.code ?? error?.code;
+      const responseCapture = error?.[AUTHORITY_CAPTURE] ?? null;
+      if (
+        responseCapture
+        && this.authorityFence?.isCurrent?.(responseCapture)
+      ) capture = responseCapture;
       if (this.authorityFence && capture) markAuthorityCapture(error, capture);
       if (
         this.authorityFence
@@ -2311,6 +2659,20 @@ export class SnapbackClient {
         && !this.#isTerminalAuthorityCapture(capture)
       ) {
         throw staleAuthorityError();
+      }
+      if (
+        code === 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED'
+        && senderChallengeRetry
+        && senderNonceRotated
+        && this.authCoordinator
+        && capture
+      ) {
+        return this.#request(method, path, body, headers, {
+          admin,
+          supersededRetry,
+          senderChallengeRetry: false,
+          expectedAuthorityCapture: capture,
+        });
       }
       if (this.authorityFence && capture && error?.receipt) {
         markAuthorityCapture(error.receipt, capture);
@@ -2325,6 +2687,7 @@ export class SnapbackClient {
           return this.#request(method, path, body, headers, {
             admin,
             supersededRetry: false,
+            senderChallengeRetry,
             expectedAuthorityCapture,
           });
         }
@@ -2399,13 +2762,27 @@ export class SnapbackClient {
       signal = undefined,
       successfulResponseFacts = false,
       opaqueSuccessFailure = false,
+      includeSenderNonce = false,
+      onSenderNonce = null,
+      onSenderErrorNonce = null,
+      forbiddenSecrets = [],
     } = {},
   ) {
+    if (includeSenderNonce && onSenderNonce !== null) {
+      throw new TypeError('sender nonce must have one transport owner');
+    }
+    if (onSenderNonce !== null && typeof onSenderNonce !== 'function') {
+      throw new TypeError('onSenderNonce must be a function');
+    }
+    if (onSenderErrorNonce !== null && typeof onSenderErrorNonce !== 'function') {
+      throw new TypeError('onSenderErrorNonce must be a function');
+    }
     const merged = {
       ...(body === undefined ? {} : { 'content-type': 'application/json' }),
       ...(headers ?? {}),
     };
     const requestSecrets = collectRequestSecrets(body, merged);
+    for (const secret of forbiddenSecrets) addSecret(requestSecrets, secret);
     let res;
     let text;
     try {
@@ -2418,6 +2795,24 @@ export class SnapbackClient {
     } catch (error) {
       if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
       throw sanitizeTransportError(error, requestSecrets);
+    }
+    const responseSenderNonce = res.headers.get('dpop-nonce');
+    if (responseSenderNonce !== null && !isCanonicalSenderNonce(responseSenderNonce)) {
+      if (opaqueSuccessFailure) throw opaqueCredentialResponseError();
+      const error = new Error('SNAPBACK_AUTH_SENDER_PROOF_INVALID: response nonce is invalid');
+      error.code = 'SNAPBACK_AUTH_SENDER_PROOF_INVALID';
+      error.diagnostic = {
+        code: error.code,
+        message: 'sender-constrained response nonce is invalid',
+      };
+      throw error;
+    }
+    if (responseSenderNonce !== null) addSecret(requestSecrets, responseSenderNonce);
+    if (responseSenderNonce !== null && onSenderNonce !== null) {
+      await onSenderNonce(responseSenderNonce);
+    }
+    if (responseSenderNonce !== null && !res.ok && onSenderErrorNonce !== null) {
+      await onSenderErrorNonce(responseSenderNonce);
     }
     try {
       text = await res.text();
@@ -2483,7 +2878,7 @@ export class SnapbackClient {
       error.status = res.status;
       throw error;
     }
-    return json;
+    return includeSenderNonce ? { body: json, senderNonce: responseSenderNonce } : json;
   }
 
   #req(method, path, body, headers, options = undefined) {
@@ -2529,13 +2924,65 @@ export class SnapbackClient {
     if (predecessor.authority.kind !== 'anonymous') {
       throw staleAuthorityError();
     }
-    const response = this.#validateCredentialResponse(await this.#trackedFetchJson(
-      'POST',
-      '/auth/exchange',
-      { challengeId, code },
-      this.#authOfferHeaders(true, null),
-      { opaqueSuccessFailure: true },
-    ), [challengeId, code]);
+    let senderConstraint = null;
+    let requestBody = { challengeId, code };
+    let responseEnvelope;
+    if (this.senderConstrained) {
+      const generated = await generateSenderConstraintKey();
+      const proof = await createSenderIssuanceProofForCustody({
+        privateKey: generated.privateKey,
+        publicJwk: generated.publicJwk,
+        challengeId,
+        canonicalExchangeUri: canonicalSenderExternalUri(this.baseUrl, '/auth/exchange'),
+        issuedAtSeconds: Math.floor(Date.now() / 1_000),
+        proofId: senderProofId(),
+      });
+      requestBody = {
+        challengeId,
+        code,
+        senderConstraint: {
+          protocol: SENDER_ISSUANCE_PROTOCOL,
+          publicJwk: generated.publicJwk,
+          proof,
+        },
+      };
+      responseEnvelope = await this.#trackedFetchJson(
+        'POST',
+        '/auth/exchange',
+        requestBody,
+        this.#authOfferHeaders(true, null),
+        { opaqueSuccessFailure: true, includeSenderNonce: true },
+      );
+      if (responseEnvelope.senderNonce === null) {
+        throw senderIndeterminateSuccessError();
+      }
+      if (!isCanonicalSenderNonce(responseEnvelope.senderNonce)) {
+        throw opaqueCredentialResponseError();
+      }
+      senderConstraint = {
+        formatVersion: 1,
+        protocol: SENDER_PROTOCOL,
+        custodyGeneration: 1,
+        privateKey: generated.privateKey,
+        publicJwk: generated.publicJwk,
+        thumbprint: generated.thumbprint,
+        nonce: senderNonceRecord(responseEnvelope.senderNonce, 1),
+      };
+    } else {
+      responseEnvelope = {
+        body: await this.#trackedFetchJson(
+          'POST',
+          '/auth/exchange',
+          requestBody,
+          this.#authOfferHeaders(true, null),
+          { opaqueSuccessFailure: true },
+        ),
+      };
+    }
+    const response = this.#validateCredentialResponse(
+      responseEnvelope.body,
+      [challengeId, code],
+    );
     const authority = credentialAuthority(
       response,
       'sessions',
@@ -2545,11 +2992,138 @@ export class SnapbackClient {
       authority,
       bearer: response.token,
       refreshAfterMs: response.refreshAfter,
+      ...(senderConstraint === null ? {} : { senderConstraint }),
     }, 'login');
     return credentialPublicProjection(response);
   }
 
-  async authRefresh() {
+  async #authRefreshSender({
+    currentDescriptor,
+    capture,
+    suspect,
+    senderChallengeRetry,
+    serialized = false,
+  }) {
+    if (!serialized) {
+      return this.authCoordinator.withSenderRequestSerialization(
+        capture,
+        ({ capture: currentCapture, credential }) => this.#authRefreshSender({
+          currentDescriptor,
+          capture: currentCapture,
+          suspect: credential.bearer,
+          senderChallengeRetry,
+          serialized: true,
+        }),
+      );
+    }
+    let challengeCapture = null;
+    try {
+      const outcome = await this.authCoordinator.withSenderCredentialRotation(
+        capture,
+        async ({ bearer, authority, refreshAfterMs, senderConstraint }) => {
+          const proof = await createSenderProofForCustody({
+            privateKey: senderConstraint.privateKey,
+            publicJwk: senderConstraint.publicJwk,
+            method: 'POST',
+            canonicalExternalUri: canonicalSenderExternalUri(this.baseUrl, '/auth/refresh'),
+            accessToken: bearer,
+            nonce: senderConstraint.nonce.value,
+            issuedAtSeconds: Math.floor(Date.now() / 1_000),
+            proofId: senderProofId(),
+          });
+          const envelope = await this.#trackedFetchJson(
+            'POST',
+            '/auth/refresh',
+            {},
+            {
+              ...this.#authOfferHeaders(true, bearer),
+              dpop: proof,
+            },
+            {
+              opaqueSuccessFailure: true,
+              includeSenderNonce: true,
+              onSenderErrorNonce: async (value) => {
+                const rotated = await this.authCoordinator.compareAndRotateSenderCredential(
+                  capture,
+                  {
+                    bearer,
+                    refreshAfterMs,
+                    nonce: senderNonceRecord(
+                      value,
+                      senderConstraint.nonce.generation + 1,
+                    ),
+                    expectedSenderGeneration: senderConstraint.custodyGeneration,
+                  },
+                );
+                if (!rotated.rotated) throw staleAuthorityError();
+                challengeCapture = rotated.capture;
+              },
+            },
+          );
+          if (envelope.senderNonce === null) {
+            throw senderIndeterminateSuccessError();
+          }
+          if (!isCanonicalSenderNonce(envelope.senderNonce)) {
+            throw opaqueCredentialResponseError();
+          }
+          const response = this.#validateCredentialResponse(envelope.body, [bearer]);
+          const observed = credentialAuthority(
+            response,
+            'sessions',
+            authority.authorizationStreamIncarnation,
+          );
+          if (!sameClientAuthority(observed, authority)
+              || response.authorityDescriptor.authorityInstanceId
+                !== currentDescriptor.authorityInstanceId) {
+            throw opaqueCredentialResponseError();
+          }
+          return {
+            bearer: response.token,
+            refreshAfterMs: response.refreshAfter,
+            nonce: senderNonceRecord(
+              envelope.senderNonce,
+              senderConstraint.nonce.generation + 1,
+            ),
+            value: credentialPublicProjection(response),
+          };
+        },
+      );
+      if (!outcome.rotated) {
+        const successor = await this.authCoordinator.waitForNewerRevision(capture);
+        if (successor) return { superseded: true };
+        throw staleAuthorityError();
+      }
+      this.clearAuthSession();
+      return outcome.value;
+    } catch (error) {
+      const errorCode = error?.diagnostic?.code ?? error?.code;
+      if (
+        errorCode === 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED'
+        && senderChallengeRetry
+        && challengeCapture !== null
+      ) {
+        this.clearAuthSession();
+        return this.#authRefreshSender({
+          currentDescriptor,
+          capture: challengeCapture,
+          suspect,
+          senderChallengeRetry: false,
+          serialized: true,
+        });
+      }
+      if (!SUPERSEDED_AUTH_CODES.has(errorCode)) throw error;
+      const successor = await this.authCoordinator.waitForNewerRevision(capture);
+      if (successor) return { superseded: true };
+      try { await this.#familyAlarmWithBearer(suspect); } catch { /* named residual */ }
+      await this.authCoordinator.compareAndClear(
+        capture,
+        'refresh_superseded_without_successor',
+      );
+      throw error;
+    }
+  }
+
+  async authRefresh({ senderChallengeRetry = true } = {}) {
     if (!this.authCoordinator) {
       throw new TypeError('authRefresh requires AuthCoordinator custody');
     }
@@ -2558,6 +3132,14 @@ export class SnapbackClient {
     );
     const capture = this.authCoordinator.capture();
     const suspect = this.authCoordinator.credentialFor(capture).bearer;
+    if (this.senderConstrained) {
+      return this.#authRefreshSender({
+        currentDescriptor,
+        capture,
+        suspect,
+        senderChallengeRetry,
+      });
+    }
     try {
       const outcome = await this.authCoordinator.withCredentialRotation(
         capture,
@@ -2621,7 +3203,7 @@ export class SnapbackClient {
       throw new TypeError('authLogout requires AuthCoordinator custody');
     }
     await this.authSession();
-    const capture = this.authCoordinator.capture();
+    let capture = this.authCoordinator.capture();
     const credential = this.authCoordinator.credentialFor(capture);
     const bearer = credential.bearer;
     // @ref LLP 0060#c1-the-v1-custody-claim — exact empty 204 is the only
@@ -2633,13 +3215,26 @@ export class SnapbackClient {
     // is still rejected by compareAndClear below.
     // @ref LLP 0060#c1-the-v1-custody-claim — self-terminal logout owns its
     // response through the captured-authority clear boundary.
-    const response = await this.#fetchJson(
-      'POST',
-      '/auth/logout',
-      {},
-      this.#authOfferHeaders(true, bearer),
-      { successfulResponseFacts: true },
-    );
+    const response = this.senderConstrained
+      ? await (async () => {
+          const sender = await this.#senderFetchJson(
+            'POST',
+            '/auth/logout',
+            {},
+            this.#authOfferHeaders(true, bearer),
+            capture,
+            { successfulResponseFacts: true },
+          );
+          capture = sender.capture;
+          return sender.value;
+        })()
+      : await this.#fetchJson(
+          'POST',
+          '/auth/logout',
+          {},
+          this.#authOfferHeaders(true, bearer),
+          { successfulResponseFacts: true },
+        );
     const cleared = await this.authCoordinator.compareAndClear(capture, 'logout');
     if (!cleared.cleared) {
       let terminallyAnonymous = false;
@@ -3198,11 +3793,60 @@ export class SnapbackClient {
         authorityCapture = this.authorityFence?.capture?.() ?? null;
         return this.connectionGrant(connectionId);
       })
-      .then((grant) => {
-      authorityCapture = grant?.[AUTHORITY_CAPTURE] ?? authorityCapture;
-      const url = `${this.baseUrl.replace(/^http/, 'ws')}/live/${grant.id}/stream`;
-      const ws = new WebSocket(url, liveStreamProtocols(grant, this.authProtocols));
+      .then(async (grant) => {
+      authorityCapture = this.authorityFence?.capture?.()
+        ?? grant?.[AUTHORITY_CAPTURE]
+        ?? authorityCapture;
+      const path = `/live/${grant.id}/stream`;
+      const url = `${this.baseUrl.replace(/^http/, 'ws')}${path}`;
+      let senderFlight = null;
+      let senderFlightTimer = null;
+      const releaseSenderFlight = () => {
+        if (senderFlightTimer !== null) {
+          cancelTimeout(senderFlightTimer);
+          senderFlightTimer = null;
+        }
+        const releasing = senderFlight;
+        senderFlight = null;
+        if (releasing !== null) void releasing.release().catch(fail);
+      };
+      let offeredProtocols;
+      try {
+        if (this.senderConstrained) {
+          senderFlight = await this.authCoordinator.beginSenderRequestSerialization(
+            authorityCapture,
+          );
+          authorityCapture = senderFlight.capture;
+        }
+        offeredProtocols = await this.liveStreamProtocolsFor(
+          grant,
+          path,
+          authorityCapture,
+          senderFlight?.credential ?? null,
+        );
+      } catch (error) {
+        releaseSenderFlight();
+        throw error;
+      }
+      let ws;
+      try {
+        ws = new WebSocket(url, offeredProtocols);
+      } catch (error) {
+        releaseSenderFlight();
+        throw error;
+      }
       wsRef = ws;
+      if (senderFlight !== null) {
+        senderFlightTimer = scheduleTimeout(() => {
+          releaseSenderFlight();
+          try { ws.close(); } catch { /* the failed constructor owns refusal */ }
+          fail(new Error('Snapback sender-constrained live stream timed out before opening'));
+        }, LIVE_FRESHNESS_BUDGET_MS);
+        senderFlightTimer.unref?.();
+        ws.addEventListener('open', releaseSenderFlight, { once: true });
+        ws.addEventListener('error', releaseSenderFlight, { once: true });
+        ws.addEventListener('close', releaseSenderFlight, { once: true });
+      }
       ws.addEventListener('message', async (event) => {
         try {
           const update = JSON.parse(await websocketText(event.data));
@@ -4939,16 +5583,43 @@ class LiveStreamManager {
       return (refreshGrant
         ? this.client.refreshConnectionGrant(this.connectionId)
         : this.client.connectionGrant(this.connectionId))
-        .then((grant) => ({
-          grant,
-          authorityCapture: grant?.[AUTHORITY_CAPTURE] ?? authorityCapture,
-        }));
+        .then(async (grant) => {
+          let captured = this.client.authorityFence?.capture?.()
+            ?? grant?.[AUTHORITY_CAPTURE]
+            ?? authorityCapture;
+          let senderFlight = null;
+          if (this.client.senderConstrained) {
+            senderFlight = await this.client.authCoordinator
+              .beginSenderRequestSerialization(captured);
+            captured = senderFlight.capture;
+          }
+          const path = `/live/${grant.id}/stream`;
+          try {
+            return {
+              grant,
+              authorityCapture: captured,
+              offeredProtocols: await this.client.liveStreamProtocolsFor(
+                grant,
+                path,
+                captured,
+                senderFlight?.credential ?? null,
+              ),
+              senderFlight,
+            };
+          } catch (error) {
+            await senderFlight?.release().catch(() => {});
+            throw error;
+          }
+        });
     });
     grantPromise.then(
-      ({ grant, authorityCapture }) => {
+      ({ grant, authorityCapture, offeredProtocols, senderFlight }) => {
         this.connectPending = false;
-        if (this.closed) return;
-        this.#openSocket(grant, authorityCapture);
+        if (this.closed) {
+          void senderFlight?.release().catch(() => {});
+          return;
+        }
+        this.#openSocket(grant, authorityCapture, offeredProtocols, senderFlight);
       },
       () => {
         this.connectPending = false;
@@ -4959,12 +5630,31 @@ class LiveStreamManager {
     );
   }
 
-  #openSocket(grant, authorityCapture = null) {
+  #openSocket(
+    grant,
+    authorityCapture = null,
+    offeredProtocols = null,
+    senderFlight = null,
+  ) {
     const url = this.#socketUrl(grant);
+    let releasingSenderFlight = senderFlight;
+    const releaseSenderFlight = () => {
+      const releasing = releasingSenderFlight;
+      releasingSenderFlight = null;
+      if (releasing !== null) {
+        void releasing.release().catch((error) => {
+          if (this.ws) this.#loseSocket(this.ws, error);
+        });
+      }
+    };
     let ws;
     try {
-      ws = new WebSocket(url, liveStreamProtocols(grant, this.client.authProtocols));
+      ws = new WebSocket(
+        url,
+        offeredProtocols ?? liveStreamProtocols(grant, this.client.authProtocols),
+      );
     } catch {
+      releaseSenderFlight();
       // Constructor failure (bad URL, blocked context) is a loss like any
       // other: let consumers engage their fallback on the first failure.
       if (this.attempts === 0) this.#emitState('lost', { wasOpen: false });
@@ -4979,6 +5669,7 @@ class LiveStreamManager {
       );
     } catch (error) {
       this.closed = true;
+      releaseSenderFlight();
       try { ws.close(); } catch { /* fail closed */ }
       this.#emitState('closed', { error });
       return;
@@ -4991,6 +5682,7 @@ class LiveStreamManager {
     // consumers in 'connecting' forever with no fallback. Treat it as a loss.
     const connectTimer = setTimeout(() => {
       if (this.ws === ws && !this.open) {
+        releaseSenderFlight();
         try {
           ws.close();
         } catch {
@@ -5003,6 +5695,7 @@ class LiveStreamManager {
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
       clearTimeout(connectTimer);
+      releaseSenderFlight();
       this.open = true;
       this.attempts = 0;
       this.lastActivityMs = Date.now();
@@ -5037,6 +5730,7 @@ class LiveStreamManager {
     });
     const onLoss = (event) => {
       clearTimeout(connectTimer);
+      releaseSenderFlight();
       if (event?.code === 4401 && event?.reason === 'auth_error') {
         this.#closeForAuthClose(ws);
         return;
@@ -5045,6 +5739,7 @@ class LiveStreamManager {
     };
     ws.addEventListener('close', onLoss, { once: true });
     ws.addEventListener('error', () => {
+      releaseSenderFlight();
       // Browser and undici sockets normally follow `error` with `close`, but
       // React Native may report a refused upgrade only as `error`. Waiting for
       // a close that never comes wedges the manager with a non-open socket and
@@ -5745,7 +6440,7 @@ export class EphemeralOverlay {
 // (browser WebSockets cannot set headers), alongside `snapback.v1` so the
 // server has a legal subprotocol to echo.
 function connectionTokenHeader(grant) {
-  return { 'x-snapback-connection-token': grant.token };
+  return { [CONNECTION_TOKEN_HEADER]: grant.token };
 }
 
 function liveStreamProtocols(grant, protocols = {}) {

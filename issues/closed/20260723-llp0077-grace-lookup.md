@@ -1,12 +1,20 @@
 # Sender lookup composes with LLP 0057 tombstone-grace resolution
 
-**Status:** Open
+**Status:** Closed (2026-07-24)
 **Severity:** P2
 **Systems:** Auth, Storage, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-23
 **Related:** LLP 0077 §HTTP binding (grace composition) + defect 3, LLP 0057 (tombstone-grace matrix), LLP 0059 (connection-open current-token-only carve-out), src/auth/sender_proof.rs (sender lookup join), issues/20260723-llp0077-senderauth-program.md
 **Marker:** llp-0077, sender-auth, grace
+
+**Resolution (2026-07-24, re-landed on main):** sender lookup includes the
+provider tombstone at the inclusive ten-second boundary for finite requests,
+refuses it immediately afterward and after revocation, and takes an explicit
+current-only flag for `/connection/open` (LLP 0059 carve-out). Witness:
+`sender_binding_lookup_honors_finite_grace_but_connection_open_is_current_only`
+covering current, in-grace boundary, grace-expired, and revoked states under
+one durable thumbprint.
 
 Closes LLP 0077 ledger **defect 3**. Sender lookup joins only the current
 `_auth_sessions.token_hash` with no tombstone/grace branch, so a proof-bearing

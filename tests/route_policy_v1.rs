@@ -1414,6 +1414,26 @@ fn session_http_body_probes() -> BTreeMap<(&'static str, &'static str), SessionB
                 forbidden_fields: handler_fields(),
             },
         ),
+        // LLP 0077's route-scoped LLP 0058 reorder keeps the forbidden-field
+        // check ahead of credential resolution on the sender-capable
+        // refresh/logout routes, so their body-rejection policy is executable
+        // here exactly like every other rejected route.
+        (
+            ("POST", "/auth/refresh"),
+            SessionBodyProbe {
+                uri: "/auth/refresh",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
+        (
+            ("POST", "/auth/logout"),
+            SessionBodyProbe {
+                uri: "/auth/logout",
+                base: json!({}),
+                forbidden_fields: handler_fields(),
+            },
+        ),
         (
             ("POST", "/mutation/{name}"),
             SessionBodyProbe {

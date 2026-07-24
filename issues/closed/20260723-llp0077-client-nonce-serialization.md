@@ -1,12 +1,26 @@
 # Client per-custody serialization + successor-nonce redaction and indeterminate-success handling
 
-**Status:** Open
+**Status:** Closed (2026-07-24)
 **Severity:** P1
 **Systems:** Auth, Browser client, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-23
 **Related:** LLP 0077 §Nonce protocol + §Browser custody + defects 5 and 7 (coupled), packages/snapback-client/index.mjs (successor nonce, redaction set, missing-nonce throw), issues/20260723-llp0077-senderauth-program.md
 **Marker:** llp-0077, sender-auth, client, nonce
+
+**Resolution (2026-07-24, re-landed on main):** the validated successor
+nonce enters the diagnostic redaction set before any response callback or
+body parse; a per-custody serialization queue spans proof creation through
+successor-nonce commit for HTTP, refresh, logout, connection-open, and
+WebSocket initiation; and a missing-successor success is the explicit
+non-retryable `SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE` outcome with
+bounded next-request challenge recovery. Witness: `sender-transport.test.mjs`
+(concurrent-query serialization, one committed missing-nonce mutation with
+no retry, reflected-material redaction, next-request recovery). Residual
+(not a defect-5/7 item): the WebSocket flight currently releases on socket
+open with challenge resync; §Author decisions item 5 pins release on the
+first server frame carrying the successor nonce in band — tracked in the
+program index as remaining decision-5 implementation work.
 
 Closes LLP 0077 ledger **defects 5 and 7**, which the Spec states are coupled —
 neither may be marked done alone. Defect 7: there is no per-custody queue, so

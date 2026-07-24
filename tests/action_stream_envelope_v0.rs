@@ -175,7 +175,9 @@ async fn stream_refusal_carries_structured_detail_through_the_real_action_path()
         "repair anchor: {body}"
     );
     assert!(
-        details["expected"].as_str().is_some_and(|expected| expected.contains("http")),
+        details["expected"]
+            .as_str()
+            .is_some_and(|expected| expected.contains("http")),
         "expected shape summary: {body}"
     );
     // Value-free: the private URL path never enters the diagnostic.

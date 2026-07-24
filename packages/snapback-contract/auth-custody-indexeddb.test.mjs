@@ -55,7 +55,7 @@ const expectCode = async (code, operation) => {
 };
 
 const readIndexedDbRecord = (indexedDB, databaseName, storeName, key) => new Promise((resolve, reject) => {
-  const open = indexedDB.open(databaseName, 1);
+  const open = indexedDB.open(databaseName);
   open.onerror = () => reject(open.error);
   open.onsuccess = () => {
     const database = open.result;

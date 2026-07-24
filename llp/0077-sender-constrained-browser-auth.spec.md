@@ -5,7 +5,21 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (author decisions batch — see §Author decisions —
+**Revised:** 2026-07-24 (implementation re-land + defect-fix pass — the full
+sender-constrained server/client implementation, previously stranded as
+uncommitted work on a ~130-commit-stale base in the primary checkout, was
+ported onto current main, adapted to the landed LLP 0076 surface, and
+hardened. Ledger defects 1–8 and 11–13 are now fixed in tree with negative
+tests (per-item annotations below); the unknown-carrier cover nonce is the
+decision-3 keyed HMAC; and the distinct durable `sender_replay_epoch` with
+its atomic reset rotation landed. Still open: the decision-1 control-plane
+anti-rollback floor and the restore/rollback straddle tests (defect 10
+residual), the decision-6 grant-epoch member (grants still record the
+serving admission epoch), the decision-2 logout tombstone (defect 9), and
+the decision-5 in-band WebSocket successor-nonce release (the shipped client
+releases the flight on socket open and resynchronizes through the bounded
+challenge instead). No capability claim advances; the ledger still gates).
+2026-07-23 (author decisions batch — see §Author decisions —
 2026-07-23: the sender_replay_epoch ratchet is realized as the LLP 0059
 incarnation composed with a control-plane monotone floor stored outside the
 rolled-back durable set; logout-lost-response is the bounded revoked-family
@@ -124,14 +138,38 @@ implementation defects ledger that blocks any positive capability claim).
 2026-07-22 (initial wire, custody, replay, and rollout contract required by LLP 0060 C3)
 **Related:** LLP 0039, LLP 0053, LLP 0055, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0064, LLP 0072, LLP 0074
 
+**Implementation checkpoint (2026-07-24):** The implementation lives on main
+(worktree re-land of the stranded primary-checkout state, adapted to the
+landed LLP 0076 server surface). Server: `src/auth/sender_proof.rs` (closed
+proof codec/verifier, durable replay/nonce/epoch/family-binding authority,
+pre-body admission), `src/auth/throttle.rs` (D3 shared durable limiter,
+charge-on-denial), `src/storage/auth_sender.rs`/`auth_throttle.rs` (storage
+lanes), and the route-level admission composition in `src/server.rs`.
+Client: `packages/snapback-client/sender-proof.mjs` (non-extractable P-256
+custody + exact proof shapes + reject-not-resolve canonical URIs),
+`hosted-browser.mjs` (frozen non-inheriting facade), the sender transport in
+`index.mjs`, and the `AuthCustodyV3` sender custody in
+`packages/snapback-contract/auth-coordinator.mjs`. Witnesses: the Rust unit
+corpus (`sender_proof` tests incl. the final-inclusive-second replay, the
+two-OS-process replay race, the grace/connection-open matrix, and the keyed
+cover nonce), the served router suites (`hosted_sender_*`: pre-body
+challenge, denial-charged throttle, the transactional issuance outcome
+matrix, session/refresh/connection-open/grant-matrix composition over all
+ten header routes plus the WebSocket subprotocol carrier), the Node
+cross-language vector test, and the client suites (`sender-proof`,
+`sender-transport`, `hosted-browser`, `auth-sender-custody`). Defects 1–8
+and 11–13 are fixed with negative tests; defects 9 and 10 (control-plane
+floor + straddle tests + grant-epoch member) and the decision-5 WebSocket
+in-band successor release remain open, and no positive capability claim is
+made.
+
 **Implementation checkpoint (2026-07-22):** The hosted-only browser entrypoint
 closes the exported constructor-options and `setBearerToken` direct-bearer
-seams, but it currently subclasses the generic client, so the generic
-constructor is still reachable through the prototype chain and inherited
-transport fields plus the mutable `senderConstrained` flag remain writable —
-the structural exclusion LLP 0060 requires is not yet structural. This is
-recorded as defect 8; the checkpoint does not claim the generic constructor
-is excluded. Its
+seams. At this checkpoint it subclassed the generic client, so the generic
+constructor was still reachable through the prototype chain and inherited
+transport fields plus the mutable `senderConstrained` flag remained writable —
+recorded as defect 8, since fixed (the entrypoint is now a frozen
+non-inheriting facade). Its
 coordinator-owned transport now generates the non-extractable P-256 key,
 performs issuance, installs bearer/key/nonce as one `AuthCustodyV3` transition,
 signs protected HTTP requests, rotates each response nonce under the exact
@@ -223,8 +261,10 @@ independent review, and remote acceptance remain unimplemented. No capability
 is positive.
 
 **Known implementation defects (2026-07-23, from the `llp/reviews/0077-*`
-review rounds).** Each blocks any positive capability claim and requires a
-fix plus a negative test:
+review rounds; per-item fix status 2026-07-24).** Each open item blocks any
+positive capability claim and requires a fix plus a negative test; fixed
+items keep their original text for review history with the fix witness
+appended:
 
 1. The challenge path rotates the family's durable nonce on unauthenticated
    missing/mismatched-proof requests (`fresh_challenge` → `issue_sender_nonce`
@@ -232,20 +272,49 @@ fix plus a negative test:
    challenge-never-rotates rule below and handing a copied-bearer holder a
    nonce-churn lever that can race the legitimate client's single retry into
    lockout.
+
+   *Fixed 2026-07-24:* `fresh_challenge` returns a live installed nonce
+   unchanged and mints a generation only when none is installed or the
+   installed one expired; rotation happens only inside the verified-proof
+   consume/rotate transaction. Witness:
+   `pre_body_admission_challenges_then_accepts_and_rotates` (repeated
+   missing-proof and wrong-nonce attempts leave value and generation
+   unchanged).
 2. Connection-token HTTP acts (live, outbox, ephemeral routes) accept the
    bare grant header without sender admission, and WebSocket upgrade accepts
    the grant through the permitted header carrier without a proof — bare-
    bearer paths for sender-bound grants, contradicting the every-use rule in
    "WebSocket and connection binding". Generic HTTP proofs also hash the
    session bearer where a grant is the presented credential.
+
+   *Fixed 2026-07-24 (enforcement):* one carrier-neutral pre-body gate
+   covers every connection-grant route and both carriers, and the client
+   signs the grant token into `ath`. Witness: the served grant matrix in
+   `hosted_sender_issuance_session_and_refresh_compose_through_the_router`
+   (ten header routes + the WebSocket subprotocol carrier × missing/
+   malformed/wrong-`ath`/replayed/authority-unavailable, refused without
+   body polling). Residual (tracked with defect 10): the grant binding
+   records the serving admission epoch, not the decision-6 issuance
+   `sender_replay_epoch`.
 3. Sender lookup joins only the current session token hash, refusing
    proof-bearing requests that present an in-grace superseded token and
    breaking LLP 0057's tombstone-grace resolution matrix.
+
+   *Fixed 2026-07-24:* sender lookup honors LLP 0057 tombstone grace at
+   the inclusive ten-second boundary for finite requests and takes an
+   explicit current-only flag for connection-open. Witness:
+   `sender_binding_lookup_honors_finite_grace_but_connection_open_is_current_only`.
 4. Replay retention is exactly the accepted window (35 s) with an
    inclusive-boundary purge (`expires_at_seconds <= now`) on both the replay
    and nonce tables, one second short at the final inclusive second; the
    contract requires expiry at `iat + 30 + 1` with an exclusive `< now` purge
    on both tables.
+
+   *Fixed 2026-07-24:* retention is `iat + 30 + 1` with exclusive
+   `< now` purges on both tables. Witnesses:
+   `production_admission_refuses_replay_at_final_inclusive_second` and the
+   true two-OS-process race
+   `two_processes_racing_production_transaction_have_one_success_and_one_replay`.
 5. The client installs the successor `DPoP-Nonce` without adding it to the
    diagnostic redaction set on the response-processing path, and parses a
    successful response body before failing on a missing successor nonce, so a
@@ -253,9 +322,21 @@ fix plus a negative test:
    material test that passes covers the *request* nonce on an error path; the
    unredacted successor is the distinct install path this defect names, and it
    is coupled to defect 7.)
+
+   *Fixed 2026-07-24 (with defect 7):* the validated successor enters
+   the redaction set before any callback or body parse, and a successful
+   response missing its successor is the explicit non-retryable
+   `SNAPBACK_AUTH_SENDER_OUTCOME_INDETERMINATE` outcome. Witness:
+   `sender-transport.test.mjs` (committed missing-nonce mutation with no
+   retry; reflected-material redaction; next-request recovery).
 6. `bind_new_session_sender_constraint` can bind any existing session id;
    the binding capability must be restricted to the session-issuance
    transaction so no supported API can bind an extant v1 family.
+
+   *Fixed 2026-07-24:* binding is private to the issuance transaction
+   (`SenderIssuanceCommitment::install`); no supported API binds an extant
+   family. Witness: `session_binding_is_issuance_atomic_and_v1_has_no_upgrade_api`
+   and the served issuance outcome matrix.
 7. The per-custody request serialization the Nonce protocol requires is not
    implemented: concurrent client calls each sign under the same generation
    and race the successor-nonce compare-and-set. A per-custody queue must span
@@ -263,6 +344,13 @@ fix plus a negative test:
    connection open, and WebSocket initiation. Defects 7 and 5 are coupled:
    without the serialization queue, defect 5's successor-nonce handling cannot
    be correct, so neither may be marked done alone.
+
+   *Fixed 2026-07-24 (with defect 5):* a per-custody serialization
+   queue spans proof creation through successor-nonce commit for HTTP,
+   refresh, logout, connection-open, and WebSocket initiation. Witness:
+   `sender-transport.test.mjs` concurrent-query serialization. Note: the
+   WebSocket flight releases on socket open with challenge resync — the
+   decision-5 in-band first-frame release is not yet implemented.
 8. The hosted browser entrypoint subclasses the generic client, so its
    constructor (which accepts a bearer) is reachable through the prototype
    chain, and inherited transport fields plus the mutable `senderConstrained`
@@ -270,6 +358,10 @@ fix plus a negative test:
    not yet structural. It needs a non-inheriting façade (or an intrinsic v3
    custody posture with privatized transport state) plus prototype-graph and
    direct-mutation sentinels.
+
+   *Fixed 2026-07-24:* the hosted entrypoint is a frozen non-inheriting
+   composition facade. Witness: `hosted-browser.test.mjs` (prototype-graph
+   absence, bearer options/setter refusal, direct-mutation refusal).
 9. A committed logout whose response is lost strands custody: the family is
    revoked, sender lookup joins only current sessions, and the client clears
    custody only after the response. A bounded revoked-family sender tombstone
@@ -291,16 +383,41 @@ fix plus a negative test:
     percent-encoded, backslash, or doubled-slash paths, contrary to the
     reject-not-resolve conformance rule; client JWK/nonce checks also use
     character/length regexes rather than decode-and-re-encode canonicality.
+
+   *Fixed 2026-07-24 (both halves):* a cryptographically valid issuance
+   proof consumes its `jti` inside correct-code and rejected-code
+   transactions alike (served outcome matrix
+   `hosted_sender_issuance_outcome_matrix_is_transactional`), and the client
+   rejects `%`/backslash/doubled-slash/dot-segment paths without resolution
+   with decode-and-re-encode canonicality (`canonicalSenderExternalUri`,
+   `sender-proof.test.mjs`).
 12. Two admission-order divergences: the LLP 0060 D3 shared-throttle charge is
     not performed before proof processing (the hosted serving authority holds
     only admission and origin, and sender admission proceeds directly into
     proof processing), and the shipped code resolves `SessionAuth` before the
     forbidden-authority-field body check rather than in the specified order.
+
+   *Fixed 2026-07-24:* the target-attested HMAC-keyed durable D3
+   limiter charges every applicable bucket atomically, including on denial,
+   before proof parsing or body polling, and the forbidden-authority-field
+   check runs after sender admission and before credential resolution (the
+   rejected-connection-open budget accounting is preserved across the
+   reorder). Witnesses: `hosted_sender_shared_throttle_charges_denials_before_proof_and_body`,
+   `hosted_shared_throttle_keys_challenge_and_exchange_subjects_before_crypto`,
+   `hosted_anonymous_connection_open_consumes_shared_source_admission`, and
+   the proof × forbidden-field precedence leg of the served issuance test.
 13. An unknown carrier bearing a present proof returns
     `SNAPBACK_AUTH_SENDER_PROOF_INVALID` without the cover nonce, diverging
     from the anti-oracle matrix (which folds unknown carriers into the
     `_REQUIRED` challenge with a cover nonce).
 
+
+   *Fixed 2026-07-24:* unknown/malformed carriers with or without a
+   proof fold into the `_REQUIRED` challenge carrying the decision-3
+   deterministic keyed cover nonce (`HMAC(purpose key, epoch ‖ token digest
+   ‖ time bucket)`), stable within a bucket and never installed. Witnesses:
+   `invalid_bearer_missing_proof_gets_untracked_opaque_challenge`,
+   `unknown_carrier_cover_nonce_is_keyed_stable_and_never_installed`.
 ## Summary
 
 Hosted browser sessions use a versioned sender-constrained v2 protocol. Each
@@ -466,10 +583,10 @@ reaches the nonce challenge), and only a present-but-malformed or unknown
 carrier is folded into the anti-oracle sender-proof challenge. Because folding
 malformed/unknown carriers into the sender challenge (rather than
 `AUTH_REQUIRED`) departs from LLP 0057's carrier matrix, LLP 0057's Revised
-note records this anti-oracle diagnostic amendment as well. The shipped code
-returns `_INVALID` without the cover nonce for an unknown carrier bearing a
-proof, which diverges from this matrix; that divergence is tracked as defect
-13. The
+note records this anti-oracle diagnostic amendment as well. That
+divergence was tracked as defect 13 and is fixed (2026-07-24): unknown
+carriers with or without a proof now receive the `_REQUIRED` challenge with
+the decision-3 keyed cover nonce. The
 header is cache-forbidden and contains no account, family, token, or proof
 fact. A client retries at most once and only when the response is this typed
 challenge.
@@ -485,18 +602,19 @@ Rotation of a live nonce happens in exactly one place — inside the atomic
 consumption transaction of a fully verified proof. An unauthenticated request
 against a live generation therefore cannot advance, retire, or churn a
 family's nonce; this is what denies a copied-bearer holder any availability
-lever over legitimate custody *(defect 1: the shipped `fresh_challenge` still
-rotates a live nonce and must be fixed to satisfy this rule)*.
+lever over legitimate custody *(defect 1 — fixed 2026-07-24; the negative
+test proves repeated unauthenticated attempts leave the generation
+unchanged)*.
 
 A challenge to a request with no resolvable family (absent, malformed, or
-unknown session carrier) returns a freshly generated but *uninstalled* nonce
-— it is never written to family state and can never authorize work. This is
-what lets the anti-oracle diagnostic hold without an installed generation. It
-does leave a residual distinction between a live bound family (which returns
-its stable installed nonce) and an unknown carrier (which returns a random
-uninstalled one); whether the initial implementation must serve a stable
-keyed cover nonce for unknown carriers, or the bound-family existence signal
-is acceptable, is an open question below.
+unknown session carrier) returns an *uninstalled* cover nonce — it is never
+written to family state and can never authorize work. This is what lets the
+anti-oracle diagnostic hold without an installed generation. Per §Author
+decisions item 3 (implemented 2026-07-24) the cover value is the
+deterministic keyed `HMAC(purpose key, sender_replay_epoch ‖ token_digest ‖
+time_bucket)`, stable within one nonce-TTL bucket, so a live bound family
+(stable installed nonce) and an unknown carrier (stable keyed cover nonce)
+are indistinguishable and the bound-family existence oracle is closed.
 
 Nonces are random 32-byte base64url values, deployment- and
 `sender_replay_epoch`-bound (the same distinct namespace as replay ids, not
@@ -584,10 +702,15 @@ replayed:
   requirement, not yet a proven property — this Spec does not assert an
   unidentified counter exists.
 
-The shipped code keys replay and nonces on LLP 0060's `admission_epoch`
-directly rather than a distinct `sender_replay_epoch`, and reset does not yet
-advance a sender epoch or clear the tables; this divergence from the model
-above is tracked as defect 10.
+As of 2026-07-24 the durable `sender_replay_epoch` exists (a singleton row
+in `_snapback_sender_replay_epoch`, preserved across restart/rollout — the
+historical SQL column name `admission_epoch` in the replay/nonce tables now
+stores this durable value), and the LLP 0059 stream-reset transaction
+atomically advances it and clears the replay/nonce tables inside the same
+destructive cut that revokes the auth catalog. Defect 10 stays open for the
+decision-1 control-plane anti-rollback floor, the restore/rollback straddle
+tests, and the decision-6 grant member (grants still record the serving
+admission epoch at connection-open).
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
@@ -681,7 +804,8 @@ A grant issued to a sender-bound session requires a valid proof on **every**
 subsequent use — each connection-token HTTP act (live, outbox, ephemeral) and
 each WebSocket upgrade — regardless of which permitted carrier presents the
 grant. There is no carrier or route on which a sender-bound grant acts as a
-bare bearer *(defect 2)*. On every grant-presenting request, the proof's `ath` covers the
+bare bearer *(defect 2 — enforcement fixed 2026-07-24; the served
+route × carrier matrix is the witness)*. On every grant-presenting request, the proof's `ath` covers the
 grant token, not the session bearer.
 
 The server MUST NOT select or echo the proof-bearing subprotocol value as the
@@ -729,9 +853,8 @@ protected request per generation and forms the next request's proof from the
 installed successor. Concurrent application calls are queued behind that
 serialization rather than each signing under the same generation (which would
 make all but one challenge-and-retry, and could surface a committed effect as
-a stale-authority failure — see defect 5). This serialization is a normative
-requirement the current client does not yet implement; it is recorded as
-defect 7 below. A future multi-flight design admitting a bounded lease of
+a stale-authority failure — see defect 5). This serialization is normative
+and implemented (2026-07-24, defect 7 fixed with defect 5). A future multi-flight design admitting a bounded lease of
 one-use nonce tickets is an open question; the initial sender-constrained v2
 implementation serializes.
 

@@ -229,15 +229,26 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "permission_epoch_resync",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 8);
+    assert_eq!(TargetCapabilityId::ALL.len(), 9);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
             Ok(capability)
         );
-        local
-            .require_capability(capability.as_str())
-            .expect("local positive predicate");
+        if capability == TargetCapabilityId::BoundedResponseStreamV1 {
+            assert_eq!(
+                local
+                    .require_capability(capability.as_str())
+                    .expect_err("the static target declaration keeps process-live egress disabled")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_CAPABILITY_UNSUPPORTED"
+            );
+        } else {
+            local
+                .require_capability(capability.as_str())
+                .expect("local positive predicate");
+        }
     }
     assert_eq!(
         local

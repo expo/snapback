@@ -9,11 +9,14 @@
     "agent-authority.mjs",
     "external-store.d.mts",
     "external-store.mjs",
-    "index.mjs"
+    "hosted-browser.mjs",
+    "index.mjs",
+    "sender-proof.mjs"
   ],
   "exports": {
     ".": "./index.mjs",
     "./agent-authority": "./agent-authority.mjs",
+    "./hosted-browser": "./hosted-browser.mjs",
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
@@ -27,6 +30,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs && node external-store.test.mjs"
+    "test": "node package.test.mjs && node external-store.test.mjs && node sender-proof.test.mjs && node sender-transport.test.mjs && node hosted-browser.test.mjs"
   }
 }

@@ -1,12 +1,25 @@
 # Sender-proof nonce integrity: challenge never rotates a live nonce; unknown-carrier cover nonce
 
-**Status:** Open
+**Status:** Closed (2026-07-24)
 **Severity:** P1
 **Systems:** Auth, Hosted runtime, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
 **Date:** 2026-07-23
 **Related:** LLP 0077 §Nonce protocol + defects 1 and 13, src/auth/sender_proof.rs (fresh_challenge → issue_sender_nonce), issues/20260723-llp0077-senderauth-program.md
 **Marker:** llp-0077, sender-auth, nonce, security
+
+**Resolution (2026-07-24, re-landed on main):** `fresh_challenge` returns a
+live installed nonce unchanged; a generation is minted only when none is
+installed or the installed one expired; rotation happens only inside the
+verified-proof consume/rotate transaction
+(`pre_body_admission_challenges_then_accepts_and_rotates`). Unknown/malformed
+carriers with or without a proof receive `_REQUIRED` with the decision-3
+deterministic keyed cover nonce (`HMAC(purpose key, epoch ‖ token_digest ‖
+time_bucket)`), stable within one nonce-TTL bucket and never installed
+(`unknown_carrier_cover_nonce_is_keyed_stable_and_never_installed`,
+`invalid_bearer_missing_proof_gets_untracked_opaque_challenge`); a genuinely
+absent Authorization header still yields `SNAPBACK_AUTH_REQUIRED` (served
+suites). LLP 0077 ledger rows 1 and 13 carry the fix witnesses.
 
 Closes LLP 0077 ledger **defect 1** and **defect 13** — both are nonce-challenge
 integrity bugs on the copied-bearer adversary's only reachable lever.

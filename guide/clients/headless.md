@@ -37,6 +37,7 @@ receipt, and auth behavior rather than reimplementing HTTP.
     authorizedLeaseProtocol = null,
     authCoordinator = null,
     agentAuthority = null,
+    senderConstrained = false,
     clientStoreId = processClientStoreId,
 ```
 

@@ -1740,13 +1740,19 @@ mod tests {
                 Diagnostic::error("SNAPBACK_HANDLER_FAILED", "host-ops", "the outcome"),
             ],
         );
-        assert_eq!(recent_invocation_outcome(&failed), "SNAPBACK_HANDLER_FAILED");
+        assert_eq!(
+            recent_invocation_outcome(&failed),
+            "SNAPBACK_HANDLER_FAILED"
+        );
     }
 
     #[test]
     fn iso8601_utc_ms_formats_civil_time() {
         assert_eq!(iso8601_utc_ms(0), "1970-01-01T00:00:00.000Z");
-        assert_eq!(iso8601_utc_ms(1_767_225_600_123), "2026-01-01T00:00:00.123Z");
+        assert_eq!(
+            iso8601_utc_ms(1_767_225_600_123),
+            "2026-01-01T00:00:00.123Z"
+        );
     }
 
     #[test]
