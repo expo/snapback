@@ -12,7 +12,7 @@ import {
 import { generate } from '../../packages/snapback-codegen/index.mjs';
 import { startServer } from '../../demos/_kit/server-process.mjs';
 
-// @ref LLP 0065#5-acceptance — standard patterns prove their explicit
+// @ref LLP 0065#6-acceptance — standard patterns prove their explicit
 // visibility floor against a real server and two unrelated session principals;
 // generated metadata alone is not an authorization witness.
 
