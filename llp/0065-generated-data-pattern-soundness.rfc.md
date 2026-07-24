@@ -1,11 +1,15 @@
 # LLP 0065 — Generated data-pattern soundness and declaration floor
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Schema authoring, Code generation, Declarative data tier, Authorization, Query visibility, Generated operations, Diagnostics
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (loop close-out, rounds 2–4: the LLP 0053
+**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
+semantic per §6 and lands with the same-landing LLP 0004/0007 amendments;
+the implementation-conformance suite still gates `Implemented` and
+`STEP5.DECLARATION_REDUCTION`); 2026-07-24 (loop close-out, rounds 2–4: the LLP 0053
 disjointness-skip refinement is disabled for v1 with `authScopeField` as
 invalidation routing only; refusal gate order pinned with LLP 0058's
 admin-bypass and system-target behavior inherited; the public

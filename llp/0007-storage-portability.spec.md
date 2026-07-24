@@ -5,7 +5,7 @@
 **Systems:** Storage, API, Runtime, Sync, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-23 (LLP 0086 CC-8 row 2 amendment: per-target durability claims adopt the output-gate vocabulary — "synchronous inside, gated at the boundary" — with D1 Sessions bookmarks recorded as prior art for keeping bookmarkable versions on the wire (wire half cross-referenced to LLP 0008); vocabulary and citations only, no decided contract changed). 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
+**Revised:** 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the change-journal's closed operation vocabulary admits the two typed schema-transition events with high-water counting and an unchanged head/cut invariant; every declared index gains the framework-generated, scan-order-only implicit trailing `_id` component; generated standard-pattern update/delete are named as the server-evaluated conditional-plan carve-out from the Option A client-baseline path; the Schema Evolution section points at Accepted LLP 0081 as the migrations authority and the Index Contract points at Accepted LLP 0080 as the controlling relational profile). 2026-07-23 (LLP 0086 CC-8 row 2 amendment: per-target durability claims adopt the output-gate vocabulary — "synchronous inside, gated at the boundary" — with D1 Sessions bookmarks recorded as prior art for keeping bookmarkable versions on the wire (wire half cross-referenced to LLP 0008); vocabulary and citations only, no decided contract changed). 2026-07-18 (ordinary tables can declare true single/compound unique indexes; v1 requires every key field to be non-optional, maps both activation and write conflicts to one stable diagnostic, and deliberately defers upsert sugar). 2026-07-17 (local SQLite commit-version allocation now acquires an `IMMEDIATE` writer reservation before reading the predecessor, making the serialized-writer guarantee true across sibling `LocalDatabase` connections; head-bound read/version pairs are likewise snapshot-atomic). 2026-07-17 (the plain-JSON commit-version stream is explicitly bounded by `Number.MAX_SAFE_INTEGER`; successor exhaustion refuses before every mutation tier, every durable ordering fact is decoded fail-closed rather than cast or defaulted, retained replay versions agree, journal snapshots prove their operation/id/version structure, databases carrying Snapback state prove an exact head/journal cut before additive open migration while foreign-only brownfield databases retain LLP 0057 rescue reachability, and authorization/activation SQL preflights complete source relations at that cut). 2026-07-13 (audit follow-up: required-field weakening is rejected while preserved physical columns remain `NOT NULL`, reset clears dormant removed tables, and direct query/action artifacts preflight closed-expression bounds); 2026-07-13 (data-boundary review follow-up: every filter operand now shares one 500-value portable bind ceiling, and scalar/system filter-type failures use one cross-target diagnostic); 2026-07-12 (ENG-24567/ENG-24573: portable queries are bounded identically across Rust, Cloudflare, and buffered overlays; required-field migrations now enforce and physically install `NOT NULL` atomically); 2026-07-12 (ENG-24342: the shipped plain-JSON Integer profile is explicitly JavaScript-safe-range bounded on every target, with shared boundary corpus evidence); 2026-07-02 (LLP 0032 X1: DK-2 commit-version graduation design note added — per-app gap-free streams, target-owned allocators, HLC rejected with a named revisit trigger; same day: LLP 0032 E3/DK-1: read-set-validation contract now names the two execution models — server-captured for Ibex handlers, client-supplied baseline for host-plan mutations (Option A) — and status callout refreshed for E3 decided/E4 landed. Earlier: LLP 0032 R3/R7 id algorithm closed as ratified UUIDv7 per LLP 0004; read-set-validation contract implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0006, LLP 0008, LLP 0009, LLP 0011, LLP 0012, LLP 0014, LLP 0018, LLP 0022, LLP 0032, LLP 0083, LLP 0086
 
 ## Summary
@@ -189,7 +189,14 @@ target.
    non-integer storage class are corruption, not generic adapter errors.
    Insert/update journal snapshots are versioned objects whose `_id` and
    `_version` agree with the journal row; deletes carry no snapshot and unknown
-   operations are corruption. None of these facts may be cast, wrapped,
+   operations are corruption. The closed operation vocabulary additionally
+   admits exactly two typed schema-transition events, `schema-resync` and
+   `rollback-resync` (Accepted [LLP 0081](./0081-reviewed-storage-evolution-and-migrations.rfc.md)
+   §4): each carries the migration operation id, predecessor and successor
+   schema hashes, generation identities, and the raised retention floor;
+   each counts toward the journal high-water exactly like a data operation;
+   and the head/journal-cut equality holds across them unchanged. Any other
+   unknown operation remains corruption. None of these facts may be cast, wrapped,
    rounded, hidden below a cursor, or treated as an absent/zero cursor. A
    failed durable-version read emits an explicit diagnostic and no fabricated
    cursor. Pruning and membership expiry planning also validate caller-supplied
@@ -392,6 +399,17 @@ prefer `withIndex` for unbounded queries. Agents need diagnostics for:
 - query could use an index but does not;
 - index uses a non-portable field type or predicate.
 
+Every declared index carries a framework-generated implicit trailing
+ascending `_id` component under binary collation (Accepted
+[LLP 0080](./0080-portable-relational-queries-and-projections.rfc.md) §1):
+it makes the `_id` ordering tie-break index-servable without `_id` becoming
+an author-indexable field, and it is **scan-order only** — a unique index's
+uniqueness constraint and its complete ordered key remain over the declared
+fields alone, so the implicit component can never legalize duplicate
+declared keys. Bounded relational queries and maintained projections over
+these indexes are governed by Accepted LLP 0080, the controlling first
+relational profile this Spec's query semantics deliberately did not define.
+
 The shipped v1 spelling is
 `.index('by_event_user', ['eventId', 'userId'], { unique: true })`. It creates a
 true database unique index inside schema activation; inserts and patches race
@@ -437,7 +455,12 @@ one commit transaction (no server-side read-then-commit window), so the deciding
 read is the *client's* optimistic read and the client supplies it as the mutation's
 `read_set` baseline, which the server validates atomically at commit
 ([LLP 0003](./0003-local-code-hosting-and-storage-core.rfc.md) §Execution and Write
-Semantics; DK-1/E3, Option A). A changed
+Semantics; DK-1/E3, Option A). One carve-out: generated standard-pattern
+update/delete operations lower to a server-evaluated conditional plan —
+read, owner guard, then write in one authoritative transaction — rather
+than the client-supplied-baseline path (Accepted
+[LLP 0065](./0065-generated-data-pattern-soundness.rfc.md) §2, under
+LLP 0051's conditional mutation model). A changed
 dependency produces either a deterministic retry or a structured conflict
 diagnostic. Silent commit against stale reads is outside the paved path for
 invariant-preserving mutations such as inventory, ordering, balances, or
@@ -570,9 +593,13 @@ server included them), so "schema unchanged" meant different things on each side
 (`[observed - Valet LLP 0014]`). If two scoped hashes are unavoidable, make each
 hash's scope explicit so consumers compare like for like.
 
-This is not the full migrations system. It is the minimum safe behavior before a
-dedicated migrations LLP defines branching, validation, rollback, online changes,
-and SQLite-to-Postgres migration workflows.
+This is not the full migrations system. It is the minimum safe behavior below
+the dedicated migrations authority: Accepted
+[LLP 0081](./0081-reviewed-storage-evolution-and-migrations.rfc.md) now
+defines the reviewed preview/approval/execution/verification/rollback
+workflow for every change this conservative applier refuses (its v1 is the
+exclusive single-writer profile; online changes and engine graduation remain
+future profiles there).
 
 ## Export and Engine Graduation
 

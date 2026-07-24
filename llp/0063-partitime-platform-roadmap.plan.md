@@ -1,13 +1,23 @@
 # LLP 0063: Partitime platform roadmap
 
-**Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLP
-0065 now proposes the generated-pattern soundness and authorization/visibility
-floor; Draft LLP 0080 proposes the first portable bounded-join and
-transactionally maintained-projection profile; and Draft LLP 0081 proposes the
-reviewed migration workflow. Together they cover the three semantic authorities
-Workstream 6 requires, but none is accepted and their executable acceptance
-witnesses do not exist. Their creation authorizes no implementation and
-promotes no Step 5 claim.)
+**Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-24 (all three
+Step 5 semantic authorities are now **Accepted** after dual-family LLP 0005
+loops — Fable and Codex both READY on the final texts, artifacts in
+`llp/reviews/`: LLP 0065 (generated-pattern soundness and
+authorization/visibility floor), LLP 0080 (portable relational
+queries/projections), LLP 0081 (reviewed migrations), with same-landing
+amendments to LLP 0004/0007/0072. Acceptance satisfies the "accepted
+semantics" half of the Step 5 entry conjunction and authorizes
+implementation; the executable acceptance witnesses
+(`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` and LLP 0065's conformance suite)
+do not yet exist, step 0 remains the conjunctive prerequisite, and no Step 5
+claim is promoted by this checkpoint. Owner-visible LLP 0080 work carries
+the explicit accepted-LLP-0065 subgate.); 2026-07-20 (Draft LLP
+0065 proposed the generated-pattern soundness and authorization/visibility
+floor; Draft LLP 0080 proposed the first portable bounded-join and
+transactionally maintained-projection profile; and Draft LLP 0081 proposed the
+reviewed migration workflow — none yet accepted, authorizing no
+implementation and promoting no Step 5 claim.)
 
 **Revised (Step 6 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLPs
 0068–0073 now propose the missing convergence, payment, durable-work,
@@ -1161,15 +1171,18 @@ Joins, maintained projections, and migration behavior currently have no
 accepted owner: LLP 0004 explicitly defers joins to a follow-on
 storage/query specification, and LLP 0007 owns only the conservative
 evolution boundary while naming full migration workflows as a dedicated
-future LLP. Draft LLP 0080 now proposes the first portable relational and
-maintained-projection profile, and Draft LLP 0081 now proposes reviewed
+future LLP. Accepted LLP 0080 now defines the first portable relational and
+maintained-projection profile, and Accepted LLP 0081 now defines reviewed
 storage evolution and migrations. Acceptance plus executable witnesses for
 both documents — not their existence — are therefore step 5 **entry**
 prerequisites, and each generated pattern below names its owning document in
-its witness. Until they are accepted, this workstream may ship only what LLP
-0004/0007 already govern. Draft LLP 0065 separately proposes the inference
-soundness and authorization/visibility floor; it must also be accepted before
-the standard generated patterns can close the declaration-reduction claim.
+its witness. Both are now Accepted (2026-07-24, dual-family LLP 0005 loops),
+so implementation is authorized; the executable-witness half of the entry
+conjunction remains open until `RELATIONAL_MIGRATION_COUPLED_SUITE_V1`
+passes. Accepted LLP 0065 separately defines the inference
+soundness and authorization/visibility floor; its acceptance opens the
+standard-pattern path, whose declaration-reduction claim still waits on its
+conformance suite and receipt.
 
 The packaged application loop must hide repository-internal machinery.
 Ordinary authors should not prepare Cargo, Ibex, or Hermes. A versioned
@@ -1476,7 +1489,7 @@ regression:
 | 2 | WS2 (client floor) | LLP 0012 (React/Expo, capability classes), Exact per-OS evidence for Contract tuples | step 0 done — may run beside step 1; the native client-surface RFC (WS2's Swift/gateway surface) exists before that deliverable's implementation | provisional exit: React primitives standalone, remaining vanilla gates, and the mandatory first native tuple (React/Expo iOS, at least Online class) pass; WS2's cross-surface parity bullet transfers to step 3's exit, which is what closes WS2 |
 | 3 | WS4, WS5 (diagnostics), WS2 closure | LLP 0012 amendment (handshake), LLP 0020/0021 gates, LLP 0053, Exact 0263 successors | WS1 semantics landed; the LLP 0012 handshake amendment and the diagnostics amendments exist as shared-manifest gate IDs before their implementation | WS4 acceptance passes for Snapback plus one non-Snapback producer; both idiomatic follow-up-matrix legs (Supabase Realtime; native Convex client) complete with retained receipts; diagnostics acceptance machine-checkable; WS2's cross-surface parity closes here |
 | 4 | WS3, WS8 | Exact 0288 and per-capability Exact authorities, Exact 0265 | step 3 type loop closed; WS3's per-capability Exact owners recorded as shared-manifest gate IDs from the step-4 inventory | WS3 acceptance incl. production-web and Agent data-state verification; WS8 budgets enforced under the frozen rules (all categories joined by now); the React/Expo Android tuple closes here at the latest or is surfaced as a named risk; exit records the Contract-profile status line |
-| 5 | WS6 | LLP 0004/0007 (current data/evolution boundary), LLP 0009 (envelope), LLP 0021/0030, LLP 0037/0041, LLP 0051 (declarative tier), LLP 0062 (per-app CLI shape), Draft LLP 0065 (soundness/declaration floor), Draft LLP 0080 (relational queries/projections), Draft LLP 0081 (migrations) | per deliverable, above the conjunctive step 0: joins/projections/migrations wait for accepted LLP 0080/0081 semantics and their executable witnesses; inference and standard patterns wait for LLP 0065 acceptance plus its authorization/visibility floor; the packaged loop, publication, and trusted-time work need only step 0 — every ratifying document named, so no gate is satisfied by assertion | WS6 acceptance incl. external cold checkout, registry install, and the LLP 0041 external-loop suite; exit records the Contract-profile status line |
+| 5 | WS6 | LLP 0004/0007 (current data/evolution boundary), LLP 0009 (envelope), LLP 0021/0030, LLP 0037/0041, LLP 0051 (declarative tier), LLP 0062 (per-app CLI shape), Accepted LLP 0065 (soundness/declaration floor), Accepted LLP 0080 (relational queries/projections), Accepted LLP 0081 (migrations) | per deliverable, above the conjunctive step 0: LLP 0065/0080/0081 are Accepted (2026-07-24), satisfying the semantic half of each entry gate; joins/projections/migrations still wait for their executable witnesses (`RELATIONAL_MIGRATION_COUPLED_SUITE_V1`), owner-visible relational work carries the accepted-LLP-0065 subgate, standard patterns wait on LLP 0065's conformance suite, and the packaged loop, publication, and trusted-time work need only step 0 — every ratifying document named, so no gate is satisfied by assertion | WS6 acceptance incl. external cold checkout, registry install, and the LLP 0041 external-loop suite; exit records the Contract-profile status line |
 | 6 | WS7 | the WS7 capability-to-authority matrix above (LLP 0014, 0044–0047, 0057–0060, plus its named new-RFC prerequisites) | step 6 opens with a security/platform-foundations tranche (identity, authz, abuse, envelope limits per LLP 0014's ladder); each per-vertical delivery then gates on the foundations it needs — foundations are step-6 work, not a circular entry condition | the minimum platform proof — chat, documents, and commerce each passing their admitted claim profiles — completes, with new-RFC prerequisites satisfied by accepted semantics plus executable witnesses; the remaining four pressure tests are an explicitly non-blocking ordered portfolio, each expanding the claimed envelope when it lands |
 
 As of the 2026-07-20 Exact Native parity closure, Step 2's two mandatory

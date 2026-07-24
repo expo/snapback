@@ -1,11 +1,17 @@
 # LLP 0081 — Reviewed storage evolution and migrations
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Schema evolution, Migrations, Storage portability, Deployment, Backup and restore, Code generation, CLI, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (loop close-out, rounds 2–4: authority-bearing-table
+**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
+semantic per §Acceptance and lands with the same-landing LLP 0007
+journal-grammar and LLP 0072 `generationRepublish` amendments; the
+`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` implementation suite still gates
+`Implemented` and the Step 5 executable witnesses); 2026-07-24 (loop
+close-out, rounds 2–4: authority-bearing-table
 steps refused pending a `hostOps:migrate` writer class; the fence closes a
 capability-derived lane registry including egress lanes; idempotence keyed
 by `operationId` plus audience; cancellation pre-publication-only with a

@@ -1,11 +1,17 @@
 # LLP 0080 — Portable relational queries and maintained projections
 
 **Type:** RFC
-**Status:** Draft
+**Status:** Accepted
 **Systems:** Application data API, Query planning, Storage portability, Live Queries, Authorization, Code generation, Maintained projections, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-24 (loop close-out, rounds 2–4: closed output-key
+**Revised:** 2026-07-24 (Accepted by the author after the dual-family
+LLP 0005 loop — Fable and Codex both READY on this text; acceptance is
+semantic per §Acceptance and lands with the same-landing LLP 0004/0007
+amendments including the implicit `_id` index-suffix rule; the
+`RELATIONAL_MIGRATION_COUPLED_SUITE_V1` implementation suite still gates
+`Implemented` and the Step 5 executable witnesses); 2026-07-24 (loop
+close-out, rounds 2–4: closed output-key
 grammar with stored-identity `_id` derivation as an approved activation
 input; opaque handlers barred from output-table reads and maintenance
 authority defined; plan-level-only inspection; anonymous retention

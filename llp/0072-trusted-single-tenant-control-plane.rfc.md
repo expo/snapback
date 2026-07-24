@@ -5,7 +5,7 @@
 **Systems:** Deployment, Control plane, TLS, Auth, Migrations, Backup, Restore, Logs, Inspection, Secrets, Runtime, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-20
-**Revised:** 2026-07-20 (initial proposal for LLP 0063's hosted minimum profile)
+**Revised:** 2026-07-24 (same-landing amendment for the acceptance of LLP 0081: the rollback posture set gains the `generationRepublish` row — the maintenance-window predecessor republish defined by LLP 0081 §6, distinct from a data rewind because nothing outside the migration fence observed the successor); 2026-07-20 (initial proposal for LLP 0063's hosted minimum profile)
 **Related:** LLP 0002, LLP 0007, LLP 0009, LLP 0012, LLP 0014, LLP 0017, LLP 0018, LLP 0023, LLP 0024, LLP 0030, LLP 0031, LLP 0036, LLP 0041, LLP 0046, LLP 0047, LLP 0057, LLP 0060, LLP 0062, LLP 0063, LLP 0070, LLP 0071
 
 ## Summary
@@ -149,7 +149,16 @@ one of:
 - `codeOnly`: previous release reads/writes the current schema;
 - `forwardFix`: irreversible migration requires a new corrective release;
 - `restoreRequired`: rollback crosses a destructive boundary and is a separate
-  destructive restore operation with acknowledged data loss window; or
+  destructive restore operation with acknowledged data loss window;
+- `generationRepublish`: an Accepted
+  [LLP 0081](./0081-reviewed-storage-evolution-and-migrations.rfc.md) §6
+  fast rollback — available only inside the migration's `published-held`
+  maintenance window, before traffic or workers are released, it atomically
+  republishes the retained predecessor storage generation at a new
+  application version with restamped row versions and its own digest-sealed
+  rollback receipt. It is not a data rewind: nothing outside the migration
+  fence ever observed the successor. After release it is unavailable and the
+  posture falls back to the rows above; or
 - `blocked`: no safe rollback, therefore activation is refused for the profile.
 
 The minimum profile requires a successful code-only rollback drill across one

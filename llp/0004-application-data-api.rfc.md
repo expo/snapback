@@ -5,7 +5,7 @@
 **Systems:** API, Storage, Runtime, Sync, Developer experience
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
+**Revised:** 2026-07-24 (same-landing amendments for the acceptance of LLP 0065/0080/0081: the deferred joins/query-planning and schema-migrations bullets now point at Accepted LLP 0080 and LLP 0081 as their controlling authorities, and the generated standard-pattern conditional-lowering carve-out from this RFC's unconditional host-plan writes is recorded per Accepted LLP 0065); 2026-07-16 (ENG-24920 companion amendment); 2026-07-14 (ENG-24905: pinned the stable function id codegen rule under §First-Slice API Decisions — required `{appId}:{exportedName}` ids, byte-identical across regeneration of unchanged source, retired on rename; the LLP 0055 stage prerequisite). Earlier: 2026-07-02 (LLP 0032 E3/DK-1: §Write Semantics now describes host-plan mutation isolation as the client-supplied read_set baseline by design (Option A); status callout refreshed — E4 landed, E2 landed. Earlier: LLP 0032 R7 §Write Semantics implementation-status annotation)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012
 
 ## Summary
@@ -422,13 +422,25 @@ This RFC does not settle:
 - local mutation queues, replay, and conflict semantics;
 - authorization and row-level visibility rules;
 - raw SQL escape hatches;
-- joins, relation traversal, aggregations, or query planning;
+- joins, relation traversal, aggregations, or query planning — the first
+  bounded relational profile (two-source equi-joins and maintained
+  projections) is now Accepted
+  [LLP 0080](./0080-portable-relational-queries-and-projections.rfc.md);
 - the exact shape of `ctx.auth`;
 - Postgres-specific behavior;
-- schema migrations;
+- schema migrations — the reviewed migration workflow is now Accepted
+  [LLP 0081](./0081-reviewed-storage-evolution-and-migrations.rfc.md);
 - action APIs with outbound network access;
 - the full permission language and diagnostic UI;
 - GraphQL, REST auto-generation, or public endpoint routing.
+
+Two later authorities also refine this API's mutation surface: generated
+standard patterns (owner-scoped CRUD, unique lookup, keyset pages) are
+governed by Accepted
+[LLP 0065](./0065-generated-data-pattern-soundness.rfc.md), whose generated
+update/delete lower to a server-evaluated conditional read-guard-write plan
+rather than this RFC's unconditional host-plan write sequence — see
+LLP 0007 §Transactions for the carve-out.
 
 ## First-Slice API Decisions
 
