@@ -308,6 +308,69 @@ ratified the amendment on 2026-07-23 by stating, “I ratify Exact LLP 0386 §3.
 and the Snapback WS8 web/native invalidations dated 2026-07-22.” Exact does
 not yet emit the qualifying production-bundled iOS HBC carrier, so native
 calibration, holdout, and claim promotion remain open.)
+**Revised (Step 4 native-v2 carrier checkpoint):** 2026-07-23 (The ratified
+v2 lane now has product-owned raw collectors for both carriers and a paired
+orchestrator that alternates order, requires two warmups plus seven
+observations, verifies exact same-host identity, and publishes raw receipts
+only after Release/Simulator/HBC/agent-off custody checks. Review caught that
+Exact's startup-artifact endpoint still emits the development module table, so
+its otherwise valid 2,561,112-byte HBC / 265-module / zero-agent-module output
+is retained only as a rejected nonclaim diagnostic. The corrected collector
+instead builds a single production Vite/Rollup graph. That 1,515,793-byte
+source artifact maps 358 modules and has no development module table, but
+still retains five lazy dynamic imports; Hermes therefore cannot compile it
+into the ratified single-HBC carrier. If the rejected module-table HBC is
+forcibly staged, the next boundary is also red: the ordinary production
+runtime cannot be constructed because Ibex advertises no executable Exact
+Apple target while its report-derived CapSec cells remain incomplete.
+Claim-grade collection now fails closed at the first boundary. All four native
+calibration/holdout categories remain red; no threshold or claim is promoted.)
+**Revised (Step 4 native-v2 single-HBC checkpoint):** 2026-07-23 (Exact
+`f9db1c9fa…` adds a build-only Hermes release transform that preserves literal
+dynamic imports for Rollup and replaces opaque development-only imports with
+explicit rejected promises. The Partitime Exact carrier now composes the
+shared runtime bootstrap and native application through a platform-selected
+single production entry. The resulting production IIFE is 1,938,338 source
+bytes across 437 modules, contains zero dynamic imports and no development
+module table, compiles to a roughly 3.17 MB HBC, and is byte-for-byte admitted
+by an Exact Release/Simulator carrier. The carrier still refuses before HBC
+evaluation: Ibex reports that the iOS target cannot attest the mapped Hermes
+image, and its current report-derived CapSec registry advertises zero
+executable targets and no iOS exact-target row. Exact `4922328ac…` makes that
+immutable prelude refusal visible to the collector, which now preserves the
+specific error instead of only `JS evaluation failed`. Extending Apple image
+attestation alone would not authorize execution; Ibex LLP 0021 still requires
+a complete content-addressed target conformance report. This closes the
+production-graph/HBC construction gap but not native calibration or holdout;
+all four native categories remain red and no diagnostic-runtime substitution
+is admitted. The clean claim-eligible red receipt at
+`acceptance/results/step4-native-exact-performance.json` binds Snapback
+`476a867d…`, Exact `4922328ac…`, a 3,168,939-byte admitted HBC, and the
+specific refusal at sha256 `40a2a3a7d1862a3d3bfdab1b1cecb721036696f4b360beb99144a249a3e46c95`.)
+**Revised (Step 4 native observer proposal):** 2026-07-23 (Ibex now proves
+the exact loaded iOS Simulator Hermes image, including the selected slice of a
+universal framework, so the Release carrier advances to the distinct
+report-derived target-advertisement refusal. Completing that advertisement
+currently entails 22,999 CapSec recipe obligations, 18,321 of them unresolved;
+it is a separate security-conformance program rather than a bounded carrier
+measurement task. Proposed amendment
+`partitime-ws8-native-observer-v3-2026-07-23` therefore registers a
+default-off, Release/iOS-Simulator-only observer. It preserves strict snapshot
+and expected-identity loading, construction-fresh nonce/digest, loaded-engine,
+protected-artifact, project-root, enforce-context, and typed Exact-ingress
+checks, then makes two explicit measurement substitutions: complete report
+target-cell dispositions, and authenticated-root
+`network:fetch:127.0.0.1` through the still-legacy native fetch adapter so the
+local gateway and witness are reachable. The latter rejects empty, non-root,
+unknown, or mixed package stacks, every other host, and every non-fetch
+capability; it is not typed-fetch migration evidence. The feature cannot
+compile for device, desktop, or Debug; its Cargo artifact cache and linked
+archive stamp are mode-bound, and six runtime markers make both substitutions
+and the carrier posture receipt-visible. It cannot support an Ibex/Exact
+security, CapSec-conformance, typed-network, ordinary-release,
+physical-device, or target-support claim. Quick executions are non-claim
+probes, and calibration/holdout remain forbidden until Charlie Cheever
+ratifies the amendment with its exact statement.)
 **Revised (Step 4 performance-custody correction ratification):** 2026-07-23
 (The warm web collector primed and measured in the same browser target, so
 Chrome's back/forward cache retained the priming document while
