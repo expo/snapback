@@ -177,6 +177,18 @@ function manifestDigest(manifest) {
   return sha256(Buffer.from(canonicalizeJson(manifest), 'utf8'));
 }
 
+function assertObjectKeys(value, keys, code) {
+  assert.ok(
+    value !== null && typeof value === 'object' && !Array.isArray(value),
+    `${code}: expected object`,
+  );
+  assert.deepEqual(
+    Object.keys(value).sort(),
+    [...keys].sort(),
+    `${code}: object shape drifted`,
+  );
+}
+
 function packageLockIdentity() {
   const paths = [
     'bun.lock',
@@ -994,6 +1006,17 @@ function assertExactP0bReceipt(p0a) {
     'PARTITIME_V2_P0B_RECEIPT_UNCOMMITTED',
   );
   const receipt = readJson(receiptPath);
+  assertObjectKeys(receipt, [
+    'schemaVersion',
+    'authority',
+    'recordedAt',
+    'status',
+    'claimEligible',
+    'claimPromotionAuthorized',
+    'p0aEntryReceipt',
+    'isolatedChange',
+    'conclusion',
+  ], 'PARTITIME_V2_P0B_RECEIPT_SHAPE');
   assert.equal(
     receipt.schemaVersion,
     'exact.contract-production-p0b-v2-receipt.v1',
@@ -1006,6 +1029,11 @@ function assertExactP0bReceipt(p0a) {
     receipt.claimPromotionAuthorized,
     false,
     'PARTITIME_V2_P0B_PROMOTION_LEAK',
+  );
+  assert.match(
+    receipt.recordedAt,
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/,
+    'PARTITIME_V2_P0B_RECORDED_AT',
   );
   assert.deepEqual(receipt.p0aEntryReceipt, {
     repository: 'ccheever/snapback',
@@ -1020,11 +1048,24 @@ function assertExactP0bReceipt(p0a) {
   }, 'PARTITIME_V2_P0B_P0A_BINDING');
 
   const change = receipt.isolatedChange;
+  assertObjectKeys(change, [
+    'beforeRevision',
+    'afterRevision',
+    'commitCount',
+    'subject',
+    'registeredGate',
+    'boundaryArtifactPath',
+    'boundaryArtifactSha256',
+  ], 'PARTITIME_V2_P0B_CHANGE_SHAPE');
   assert.match(change.beforeRevision, /^[a-f0-9]{40}$/);
   assert.match(change.afterRevision, /^[a-f0-9]{40}$/);
   assert.equal(change.commitCount, 1);
   assert.equal(change.subject, 'fix(contract): centralize production dev boundary');
   assert.equal(change.registeredGate, 'contract-production-dev-boundary');
+  assert.equal(
+    change.boundaryArtifactPath,
+    'docs/reports/contract-production-dev-boundary.v1.json',
+  );
   assert.equal(
     git(exactRoot, ['rev-list', '--count', `${change.beforeRevision}..${change.afterRevision}`]),
     '1',
