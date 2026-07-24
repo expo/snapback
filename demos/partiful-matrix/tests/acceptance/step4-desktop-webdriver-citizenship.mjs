@@ -225,22 +225,44 @@ await runAcceptance(suite, async () => {
         '-e', 'tell application "System Events" to keystroke "f" using command down',
       ]);
       await sleep(500);
-      requiredCommand('/usr/bin/osascript', [
-        '-e', `tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to set value of text field 1 to "${query}"`,
-        '-e', 'tell application "System Events" to key code 36',
-      ]);
-      await sleep(500);
-      const findValue = requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get value of text field 1',
-      ]);
-      const findControls = requiredCommand('/usr/bin/osascript', [
-        '-e', 'tell application "System Events" to tell process "Safari" to tell front window to tell splitter group 1 to tell group 2 to get name of every button of text field 1',
-      ]);
+      // Safari 26.5 moved the Find Banner under a different AX group layout.
+      // Select its semantically named search field and result-status control
+      // instead of depending on positional splitter/group indices.
+      const findState = JSON.parse(requiredCommand('/usr/bin/osascript', [
+        '-l', 'JavaScript',
+        '-e', `
+          const query = ${JSON.stringify(query)};
+          const systemEvents = Application("System Events");
+          const process = systemEvents.processes.byName("Safari");
+          process.frontmost = true;
+          const contents = process.windows[0].entireContents();
+          const safe = (read) => {
+            try { return read(); } catch (_) { return null; }
+          };
+          const field = contents.find((item) =>
+            safe(() => item.role()) === "AXTextField"
+            && safe(() => item.description()) === "search text field");
+          if (!field) throw new Error("Safari Find Banner search field is unavailable");
+          field.value = query;
+          systemEvents.keyCode(36);
+          delay(0.5);
+          const current = process.windows[0].entireContents();
+          const status = current.find((item) =>
+            safe(() => item.role()) === "AXButton"
+            && safe(() => item.description()) === "cancel");
+          JSON.stringify({
+            value: safe(() => field.value()),
+            status: status ? safe(() => status.name()) : null,
+          });
+        `,
+      ]));
       nativeFind = {
         present: true,
-        value: findValue,
-        status: findControls,
-        notFound: findControls.includes('Not found'),
+        value: findState.value,
+        status: findState.status,
+        notFound:
+          typeof findState.status !== 'string'
+          || /not found|0 matches/i.test(findState.status),
       };
       requiredCommand('/usr/bin/osascript', [
         '-e', 'tell application "System Events" to key code 53',
