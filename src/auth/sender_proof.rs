@@ -235,6 +235,10 @@ impl std::fmt::Debug for SenderAdmissionRejection {
 pub struct SenderAdmission {
     pub verified: VerifiedSenderProof,
     next_nonce: SenderNonce,
+    /// The durable sender replay namespace this admission verified under —
+    /// what a sender-bound grant records as its issuance epoch
+    /// (`BoundGrantAuthorityV2.senderReplayEpochAtIssuance`).
+    pub sender_replay_epoch: u64,
 }
 
 impl SenderAdmission {
@@ -338,6 +342,57 @@ pub(crate) fn sender_replay_epoch(connection: &Connection) -> Result<u64, Replay
         .ok()
         .filter(|value| *value > 0)
         .ok_or(ReplayConsumeError::Unavailable)
+}
+
+/// Apply the control-plane monotone floor to the durable sender replay
+/// namespace at hosted-authority install. If the floor is ahead of the
+/// durable counter the durable tables were rolled back wholesale: the epoch
+/// advances to the floor and the replay/nonce tables are cleared in one
+/// transaction, so no proof or nonce accepted under a rolled-back epoch
+/// value can resurrect. A floor at or below the durable counter is a no-op
+/// (the floor never lowers the epoch).
+///
+/// @ref LLP 0077#author-decisions--2026-07-23 — decision 1: effective epoch
+/// = max(incarnation-derived durable value, control-plane floor); the floor
+/// lives outside the rolled-back durable set and only ever advances.
+pub(crate) fn apply_sender_replay_epoch_floor(
+    connection: &mut Connection,
+    floor: u64,
+) -> Result<(), ReplayConsumeError> {
+    if floor == 0 {
+        return Ok(());
+    }
+    let floor = i64::try_from(floor).map_err(|_| ReplayConsumeError::Invalid)?;
+    let transaction = connection
+        .transaction_with_behavior(TransactionBehavior::Immediate)
+        .map_err(|_| ReplayConsumeError::Unavailable)?;
+    let current: i64 = transaction
+        .query_row(
+            &format!("SELECT epoch FROM {EPOCH_TABLE} WHERE singleton = 1"),
+            [],
+            |row| row.get(0),
+        )
+        .map_err(|_| ReplayConsumeError::Unavailable)?;
+    if floor > current {
+        let advanced = transaction
+            .execute(
+                &format!("UPDATE {EPOCH_TABLE} SET epoch = ?1 WHERE singleton = 1"),
+                params![floor],
+            )
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+        if advanced != 1 {
+            return Err(ReplayConsumeError::Unavailable);
+        }
+        transaction
+            .execute(&format!("DELETE FROM {REPLAY_TABLE}"), [])
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+        transaction
+            .execute(&format!("DELETE FROM {NONCE_TABLE}"), [])
+            .map_err(|_| ReplayConsumeError::Unavailable)?;
+    }
+    transaction
+        .commit()
+        .map_err(|_| ReplayConsumeError::Unavailable)
 }
 
 /// Rotate the sender namespace inside the authorization-stream reset
@@ -1012,6 +1067,7 @@ pub fn admit_sender_constrained_request(
         nonce_ttl_seconds,
         nonce_capacity,
         replay_capacity,
+        None,
     )
 }
 
@@ -1034,6 +1090,7 @@ pub fn admit_sender_constrained_bound_request(
     nonce_ttl_seconds: u64,
     nonce_capacity: Option<u64>,
     replay_capacity: Option<u64>,
+    issuance_sender_replay_epoch: Option<u64>,
 ) -> Result<SenderAdmission, SenderAdmissionRejection> {
     if admission_epoch == 0
         || method.is_empty()
@@ -1043,6 +1100,13 @@ pub fn admit_sender_constrained_bound_request(
         || !canonical_thumbprint(family_jwk_thumbprint)
         || nonce_ttl_seconds < REPLAY_RETENTION_AFTER_IAT_SECONDS
     {
+        return Err(rejection(SenderAdmissionRejectionKind::Invalid, None));
+    }
+    // @ref LLP 0059#boundgrantauthorityv2--sender-bound-grants-amendment-2026-07-23
+    // — a sender-bound grant invalidates when `sender_replay_epoch` advances
+    // past its issuance value; exact-tuple equality, checked against the
+    // durable namespace before any nonce or proof work.
+    if issuance_sender_replay_epoch.is_some_and(|issued| issued != admission_epoch) {
         return Err(rejection(SenderAdmissionRejectionKind::Invalid, None));
     }
     let Some(compact_proof) = compact_proof else {
@@ -1121,6 +1185,7 @@ pub fn admit_sender_constrained_bound_request(
         Ok(next_nonce) => Ok(SenderAdmission {
             verified,
             next_nonce,
+            sender_replay_epoch: admission_epoch,
         }),
         Err(SenderNonceError::Required) => {
             let challenge = read_sender_nonce(
@@ -2755,6 +2820,108 @@ mod tests {
                 .unwrap(),
             0,
             "cover nonces are never installed",
+        );
+    }
+
+    #[test]
+    fn sender_replay_epoch_floor_advances_clears_and_never_lowers() {
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 1: a raw
+        // backup rollback reverts the durable tables but cannot lower the
+        // control-plane floor, so no epoch value under which a proof was
+        // accepted can recur.
+        let mut connection = Connection::open_in_memory().unwrap();
+        initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+        assert_eq!(sender_replay_epoch(&connection).unwrap(), 1);
+        connection
+            .execute(
+                "INSERT INTO _snapback_sender_proof_replay(
+                    admission_epoch, proof_id, expires_at_seconds
+                 ) VALUES (1, ?1, 1000)",
+                params![[7_u8; 16].as_slice()],
+            )
+            .unwrap();
+        connection
+            .execute(
+                "INSERT INTO _snapback_sender_nonce(
+                    admission_epoch, jwk_thumbprint, generation, nonce,
+                    expires_at_seconds
+                 ) VALUES (1, ?1, 1, ?2, 1000)",
+                params!["t".repeat(43), "n".repeat(43)],
+            )
+            .unwrap();
+
+        // The rolled-back durable state boots against a floor the rollback
+        // could not rewind: the epoch advances and both tables clear in one
+        // transaction, orphaning every accepted proof and nonce.
+        apply_sender_replay_epoch_floor(&mut connection, 3).unwrap();
+        assert_eq!(sender_replay_epoch(&connection).unwrap(), 3);
+        let count = |connection: &Connection, table: &str| {
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap()
+        };
+        assert_eq!(count(&connection, REPLAY_TABLE), 0);
+        assert_eq!(count(&connection, NONCE_TABLE), 0);
+
+        // The floor never lowers the durable counter, and an absent floor is
+        // a no-op.
+        apply_sender_replay_epoch_floor(&mut connection, 2).unwrap();
+        assert_eq!(sender_replay_epoch(&connection).unwrap(), 3);
+        apply_sender_replay_epoch_floor(&mut connection, 0).unwrap();
+        assert_eq!(sender_replay_epoch(&connection).unwrap(), 3);
+    }
+
+    #[test]
+    fn sender_replay_epoch_survives_restart_and_rotates_only_on_reset() {
+        // Ordinary restart/rollout re-runs hosted preflight against the same
+        // durable file: the epoch and both tables must be preserved (no
+        // per-rollout resync storm), while the stream-reset transaction is
+        // the one place the namespace rotates and the tables clear.
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("sender-epoch.sqlite");
+        {
+            let connection = Connection::open(&path).unwrap();
+            initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+            connection
+                .execute(
+                    "INSERT INTO _snapback_sender_proof_replay(
+                        admission_epoch, proof_id, expires_at_seconds
+                     ) VALUES (1, ?1, 1000)",
+                    params![[8_u8; 16].as_slice()],
+                )
+                .unwrap();
+        }
+        let mut connection = Connection::open(&path).unwrap();
+        initialize_sender_proof_replay_after_hosted_preflight(&connection).unwrap();
+        assert_eq!(
+            sender_replay_epoch(&connection).unwrap(),
+            1,
+            "restart preserves the durable namespace",
+        );
+        assert_eq!(
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {REPLAY_TABLE}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap(),
+            1,
+            "restart preserves retained replay ids",
+        );
+
+        let transaction = connection.transaction().unwrap();
+        rotate_sender_replay_epoch_for_stream_reset(&transaction).unwrap();
+        transaction.commit().unwrap();
+        assert_eq!(sender_replay_epoch(&connection).unwrap(), 2);
+        assert_eq!(
+            connection
+                .query_row(&format!("SELECT COUNT(*) FROM {REPLAY_TABLE}"), [], |row| {
+                    row.get::<_, i64>(0)
+                })
+                .unwrap(),
+            0,
+            "reset clears the replay space with the epoch advance",
         );
     }
 

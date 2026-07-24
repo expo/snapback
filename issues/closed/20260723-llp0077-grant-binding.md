@@ -1,6 +1,6 @@
 # Sender-bound grants: proof on every carrier and route (no bare-bearer grant path)
 
-**Status:** In Progress (2026-07-24 — enforcement closed; decision-6 grant-epoch member pending)
+**Status:** Closed (2026-07-24)
 **Severity:** P1
 **Systems:** Auth, HTTP, WebSocket, Hosted runtime, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -23,11 +23,13 @@ route and both WebSocket carriers; the client signs the grant token into
 subprotocol carrier and refuses missing, malformed, wrong-`ath`, replayed,
 and unavailable-authority proofs without polling the body
 (`hosted_sender_issuance_session_and_refresh_compose_through_the_router`).
-LLP 0059 §BoundGrantAuthorityV2 is already amended on main; remaining here:
-the grant binding records the serving admission epoch, not the decision-6
-issuance `sender_replay_epoch` — switching the member and its
-equality/invalidation to the durable epoch rides the sender-replay-epoch
-ticket, after which defect 2's row loses its residual note.
+LLP 0059 §BoundGrantAuthorityV2 is amended on main, and the decision-6
+member landed with the sender-replay-epoch ticket: the grant binding records
+the issuance `sender_replay_epoch` (exact-tuple equality) and invalidates,
+with no challenge, once the durable namespace advances past it —
+`sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances` also
+proves the session family survives and re-opens a successor grant. Defect 2
+is fully closed, including its epoch-member residual.
 
 Depends on the versioned `BoundGrantAuthorityV2` shape (thumbprint + admission
 epoch) and its equality/invalidation rules plus the LLP 0059 amendment, tracked

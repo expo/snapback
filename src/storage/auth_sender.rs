@@ -8,7 +8,7 @@ use super::LocalDatabase;
 use crate::auth::sender_proof::{
     ReplayConsumeError, SenderAdmission, SenderAdmissionRejection, SenderCoverNonceKey,
     admit_sender_constrained_bound_request, admit_sender_constrained_request,
-    initialize_sender_proof_replay_after_hosted_preflight,
+    apply_sender_replay_epoch_floor, initialize_sender_proof_replay_after_hosted_preflight,
     rotate_sender_replay_epoch_for_stream_reset, sender_replay_epoch,
 };
 use crate::diagnostic::{SnapbackError, SnapbackResult};
@@ -51,6 +51,15 @@ impl LocalDatabase {
             )
             .with_details(serde_json::json!({ "reason": reason }))
         })
+    }
+
+    /// Apply the control-plane monotone floor at hosted-authority install
+    /// (decision 1's anti-rollback composition): a floor ahead of the durable
+    /// counter advances it and clears the replay/nonce tables atomically.
+    #[allow(dead_code)] // Invoked when a concrete hosted adapter installs authority.
+    pub(crate) fn apply_sender_replay_epoch_floor(&mut self, floor: u64) -> SnapbackResult<()> {
+        apply_sender_replay_epoch_floor(&mut self.conn, floor)
+            .map_err(|_| sender_authority_error("epoch-floor"))
     }
 
     #[cfg(test)]
@@ -101,6 +110,7 @@ impl LocalDatabase {
         connection_token: &str,
         compact_proof: Option<&str>,
         family_jwk_thumbprint: &str,
+        issuance_sender_replay_epoch: u64,
         now_seconds: u64,
         nonce_ttl_seconds: u64,
     ) -> Result<SenderAdmission, SenderAdmissionRejection> {
@@ -118,6 +128,7 @@ impl LocalDatabase {
             nonce_ttl_seconds,
             None,
             None,
+            Some(issuance_sender_replay_epoch),
         )
     }
 }

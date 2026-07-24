@@ -249,6 +249,18 @@ pub struct HostedAdmission {
     pub authentication_throttle_config: SharedAuthenticationThrottleConfig,
     #[schemars(range(min = 1_i64, max = 9007199254740991_i64))]
     pub invalidation_epoch: u64,
+    /// Control-plane monotone floor for the durable `sender_replay_epoch`.
+    /// Stored outside the rolled-back durable set and only ever advanced by
+    /// the control plane; the serving boot applies
+    /// `effective epoch = max(durable, floor)` so a raw backup rollback
+    /// cannot resurrect an accepted proof. Zero means "no floor delivered"
+    /// (a valid state for targets predating the field).
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 1: the
+    /// composition ratchet (LLP 0059 incarnation + control-plane floor).
+    #[schemars(range(max = 9007199254740991_i64))]
+    #[serde(default)]
+    pub sender_replay_epoch_floor: u64,
     #[schemars(range(min = 1, max = 1))]
     pub handler_protocol_version: u64,
     #[schemars(length(min = 1))]
@@ -278,6 +290,7 @@ impl HostedAdmission {
             && self.authentication_throttle_config.validate().is_ok()
             && self.invalidation_epoch > 0
             && self.invalidation_epoch <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
+            && self.sender_replay_epoch_floor <= HOSTED_ADMISSION_MAX_SAFE_INTEGER
             && self.handler_protocol_version == 1
             && !self.handler_incarnation.is_empty()
             && self.operator_surface == HostedOperatorSurface::Disabled
@@ -386,6 +399,13 @@ impl HostedServingAuthority {
             config: self.admission.authentication_throttle_config.clone(),
             key: self.authentication_throttle_key.clone(),
         })
+    }
+
+    /// The control-plane monotone floor for the durable sender replay
+    /// namespace, applied at authority install (decision 1's anti-rollback
+    /// composition).
+    pub(crate) fn sender_replay_epoch_floor(&self) -> u64 {
+        self.admission.sender_replay_epoch_floor
     }
 
     /// Purpose key for the deterministic unknown-carrier cover nonce.
@@ -526,6 +546,7 @@ mod tests {
             limiter_epoch: 11,
             authentication_throttle_config: positive_throttle_config(),
             invalidation_epoch: 13,
+            sender_replay_epoch_floor: 0,
             handler_protocol_version: 1,
             handler_incarnation: "handler-1".into(),
             operator_surface: HostedOperatorSurface::Disabled,

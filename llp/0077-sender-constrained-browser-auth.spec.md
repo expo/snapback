@@ -12,13 +12,17 @@ ported onto current main, adapted to the landed LLP 0076 surface, and
 hardened. Ledger defects 1–8 and 11–13 are now fixed in tree with negative
 tests (per-item annotations below); the unknown-carrier cover nonce is the
 decision-3 keyed HMAC; and the distinct durable `sender_replay_epoch` with
-its atomic reset rotation landed. Still open: the decision-1 control-plane
-anti-rollback floor and the restore/rollback straddle tests (defect 10
-residual), the decision-6 grant-epoch member (grants still record the
-serving admission epoch), the decision-2 logout tombstone (defect 9), and
-the decision-5 in-band WebSocket successor-nonce release (the shipped client
-releases the flight on socket open and resynchronizes through the bounded
-challenge instead). No capability claim advances; the ledger still gates).
+its atomic reset rotation landed. Later the same day the
+epoch work completed: defect 10 closed (the decision-1 control-plane floor
+delivered through `HostedAdmission.senderReplayEpochFloor` and applied as
+`max(durable, floor)` with an atomic table clear at authority install, plus
+restart/reset/rollback straddle tests) and the decision-6 grant member
+landed (grants record the issuance `sender_replay_epoch` and close, with no
+challenge, once the namespace advances past it). Still open: the decision-2
+logout tombstone (defect 9) and the decision-5 in-band WebSocket
+successor-nonce release (the shipped client releases the flight on socket
+open and resynchronizes through the bounded challenge instead). No
+capability claim advances; the ledger still gates).
 2026-07-23 (author decisions batch — see §Author decisions —
 2026-07-23: the sender_replay_epoch ratchet is realized as the LLP 0059
 incarnation composed with a control-plane monotone floor stored outside the
@@ -158,10 +162,12 @@ matrix, session/refresh/connection-open/grant-matrix composition over all
 ten header routes plus the WebSocket subprotocol carrier), the Node
 cross-language vector test, and the client suites (`sender-proof`,
 `sender-transport`, `hosted-browser`, `auth-sender-custody`). Defects 1–8
-and 11–13 are fixed with negative tests; defects 9 and 10 (control-plane
-floor + straddle tests + grant-epoch member) and the decision-5 WebSocket
-in-band successor release remain open, and no positive capability claim is
-made.
+and 10–13 are fixed with negative tests (defect 10: the durable epoch, the
+decision-1 floor applied at authority install, restart/reset/rollback
+straddle witnesses, and the decision-6 grant-epoch member with its served
+invalidation test); defect 9 (decision-2 logout tombstone) and the
+decision-5 WebSocket in-band successor release remain open, and no positive
+capability claim is made.
 
 **Implementation checkpoint (2026-07-22):** The hosted-only browser entrypoint
 closes the exported constructor-options and `setBearerToken` direct-bearer
@@ -293,9 +299,10 @@ appended:
    `hosted_sender_issuance_session_and_refresh_compose_through_the_router`
    (ten header routes + the WebSocket subprotocol carrier × missing/
    malformed/wrong-`ath`/replayed/authority-unavailable, refused without
-   body polling). Residual (tracked with defect 10): the grant binding
-   records the serving admission epoch, not the decision-6 issuance
-   `sender_replay_epoch`.
+   body polling). The decision-6 member landed with defect 10's fix: the
+   grant records the issuance `sender_replay_epoch` and invalidates, with no
+   challenge, once the namespace advances past it
+   (`sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances`).
 3. Sender lookup joins only the current session token hash, refusing
    proof-bearing requests that present an in-grace superseded token and
    breaking LLP 0057's tombstone-grace resolution matrix.
@@ -375,6 +382,19 @@ appended:
     every rollout that rotates it strands all installed nonces and forces every
     client through the one-shot challenge-retry simultaneously — a per-rollout
     resync storm — so the fix is priority.
+
+    *Fixed 2026-07-24:* the durable `_snapback_sender_replay_epoch` singleton
+    is the namespace (preserved across restart/rollout), the LLP 0059
+    stream-reset transaction atomically advances it and clears both tables,
+    and the decision-1 control-plane floor
+    (`HostedAdmission.senderReplayEpochFloor`, stored outside the rolled-back
+    durable set) is applied as `max(durable, floor)` with an atomic table
+    clear at hosted-authority install — so a raw backup rollback cannot
+    resurrect an accepted proof, upgrading the non-resurrection guarantee to
+    an implemented property. Witnesses:
+    `sender_replay_epoch_floor_advances_clears_and_never_lowers`,
+    `sender_replay_epoch_survives_restart_and_rotates_only_on_reset`,
+    `sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances`.
 11. A cryptographically valid issuance proof paired with a wrong or exhausted
     code does not consume its `jti` (the wrong-code path returns before sender
     commitment), so the issuance outcome table's cross-guess-reuse rule is
@@ -702,15 +722,16 @@ replayed:
   requirement, not yet a proven property — this Spec does not assert an
   unidentified counter exists.
 
-As of 2026-07-24 the durable `sender_replay_epoch` exists (a singleton row
-in `_snapback_sender_replay_epoch`, preserved across restart/rollout — the
-historical SQL column name `admission_epoch` in the replay/nonce tables now
-stores this durable value), and the LLP 0059 stream-reset transaction
-atomically advances it and clears the replay/nonce tables inside the same
-destructive cut that revokes the auth catalog. Defect 10 stays open for the
-decision-1 control-plane anti-rollback floor, the restore/rollback straddle
-tests, and the decision-6 grant member (grants still record the serving
-admission epoch at connection-open).
+As of 2026-07-24 this model is implemented (defect 10 closed): the durable
+`sender_replay_epoch` is a singleton row in `_snapback_sender_replay_epoch`,
+preserved across restart/rollout (the historical SQL column name
+`admission_epoch` in the replay/nonce tables stores this durable value); the
+LLP 0059 stream-reset transaction atomically advances it and clears the
+replay/nonce tables inside the same destructive cut that revokes the auth
+catalog; and the decision-1 control-plane floor is delivered through
+`HostedAdmission.senderReplayEpochFloor` and applied at hosted-authority
+install as `max(durable, floor)` with an atomic table clear, so a raw backup
+rollback cannot resurrect an accepted proof or nonce.
 
 This extends LLP 0057's Accepted `/auth/exchange` wire contract, which pinned
 the request body to `{challengeId, code}` and reserved sender-binding as a
@@ -792,8 +813,8 @@ it is tracked as defect 9.
 
 The browser sends a fresh proof in the HTTP connection-open request before it
 receives a connection grant. The grant records the session-family thumbprint
-and admission epoch for the grant's lifetime; grants remain process-local and
-restart-invalidated under LLP 0059. WebSocket upgrade consumes a second fresh
+and the durable `sender_replay_epoch` current at issuance for the grant's
+lifetime; grants remain process-local and restart-invalidated under LLP 0059. WebSocket upgrade consumes a second fresh
 proof, carried in a dedicated subprotocol value of exactly
 `snapback.sender-proof.<compact-jws>`, covering `GET`, the canonical external
 `wss` URI normalized to the corresponding `https` authority/path, the
@@ -814,11 +835,11 @@ the compact proof never becomes the application-visible subprotocol. A
 sender-bound grant is minted or renewed only by a current session token —
 never by an in-grace superseded token (preserving LLP 0059's connection-open
 carve-out); the in-grace resolution above applies to ordinary finite HTTP
-requests, not to connection-open. The sender-bound grant shape extends LLP
-0059's `BoundGrantAuthorityV1` with the thumbprint and admission epoch and
-needs a corresponding LLP 0059 amendment defining the versioned grant shape
-and its equality/invalidation rules; that amendment is pending (tracked as an
-open question).
+requests, not to connection-open. The sender-bound grant shape is LLP 0059's
+`BoundGrantAuthorityV2` (thumbprint + issuance `sender_replay_epoch`,
+exact-tuple equality, invalidation on family revocation or epoch advance) —
+the dated LLP 0059 amendment landed 2026-07-23 and the implementation
+matches it as of 2026-07-24.
 
 No proof rides application WebSocket frames. Existing connection generation,
 revocation, authorization-invalidation, and user-switch barriers remain

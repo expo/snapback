@@ -99,6 +99,7 @@ fn representative_hosted_admission() -> HostedAdmission {
         limiter_epoch: 11,
         authentication_throttle_config: representative_authentication_throttle_config(),
         invalidation_epoch: 13,
+        sender_replay_epoch_floor: 0,
         handler_protocol_version: 1,
         handler_incarnation: "handler-1".to_owned(),
         operator_surface: HostedOperatorSurface::Disabled,

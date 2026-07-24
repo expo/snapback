@@ -987,6 +987,13 @@ impl AppState {
                         "shared authentication throttle could not be initialized",
                     )
                 })?;
+            // @ref LLP 0077#author-decisions--2026-07-23 — decision 1: the
+            // control-plane monotone floor is applied before any request can
+            // observe hosted posture, so a raw backup rollback of the durable
+            // set cannot resurrect an accepted proof or nonce.
+            snapback
+                .auth_database_mut()
+                .apply_sender_replay_epoch_floor(authority.sender_replay_epoch_floor())?;
         }
         self.hosted_serving = Some(Arc::new(authority));
         Ok(self)

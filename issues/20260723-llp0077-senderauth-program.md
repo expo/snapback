@@ -14,11 +14,11 @@ re-landed on main (adapted to the landed LLP 0076 surface) with a defect-fix
 pass. Ledger defects 1–8 and 11–13 are fixed with negative tests; the
 per-item witnesses live in LLP 0077's annotated ledger. Closed tickets:
 nonce-integrity, grace-lookup, replay-retention, issuance-binding,
-client-nonce-serialization, structural-exclusion, admission-order. Still
-open: grant-binding (enforcement closed; decision-6 grant-epoch member
-pending) and sender-replay-epoch (durable epoch + atomic reset landed;
-decision-1 control-plane floor, straddle tests, and the grant member
-pending). Unowned remaining work now tracked here: the decision-2
+client-nonce-serialization, structural-exclusion, admission-order. Later the
+same day grant-binding and sender-replay-epoch closed too: defects 2 and 10
+are fully fixed (decision-1 floor via `HostedAdmission.senderReplayEpochFloor`
+with straddle witnesses; decision-6 issuance-epoch grant member with a
+served invalidation test). Unowned remaining work now tracked here: the decision-2
 logout-tombstone implementation (ledger defect 9) and the decision-5
 WebSocket in-band successor-nonce release (the shipped client releases on
 socket open and resyncs via the bounded challenge). No ticket permits a

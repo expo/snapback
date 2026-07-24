@@ -2732,10 +2732,18 @@ struct ConnectionGrantRecord {
         Option<crate::auth::invalidation::AuthorizationInvalidationConnection>,
 }
 
+/// The sender half of a `BoundGrantAuthorityV2` session grant: the custody
+/// key's JWK thumbprint plus the durable `sender_replay_epoch` current at
+/// issuance. Equality is exact-tuple; the grant invalidates when the epoch
+/// advances past its issuance value.
+///
+/// @ref LLP 0059#boundgrantauthorityv2--sender-bound-grants-amendment-2026-07-23
+/// — the registry-side V2 shape (thumbprint + issuance epoch, deadline
+/// excluded from identity).
 #[derive(Clone, Eq, PartialEq)]
 struct HostedSenderGrantBinding {
     jwk_thumbprint: String,
-    admission_epoch: u64,
+    sender_replay_epoch_at_issuance: u64,
 }
 
 impl std::fmt::Debug for HostedSenderGrantBinding {
@@ -9066,10 +9074,12 @@ async fn admit_hosted_sender_request(
     let now_ms = installed_auth_provider(runtime)
         .map(|provider| provider.now_ms())
         .unwrap_or_else(|_| now_millis());
-    let admission_epoch = match hosted.admission_epoch_at(now_ms) {
-        Ok(epoch) => epoch,
-        Err(error) => return Err(ApiError::from(error).into_response()),
-    };
+    // Serving-admission validity still gates every hosted request; the
+    // short-lived serving epoch itself is deliberately NOT recorded anywhere
+    // in sender state (the durable `sender_replay_epoch` is the namespace).
+    if let Err(error) = hosted.admission_epoch_at(now_ms) {
+        return Err(ApiError::from(error).into_response());
+    }
     let authentication_throttle = match hosted.authentication_throttle_at(now_ms) {
         Ok(throttle) => throttle,
         Err(error) => return Err(ApiError::from(error).into_response()),
@@ -9106,16 +9116,11 @@ async fn admit_hosted_sender_request(
             now_ms,
         )
         .await?;
-        if binding.admission_epoch != admission_epoch {
-            let mut response = ApiError::from(SnapbackError::error(
-                "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
-                "auth",
-                "sender-constrained request admission failed",
-            ))
-            .into_response();
-            *response.status_mut() = StatusCode::UNAUTHORIZED;
-            return Err(response);
-        }
+        // The issuance-epoch invalidation is checked inside the storage
+        // admit against the durable namespace (decision 6: exact-tuple
+        // equality; the grant closes when `sender_replay_epoch` advances
+        // past its issuance value).
+        let issuance_sender_replay_epoch = binding.sender_replay_epoch_at_issuance;
         let proof = match presented.kind {
             ConnectionGrantCarrierKind::HttpHeader => {
                 sender_proof_header(&headers).map(|proof| proof.map(str::to_owned))
@@ -9136,6 +9141,7 @@ async fn admit_hosted_sender_request(
                     &connection_token,
                     proof.as_deref(),
                     &thumbprint,
+                    issuance_sender_replay_epoch,
                     now_ms / 1_000,
                     SENDER_NONCE_TTL_SECONDS,
                 )
@@ -9257,7 +9263,7 @@ async fn admit_hosted_sender_request(
         Ok(admission) => {
             let binding = HostedSenderGrantBinding {
                 jwk_thumbprint: admission.verified.jwk_thumbprint.clone(),
-                admission_epoch,
+                sender_replay_epoch_at_issuance: admission.sender_replay_epoch,
             };
             nonce_response
                 .install(admission.next_nonce_for_transport())
@@ -19724,6 +19730,7 @@ mod tests {
                 limiter_epoch: 11,
                 authentication_throttle_config,
                 invalidation_epoch: 13,
+                sender_replay_epoch_floor: 0,
                 handler_protocol_version: 1,
                 handler_incarnation: "handler-hosted-test".to_owned(),
                 operator_surface: HostedOperatorSurface::Disabled,
@@ -26167,6 +26174,163 @@ globalThis.__snapbackHandlers = {
             response_json(stale_post_reset).await["diagnostic"]["code"],
             "SNAPBACK_AUTH_SENDER_PROOF_REQUIRED",
         );
+    }
+
+    #[tokio::test]
+    async fn sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances() {
+        // @ref LLP 0059#boundgrantauthorityv2--sender-bound-grants-amendment-2026-07-23
+        // — the grant records the durable issuance epoch and closes, with no
+        // challenge, once the namespace advances past it; the session family
+        // itself survives and re-opens a fresh grant under the new epoch.
+        let (state, _) = auth_runtime_fixture(PolicyAuthMode::Sessions);
+        let mut state = state
+            .with_auth_runtime_facts(
+                settled_sessions_state(),
+                AuthProgramReadiness::new(true, true, true, true, false, false, false),
+            )
+            .expect("install hosted sender sessions posture");
+        Arc::make_mut(&mut state.server).auth_deployment =
+            crate::auth::deployment::AuthDeploymentTarget::Hosted;
+        let provider = state
+            .auth_provider
+            .as_ref()
+            .expect("hosted fixture provider")
+            .clone();
+        let now_ms = provider.now_ms();
+        let state = state
+            .with_hosted_serving_authority(hosted_serving_authority(now_ms))
+            .expect("install hosted sender authority");
+        let router = app(state.clone());
+
+        let (challenge_id, code) =
+            request_hosted_sender_challenge(&router, &provider, "epoch-grant@example.com").await;
+        let sender_key = HostedSenderProofKey::generate();
+        let issuance_proof =
+            sender_key.issuance_proof(&challenge_id, provider.now_ms() / 1_000, [61_u8; 16]);
+        let exchange = hosted_sender_exchange_response(
+            &router,
+            &challenge_id,
+            &code,
+            sender_key.public_jwk(),
+            &issuance_proof,
+        )
+        .await;
+        assert_eq!(exchange.status(), StatusCode::OK);
+        let nonce_one = exchange
+            .headers()
+            .get(super::SENDER_NONCE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .expect("issuance successor nonce")
+            .to_owned();
+        let bearer = response_json(exchange).await["token"]
+            .as_str()
+            .expect("issued hosted sender bearer")
+            .to_owned();
+
+        let open_grant = |nonce: String, proof_id: [u8; 16]| {
+            let proof = sender_key.resource_proof(
+                "POST",
+                "https://app.example.test/connection/open",
+                &bearer,
+                &nonce,
+                provider.now_ms() / 1_000,
+                proof_id,
+            );
+            let mut request = connection_open_request(Some(&bearer), json!({}));
+            request.headers_mut().insert(
+                HeaderName::from_static(super::SENDER_PROOF_HEADER),
+                HeaderValue::from_str(&proof).expect("sender connection-open proof header"),
+            );
+            request
+        };
+        let opened = router
+            .clone()
+            .oneshot(open_grant(nonce_one, [62_u8; 16]))
+            .await
+            .expect("open sender-bound grant");
+        assert_eq!(opened.status(), StatusCode::OK);
+        let grant = response_json(opened).await;
+        let connection_id = grant["connectionId"]
+            .as_str()
+            .expect("connection id")
+            .to_owned();
+        let connection_token = grant["connectionToken"]
+            .as_str()
+            .expect("connection token")
+            .to_owned();
+
+        // Advance the durable sender namespace exactly as the stream-reset
+        // transaction does: epoch + 1 with both tables cleared.
+        {
+            let mut snapback = state
+                .snapback
+                .try_lock()
+                .expect("borrow sender authority for epoch advance");
+            snapback
+                .auth_database_mut()
+                .with_auth_transaction(|transaction| {
+                    transaction.execute(
+                        "UPDATE _snapback_sender_replay_epoch
+                         SET epoch = epoch + 1 WHERE singleton = 1",
+                        [],
+                    )?;
+                    transaction.execute("DELETE FROM _snapback_sender_proof_replay", [])?;
+                    transaction.execute("DELETE FROM _snapback_sender_nonce", [])?;
+                    Ok(())
+                })
+                .expect("advance durable sender replay epoch");
+        }
+
+        // The stale grant is closed outright — no nonce challenge, because a
+        // dead grant must not become a nonce-issuance oracle.
+        let stale = router
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("GET")
+                    .uri(format!("/outbox/{connection_id}"))
+                    .header(super::CONNECTION_TOKEN_HEADER, connection_token.as_str())
+                    .header("x-snapback-auth-client-protocol", "1")
+                    .body(Body::new(PanicOnPollBody))
+                    .expect("stale-epoch grant request"),
+            )
+            .await
+            .expect("refuse stale-epoch sender-bound grant");
+        assert_eq!(stale.status(), StatusCode::UNAUTHORIZED);
+        assert!(stale.headers().get(super::SENDER_NONCE_HEADER).is_none());
+        assert_eq!(
+            response_json(stale).await["diagnostic"]["code"],
+            "SNAPBACK_AUTH_SENDER_PROOF_INVALID",
+        );
+
+        // The session family survives the epoch advance: one bounded
+        // challenge resynchronizes the nonce and a fresh connection-open
+        // mints a successor grant bound to the new epoch.
+        let mut challenge_request = Request::builder()
+            .method("GET")
+            .uri("/auth/session")
+            .header(header::AUTHORIZATION, format!("Bearer {bearer}"))
+            .body(Body::empty())
+            .expect("post-advance nonce challenge request");
+        offer_auth_client_protocol(&mut challenge_request);
+        let challenge = router
+            .clone()
+            .oneshot(challenge_request)
+            .await
+            .expect("post-advance nonce challenge");
+        assert_eq!(challenge.status(), StatusCode::UNAUTHORIZED);
+        let fresh_nonce = challenge
+            .headers()
+            .get(super::SENDER_NONCE_HEADER)
+            .and_then(|value| value.to_str().ok())
+            .expect("fresh post-advance nonce")
+            .to_owned();
+        let reopened = router
+            .clone()
+            .oneshot(open_grant(fresh_nonce, [63_u8; 16]))
+            .await
+            .expect("reopen sender-bound grant under the new epoch");
+        assert_eq!(reopened.status(), StatusCode::OK);
     }
 
     #[tokio::test]

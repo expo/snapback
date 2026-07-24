@@ -1,6 +1,6 @@
 # Distinct durable sender_replay_epoch with an atomic reset transaction
 
-**Status:** In Progress (2026-07-24 — durable epoch + atomic reset landed; floor, straddle tests, grant member pending)
+**Status:** Closed (2026-07-24)
 **Severity:** P1
 **Systems:** Auth, Storage, Control plane, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever
@@ -8,7 +8,23 @@
 **Related:** LLP 0077 §Nonce protocol (epoch lifecycle) + defect 10, LLP 0060 (serving admission epoch), LLP 0059 (authorization-stream incarnation), src/auth/sender_proof.rs (tables key on admission_epoch), src/storage/auth.rs (reset), issues/20260723-llp0077-rollback-ratchet.md, issues/20260723-llp0077-senderauth-program.md
 **Marker:** llp-0077, sender-auth, replay-epoch, security
 
-**Progress (2026-07-24, re-landed on main):** the distinct durable
+**Resolution (2026-07-24):** all three residuals landed the same day. The
+decision-1 control-plane monotone floor is delivered through
+`HostedAdmission.senderReplayEpochFloor` (serde-default 0, so absent floors
+are valid), stored outside the rolled-back durable set and applied at
+hosted-authority install as `max(durable, floor)` with an atomic
+replay/nonce table clear — a raw backup rollback cannot resurrect an
+accepted proof (`sender_replay_epoch_floor_advances_clears_and_never_lowers`).
+Restart preserves the namespace and retained replay ids while only the
+stream-reset transaction rotates it
+(`sender_replay_epoch_survives_restart_and_rotates_only_on_reset`). The
+decision-6 grant member records the issuance `sender_replay_epoch` and the
+grant closes, with no challenge, once the namespace advances past it, while
+the session family survives and re-opens under the new epoch
+(`sender_bound_grant_invalidates_when_the_sender_replay_epoch_advances`).
+LLP 0077's defect 10 row carries the witnesses.
+
+Earlier progress note (same day): the distinct durable
 `sender_replay_epoch` exists (`_snapback_sender_replay_epoch` singleton,
 preserved across restart/rollout — the per-rollout resync storm is gone),
 and the LLP 0059 stream-reset transaction atomically advances it and clears
