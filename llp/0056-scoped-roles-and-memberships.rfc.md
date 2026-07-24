@@ -5,7 +5,10 @@
 **Systems:** Auth, Sync, Storage, API, Client integration, Testing
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-13
-**Revised:** 2026-07-18 (the generated write surface gains host-resolved
+**Revised:** 2026-07-21 (delivery-lane boundary enforced in code: `live_delta`
+candidacy and `compute_live_delta` now fail closed on non-empty
+`membership_filters`, closing the LLP 0067 §F2a over-delivery/visibility-freeze
+discrepancy; the L4 oracle extends to `NoChange` settles). 2026-07-18 (the generated write surface gains host-resolved
 `setSelfRole`/`removeSelf`/`patchSelf`: app code can accept, leave, or patch its
 own private roster row without learning its id; the unchanged transition
 matrix remains the sole authorizer). 2026-07-17 (strengthened shipped-demo acceptance: separate Alice,
@@ -1019,6 +1022,22 @@ check, and the write path enforces the vocabulary — **not** incremental
 membership deltas and **not** retained eligibility (§Non-Goals). The membership
 **semi-join incremental lane** — and, with it, retained/offline role-gated
 reads — is the named follow-on requiring the LLP 0008/0004 amendments.
+
+> **Boundary enforced in code (2026-07-21).** LLP 0067 §F2a found this lane
+> assignment was design intent only: the `live_delta` path admitted
+> membership-gated plans (candidacy never checked `membership_filters`, row
+> classification evaluated only ordinary filters, and membership-table-only
+> commits settled as `NoChange` — freezing both visibility directions,
+> including revocation, with the L4 oracle unreachable on that path). The
+> repair pins the lane fail-closed at both layers: delta candidacy in
+> `notify_live_subscriptions` skips plans with non-empty `membership_filters`,
+> and `compute_live_delta` independently returns `Replace` for them
+> (belt-and-suspenders, each with an `@ref` here); the L4 debug convergence
+> assertion now also runs at `NoChange` settles, so a swallowed transition
+> fails tests instead of freezing silently. Re-admitting semi-join shapes to
+> the delta lane remains the named follow-on above, now gated on a certified
+> semi-join evaluator plus bidirectional membership-visibility regression
+> coverage.
 
 **The captured-dependency contract is pinned — for every outcome — because the
 obvious representations are wrong.** Two shipped facts drive it: the matcher

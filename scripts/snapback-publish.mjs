@@ -43,6 +43,12 @@ function fail(message, code = 1) {
   process.exit(code);
 }
 
+function redactAuthenticationUrls(text) {
+  return String(text)
+    .replace(/https:\/\/www\.npmjs\.com\/auth\/cli\/\S+/g, 'https://www.npmjs.com/auth/cli/[redacted]')
+    .replace(/https:\/\/registry\.npmjs\.org\/-\/v1\/done\?authId=\S+/g, 'https://registry.npmjs.org/-/v1/done?authId=[redacted]');
+}
+
 function parseArgs(argv) {
   const options = {
     version: '0.1.0',
@@ -231,8 +237,14 @@ if (options.publish) {
     if (options.otp) args.push('--otp', options.otp);
     const result = run('npm', args);
     if (result.status !== 0) {
+      const failure = `${result.stderr}\n${result.stdout}`;
+      row.status = 'publish-failed';
+      row.errorCode = failure.match(/npm error code (\S+)/)?.[1] ?? 'UNKNOWN';
       writeFileSync(ledgerPath, `${JSON.stringify(ledger, null, 2)}\n`);
-      fail(`publish failed for ${row.name}; rerun resumes safely:\n${result.stderr}`);
+      const otpHint = row.errorCode === 'EOTP'
+        ? '\nAuthenticate interactively or rerun with --otp <current-code>; the ledger is resumable.'
+        : '';
+      fail(`publish failed for ${row.name}; rerun resumes safely:${otpHint}\n${redactAuthenticationUrls(result.stderr)}`);
     }
     row.status = 'published';
   }

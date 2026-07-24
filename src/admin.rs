@@ -754,6 +754,12 @@ pub struct AppState {
     pub(crate) allow_insecure_dev_auth: bool,
     /// Digest-only registry for reset-bounded administrative data leases.
     pub secret_reads: SecretReadLeaseRegistry,
+    /// Bounded most-recent-first ring of recent function runs and artifact
+    /// loads, projected by `app.inspect` as `data.recentInvocations`.
+    ///
+    /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+    ///   the SC-1a non-deferrable diagnostics minimum; identical over HTTP and MCP.
+    pub(crate) recent_invocations: crate::host_ops::RecentInvocationRing,
     /// Present only for a serve process with a validated ready-file sibling.
     /// Middleware admits a mint only after AdminWrite and a one-shot HMAC
     /// proof; the root itself is never an HTTP credential or response value.
@@ -855,6 +861,7 @@ impl AppState {
                 ),
                 allow_insecure_dev_auth: false,
                 secret_reads,
+                recent_invocations: crate::host_ops::RecentInvocationRing::default(),
                 secret_read_mint: None,
                 impersonation_capabilities: None,
                 auth_provider: None,

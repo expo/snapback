@@ -11,7 +11,7 @@
   },
   "ephemeralCollections": [],
   "generatedAt": 0,
-  "inputsHash": "snapback.v1:sessions:inputs:sha256:b4178d0ce97030129c69acc276b949891220e2388b76796faef6923f86267f9b",
+  "inputsHash": "snapback.v1:sessions:inputs:sha256:9c59c3de074f91ae2d3df484065493a17fd396da78c96d2187dd478d9fad21c5",
   "portabilityFlags": [],
   "requiredCapabilities": [
     "auth.sessions.v1"

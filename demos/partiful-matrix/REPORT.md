@@ -1257,9 +1257,11 @@ The report should not be read as a general backend benchmark for these reasons:
    bindings remain absent.
 6. **Polling parity is not realtime parity.** The frozen matrix exercised only
    Snapback push; the two provider-native follow-ups are separate instruments.
-7. **No performance benchmark.** Bundle sizes were measured; follow-up
-   freshness samples are diagnostic observations, while throughput,
-   fan-out, cold start, and cost were not.
+7. **The prospective performance benchmark is claim-grade but red.** The
+   dated Step 4 amendment is ratified, and committed calibration plus an
+   independent 44-row holdout now exist. Twenty-nine Contract rows pass and
+   fifteen fail; native calibration remains unavailable because the Exact iOS
+   carrier has no first frame or authoritative-data stage.
 8. **No clean-machine timing study.** Setup effort is qualitative.
 9. **Specific package versions.** React 19, Vite 7/8, Exact 0.1.2, Bun 1.3.12,
    and the installed Convex version shaped results.
@@ -1274,8 +1276,10 @@ The report should not be read as a general backend benchmark for these reasons:
     framework-free app.
 14. **Bundled Vanilla path.** Vite remained in the loop; direct unbundled ESM
     compatibility was not tested.
-15. **No startup milestone instrumentation.** Emitted bytes were measured, but
-    parse, boot, first-data, and interactive timings were not.
+15. **Startup milestones are prospective, not Step 0 baseline evidence.** The
+    external web observer now has ratified calibration and holdout receipts,
+    but it was added after Step 0 and remains a separately governed Step 4
+    category. The red holdout cannot be used to rewrite frozen thresholds.
 16. **Browser-controller substitution.** The in-app browser plugin failed
     during setup, so rendered verification used the repository's established
     Chrome/CDP acceptance harness. The application proof is executable, but no
@@ -1753,3 +1757,141 @@ scope is unpublished, and the run is a clean directory on the development
 machine rather than a separately provisioned clean machine. The accepted
 query/projection and migration authorities, LLP 0065 acceptance, and full
 generated-pattern set also remain separate entry/exit gates.
+
+## 31. Step 4 browser-client reachability checkpoint
+
+The ordinary Snapback browser client previously retained the complete agent
+credential-custody implementation because its constructor used
+`instanceof AgentAuthorityFence` to validate an optional capability. A
+package-private WeakSet brand now preserves nominal validation without that
+static production edge. Real fences still pass the complete Contract
+agent-authority suite, while a prototype-spoofed object is rejected.
+
+On the unchanged frozen workload, Contract × Snapback moved from 802,409 to
+738,080 minified bytes and from 203,427 to 188,851 deterministic-gzip bytes;
+the attribution manifest gives `agent-authority.mjs` zero rendered bytes. This
+is a meaningful provider-runtime reduction, but not a budget exit. The other
+Contract cells remain between 468,387 and 468,401 minified bytes, and all four
+Contract cells still exceed the frozen byte thresholds. The cumulative Step 4
+budget receipt therefore remains red with 5 passing and 21 red requirements.
+
+## 32. Step 4 capability-scoped Contract packaging checkpoint
+
+Partitime's stable-package Snapback Contract arm now consumes the package-owned
+preopened Online surface instead of reaching live/mutation wiring through
+`createSnapbackContractSurface`. This is not demo-specific transport glue: it
+is an exported package path that preserves the published Exact 0.1.2 runtime's
+legacy boot-scoped behavior without importing unrelated retained/offline,
+ephemeral, derived-overlay, or coordinated-authority implementation.
+
+The first attempted extraction used the newer keyed provider. Its fail-closed
+runtime check caught that published Exact does not yet expose partition
+rotation; the 39/43 diagnostic run was discarded rather than papering over the
+logical identity contract with a no-op shim. The final Online entrypoint keeps
+fixed `{name,args}` scopes, diagnoses binding mismatch, shares the full
+adapter's artifact validator, delegates force-state behavior to Exact's
+boundary provider, carries live connection updates, and closes every live
+handle. It refuses coordinated authority; those profiles continue through the
+full surface participant. Source-Exact runtimes with partition rotation retain
+the separately tested keyed provider.
+
+On the unchanged frozen workload, Contract × Snapback moved from 738,080 to
+659,515 minified bytes and from 188,851 to 165,844 deterministic-gzip bytes.
+Review reruns pass the full 43/43 browser matrix, the 19/19 product-UI gate,
+and the 9/9 immutable production-web gate, including fallback-disabled push.
+The production rerun first exposed a 7/9 evidence-only failure: the completed
+Exact adoption result was shallow-copied, so normal responsive/live updates
+could later mutate its shared `mismatches` array. The boot path now snapshots
+that result at the adoption callback; the same live updates still occur, but
+cannot rewrite the historical adoption witness.
+
+The full Contract package test suite passes, as do Exact's 32-test keyed-query
+oracle, its 35-test mutation-projection oracle, npm package dry-run, and the
+production Snapback build. The remaining attribution is candid: the Snapback
+client root still contributes 158,644 rendered bytes, while the compiled
+Contract views and shared Exact runtime dominate every Contract cell. All four
+frozen byte thresholds therefore remain red; this is a second measured
+Snapback-owned remediation checkpoint, not Step 4 closure.
+
+## 33. Step 4 prospective performance-instrument checkpoint
+
+The fifteen missing web/build/native metric rows now have executable
+collectors instead of permanent placeholder prose. The dated 2026-07-21
+amendment freezes definitions, two warmups plus seven-sample cohorts, an
+all-valid-samples policy, React-relative margins, absolute idle ceilings, and
+a committed-calibration boundary before holdout. It does not alter any Step 0
+threshold. Charlie Cheever ratified
+`partitime-ws8-prospective-2026-07-21` with the recorded statement “I ratify
+partitime-ws8-prospective-2026-07-21.”
+
+The web collector builds and previews every production cell, installs a
+pre-document observer outside the measured bundle, and records cold/warm
+mount, authoritative/current data, Chrome task and network idle cost, heap per
+logical subscription, bounded DOM update fan-out/patches, fresh Vite build,
+and watch rebuild. A React × SQLite quick canary completes this full path with
+one sample and is explicitly nonclaim. Every Vite arm also emits a
+`partitime.web-cost-attribution.v2` ledger that assigns each production module
+exactly once to framework runtime, provider runtime, generated app data, or
+application code.
+
+The native aggregator requires paired same-host iOS receipts. React Expo now
+reads React Native's script-execution duration at the JavaScript-loaded
+notification, inventories its admitted startup JS/Hermes assets, and relates
+its first committed root effect and authoritative event to an external process
+launch request. Exact exposes its existing evaluation/first-frame stages plus
+the same external request timestamp. Missing or incomparable stages fail the
+collector; macOS Exact and Android React remain report-only because workload v1
+has no same-OS counterpart arm.
+
+A clean all-cell calibration at Snapback `250f2860…` retained seven cold,
+seven warm, seven production-build, and seven incremental-build samples for
+every one of the twelve cells. That artifact was committed at `149c2646…`.
+The independent holdout names that exact revision and passes 29 of 44 Contract
+rows. The fifteen failures are Contract × Snapback heap; Supabase warm startup,
+idle CPU/network, and heap; Convex warm startup, idle CPU/network, heap, and
+production build; and SQLite warm startup, heap, update fan-out, DOM patches,
+and production build. This is a measured red result, not a missing instrument.
+
+Exact's separate source-linked Phase 3c work has now taken the unchanged
+SQLite fixture to 210,609 minified / 61,806 deterministic-gzip bytes at Exact
+`6240b1acb…`, below the 213,483 / 67,246 frozen byte limits. That is important
+evidence that the common Contract runtime can fit, but it is not yet the
+stable-package dependency used by this Snapback receipt. The retained stable
+cells remain 659,515/165,844 bytes for Contract × Snapback and about
+468/117 kB for the other Contract cells; authored Contract source remains
+1,095 lines against 348. The rerun budget receipt is therefore 7 pass / 19
+red, with 16 explicit nonclaims; no Step 4 claim is promoted.
+
+## 34. Step 4 remote-native and browser-citizenship checkpoint
+
+The authorized macOS 26.5.1 / Xcode 26.3 host can compile both iOS comparison
+carriers. React Expo's Release/Simulator build succeeded after correcting the
+Swift importer boundary for React Native's script-execution performance tag
+and installing the nested app's transitive Snapback workspace dependency. The
+resulting startup bundle is about 2.0 MB. Exact's ordinary iOS target initially
+failed with duplicate `@main` declarations because its generated project also
+compiled the dedicated Partitime acceptance app entry point. Exact revision
+`268175d33…` excludes that file from the ordinary iOS and macOS targets; the
+regenerated project and iOS app then build successfully.
+
+Compilation is not runtime acceptance. The Exact native run launched the app
+and loaded 7,109,789 script bytes across 460 modules, including 6,231,550 bytes
+of module source. Fetch took 182.76 ms, graph construction 17.48 ms, module
+source loading 180.27 ms, bootstrap 32.10 ms, and Hermes evaluation 6,414.54
+ms. The app did not render a first frame within the 15-second boundary, so the
+Acto phase could not establish native reachability or first authoritative data.
+That receipt is red and cannot enter calibration or holdout.
+
+The browser gate is similarly explicit. Its collector enumerates the 21 rows
+required by Exact LLP 0211: five behaviors on iOS Safari current,
+current−1, and Android Chrome current, plus focus and find-on-page on desktop
+Safari, Chrome, and Firefox. Current desktop Chrome 150 and Firefox 152 pass
+both of their rows against Contract × Snapback. After the owner enabled Allow
+Remote Automation, Safari 26.5.2 passed keyboard-origin focus trap, wrap,
+Escape dismissal, and restoration to `new-event`; its Command-F row remains
+red because the native query did not appear in the DOM selection witness. The
+cumulative receipt is 5/21 pass, 16 red, and zero skipped. The machine
+inventory has desktop Safari 26.5.2, Chrome 150.0.7871.130, Firefox 152.0.1,
+Android Chrome 134, and only one iOS 26.2 runtime. No mobile version is
+relabeled as current, no desktop result stands in for mobile
+IME/autofill/bfcache, and neither Step 4 claim is promoted.

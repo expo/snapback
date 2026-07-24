@@ -1,7 +1,7 @@
 {
   "schemaVersion": "snapback.convex-checkpoint-protocol.v0",
   "protocolId": "llp-0075-convex-checkpoint-v0",
-  "protocolVersion": "v0.3",
+  "protocolVersion": "v0.4",
   "authority": "llp/0075-convex-checkpoint-protocol.spec.md",
   "normativePrecedence": "Where this JSON and the Spec prose disagree on an outcome-affecting requirement, the disagreement is a protocol defect that blocks timed runs until a dated amendment resolves it; neither artifact is silently authoritative over the other.",
   "amendments": [
@@ -38,6 +38,16 @@
         "rubric scoring anchors upgraded from unpinned-blocks-scoring to blocking both timed runs and evidence reveal, so anchors cannot be authored after seeing either arm's receipts",
         "prose warmup wording aligned to warmupsPerArm: 2 (two untimed warmups per arm)",
         "generic reprioritize consequence returns the named gap to LLP 0063 for sequencing instead of commanding tranche movement from this Spec"
+      ]
+    },
+    {
+      "version": "v0.4",
+      "date": "2026-07-23",
+      "prospective": true,
+      "reason": "LLP 0076 author decision (OQ5, recorded 2026-07-23): the progress-rate diagnostic is renamed to the profile-neutral host code before it becomes load-bearing in retained receipts. No timed sample has run; no baseline is rewritten.",
+      "changes": [
+        "SNAPBACK_REPLY_PROGRESS_RATE_EXCEEDED is renamed to SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED. The rename lands together with the LLP 0076 streamed-action implementation (attempt control plane / host rate fence), which updates the frozen fixture's authored handler in the same change; until that lands, the fixture's existing authored code stands and no retained receipt names either code.",
+        "Receipts and analysis MUST treat the two spellings as the same diagnostic across the rename boundary; a retained receipt is never rewritten for the rename alone."
       ]
     }
   ],

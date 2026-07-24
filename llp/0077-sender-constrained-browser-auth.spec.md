@@ -5,7 +5,18 @@
 **Systems:** Auth, Browser client, HTTP, WebSocket, Hosted runtime, Control plane, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-23 (eighth model-family review round — Fable NOT READY
+**Revised:** 2026-07-23 (author decisions batch — see §Author decisions —
+2026-07-23: the sender_replay_epoch ratchet is realized as the LLP 0059
+incarnation composed with a control-plane monotone floor stored outside the
+rolled-back durable set; logout-lost-response is the bounded revoked-family
+tombstone with pinned parameters; unknown carriers get a keyed cover nonce;
+v2 tokens gain a legacy-rejecting syntax alongside the LLP 0060 D6 barrier;
+the WebSocket serialization queue releases on the first server frame carrying
+the successor nonce; `BoundGrantAuthorityV2` = thumbprint + issuance
+sender_replay_epoch with exact-tuple equality; the complete closed
+`AuthCustodyV3` schema with seven states is commissioned. Decisions only —
+the defect ledger and evidence status are unchanged, and no capability claim
+advances). 2026-07-23 (eighth model-family review round — Fable NOT READY
 (one blocker: an unbacked non-rollbackable ratchet asserted as fact), Codex
 NOT READY, artifacts under `llp/reviews/0077-*`. This revision stops asserting
 that a non-rollbackable control-plane counter exists: the restore-non-
@@ -730,14 +741,143 @@ successor credential or nonce. A stale tab may request a retry but cannot
 overwrite current custody.
 
 `AuthCustodyV3` is the closed `AuthCustodyV2` shape plus
-`senderConstraint` and `pendingSenderConstraint`. Each non-null constraint is
-exactly `{formatVersion, protocol, custodyGeneration, privateKey, publicJwk,
-thumbprint, nonce}`; nonce is exactly `{value, generation, expiresAtMs}`.
-Settled v3 sessions have only `senderConstraint`; clearing has only
-`pendingSenderConstraint`; anonymous and exhausted records have neither.
-Transition-intent v2 binds the pending thumbprint (or the explicit delete
-marker) into its transition id. Logout settles to anonymous `AuthCustodyV2`
-after the v3 clearing cut, so no secret-free v3 shell remains.
+`senderConstraint` and `pendingSenderConstraint`. The complete closed schema
+follows in the next section; the summary rules are: settled v3 sessions have
+only `senderConstraint`; clearing has only `pendingSenderConstraint`;
+anonymous and exhausted records have neither. Transition-intent v2 binds the
+pending thumbprint (or the explicit delete marker) into its transition id.
+Logout settles to anonymous `AuthCustodyV2` after the v3 clearing cut, so no
+secret-free v3 shell remains.
+
+### The closed `AuthCustodyV3` schema (landed 2026-07-23)
+
+This section discharges §Author decisions item 7: it is the complete closed
+custody schema for an independent client, verified field-for-field against the
+reference implementation
+(`packages/snapback-contract/auth-coordinator.mjs`,
+`validateAuthCustody`/`validateAuthCustodySenderKeys`, in flight 2026-07-23).
+Validation is deny-unknown-fields at every level: a record with a missing,
+extra, or malformed member is **corrupt** in its entirety, and recovery from
+corruption is deletion-only — no partial repair.
+
+**Grammars used below.** `Base64Url32` = 43 characters of
+`[A-Za-z0-9_-]` (32 bytes, unpadded). `AuthorityKey` = `sha256:` plus 64
+lowercase hex. `UuidV7` = canonical lowercase UUIDv7. `SafeInt` = an integer
+in the JS safe range; `SafeInt⁺` additionally ≥ 1. App ids are non-empty,
+already-normalized strings (no trimming is performed at validation).
+
+**Top level.** A `formatVersion: 3` record has exactly these thirteen members
+(a `formatVersion: 2` record has exactly the first eleven — v2 remains a valid
+custody format on non-sender lanes):
+
+| Member | Type |
+| --- | --- |
+| `formatVersion` | `2` or `3` |
+| `appId` | canonical app id; must equal the owning app |
+| `authorityEpoch` | `SafeInt` ≥ 0 |
+| `revision` | `SafeInt⁺` |
+| `phase` | `"settled"` \| `"clearing"` \| `"exhausted"` |
+| `authority` | `ClientAuthority` or `null` |
+| `pendingAuthority` | `ClientAuthority` or `null` |
+| `bearer` | non-empty string or `null` |
+| `pendingBearer` | non-empty string or `null` |
+| `refreshAfterMs` | `SafeInt` ≥ 0 or `null` |
+| `transitionIntent` | `TransitionIntent` or `null` |
+| `senderConstraint` | `SenderConstraint` or `null` (v3 only) |
+| `pendingSenderConstraint` | `SenderConstraint` or `null` (v3 only) |
+
+**`ClientAuthority`.** Anonymous is exactly
+`{kind: "anonymous", authMode, authorizationStreamIncarnation}`; session is
+exactly `{kind: "session", authMode: "sessions", authorizationStreamIncarnation,
+sessionId, userId}`. `authMode ∈ {"dev", "sessions"}`;
+`authorizationStreamIncarnation`, `sessionId`, and `userId` are `UuidV7`. The
+canonical authority key is `sha256:` over
+`snapback.auth-authority.v1\n` + the JSON of the ordered
+`{appId, kind, authMode, authorizationStreamIncarnation[, sessionId, userId]}`
+object.
+
+**`TransitionIntent`.** Version 1 is exactly `{formatVersion: 1, transitionId,
+expectedEpoch, expectedAuthorityKey, nextEpoch, nextAuthorityKey, reason,
+disposition, previousAuthority, nextAuthority}`; version 2 adds exactly
+`senderConstraintThumbprint` (`Base64Url32` or `null`, where `null` is the
+explicit delete marker). `nextEpoch = expectedEpoch + 1`; both authority keys
+match `AuthorityKey` and must equal the canonical keys of the embedded
+`previousAuthority`/`nextAuthority`; `reason` is a non-empty string;
+`disposition ∈ {"delete", "preserve"}`. The transition id is `sha256:` over
+`snapback.auth-transition.v1\n{appId}\n{predecessorRevision}\n{nextEpoch}\n{nextAuthorityKey}`
+for v1, and over
+`snapback.auth-transition.v2\n…\n{senderConstraintThumbprint ?? "delete"}`
+for v2.
+
+**`SenderConstraint`.** Exactly `{formatVersion: 1, protocol:
+"snapback.sender-constrained.v2", custodyGeneration, privateKey, publicJwk,
+thumbprint, nonce}`. `custodyGeneration` is `SafeInt⁺`. `privateKey` is a
+live non-extractable ECDSA P-256 `CryptoKey` with usages exactly `["sign"]`.
+`publicJwk` is exactly `{crv: "P-256", kty: "EC", x, y}` with `x`/`y`
+`Base64Url32`. `thumbprint` is `Base64Url32`. `nonce` is exactly
+`{value, generation, expiresAtMs}` with `value` `Base64Url32` and the numbers
+`SafeInt⁺`. On every load, acceptance of a stored private-key handle
+additionally requires a live signature binding it to the exact `publicJwk`
+and `thumbprint` (see the earlier custody rules); a mismatch is corruption.
+
+**Per-phase invariants.**
+
+- `exhausted`: every nullable member is `null` — no publishable authority or
+  credential state survives.
+- `settled`: `authority` non-null; `pendingAuthority`, `pendingBearer`, and
+  `pendingSenderConstraint` are `null`. Anonymous settled custody has `null`
+  `bearer`, `refreshAfterMs`, and `senderConstraint`. Session settled custody
+  has non-null `bearer` and `refreshAfterMs`, and in v3 a non-null
+  `senderConstraint`. A retained `transitionIntent` must be the one that
+  produced this state: `nextEpoch = authorityEpoch`, `nextAuthorityKey` = the
+  canonical key of `authority`, same embedded authority; in v3 it must be
+  version 2 with `senderConstraintThumbprint = senderConstraint.thumbprint`.
+- `clearing`: `authorityEpoch ≥ 1`; `authority`, `bearer`, and
+  `senderConstraint` are `null`; `pendingAuthority` non-null (the successor
+  credentials may be staged in `pendingBearer`/`pendingSenderConstraint`);
+  `transitionIntent` non-null with `nextEpoch = authorityEpoch` and
+  `nextAuthorityKey` binding `pendingAuthority`, and its `transitionId` must
+  equal the derivation over `predecessorRevision = revision − 1 ≥ 1`.
+
+**Replacement algebra.** Fresh custody begins at exactly
+`{authorityEpoch: 0, revision: 1}`. Every replacement is a compare-and-swap
+that advances `revision` by exactly one and advances `authorityEpoch` by zero
+or one; any regression or skip is corruption. The minimum revision of a
+settled record at epoch `e` is `2e + 1`, and at that minimum the retained
+transition id is derivable from `revision − 2` — validators check it.
+
+**Storage binding (browser reference).** IndexedDB database
+`snapback-auth-custody` version 1 with object stores `custody` and `leases`;
+ownership via Web Locks (`snapback-auth-custody:{appId}`, exclusive) or the
+transactional lease fallback (`{holderNonce: 22-char base64url,
+fencingToken: SafeInt⁺, expiresAtMs: SafeInt}`, 5 s lease, 1 s renew);
+custody CAS and lease validation share one transaction domain. A second
+client may substitute an equivalent transactional store; the closed record
+schema and the replacement algebra are the portable contract.
+
+**The seven client-observable states.** The decided state set
+(§Author decisions item 7) is the client-observable machine over this closed
+record — the durable encoding needs only the three phases, and the remaining
+states are validation and runtime conditions, deliberately not stored:
+
+| State | Definition over the record |
+| --- | --- |
+| `anonymous` | `settled` ∧ `authority.kind = "anonymous"` |
+| `active` | `settled` ∧ `authority.kind = "session"` (v3: with its sender constraint) |
+| `pending` | `clearing` ∧ `pendingAuthority.kind = "session"` — a session acquisition cut over, successor issuance staged or in flight |
+| `clearing` | `clearing` ∧ `pendingAuthority.kind = "anonymous"` — a logout/downgrade cut |
+| `corrupt` | any record failing this schema (including sender-key liveness) — never operated on, deletion-only exit |
+| `migrating` | client holds a valid v2 record on a sender-constrained lane — exits only through a fresh v2 exchange producing a v3 record (bearer upgrade-in-place is prohibited) |
+| `recovery` | `exhausted`, or the post-`corrupt` deletion path — only ordinary re-authentication exits |
+
+Transitions: `anonymous → pending` (begin session acquisition; epoch +1 cut),
+`pending → active` (settle with issued credentials), `active → clearing`
+(logout/downgrade; epoch +1 cut), `clearing → anonymous` (settle the cut;
+v3 shells settle to anonymous v2), `active → pending` (re-issuance cut for
+the same principal), any → `corrupt` (validation failure), `corrupt →
+recovery` (delete), `recovery → pending` (re-authenticate), `migrating →
+pending` (fresh v2 exchange). Every arrow that touches the durable record is
+one CAS replacement obeying the algebra above; no other transition exists.
 
 ## Credential classes
 
@@ -802,6 +942,79 @@ and parser errors are forbidden.
 - A complete hosted admission and adapter drill cannot become positive until
   this matrix passes against the served public origin.
 
+## Author decisions — 2026-07-23
+
+Recorded by the author (Charlie Cheever) against
+`issues/20260723-llp0077-rollback-ratchet.md` and
+`issues/20260723-llp0077-client-contract.md`. These pin the open forks below;
+they do not close any ledger defect, and every positive-capability gate stays
+in force. Schema-drafting work the decisions commission remains tracked in the
+client-contract ticket.
+
+1. **Ratchet realization (security-MUST-bearing).** `sender_replay_epoch` is
+   realized as a composition: it rotates only on the LLP 0059
+   authorization-stream incarnation change (declared restores stay covered by
+   the incarnation advance), and a dedicated control-plane monotone counter
+   stored **outside the rolled-back durable set** provides the anti-rollback
+   floor. On boot the effective epoch is `max(incarnation-derived value,
+   control-plane floor)`, and the floor only ever advances. Monotonicity
+   argument: a raw backup rollback reverts the durable tables but cannot lower
+   the external floor, so no epoch value under which a proof was accepted can
+   recur, and no accepted proof can resurrect. LLP 0060's serving admission
+   epoch remains a distinct namespace and is not reused. The raw-rollback
+   non-resurrection guarantee graduates from stated requirement to proven
+   property only when `20260723-llp0077-sender-replay-epoch.md` lands the
+   implementation with a restore/rollback straddle test; until then it is a
+   decided design with a stated argument.
+2. **Logout lost response — bounded revoked-family tombstone.** Retention is
+   the maximum grant/session TTL plus maximum tolerated clock skew, hard-capped
+   at 30 days. Lookup is keyed by custody family id on the refusal path. A
+   tombstoned family never rotates or freshly generates a nonce. The client
+   converges to LLP 0057's repeat-logout `SESSION_EXPIRED`. Eventual safe
+   deletion holds because after the retention bound every credential the
+   tombstone could refuse has itself expired; a long-offline client lands in
+   ordinary re-authentication. The anonymous-recovery handshake alternative is
+   rejected: it would add an unauthenticated protocol surface at the boundary
+   this Spec exists to keep closed.
+3. **Unknown carriers — keyed cover nonce.** Carriers that resolve to no live
+   bound family receive a deterministic cover nonce
+   `HMAC(server secret, sender_replay_epoch ‖ token_digest ‖ time_bucket)`,
+   indistinguishable from a real challenge and stable within the time bucket.
+   This closes the live-bound-family existence oracle at the cost of one HMAC
+   on the refusal path; no state is stored for unknown carriers.
+4. **Downgrade defense — both layers.** v2 sender-bound session/grant tokens
+   and carriers adopt a structurally distinct, legacy-rejecting syntax
+   (versioned prefix; v2 verifiers require it, v1 verifiers cannot accept it),
+   and LLP 0060 D6's mixed-version activation/rollback barrier remains the
+   deployment-level defense. The v1-family activation/rollback matrix is
+   documented with the syntax change. Sole reliance on D6 is rejected.
+5. **WebSocket successor nonce — release on first server frame.** After a
+   WebSocket upgrade (whose 101 response headers JS cannot read), the
+   per-custody serialization queue stays held until the first server frame
+   delivers the successor nonce in band; that frame is the release event. On
+   open-without-frame timeout, error, cancel, or reconnect, the client treats
+   the nonce as consumed-unknown and the next request resynchronizes through a
+   fresh challenge — a nonce is never reused. This fixes the full
+   browser-observable open/error/cancel/reconnect machine in terms of
+   observable events only.
+6. **`BoundGrantAuthorityV2`.** The sender-bound grant shape extends LLP
+   0059's `BoundGrantAuthorityV1` with the custody key's JWK thumbprint and
+   the `sender_replay_epoch` at issuance. Equality is exact-tuple; the grant
+   invalidates when the family is revoked or the epoch advances past its
+   issuance value; the version field keeps V1 grants valid only on
+   non-sender-bound lanes. The corresponding dated LLP 0059 amendment rides
+   `20260723-llp0077-grant-binding.md`, which this decision unblocks.
+7. **`AuthCustodyV3` — complete closed schema commissioned.** The custody
+   schema is specified as a complete closed top-level and nested
+   `formatVersion` schema (deny-unknown-fields) with exactly seven states —
+   `anonymous`, `pending`, `active`, `clearing`, `corrupt`, `migrating`,
+   `recovery` — and explicit transitions, replacing the insufficient "V2
+   plus" description. LLP 0059's premature "closed" claim is reconciled by its
+   amendment pointing here as the owning schema. The schema text landed the same
+   day — see §The closed `AuthCustodyV3` schema (landed 2026-07-23); the
+   seven states are realized as the client-observable machine over the
+   three-phase durable record, exactly as that section defines.
+
 ## Open questions
 
 - Whether the first browser implementation keeps signing in the page or behind
@@ -810,31 +1023,31 @@ and parser errors are forbidden.
 - Exact provider selected for the shared nonce and replay authority in the
   first single-instance adapter. SQLite is acceptable only while one process is
   the serialized authority and restart/backup semantics preserve expiry.
-- The exact logout-lost-response recovery mechanism (bounded revoked-family
+- *(Decided 2026-07-23 — bounded revoked-family tombstone, parameters pinned; §Author decisions item 2.)* The exact logout-lost-response recovery mechanism (bounded revoked-family
   tombstone versus anonymous-recovery handshake), its retention bound,
   resolution path, nonce treatment, and composition with LLP 0057's
   repeat-logout `SESSION_EXPIRED`.
-- The exact *storage and realization* of `sender_replay_epoch` — a dedicated
+- *(Decided 2026-07-23 — composition: 0059 incarnation + control-plane monotone floor; §Author decisions item 1.)* The exact *storage and realization* of `sender_replay_epoch` — a dedicated
   durable column, a value derived from the LLP 0059 authorization-stream
   incarnation, or a composition — and the concrete non-rollbackable ratchet
   source. The *observable* contract is fixed and not reopened here: it is a
   namespace distinct from LLP 0060's serving admission epoch, it rotates only
   on the LLP 0059 incarnation change, and it is non-rollbackable. Only the
   realization behind that observable contract is open.
-- Whether unknown carriers must receive a stable keyed cover nonce, or the
+- *(Decided 2026-07-23 — keyed cover nonce adopted; §Author decisions item 3.)* Whether unknown carriers must receive a stable keyed cover nonce, or the
   residual live-bound-family existence signal is acceptable.
 - Whether v2 later admits a bounded multi-flight lease of one-use nonce
   tickets instead of strict per-custody serialization.
-- When a browser cannot read a successful WebSocket upgrade's successor nonce,
+- *(Decided 2026-07-23 — queue releases on the first server frame; §Author decisions item 5.)* When a browser cannot read a successful WebSocket upgrade's successor nonce,
   when the serialization queue releases and how the next request resyncs, and
   the full browser-observable open/error/cancel/reconnect state machine.
-- The versioned sender-bound grant shape that extends LLP 0059's
+- *(Decided 2026-07-23 — thumbprint + issuance epoch, exact-tuple equality; §Author decisions item 6.)* The versioned sender-bound grant shape that extends LLP 0059's
   `BoundGrantAuthorityV1` (thumbprint + admission epoch), its equality and
   invalidation rules, and the corresponding LLP 0059 amendment.
-- The complete closed `AuthCustodyV3` top-level and nested `formatVersion`
+- *(Decided 2026-07-23 — closed seven-state schema commissioned; §Author decisions item 7.)* The complete closed `AuthCustodyV3` top-level and nested `formatVersion`
   schema for an independent implementation (the current "V2 plus" description
   is not sufficient).
-- Whether v2 session/grant tokens gain a legacy-rejecting syntax, or LLP 0060
+- *(Decided 2026-07-23 — legacy-rejecting v2 syntax plus the D6 barrier; §Author decisions item 4.)* Whether v2 session/grant tokens gain a legacy-rejecting syntax, or LLP 0060
   D6's mixed-version activation/rollback barrier is the sole downgrade defense.
 
 ## Conformance (server-side MUST-level requirements)

@@ -24,6 +24,13 @@ const inventories = [
     packageDir: 'packages/snapback-cli',
     testDir: '.',
     suffix: '.test.mjs',
+    expectedFiles: ['dev-loop.test.mjs', 'mcp-control.test.mjs', 'package.test.mjs'],
+  },
+  {
+    id: '@snapback/vite',
+    packageDir: 'packages/snapback-vite',
+    testDir: '.',
+    suffix: '.test.mjs',
     expectedFiles: ['package.test.mjs'],
   },
   {
@@ -102,6 +109,7 @@ const inventories = [
       'multi-live-poll-reconcile.test.mjs',
       'mutation-reconcile-failure.test.mjs',
       'offline-replay.test.mjs',
+      'online-surface.test.mjs',
       'optimistic-duplicate-reapply.test.mjs',
       'query-authorization.test.mjs',
       'render-first.test.mjs',
@@ -177,7 +185,7 @@ export function inspectInventory({ root = ROOT, inventory }) {
 
 const results = inventories.map((inventory) => inspectInventory({ inventory }));
 const total = results.reduce((sum, result) => sum + result.count, 0);
-assert.equal(total, 64, 'reviewed package/admin test count changed');
+assert.equal(total, 68, 'reviewed package/admin test count changed');
 for (const result of results) {
   process.stdout.write(`[package-test-inventory] ${result.id}: ${result.count}\n`);
 }

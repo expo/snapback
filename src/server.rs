@@ -70,7 +70,9 @@ use crate::manifest::{
     MutationAcknowledgementResponse, MutationOutput, MutationRequest, QueryOutput, ReadDependency,
     SchemaManifest, SeedData,
 };
-use crate::runtime::{CapabilityState, IbexActionHost};
+use crate::runtime::{
+    ActionStreamChunk, ActionStreamOpened, ActionStreamRequest, CapabilityState, IbexActionHost,
+};
 use crate::storage::auth::AuthTransactionAttempt;
 use axum::extract::rejection::{BytesRejection, JsonRejection, QueryRejection};
 use axum::extract::ws::{CloseFrame, Message, Utf8Bytes, WebSocket, WebSocketUpgrade};
@@ -91,6 +93,7 @@ use serde_json::{Value, json};
 use std::collections::{BTreeMap, BTreeSet};
 use std::convert::Infallible;
 use std::future::Future;
+use std::io::Read;
 use std::sync::Arc;
 use std::sync::Mutex as StdMutex;
 use std::sync::OnceLock;
@@ -750,6 +753,89 @@ const ACTION_WATCHDOG_MAX_MS: u64 = 15 * 60 * 1_000;
 /// CPU-bound JavaScript while keeping the native-host fallback finite.
 const ACTION_INTERRUPT_GRACE_MS: u64 = 2_000;
 const ACTION_LOCK_POLL_MS: u64 = 5;
+// @ref LLP 0076#surface — the v1 bounded response-stream profile limits. LLP
+// 0076 is the sole numeric authority; the first five match LLP 0075's frozen
+// fixture, the 16 KiB host read size and 4-cursor cap are v1 profile limits.
+const ACTION_STREAM_TOTAL_BYTES_MAX: u64 = 1_048_576;
+const ACTION_STREAM_CHUNK_BYTES_MAX: usize = 16_384;
+const ACTION_STREAM_WALL_MS: u64 = 30_000;
+const ACTION_STREAM_IDLE_MS: u64 = 5_000;
+const ACTION_STREAM_OPEN_MAX: usize = 4;
+/// Settlement grace reserved between the stream wall ceiling and the action
+/// watchdog, so a default action that exhausts the full stream budget can
+/// still reach and durably settle its timeout before abandonment
+/// (LLP 0076 boundedness ticket).
+const ACTION_STREAM_SETTLE_GRACE_MS: u64 = 2_000;
+
+/// One pull request: the maximum byte count the helper may materialize.
+struct StreamPullRequest {
+    requested: usize,
+}
+
+/// One bounded upstream cursor, pull-driven through a dedicated reader
+/// thread. The channels give the host: (a) an absolute wall-clock bound on
+/// the pull itself (`recv_timeout` fires even while the socket read is still
+/// blocked), (b) structurally at most one in-flight pull per cursor (the
+/// rendezvous channel holds a single request), and (c) a physical close on
+/// drop — dropping `pull_tx` ends the helper, which drops the ureq reader
+/// and closes the socket within one socket-timeout window.
+// @ref LLP 0076#surface — 4 cursors x one 16 KiB in-flight chunk each is
+//   exactly the 64 KiB application-visible buffering ceiling; the accounting
+//   domain is host-materialized bytes (queued chunk + handoff copy), with
+//   kernel socket buffers excluded (they are bounded by the TCP window and
+//   never visible to the application).
+struct OpenActionResponseStream {
+    pull_tx: std::sync::mpsc::SyncSender<StreamPullRequest>,
+    chunk_rx: std::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>,
+    opened_at: Instant,
+    /// Absolute per-stream wall deadline: `min(open + 30 s, action watchdog
+    /// deadline - settle grace)` — never later than the profile ceiling, and
+    /// always leaving room to durably settle before abandonment.
+    wall_deadline: Instant,
+    last_byte_at: Instant,
+    total_bytes: u64,
+}
+
+/// Spawn the cursor's reader thread. The helper owns the response reader;
+/// it materializes at most one bounded chunk per pull request and counts
+/// those bytes against the shared per-invocation buffered-byte accounting.
+fn spawn_stream_reader_thread(
+    mut reader: Box<dyn Read + Send + Sync>,
+    buffered_bytes: Arc<AtomicU64>,
+    buffered_peak: Arc<AtomicU64>,
+) -> (
+    std::sync::mpsc::SyncSender<StreamPullRequest>,
+    std::sync::mpsc::Receiver<std::io::Result<Vec<u8>>>,
+) {
+    let (pull_tx, pull_rx) = std::sync::mpsc::sync_channel::<StreamPullRequest>(1);
+    let (chunk_tx, chunk_rx) = std::sync::mpsc::sync_channel::<std::io::Result<Vec<u8>>>(1);
+    std::thread::spawn(move || {
+        while let Ok(StreamPullRequest { requested }) = pull_rx.recv() {
+            let mut bytes = vec![0; requested.max(1)];
+            let outcome = match reader.read(&mut bytes) {
+                Ok(read) => {
+                    bytes.truncate(read);
+                    Ok(bytes)
+                }
+                Err(error) => Err(error),
+            };
+            let len = outcome.as_ref().map(|bytes| bytes.len() as u64).unwrap_or(0);
+            if len > 0 {
+                let now = buffered_bytes.fetch_add(len, Ordering::SeqCst) + len;
+                buffered_peak.fetch_max(now, Ordering::SeqCst);
+            }
+            if chunk_tx.send(outcome).is_err() {
+                if len > 0 {
+                    buffered_bytes.fetch_sub(len, Ordering::SeqCst);
+                }
+                return;
+            }
+        }
+        // The host dropped its pull sender: the cursor is closed. Dropping
+        // `reader` here closes the upstream socket.
+    });
+    (pull_tx, chunk_rx)
+}
 
 fn action_watchdog_timeout_ms() -> u64 {
     parse_action_watchdog_timeout(std::env::var("SNAPBACK_ACTION_TIMEOUT_MS").ok().as_deref())
@@ -789,6 +875,22 @@ struct DetachedActionHost {
     authority: PreparedAuthority,
     external_effect_open: bool,
     external_effect_permit: Option<ServiceAuthorityExternalEffectPermit>,
+    response_streams: BTreeMap<String, OpenActionResponseStream>,
+    closed_response_streams: BTreeSet<String>,
+    last_stream_progress_commit: Option<Instant>,
+    /// Control-plane identity of this exact invocation for the
+    /// `StreamAttemptV1` lease and trusted terminalizer (LLP 0076).
+    stream_runner: crate::stream_attempt::StreamRunnerIdentity,
+    /// Per-invocation application-visible buffered-byte accounting: bytes the
+    /// host has materialized (queued chunk + handoff copy) and the invocation
+    /// has not yet consumed, summed across all cursors, plus its high-water
+    /// mark. Kernel socket buffers are excluded by definition.
+    stream_buffered_bytes: Arc<AtomicU64>,
+    stream_buffered_peak: Arc<AtomicU64>,
+    /// True for automatically re-dispatched cron/durable invocations, which
+    /// are excluded from streamed actions until resumable retry semantics
+    /// exist (LLP 0076 §Evidence-status, retry-fencing gap).
+    automatic_retry_invocation: bool,
 }
 
 struct ScopedLocalSnapbackGuard {
@@ -840,6 +942,163 @@ impl Drop for ScopedLocalSnapbackGuard {
 }
 
 impl DetachedActionHost {
+    /// Retire a cursor everywhere at once: the read-side closed set (so a
+    /// post-cancel read returns EOF) and the attempt registry's child record
+    /// (so the parent's certainty fold stops treating it as in flight). The
+    /// durable row follows best-effort; a skipped write stays queued and the
+    /// on-disk state remains conservatively `open`/`initiation_possible`.
+    fn close_response_stream_cursor(&mut self, stream_id: &str) {
+        self.closed_response_streams.insert(stream_id.to_owned());
+        crate::stream_attempt::global_stream_attempt_registry().close_cursor(stream_id);
+        self.flush_stream_attempts_trusted();
+    }
+
+    /// Required durable flush: the write-ahead pre-mark and the attempt-row
+    /// creation must commit before their operation proceeds, so failures
+    /// propagate. Runs under the ordinary live-validated instance lock; the
+    /// registry namespace is the instance's own nonce, resolved under that
+    /// lock.
+    fn flush_stream_attempts_required(&self, op: &str) -> SnapbackResult<()> {
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let mut snapback = self.lock_live(op)?;
+        let namespace = snapback.stream_attempt_namespace();
+        let snapshots = registry.dirty_snapshots(namespace);
+        if snapshots.is_empty() {
+            return Ok(());
+        }
+        let mut rows = Vec::with_capacity(snapshots.len());
+        let mut tokens = Vec::with_capacity(snapshots.len());
+        for snapshot in &snapshots {
+            rows.push(snapshot.to_row()?);
+            tokens.push(snapshot.token.clone());
+        }
+        snapback.persist_stream_attempts(&rows)?;
+        drop(snapback);
+        registry.clear_dirty(&tokens);
+        Ok(())
+    }
+
+    /// Trusted best-effort flush for terminalizer and close paths: bypasses
+    /// the action-authority fence (writing settlement bookkeeping is the
+    /// host's own job even after abandonment) but never blocks unboundedly —
+    /// rows left dirty ride the next flush point or, after a crash, the
+    /// startup reconciler.
+    fn flush_stream_attempts_trusted(&self) {
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let deadline = Instant::now() + Duration::from_millis(250);
+        loop {
+            if let Ok(guard) = self.state.clone().try_lock_owned() {
+                if guard.managed_local_handoff().is_closed() {
+                    drop(guard);
+                } else {
+                    let scope = crate::exec_guard::LocalSnapbackWriteScope::enter();
+                    let mut guard = ScopedLocalSnapbackGuard {
+                        guard: Some(guard),
+                        scope: Some(scope),
+                    };
+                    let namespace = guard.stream_attempt_namespace();
+                    let snapshots = registry.dirty_snapshots(namespace);
+                    if snapshots.is_empty() {
+                        return;
+                    }
+                    let mut rows = Vec::with_capacity(snapshots.len());
+                    let mut tokens = Vec::with_capacity(snapshots.len());
+                    for snapshot in &snapshots {
+                        let Ok(row) = snapshot.to_row() else { return };
+                        rows.push(row);
+                        tokens.push(snapshot.token.clone());
+                    }
+                    if guard.persist_stream_attempts(&rows).is_ok() {
+                        drop(guard);
+                        registry.clear_dirty(&tokens);
+                    }
+                    return;
+                }
+            }
+            if Instant::now() >= deadline {
+                return;
+            }
+            std::thread::park_timeout(Duration::from_millis(ACTION_LOCK_POLL_MS));
+        }
+    }
+
+    /// The per-read authority fence (LLP 0076 §Authority and lifecycle): the
+    /// full stream predicate is abandonment + generation + deadline PLUS the
+    /// lock-free process-fence tier of the service-authority check, so an
+    /// authority terminalization that lands during a blocked pull is observed
+    /// before any byte is handed to the action. Terminal auth writers premark
+    /// the process fence before commit (LLP 0059), which is what makes this
+    /// tier exact without taking the instance lock on the read path.
+    // @ref LLP 0076#authority-and-lifecycle — every open/read revalidates the
+    //   exact invocation, generation, service authority, and deadline, and a
+    //   read revalidates AFTER awaiting bytes, discarding late bytes on loss.
+    fn validate_stream_authority(&self, op: &str) -> SnapbackResult<()> {
+        self.validate_live(op)?;
+        let ResolvedAppAuthority::ServicePrincipal {
+            actor_user_id,
+            effective_user_id,
+            grant_id,
+            token_id,
+            credential_id,
+            credential_generation,
+            token_expires_at_ms,
+            ..
+        } = self.authority.resolved()
+        else {
+            return Ok(());
+        };
+        let (now_ms, monotonic_now) = self
+            .authority
+            .service_clock_sample(now_millis(), Instant::now());
+        let witness = match self
+            .authority
+            .resolve_service_authority_act(now_ms, monotonic_now)?
+        {
+            Some(ServiceAuthorityActResolution::Current(witness)) => witness,
+            Some(ServiceAuthorityActResolution::Terminal(disposition)) => {
+                let wire = match disposition {
+                    ServiceAuthorityDisposition::Carrier => "carrier",
+                    ServiceAuthorityDisposition::DurableDelete => "durableDelete",
+                };
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+                    "auth",
+                    "scoped agent token authority is no longer current",
+                )
+                .with_details(json!({ "authorityDisposition": wire, "operation": op })));
+            }
+            Some(ServiceAuthorityActResolution::Unavailable) => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority termination is unresolved",
+                ));
+            }
+            None => {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                    "auth",
+                    "finite service authority has no exact process fence",
+                ));
+            }
+        };
+        if witness.actor_user_id() != actor_user_id
+            || witness.effective_user_id() != effective_user_id.as_deref()
+            || witness.grant_id() != grant_id
+            || witness.token_id() != token_id
+            || witness.credential_id() != credential_id
+            || witness.credential_generation() != *credential_generation
+            || witness.expires_at_ms() != *token_expires_at_ms
+        {
+            return Err(SnapbackError::error(
+                "SNAPBACK_AUTH_POLICY_UNAVAILABLE",
+                "auth",
+                "finite service authority disagrees with its exact process fence",
+            ));
+        }
+        Ok(())
+    }
+
     fn validate_live(&self, op: &str) -> SnapbackResult<()> {
         if self.abandoned.load(Ordering::SeqCst) {
             return Err(action_abandoned(op));
@@ -1024,6 +1283,33 @@ impl IbexActionHost for DetachedActionHost {
     }
 
     fn run_mutation(&mut self, name: &str, input: HandlerInput) -> SnapbackResult<MutationOutput> {
+        // @ref LLP 0076#surface — while an upstream reader is open, every
+        // nested mutation is conservatively treated as progress and admitted
+        // at no more than ten commits per second. EOF/cancel removes the
+        // cursor before terminal settlement, so completion is not delayed.
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 4: the host
+        // rate fence emits the profile-neutral
+        // `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED`, not the retired
+        // fixture-flavored `SNAPBACK_REPLY_*` name.
+        // @ref LLP 0076#settlement-and-retry — the single-runner lease: a
+        // runner that does not hold the attempt lease cannot commit progress,
+        // and late commits against a terminal attempt are fenced by the host.
+        crate::stream_attempt::global_stream_attempt_registry()
+            .progress_guard(&self.stream_runner)?;
+        if !self.response_streams.is_empty() {
+            if self
+                .last_stream_progress_commit
+                .is_some_and(|last| last.elapsed() < Duration::from_millis(100))
+            {
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
+                    "progress",
+                    "stream progress exceeds ten authoritative commits per second",
+                    json!({ "limitPerSecond": 10, "received": "progress commit too soon" }),
+                ));
+            }
+            self.last_stream_progress_commit = Some(Instant::now());
+        }
         let mut snapback = self.lock_live("runMutation")?;
         let authority = self
             .authority
@@ -1056,10 +1342,18 @@ impl IbexActionHost for DetachedActionHost {
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                match outcome {
+                let output = match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
+                };
+                if output.is_ok() {
+                    // @ref LLP 0076#settlement-and-retry — a successful
+                    // nested commit while an attempt cursor is open counts as
+                    // durable progress; retry is prohibited afterwards.
+                    crate::stream_attempt::global_stream_attempt_registry()
+                        .record_progress_commit(&self.stream_runner);
                 }
+                output
             }
             StagedNestedMutation::Detached(staged) => {
                 let crate::local::DetachedIbexMutation { binding, read } = *staged;
@@ -1128,13 +1422,588 @@ impl IbexActionHost for DetachedActionHost {
                 if let Some(unused) = unused {
                     unused.cancel();
                 }
-                match outcome {
+                let output = match outcome {
                     Ok(result) => result,
                     Err(payload) => std::panic::resume_unwind(payload),
+                };
+                if output.is_ok() {
+                    // @ref LLP 0076#settlement-and-retry — a successful
+                    // nested commit while an attempt cursor is open counts as
+                    // durable progress; retry is prohibited afterwards.
+                    crate::stream_attempt::global_stream_attempt_registry()
+                        .record_progress_commit(&self.stream_runner);
                 }
+                output
             }
         }
     }
+
+    fn open_response_stream(
+        &mut self,
+        request: ActionStreamRequest,
+    ) -> SnapbackResult<ActionStreamOpened> {
+        // @ref LLP 0076#authority-and-lifecycle — stream ownership stays
+        // inside this exact detached action host and every operation passes
+        // validate_host_call before dispatch.
+        self.validate_stream_authority("fetchStream.open")?;
+        // @ref LLP 0076#settlement-and-retry — automatically re-dispatched
+        // cron/durable invocations are excluded from streamed actions until
+        // resumable retry semantics exist: an automatic retry cannot prove
+        // the prior runner's upstream request never initiated.
+        if self.automatic_retry_invocation {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "automatically retried invocations are excluded from streamed actions",
+                json!({ "expected": "a first-dispatch invocation", "received": "an automatic retry dispatch" }),
+            ));
+        }
+        if self.response_streams.len() >= ACTION_STREAM_OPEN_MAX {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "open",
+                "the action already owns the maximum number of open response streams",
+                json!({ "limit": ACTION_STREAM_OPEN_MAX, "received": "additional stream" }),
+            ));
+        }
+        if request.url.len() > 4_096
+            || !(request.url.starts_with("http://") || request.url.starts_with("https://"))
+            || request.url.chars().any(char::is_control)
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream requires a bounded absolute HTTP(S) URL",
+                json!({ "expected": "absolute http(s) URL <= 4096 bytes", "received": "invalid URL shape" }),
+            ));
+        }
+        let method = request.method.to_ascii_uppercase();
+        if !matches!(
+            method.as_str(),
+            "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE"
+        ) {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream received an unsupported HTTP method",
+                json!({ "expected": "GET|HEAD|POST|PUT|PATCH|DELETE", "received": "unsupported method" }),
+            ));
+        }
+        if request.headers.len() > 64
+            || request.headers.iter().any(|(name, value)| {
+                name.is_empty()
+                    || name.len() > 256
+                    || value.len() > 8_192
+                    || name.chars().any(char::is_control)
+                    || value.contains(['\r', '\n'])
+            })
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream headers exceeded the safe shape",
+                json!({ "expected": "at most 64 bounded single-line headers", "received": "invalid header shape" }),
+            ));
+        }
+        if request
+            .idempotency_key
+            .as_ref()
+            .is_some_and(|key| key.is_empty() || key.len() > 8_192 || key.contains(['\r', '\n']))
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "ctx.fetchStream received an invalid idempotency key",
+                json!({ "expected": "a non-empty single-line key <= 8192 bytes", "received": "invalid idempotency key shape" }),
+            ));
+        }
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
+        // secret VALUES into the invocation (with the staged-value redactor
+        // scrubbing every error envelope), so descriptor placement slots have
+        // nothing to resolve here: refuse them explicitly rather than
+        // silently sending a request the author believes carries a secret.
+        if request
+            .secret_slots
+            .iter()
+            .any(|slot| slot.secret.is_some())
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "opaque secret descriptors resolve only at a hosted fetch boundary; this profile stages secret values",
+                json!({ "expected": "value-mode secret placement (ctx.secrets handles)", "received": "opaque descriptor slot" }),
+            ));
+        }
+        if request
+            .body
+            .as_ref()
+            .is_some_and(|body| body.len() as u64 > ACTION_STREAM_TOTAL_BYTES_MAX)
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "open",
+                "ctx.fetchStream request body exceeded the v1 byte limit",
+                json!({ "limitBytes": ACTION_STREAM_TOTAL_BYTES_MAX, "received": "oversized body" }),
+            ));
+        }
+
+        let remaining = self.deadline.saturating_duration_since(Instant::now());
+        if remaining.is_zero() {
+            return Err(action_deadline_elapsed("fetchStream.open"));
+        }
+        // Mint the cursor id and bind it as a child record of the named
+        // attempt BEFORE the request bytes reach the outbound stack: the
+        // write-ahead pre-mark leaves `initiation_possible` standing unless a
+        // provably pre-send failure narrows it (LLP 0076 §Settlement).
+        let stream_id = Uuid::new_v4().to_string();
+        if let Some(attempt_token) = &request.attempt_token {
+            crate::stream_attempt::global_stream_attempt_registry().bind_cursor(
+                attempt_token,
+                &stream_id,
+                &self.stream_runner,
+            )?;
+            // The write-ahead pre-mark MUST be durable before any request
+            // byte reaches the outbound stack: a crash from here on is
+            // recovered as `initiation_possible`, the conservative reading.
+            if let Err(error) = self.flush_stream_attempts_required("fetchStream.open") {
+                crate::stream_attempt::global_stream_attempt_registry()
+                    .close_cursor(&stream_id);
+                return Err(error);
+            }
+        }
+        let request_timeout = remaining.min(Duration::from_millis(ACTION_STREAM_IDLE_MS));
+        let agent = ureq::AgentBuilder::new()
+            .timeout_connect(request_timeout)
+            .timeout_read(request_timeout)
+            .timeout_write(request_timeout)
+            .build();
+        let mut outbound = agent
+            .request(&method, &request.url)
+            .timeout(request_timeout);
+        for (name, value) in &request.headers {
+            outbound = outbound.set(name, value);
+        }
+        // @ref LLP 0076#surface — a caller-supplied idempotency key is
+        // provider-visible: it is forwarded as the upstream `Idempotency-Key`
+        // header unless the author set that header explicitly.
+        if let Some(key) = &request.idempotency_key
+            && !request
+                .headers
+                .keys()
+                .any(|name| name.eq_ignore_ascii_case("idempotency-key"))
+        {
+            outbound = outbound.set("Idempotency-Key", key);
+        }
+        let started = Instant::now();
+        let response = match &request.body {
+            Some(body) => outbound.send_string(body),
+            None => outbound.call(),
+        };
+        let response = match response {
+            Ok(response) | Err(ureq::Error::Status(_, response)) => response,
+            Err(ureq::Error::Transport(transport)) => {
+                // @ref LLP 0076#settlement-and-retry — classification is by
+                // host-provable phase and ambiguity over-approximates: a
+                // non-idempotent transport failure that cannot be proven
+                // pre-initiation is ambiguous, never silently retried. Only a
+                // provable pre-send failure (DNS, connection refused, an
+                // unusable URL) narrows the pre-mark to
+                // `definitely_not_initiated`; everything else stays at the
+                // fail-safe `initiation_possible`.
+                let registry = crate::stream_attempt::global_stream_attempt_registry();
+                if matches!(
+                    transport.kind(),
+                    ureq::ErrorKind::Dns
+                        | ureq::ErrorKind::ConnectionFailed
+                        | ureq::ErrorKind::InvalidUrl
+                        | ureq::ErrorKind::UnknownScheme
+                ) {
+                    registry.cursor_initiation(
+                        &stream_id,
+                        crate::stream_attempt::StreamInitiationState::DefinitelyNotInitiated,
+                    );
+                }
+                registry.close_cursor(&stream_id);
+                self.flush_stream_attempts_trusted();
+                // @ref LLP 0076#author-decisions--2026-07-23 — decision 5:
+                // safe methods are idempotent by grammar; a bare authored
+                // idempotency key no longer confers retry semantics. Until a
+                // deployment-pinned provider idempotency declaration exists,
+                // every keyed non-GET downgrades to non-idempotent and an
+                // unprovable transport failure settles ambiguous.
+                let provable_pre_send = matches!(
+                    transport.kind(),
+                    ureq::ErrorKind::Dns
+                        | ureq::ErrorKind::ConnectionFailed
+                        | ureq::ErrorKind::InvalidUrl
+                        | ureq::ErrorKind::UnknownScheme
+                );
+                let retry_safe = matches!(method.as_str(), "GET" | "HEAD");
+                let timed_out = started.elapsed() >= request_timeout;
+                let (code, message) = if timed_out {
+                    (
+                        "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                        "the upstream did not produce response metadata within the idle limit",
+                    )
+                } else if retry_safe || provable_pre_send {
+                    (
+                        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                        "the upstream request failed before response metadata was available",
+                    )
+                } else {
+                    (
+                        "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+                        "the non-idempotent upstream request lost transport after initiation",
+                    )
+                };
+                return Err(action_stream_error(
+                    code,
+                    "open",
+                    message,
+                    json!({ "received": "transport failure", "retrySafe": retry_safe }),
+                ));
+            }
+        };
+        self.validate_stream_authority("fetchStream.open")?;
+        // Response metadata arrived: the certainty axis advances to its
+        // absorbing `response_observed` state. The durable advance is
+        // best-effort — a skipped write leaves `initiation_possible`, which
+        // is the conservative direction.
+        crate::stream_attempt::global_stream_attempt_registry().cursor_initiation(
+            &stream_id,
+            crate::stream_attempt::StreamInitiationState::ResponseObserved,
+        );
+        self.flush_stream_attempts_trusted();
+        let status = response.status();
+        let status_text = response.status_text().to_owned();
+        let final_url = response.get_url().to_owned();
+        let mut headers = BTreeMap::new();
+        for name in response.headers_names().into_iter().take(64) {
+            if let Some(value) = response.header(&name) {
+                headers.insert(name, value.chars().take(8_192).collect());
+            }
+        }
+        let now = Instant::now();
+        // Absolute per-stream wall deadline, with settlement grace reserved
+        // ahead of the action watchdog so the timeout can be durably settled
+        // before abandonment.
+        let watchdog_bounded = self
+            .deadline
+            .checked_sub(Duration::from_millis(ACTION_STREAM_SETTLE_GRACE_MS))
+            .unwrap_or(now);
+        let wall_deadline = (now + Duration::from_millis(ACTION_STREAM_WALL_MS))
+            .min(watchdog_bounded)
+            .max(now);
+        let (pull_tx, chunk_rx) = spawn_stream_reader_thread(
+            response.into_reader(),
+            self.stream_buffered_bytes.clone(),
+            self.stream_buffered_peak.clone(),
+        );
+        self.response_streams.insert(
+            stream_id.clone(),
+            OpenActionResponseStream {
+                pull_tx,
+                chunk_rx,
+                opened_at: now,
+                wall_deadline,
+                last_byte_at: now,
+                total_bytes: 0,
+            },
+        );
+        Ok(ActionStreamOpened {
+            stream_id,
+            status,
+            status_text,
+            url: final_url,
+            headers,
+        })
+    }
+
+    fn read_response_stream(&mut self, stream_id: &str) -> SnapbackResult<ActionStreamChunk> {
+        let Some(mut stream) = self.response_streams.remove(stream_id) else {
+            // @ref LLP 0076#diagnostics — a read after cancellation returns
+            // end-of-stream, not an error; `SNAPBACK_ACTION_STREAM_CANCELLED`
+            // stays a reserved internal reason no v1 read path emits.
+            if self.closed_response_streams.contains(stream_id) {
+                return Ok(ActionStreamChunk {
+                    done: true,
+                    bytes: Vec::new(),
+                    total_bytes: 0,
+                    elapsed_ms: 0,
+                    delta_ms: 0,
+                });
+            }
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "read",
+                "the response stream id is unknown to this action invocation",
+                json!({ "expected": "an open invocation-local stream", "received": "unknown stream id" }),
+            ));
+        };
+        if Instant::now() >= stream.wall_deadline {
+            self.close_response_stream_cursor(stream_id);
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_TIMEOUT",
+                "read",
+                "the response stream exceeded its wall-clock limit",
+                json!({ "limitMs": ACTION_STREAM_WALL_MS, "received": "wall limit elapsed" }),
+            ));
+        }
+        if stream.last_byte_at.elapsed() >= Duration::from_millis(ACTION_STREAM_IDLE_MS) {
+            self.close_response_stream_cursor(stream_id);
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                "read",
+                "the response stream exceeded its idle limit",
+                json!({ "limitMs": ACTION_STREAM_IDLE_MS, "received": "idle limit elapsed" }),
+            ));
+        }
+        // Direct attempt-to-cursor cancellation signal: a committed terminal
+        // settlement on the owning attempt closes this cursor at the next
+        // pull boundary — physically dropping the upstream reader — without
+        // waiting for the next progress mutation to observe the terminal row.
+        if crate::stream_attempt::global_stream_attempt_registry()
+            .cursor_attempt_terminal(stream_id)
+        {
+            let total_bytes = stream.total_bytes;
+            let elapsed_ms = stream.opened_at.elapsed().as_millis() as u64;
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Ok(ActionStreamChunk {
+                done: true,
+                bytes: Vec::new(),
+                total_bytes,
+                elapsed_ms,
+                delta_ms: 0,
+            });
+        }
+        // Pre-pull leg of the per-read authority fence.
+        if let Err(error) = self.validate_stream_authority("fetchStream.read") {
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(error);
+        }
+        let remaining = ACTION_STREAM_TOTAL_BYTES_MAX.saturating_sub(stream.total_bytes);
+        let requested = if remaining == 0 {
+            1
+        } else {
+            ACTION_STREAM_CHUNK_BYTES_MAX.min(remaining as usize)
+        };
+        // Dispatch the pull to the cursor's reader thread. The rendezvous
+        // channel holds one request, so a second in-flight pull on the same
+        // cursor is structurally impossible; a full channel is a protocol
+        // violation, not a queue.
+        if stream
+            .pull_tx
+            .try_send(StreamPullRequest { requested })
+            .is_err()
+        {
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "read",
+                "the response stream already has a pull in flight",
+                json!({ "expected": "one in-flight pull per cursor", "received": "overlapping pull" }),
+            ));
+        }
+        // The absolute wall ceiling bounds THIS pull: recv_timeout fires at
+        // the deadline even while the socket read is still blocked, and the
+        // dropped stream retires the reader thread within one socket-timeout
+        // window. Idle is enforced separately by the socket read timeout.
+        let wall_remaining = stream
+            .wall_deadline
+            .saturating_duration_since(Instant::now())
+            .max(Duration::from_millis(1));
+        let pulled = match stream.chunk_rx.recv_timeout(wall_remaining) {
+            Ok(outcome) => outcome,
+            Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {
+                drop(stream);
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_TIMEOUT",
+                    "read",
+                    "the response stream exceeded its wall-clock limit",
+                    json!({ "limitMs": ACTION_STREAM_WALL_MS, "received": "wall limit elapsed mid-read" }),
+                ));
+            }
+            Err(std::sync::mpsc::RecvTimeoutError::Disconnected) => {
+                drop(stream);
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                    "read",
+                    "the upstream response stream failed while reading",
+                    json!({ "received": "reader thread ended" }),
+                ));
+            }
+        };
+        let bytes = match pulled {
+            Ok(bytes) => bytes,
+            Err(error)
+                if matches!(
+                    error.kind(),
+                    std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock
+                ) =>
+            {
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+                    "read",
+                    "the upstream produced no response bytes within the idle limit",
+                    json!({ "limitMs": ACTION_STREAM_IDLE_MS, "received": "read timeout" }),
+                ));
+            }
+            Err(_) => {
+                self.close_response_stream_cursor(stream_id);
+                return Err(action_stream_error(
+                    "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+                    "read",
+                    "the upstream response stream failed while reading",
+                    json!({ "received": "transport read failure" }),
+                ));
+            }
+        };
+        let read = bytes.len();
+        let release_buffered = |counter: &Arc<AtomicU64>| {
+            if read > 0 {
+                counter.fetch_sub(read as u64, Ordering::SeqCst);
+            }
+        };
+        // Post-pull leg of the per-read authority fence: authority may have
+        // been terminalized while this pull was blocked awaiting bytes. Late
+        // bytes are discarded — the cursor closes and the authority refusal,
+        // not the data, reaches the action.
+        if let Err(error) = self.validate_stream_authority("fetchStream.read") {
+            release_buffered(&self.stream_buffered_bytes);
+            drop(stream);
+            self.close_response_stream_cursor(stream_id);
+            return Err(error);
+        }
+        if read == 0 {
+            self.close_response_stream_cursor(stream_id);
+            return Ok(ActionStreamChunk {
+                done: true,
+                bytes: Vec::new(),
+                total_bytes: stream.total_bytes,
+                elapsed_ms: stream.opened_at.elapsed().as_millis() as u64,
+                delta_ms: 0,
+            });
+        }
+        if stream.total_bytes.saturating_add(read as u64) > ACTION_STREAM_TOTAL_BYTES_MAX {
+            release_buffered(&self.stream_buffered_bytes);
+            self.close_response_stream_cursor(stream_id);
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
+                "read",
+                "the upstream response exceeded the v1 total-byte limit",
+                json!({ "limitBytes": ACTION_STREAM_TOTAL_BYTES_MAX, "received": "oversized response" }),
+            ));
+        }
+        let delta_ms = stream.last_byte_at.elapsed().as_millis() as u64;
+        stream.total_bytes += read as u64;
+        stream.last_byte_at = Instant::now();
+        let total_bytes = stream.total_bytes;
+        let elapsed_ms = stream.opened_at.elapsed().as_millis() as u64;
+        self.response_streams.insert(stream_id.to_owned(), stream);
+        // Handoff complete: the chunk now belongs to the application; the
+        // host-materialized accounting releases it.
+        release_buffered(&self.stream_buffered_bytes);
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 6: every read
+        // result carries host-owned monotonic elapsed milliseconds so
+        // authored code can gate progress commits without a wall clock.
+        Ok(ActionStreamChunk {
+            done: false,
+            bytes,
+            total_bytes,
+            elapsed_ms,
+            delta_ms,
+        })
+    }
+
+    fn cancel_response_stream(&mut self, stream_id: &str) -> SnapbackResult<()> {
+        if self.response_streams.remove(stream_id).is_some()
+            || self.closed_response_streams.contains(stream_id)
+        {
+            self.close_response_stream_cursor(stream_id);
+            return Ok(());
+        }
+        Err(action_stream_error(
+            "SNAPBACK_ACTION_STREAM_INVALID",
+            "cancel",
+            "the response stream id is unknown to this action invocation",
+            json!({ "expected": "an invocation-local stream", "received": "unknown stream id" }),
+        ))
+    }
+
+    // @ref LLP 0076#settlement-and-retry — the host-owned StreamAttemptV1
+    // record: idempotent start by client key under the single-runner lease.
+    // The durable row is consulted first, so a winner settled in a previous
+    // process life (or by the startup reconciler) is returned verbatim.
+    fn start_stream_attempt(
+        &mut self,
+        client_key: &str,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptStart> {
+        self.validate_live("streamAttempt.start")?;
+        let registry = crate::stream_attempt::global_stream_attempt_registry();
+        let (namespace, persisted) = {
+            let snapback = self.lock_live("streamAttempt.start")?;
+            let persisted = snapback.stream_attempt_record(client_key)?.and_then(
+                |(_, record_json)| {
+                    serde_json::from_str::<crate::stream_attempt::PersistedStreamAttempt>(
+                        &record_json,
+                    )
+                    .ok()
+                },
+            );
+            (snapback.stream_attempt_namespace(), persisted)
+        };
+        let started = registry.start(
+            namespace,
+            client_key,
+            &self.stream_runner,
+            persisted.as_ref(),
+        )?;
+        // The attempt row itself is durable before the caller can bind
+        // cursors or commit progress against it.
+        self.flush_stream_attempts_required("streamAttempt.start")?;
+        Ok(started)
+    }
+
+    fn settle_stream_attempt(
+        &mut self,
+        attempt_token: &str,
+        cause: crate::stream_attempt::StreamAttemptCause,
+    ) -> SnapbackResult<crate::stream_attempt::StreamAttemptTerminal> {
+        self.validate_live("streamAttempt.settle")?;
+        let terminal = crate::stream_attempt::global_stream_attempt_registry().settle(
+            attempt_token,
+            cause,
+            &self.stream_runner,
+        )?;
+        // The authored settle is a durable terminal fact: persist it before
+        // the action observes success.
+        self.flush_stream_attempts_required("streamAttempt.settle")?;
+        Ok(terminal)
+    }
+}
+
+// @ref LLP 0012#diagnostic-schema — stream refusals carry operation, expected
+// shape/limit, a value-free received summary, and the guide repair anchor;
+// URLs, headers, bodies, and response bytes never enter a default diagnostic.
+fn action_stream_error(
+    code: &'static str,
+    operation: &'static str,
+    message: &'static str,
+    details: Value,
+) -> SnapbackError {
+    let mut details = details.as_object().cloned().unwrap_or_default();
+    details.insert("operation".to_owned(), json!(operation));
+    details.insert(
+        "repair".to_owned(),
+        json!("guide/backend/actions-and-fetch#stream-a-response"),
+    );
+    SnapbackError::error(code, "runtime", message).with_details(Value::Object(details))
 }
 
 fn action_authorization_reservation_stale(name: &str) -> SnapbackError {
@@ -1315,6 +2184,12 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     let abandoned = Arc::new(AtomicBool::new(false));
     let commit_gate = Arc::new(StdMutex::new(()));
     let active_reservation = Arc::new(StdMutex::new(None));
+    // @ref LLP 0076#settlement-and-retry — one control-plane identity per
+    // invocation: the StreamAttemptV1 lease binds to it, and the trusted
+    // terminalizer settles its attempts when it can no longer commit.
+    let stream_runner = crate::stream_attempt::StreamRunnerIdentity::new(abandoned.clone());
+    let automatic_retry_invocation = metadata.attempt > 1
+        || matches!(metadata.trigger, crate::cron::CronRunTrigger::Recovery);
     let (sender, mut receiver) = tokio::sync::oneshot::channel();
     let spawned = spawn_detached_action_worker(
         worker_permit,
@@ -1324,6 +2199,7 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
             let abandoned = abandoned.clone();
             let commit_gate = commit_gate.clone();
             let active_reservation = active_reservation.clone();
+            let stream_runner = stream_runner.clone();
             move || {
                 let crate::local::DetachedIbexAction {
                     module,
@@ -1345,6 +2221,13 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     authority: invocation.authority().clone(),
                     external_effect_open: false,
                     external_effect_permit: None,
+                    response_streams: BTreeMap::new(),
+                    closed_response_streams: BTreeSet::new(),
+                    last_stream_progress_commit: None,
+                    stream_runner: stream_runner.clone(),
+                    stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
+                    stream_buffered_peak: Arc::new(AtomicU64::new(0)),
+                    automatic_retry_invocation,
                 };
                 let input = invocation.canonicalize_input(input);
                 let result = runtime.invoke_ibex_action_prepared(
@@ -1388,6 +2271,33 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                     }
                     Err(error) => Err(error),
                 };
+                // @ref LLP 0076#settlement-and-retry — the trusted
+                // terminalizer's completion leg: whatever the authored path
+                // did, every attempt this invocation still holds open gets a
+                // durable winner. An attempt the action settled is untouched;
+                // an unsettled one maps the invocation outcome onto the five
+                // frozen causes (watchdog/deadline → timed_out, fence loss →
+                // cancelled, anything else — including an action that simply
+                // returned without settling — → failed).
+                let terminal_cause = match &fenced {
+                    Err(error) if error.diagnostic.code == "SNAPBACK_ACTION_TIMEOUT" => {
+                        crate::stream_attempt::StreamAttemptCause::TimedOut
+                    }
+                    Err(error)
+                        if matches!(
+                            error.diagnostic.code.as_str(),
+                            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+                                | "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID"
+                                | "SNAPBACK_AUTH_STREAM_RESET"
+                        ) =>
+                    {
+                        crate::stream_attempt::StreamAttemptCause::Cancelled
+                    }
+                    _ => crate::stream_attempt::StreamAttemptCause::Failed,
+                };
+                crate::stream_attempt::global_stream_attempt_registry()
+                    .terminalize_invocation(&stream_runner, terminal_cause);
+                host.flush_stream_attempts_trusted();
                 fenced
                     // This is the earliest common envelope boundary and
                     // carries the staging-time values, so rotation cannot
@@ -1411,11 +2321,19 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
     }
     match tokio::time::timeout(Duration::from_millis(timeout_ms), &mut receiver).await {
         Ok(Ok(result)) => result,
-        Ok(Err(_closed)) => Err(SnapbackError::error(
-            "SNAPBACK_ACTION_THREAD_FAILED",
-            "runtime",
-            "action execution thread terminated without reporting a result",
-        )),
+        Ok(Err(_closed)) => {
+            // The worker died without publishing a result; its attempts
+            // still need a durable winner.
+            crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
+                &stream_runner,
+                crate::stream_attempt::StreamAttemptCause::Failed,
+            );
+            Err(SnapbackError::error(
+                "SNAPBACK_ACTION_THREAD_FAILED",
+                "runtime",
+                "action execution thread terminated without reporting a result",
+            ))
+        }
         Err(_elapsed) => {
             // Linearize timeout against the bounded commit gate, independent
             // of the global instance lock. A nested handler can be permanently
@@ -1444,6 +2362,15 @@ async fn run_detached_ibex_action_with_admission_counters_and_timeout(
                 )
                 .with_details(json!({ "error": error.to_string() }))
             })?;
+            // @ref LLP 0076#settlement-and-retry — the trusted terminalizer's
+            // abandonment leg: abandonment is linearized under the commit
+            // gate above, so no progress commit can land after this settle
+            // writes the durable winner. The hung worker's own completion
+            // settle then loses the compare-and-set and observes this row.
+            crate::stream_attempt::global_stream_attempt_registry().terminalize_invocation(
+                &stream_runner,
+                crate::stream_attempt::StreamAttemptCause::TimedOut,
+            );
 
             // Hermes' own async-break deadline should already be unwinding
             // the VM. Give that bounded termination path a short grace window
@@ -11209,6 +12136,54 @@ pub fn operation_registry() -> Vec<OperationSpec> {
             EffectPolicy::None,
             SessionModeOverlay::NONE,
         ),
+        // The pinned-unbuilt reload/acceptance verbs and the CLI-owned
+        // `host.*` lifecycle verbs are registered so an authenticated request
+        // reaches the dispatcher's honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
+        // `SNAPBACK_HOST_OP_CLI_ONLY` envelope instead of the pre-dispatch
+        // unknown-operation refusal. All are write-class: reloads are
+        // manifest loads, an acceptance profile can mutate state, and
+        // lifecycle verbs manage the process. Unknown names stay unregistered
+        // and keep failing closed at AdminWrite.
+        //
+        // @ref LLP 0024#authority-tuple — manifest loads and state-mutating
+        // operations require AdminWrite; unknown operations fail closed at
+        // AdminWrite.
+        host(
+            "host_ops.schema.reload",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.functions.reload",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.acceptance.run",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.start",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.stop",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
+        host(
+            "host_ops.host.restart",
+            RoutePolicy::AdminWrite,
+            EffectPolicy::None,
+            SessionModeOverlay::NONE,
+        ),
         operation(
             "host_ops.auth.mintSession",
             "/_snapback/api/host-ops",
@@ -11483,6 +12458,17 @@ pub(crate) fn host_ops_operation_spec(
         "functions.load" => "host_ops.functions.load",
         "auth.mintSession" => "host_ops.auth.mintSession",
         "auth.rescueCollidingTable" => "host_ops.auth.rescueCollidingTable",
+        // @ref LLP 0024#http-projection — pinned-unbuilt and CLI-only
+        // operations resolve to registered AdminWrite policies so an
+        // authenticated request reaches the structured UNIMPLEMENTED /
+        // CLI_ONLY envelope; unregistered names still return `None` and fail
+        // closed at AdminWrite before any envelope is built.
+        "schema.reload" => "host_ops.schema.reload",
+        "functions.reload" => "host_ops.functions.reload",
+        "acceptance.run" => "host_ops.acceptance.run",
+        "host.start" => "host_ops.host.start",
+        "host.stop" => "host_ops.host.stop",
+        "host.restart" => "host_ops.host.restart",
         "function.explain" if impersonated => "host_ops.function.explain.impersonated",
         "function.explain" => "host_ops.function.explain",
         "function.run" if impersonated => "host_ops.function.run.impersonated",
@@ -13005,7 +13991,78 @@ async fn execute_auth_host_operation(
     }
 }
 
+/// Record function runs and schema/function artifact loads in the process-wide
+/// bounded ring, and project that ring into `app.inspect`'s
+/// `data.recentInvocations`. Dispatch itself lives in
+/// [`host_ops_handler_inner`]; this wrapper only observes envelopes (or the
+/// pre-envelope refusal diagnostic) so it cannot change any operation's result.
+///
+/// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+///   the SC-1a non-deferrable minimum: a bounded most-recent-first ring
+///   surfaced by `app.inspect`, identical over HTTP host-ops and MCP.
 async fn host_ops_handler(
+    State(runtime): State<AppState>,
+    route_admission: Option<Extension<AdmissionLease>>,
+    authority: Option<Extension<PreparedAuthority>>,
+    impersonation: Option<Extension<crate::admin_impersonation::VerifiedImpersonationCapability>>,
+    headers: HeaderMap,
+    Json(request): Json<crate::host_ops::HostOpsRequest>,
+) -> Result<Json<crate::host_ops::HostOpsResult>, ApiError> {
+    let operation = request.operation.clone();
+    let function_id = request.function.clone();
+    let ring = runtime.recent_invocations.clone();
+    let started_at = crate::host_ops::iso8601_utc_ms(now_millis());
+    let started = std::time::Instant::now();
+    let result = host_ops_handler_inner(
+        State(runtime),
+        route_admission,
+        authority,
+        impersonation,
+        headers,
+        Json(request),
+    )
+    .await;
+    if matches!(
+        operation.as_str(),
+        "schema.load" | "functions.load" | "function.run"
+    ) {
+        let (outcome, diagnostics) = match &result {
+            Ok(Json(envelope)) => (
+                crate::host_ops::recent_invocation_outcome(envelope),
+                envelope.diagnostics.clone(),
+            ),
+            Err(refusal) => (
+                refusal.0.diagnostic.code.clone(),
+                vec![refusal.0.diagnostic.clone()],
+            ),
+        };
+        ring.record(crate::host_ops::RecentInvocationEntry {
+            operation: operation.clone(),
+            function_id,
+            outcome,
+            started_at,
+            duration_ms: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+            diagnostics,
+        });
+    }
+    match result {
+        Ok(Json(mut envelope)) => {
+            if operation == "app.inspect"
+                && envelope.ok
+                && let Some(data) = envelope.data.as_object_mut()
+            {
+                data.insert(
+                    "recentInvocations".to_owned(),
+                    serde_json::to_value(ring.snapshot()).unwrap_or_default(),
+                );
+            }
+            Ok(Json(envelope))
+        }
+        refused => refused,
+    }
+}
+
+async fn host_ops_handler_inner(
     State(runtime): State<AppState>,
     route_admission: Option<Extension<AdmissionLease>>,
     authority: Option<Extension<PreparedAuthority>>,
@@ -17246,6 +18303,10 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_SELF_NOT_FOUND" => StatusCode::NOT_FOUND,
         "SNAPBACK_MUTATION_CONFLICT"
         | "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        // @ref LLP 0076#diagnostics — reserved internal cancellation reason;
+        // no v1 read path surfaces it, but its reviewed status is a conflict
+        // with the durable terminal row.
+        | "SNAPBACK_ACTION_STREAM_CANCELLED"
         | "SNAPBACK_CONFIG_VERIFY_STALE"
         | "SNAPBACK_CLIENT_MUTATION_ID_REUSED"
         | "SNAPBACK_CLIENT_MUTATION_LEGACY_AUTH_QUARANTINED"
@@ -17348,22 +18409,33 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_AUTH_PAIRING_REQUEST_CAP"
         | "SNAPBACK_AUTH_RETRY_EPISODE_CAPACITY"
         | "SNAPBACK_EPHEMERAL_RATE_LIMITED"
+        | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_SUBSCRIPTION_CONNECTION_LIMIT"
         | "SNAPBACK_SUBSCRIPTION_GLOBAL_LIMIT" => StatusCode::TOO_MANY_REQUESTS,
         "SNAPBACK_VALUE_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE"
         | "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE"
+        | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_HANDLER_HOST_CALL_BODY_TOO_LARGE"
         | "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE"
         | "SNAPBACK_WEBSOCKET_MESSAGE_TOO_LARGE" => StatusCode::PAYLOAD_TOO_LARGE,
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID" => StatusCode::BAD_REQUEST,
-        "SNAPBACK_ACTION_TIMEOUT" | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
+        "SNAPBACK_ACTION_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        | "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED" => {
             StatusCode::GATEWAY_TIMEOUT
         }
+        // @ref LLP 0076#settlement-and-retry — transport failure and
+        // ambiguity are upstream outcomes, distinct from malformed author
+        // input and from Snapback's own internal failures.
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS" => StatusCode::BAD_GATEWAY,
         // @ref LLP 0058#admitted-body-ingestion — the admitted ingest deadline
         // is a client fault: the request body never finished arriving.
         "SNAPBACK_REQUEST_BODY_TIMEOUT" => StatusCode::REQUEST_TIMEOUT,
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED"
+        | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
         | "SNAPBACK_CRON_DISPATCH_CAPACITY_EXCEEDED"
         | "SNAPBACK_CRON_DEFINITION_GENERATION_EXHAUSTED"
         | "SNAPBACK_CRON_RUN_CAPACITY_EXCEEDED"
@@ -17431,6 +18503,7 @@ fn status_for_diagnostic_code(code: &str) -> StatusCode {
         // its producer deliberately chooses a client class.
         "SNAPBACK_ARG_MISSING"
         | "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID"
+        | "SNAPBACK_ACTION_STREAM_INVALID"
         | "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_CONFIG_INVALID"
         | "SNAPBACK_AUTHORIZED_LEASE_INVALID"
@@ -17705,6 +18778,8 @@ mod tests {
     use crate::admin_impersonation::{
         IMPERSONATION_CAPABILITY_HEADER, ImpersonationCapabilityRegistry,
     };
+    use crate::runtime::ActionStreamRequest;
+    use std::io::Write;
     use crate::auth::crypto::{AgentCredential, OsRandom, SessionBearer};
     use crate::auth::invalidation::{
         AuthorizationInvalidationConnection, IssuerId, LiveInvalidationIssuer, QueryNamespace,
@@ -23886,6 +24961,181 @@ globalThis.__snapbackHandlers = {
         assert!(!serialized.contains(SENTINEL), "{serialized}");
     }
 
+    /// @ref LLP 0024#http-projection — the pinned-but-unbuilt operations and
+    /// the CLI-owned `host.*` verbs are registered: an authenticated request
+    /// reaches the honest `SNAPBACK_HOST_OP_UNIMPLEMENTED` /
+    /// `SNAPBACK_HOST_OP_CLI_ONLY` envelope over HTTP, while unauthenticated
+    /// and truly unknown requests keep failing closed at the AdminWrite gate.
+    #[tokio::test]
+    async fn pinned_unbuilt_and_cli_only_host_operations_return_honest_envelopes() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let host_op = |body: serde_json::Value, admin: Option<&str>| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&body).unwrap(),
+                true,
+                admin,
+                None,
+            )
+        };
+
+        for operation in ["acceptance.run", "schema.reload", "functions.reload"] {
+            let response = router
+                .clone()
+                .oneshot(host_op(
+                    json!({ "operation": operation }),
+                    Some("auth-http-admin"),
+                ))
+                .await
+                .unwrap();
+            assert_eq!(response.status(), StatusCode::OK, "{operation}");
+            let payload = response_json(response).await;
+            assert_eq!(payload["resultKind"], "hostOpsResult", "{payload}");
+            assert_eq!(payload["operation"], operation);
+            assert_eq!(payload["ok"], false);
+            assert_eq!(
+                payload["diagnostics"][0]["code"],
+                "SNAPBACK_HOST_OP_UNIMPLEMENTED"
+            );
+            assert_eq!(payload["diagnostics"][0]["subsystem"], "host-ops");
+            assert_eq!(payload["diagnostics"][0]["details"]["operation"], operation);
+            assert_eq!(payload["authority"]["mode"], "none");
+        }
+
+        let restart = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "host.restart" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_eq!(restart.status(), StatusCode::OK);
+        let restart = response_json(restart).await;
+        assert_eq!(restart["ok"], false);
+        assert_eq!(restart["diagnostics"][0]["code"], "SNAPBACK_HOST_OP_CLI_ONLY");
+        assert_eq!(
+            restart["diagnostics"][0]["details"]["operation"],
+            "host.restart"
+        );
+
+        // Authentication precedes the envelope builder: no honest envelope
+        // (and no operation echo) for an unauthenticated caller.
+        let unauthenticated = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "acceptance.run" }), None))
+            .await
+            .unwrap();
+        assert_eq!(unauthenticated.status(), StatusCode::UNAUTHORIZED);
+
+        // Truly unknown operations stay unregistered and fail closed at the
+        // AdminWrite gate: authentication first, then the pre-dispatch
+        // unknown refusal, never a 200 envelope.
+        let unknown_unauthenticated = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "app.nonsense" }), None))
+            .await
+            .unwrap();
+        assert_eq!(unknown_unauthenticated.status(), StatusCode::UNAUTHORIZED);
+        let unknown = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "app.nonsense" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        assert_ne!(unknown.status(), StatusCode::OK);
+        assert_eq!(
+            response_json(unknown).await["diagnostic"]["code"],
+            "SNAPBACK_HOST_OP_UNKNOWN"
+        );
+
+        // Deliberate: pinned-unbuilt requests now reach the handler, but the
+        // LLP 0042 ring records function runs and artifact loads only, so the
+        // refused verbs above leave `recentInvocations` empty.
+        let inspect = router
+            .oneshot(host_op(
+                json!({ "operation": "app.inspect" }),
+                Some("auth-http-admin"),
+            ))
+            .await
+            .unwrap();
+        let inspect = response_json(inspect).await;
+        assert_eq!(inspect["ok"], true, "{inspect}");
+        assert_eq!(
+            inspect["data"]["recentInvocations"],
+            json!([]),
+            "{inspect}"
+        );
+    }
+
+    /// @ref LLP 0042#diagnostics-reading--an-appinspect-extension-not-a-new-operation —
+    /// function runs and artifact loads land in the process-wide bounded ring
+    /// and `app.inspect` projects it as `data.recentInvocations`, most recent
+    /// first, with the failing diagnostic code as each entry's outcome.
+    #[tokio::test]
+    async fn host_ops_inspect_projects_recent_invocations_ring() {
+        let (router, _) = auth_http_fixture(PolicyAuthMode::Dev);
+        let host_op = |body: serde_json::Value| {
+            auth_http_request(
+                "POST",
+                "/_snapback/api/host-ops",
+                serde_json::to_vec(&body).unwrap(),
+                true,
+                Some("auth-http-admin"),
+                None,
+            )
+        };
+
+        let load = router
+            .clone()
+            .oneshot(host_op(json!({ "operation": "functions.load" })))
+            .await
+            .expect("recorded functions.load refusal");
+        assert_eq!(load.status(), StatusCode::OK);
+        assert_eq!(response_json(load).await["ok"], false);
+
+        let run = router
+            .clone()
+            .oneshot(host_op(
+                json!({ "operation": "function.run", "function": "missing" }),
+            ))
+            .await
+            .expect("recorded function.run refusal");
+        assert_eq!(run.status(), StatusCode::OK);
+        let run = response_json(run).await;
+        assert_eq!(run["ok"], false);
+        let run_code = run["diagnostics"][0]["code"]
+            .as_str()
+            .expect("failing function.run diagnostic code")
+            .to_owned();
+
+        let inspect = router
+            .oneshot(host_op(json!({ "operation": "app.inspect" })))
+            .await
+            .expect("inspect with recent invocations");
+        assert_eq!(inspect.status(), StatusCode::OK);
+        let inspect = response_json(inspect).await;
+        assert_eq!(inspect["ok"], true, "{inspect}");
+        let recent = inspect["data"]["recentInvocations"]
+            .as_array()
+            .expect("recentInvocations array");
+        assert_eq!(recent.len(), 2, "{inspect}");
+        assert_eq!(recent[0]["operation"], "function.run");
+        assert_eq!(recent[0]["functionId"], "missing");
+        assert_eq!(recent[0]["outcome"], run_code);
+        assert_eq!(recent[1]["operation"], "functions.load");
+        assert_eq!(recent[1]["outcome"], "SNAPBACK_HOST_OP_INPUT_MISSING");
+        for entry in recent {
+            assert!(entry["startedAt"].as_str().is_some_and(|at| at.ends_with('Z')));
+            assert!(entry["durationMs"].is_u64());
+            assert!(entry["diagnostics"].is_array());
+            assert_ne!(entry["operation"], "app.inspect");
+        }
+    }
+
     #[tokio::test]
     async fn rejected_host_ops_reset_does_not_wait_for_exclusive_auth_maintenance() {
         let (router, _, provider) = auth_http_fixture_with_provider(PolicyAuthMode::Sessions);
@@ -27165,6 +28415,10 @@ globalThis.__snapbackHandlers = {
             "environment variable configuring detached action worker admission",
         ),
         (
+            "SNAPBACK_ACTION_STREAM_",
+            "diagnostic-code family prefix matched by the out-of-band stream-refusal recorder (LLP 0076)",
+        ),
+        (
             "SNAPBACK_ACTION_SECRETS",
             "legacy environment variable containing action secrets",
         ),
@@ -27320,6 +28574,7 @@ globalThis.__snapbackHandlers = {
 
     const BAD_REQUEST_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_MUTATION_REFERENCE_INVALID",
+        "SNAPBACK_ACTION_STREAM_INVALID",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_INVALID",
         "SNAPBACK_ARG_MISSING",
         "SNAPBACK_AUTHORITY_INDEPENDENT_INVALID",
@@ -27598,6 +28853,7 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
+        "SNAPBACK_ACTION_STREAM_CANCELLED",
         "SNAPBACK_AUTH_AGENT_DEACTIVATION_WOULD_STRAND",
         "SNAPBACK_AUTH_AGENT_CREDENTIAL_EXISTS",
         // LLP 0056 M2 write invariants that conflict with durable state.
@@ -27633,6 +28889,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const PAYLOAD_TOO_LARGE_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED",
         "SNAPBACK_CLIENT_MUTATION_RESULT_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_METADATA_TOO_LARGE",
         "SNAPBACK_EPHEMERAL_VALUE_TOO_LARGE",
@@ -27642,6 +28899,7 @@ globalThis.__snapbackHandlers = {
     ];
 
     const TOO_MANY_REQUESTS_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_BUDGET_EXHAUSTED",
         "SNAPBACK_ADMIN_SECRET_READ_LEASE_CAPACITY_EXCEEDED",
         "SNAPBACK_ADMIN_SECRET_READ_PROOF_CAPACITY_EXCEEDED",
@@ -27660,12 +28918,23 @@ globalThis.__snapbackHandlers = {
     const REQUEST_TIMEOUT_DIAGNOSTICS: &[&str] = &["SNAPBACK_REQUEST_BODY_TIMEOUT"];
 
     const GATEWAY_TIMEOUT_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT",
+        "SNAPBACK_ACTION_STREAM_TIMEOUT",
         "SNAPBACK_ACTION_TIMEOUT",
         "SNAPBACK_HANDLER_WALL_CLOCK_EXCEEDED",
     ];
 
+    // @ref LLP 0076#settlement-and-retry — upstream transport outcomes are a
+    // distinct reviewed family: the upstream failed or is ambiguous, which is
+    // neither author fault nor Snapback's own internal failure.
+    const BAD_GATEWAY_DIAGNOSTICS: &[&str] = &[
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+        "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+    ];
+
     const SERVICE_UNAVAILABLE_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_ACTION_CAPACITY_EXCEEDED",
+        "SNAPBACK_ACTION_STREAM_UNSUPPORTED",
         "SNAPBACK_ADMIN_SECRET_READ_GENERATION_EXHAUSTED",
         "SNAPBACK_APP_GENERATION_EXHAUSTED",
         "SNAPBACK_AUTH_CATALOG_CORRUPT",
@@ -27827,6 +29096,7 @@ globalThis.__snapbackHandlers = {
         (StatusCode::TOO_MANY_REQUESTS, TOO_MANY_REQUESTS_DIAGNOSTICS),
         (StatusCode::REQUEST_TIMEOUT, REQUEST_TIMEOUT_DIAGNOSTICS),
         (StatusCode::GATEWAY_TIMEOUT, GATEWAY_TIMEOUT_DIAGNOSTICS),
+        (StatusCode::BAD_GATEWAY, BAD_GATEWAY_DIAGNOSTICS),
         (
             StatusCode::SERVICE_UNAVAILABLE,
             SERVICE_UNAVAILABLE_DIAGNOSTICS,
@@ -28437,7 +29707,1353 @@ globalThis.__snapbackHandlers = {
             authority: action.invocation.authority().clone(),
             external_effect_open: false,
             external_effect_permit: None,
+            response_streams: BTreeMap::new(),
+            closed_response_streams: BTreeSet::new(),
+            last_stream_progress_commit: None,
+            stream_runner: crate::stream_attempt::StreamRunnerIdentity::new(Arc::new(
+                AtomicBool::new(false),
+            )),
+            stream_buffered_bytes: Arc::new(AtomicU64::new(0)),
+            stream_buffered_peak: Arc::new(AtomicU64::new(0)),
+            automatic_retry_invocation: false,
         }
+    }
+
+    #[test]
+    fn bounded_action_stream_pulls_multiple_chunks_and_closes_idempotently() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind deterministic stream fixture");
+        let address = listener.local_addr().expect("stream fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept stream request");
+            socket
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("bound request read");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request)
+                .expect("read stream request headers");
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write stream response headers");
+            socket.flush().expect("flush response headers");
+            for index in 0..16 {
+                let chunk = format!("chunk-{index:02}\n");
+                write!(socket, "{:X}\r\n{}\r\n", chunk.len(), chunk)
+                    .expect("write deterministic stream chunk");
+                socket.flush().expect("flush deterministic stream chunk");
+                std::thread::sleep(Duration::from_millis(60));
+            }
+            socket
+                .write_all(b"0\r\n\r\n")
+                .expect("finish deterministic stream");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("stream host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/sixteen-chunks"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open bounded response stream");
+        assert_eq!(opened.status, 200);
+
+        let mut received = Vec::new();
+        let mut progress_reads = 0;
+        loop {
+            let chunk = host
+                .read_response_stream(&opened.stream_id)
+                .expect("pull bounded response chunk");
+            if chunk.done {
+                break;
+            }
+            progress_reads += 1;
+            received.extend_from_slice(&chunk.bytes);
+        }
+        let expected = (0..16)
+            .map(|index| format!("chunk-{index:02}\n"))
+            .collect::<String>();
+        assert_eq!(received, expected.as_bytes());
+        assert!(
+            progress_reads >= 3,
+            "pull-driven fixture must expose multiple intermediate reads, got {progress_reads}"
+        );
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("cancel after EOF is idempotent");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("repeat cancel after EOF is idempotent");
+        upstream.join().expect("stream fixture joins");
+
+        let secret_path = "never-log-this-private-prompt";
+        let error = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("file:///{secret_path}"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("non-http stream URL fails closed");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+        assert!(
+            !serde_json::to_string(&error)
+                .expect("serialize stream diagnostic")
+                .contains(secret_path),
+            "stream diagnostics must not retain URL path data"
+        );
+    }
+
+    #[test]
+    fn bounded_action_stream_refuses_the_first_byte_past_the_total_limit() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind oversized stream fixture");
+        let address = listener.local_addr().expect("oversized stream address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept oversized request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let response_bytes = super::ACTION_STREAM_TOTAL_BYTES_MAX + 1;
+            write!(
+                socket,
+                "HTTP/1.1 200 OK\r\nContent-Length: {response_bytes}\r\nConnection: close\r\n\r\n"
+            )
+            .expect("write oversized response headers");
+            let block = vec![b'x'; 64 * 1024];
+            let mut remaining = response_bytes;
+            while remaining > 0 {
+                let visible =
+                    usize::try_from(remaining.min(block.len() as u64)).expect("bounded write size");
+                if socket.write_all(&block[..visible]).is_err() {
+                    break;
+                }
+                remaining -= visible as u64;
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("oversized stream host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/one-byte-too-many"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open oversized response stream");
+
+        let mut delivered = 0_u64;
+        let refusal = loop {
+            match host.read_response_stream(&opened.stream_id) {
+                Ok(chunk) if !chunk.done => delivered += chunk.bytes.len() as u64,
+                Ok(_) => panic!("oversized response reached EOF without a typed refusal"),
+                Err(error) => break error,
+            }
+        };
+        assert_eq!(delivered, super::ACTION_STREAM_TOTAL_BYTES_MAX);
+        assert_eq!(
+            refusal.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
+        );
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("cancel after limit refusal is idempotent");
+        upstream.join().expect("oversized stream fixture joins");
+    }
+
+    #[test]
+    fn bounded_action_stream_enforces_wall_idle_and_progress_rate_codes() {
+        let mut snapback = LocalSnapback::memory().expect("bounded stream limit host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(60);
+
+        let stream_fixture = |host: &DetachedActionHost,
+                              wall_deadline: Instant,
+                              last_byte_at: Instant| {
+            let (pull_tx, chunk_rx) = super::spawn_stream_reader_thread(
+                Box::new(std::io::Cursor::new(vec![b'x'])),
+                host.stream_buffered_bytes.clone(),
+                host.stream_buffered_peak.clone(),
+            );
+            super::OpenActionResponseStream {
+                pull_tx,
+                chunk_rx,
+                opened_at: Instant::now(),
+                wall_deadline,
+                last_byte_at,
+                total_bytes: 0,
+            }
+        };
+        let wall_id = "wall-limit".to_owned();
+        let expired_wall = Instant::now()
+            .checked_sub(Duration::from_millis(1))
+            .expect("wall fixture instant");
+        let wall_stream = stream_fixture(&host, expired_wall, Instant::now());
+        host.response_streams.insert(wall_id.clone(), wall_stream);
+        assert_eq!(
+            host.read_response_stream(&wall_id)
+                .expect_err("wall limit refuses read")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        );
+
+        let idle_id = "idle-limit".to_owned();
+        let idle_last_byte = Instant::now()
+            .checked_sub(Duration::from_millis(super::ACTION_STREAM_IDLE_MS + 1))
+            .expect("idle fixture instant");
+        let idle_stream = stream_fixture(
+            &host,
+            Instant::now() + Duration::from_millis(super::ACTION_STREAM_WALL_MS),
+            idle_last_byte,
+        );
+        host.response_streams.insert(idle_id.clone(), idle_stream);
+        assert_eq!(
+            host.read_response_stream(&idle_id)
+                .expect_err("idle limit refuses read")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT"
+        );
+
+        let progress_stream = stream_fixture(
+            &host,
+            Instant::now() + Duration::from_millis(super::ACTION_STREAM_WALL_MS),
+            Instant::now(),
+        );
+        host.response_streams
+            .insert("progress-rate".to_owned(), progress_stream);
+        host.last_stream_progress_commit = Some(Instant::now());
+        assert_eq!(
+            host.run_mutation("hostPlanWrite", HandlerInput::default())
+                .expect_err("progress commits above ten per second fail closed")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
+        );
+    }
+
+    #[test]
+    fn descriptor_secret_slots_are_refused_on_the_value_mode_profile() {
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
+        // secret values (with the staged-value redactor at the envelope), so
+        // an opaque descriptor slot has nothing to resolve and must fail
+        // closed instead of sending a request without its secret.
+        let mut snapback = LocalSnapback::memory().expect("slot refusal host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        let refusal = host
+            .open_response_stream(ActionStreamRequest {
+                url: "https://api.example.test/v1/stream".to_owned(),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: vec![crate::runtime::StreamSecretSlot {
+                    placement: Some("header".to_owned()),
+                    name: Some("authorization".to_owned()),
+                    secret: Some(json!({ "capabilityId": "cap_1" })),
+                }],
+            })
+            .expect_err("descriptor slots cannot resolve on the value-mode profile");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+        assert!(
+            !serde_json::to_string(&refusal)
+                .expect("serialize slot refusal")
+                .contains("cap_1"),
+            "the refusal must not echo descriptor contents"
+        );
+    }
+
+    #[test]
+    fn automatically_retried_invocations_cannot_open_response_streams() {
+        let mut snapback = LocalSnapback::memory().expect("retry exclusion host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.automatic_retry_invocation = true;
+        let refusal = host
+            .open_response_stream(ActionStreamRequest {
+                url: "http://127.0.0.1:9/never".to_owned(),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("automatic retries are excluded from streamed actions");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+    }
+
+    #[test]
+    fn stream_attempt_lease_fences_second_runner_progress_and_cursor_retry() {
+        let mut snapback = LocalSnapback::memory().expect("lease host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut holder = held_action_host(state.clone(), &staged);
+        let mut second = held_action_host(state, &staged);
+
+        let started = holder
+            .start_stream_attempt("lease-fence")
+            .expect("first runner starts the attempt");
+        assert!(started.lease_held);
+        let joined = second
+            .start_stream_attempt("lease-fence")
+            .expect("second runner joins the attempt");
+        assert_eq!(joined.attempt_token, started.attempt_token);
+        assert!(!joined.lease_held, "a live holder keeps the lease");
+
+        // The lease-less runner cannot commit progress at all.
+        assert_eq!(
+            second
+                .run_mutation("hostPlanWrite", HandlerInput::default())
+                .expect_err("a runner without the lease cannot commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_INVALID"
+        );
+        // The holder still can.
+        holder
+            .run_mutation("hostPlanWrite", HandlerInput::default())
+            .expect("the lease holder commits progress");
+
+        // Retry fencing: bind one cursor, commit progress, and a reopen under
+        // the same attempt is refused.
+        crate::stream_attempt::global_stream_attempt_registry()
+            .bind_cursor(&started.attempt_token, "lease-cursor", &holder.stream_runner)
+            .expect("first upstream bind");
+        holder
+            .run_mutation("hostPlanWrite", HandlerInput::default())
+            .expect("progress while the cursor is open");
+        assert_eq!(
+            crate::stream_attempt::global_stream_attempt_registry()
+                .bind_cursor(
+                    &started.attempt_token,
+                    "lease-cursor-2",
+                    &holder.stream_runner
+                )
+                .expect_err("retry after the first durable progress commit")
+                .diagnostic
+                .code,
+            "SNAPBACK_ACTION_STREAM_INVALID"
+        );
+
+        // Authored settle under the lease wins; the second runner's settle
+        // receives the committed winner verbatim.
+        let winner = holder
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Cancelled,
+            )
+            .expect("authored settle");
+        let observed = second
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Complete,
+            )
+            .expect("terminal attempt returns the winner");
+        assert_eq!(observed, winner);
+        assert_eq!(
+            observed.cause,
+            crate::stream_attempt::StreamAttemptCause::Cancelled
+        );
+        assert!(
+            observed.effect_may_have_executed,
+            "an in-flight cursor folds into the effect fact"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn service_principal_terminalization_fences_stream_open_and_discards_late_bytes() {
+        // @ref LLP 0076#authority-and-lifecycle — the ServicePrincipal tier
+        // of the per-read fence, end to end: a REAL prepared scoped-token
+        // authority (sessions-mode admission, HttpAction source, registered
+        // service publication), a real terminal-gate commit racing a blocked
+        // pull, and the late bytes discarded with the exact authority code.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind service fence fixture");
+        let address = listener.local_addr().expect("service fence address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept service fence request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nearly-1\r\n").expect("early chunk");
+            socket.flush().expect("flush early chunk");
+            // The late byte arrives only after the terminal gate below has
+            // committed while the second pull is already blocked.
+            std::thread::sleep(Duration::from_millis(900));
+            let _ = socket.write_all(b"6\r\nlate-1\r\n0\r\n\r\n");
+        });
+
+        // A real ServicePrincipal PreparedAuthority: sessions-mode admission
+        // controller, the HttpAction source class that admits scoped-token
+        // authority, and a fence-registry publication whose witness identity
+        // the per-read revalidation must match exactly.
+        let digest =
+            |prefix: &str, marker: char| format!("{prefix}{}", marker.to_string().repeat(64));
+        let deployment = DeploymentIdentity {
+            schema_version: "snapback.v1".to_owned(),
+            auth_mode: AuthMode::Sessions,
+            app_id: "stream-fence-test".to_owned(),
+            schema_hash: digest(SCHEMA_V1_PREFIX, '1'),
+            bundle_hash: digest(FUNCTION_V1_PREFIX, '2'),
+            inputs_hash: digest(INPUTS_V1_PREFIX, '3'),
+        };
+        let mode = AuthModeStateRecord {
+            format_version: crate::auth::mode::AUTH_MODE_FORMAT_VERSION,
+            transition_generation: 1,
+            active: AuthMode::Sessions,
+            desired: AuthMode::Sessions,
+            mode_state: AuthModeStatus::Settled,
+            app_data_availability: AppDataAvailability::Available,
+            sessions_ever_activated: true,
+            active_deployment: Some(deployment),
+            requested_deployment: None,
+            quarantine: None,
+        };
+        let controller =
+            crate::auth::admission::AdmissionController::from_mode_state(&mode)
+                .expect("sessions admission controller");
+        let registry = ServiceAuthorityFenceRegistry::default();
+        let monotonic = Instant::now();
+        let epoch_now_ms = super::now_millis();
+        let expires_at_ms = epoch_now_ms + 60_000;
+        let publication = registry
+            .synthetic_publication_for_test(
+                "stream-fence-token",
+                epoch_now_ms,
+                expires_at_ms,
+                monotonic,
+            )
+            .expect("register service publication");
+        let authority = InvocationGate::prepare_admitted_authority(
+            InvocationSource::HttpAction,
+            AuthMode::Sessions,
+            ServerProfile::Test,
+            controller
+                .admit_for_mode(AuthMode::Sessions)
+                .expect("admit sessions action"),
+            &WireAuthorityFields::default(),
+            ResolvedAppAuthority::ServicePrincipal {
+                actor_user_id: "agent-a".to_owned(),
+                credential_id: "credential-a".to_owned(),
+                credential_generation: 1,
+                grant_id: "durable-grant-a".to_owned(),
+                token_id: "stream-fence-token".to_owned(),
+                effective_user_id: Some("user-a".to_owned()),
+                scopes: Vec::new(),
+                token_expires_at_ms: expires_at_ms,
+            },
+        )
+        .expect("prepare scoped-token action authority")
+        .with_service_publication(publication);
+
+        let mut snapback = LocalSnapback::memory().expect("service fence host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        host.authority = authority;
+
+        let (opened, discarded) = tokio::task::block_in_place(|| {
+            let opened = host
+                .open_response_stream(ActionStreamRequest {
+                    url: format!("http://{address}/service-fence"),
+                    method: "GET".to_owned(),
+                    headers: BTreeMap::new(),
+                    body: None,
+                    idempotency_key: None,
+                    attempt_token: None,
+                    secret_slots: Vec::new(),
+                })
+                .expect("open under live scoped-token authority");
+            let first = host
+                .read_response_stream(&opened.stream_id)
+                .expect("first chunk under live authority");
+            assert_eq!(first.bytes, b"early-1");
+
+            // Terminalize the service authority 200 ms into the ~900 ms
+            // stall, while the second pull is already blocked awaiting bytes.
+            let terminal_registry = registry.clone();
+            let terminal = std::thread::spawn(move || {
+                std::thread::sleep(Duration::from_millis(200));
+                let runtime = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .expect("terminal runtime");
+                runtime.block_on(async {
+                    let gate = terminal_registry
+                        .acquire_terminal_gate(
+                            &["stream-fence-token".to_owned()],
+                            ServiceAuthorityDisposition::DurableDelete,
+                        )
+                        .await
+                        .expect("close and drain service domain");
+                    with_service_authority_terminal_gate(gate, || {
+                        terminal_registry.prepare_terminal(
+                            &["stream-fence-token".to_owned()],
+                            ServiceAuthorityDisposition::DurableDelete,
+                        )
+                    })
+                    .expect("adopt terminal gate")
+                    .committed()
+                    .expect("commit terminal");
+                });
+            });
+            let discarded = host
+                .read_response_stream(&opened.stream_id)
+                .expect_err("late bytes must be discarded after terminalization");
+            terminal.join().expect("terminal thread joins");
+            (opened, discarded)
+        });
+        assert_eq!(
+            discarded.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID",
+            "the service tier's exact authority refusal must surface"
+        );
+        assert!(
+            host.closed_response_streams.contains(&opened.stream_id),
+            "the discarding read must close the cursor"
+        );
+
+        // A new open under the terminalized authority is refused at the
+        // pre-open leg with the same code.
+        let refused = tokio::task::block_in_place(|| {
+            host.open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/service-fence-2"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("terminalized authority cannot open a stream")
+        });
+        assert_eq!(refused.diagnostic.code, "SNAPBACK_AUTH_SCOPED_TOKEN_INVALID");
+        upstream.join().expect("service fence fixture joins");
+    }
+
+    #[test]
+    fn slow_consumer_buffering_stays_within_the_profile_bound_across_four_cursors() {
+        // @ref LLP 0076#surface — 64 KiB application-visible buffering: the
+        // accounting domain is host-materialized bytes (queued chunk +
+        // handoff copy) per invocation; one in-flight 16 KiB pull per cursor
+        // times the 4-cursor cap is the structural ceiling, witnessed here by
+        // the real high-water-mark counter under deliberately slow reads.
+        const PER_STREAM_BYTES: usize = 128 * 1024;
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind slow-consumer fixture");
+        let address = listener.local_addr().expect("slow-consumer address");
+        let upstream = std::thread::spawn(move || {
+            let mut served = 0;
+            while served < 4 {
+                let Ok((mut socket, _)) = listener.accept() else {
+                    return;
+                };
+                served += 1;
+                std::thread::spawn(move || {
+                    let mut request = [0_u8; 2_048];
+                    let _ = std::io::Read::read(&mut socket, &mut request);
+                    let _ = write!(
+                        socket,
+                        "HTTP/1.1 200 OK\r\nContent-Length: {PER_STREAM_BYTES}\r\nConnection: close\r\n\r\n"
+                    );
+                    // Serve the whole body as fast as the socket accepts it:
+                    // the host must stay bounded regardless of upstream pace.
+                    let block = vec![b'y'; 32 * 1024];
+                    let mut remaining = PER_STREAM_BYTES;
+                    while remaining > 0 {
+                        let visible = remaining.min(block.len());
+                        if socket.write_all(&block[..visible]).is_err() {
+                            return;
+                        }
+                        remaining -= visible;
+                    }
+                });
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("slow-consumer host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(30);
+
+        let mut streams = Vec::new();
+        for index in 0..4 {
+            let opened = host
+                .open_response_stream(ActionStreamRequest {
+                    url: format!("http://{address}/slow-{index}"),
+                    method: "GET".to_owned(),
+                    headers: BTreeMap::new(),
+                    body: None,
+                    idempotency_key: None,
+                    attempt_token: None,
+                    secret_slots: Vec::new(),
+                })
+                .expect("open slow-consumer stream");
+            streams.push((opened.stream_id, 0_usize, false));
+        }
+        // Interleave slow pulls across all four cursors until EOF.
+        let mut remaining = 4;
+        while remaining > 0 {
+            for (stream_id, received, done) in &mut streams {
+                if *done {
+                    continue;
+                }
+                std::thread::sleep(Duration::from_millis(2));
+                let chunk = host
+                    .read_response_stream(stream_id)
+                    .expect("slow-consumer pull");
+                if chunk.done {
+                    *done = true;
+                    remaining -= 1;
+                    assert_eq!(*received, PER_STREAM_BYTES, "ordered complete body");
+                } else {
+                    *received += chunk.bytes.len();
+                    assert!(chunk.bytes.len() <= super::ACTION_STREAM_CHUNK_BYTES_MAX);
+                }
+            }
+        }
+        let peak = host.stream_buffered_peak.load(Ordering::SeqCst);
+        assert!(peak > 0, "the counter must actually observe materialization");
+        assert!(
+            peak <= 64 * 1024,
+            "application-visible buffering exceeded the 64 KiB profile bound: {peak}"
+        );
+        assert_eq!(
+            host.stream_buffered_bytes.load(Ordering::SeqCst),
+            0,
+            "every materialized byte is released at handoff"
+        );
+        upstream.join().expect("slow-consumer fixture joins");
+    }
+
+    #[test]
+    fn wall_ceiling_bounds_a_blocked_read_absolutely() {
+        // A source that produces headers and then nothing: the pull blocks,
+        // and the absolute wall ceiling must fire mid-read rather than
+        // waiting for the socket's idle timeout.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind blocked-read fixture");
+        let address = listener.local_addr().expect("blocked-read address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept blocked-read request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let _ = socket.write_all(
+                b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+            );
+            std::thread::sleep(Duration::from_secs(2));
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("blocked-read host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(30);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/blocked"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open blocked-read stream");
+        // Pin this stream's wall deadline 300 ms out; the idle window is
+        // 5 s, so only the absolute mid-read ceiling can end the pull early.
+        host.response_streams
+            .get_mut(&opened.stream_id)
+            .expect("stream present")
+            .wall_deadline = Instant::now() + Duration::from_millis(300);
+        let started = Instant::now();
+        let refusal = host
+            .read_response_stream(&opened.stream_id)
+            .expect_err("the wall ceiling ends the blocked pull");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_TIMEOUT");
+        let elapsed = started.elapsed();
+        assert!(
+            elapsed >= Duration::from_millis(250) && elapsed < Duration::from_millis(1_500),
+            "the ceiling must bound the read itself, got {elapsed:?}"
+        );
+        upstream.join().expect("blocked-read fixture joins");
+    }
+
+    #[test]
+    fn stream_wall_deadline_reserves_settlement_grace_before_the_watchdog() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind grace fixture");
+        let address = listener.local_addr().expect("grace fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept grace request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            let _ = socket.write_all(
+                b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok",
+            );
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("grace host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        // A watchdog tighter than the 30 s stream wall: the per-stream
+        // deadline must leave the settle grace unspent.
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/grace"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open grace stream");
+        let stream = host
+            .response_streams
+            .get(&opened.stream_id)
+            .expect("stream present");
+        let latest_allowed = host.deadline
+            - Duration::from_millis(super::ACTION_STREAM_SETTLE_GRACE_MS - 50);
+        assert!(
+            stream.wall_deadline < latest_allowed,
+            "the stream wall must reserve settlement grace ahead of the watchdog"
+        );
+        upstream.join().expect("grace fixture joins");
+    }
+
+    #[test]
+    fn terminalization_during_read_discards_late_bytes_and_closes_the_cursor() {
+        // @ref LLP 0076#authority-and-lifecycle — a read revalidates AFTER
+        // awaiting bytes and discards late bytes if authority was lost. The
+        // generation fence stands in for the terminalization class; the
+        // service-authority tier shares the same revalidation seam.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind late-byte fixture");
+        let address = listener.local_addr().expect("late-byte fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept late-byte request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nearly-1\r\n").expect("early chunk");
+            socket.flush().expect("flush early chunk");
+            // The late byte arrives only after the terminalization below has
+            // landed; the blocked pull must return it to the host, which
+            // discards it.
+            std::thread::sleep(Duration::from_millis(900));
+            let _ = socket.write_all(b"6\r\nlate-1\r\n");
+            let _ = socket.write_all(b"0\r\n\r\n");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("late-byte host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/late"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open late-byte stream");
+        let first = host
+            .read_response_stream(&opened.stream_id)
+            .expect("first chunk before terminalization");
+        assert_eq!(first.bytes, b"early-1");
+
+        // Terminalize while the next pull is blocked: flip the generation
+        // fence from a sibling thread 200 ms into the ~900 ms stall.
+        let fence = host.app_generation_fence.clone();
+        let flipper = std::thread::spawn(move || {
+            std::thread::sleep(Duration::from_millis(200));
+            fence.fetch_add(1, Ordering::SeqCst);
+        });
+        let discarded = host
+            .read_response_stream(&opened.stream_id)
+            .expect_err("late bytes must be discarded after terminalization");
+        assert_eq!(
+            discarded.diagnostic.code,
+            "SNAPBACK_ACTION_GENERATION_CONFLICT"
+        );
+        flipper.join().expect("fence flipper joins");
+        upstream.join().expect("late-byte fixture joins");
+
+        // The cursor is closed: a subsequent read observes end-of-stream.
+        // (validate_host_call would already refuse at dispatch; the closed
+        // set is defense in depth at the reader itself.)
+        let after = host.closed_response_streams.contains(&opened.stream_id);
+        assert!(after, "the discarding read must close the cursor");
+    }
+
+    #[test]
+    fn attempt_settlement_signals_the_cursor_without_a_progress_mutation() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind signal fixture");
+        let address = listener.local_addr().expect("signal fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept signal request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.write_all(b"7\r\nchunk-1\r\n").expect("first chunk");
+            socket.flush().expect("flush first chunk");
+            // Keep the connection open; more bytes would be available, but
+            // the settled attempt must close the cursor first.
+            std::thread::sleep(Duration::from_millis(500));
+            let _ = socket.write_all(b"7\r\nchunk-2\r\n0\r\n\r\n");
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("signal host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let started = host
+            .start_stream_attempt("signal-attempt")
+            .expect("start signal attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/signal"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(started.attempt_token.clone()),
+                secret_slots: Vec::new(),
+            })
+            .expect("open signal stream");
+        let first = host
+            .read_response_stream(&opened.stream_id)
+            .expect("first chunk");
+        assert_eq!(first.bytes, b"chunk-1");
+
+        // Durable terminal settlement — no progress mutation involved.
+        host.settle_stream_attempt(
+            &started.attempt_token,
+            crate::stream_attempt::StreamAttemptCause::Cancelled,
+        )
+        .expect("authored cancel settle");
+
+        // The very next pull observes closure via the direct
+        // attempt-to-cursor signal.
+        let closed = host
+            .read_response_stream(&opened.stream_id)
+            .expect("post-settle read returns EOF, not an error");
+        assert!(closed.done, "the settled attempt closes its cursor");
+        assert!(closed.bytes.is_empty(), "no late bytes are delivered");
+        upstream.join().expect("signal fixture joins");
+    }
+
+    #[test]
+    fn cancel_physically_closes_the_upstream_socket_of_an_indefinite_source() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind indefinite fixture");
+        let address = listener.local_addr().expect("indefinite fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept indefinite request");
+            let mut request = [0_u8; 2_048];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            socket
+                .write_all(
+                    b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n",
+                )
+                .expect("write headers");
+            socket.flush().expect("flush headers");
+            // An indefinite no-more-bytes source: never send another byte.
+            // The only way this read completes quickly is the peer closing.
+            socket
+                .set_read_timeout(Some(Duration::from_secs(10)))
+                .expect("bound observation read");
+            let mut probe = [0_u8; 16];
+            match std::io::Read::read(&mut socket, &mut probe) {
+                Ok(0) => (),  // orderly close observed
+                Ok(_) => panic!("indefinite source received unexpected bytes"),
+                Err(error)
+                    if matches!(
+                        error.kind(),
+                        std::io::ErrorKind::ConnectionReset
+                            | std::io::ErrorKind::ConnectionAborted
+                            | std::io::ErrorKind::BrokenPipe
+                    ) => {}
+                Err(error) => panic!("upstream socket was not closed by cancel: {error}"),
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("indefinite host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/indefinite"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect("open indefinite stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("explicit cancel");
+
+        // The fixture thread completes only when the upstream socket is
+        // physically closed; a leaked reader would hold it for 10 s.
+        let started = Instant::now();
+        upstream.join().expect("indefinite fixture joins");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "cancel must close the upstream socket promptly"
+        );
+    }
+
+    #[test]
+    fn stream_attempt_rows_survive_process_death_and_reconcile_conservatively() {
+        let dir = tempfile::tempdir().expect("stream attempt tempdir");
+        let path = dir.path().join("attempts.sqlite");
+
+        // First process life: start an attempt and durably pre-mark a cursor,
+        // then "crash" (drop everything without settling — the registry
+        // entries become unreachable because the reopened instance has a new
+        // namespace, exactly like a new process).
+        {
+            let mut snapback = LocalSnapback::open(&path).expect("open stream attempt db");
+            snapback.load_functions(generation_test_manifest());
+            let state = Arc::new(Mutex::new(snapback));
+            let staged = stage_held_action(&state);
+            let mut host = held_action_host(state, &staged);
+            let started = host
+                .start_stream_attempt("crash-key")
+                .expect("start durable attempt");
+            assert!(started.lease_held);
+            crate::stream_attempt::global_stream_attempt_registry()
+                .bind_cursor(&started.attempt_token, "crash-cursor", &host.stream_runner)
+                .expect("bind pre-marked cursor");
+            host.flush_stream_attempts_required("test.premark")
+                .expect("write-ahead pre-mark commits before the send");
+        }
+
+        // Second process life: the startup reconciler settles the orphaned
+        // row `failed` with the conservative effect fact, and a new runner
+        // observes that durable winner verbatim.
+        let mut snapback = LocalSnapback::open(&path).expect("reopen stream attempt db");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        let recovered = host
+            .start_stream_attempt("crash-key")
+            .expect("start against the recovered attempt");
+        assert!(!recovered.lease_held, "a settled attempt has no lease");
+        let terminal = recovered.terminal.expect("a durable winner always exists");
+        assert_eq!(
+            terminal.cause,
+            crate::stream_attempt::StreamAttemptCause::Failed
+        );
+        assert_eq!(
+            terminal.settled_by,
+            crate::stream_attempt::StreamAttemptSettledBy::Terminalizer
+        );
+        assert!(
+            terminal.effect_may_have_executed,
+            "a crash after the pre-mark leaves initiation_possible — the conservative reading"
+        );
+
+        // A fresh client key on the recovered instance still starts cleanly.
+        let fresh = host
+            .start_stream_attempt("crash-key-2")
+            .expect("fresh attempt after recovery");
+        assert!(fresh.lease_held);
+        assert!(fresh.terminal.is_none());
+    }
+
+    #[test]
+    fn keyed_non_get_transport_loss_settles_ambiguous_and_pre_send_failures_stay_failed() {
+        // @ref LLP 0076#author-decisions--2026-07-23 — decision 5: a bare
+        // idempotency key no longer downgrades ambiguity; only a safe method
+        // or a provable pre-send failure settles `failed`.
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind mid-handshake fixture");
+        let address = listener.local_addr().expect("fixture address");
+        let upstream = std::thread::spawn(move || {
+            let (mut socket, _) = listener.accept().expect("accept keyed request");
+            let mut request = [0_u8; 512];
+            let _ = std::io::Read::read(&mut socket, &mut request);
+            drop(socket); // destroy after initiation, before response metadata
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("classification host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+
+        let keyed_loss = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/keyed"),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: Some("provider-key-1".to_owned()),
+                attempt_token: None,
+                secret_slots: Vec::new(),
+            })
+            .expect_err("mid-handshake loss cannot succeed");
+        assert_eq!(
+            keyed_loss.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS",
+            "a bare key no longer proves provider idempotency"
+        );
+        upstream.join().expect("fixture joins");
+
+        // Connection refused is provably pre-send: still `failed`, and an
+        // attempt-bound cursor narrows to definitely_not_initiated so the
+        // terminal carries no effect uncertainty.
+        let refused_port = {
+            let probe = std::net::TcpListener::bind("127.0.0.1:0").expect("probe port");
+            let port = probe.local_addr().expect("probe address").port();
+            drop(probe);
+            port
+        };
+        let started = host
+            .start_stream_attempt("pre-send-key")
+            .expect("start pre-send attempt");
+        let refused = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://127.0.0.1:{refused_port}/refused"),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: Some("provider-key-2".to_owned()),
+                attempt_token: Some(started.attempt_token.clone()),
+                secret_slots: Vec::new(),
+            })
+            .expect_err("connection refused cannot succeed");
+        assert_eq!(
+            refused.diagnostic.code,
+            "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        );
+        let settled = host
+            .settle_stream_attempt(
+                &started.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Failed,
+            )
+            .expect("settle pre-send failure");
+        assert!(
+            !settled.effect_may_have_executed,
+            "a provable pre-send failure carries no effect uncertainty"
+        );
+    }
+
+    #[test]
+    fn cancelled_and_timed_out_after_initiation_carry_the_effect_fact() {
+        let listener =
+            std::net::TcpListener::bind("127.0.0.1:0").expect("bind effect fixture");
+        let address = listener.local_addr().expect("effect fixture address");
+        let upstream = std::thread::spawn(move || {
+            for _ in 0..2 {
+                let Ok((mut socket, _)) = listener.accept() else {
+                    return;
+                };
+                let mut request = [0_u8; 512];
+                let _ = std::io::Read::read(&mut socket, &mut request);
+                let _ = socket.write_all(
+                    b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nbody",
+                );
+            }
+        });
+
+        let mut snapback = LocalSnapback::memory().expect("effect host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        host.deadline = Instant::now() + Duration::from_secs(10);
+
+        // Cancelled after initiation: response metadata observed, explicit
+        // cancel, then a cancelled settle — the effect fact must survive.
+        let cancelled = host
+            .start_stream_attempt("effect-cancel")
+            .expect("start cancel attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/cancel"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(cancelled.attempt_token.clone()),
+                secret_slots: Vec::new(),
+            })
+            .expect("open cancel stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("explicit cancel");
+        let terminal = host
+            .settle_stream_attempt(
+                &cancelled.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::Cancelled,
+            )
+            .expect("settle cancelled");
+        assert!(
+            terminal.effect_may_have_executed,
+            "cancelled-after-initiation must carry the effect fact"
+        );
+
+        // Timed out after initiation: same shape, timed_out cause.
+        let timed = host
+            .start_stream_attempt("effect-timeout")
+            .expect("start timeout attempt");
+        let opened = host
+            .open_response_stream(ActionStreamRequest {
+                url: format!("http://{address}/timeout"),
+                method: "GET".to_owned(),
+                headers: BTreeMap::new(),
+                body: None,
+                idempotency_key: None,
+                attempt_token: Some(timed.attempt_token.clone()),
+                secret_slots: Vec::new(),
+            })
+            .expect("open timeout stream");
+        host.cancel_response_stream(&opened.stream_id)
+            .expect("close cursor before settle");
+        let terminal = host
+            .settle_stream_attempt(
+                &timed.attempt_token,
+                crate::stream_attempt::StreamAttemptCause::TimedOut,
+            )
+            .expect("settle timed_out");
+        assert!(
+            terminal.effect_may_have_executed,
+            "timed-out-after-initiation must carry the effect fact"
+        );
+        upstream.join().expect("effect fixture joins");
+    }
+
+    #[tokio::test]
+    async fn watchdog_abandonment_terminalizes_stream_attempts_with_timed_out() {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "hungAttempt",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"globalThis.__snapbackHandlers = {
+  async hungAttempt(ctx, args) {
+    const started = await ctx.streamAttempt.start(args.clientKey);
+    const begun = Date.now();
+    while (Date.now() - begun < 2000) {}
+    return { started: started };
+  }
+};"#
+                    .to_owned(),
+                    export: "hungAttempt".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("hung attempt state");
+        snapback.load_functions(manifest);
+        let state = Arc::new(Mutex::new(snapback));
+        let counters = isolated_worker_counters();
+
+        let stage = |state: &SharedSnapback| {
+            let state = state.clone();
+            async move {
+                let action = super::with_snapback(&state, |snapback| {
+                    snapback.stage_action_invocation("hungAttempt")
+                })
+                .await
+                .expect("stage hung attempt action");
+                let StagedAction::Detached(action) = action else {
+                    panic!("Ibex action must detach");
+                };
+                action
+            }
+        };
+
+        let action = stage(&state).await;
+        let timed_out = super::run_detached_ibex_action_with_admission_counters_and_timeout(
+            &state,
+            action,
+            HandlerInput {
+                args: json!({ "clientKey": "watchdog-attempt" }),
+                ..HandlerInput::default()
+            },
+            crate::local::manual_action_metadata("test", "hungAttempt"),
+            Arc::new(Semaphore::new(1)),
+            1,
+            counters,
+            150,
+        )
+        .await
+        .expect_err("the watchdog abandons the hung action");
+        assert_eq!(timed_out.diagnostic.code, "SNAPBACK_ACTION_TIMEOUT");
+
+        // The trusted terminalizer wrote the durable winner while the hung
+        // worker was still spinning: a later runner observes timed_out from
+        // the terminalizer and takes the lease over.
+        let action = stage(&state).await;
+        let observed = super::run_detached_ibex_action_with_admission_counters_and_timeout(
+            &state,
+            action,
+            HandlerInput {
+                args: json!({ "clientKey": "watchdog-attempt" }),
+                ..HandlerInput::default()
+            },
+            crate::local::manual_action_metadata("test", "hungAttempt2"),
+            Arc::new(Semaphore::new(1)),
+            1,
+            counters,
+            5_000,
+        )
+        .await
+        .expect("the follow-up runner completes");
+        assert_eq!(
+            observed["started"]["terminal"]["cause"],
+            json!("timed_out")
+        );
+        assert_eq!(
+            observed["started"]["terminal"]["settledBy"],
+            json!("terminalizer")
+        );
+    }
+
+    #[tokio::test]
+    async fn stream_attempt_control_plane_settles_verbatim_through_the_real_action_path() {
+        let manifest = FunctionManifest {
+            functions: vec![FunctionDefinition::new(
+                "attemptAction",
+                FunctionKind::Action,
+                FunctionRuntime::IbexModule(IbexModule {
+                    source: r#"globalThis.__snapbackHandlers = {
+  async attemptAction(ctx, args) {
+    const started = await ctx.streamAttempt.start(args.clientKey);
+    if (args.settle) {
+      const settled = await ctx.streamAttempt.settle(started.attemptToken, args.cause || "complete");
+      return { started: started, settled: settled };
+    }
+    return { started: started };
+  }
+};"#
+                    .to_owned(),
+                    export: "attemptAction".to_owned(),
+                }),
+            )],
+            ..FunctionManifest::default()
+        };
+        let mut snapback = LocalSnapback::memory().expect("attempt action state");
+        snapback.load_functions(manifest);
+        let state = Arc::new(Mutex::new(snapback));
+
+        let run = |args: Value| {
+            let state = state.clone();
+            async move {
+                let action = super::with_snapback(&state, |snapback| {
+                    snapback.stage_action_invocation("attemptAction")
+                })
+                .await
+                .expect("stage attempt action");
+                let StagedAction::Detached(action) = action else {
+                    panic!("Ibex action must detach");
+                };
+                super::run_detached_ibex_action(
+                    &state,
+                    action,
+                    HandlerInput {
+                        args,
+                        ..HandlerInput::default()
+                    },
+                    crate::local::manual_action_metadata("test", "attemptAction"),
+                )
+                .await
+                .expect("attempt action completes")
+            }
+        };
+
+        // First runner starts and settles `complete` under its lease.
+        let first = run(json!({ "clientKey": "e2e-attempt", "settle": true })).await;
+        assert_eq!(first["started"]["leaseHeld"], json!(true));
+        assert_eq!(first["started"]["terminal"], Value::Null);
+        assert_eq!(first["settled"]["cause"], json!("complete"));
+        assert_eq!(first["settled"]["settledBy"], json!("authored"));
+
+        // A later invocation with the same client key observes the durable
+        // winner verbatim — its own divergent settle cause is ignored.
+        let second = run(json!({ "clientKey": "e2e-attempt", "settle": true, "cause": "failed" })).await;
+        assert_eq!(second["started"]["leaseHeld"], json!(false));
+        assert_eq!(second["started"]["terminal"]["cause"], json!("complete"));
+        assert_eq!(second["settled"]["cause"], json!("complete"));
+        assert_eq!(second["settled"]["settledBy"], json!("authored"));
+
+        // An action that returns WITHOUT settling forfeits the authored path:
+        // the trusted terminalizer writes the durable winner.
+        let unsettled = run(json!({ "clientKey": "e2e-forfeit", "settle": false })).await;
+        assert_eq!(unsettled["started"]["leaseHeld"], json!(true));
+        let observed = run(json!({ "clientKey": "e2e-forfeit", "settle": false })).await;
+        assert_eq!(observed["started"]["terminal"]["cause"], json!("failed"));
+        assert_eq!(
+            observed["started"]["terminal"]["settledBy"],
+            json!("terminalizer")
+        );
     }
 
     #[tokio::test]

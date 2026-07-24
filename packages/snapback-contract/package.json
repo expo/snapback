@@ -4,6 +4,7 @@
   "type": "module",
   "description": "Provider/runtime boundary for Contract applications backed by Snapback.",
   "files": [
+    "artifact-validation.mjs",
     "auth-coordinator.mjs",
     "auth-custody-indexeddb.mjs",
     "auth-invalidation.mjs",
@@ -18,6 +19,7 @@
     "exact-project-check.mjs",
     "index.mjs",
     "keyed-provider.mjs",
+    "online-surface.mjs",
     "package-export-path.mjs",
     "query-authorization.mjs",
     "render-first.mjs"
@@ -25,6 +27,7 @@
   "exports": {
     ".": "./index.mjs",
     "./capabilities": "./capabilities.mjs",
+    "./artifact-validation": "./artifact-validation.mjs",
     "./auth-coordinator": "./auth-coordinator.mjs",
     "./auth-custody-indexeddb": "./auth-custody-indexeddb.mjs",
     "./auth-invalidation": "./auth-invalidation.mjs",
@@ -32,6 +35,7 @@
     "./authorized-lease": "./authorized-lease.mjs",
     "./render-first": "./render-first.mjs",
     "./keyed-provider": "./keyed-provider.mjs",
+    "./online-surface": "./online-surface.mjs",
     "./client-store": "./client-store.mjs",
     "./diagnostics": "./diagnostics.mjs",
     "./build-preset": "./build-preset.mjs",
@@ -44,6 +48,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-invalidation.test.mjs && node query-authorization.test.mjs && node authorized-lease.test.mjs && node authorized-retained-store.test.mjs && node client-store-authority.test.mjs && node client-store-queue-authorization.test.mjs && node auth-coordinator-contract.test.mjs && node agent-authority-contract.test.mjs && node session-queue-axis.test.mjs && node unsolicited-protocol-echo.test.mjs && node authorized-contract.test.mjs && node cold-offline-authorized-retention.test.mjs && node index.test.mjs && node keyed-provider.test.mjs && node build-preset.test.mjs && node exact-package.test.mjs && node exact-conformance.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node lifecycle-generation-exhaustion.test.mjs && node render-first.test.mjs && node derived-overlay.test.mjs && node derived-overlay-duplicate-reapply.test.mjs && node derived-overlay-reconcile-failure.test.mjs && node offline-replay.test.mjs && node retained-identity.test.mjs"
+    "test": "node auth-coordinator.test.mjs && node auth-coordinator-missed-wakeup.test.mjs && node auth-custody-indexeddb.test.mjs && node auth-invalidation.test.mjs && node query-authorization.test.mjs && node authorized-lease.test.mjs && node authorized-retained-store.test.mjs && node client-store-authority.test.mjs && node client-store-queue-authorization.test.mjs && node auth-coordinator-contract.test.mjs && node agent-authority-contract.test.mjs && node session-queue-axis.test.mjs && node unsolicited-protocol-echo.test.mjs && node authorized-contract.test.mjs && node cold-offline-authorized-retention.test.mjs && node index.test.mjs && node keyed-provider.test.mjs && node online-surface.test.mjs && node build-preset.test.mjs && node exact-package.test.mjs && node exact-conformance.test.mjs && node surface-construction-failure.test.mjs && node mutation-reconcile-failure.test.mjs && node optimistic-duplicate-reapply.test.mjs && node multi-live-poll-reconcile.test.mjs && node ephemeral-resubscribe-race.test.mjs && node lifecycle-generation-exhaustion.test.mjs && node render-first.test.mjs && node derived-overlay.test.mjs && node derived-overlay-duplicate-reapply.test.mjs && node derived-overlay-reconcile-failure.test.mjs && node offline-replay.test.mjs && node retained-identity.test.mjs"
   }
 }

@@ -6,6 +6,7 @@
   "files": [
     "cli.mjs",
     "index.mjs",
+    "mcp-control.mjs",
     "templates"
   ],
   "bin": {
@@ -28,6 +29,6 @@
     "access": "public"
   },
   "scripts": {
-    "test": "node package.test.mjs"
+    "test": "node package.test.mjs && node mcp-control.test.mjs && node dev-loop.test.mjs"
   }
 }

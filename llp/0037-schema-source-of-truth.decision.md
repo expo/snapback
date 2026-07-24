@@ -132,6 +132,21 @@ outputs, not competing wire authorities. Codegen may derive values such as the
 authority-creating marker, but the server manifest types remain the parser and
 schema authority.
 
+## Dated constraint: name-keyed encodings
+
+*(2026-07-23, LLP 0079 SC-3; ratified by Charlie as an amendment to this
+Accepted decision.)*
+
+No Snapback-owned persisted or wire encoding may depend on declaration order
+surviving edits. Enum-like values, fields, columns, and variant tags remain
+name-keyed; a future by-index encoding requires an explicit recorded decision.
+LLP 0078 F2c records the motivating corruption history in Serverpod.
+
+`tests/name_keying_guard.rs` pins representative Rust-owned unit and
+data-bearing encodings and rejects an unreferenced `serde_repr` dependency or
+derive in `src/`. The standing rule also applies beyond the mechanical guard,
+including client decoders and handwritten SQL encodings.
+
 ## Dated amendments: prior-art absorptions (2026-07-23)
 
 Recorded per [LLP 0086](./0086-prior-art-course-corrections.plan.md) §CC-8

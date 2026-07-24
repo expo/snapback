@@ -386,7 +386,8 @@ deletion.
    ([LLP 0035](../llp/0035-local-target-benchmarks.research.md) §M3): once
    DK-4 (warm VM) made fan-out row-bound, whole-result `live_replace` still
    capped live delivery at ~5–6 affected subscribers/commit, and a
-   matcher-computed op-log delta was ~5 200× cheaper. So row-level diffs
+   matcher-computed op-log delta was ~5 200× cheaper (a fixture-derived
+   figure since superseded — LLP 0035's 2026-07-21 note). So row-level diffs
    shipped as an **additive `live_delta` wire kind** beside `live_replace`
    (the fallback and default), for the analyzable subset — an unordered
    single-table filtered **HostPlan** query, where the predicate is the whole
@@ -817,6 +818,23 @@ Exact's adversarial oracle and adds the real Snapback provider seam, including
 canonical same-key sharing, different-scope and different-provider isolation,
 late predecessor suppression, authority rotation, structured invalid-args
 refusal, and HMR/root teardown.
+
+The capability-scoped packaging paths are also first-class. A runtime that
+exposes partition rotation may construct `createKeyedSnapbackContractProvider`
+directly from `@snapback/contract/keyed-provider`; it runs generated-artifact
+coherence checks when artifact identity is present and exposes Exact-compatible
+broadcast/scoped `forceQueryState` controls without allocating a physical
+transport while a scope is forced. The published Exact 0.1.2 runtime predates
+that partition API, so Partitime's stable-package arm instead uses
+`@snapback/contract/online-surface`: a lean extraction of the legacy preopened,
+boot-scoped multi-live semantics, including artifact validation, connection
+drivability, Exact's force plane, server-authoritative mutations, and disposal.
+It does not pretend to offer binding-time scope identity.
+
+Neither capability-scoped path replaces the full surface's authority
+participant. A client with `authCoordinator`, `agentAuthority`, retained state,
+or offline replay still enters through `createSnapbackContractSurface`, which
+owns boot, quiesce, partition rotation where supported, and resume.
 
 The demo's row-shape acceptance check also confirms the §10.3 note about the
 Exact-side ephemeral `queryResultTypes` gap in practice: `shape_unknown_member`

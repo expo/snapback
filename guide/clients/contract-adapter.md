@@ -4,7 +4,7 @@ id: clients.contract-adapter
 order: 1
 audience: agent-first
 capabilities: [clients.contract, clients.contract-provider-generation, clients.contract-keyed-scopes, clients.mutation-outcomes, clients.optimistic-overlays]
-authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs]
+authorities: [llp/0005-contract-exact-react-integration.explainer.md, llp/0034-contract-source-seam-provider-side.rfc.md, llp/0043-offline-replay-retention.rfc.md, llp/0052-contract-update-economy-and-host-state.rfc.md, llp/0055-agent-principals-and-scoped-grants.rfc.md, llp/0059-session-projection-and-client-barrier.spec.md, llp/0063-partitime-platform-roadmap.plan.md, packages/snapback-contract/index.mjs, packages/snapback-contract/keyed-provider.mjs, packages/snapback-contract/online-surface.mjs]
 examples: [demos/todo-v2/surfaces/contract, demos/all-aboard/surfaces/contract, packages/snapback-contract/agent-authority-contract.test.mjs, demos/partiful-matrix/tests/acceptance/step1-keyed-scopes.mjs, demos/partiful-matrix/tests/acceptance/step1-mutation-projection.mjs]
 status: current
 targets: [local]
@@ -256,6 +256,30 @@ What the surface does for you:
     keyedQueryScopes: true,
   });
   ```
+
+  For an **Online-only** surface with no `authCoordinator`,
+  `agentAuthority`, or retained client store, import
+  `createKeyedSnapbackContractProvider` from
+  `@snapback/contract/keyed-provider` directly when the Exact runtime exports
+  `rotatePartition`. Pass `artifactIndex`,
+  `schemaManifest`, and `functionManifest` with the Contract manifest so the
+  capability-scoped path keeps the same stale-artifact refusal. It also owns
+  Exact-compatible scoped/broadcast `forceQueryState` controls and does not
+  open a Snapback transport for a binding mounted under an active force. Do
+  not use this shortcut for coordinated auth or offline custody: use
+  `createSnapbackContractSurface({ keyedQueryScopes: true })` so the authority
+  participant owns boot, quiesce, partition rotation, and resume.
+- **Published-runtime Online packaging** — the published Exact 0.1.2 runtime
+  predates keyed partition rotation. An Online-only app pinned to that runtime
+  can import `createOnlineSnapbackContractSurface` from
+  `@snapback/contract/online-surface`. This smaller entrypoint preserves the
+  legacy `liveQueries: [{ name, args }]` boot-scoped behavior, artifact
+  validation, the runtime's force-state plane, live connection updates,
+  server-authoritative mutations, and cleanup without retaining offline/auth/
+  ephemeral code. Binding args must match the configured boot scope; mismatch
+  is diagnosed and does not become a dynamic-scope claim. It refuses clients
+  with coordinated authority. Upgrade to the keyed provider when the runtime
+  exposes partition rotation; use the full surface for auth/offline custody.
 - **Structural mutation outcomes** — Snapback preserves raw call, optimistic
   overlay, receipt, durable-version, correlation, and ambiguity facts. Exact
   projects those facts into attempt/overlay/evidence state; neither side lets

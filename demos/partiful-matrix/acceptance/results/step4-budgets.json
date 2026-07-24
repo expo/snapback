@@ -7,25 +7,25 @@
   "outcome": "red",
   "skipPolicy": "forbidden",
   "skipped": 0,
-  "recordedAt": "2026-07-21T04:33:08.426Z",
+  "recordedAt": "2026-07-22T07:57:02.915Z",
   "repository": {
-    "snapbackRevision": "b28e5dbf1676e441998d542f36a18e84e4ea1b17",
-    "exactRevision": "cc217eb8cefb5aeee38752297f3c1669bd9e5a40"
+    "snapbackRevision": "43359e5a639e5b16067f877fcea6011290a3a84a",
+    "exactRevision": "9999f1097e1b90fd9979b48fd35963be3ae6b6e1"
   },
   "inputs": {
     "protocol": {
       "path": "demos/partiful-matrix/acceptance/comparison-protocol.v1.json",
-      "sha256": "17cacac83789910ae44241480ebe5999b40d18ec521f70954ca7a8c7d05266fe"
+      "sha256": "6e1c4eb6642d252cef50401f7b081acf8897d182d84c20eaa7349ca20250dad1"
     },
     "retainedWebReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+      "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
     },
     "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
     "thresholdSource": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "revision": "b28e5dbf1676e441998d542f36a18e84e4ea1b17",
-      "sha256": "2e7776a93aad055ce8a56494d8913557001fa8eef3e92f7e8c1d5e9778377863"
+      "revision": "43359e5a639e5b16067f877fcea6011290a3a84a",
+      "sha256": "be271c725132882b8aa7c514694b206f77710583601abcf1155191d914062e77"
     },
     "nativeReceipts": [
       {
@@ -63,58 +63,58 @@
     ]
   },
   "summary": {
-    "passed": 5,
-    "red": 21,
-    "nonclaims": 18,
+    "passed": 9,
+    "red": 17,
+    "nonclaims": 16,
     "total": 26
   },
   "requirements": [
     {
       "id": "emitted-minified-javascript-by-cell",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_MINIFIED_JS_EXCEEDS_FROZEN_THRESHOLDS",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_MINIFIED_JS_PASSED",
       "evidence": {
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 1319223,
+            "actual": 367782,
             "threshold": 422417,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:supabase",
-            "actual": 881611,
+            "actual": 210785,
             "threshold": 213488,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:convex",
-            "actual": 881597,
+            "actual": 210771,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:sqlite",
-            "actual": 881597,
+            "actual": 210771,
             "threshold": 213483,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           }
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 409231,
+          "react:snapback": 343880,
           "react:supabase": 215059,
           "react:convex": 215055,
           "react:sqlite": 215055,
-          "contract:snapback": 1319223,
-          "contract:supabase": 881611,
-          "contract:convex": 881597,
-          "contract:sqlite": 881597,
-          "vanilla:snapback": 213593,
+          "contract:snapback": 367782,
+          "contract:supabase": 210785,
+          "contract:convex": 210771,
+          "contract:sqlite": 210771,
+          "vanilla:snapback": 148380,
           "vanilla:supabase": 20235,
           "vanilla:convex": 20231,
           "vanilla:sqlite": 20231
@@ -123,53 +123,53 @@
     },
     {
       "id": "compressed-javascript-by-cell",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_COMPRESSED_JS_EXCEEDS_FROZEN_THRESHOLDS",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_COMPRESSED_JS_PASSED",
       "evidence": {
         "rows": [
           {
             "cell": "contract:snapback",
-            "actual": 360995,
+            "actual": 100995,
             "threshold": 119451,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:supabase",
-            "actual": 244692,
+            "actual": 61883,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:convex",
-            "actual": 244689,
+            "actual": 61881,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           },
           {
             "cell": "contract:sqlite",
-            "actual": 244689,
+            "actual": 61881,
             "threshold": 67246,
             "formula": "floor(react_same_cell_baseline * 1.05)",
-            "pass": false
+            "pass": true
           }
         ],
         "thresholdId": "partitime-thresholds-v1-sha256-343dcc1429e20e07",
         "controls": {
-          "react:snapback": 117329,
-          "react:supabase": 67987,
-          "react:convex": 67987,
-          "react:sqlite": 67986,
-          "contract:snapback": 360995,
-          "contract:supabase": 244692,
-          "contract:convex": 244689,
-          "contract:sqlite": 244689,
-          "vanilla:snapback": 56074,
-          "vanilla:supabase": 7278,
-          "vanilla:convex": 7276,
-          "vanilla:sqlite": 7277
+          "react:snapback": 101189,
+          "react:supabase": 67872,
+          "react:convex": 67870,
+          "react:sqlite": 67871,
+          "contract:snapback": 100995,
+          "contract:supabase": 61883,
+          "contract:convex": 61881,
+          "contract:sqlite": 61881,
+          "vanilla:snapback": 40167,
+          "vanilla:supabase": 7240,
+          "vanilla:convex": 7237,
+          "vanilla:sqlite": 7238
         }
       }
     },
@@ -181,7 +181,7 @@
         "rows": [
           {
             "metric": "contractSourceLines",
-            "actual": 1081,
+            "actual": 1095,
             "threshold": 348,
             "formula": "floor(react_same_workload_source_lines * 1.10)",
             "pass": false
@@ -224,9 +224,9 @@
             "files": [
               {
                 "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-                "lines": 332,
-                "bytes": 14433,
-                "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+                "lines": 346,
+                "bytes": 15025,
+                "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
               },
               {
                 "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -277,7 +277,7 @@
                 "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
               }
             ],
-            "totalLines": 830
+            "totalLines": 844
           },
           "vanilla": {
             "files": [
@@ -315,18 +315,18 @@
       "status": "pass",
       "reasonCode": "STEP4_BUDGET_FIRST_PUSH_P95_PASSED",
       "evidence": {
-        "actual": 5,
+        "actual": 3,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          5,
           3,
-          4,
-          5,
-          5,
-          5,
-          4
+          3,
+          2,
+          2,
+          3,
+          3,
+          2
         ],
         "pass": true
       }
@@ -334,9 +334,10 @@
     {
       "id": "cold-startup-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "coldStartupMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -344,17 +345,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "coldStartupMs",
+            "actualP95": 77,
+            "threshold": 611,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "coldStartupMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1250,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "coldStartupMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 461,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "coldStartupMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 498,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "warm-startup-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "warmStartupMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -362,17 +405,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "warmStartupMs",
+            "actualP95": 41.599999994039536,
+            "threshold": 222,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "warmStartupMs",
+            "actualP95": 44.29999999701977,
+            "threshold": 33,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "warmStartupMs",
+            "actualP95": 56.29999999701977,
+            "threshold": 38,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "warmStartupMs",
+            "actualP95": 49.400000005960464,
+            "threshold": 45,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "first-authoritative-data-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "firstAuthoritativeDataMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -380,17 +465,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 77,
+            "threshold": 697,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1344,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 702,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "firstAuthoritativeDataMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 514,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "first-live-data-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "firstLiveDataMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -398,17 +525,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 122,
+            "threshold": 697,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 75.29999999701977,
+            "threshold": 1344,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 103.29999999701977,
+            "threshold": 702,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "firstLiveDataMs",
+            "actualP95": 79.79999999701977,
+            "threshold": 514,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "idle-cpu",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "idleCpuTaskMsPerSecond",
         "formula": "min(react_same_cell_baseline * 1.05, protocol_declared_absolute_idle_ceiling)",
         "requiredSampling": {
           "warmups": 2,
@@ -416,17 +585,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 0.28099999999999997,
+            "threshold": 0.6838999999999992,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 2.1073333333333335,
+            "threshold": 1.1802,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 2.403666666666666,
+            "threshold": 1.1081,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "idleCpuTaskMsPerSecond",
+            "actualP95": 1.5599999999999998,
+            "threshold": 1.58865,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "idle-network-use",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "idleNetworkBytesPerSecond",
         "formula": "min(react_same_cell_baseline * 1.05, protocol_declared_absolute_idle_ceiling)",
         "requiredSampling": {
           "warmups": 2,
@@ -434,17 +645,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 0,
+            "threshold": 0,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 1051,
+            "threshold": 735.7,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 1051,
+            "threshold": 735.7,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "idleNetworkBytesPerSecond",
+            "actualP95": 700.6666666666666,
+            "threshold": 1103.55,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "memory-per-active-subscription-bytes-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "memoryPerActiveSubscriptionBytes",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -452,17 +705,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 2994420,
+            "threshold": 2150064,
+            "pass": false
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3623680,
+            "threshold": 1818154,
+            "pass": false
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3623656,
+            "threshold": 1818564,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "memoryPerActiveSubscriptionBytes",
+            "actualP95": 3672080,
+            "threshold": 1816914,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "update-fanout-count-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "updateFanoutCount",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -470,17 +765,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "updateFanoutCount",
+            "actualP95": 7,
+            "threshold": 9,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "updateFanoutCount",
+            "actualP95": 18,
+            "threshold": 9,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "dom-or-host-patch-count-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "domOrHostPatchCount",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -488,17 +825,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 15,
+            "threshold": 19,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "domOrHostPatchCount",
+            "actualP95": 237,
+            "threshold": 19,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "production-build-latency-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "productionBuildMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -506,17 +885,59 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "productionBuildMs",
+            "actualP95": 768.950167,
+            "threshold": 917,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "productionBuildMs",
+            "actualP95": 707.861125,
+            "threshold": 711,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "productionBuildMs",
+            "actualP95": 756.433875,
+            "threshold": 716,
+            "pass": false
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "productionBuildMs",
+            "actualP95": 734.331667,
+            "threshold": 653,
+            "pass": false
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "incremental-build-latency-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "incrementalBuildMs",
         "formula": "floor(react_same_cell_baseline * 1.10)",
         "requiredSampling": {
           "warmups": 2,
@@ -524,27 +945,68 @@
           "aggregation": "median and p95",
           "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "calibration": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+          "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+        },
+        "holdout": {
+          "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+          "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+        },
+        "rows": [
+          {
+            "cell": "contract:snapback",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 180,
+            "threshold": 415,
+            "pass": true
+          },
+          {
+            "cell": "contract:supabase",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 145,
+            "threshold": 275,
+            "pass": true
+          },
+          {
+            "cell": "contract:convex",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 144,
+            "threshold": 235,
+            "pass": true
+          },
+          {
+            "cell": "contract:sqlite",
+            "metricName": "incrementalBuildMs",
+            "actualP95": 153,
+            "threshold": 221,
+            "pass": true
+          }
+        ],
+        "perCellMeasurementsPresent": true
       }
     },
     {
       "id": "native-hermes-evaluation-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_NATIVE_PERFORMANCE_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "hermesEvaluationMs",
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
-        "requiredSampling": {
-          "warmups": 2,
-          "samples": 7,
-          "aggregation": "median and p95",
-          "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false,
+        "amendmentStatus": "ratified",
+        "calibration": null,
+        "holdout": null,
+        "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
@@ -583,19 +1045,19 @@
     {
       "id": "native-startup-asset-weight-bytes",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_NATIVE_PERFORMANCE_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "startupAssetWeightBytes",
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
-        "requiredSampling": {
-          "warmups": 2,
-          "samples": 7,
-          "aggregation": "median and p95",
-          "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false,
+        "amendmentStatus": "ratified",
+        "calibration": null,
+        "holdout": null,
+        "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
@@ -634,19 +1096,19 @@
     {
       "id": "native-cold-launch-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_NATIVE_PERFORMANCE_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "coldLaunchMs",
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
-        "requiredSampling": {
-          "warmups": 2,
-          "samples": 7,
-          "aggregation": "median and p95",
-          "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false,
+        "amendmentStatus": "ratified",
+        "calibration": null,
+        "holdout": null,
+        "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
@@ -685,19 +1147,19 @@
     {
       "id": "native-first-authoritative-data-ms-p95",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_PROSPECTIVE_INSTRUMENT_MISSING",
+      "reasonCode": "STEP4_BUDGET_NATIVE_PERFORMANCE_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
+        "metricName": "firstAuthoritativeDataMs",
         "formula": "floor(react_expo_same_os_baseline * 1.10)",
-        "requiredSampling": {
-          "warmups": 2,
-          "samples": 7,
-          "aggregation": "median and p95",
-          "outlierPolicy": "retain all valid samples; invalidate only a documented instrument failure"
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
         },
-        "protocolDeadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "datedProspectiveAmendmentPresent": false,
-        "perCellMeasurementsPresent": false,
+        "amendmentStatus": "ratified",
+        "calibration": null,
+        "holdout": null,
+        "rows": [],
         "retainedReceipts": [
           {
             "path": "demos/partiful-matrix/acceptance/results/step0-native.json",
@@ -735,28 +1197,179 @@
     },
     {
       "id": "per-cell-ci-diffable-cost-attribution",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_MANIFEST_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_MANIFEST_COMPLETE",
       "evidence": {
         "measuredPerCellCategories": [
           "emitted-minified-javascript-by-cell",
           "compressed-javascript-by-cell"
         ],
-        "missingPerCellCategories": [
-          "cold-startup",
-          "warm-startup",
-          "first-authoritative-data",
-          "first-live-data",
-          "idle-cpu",
-          "idle-network",
-          "memory-per-subscription",
-          "update-fanout",
-          "dom-or-host-patches",
-          "production-build",
-          "incremental-build",
-          "native-carrier-costs"
-        ]
+        "performanceCollector": {
+          "path": "demos/partiful-matrix/tests/acceptance/step4-performance.mjs",
+          "sha256": "f6be4400143d98a8490fe3806aeb5be52a2fc4c0d40136847150da89f119bacf"
+        },
+        "nativePerformanceCollector": {
+          "path": "demos/partiful-matrix/tests/acceptance/step4-native-performance.mjs",
+          "sha256": "b5e8d29948ab792e8a3a05888eff69466a78107c3439ad3149053cb40c3c10a3"
+        },
+        "costAttribution": {
+          "react:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "7d4ff59fd4c668b4f2ad9e09ae89e94fe049270b316086151d01fef3ba334c8d"
+            },
+            "layers": {
+              "framework-runtime": 4776,
+              "provider-runtime": 254788,
+              "generated-app-data": 13142,
+              "application-code": 615346
+            },
+            "moduleCount": 42
+          },
+          "react:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "2fb2cec5b907984b4b04ba203cd967a545a0f839ad1a1856686884eee14ab3ab"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16923,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "react:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/convex/partitime-cost-attribution.json",
+              "sha256": "093d6e0d1311654a37a26cd24e0667f1400cd5109fa0b5a9a88bd8baa8555f55"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16919,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "react:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "c529d1c8d043d8f426fd314c395e00560de76334195336fde875839d8834def1"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16919,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "contract:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "e43a7865d8cd895df12f84dab28a85ba2792d91b0ba7d058f9cbec86bfd7f5dd"
+            },
+            "layers": {
+              "framework-runtime": 3965,
+              "provider-runtime": 231093,
+              "generated-app-data": 31568,
+              "application-code": 431034
+            },
+            "moduleCount": 121
+          },
+          "contract:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "5f75414403a671dba4c0632bf376e32442679f5b13360d182f34a950b819e702"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402757
+            },
+            "moduleCount": 110
+          },
+          "contract:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/convex/partitime-cost-attribution.json",
+              "sha256": "1e7d9388c44b1d756546bcdd01602fa9f2024d53a43f38a4fe3f044aad528bb0"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402743
+            },
+            "moduleCount": 110
+          },
+          "contract:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "2e9ca2e13e761687ed8efecb222ea9c2dd4fc21f832afed023d23e43c2d558a2"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402743
+            },
+            "moduleCount": 110
+          },
+          "vanilla:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "9b8a002a6f3771b31633fd0ee48d0ce5f92bec952438d012a399bac73c77ab9f"
+            },
+            "layers": {
+              "framework-runtime": 1168,
+              "provider-runtime": 255350,
+              "generated-app-data": 13283,
+              "application-code": 16191
+            },
+            "moduleCount": 16
+          },
+          "vanilla:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "8e57a27819fc7723e2ae8eeae7d5e6c71ed975c4d227f4421f1ea2843642f11c"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17523,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          },
+          "vanilla:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/partitime-cost-attribution.json",
+              "sha256": "1b32077ef9a056ea3f95012c6b4b42c71c50be54f001dd9189112a65c0e0dd0b"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17519,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          },
+          "vanilla:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "e99825e6dca8f345e9731e91095df58e0b780b3bcbd5630fdfa86bfca62df925"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17519,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          }
+        }
       }
     },
     {
@@ -768,37 +1381,36 @@
           "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
           "minifiedBytes": {
             "vanillaGatewayFloor": 20232,
-            "snapbackProviderClientLowerBound": 193361,
+            "snapbackProviderClientLowerBound": 128148,
             "reactFrameworkAndApplicationCombined": 194824,
-            "contractRuntimeAndApplicationCombined": 861370,
-            "contractSnapbackInteractionUnattributed": 244260
+            "contractRuntimeAndApplicationCombined": 190544,
+            "contractSnapbackInteractionUnattributed": 28858
           }
         },
         "vanillaCells": {
           "vanilla:snapback": {
-            "minifiedBytes": 213593,
-            "deterministicGzipBytes": 56074
+            "minifiedBytes": 148380,
+            "deterministicGzipBytes": 40167
           },
           "vanilla:supabase": {
             "minifiedBytes": 20235,
-            "deterministicGzipBytes": 7278
+            "deterministicGzipBytes": 7240
           },
           "vanilla:convex": {
             "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7276
+            "deterministicGzipBytes": 7237
           },
           "vanilla:sqlite": {
             "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7277
+            "deterministicGzipBytes": 7238
           }
         }
       }
     },
     {
       "id": "four-layer-cost-attribution-and-capability-toggles",
-      "status": "red",
-      "reasonCode": "STEP4_BUDGET_ATTRIBUTION_LAYERS_INCOMPLETE",
-      "claimTreatment": "nonclaim",
+      "status": "pass",
+      "reasonCode": "STEP4_BUDGET_ATTRIBUTION_LAYERS_COMPLETE",
       "evidence": {
         "requiredLayers": [
           "framework-runtime",
@@ -806,21 +1418,182 @@
           "generated-app-data",
           "application-code"
         ],
-        "currentBuckets": [
+        "lowerBoundBuckets": [
           "vanillaGatewayFloor",
           "snapbackProviderClientLowerBound",
           "reactFrameworkAndApplicationCombined",
           "contractRuntimeAndApplicationCombined",
           "contractSnapbackInteractionUnattributed"
         ],
-        "capabilityToggleManifestPresent": false,
-        "finding": "Current byte deltas intentionally retain combined/unattributed buckets and no capability-toggle manifests exist for the remaining categories."
+        "capabilityToggles": [
+          "backend mode: snapback versus the same-arm gateway average",
+          "authoring mode: contract/react versus the vanilla same-backend lower bound",
+          "transport mode: push versus declared polling cells"
+        ],
+        "costAttribution": {
+          "react:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "7d4ff59fd4c668b4f2ad9e09ae89e94fe049270b316086151d01fef3ba334c8d"
+            },
+            "layers": {
+              "framework-runtime": 4776,
+              "provider-runtime": 254788,
+              "generated-app-data": 13142,
+              "application-code": 615346
+            },
+            "moduleCount": 42
+          },
+          "react:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "2fb2cec5b907984b4b04ba203cd967a545a0f839ad1a1856686884eee14ab3ab"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16923,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "react:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/convex/partitime-cost-attribution.json",
+              "sha256": "093d6e0d1311654a37a26cd24e0667f1400cd5109fa0b5a9a88bd8baa8555f55"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16919,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "react:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "c529d1c8d043d8f426fd314c395e00560de76334195336fde875839d8834def1"
+            },
+            "layers": {
+              "framework-runtime": 5416,
+              "provider-runtime": 16919,
+              "generated-app-data": 0,
+              "application-code": 615346
+            },
+            "moduleCount": 35
+          },
+          "contract:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "e43a7865d8cd895df12f84dab28a85ba2792d91b0ba7d058f9cbec86bfd7f5dd"
+            },
+            "layers": {
+              "framework-runtime": 3965,
+              "provider-runtime": 231093,
+              "generated-app-data": 31568,
+              "application-code": 431034
+            },
+            "moduleCount": 121
+          },
+          "contract:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "5f75414403a671dba4c0632bf376e32442679f5b13360d182f34a950b819e702"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402757
+            },
+            "moduleCount": 110
+          },
+          "contract:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/convex/partitime-cost-attribution.json",
+              "sha256": "1e7d9388c44b1d756546bcdd01602fa9f2024d53a43f38a4fe3f044aad528bb0"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402743
+            },
+            "moduleCount": 110
+          },
+          "contract:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "2e9ca2e13e761687ed8efecb222ea9c2dd4fc21f832afed023d23e43c2d558a2"
+            },
+            "layers": {
+              "framework-runtime": 1497,
+              "provider-runtime": 9912,
+              "generated-app-data": 5214,
+              "application-code": 402743
+            },
+            "moduleCount": 110
+          },
+          "vanilla:snapback": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/partitime-cost-attribution.json",
+              "sha256": "9b8a002a6f3771b31633fd0ee48d0ce5f92bec952438d012a399bac73c77ab9f"
+            },
+            "layers": {
+              "framework-runtime": 1168,
+              "provider-runtime": 255350,
+              "generated-app-data": 13283,
+              "application-code": 16191
+            },
+            "moduleCount": 16
+          },
+          "vanilla:supabase": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/partitime-cost-attribution.json",
+              "sha256": "8e57a27819fc7723e2ae8eeae7d5e6c71ed975c4d227f4421f1ea2843642f11c"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17523,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          },
+          "vanilla:convex": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/partitime-cost-attribution.json",
+              "sha256": "1b32077ef9a056ea3f95012c6b4b42c71c50be54f001dd9189112a65c0e0dd0b"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17519,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          },
+          "vanilla:sqlite": {
+            "identity": {
+              "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/partitime-cost-attribution.json",
+              "sha256": "e99825e6dca8f345e9731e91095df58e0b780b3bcbd5630fdfa86bfca62df925"
+            },
+            "layers": {
+              "framework-runtime": 1808,
+              "provider-runtime": 17519,
+              "generated-app-data": 125,
+              "application-code": 16191
+            },
+            "moduleCount": 9
+          }
+        }
       }
     },
     {
       "id": "prospective-category-amendments-and-holdout-validation",
       "status": "red",
-      "reasonCode": "STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_MISSING",
+      "reasonCode": "STEP4_BUDGET_AMENDMENT_AND_HOLDOUT_NOT_GREEN",
       "claimTreatment": "nonclaim",
       "evidence": {
         "initialCategories": [
@@ -832,9 +1605,20 @@
           "firstPushFreshnessLatencyMsP95"
         ],
         "deadline": "All remaining Workstream 8 categories join prospectively by Step 4 entry with dated holdout validation.",
-        "amendmentFieldPresent": false,
-        "holdoutValidationArtifacts": [],
-        "finding": "The frozen protocol contains formulas but no dated prospective amendments or holdout validation for the remaining WS8 categories."
+        "amendmentFieldPresent": true,
+        "amendment": {
+          "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+          "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+        },
+        "amendmentStatus": "ratified",
+        "holdoutValidationArtifacts": [
+          {
+            "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+            "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+          },
+          null
+        ],
+        "finding": "The dated amendment is ratified; holdout rows remain red until both web/build and native receipts are independently green."
       }
     },
     {
@@ -896,21 +1680,21 @@
         "cwd": "demos/partiful-matrix/surfaces/react",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "0c63cbbcd2747173bee8f07a041b6b9038b6c7cfd3cbce35f09f6a6c47f51983",
+        "stdoutSha256": "b7024bd1977dbe4724ec78f796e9bfee1d5b348e471510c85c19c93455fd326a",
         "stderrSha256": "2249333180a487bbddf9bc803febe439539abf0bf3213b41fbf64ba6d971f75c",
         "stdoutTail": [
-          "dist/convex-realtime/assets/convex-direct-B34_zLpf.js   69.67 kB │ gzip: 19.46 kB",
-          "dist/convex-realtime/assets/index-Bl9_t8ky.js          215.38 kB │ gzip: 68.22 kB",
-          "✓ built in 417ms",
+          "dist/convex-realtime/assets/index-CD9kevLf.js          215.38 kB │ gzip: 68.12 kB",
+          "✓ built in 412ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 48 modules transformed.",
+          "✓ 49 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
-          "dist/sqlite/index.html                   0.41 kB │ gzip:  0.29 kB",
-          "dist/sqlite/assets/index-Bv0ShAqY.css   10.21 kB │ gzip:  3.18 kB",
-          "dist/sqlite/assets/index-B-ZPQCUX.js   215.06 kB │ gzip: 68.12 kB",
-          "✓ built in 338ms"
+          "dist/sqlite/index.html                         0.41 kB │ gzip:  0.29 kB",
+          "dist/sqlite/partitime-cost-attribution.json    9.37 kB │ gzip:  0.81 kB",
+          "dist/sqlite/assets/index-Bv0ShAqY.css         10.21 kB │ gzip:  3.19 kB",
+          "dist/sqlite/assets/index-B-ZPQCUX.js         215.06 kB │ gzip: 68.02 kB",
+          "✓ built in 365ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:supabase-realtime && bun run build:convex && bun run build:convex-realtime && bun run build:sqlite",
@@ -931,35 +1715,35 @@
         "cwd": "demos/partiful-matrix/surfaces/contract",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "d687a5f067a41ae2008e00177061ccb6ad0ffcbbb2e2df0508ae0d7a34c233a9",
-        "stderrSha256": "2ba066df63b5d9d8a0c81f3937ce268d62f8ba22710f7842e0faadd10ab11e80",
+        "stdoutSha256": "6bd0621bfdc050fbeea039a0a801ea28f32dd9f5d01be08ab8deea427db2bbb3",
+        "stderrSha256": "98c1777249c130a4bc4f28a51f24ec4fff434af0c1cd3a321a9d619bda94f762",
         "stdoutTail": [
-          "dist/sqlite/assets/exact-contract/connection-badge.contract.980738b960cbbe74.witness.json    0.32 kB │ gzip:   0.22 kB",
-          "dist/sqlite/index.html                                                                       0.93 kB │ gzip:   0.58 kB",
-          "dist/sqlite/assets/exact-contract/event.contract.13c1aa39b376f4e8.witness.json              15.25 kB │ gzip:   1.62 kB",
-          "dist/sqlite/assets/exact-contract/feed.contract.29edbb33e3e86e86.witness.json               18.68 kB │ gzip:   1.76 kB",
-          "dist/sqlite/partitime-cost-attribution.json                                                 43.67 kB │ gzip:   2.95 kB",
-          "dist/sqlite/assets/privacy-Dk5LIQos.js                                                       2.25 kB │ gzip:   1.04 kB │ map:     8.73 kB",
-          "dist/sqlite/assets/crash-B9u2qrj0.js                                                        17.42 kB │ gzip:   6.80 kB │ map:   112.14 kB",
-          "dist/sqlite/assets/index-DaOMyrqJ.js                                                       861.92 kB │ gzip: 239.59 kB │ map: 4,243.15 kB",
+          "rendering chunks...",
+          "computing gzip size...",
+          "dist/sqlite/assets/exact-contract/connection-badge.contract.980738b960cbbe74.witness.json    0.32 kB │ gzip:  0.22 kB",
+          "dist/sqlite/index.html                                                                       0.93 kB │ gzip:  0.58 kB",
+          "dist/sqlite/assets/exact-contract/event.contract.13c1aa39b376f4e8.witness.json              15.25 kB │ gzip:  1.62 kB",
+          "dist/sqlite/assets/exact-contract/feed.contract.29edbb33e3e86e86.witness.json               18.68 kB │ gzip:  1.76 kB",
+          "dist/sqlite/partitime-cost-attribution.json                                                 30.45 kB │ gzip:  1.90 kB",
+          "dist/sqlite/assets/index-BOObFu5k.js                                                       210.77 kB │ gzip: 62.53 kB │ map: 1,794.44 kB",
           "",
-          "✓ built in 288ms",
+          "✓ built in 136ms",
           "[exact-vite-plugin] HTML shell mode: preserve — project root has its own index.html (default shell: 'auto' preserves it; set shell: 'router' to opt into the generated shell)",
-          "[partitime/prerender] wrote 4 authoritative Contract documents to /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/dist/sqlite"
+          "[partitime/prerender] wrote 4 authoritative Contract documents to /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/dist/sqlite"
         ],
         "stderrTail": [
           "[exact-vite-plugin] data-route proof unavailable for /: No static route-admission source exists for entry /main.ts; provide the generated Exact web route map explicitly.",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:6 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:11 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:12 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:13 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/event.contract:14 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:5 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:6 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:7 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:8 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
-          "[contract] /Users/ccheever/projects/snapback/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:6 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:11 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:12 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:13 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/event.contract:14 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:3 import \"fmtWhen\" is declared pure by arguments but reads ambient host state \"Date\" via fmtWhen; pass that value as an argument or declare the dependency explicitly",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:5 import \"backgroundFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via backgroundFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:6 import \"textFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via textFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:7 import \"mutedFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via mutedFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:8 import \"accentFor\" is declared pure by arguments (depends: 'args') but captures module-level constant \"palette\" via accentFor; inline the constant into the helper, or declare the dependency (depends: ['palette'])",
+          "[contract] /private/tmp/snapback-llp0063-cont-20260721.hIklrE/wt/demos/partiful-matrix/surfaces/contract/feed.contract:35 action submit mutates \"createMut\", which writes table \"rsvps\", but neither this component nor its file binds a query reading \"rsvps\" — the mutation's UI effect cannot be observed (LLP 0278 §5)"
         ]
       },
       {
@@ -971,21 +1755,21 @@
         "cwd": "demos/partiful-matrix/surfaces/vanilla",
         "status": 0,
         "signal": null,
-        "stdoutSha256": "3b72c02991add540d278f548c6569347b35e3416dc837999654d3a5babca9475",
+        "stdoutSha256": "e8876856c47a32f8e2c4483cdc7438d4cb1ffaa5dbbd5a0f4b2d6605c0e095f2",
         "stderrSha256": "93fc466970d1cbff3a354a7955cf57d96f5a29c4618deb057930dba80fbedb10",
         "stdoutTail": [
-          "dist/convex/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.18 kB",
-          "dist/convex/assets/index-BV5Pz4-N.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 125ms",
+          "dist/convex/assets/index-BV5Pz4-N.js         20.23 kB │ gzip: 7.25 kB",
+          "✓ built in 135ms",
           "vite v7.3.6 building client environment for sqlite...",
           "transforming...",
-          "✓ 21 modules transformed.",
+          "✓ 22 modules transformed.",
           "rendering chunks...",
           "computing gzip size...",
-          "dist/sqlite/index.html                  0.47 kB │ gzip: 0.30 kB",
-          "dist/sqlite/assets/index-Bv0ShAqY.css  10.21 kB │ gzip: 3.18 kB",
-          "dist/sqlite/assets/index-qkvd2Q_p.js   20.23 kB │ gzip: 7.29 kB",
-          "✓ built in 117ms"
+          "dist/sqlite/index.html                        0.47 kB │ gzip: 0.30 kB",
+          "dist/sqlite/partitime-cost-attribution.json   2.28 kB │ gzip: 0.50 kB",
+          "dist/sqlite/assets/index-Bv0ShAqY.css        10.21 kB │ gzip: 3.19 kB",
+          "dist/sqlite/assets/index-qkvd2Q_p.js         20.23 kB │ gzip: 7.25 kB",
+          "✓ built in 158ms"
         ],
         "stderrTail": [
           "$ bun run build:snapback && bun run build:supabase && bun run build:convex && bun run build:sqlite",
@@ -1036,9 +1820,9 @@
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 332,
-            "bytes": 14433,
-            "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+            "lines": 346,
+            "bytes": 15025,
+            "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -1089,7 +1873,7 @@
             "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
           }
         ],
-        "totalLines": 1081
+        "totalLines": 1095
       },
       "vanilla": {
         "files": [
@@ -1160,9 +1944,9 @@
         "files": [
           {
             "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-            "lines": 332,
-            "bytes": 14433,
-            "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+            "lines": 346,
+            "bytes": 15025,
+            "sha256": "f61bce3c1dd07f4c328b34a224a4e6d0d115f922e09194d9ee800facfd132554"
           },
           {
             "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
@@ -1213,7 +1997,7 @@
             "sha256": "d20e0dffaa852d575813a90b918c816296782f1c94df6c6c9128574055979241"
           }
         ],
-        "totalLines": 830
+        "totalLines": 844
       },
       "vanilla": {
         "files": [
@@ -1237,227 +2021,195 @@
       "react:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-cHKhckm2.js",
-            "minifiedBytes": 409231,
-            "deterministicGzipBytes": 117329,
-            "sha256": "b52a0546c29196c1eba3d337049d407bcfaf14134b58b3dd19a269d5b193953c"
+            "path": "demos/partiful-matrix/surfaces/react/dist/snapback/assets/index-BawSjTKa.js",
+            "minifiedBytes": 343880,
+            "deterministicGzipBytes": 101189,
+            "sha256": "266742e30b3620e6801d6129becbac63232761f17785f959366865821406de34"
           }
         ],
-        "minifiedBytes": 409231,
-        "deterministicGzipBytes": 117329
+        "minifiedBytes": 343880,
+        "deterministicGzipBytes": 101189
       },
       "react:supabase": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/react/dist/supabase/assets/index-ESGRmIKM.js",
             "minifiedBytes": 215059,
-            "deterministicGzipBytes": 67987,
+            "deterministicGzipBytes": 67872,
             "sha256": "196060189e8a87890a7ffac21e0438e1f80041ec05ea0ad39ef16003f9f3f041"
           }
         ],
         "minifiedBytes": 215059,
-        "deterministicGzipBytes": 67987
+        "deterministicGzipBytes": 67872
       },
       "react:convex": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/react/dist/convex/assets/index-DNNpsqnE.js",
             "minifiedBytes": 215055,
-            "deterministicGzipBytes": 67987,
+            "deterministicGzipBytes": 67870,
             "sha256": "497e2996cd378ede821b1abfbcf92d5a2fbef66e278a7097cbb7f988d7ba7591"
           }
         ],
         "minifiedBytes": 215055,
-        "deterministicGzipBytes": 67987
+        "deterministicGzipBytes": 67870
       },
       "react:sqlite": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/react/dist/sqlite/assets/index-B-ZPQCUX.js",
             "minifiedBytes": 215055,
-            "deterministicGzipBytes": 67986,
+            "deterministicGzipBytes": 67871,
             "sha256": "a8ee94c2eb7c9017aac1b733a0fdbe8e944e3a6c07c53dd99766289ac2d0eb67"
           }
         ],
         "minifiedBytes": 215055,
-        "deterministicGzipBytes": 67986
+        "deterministicGzipBytes": 67871
       },
       "contract:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/crash-THelAGyF.js",
-            "minifiedBytes": 17420,
-            "deterministicGzipBytes": 6767,
-            "sha256": "857c76f68961605811714685bdf72d0a729b8ad50704f82b57b7f02462a325af"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-5xwG6cEH.js",
-            "minifiedBytes": 1299546,
-            "deterministicGzipBytes": 353187,
-            "sha256": "6396072ca74a5e59a9ba48b720e57377cc48389f75d5bc9bbccb9af86a806175"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/privacy-Dk5LIQos.js",
-            "minifiedBytes": 2257,
-            "deterministicGzipBytes": 1041,
-            "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-CAP9N1nk.js",
+            "minifiedBytes": 367782,
+            "deterministicGzipBytes": 100995,
+            "sha256": "b298843816b687aa141e57ee5ef1c5fd2f313d038862b22cc9ce247abd9e034c"
           }
         ],
-        "minifiedBytes": 1319223,
-        "deterministicGzipBytes": 360995
+        "minifiedBytes": 367782,
+        "deterministicGzipBytes": 100995
       },
       "contract:supabase": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/crash-Bh0_mJDu.js",
-            "minifiedBytes": 17420,
-            "deterministicGzipBytes": 6769,
-            "sha256": "948387a03b7bea26efffd0658c37031b99683a6d89d60018da20fbd273a4f153"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-DO7mvKJZ.js",
-            "minifiedBytes": 861934,
-            "deterministicGzipBytes": 236882,
-            "sha256": "7171779d19b527c2dd78ff93c7d8169ebd8834b41f99eb335f15559520e16e8d"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/privacy-Dk5LIQos.js",
-            "minifiedBytes": 2257,
-            "deterministicGzipBytes": 1041,
-            "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/supabase/assets/index-CwSlGVpH.js",
+            "minifiedBytes": 210785,
+            "deterministicGzipBytes": 61883,
+            "sha256": "97488693d8a2376e019102124e72566b01b8838b79f7f72306fbf5fdb6721fb5"
           }
         ],
-        "minifiedBytes": 881611,
-        "deterministicGzipBytes": 244692
+        "minifiedBytes": 210785,
+        "deterministicGzipBytes": 61883
       },
       "contract:convex": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/crash-D81O5pHP.js",
-            "minifiedBytes": 17420,
-            "deterministicGzipBytes": 6768,
-            "sha256": "2e91fc390c74a87f74328d1620871ca5c22b94dba1f61de4bf70a2f5ef492445"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-uvtnwqq9.js",
-            "minifiedBytes": 861920,
-            "deterministicGzipBytes": 236880,
-            "sha256": "80218b8dc507ad500e76342ea5aee0b212ef2b72dfab79c15b2ca8c9563077ba"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/privacy-Dk5LIQos.js",
-            "minifiedBytes": 2257,
-            "deterministicGzipBytes": 1041,
-            "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/convex/assets/index-D1XRHPIJ.js",
+            "minifiedBytes": 210771,
+            "deterministicGzipBytes": 61881,
+            "sha256": "f8f0eab2c40bcc14aca634466db8fb050dc8e3c2c6e67cc2e84ecfc78f18a110"
           }
         ],
-        "minifiedBytes": 881597,
-        "deterministicGzipBytes": 244689
+        "minifiedBytes": 210771,
+        "deterministicGzipBytes": 61881
       },
       "contract:sqlite": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/crash-B9u2qrj0.js",
-            "minifiedBytes": 17420,
-            "deterministicGzipBytes": 6768,
-            "sha256": "b0565f1e3dd4e4a6643b8fe47e0fdc9b75ab3631d59273cae3e5f4b41130a57e"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-DaOMyrqJ.js",
-            "minifiedBytes": 861920,
-            "deterministicGzipBytes": 236880,
-            "sha256": "cf6a4d83e6c264d280bc3eb087178e16d2d961d0dd4e5f68c2083ec4a9240fcb"
-          },
-          {
-            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/privacy-Dk5LIQos.js",
-            "minifiedBytes": 2257,
-            "deterministicGzipBytes": 1041,
-            "sha256": "1bd37e17c14621ac43ef917d5feb660c32c50d554341055bde56e0cb507d1318"
+            "path": "demos/partiful-matrix/surfaces/contract/dist/sqlite/assets/index-BOObFu5k.js",
+            "minifiedBytes": 210771,
+            "deterministicGzipBytes": 61881,
+            "sha256": "7fc23d49421dd8ebcf5a999ee70503acd84e324b6c335ac89424f7a4dbdafd88"
           }
         ],
-        "minifiedBytes": 881597,
-        "deterministicGzipBytes": 244689
+        "minifiedBytes": 210771,
+        "deterministicGzipBytes": 61881
       },
       "vanilla:snapback": {
         "assets": [
           {
-            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-ivIcc6hC.js",
-            "minifiedBytes": 213593,
-            "deterministicGzipBytes": 56074,
-            "sha256": "4114c32cd74647d6ddbf4fc6c3b9a52eaa7fe8ab5c0e7df4bc089b3805e8d6bd"
+            "path": "demos/partiful-matrix/surfaces/vanilla/dist/snapback/assets/index-B4Hw1Ij-.js",
+            "minifiedBytes": 148380,
+            "deterministicGzipBytes": 40167,
+            "sha256": "99d2594527aa538bf2689c6fd522c660a6eec557041cfe3ea21e8d2827777136"
           }
         ],
-        "minifiedBytes": 213593,
-        "deterministicGzipBytes": 56074
+        "minifiedBytes": 148380,
+        "deterministicGzipBytes": 40167
       },
       "vanilla:supabase": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/vanilla/dist/supabase/assets/index-CjxY-Hc9.js",
             "minifiedBytes": 20235,
-            "deterministicGzipBytes": 7278,
+            "deterministicGzipBytes": 7240,
             "sha256": "285005d18e0b571f158d773d64755b8429b3eea868aa117b37ac71570a7f50b6"
           }
         ],
         "minifiedBytes": 20235,
-        "deterministicGzipBytes": 7278
+        "deterministicGzipBytes": 7240
       },
       "vanilla:convex": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/vanilla/dist/convex/assets/index-BV5Pz4-N.js",
             "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7276,
+            "deterministicGzipBytes": 7237,
             "sha256": "228f8758bf37acf6053875e0e1a5544426c87daeac17638a353f0da0853dd516"
           }
         ],
         "minifiedBytes": 20231,
-        "deterministicGzipBytes": 7276
+        "deterministicGzipBytes": 7237
       },
       "vanilla:sqlite": {
         "assets": [
           {
             "path": "demos/partiful-matrix/surfaces/vanilla/dist/sqlite/assets/index-qkvd2Q_p.js",
             "minifiedBytes": 20231,
-            "deterministicGzipBytes": 7277,
+            "deterministicGzipBytes": 7238,
             "sha256": "2be08ebb9420b962da1d08c4cc52f0cb8c0fdd41a237e715afe37a8aa95abd7e"
           }
         ],
         "minifiedBytes": 20231,
-        "deterministicGzipBytes": 7277
+        "deterministicGzipBytes": 7238
       }
     },
     "attribution": {
       "note": "The vanilla row is a lower-bound subtraction instrument. Combined buckets are deliberately not represented as isolated framework cost.",
       "minifiedBytes": {
         "vanillaGatewayFloor": 20232,
-        "snapbackProviderClientLowerBound": 193361,
+        "snapbackProviderClientLowerBound": 128148,
         "reactFrameworkAndApplicationCombined": 194824,
-        "contractRuntimeAndApplicationCombined": 861370,
-        "contractSnapbackInteractionUnattributed": 244260
+        "contractRuntimeAndApplicationCombined": 190544,
+        "contractSnapbackInteractionUnattributed": 28858
       }
     },
     "browserReceipt": {
       "path": "demos/partiful-matrix/acceptance/results/step0-web.json",
-      "sha256": "bb2105e4d58e25208234f108a59eeb80627efa53f4232444695d4f1c8e2e2ff6"
+      "sha256": "0fb9c72e92083a2b3d6e5346831fdd648d0b2ce12d1e589bdbc6bf7b35c8cde3"
     },
     "pushLatency": {
       "contract": {
-        "actual": 5,
+        "actual": 3,
         "threshold": 8,
         "formula": "floor(react_snapback_baseline * 1.10)",
         "warmups": 2,
         "samples": [
-          5,
           3,
-          4,
-          5,
-          5,
-          5,
-          4
+          3,
+          2,
+          2,
+          3,
+          3,
+          2
         ],
         "pass": true
       }
+    },
+    "performance": {
+      "amendment": {
+        "path": "demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json",
+        "sha256": "4b059bb37c696c4d6214759c56c95ef54aeed162c3eaf90b8adc3fa56aba3cdb"
+      },
+      "calibration": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-performance-calibration.json",
+        "sha256": "305281e6522aae0914fdd91b2dcaed48a8b6a27698325944a46326d2e88f6081"
+      },
+      "holdout": {
+        "path": "demos/partiful-matrix/acceptance/results/step4-performance-holdout.json",
+        "sha256": "db45cf25fb75cd3a58d43aa781ac019e2228232cb8180b3b9cfb254b66385134"
+      },
+      "nativeCalibration": null,
+      "nativeHoldout": null
     }
   },
   "frozenThresholds": {

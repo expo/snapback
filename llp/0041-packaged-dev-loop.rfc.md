@@ -5,7 +5,7 @@
 **Systems:** Developer experience, Tooling, Build, Client integration, Demo apps, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-07
-**Revised:** 2026-07-20 (LLP 0063 Step 5 implementation checkpoint: `@snapback/cli` now owns `new`/`generate`/`dev`/`doctor`, delegates established host operations to the native CLI, and consumes the ready-file handshake with target fencing; `@snapback/runtime-darwin-arm64` carries a relocatable release binary plus Hermes framework, with Apple-silicon macOS as the first explicit platform slice; a tarball-only external proof from clean source revision `a75ddd51…` launches doctor with `DYLD_*` scrubbed, scaffolds and generates offline, starts/loads/watches/stops a managed server, seeds only a newly created database, and refuses a mismatched attach. Public npm publication and separately-provisioned clean-machine evidence remain open, so Status stays Draft); 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
+**Revised:** 2026-07-23 (LLP 0079 SC-2b: the dev loop gains its client arm — `snapback dev --client` runs a client surface in the same watch process after first load, with a minimum verb slice (status / force regenerate-and-reload / restart backend) surfaced both interactively (TTY keys) and machine-readably (`snapback.dev-command.v1` stdin commands over the `snapback.dev.v1` event stream); §Acceptance gains the client-arm criterion and §Watch mode gains the Exact-side client-arm seam definition); 2026-07-23 (LLP 0079 SC-3: hot-push is artifact load, not data migration — recorded as a standing constraint in §Watch mode with LLP 0078 R2 as external evidence); 2026-07-21 (the first-publication probe found that `@snapback/cli` is an unrelated public 3.x package, reopening LLP 0021's namespace decision exactly as its caveat required. The publisher's provisional `@ccheever/snapback-*` mapping passes npm dry-run as the labeled `0.1.0-llp0063.1`/`llp0063` prerelease. The cold-install proof now has distinct tarball and registry modes, refuses to describe renamed tarballs as an offline closure, and requires registry identity/version/integrity plus a successful publish ledger before registry installation. npm's interactive OTP challenge stopped the real publish before a version became visible, so public-registry, clean-machine, and multi-platform evidence remain open and Status stays Draft); 2026-07-20 (LLP 0063 Step 5 implementation checkpoint: `@snapback/cli` now owns `new`/`generate`/`dev`/`doctor`, delegates established host operations to the native CLI, and consumes the ready-file handshake with target fencing; `@snapback/runtime-darwin-arm64` carries a relocatable release binary plus Hermes framework, with Apple-silicon macOS as the first explicit platform slice; a tarball-only external proof from clean source revision `a75ddd51…` launches doctor with `DYLD_*` scrubbed, scaffolds and generates offline, starts/loads/watches/stops a managed server, seeds only a newly created database, and refuses a mismatched attach. Public npm publication and separately-provisioned clean-machine evidence remain open, so Status stays Draft); 2026-07-12 (ENG-24504/ENG-24505/ENG-24507: one exact root Bun authority and lock-installed TypeScript, with Bun as the sole root lock; earlier 2026-07-09 ENG-22564: demo/admin Exact dependency policy implemented with published packages and committed locks; earlier: 2026-07-07 cross-family review revisions, ratified by Charlie — see
 `reviews/0041-packaged-dev-loop.claude.md`: runtime-distribution design
 section added, package/CLI surface corrected to repo reality, LLP 0030
 boundary stated, ready-file attach pinned; initial same day)
@@ -80,9 +80,12 @@ install.
 
 ### Package boundaries
 
-The `@snapback/*` namespace is already decided (LLP 0021 / LLP 0032 P6;
-registry claiming deferred to first publish). What exists today as private
-workspace members versus what is genuinely new work:
+The source/import namespace is `@snapback/*`. LLP 0021's deferred registry
+probe reopened the public-name decision on 2026-07-21 because
+`@snapback/cli` is an unrelated public package. Until durable names are
+ratified, publication uses clearly labeled `@ccheever/snapback-*`
+prereleases; npm aliases preserve the source/import names. What exists today
+as private workspace members versus what is genuinely new work:
 
 - `@snapback/codegen` — exists; needs versioned publishing.
 - `@snapback/contract` — exists (the Contract adapter, which is also the
@@ -132,6 +135,17 @@ Watch mode coalesces edits and performs:
 A failed push to a running server must not make offline codegen fail. The result
 should distinguish "generated but not loaded" from "generation failed."
 
+**Standing constraint (2026-07-23, LLP 0079 SC-3; evidence LLP 0078 R2):**
+the dev-loop hot-push is **artifact load, not data migration** — it replaces
+loaded schema/function artifacts in a running server and never rewrites
+persisted rows. If hot-apply ever grows into data-bearing schema migration of
+a running system (Serverpod 4's headline feature, and the one most likely to
+need an F2-style course correction), each applied migration must be a
+**versioned commit the sync and read-set-validation machinery sees** — never
+a side-channel mutation — and it stays a dev-target affordance until a
+production migration story is separately accepted. LLP 0003 owns the
+commit-versioning machinery this constraint binds to.
+
 `snapback dev`'s attach path consumes the readiness handshake that already
 shipped: `snapback start --ready-file` writes a `HostReadyDescriptor`
 (`schemas/host-ready.schema.json`); dev attaches via the descriptor — never by
@@ -145,6 +159,30 @@ a private lifecycle dialect. The CLI owns watch/codegen orchestration; the
 Vite plugin owns the frontend dev-server integration and attaches to a
 CLI-managed (or self-managed) server through the same ready-file/host-ops
 surface. Neither embeds the other's logic.
+
+**Client arm and the Exact-side seam (2026-07-23, LLP 0079 SC-2b).**
+`snapback dev --client <surface-dir>` (or `--client-command`) runs a client
+surface in the same watch process: the client is spawned only after the
+managed server is up and the first generate+load completed, its output is
+wrapped into the machine-readable event stream, and teardown closes both.
+The first client surface is the SC-2a-migrated Contract demo served through
+`@snapback/vite` in `auto` mode. The loop's verbs — `status`, `reload`
+(force regenerate-and-reload), `restart` (backend; managed child only,
+refused for attached servers) — are available with or without a client arm,
+interactively (TTY single keys) and machine-readably (newline-delimited
+`snapback.dev-command.v1` commands on stdin, responses and states on the
+`snapback.dev.v1` stdout stream).
+
+The same contract is the **Exact-side seam** for a native Contract/Exact
+client arm: an Exact surface participates by (a) being spawned as the
+`--client-command` after first load, (b) discovering the backend through the
+same `HostReadyDescriptor` ready-file and app-route surface the Vite plugin
+consumes (never a private lifecycle dialect), and (c) reading loop state
+from the `snapback.dev.v1` stream and driving the loop through
+`snapback.dev-command.v1`. The Exact side owns its own dev-server/simulator
+integration end to end; the CLI neither knows nor embeds it. Implementing a
+native Exact arm is future work — this revision defines the seam so that
+work needs no CLI changes.
 
 ### Templates
 
@@ -207,6 +245,16 @@ outside the root workspace and exercise independent consumer setups.
 - An edit to schema or functions under `snapback dev` produces regenerated
   artifacts and either a hot-pushed server load or a distinguishable
   "generated but not loaded" state.
+- **Client arm (2026-07-23, LLP 0079 SC-2b):** from one command, an edit to
+  `schema.mjs` or `functions.mjs` is observable in a running client surface
+  (the SC-2a Contract demo through `@snapback/vite`) without restarting
+  either process; the `generated-but-not-loaded` and `generation-failed`
+  states surface to both the human and the machine-readable channel; and the
+  minimum verb slice (status, force regenerate-and-reload, restart backend)
+  is exercised by an automated test through the machine-readable channel and
+  demonstrated interactively. (Met by
+  `packages/snapback-cli/dev-loop.test.mjs`; interactive keys are unit-tested
+  with a simulated TTY.)
 - Codegen can run offline and reports server-load failure as a warning when
   source generation succeeded.
 - Demos no longer consume sibling-checkout paths; a check fails on any sibling
@@ -231,8 +279,9 @@ implemented and retained by
 `scripts/snapback-package-cold-install.mjs`: packed runtime launch, `new`,
 offline `generate`, managed `dev`, ready-file attach, watched regeneration and
 load, mismatch refusal, stop cleanup, app-CLI introspection, and browser
-adapter bundling all pass. That is not yet the RFC exit. No `@snapback/*`
-package has been published to the public registry, npm authentication is not
-available in the recorded environment, the proof is a clean directory rather
-than an independently provisioned clean machine, and no non-darwin-arm64
-runtime package exists.
+adapter bundling all pass. The same proof now has a fail-closed registry mode
+for the provisional `@ccheever/snapback-*` npm aliases. That is not yet the RFC
+exit: npm authentication exists, but the first real publish stopped at npm's
+interactive OTP challenge and no version is publicly visible. The proof is a
+clean directory rather than an independently provisioned clean machine, and no
+non-darwin-arm64 runtime package exists.

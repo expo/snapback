@@ -13,7 +13,12 @@ function unquote(value) {
 
 export function loadLocalSecrets(root = resolve(import.meta.dirname, '..', '..', '..', '..')) {
   const values = {};
-  const path = resolve(root, '.agent-local-secrets.md');
+  // Clean measurement worktrees may deliberately consume the operator's
+  // ignored credential file from the primary checkout. Only the directory
+  // path crosses the process boundary; secret values remain in memory and
+  // never enter receipts or generated artifacts.
+  const credentialRoot = process.env.PARTITIME_LOCAL_SECRETS_ROOT ?? root;
+  const path = resolve(credentialRoot, '.agent-local-secrets.md');
   if (!existsSync(path)) return values;
   const source = readFileSync(path, 'utf8');
   for (const line of source.split(/\r?\n/)) {

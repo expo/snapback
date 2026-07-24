@@ -5,14 +5,19 @@ import { defineConfig } from 'vite';
 
 import { convexDeploymentUrl } from '../../backends/gateway/convex';
 import { loadLocalSecrets } from '../../backends/gateway/secrets.mjs';
+import { partitimeCostAttribution } from '../../shared/vite-cost-attribution.mjs';
 
 const root = dirname(fileURLToPath(import.meta.url));
 // Browser-safe by design: only the publishable key may reach a bundle.
 const localSecrets = loadLocalSecrets(resolve(root, '..', '..', '..', '..'));
 const rawConvexUrl = process.env.CONVEX_URL ?? localSecrets.CONVEX_URL ?? localSecrets.CONVEX_DEPLOY_KEY ?? '';
 const convexUrl = rawConvexUrl ? convexDeploymentUrl(rawConvexUrl) : '';
+const proxy = {
+  '/matrix-api': { target: process.env.PARTIFUL_MATRIX_GATEWAY ?? 'http://127.0.0.1:4460', changeOrigin: true, rewrite: (path: string) => path.replace(/^\/matrix-api/, '') },
+  '/snapback': { target: process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433', changeOrigin: true, ws: true, rewrite: (path: string) => path.replace(/^\/snapback/, '') },
+};
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [react(), partitimeCostAttribution()],
   define: {
     __MATRIX_BACKEND__: JSON.stringify(mode),
     __SNAPBACK_API_ORIGIN__: JSON.stringify(process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433'),
@@ -26,10 +31,11 @@ export default defineConfig(({ mode }) => ({
   },
   server: {
     host: '127.0.0.1', port: 5191, fs: { allow: ['../../../..'] },
-    proxy: {
-      '/matrix-api': { target: process.env.PARTIFUL_MATRIX_GATEWAY ?? 'http://127.0.0.1:4460', changeOrigin: true, rewrite: (path) => path.replace(/^\/matrix-api/, '') },
-      '/snapback': { target: process.env.SNAPBACK_PARTIFUL_MATRIX_API ?? 'http://127.0.0.1:4433', changeOrigin: true, ws: true, rewrite: (path) => path.replace(/^\/snapback/, '') },
-    },
+    proxy,
   },
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+  // production performance instrument exercises built assets through Vite's
+  // preview server while retaining the same backend/proxy boundary as dev.
+  preview: { host: '127.0.0.1', proxy },
   root,
 }));

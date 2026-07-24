@@ -20,7 +20,10 @@ const output = option('out') ?? 'demos/partiful-matrix/acceptance/results/step0-
 const derivedRoot = resolve(option('derived-root') ?? join(tmpdir(), 'snapback-partitime-exact-step0'));
 const shouldBuild = !process.argv.includes('--no-build');
 const buildTimeoutMs = Number(option('build-timeout-ms') ?? 900_000);
-const backends = ['snapback', 'supabase', 'convex', 'sqlite'];
+const backends = (option('backends') ?? 'snapback,supabase,convex,sqlite').split(',').filter(Boolean);
+const platforms = (option('platforms') ?? 'macos,ios').split(',').filter(Boolean);
+assert.ok(backends.length > 0 && backends.every((value) => ['snapback', 'supabase', 'convex', 'sqlite'].includes(value)), '--backends contains an unsupported backend');
+assert.ok(platforms.length > 0 && platforms.every((value) => ['macos', 'ios'].includes(value)), '--platforms contains an unsupported platform');
 const protocol = JSON.parse(readFileSync(join(demoRoot, 'acceptance', 'comparison-protocol.v1.json'), 'utf8'));
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const cleanups = [];
@@ -230,6 +233,7 @@ async function launchIos(simulator, app, bundleId, origin, token) {
     ['simctl', 'terminate', simulator.udid, bundleId],
     { timeoutMs: 30_000 },
   );
+  const requestedAtMs = Date.now();
   const launch = await run('xcrun', [
     'simctl', 'launch', '--terminate-running-process',
     simulator.udid, bundleId,
@@ -247,6 +251,8 @@ async function launchIos(simulator, app, bundleId, origin, token) {
   });
   return {
     ...launch,
+    requestedAtMs,
+    commandCompletedAtMs: Date.now(),
     preLaunchTermination: {
       status: preLaunchTermination.status,
       signal: preLaunchTermination.signal,
@@ -402,7 +408,7 @@ try {
     for (const build of [
       { platform: 'macos', scheme: 'ExactAppMac', destination: 'platform=macOS,arch=arm64', derived: macDerived },
       { platform: 'ios', scheme: 'ExactApp', destination: `platform=iOS Simulator,id=${simulator.udid}`, derived: iosDerived },
-    ]) {
+    ].filter((build) => platforms.includes(build.platform))) {
       console.error(`[partitime/native-exact] build ${build.platform}`);
       const result = await run('xcodebuild', [
         '-project', exactProject,
@@ -443,30 +449,34 @@ try {
   const macBinary = join(macDerived, 'Build', 'Products', 'Debug', 'ExactAppMac.app', 'Contents', 'MacOS', 'ExactAppMac');
   const iosApp = join(iosDerived, 'Build', 'Products', 'Debug-iphonesimulator', 'ExactApp.app');
   const iosBinary = join(iosApp, 'ExactApp');
-  assert.ok(existsSync(macBinary), `missing macOS Exact carrier: ${relative(repoRoot, macBinary)}`);
-  assert.ok(existsSync(iosBinary), `missing iOS Exact carrier: ${relative(repoRoot, iosBinary)}`);
-  const bundleIdResult = sync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', join(iosApp, 'Info.plist')]);
+  if (platforms.includes('macos')) assert.ok(existsSync(macBinary), `missing macOS Exact carrier: ${relative(repoRoot, macBinary)}`);
+  if (platforms.includes('ios')) assert.ok(existsSync(iosBinary), `missing iOS Exact carrier: ${relative(repoRoot, iosBinary)}`);
+  const bundleIdResult = platforms.includes('ios')
+    ? sync('plutil', ['-extract', 'CFBundleIdentifier', 'raw', join(iosApp, 'Info.plist')])
+    : { status: 0, stdout: '', stderr: '' };
   assert.equal(bundleIdResult.status, 0, `could not read iOS bundle ID: ${bundleIdResult.stderr}`);
   const bundleId = bundleIdResult.stdout.trim();
   report.binaries = {
-    macosSha256: sha256(readFileSync(macBinary)),
-    iosSha256: sha256(readFileSync(iosBinary)),
-    iosBundleId: bundleId,
+    macosSha256: platforms.includes('macos') ? sha256(readFileSync(macBinary)) : null,
+    iosSha256: platforms.includes('ios') ? sha256(readFileSync(iosBinary)) : null,
+    iosBundleId: platforms.includes('ios') ? bundleId : null,
   };
 
-  const install = await run('xcrun', ['simctl', 'install', simulator.udid, iosApp], { timeoutMs: 60_000 });
-  assert.equal(install.status, 0, `could not install iOS Exact carrier: ${install.stderrTail.join('\n')}`);
-  report.simulator.installationCleanup = 'uninstall-on-final-cleanup';
-  cleanups.push(async () => {
-    const uninstall = await run(
-      'xcrun',
-      ['simctl', 'uninstall', simulator.udid, bundleId],
-      { timeoutMs: 60_000 },
-    );
-    if (uninstall.status !== 0) {
-      throw new Error(`could not uninstall iOS Exact carrier: ${uninstall.stderrTail.join('\n')}`);
-    }
-  });
+  if (platforms.includes('ios')) {
+    const install = await run('xcrun', ['simctl', 'install', simulator.udid, iosApp], { timeoutMs: 60_000 });
+    assert.equal(install.status, 0, `could not install iOS Exact carrier: ${install.stderrTail.join('\n')}`);
+    report.simulator.installationCleanup = 'uninstall-on-final-cleanup';
+    cleanups.push(async () => {
+      const uninstall = await run(
+        'xcrun',
+        ['simctl', 'uninstall', simulator.udid, bundleId],
+        { timeoutMs: 60_000 },
+      );
+      if (uninstall.status !== 0) {
+        throw new Error(`could not uninstall iOS Exact carrier: ${uninstall.stderrTail.join('\n')}`);
+      }
+    });
+  }
   const snapbackOrigin = await startSnapback();
   const gateway = await startGateway(snapbackOrigin);
   const gatewayOrigin = gateway.origin;
@@ -475,7 +485,7 @@ try {
   for (const backend of backends) {
     const health = gateway.preflight.backends?.[backend];
     if ((backend === 'supabase' || backend === 'convex') && health?.ok !== true) {
-      for (const platform of ['macos', 'ios']) {
+      for (const platform of platforms) {
         report.cells.push({
           cell: `exact-contract:${platform}:${backend}`,
           ok: false,
@@ -490,57 +500,61 @@ try {
     console.error(`[partitime/native-exact] backend ${backend}`);
     const dev = await startDevServer(backend, gatewayOrigin, token);
     try {
-      const mac = spawnMac(macBinary, dev.origin, token);
-      let macActo;
-      try {
-        macActo = await runActo('mac', backend, dev.origin, token);
-      } finally {
-        await stopChild(mac.child);
-      }
-      report.cells.push({
-        cell: `exact-contract:macos:${backend}`,
-        ok: macActo.status === 0 && macActo.receipt?.ok === true,
-        acto: { ...macActo, stdout: undefined, stderr: undefined },
-        carrierLogSha256: sha256(mac.log()),
-        carrierLogTail: mac.log().trim().split('\n').filter(Boolean).slice(-12),
-        devServerLogSha256: sha256(dev.log()),
-        devServerLogTail: dev.log().trim().split('\n').filter(Boolean).slice(-20),
-      });
-
-      let iosLaunch;
-      let iosActo;
-      try {
-        iosLaunch = await launchIos(simulator, iosApp, bundleId, dev.origin, token);
-        iosActo = await runActo('ios', backend, dev.origin, token);
+      if (platforms.includes('macos')) {
+        const mac = spawnMac(macBinary, dev.origin, token);
+        let macActo;
+        try {
+          macActo = await runActo('mac', backend, dev.origin, token);
+        } finally {
+          await stopChild(mac.child);
+        }
         report.cells.push({
-          cell: `exact-contract:ios:${backend}`,
-          ok: iosLaunch.status === 0 && iosActo.status === 0 && iosActo.receipt?.ok === true,
-          launch: { ...iosLaunch, stdout: undefined, stderr: undefined },
-          acto: { ...iosActo, stdout: undefined, stderr: undefined },
+          cell: `exact-contract:macos:${backend}`,
+          ok: macActo.status === 0 && macActo.receipt?.ok === true,
+          acto: { ...macActo, stdout: undefined, stderr: undefined },
+          carrierLogSha256: sha256(mac.log()),
+          carrierLogTail: mac.log().trim().split('\n').filter(Boolean).slice(-12),
           devServerLogSha256: sha256(dev.log()),
           devServerLogTail: dev.log().trim().split('\n').filter(Boolean).slice(-20),
         });
-      } finally {
-        const termination = await run(
-          'xcrun',
-          ['simctl', 'terminate', simulator.udid, bundleId],
-          { timeoutMs: 30_000 },
-        );
-        report.carrierCleanup.push({
-          backend,
-          action: 'terminate-ios-app',
-          status: termination.status,
-          signal: termination.signal,
-          timedOut: termination.timedOut,
-          stdoutSha256: termination.stdoutSha256,
-          stderrSha256: termination.stderrSha256,
-          stdoutTail: termination.stdoutTail,
-          stderrTail: termination.stderrTail,
-        });
-        if (termination.status !== 0) {
-          const message = `could not terminate iOS Exact carrier for ${backend}: ${termination.stderrTail.join('\n')}`;
-          report.cleanupErrors.push(message);
-          throw new Error(message);
+      }
+
+      if (platforms.includes('ios')) {
+        let iosLaunch;
+        let iosActo;
+        try {
+          iosLaunch = await launchIos(simulator, iosApp, bundleId, dev.origin, token);
+          iosActo = await runActo('ios', backend, dev.origin, token);
+          report.cells.push({
+            cell: `exact-contract:ios:${backend}`,
+            ok: iosLaunch.status === 0 && iosActo.status === 0 && iosActo.receipt?.ok === true,
+            launch: { ...iosLaunch, stdout: undefined, stderr: undefined },
+            acto: { ...iosActo, stdout: undefined, stderr: undefined },
+            devServerLogSha256: sha256(dev.log()),
+            devServerLogTail: dev.log().trim().split('\n').filter(Boolean).slice(-20),
+          });
+        } finally {
+          const termination = await run(
+            'xcrun',
+            ['simctl', 'terminate', simulator.udid, bundleId],
+            { timeoutMs: 30_000 },
+          );
+          report.carrierCleanup.push({
+            backend,
+            action: 'terminate-ios-app',
+            status: termination.status,
+            signal: termination.signal,
+            timedOut: termination.timedOut,
+            stdoutSha256: termination.stdoutSha256,
+            stderrSha256: termination.stderrSha256,
+            stdoutTail: termination.stdoutTail,
+            stderrTail: termination.stderrTail,
+          });
+          if (termination.status !== 0) {
+            const message = `could not terminate iOS Exact carrier for ${backend}: ${termination.stderrTail.join('\n')}`;
+            report.cleanupErrors.push(message);
+            throw new Error(message);
+          }
         }
       }
     } finally {
@@ -571,7 +585,7 @@ try {
     'carrier project source changed while the native cells were running',
   );
 
-  report.ok = report.cells.length === 8 && report.cells.every(
+  report.ok = report.cells.length === backends.length * platforms.length && report.cells.every(
     ({ ok, outcome, skipClass }) => ok || (outcome === 'skip' && skipClass === 'remote-dependency'),
   );
   report.outcome = report.ok ? 'pass' : 'fail';

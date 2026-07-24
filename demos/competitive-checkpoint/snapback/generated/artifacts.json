@@ -1,0 +1,149 @@
+{
+  "appId": "competitive-checkpoint",
+  "artifactKind": "artifactIndex",
+  "artifacts": [
+    "schema.manifest.json",
+    "functions.manifest.json",
+    "capability.manifest.json",
+    "provider-introspection.json",
+    "provider-bindings.json",
+    "provider-bindings.d.ts",
+    "contract-data.manifest.json",
+    "api.mjs",
+    "api.d.ts",
+    "package.json",
+    "operations/applyReplyProgress.args.schema.json",
+    "operations/cancelReply.args.schema.json",
+    "operations/completeReply.args.schema.json",
+    "operations/conversationBySlug.args.schema.json",
+    "operations/createConversation.args.schema.json",
+    "operations/deleteConversation.args.schema.json",
+    "operations/firstConversationPage.args.schema.json",
+    "operations/getConversation.args.schema.json",
+    "operations/listConversations.args.schema.json",
+    "operations/listMessages.args.schema.json",
+    "operations/nextConversationPage.args.schema.json",
+    "operations/settleReply.args.schema.json",
+    "operations/startReply.args.schema.json",
+    "operations/streamReply.args.schema.json",
+    "operations/updateConversation.args.schema.json",
+    "contract/runtime-links.ts",
+    "contract/applyReplyProgress.mutation.ts",
+    "contract/applyReplyProgress.mutation.contract-meta.ts",
+    "contract/cancelReply.mutation.ts",
+    "contract/cancelReply.mutation.contract-meta.ts",
+    "contract/completeReply.mutation.ts",
+    "contract/completeReply.mutation.contract-meta.ts",
+    "contract/conversationBySlug.query.ts",
+    "contract/conversationBySlug.query.contract-meta.ts",
+    "contract/createConversation.mutation.ts",
+    "contract/createConversation.mutation.contract-meta.ts",
+    "contract/deleteConversation.mutation.ts",
+    "contract/deleteConversation.mutation.contract-meta.ts",
+    "contract/firstConversationPage.query.ts",
+    "contract/firstConversationPage.query.contract-meta.ts",
+    "contract/getConversation.query.ts",
+    "contract/getConversation.query.contract-meta.ts",
+    "contract/listConversations.query.ts",
+    "contract/listConversations.query.contract-meta.ts",
+    "contract/listMessages.query.ts",
+    "contract/listMessages.query.contract-meta.ts",
+    "contract/nextConversationPage.query.ts",
+    "contract/nextConversationPage.query.contract-meta.ts",
+    "contract/settleReply.mutation.ts",
+    "contract/settleReply.mutation.contract-meta.ts",
+    "contract/startReply.mutation.ts",
+    "contract/startReply.mutation.contract-meta.ts",
+    "contract/updateConversation.mutation.ts",
+    "contract/updateConversation.mutation.contract-meta.ts"
+  ],
+  "bundleHash": "sha256:31a5c0cbab29cd59",
+  "config": [],
+  "cronJobs": [],
+  "ephemeralCollections": [],
+  "functions": [
+    {
+      "id": "competitive-checkpoint:applyReplyProgress",
+      "kind": "Mutation",
+      "name": "applyReplyProgress"
+    },
+    {
+      "id": "competitive-checkpoint:cancelReply",
+      "kind": "Mutation",
+      "name": "cancelReply"
+    },
+    {
+      "id": "competitive-checkpoint:completeReply",
+      "kind": "Mutation",
+      "name": "completeReply"
+    },
+    {
+      "id": "competitive-checkpoint:conversationBySlug",
+      "kind": "LiveQuery",
+      "name": "conversationBySlug"
+    },
+    {
+      "id": "competitive-checkpoint:createConversation",
+      "kind": "Mutation",
+      "name": "createConversation"
+    },
+    {
+      "id": "competitive-checkpoint:deleteConversation",
+      "kind": "Mutation",
+      "name": "deleteConversation"
+    },
+    {
+      "id": "competitive-checkpoint:firstConversationPage",
+      "kind": "LiveQuery",
+      "name": "firstConversationPage"
+    },
+    {
+      "id": "competitive-checkpoint:getConversation",
+      "kind": "LiveQuery",
+      "name": "getConversation"
+    },
+    {
+      "id": "competitive-checkpoint:listConversations",
+      "kind": "LiveQuery",
+      "name": "listConversations"
+    },
+    {
+      "id": "competitive-checkpoint:listMessages",
+      "kind": "LiveQuery",
+      "name": "listMessages"
+    },
+    {
+      "id": "competitive-checkpoint:nextConversationPage",
+      "kind": "LiveQuery",
+      "name": "nextConversationPage"
+    },
+    {
+      "id": "competitive-checkpoint:settleReply",
+      "kind": "Mutation",
+      "name": "settleReply"
+    },
+    {
+      "id": "competitive-checkpoint:startReply",
+      "kind": "Mutation",
+      "name": "startReply"
+    },
+    {
+      "id": "competitive-checkpoint:streamReply",
+      "kind": "Action",
+      "name": "streamReply"
+    },
+    {
+      "id": "competitive-checkpoint:updateConversation",
+      "kind": "Mutation",
+      "name": "updateConversation"
+    }
+  ],
+  "generatedAt": 0,
+  "inputsHash": "0ecd3cb02dc9eab58949e35388f6ba05a37e70e3c11b8c43b6826986f579eacc",
+  "schemaHash": "sha256:97f33ed50a9dfd82",
+  "schemaVersion": "snapback.v0",
+  "tables": [
+    "conversations",
+    "messages"
+  ]
+}

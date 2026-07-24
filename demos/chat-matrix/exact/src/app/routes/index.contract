@@ -59,7 +59,7 @@ component ChatRoute
               column width="100%" gap=6
                 row width="100%" align="center" gap=8
                   text "chat-matrix" size=14 weight=800 color="#1f1f24"
-                  text `EXACT + CONTRACT · ${item.backend}` size=10 weight=700 color="#3478f6" testId="matrix-label" flex=1
+                  text `built with Exact + Contract · ${item.backend}` size=10 weight=700 color="#3478f6" testId="matrix-label" flex=1
                   button label="New chat" press=startNew testId="new-chat" paddingTop=6 paddingBottom=6 paddingLeft=10 paddingRight=10 radius=999 background="#eef2ff"
                     text "＋ New" size=12 weight=700 color="#3478f6"
                 row width="100%" align="center" gap=8

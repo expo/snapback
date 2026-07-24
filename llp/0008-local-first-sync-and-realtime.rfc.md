@@ -759,6 +759,22 @@ The first sync/realtime validation should include:
   every non-live auth-scoped resume takes a fresh authorized snapshot;
 - a diagnostic explaining one invalid or non-subscribable query.
 
+## Dated constraints: additive wire, adapter-owned lifecycle (2026-07-23, LLP 0079 SC-3)
+
+Two rules remain standing:
+
+1. Wire evolution is additive. New delta or read lanes ship beside existing
+   snapshot/replace and WebSocket behavior rather than breaking it.
+2. App code never owns connection lifecycle. Schema, handlers, and generated
+   callers see declarative live queries, not socket handles, reconnect hooks,
+   or per-connection message handlers. Connection lifecycle and lane selection
+   belong to the framework and adapter.
+
+LLP 0078 F2a/F2e records the external evidence: exposing connection lifecycle
+created a deprecation cycle, and protocol streamlining imposed a breaking
+downstream tax. This section preserves the LLP 0079 SC-3 amendment alongside
+the prior-art absorptions already recorded above.
+
 ## Open Questions
 
 Several earlier open questions are now answered by the Valet record and folded in

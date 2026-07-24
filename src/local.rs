@@ -2288,6 +2288,11 @@ pub struct ConfigVerifyOutcome {
 
 pub struct LocalSnapback {
     db: LocalDatabase,
+    /// Process-unique registry namespace for this instance's StreamAttemptV1
+    /// records (LLP 0076). A monotonic nonce, never a pointer: allocator
+    /// reuse must not let a new instance observe a dead instance's live
+    /// registry entries.
+    stream_attempt_namespace: usize,
     functions: FunctionManifest,
     // Complete pairs proven by this process. Durable deployment identities
     // are hashes, not manifest bodies, so they can never supply a missing
@@ -2985,6 +2990,74 @@ impl LocalSnapback {
         Ok(())
     }
 
+    /// Host-owned StreamAttemptV1 persistence (LLP 0076): the detached action
+    /// host performs these short writes under the instance lock. The durable
+    /// row — not the in-process registry — is what the startup reconciler
+    /// reads after a crash, so the pre-mark must commit before the upstream
+    /// send.
+    pub(crate) fn stream_attempt_record(
+        &self,
+        client_key: &str,
+    ) -> SnapbackResult<Option<(String, String)>> {
+        self.db.stream_attempt_by_client_key(client_key)
+    }
+
+    pub(crate) fn stream_attempt_namespace(&self) -> usize {
+        self.stream_attempt_namespace
+    }
+
+    /// Resolve every declared capability requirement against the served
+    /// instance manifest (LLP 0076 §Target contract): the same
+    /// instance-live declaration `/inspect` reports, never a static
+    /// committed artifact. Unknown (non-registry) strings are left to the
+    /// v1 grammar validation; a registry id the live instance does not
+    /// support is a fatal admission error.
+    fn validate_required_capabilities_against_instance(
+        &self,
+        manifest: &FunctionManifest,
+    ) -> Vec<Diagnostic> {
+        let served = crate::manifest::CapabilityManifest::local_v0_instance(
+            self.capability_gaps(),
+            crate::runtime::outbound_actions_enabled(),
+        );
+        let mut diagnostics = Vec::new();
+        let mut refuse = |owner: &str, capability: &str| {
+            diagnostics.push(Diagnostic::error(
+                "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                "runtime",
+                format!(
+                    "{owner} requires capability {capability}, which the served instance manifest does not support"
+                ),
+            ));
+        };
+        for function in &manifest.functions {
+            for capability in &function.required_capabilities {
+                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
+                    && !served.supported_capabilities.contains(&id)
+                {
+                    refuse(&format!("function {}", function.name), capability);
+                }
+            }
+        }
+        for job in &manifest.cron_jobs {
+            for capability in &job.required_capabilities {
+                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
+                    && !served.supported_capabilities.contains(&id)
+                {
+                    refuse(&format!("cron job {}", job.name), capability);
+                }
+            }
+        }
+        diagnostics
+    }
+
+    pub(crate) fn persist_stream_attempts(
+        &mut self,
+        rows: &[(String, String, String)],
+    ) -> SnapbackResult<()> {
+        self.db.upsert_stream_attempts(rows, now_millis())
+    }
+
     /// Revalidate the durable and carrier axes before every retained live
     /// computation. Session authority is fenced by the projection; service
     /// authority is checked directly against the protected catalog without
@@ -3316,6 +3389,13 @@ impl LocalSnapback {
         if let Err(error) = validate_function_schema_references(&manifest, self.db.schema()) {
             preflight.push(error.diagnostic);
         }
+        // @ref LLP 0076#target-contract — capability admission resolves
+        // against the SAME served instance manifest `/inspect` reports for
+        // this exact process, before any handler or nested-mutation code can
+        // run. Every local loader path (raw dev, provisioning, embedding)
+        // funnels through here, so a stream-requiring artifact cannot be
+        // installed on an egress-disabled instance.
+        preflight.extend(self.validate_required_capabilities_against_instance(&manifest));
         preflight.extend(validate_cron_manifest(&manifest));
         if preflight
             .iter()
@@ -4333,7 +4413,13 @@ impl LocalSnapback {
     pub(crate) fn inspect_core(&mut self) -> SnapbackResult<InspectState> {
         // @ref LLP 0010#v0-implementation-charter — missing non-v0 capabilities must be reported explicitly.
         let capability_gaps = self.capability_gaps();
-        let mut capability_manifest = CapabilityManifest::local_v0(capability_gaps.clone());
+        // @ref LLP 0076#target-contract — the served manifest is instance-live:
+        // it reflects whether THIS process enabled outbound egress and so the
+        // bounded response-stream profile, not the conservative declaration.
+        let mut capability_manifest = CapabilityManifest::local_v0_instance(
+            capability_gaps.clone(),
+            crate::runtime::outbound_actions_enabled(),
+        );
         // @ref LLP 0009#dk-4-as-built--the-warm-vm-pool-and-its-per-invocation-reset-2026-07-02 —
         // report the live VM lifecycle honestly (warm is opt-out-able via
         // SNAPBACK_FRESH_VM=1, so this is per-instance state, not a constant).
@@ -4385,6 +4471,10 @@ impl LocalSnapback {
             capability_gaps.retain(|gap| gap != "ibex_cli");
         } else {
             capability_gaps.push("ibex_cli".to_owned());
+        }
+        if crate::runtime::outbound_actions_enabled() {
+            capability_gaps
+                .retain(|gap| gap != "outbound_actions" && gap != "bounded_response_stream_v1");
         }
         capability_gaps
     }
@@ -9519,6 +9609,25 @@ impl LocalSnapback {
         // @ref LLP 0059#durable-authorization-stream — both dev and sessions
         // create the stream record before an app-data listener can bind.
         db.ensure_authorization_stream_incarnation()?;
+        // @ref LLP 0076#settlement-and-retry — the startup reconciler: a
+        // persisted StreamAttemptV1 row whose runner died with its process is
+        // settled `failed` with the conservative effect fact folded from the
+        // write-ahead cursor pre-marks, so a durable winner exists before any
+        // new runner can start against the same client key.
+        {
+            let rows = db.load_stream_attempts()?;
+            let mut reconciled = Vec::new();
+            for (token, client_key, record_json) in rows {
+                if let Some(updated) =
+                    crate::stream_attempt::reconcile_orphaned_record(&record_json)
+                {
+                    reconciled.push((token, client_key, updated));
+                }
+            }
+            if !reconciled.is_empty() {
+                db.upsert_stream_attempts(&reconciled, now_millis())?;
+            }
+        }
         let runtime = RuntimeManager::detect();
         let cron = LocalCronRuntime::from_persisted(db.load_cron_state()?)?;
         let auth_mode = db.auth_mode_snapshot()?.state;
@@ -9535,8 +9644,12 @@ impl LocalSnapback {
         })));
 
         let app_generation = next_app_generation()?;
+        static STREAM_ATTEMPT_NAMESPACE: std::sync::atomic::AtomicUsize =
+            std::sync::atomic::AtomicUsize::new(1);
         Ok(Self {
             db,
+            stream_attempt_namespace: STREAM_ATTEMPT_NAMESPACE
+                .fetch_add(1, std::sync::atomic::Ordering::Relaxed),
             functions: FunctionManifest::default(),
             preflighted_artifact_pairs: VecDeque::new(),
             functions_loaded: false,
@@ -11053,7 +11166,17 @@ impl LocalSnapback {
                 continue;
             }
             let delta_plan = match &function.runtime {
-                FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) if !changes.is_empty() => {
+                // @ref LLP 0056#what-exists-what-this-adds — membership-gated
+                // (semi-join) queries ride the conservative re-query/
+                // `live_replace` lane, never incremental deltas: the delta
+                // classifier evaluates only ordinary filters, so admitting a
+                // membership-gated plan here either over-delivers rows the
+                // subscriber's membership predicate excludes or swallows
+                // membership-table-only visibility transitions as `NoChange`
+                // (LLP 0067 §F2a records both directions).
+                FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
+                    if !changes.is_empty() && plan.membership_filters.is_empty() =>
+                {
                     Some(plan.clone())
                 }
                 _ => None,
@@ -11293,7 +11416,14 @@ impl LocalSnapback {
         if ops.is_empty() {
             // The matcher flagged the subscription as possibly affected, but no
             // committed row actually enters/leaves/updates its result. Nothing
-            // to deliver — no re-query needed either.
+            // to deliver — no re-query needed either. A `NoChange` settle is
+            // itself a claim ("this commit does not change the result"), so
+            // debug builds assert it against a fresh re-query: previously this
+            // early return sat before the L4 oracle's only call site, which is
+            // how the membership-gated freeze stayed invisible even in tests
+            // (LLP 0067 §F2a).
+            #[cfg(debug_assertions)]
+            self.debug_assert_delta_membership_converges(subscription, query_dep_index, admission);
             return Ok(Some(DeltaFanout::NoChange));
         }
         // @ref LLP 0053#negative-deltas-are-obligations-positive-deltas-are-best-effort — a removal on an auth-scoped result takes the full obligation-backed snapshot path.
@@ -14252,6 +14382,44 @@ globalThis.__snapbackHandlers = {
             "cron gate fixture must load: {diagnostics:?}"
         );
         snapback
+    }
+
+    #[test]
+    fn stream_requiring_artifact_is_refused_against_the_served_instance_manifest() {
+        // @ref LLP 0076#target-contract — the outbound-disabled negative
+        // admission witness: with egress off in THIS process, the served
+        // instance manifest does not support bounded_response_stream_v1 and
+        // the loader refuses the artifact before any handler can run.
+        assert!(
+            std::env::var("SNAPBACK_OUTBOUND_ACTIONS").is_err(),
+            "lib tests run with egress disabled"
+        );
+        let mut action = FunctionDefinition::new(
+            "streamRequiring",
+            FunctionKind::Action,
+            FunctionRuntime::IbexModule(IbexModule {
+                source:
+                    "globalThis.__snapbackHandlers = { async streamRequiring() { return null; } };"
+                        .to_owned(),
+                export: "streamRequiring".to_owned(),
+            }),
+        );
+        action.required_capabilities = vec!["bounded_response_stream_v1".to_owned()];
+        let mut snapback = LocalSnapback::memory().expect("memory instance");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![action],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics.iter().any(|diagnostic| {
+                diagnostic.code == "SNAPBACK_CAPABILITY_UNSUPPORTED"
+                    && diagnostic.severity == crate::diagnostic::DiagnosticSeverity::Error
+            }),
+            "egress-disabled admission must refuse: {diagnostics:?}"
+        );
+        // Nothing was installed: the function is unknown to the instance.
+        let run = snapback.run_function("streamRequiring", HandlerInput::default());
+        assert!(!run.ok, "refused artifact must not be invocable");
     }
 
     #[test]

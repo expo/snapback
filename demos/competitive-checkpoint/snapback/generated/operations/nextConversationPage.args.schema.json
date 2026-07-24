@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/nextConversationPage.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "after"
+  ],
+  "title": "competitive-checkpoint:nextConversationPage arguments",
+  "type": "object"
+}

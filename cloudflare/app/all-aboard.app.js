@@ -196,6 +196,18 @@ export const functions = [
   // slow host fetch that must not block queries, mutations, or live pushes
   // on the same coordinator (the off-mutex execution contract).
   { name: 'probeSlowFetch', kind: 'Action', export: 'probeSlowFetch', tables: [], testingOnly: true },
+  // Cross-target witness for LLP 0076: this is intentionally an ordinary
+  // authored action using the shared ctx.fetchStream surface, not a direct
+  // coordinator test.
+  { name: 'probeResponseStream', kind: 'Action', export: 'probeResponseStream', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  { name: 'probeStreamAttemptToken', kind: 'Action', export: 'probeStreamAttemptToken', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  { name: 'probeStreamSecret', kind: 'Action', export: 'probeStreamSecret', requiredCapabilities: ['bounded_response_stream_v1'], uses: ['directions'], tables: [], testingOnly: true },
+  { name: 'probeStreamRateFence', kind: 'Action', export: 'probeStreamRateFence', requiredCapabilities: ['bounded_response_stream_v1'], tables: ['trainStatus'], testingOnly: true },
+  { name: 'probeStreamCursorCap', kind: 'Action', export: 'probeStreamCursorCap', requiredCapabilities: ['bounded_response_stream_v1'], tables: [], testingOnly: true },
+  // Negative admission witness: auth.sessions.v1 is a known registry id this
+  // target's served manifest does not support, so resolution must refuse
+  // before the handler can run.
+  { name: 'probeUnsupportedRequirement', kind: 'Action', export: 'probeUnsupportedRequirement', requiredCapabilities: ['auth.sessions.v1'], tables: [], testingOnly: true },
   { name: 'probeSecretForgery', kind: 'Action', export: 'probeSecretForgery', uses: ['directions'], tables: [], testingOnly: true },
   { name: 'probeSecretForgeryNoGrant', kind: 'Action', export: 'probeSecretForgery', tables: [], testingOnly: true },
   { name: 'probeSecretEcho', kind: 'Action', export: 'probeSecretEcho', uses: ['directions'], tables: [], testingOnly: true },
@@ -956,6 +968,113 @@ globalThis.__snapbackHandlers = {
       timeoutMs: (args && args.timeoutMs) || 10_000,
     });
     return { status: response.status, ok: response.ok };
+  },
+  async probeResponseStream(ctx, args) {
+    const response = await ctx.fetchStream({
+      url: args.url,
+      method: args.method || 'GET',
+      idempotencyKey: args.idempotencyKey || null,
+    });
+    const reader = response.body.getReader();
+    let reads = 0;
+    let totalBytes = 0;
+    let maxChunkBytes = 0;
+    let checksum = 0;
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      reads += 1;
+      totalBytes += chunk.value.byteLength;
+      maxChunkBytes = Math.max(maxChunkBytes, chunk.value.byteLength);
+      for (let index = 0; index < chunk.value.byteLength; index += 1) {
+        checksum = (checksum + chunk.value[index]) % 65536;
+      }
+      if (args.cancelAfterReads && reads >= args.cancelAfterReads) {
+        await reader.cancel();
+        await reader.cancel();
+        const afterCancel = await reader.read();
+        return {
+          status: response.status,
+          reads,
+          totalBytes,
+          maxChunkBytes,
+          checksum,
+          cancelled: true,
+          doneAfterCancel: afterCancel.done,
+        };
+      }
+    }
+    return {
+      status: response.status,
+      reads,
+      totalBytes,
+      maxChunkBytes,
+      checksum,
+      cancelled: false,
+    };
+  },
+  async probeUnsupportedRequirement() {
+    return { unreachable: true };
+  },
+  // The StreamAttemptV1 control plane does not exist on this target: a
+  // presented token must be refused fail-closed, never silently unfenced.
+  async probeStreamAttemptToken(ctx, args) {
+    try {
+      await ctx.fetchStream({ url: args.url, attemptToken: 'attempt-token-1' });
+      return { refused: false };
+    } catch (error) {
+      return { refused: true, code: String((error && error.message) || error) };
+    }
+  },
+  // LLP 0036 hosted placement seam: the descriptor unwraps only at the
+  // coordinator's stream-open boundary; the isolate never sees the value.
+  async probeStreamSecret(ctx, args) {
+    const handle = ctx.secrets.get('directions');
+    const response = await ctx.fetchStream({
+      url: args.url,
+      secretSlots: [{ placement: 'header', name: 'authorization', handle }],
+    });
+    const reader = response.body.getReader();
+    let totalBytes = 0;
+    for (;;) {
+      const chunk = await reader.read();
+      if (chunk.done) break;
+      totalBytes += chunk.value.byteLength;
+    }
+    return { status: response.status, totalBytes, url: response.url };
+  },
+  // The conservative transport-level progress fence: while a cursor is open,
+  // nested mutations above ten per second are refused with the
+  // profile-neutral host code.
+  async probeStreamRateFence(ctx, args) {
+    const response = await ctx.fetchStream({ url: args.url });
+    const reader = response.body.getReader();
+    await reader.read();
+    await ctx.runMutation('probeSecretsMutation', {});
+    let secondCode = null;
+    try {
+      await ctx.runMutation('probeSecretsMutation', {});
+    } catch (error) {
+      secondCode = String((error && error.message) || error);
+    }
+    await reader.cancel();
+    return { secondCode };
+  },
+  async probeStreamCursorCap(ctx, args) {
+    const streams = [];
+    for (let index = 0; index < 4; index += 1) {
+      streams.push(await ctx.fetchStream({ url: args.url }));
+    }
+    let fifthCode = null;
+    try {
+      await ctx.fetchStream({ url: args.url });
+    } catch (error) {
+      fifthCode = String((error && error.message) || error);
+    }
+    for (const response of streams) {
+      await response.body.getReader().cancel();
+    }
+    return { fifthCode };
   },
   async probeSecretForgery(ctx, args) {
     try {

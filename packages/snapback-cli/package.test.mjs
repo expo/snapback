@@ -2,8 +2,16 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { PassThrough } from 'node:stream';
 
-import { __test, doctor, generateApp, scaffoldApp, validateDevTarget } from './index.mjs';
+import {
+  __test,
+  attachDevControlChannel,
+  doctor,
+  generateApp,
+  scaffoldApp,
+  validateDevTarget,
+} from './index.mjs';
 
 const root = mkdtempSync(join(tmpdir(), 'snapback-cli-package-'));
 try {
@@ -55,7 +63,79 @@ try {
   const commands = readFileSync(commandLog, 'utf8').trim().split('\n');
   assert.equal(commands.filter((line) => line.startsWith('load ')).length, 2);
   assert.equal(commands.filter((line) => line.startsWith('reset ')).length, 1);
-  console.log('package.test.mjs: doctor, scaffold, offline generation, attach fencing, and seed-once reload pass');
+
+  // The interactive dev control channel: a TTY stdin gets single-key verbs
+  // (s/r/R/q) instead of the JSON command channel, over the same verb slice.
+  {
+    const invoked = [];
+    const verbs = {
+      status: async (context) => invoked.push(['status', context]),
+      reload: async (context) => invoked.push(['reload', context]),
+      restart: async (context) => invoked.push(['restart', context]),
+    };
+    let stopped = 0;
+    let rawMode = null;
+    const tty = new PassThrough();
+    tty.isTTY = true;
+    tty.setRawMode = (value) => { rawMode = value; };
+    const detach = attachDevControlChannel({
+      verbs,
+      stop: () => { stopped += 1; },
+      onEvent: () => {},
+      stdin: tty,
+    });
+    assert.equal(rawMode, true);
+    tty.emit('data', 's');
+    tty.emit('data', 'r');
+    tty.emit('data', 'R');
+    tty.emit('data', 'x');
+    tty.emit('data', 'q');
+    await new Promise((resolveTick) => setImmediate(resolveTick));
+    assert.deepEqual(invoked.map(([verb]) => verb), ['status', 'reload', 'restart']);
+    assert.equal(stopped, 1);
+    detach();
+    assert.equal(rawMode, false);
+  }
+
+  // The machine-readable channel over the same verbs: JSON commands in,
+  // structured command-error events (never a crash) for malformed input.
+  {
+    const invoked = [];
+    const events = [];
+    const verbs = {
+      status: async (context) => invoked.push(['status', context]),
+      reload: async (context) => invoked.push(['reload', context]),
+      restart: async (context) => invoked.push(['restart', context]),
+    };
+    let stopped = 0;
+    const stdin = new PassThrough();
+    attachDevControlChannel({
+      verbs,
+      stop: () => { stopped += 1; },
+      onEvent: (event) => events.push(event),
+      stdin,
+    });
+    assert.equal(events[0].state, 'control-ready');
+    assert.equal(events[0].channel, 'json');
+    stdin.write('not json\n');
+    stdin.write(`${JSON.stringify({ schemaVersion: 'snapback.dev-command.v1', verb: 'status', requestId: 'u-1' })}\n`);
+    stdin.write(`${JSON.stringify({ schemaVersion: 'wrong.schema', verb: 'status' })}\n`);
+    stdin.write(`${JSON.stringify({ schemaVersion: 'snapback.dev-command.v1', verb: 'dance' })}\n`);
+    stdin.end();
+    await new Promise((resolveTick) => setImmediate(resolveTick));
+    assert.deepEqual(invoked, [['status', { requestId: 'u-1' }]]);
+    const errorCodes = events
+      .filter((event) => event.state === 'command-error')
+      .map((event) => event.diagnostics[0].code);
+    assert.deepEqual(errorCodes, [
+      'SNAPBACK_DEV_COMMAND_INVALID',
+      'SNAPBACK_DEV_COMMAND_INVALID',
+      'SNAPBACK_DEV_COMMAND_UNKNOWN_VERB',
+    ]);
+    assert.equal(stopped, 1, 'stdin end must stop the loop');
+  }
+
+  console.log('package.test.mjs: doctor, scaffold, offline generation, attach fencing, seed-once reload, and dev control channels pass');
 } finally {
   rmSync(root, { recursive: true, force: true });
 }

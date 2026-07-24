@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7"
+    "commit": "5ea5cbe9592c1d489ef2add3c2d6d652a885a842"
   },
   "nav": {
     ".": [
@@ -659,7 +659,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "33d4d42cf3ebdd07cbc5c715745707dd90925ba7521afef8d2eb0d3afb74351e",
+      "sha256": "174e8075c7a1a0ae4cbceac36a6c5da47781df31f65850c1f18c9345b301faef",
       "snippets": []
     },
     "clients.app-cli": {
@@ -715,7 +715,8 @@
         "llp/0059-session-projection-and-client-barrier.spec.md",
         "llp/0063-partitime-platform-roadmap.plan.md",
         "packages/snapback-contract/index.mjs",
-        "packages/snapback-contract/keyed-provider.mjs"
+        "packages/snapback-contract/keyed-provider.mjs",
+        "packages/snapback-contract/online-surface.mjs"
       ],
       "examples": [
         "demos/todo-v2/surfaces/contract",
@@ -726,7 +727,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "bd1dd3029335a5e2dc68d5982bb50f4d7053e695652ca7a05798bfa4f827aa95",
+      "sha256": "2dc542c8517a721cfb01cdf001384d54df221cb8d99352fb181d9ba829106b68",
       "snippets": [
         {
           "lang": "contract",
@@ -962,9 +963,9 @@
         "demos/todo/tests/acceptance/headless.mjs",
         "demos/todo/surfaces/headless/run.mjs"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "f289774422ec4437b4a637bb83024098f602dd976343a6177c5c0f8adca6f5ba",
+      "reviewed": "2026-07-21",
+      "reviewedCommit": "e37dc3a3dcde3c8ea3de13c1bfde4e8b683493f1",
+      "sha256": "5d94ca8684a282e7316c82a36c74b3f9ed52edc9ffe5e8c6b8ac6e517f088793",
       "snippets": []
     },
     "getting-started.your-first-backend": {
@@ -1561,7 +1562,7 @@
   },
   "surfaces": {
     "routes": 68,
-    "hostOps": 13
+    "hostOps": 19
   },
-  "contentHash": "e6db86df552e46c2fb384dd816b3d6e251eb0e1631559af023ebb1ca7260d2a9"
+  "contentHash": "a76d04e272f0a330983d4c9ce193de0eab4d6589a8902ce25b24d0a098a5174d"
 }

@@ -1450,7 +1450,7 @@ fn utc_parts(ms: u64) -> Option<UtcParts> {
     })
 }
 
-fn civil_from_days(days_since_epoch: i64) -> Option<(i32, u32, u32)> {
+pub(crate) fn civil_from_days(days_since_epoch: i64) -> Option<(i32, u32, u32)> {
     let z = days_since_epoch.checked_add(719_468)?;
     let era = if z >= 0 { z } else { z - 146_096 }.div_euclid(146_097);
     let doe = z - era * 146_097;

@@ -93,6 +93,7 @@ const AUTH_MODES = new Set(['dev', 'sessions']);
 const AUTH_REQUIREMENTS = new Set(['public', 'optional-user', 'authenticated']);
 const TARGET_CAPABILITY_IDS = new Set([
   'auth.sessions.v1',
+  'bounded_response_stream_v1',
   'cron',
   'cron_action_run_mutation',
   'host_plan_runtime',
@@ -3133,8 +3134,77 @@ function requiredCapabilities(fn) {
   const runtimeCapability = fn.runtime?.IbexModule ? 'ibex_ctx_db_host_bridge' : 'host_plan_runtime';
   if (fn.kind === 'LiveQuery') return ['live_subscriptions', runtimeCapability];
   if (fn.kind === 'Mutation') return [runtimeCapability, 'mutation_read_set_validation'];
-  if (fn.kind === 'Action') return [runtimeCapability, 'cron_action_run_mutation'];
+  if (fn.kind === 'Action') {
+    const required = [runtimeCapability, 'cron_action_run_mutation'];
+    // @ref LLP 0076#target-contract — a streamed action must be refused at
+    // artifact admission on targets without the named reader profile, before
+    // the handler reaches an external effect. IbexModule source is the closed
+    // bundle codegen already owns; the AST-derived detection below can
+    // over-require sibling actions but can never invent target authority.
+    if (moduleUsesFetchStream(fn.runtime?.IbexModule?.source ?? '')) {
+      required.push('bounded_response_stream_v1');
+    }
+    return required;
+  }
   return [runtimeCapability];
+}
+
+// @ref LLP 0076#target-contract — AST-derived rather than textual: a
+// `fetchStream` member access (`ctx.fetchStream(...)`, computed string
+// access, or a destructuring alias `const { fetchStream } = ctx`) marks the
+// module as stream-requiring; comments and unrelated string literals do not.
+// An unparseable bundle falls back to the conservative textual scan, which
+// can over-require but never widens target authority.
+function moduleUsesFetchStream(source) {
+  if (!source) return false;
+  let program;
+  try {
+    program = parseJavaScript(source, {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+      allowHashBang: true,
+      allowImportExportEverywhere: true,
+    });
+  } catch (_) {
+    return /\bfetchStream\s*\(/u.test(source);
+  }
+  let found = false;
+  const walk = (node) => {
+    if (found || !node || typeof node.type !== 'string') return;
+    if (node.type === 'MemberExpression') {
+      const property = node.property;
+      if (
+        (!node.computed && property?.type === 'Identifier' && property.name === 'fetchStream')
+        || (node.computed && property?.type === 'Literal' && property.value === 'fetchStream')
+      ) {
+        found = true;
+        return;
+      }
+    }
+    if (node.type === 'Property') {
+      const key = node.key;
+      if (
+        (key?.type === 'Identifier' && key.name === 'fetchStream')
+        || (key?.type === 'Literal' && key.value === 'fetchStream')
+      ) {
+        found = true;
+        return;
+      }
+    }
+    for (const value of Object.values(node)) {
+      if (found) return;
+      if (Array.isArray(value)) {
+        for (const child of value) {
+          if (child && typeof child.type === 'string') walk(child);
+        }
+      } else if (value && typeof value.type === 'string') {
+        walk(value);
+      }
+    }
+  };
+  walk(program);
+  return found;
 }
 
 function syncabilityClass(fn) {
@@ -5412,12 +5482,15 @@ function packageDir() {
 // P2 / LLP 0037): generated from the Rust core by tests/capability_v0.rs
 // (SNAPBACK_UPDATE_CAPABILITY_MANIFEST=1 cargo test p2_) and embedded — this
 // module asserts nothing about server capabilities on its own.
-function canonicalCapabilityManifestPath(targetConfig) {
-  return join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', targetConfig.capabilityManifest);
+function canonicalCapabilityManifestPath(targetProfile, targetConfig) {
+  const manifest = targetProfile === TARGET_PROFILE_LOCAL && egressAllowedAtCodegen()
+    ? 'capability.manifest.local-dev-sqlite-ibex.outbound-actions.json'
+    : targetConfig.capabilityManifest;
+  return join(TOOLCHAIN_ARTIFACT_ROOT, 'schemas', manifest);
 }
 
 function loadCanonicalCapabilityManifest(err, targetProfile, targetConfig) {
-  const path = canonicalCapabilityManifestPath(targetConfig);
+  const path = canonicalCapabilityManifestPath(targetProfile, targetConfig);
   let source;
   let sourceBytes;
   try {

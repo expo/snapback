@@ -6,6 +6,7 @@
       "name": "partitime-react-expo",
       "dependencies": {
         "@snapback/client": "file:../../../../packages/snapback-client",
+        "@snapback/contract": "file:../../../../packages/snapback-contract",
         "expo": "~57.0.7",
         "react": "^19.2.3",
         "react-native": "0.86.0",
@@ -257,6 +258,8 @@
     "@sinclair/typebox": ["@sinclair/typebox@0.27.12", "", {}, "sha512-hhyNJ+nbR6ZR7pToHvllEFun9TL0sbL+tk/ON75lo+Xas054uez98qRbsuNt7MBCyZKK4+8Yli/OAGZhmfBZ/g=="],
 
     "@snapback/client": ["@snapback/client@file:../../../../packages/snapback-client", {}],
+
+    "@snapback/contract": ["@snapback/contract@file:../../../../packages/snapback-contract", {}],
 
     "@types/istanbul-lib-coverage": ["@types/istanbul-lib-coverage@2.0.6", "", {}, "sha512-2QF/t/auWm0lsy8XtKVPG19v3sSOQlJe/YHZgfjb/KBBHOGSV+J2q/S671rcq9uTBrLAXmZpqJiaQbMT+zNU1w=="],
 

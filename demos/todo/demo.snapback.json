@@ -51,7 +51,7 @@
     "contract": {
       "requirement": "optional",
       "runner": "bun demos/todo/tests/acceptance/contract.mjs",
-      "browserRunner": "bun install --cwd demos/todo/surfaces/contract (once), then SNAPBACK_TODO_API=http://127.0.0.1:4420 bun run --cwd demos/todo/surfaces/contract dev (Exact consumed from registry aliases; bun.lock is the pin)",
+      "browserRunner": "bun install --cwd demos/todo/surfaces/contract (once), then bun run --cwd demos/todo/surfaces/contract dev — the @snapback/vite plugin (LLP 0030) attaches to or spawns the backend via the ready-file handshake, loads generated schema/functions + seed during bring-up, and relays app routes at /__snapback; SNAPBACK_TODO_API=<url> switches to external mode (Exact consumed from registry aliases; bun.lock is the pin)",
       "build": "bun run --cwd demos/todo/surfaces/contract build (vite build via the exactContractWeb preset -> surfaces/contract/dist/web/)",
       "expectedDiagnostic": "SNAPBACK_CAPABILITY_EXACT_MISSING",
       "exact": {

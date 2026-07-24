@@ -1,0 +1,140 @@
+{
+  "schemaVersion": "partitime.desktop-webdriver-citizenship.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP.DESKTOP_FIREFOX",
+  "recordedAt": "2026-07-23T09:37:30.612Z",
+  "repository": {
+    "revision": "094e29be232f10260a84bb6ff8185579430fc374",
+    "dirty": false
+  },
+  "exactRepository": {
+    "revision": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79",
+    "dirty": false,
+    "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723"
+  },
+  "candidatePackages": {
+    "source": "linked-source",
+    "sourceBound": true,
+    "rendererRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer",
+    "contractRoot": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract",
+    "artifacts": [
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/package.json",
+        "sha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
+        "bytes": 1658
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/bun.lock",
+        "sha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
+        "bytes": 89528
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/package.json",
+        "sha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01",
+        "bytes": 5710
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-renderer/src/web-host-direct.ts",
+        "sha256": "b598ccc0d0ca8af6cb3199c02d958f4ec7a9eaf8fa054a409e79cca56a5f88a0",
+        "bytes": 16430
+      },
+      {
+        "path": "../../../../Users/ccheever/projects/exact-llp0381-0386-implementation-20260723/packages/exact-contract/package.json",
+        "sha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3",
+        "bytes": 3814
+      }
+    ]
+  },
+  "claimEligible": true,
+  "cells": [
+    "contract:snapback"
+  ],
+  "browser": "firefox",
+  "environment": {
+    "node": "v25.9.0",
+    "bun": "1.3.12",
+    "os": "darwin-25.5.0-arm64",
+    "browserVersion": "Mozilla Firefox 152.0.1",
+    "driver": "/opt/homebrew/bin/geckodriver",
+    "driverVersion": "geckodriver 0.37.1\n\nThe source code of this program is available from\ntesting/geckodriver in https://hg.mozilla.org/mozilla-central.\n\nThis program is subject to the terms of the Mozilla Public License 2.0.\nYou can obtain a copy of the license at https://mozilla.org/MPL/2.0/.",
+    "cpu": "Apple M5 Max"
+  },
+  "artifacts": [
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/main.ts",
+      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445",
+      "bytes": 15899
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04",
+      "bytes": 4778
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
+      "sha256": "59e7297236aaad32228437e94c8c5d1298df6de77651a405d3200041e0d01cee",
+      "bytes": 9073
+    },
+    {
+      "path": "demos/partiful-matrix/surfaces/contract/event.contract",
+      "sha256": "aaa879b05663a796685e88ab6c849780ec1789b7b28ef0082aa5b8a543eff363",
+      "bytes": 7216
+    }
+  ],
+  "testInventory": [
+    {
+      "path": "demos/_kit/harness.mjs",
+      "sha256": "d285286765494178ceae9f51b74fd3872648e8a1506a0aea0cfc5d0639aed387",
+      "bytes": 10475
+    },
+    {
+      "path": "demos/_kit/server-process.mjs",
+      "sha256": "41138bb2e42ea0746453aecb613b774a00102d2a11741348332584eed13b19c3",
+      "bytes": 32485
+    },
+    {
+      "path": "demos/partiful-matrix/tests/acceptance/step4-desktop-webdriver-citizenship.mjs",
+      "sha256": "138ec1d22948fbcf94d46e8ce3cd6aae20fcce772da09532175446ac36d60bb8",
+      "bytes": 21638
+    }
+  ],
+  "missingPrerequisites": [],
+  "title": "Partitime / desktop firefox citizenship",
+  "passed": 2,
+  "skipped": 0,
+  "failed": 0,
+  "total": 2,
+  "ok": true,
+  "results": [
+    {
+      "name": "contract × snapback traps and restores focus in desktop firefox",
+      "ok": true,
+      "details": {
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "input": "WebDriver key actions"
+      }
+    },
+    {
+      "name": "contract × snapback exposes visible content to desktop firefox find-on-page",
+      "ok": true,
+      "details": {
+        "query": "Sunset Supper Club",
+        "anchor": "event-card-event_sunset",
+        "selection": "Sunset Supper Club",
+        "nativeFind": {
+          "hidden": false,
+          "present": true,
+          "status": "",
+          "value": "Sunset Supper Club"
+        },
+        "usableAfterFind": true,
+        "input": "Firefox native FindBar via privileged WebDriver"
+      }
+    }
+  ],
+  "expectedChecks": 2,
+  "cleanupErrors": [],
+  "cleanupErrorCount": 0
+}

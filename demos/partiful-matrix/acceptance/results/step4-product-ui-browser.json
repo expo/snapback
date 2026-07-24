@@ -1,17 +1,17 @@
 {
   "revision": {
-    "snapback": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
-    "exact": "207ed2203039e548daa964b115f8aca15b07a540"
+    "snapback": "fa08699792b1f41465b75c2424a386280a39777c",
+    "exact": "a0a87ec5ee6c44c6a07bc8690e1963b867bbfc79"
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v24.18.0",
+    "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.129",
+    "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -97,41 +97,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
-          "resolvedName": "@ccheever/exact-contract",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "6c1e27ae2953e8abf5e29d77293b6893cab0a1815c00b494618b22a445717e8a"
+          "requested": "npm:@ccheever/exact-contract@0.1.5",
+          "resolvedName": "@exact/contract",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "e479d4582b55c45db9bc148dd4485bb2c8479c15f480a14871df45e763b7c5c3"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
-          "resolvedName": "@ccheever/exact-devtools",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
+          "requested": "npm:@ccheever/exact-devtools@0.1.5",
+          "resolvedName": "@exact/devtools",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "33fa1bc9e7c13c6d580d7117b51f36831f83b64e85242f514bba87822ff5357e"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
-          "resolvedName": "@ccheever/exact-facet-core",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "1a30e22149a7b866008bc26304245fb1918c94ba41d60d67a14393d84469f210"
+          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
+          "resolvedName": "@exact/facet-core",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "2e5b04036abde985139847bd5d878f73024f7f2b4f34fb7af98cfc258a8dca88"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
-          "resolvedName": "@ccheever/exact-renderer",
-          "resolvedVersion": "0.1.5",
-          "manifestSha256": "60fa1c8fcfe4d0b948eaab6df280a0bfb27d7b7833c59e36a63ecc259371cd53"
+          "requested": "npm:@ccheever/exact-renderer@0.1.5",
+          "resolvedName": "@exact/renderer",
+          "resolvedVersion": "0.1.0",
+          "manifestSha256": "38666ccebeaad7470d03dfeea1d148ac080823bd78ea68bf3509dde5a9af7e01"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "0829481aad33d6b0bd997e801913b0bda12e17590b962a5c36341e2241b11fb7",
-    "reportSha256": "92fefa697b861f439f93be8602e8e164b80ac321889e72b4ea96477a1477bf4b"
+    "diarySha256": "b0b8f7d38a5ff3ce2f92813ae3f45295efde333389eeb60d8716e2214d92bf82",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -193,11 +193,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -220,7 +220,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "fcbc465c251f410b489d4763733b6e8aabdbcff52d84ef3d5fda9d683ff723f7",
+  "testInventorySha256": "3d5b357200f5c1cfdfaa3db0ed469d2885321e4bbc91c90903757607aa674ffe",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -245,14 +245,16 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       },
       "convex": {
-        "ok": true,
-        "remote": true,
-        "fixtureRows": 3
+        "ok": false,
+        "skipClass": "remote-dependency",
+        "stage": "initialization",
+        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
       }
     }
   },
@@ -288,13 +290,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "d86201be-9424-42a7-b7bb-37dc7c9d3f52",
-          "url": "http://127.0.0.1:64999/?user=eve&event=event_sunset",
+          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
+          "url": "http://127.0.0.1:54747/?user=eve&event=event_sunset",
           "navigations": 1
         },
         "after": {
-          "identity": "d86201be-9424-42a7-b7bb-37dc7c9d3f52",
-          "url": "http://127.0.0.1:64999/?user=eve",
+          "identity": "e722aa5a-1e1e-462d-ad5b-0fa864c1f7d9",
+          "url": "http://127.0.0.1:54747/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -397,13 +399,13 @@
             "sampleIndex": 0,
             "before": "EVEveGoing",
             "after": "EVEveMaybe",
-            "latencyMs": 5
+            "latencyMs": 8
           },
           {
             "sampleIndex": 1,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 2,
@@ -427,7 +429,7 @@
             "sampleIndex": 5,
             "before": "EVEveMaybe",
             "after": "EVEveGoing",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 6,
@@ -453,7 +455,7 @@
             4,
             5,
             4,
-            5,
+            4,
             4,
             4,
             4
@@ -467,36 +469,36 @@
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc56377cb1be23996da0ff9b53",
-            "subscriptionId": "sub_019f82dc56377cb1be23996da0ff9b53",
+            "bindingId": "sub_019f8e57b5477752ad8ab806d530e317",
+            "subscriptionId": "sub_019f8e57b5477752ad8ab806d530e317",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905912
+            "receivedAtMs": 1784799540552
           },
           {
             "queryName": "listEvents",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc56387991b748fc8f3c27ec61",
-            "subscriptionId": "sub_019f82dc56387991b748fc8f3c27ec61",
+            "bindingId": "sub_019f8e57b54874d1876395f2974ec881",
+            "subscriptionId": "sub_019f8e57b54874d1876395f2974ec881",
             "event": "established",
-            "transport": "poll",
+            "transport": "push",
             "scope": {},
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905921
+            "receivedAtMs": 1784799540585
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc564470e3bedb29096c4a2eb4",
-            "subscriptionId": "sub_019f82dc564470e3bedb29096c4a2eb4",
+            "bindingId": "sub_019f8e57b5b47060b091bc01c83a28cd",
+            "subscriptionId": "sub_019f8e57b5b47060b091bc01c83a28cd",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -505,30 +507,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905929
-          },
-          {
-            "queryName": "eventWall",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f82dc564470e3bedb294c034dd721",
-            "subscriptionId": "sub_019f82dc564470e3bedb294c034dd721",
-            "event": "established",
-            "transport": "poll",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784606905930
+            "receivedAtMs": 1784799540661
           },
           {
             "queryName": "eventDetails",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc56457b20b8323c463af6ffa8",
-            "subscriptionId": "sub_019f82dc56457b20b8323c463af6ffa8",
+            "bindingId": "sub_019f8e57b5b47060b091bc23054179f2",
+            "subscriptionId": "sub_019f8e57b5b47060b091bc23054179f2",
             "event": "established",
             "transport": "poll",
             "scope": {
@@ -537,14 +523,30 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905930
+            "receivedAtMs": 1784799540661
           },
           {
             "queryName": "eventWall",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc564470e3bedb2924f6e6e6e9",
-            "subscriptionId": "sub_019f82dc564470e3bedb2924f6e6e6e9",
+            "bindingId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
+            "subscriptionId": "sub_019f8e57b5b57e728f26f9740cfe9c6e",
+            "event": "established",
+            "transport": "poll",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784799540667
+          },
+          {
+            "queryName": "eventDetails",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f8e57b5b57e728f26f925367fc627",
+            "subscriptionId": "sub_019f8e57b5b57e728f26f925367fc627",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -553,30 +555,14 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905957
-          },
-          {
-            "queryName": "eventDetails",
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f82dc56457b20b8323c8132876c3c",
-            "subscriptionId": "sub_019f82dc56457b20b8323c8132876c3c",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 2,
-            "lastDeltaVersion": 2,
-            "correlation": null,
-            "receivedAtMs": 1784606905969
+            "receivedAtMs": 1784799540696
           },
           {
             "queryName": "guestList",
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc56457b20b8323c63a7840084",
-            "subscriptionId": "sub_019f82dc56457b20b8323c63a7840084",
+            "bindingId": "sub_019f8e57b5b57e728f26f99196e8d109",
+            "subscriptionId": "sub_019f8e57b5b57e728f26f99196e8d109",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -585,7 +571,23 @@
             "snapshotVersion": 2,
             "lastDeltaVersion": 2,
             "correlation": null,
-            "receivedAtMs": 1784606905980
+            "receivedAtMs": 1784799540708
+          },
+          {
+            "queryName": "eventWall",
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f8e57b5b675408efde39aa7446269",
+            "subscriptionId": "sub_019f8e57b5b675408efde39aa7446269",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 2,
+            "lastDeltaVersion": 2,
+            "correlation": null,
+            "receivedAtMs": 1784799540719
           }
         ]
       }
@@ -615,13 +617,13 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "de8b3d38-080a-4168-b75c-3d3030a17d4b",
-          "url": "http://127.0.0.1:65177/events/event_sunset/?user=eve",
+          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
+          "url": "http://127.0.0.1:54949/events/event_sunset/?user=eve",
           "navigations": 1
         },
         "after": {
-          "identity": "de8b3d38-080a-4168-b75c-3d3030a17d4b",
-          "url": "http://127.0.0.1:65177/?user=eve",
+          "identity": "b8fb661e-dc2d-4f1d-8e46-9a4ee44531d1",
+          "url": "http://127.0.0.1:54949/?user=eve",
           "navigations": 1,
           "event": null
         },
@@ -753,13 +755,13 @@
             "sampleIndex": 0,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 1,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 5
+            "latencyMs": 4
           },
           {
             "sampleIndex": 2,
@@ -771,78 +773,79 @@
             "sampleIndex": 3,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 4,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 2
+            "latencyMs": 3
           },
           {
             "sampleIndex": 5,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 6,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 7,
             "before": "EveMaybe",
             "after": "EveGoing",
-            "latencyMs": 4
+            "latencyMs": 3
           },
           {
             "sampleIndex": 8,
             "before": "EveGoing",
             "after": "EveMaybe",
-            "latencyMs": 4
+            "latencyMs": 3
           }
         ],
         "freshnessLatencyMs": {
           "samples": [
             3,
-            4,
-            2,
-            4,
-            4,
-            4,
-            4
+            3,
+            3,
+            3,
+            3,
+            3,
+            3
           ],
-          "median": 4,
-          "p95": 4
+          "median": 3,
+          "p95": 3
         },
         "connectionBefore": "●live",
         "established": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc61f37e72ba5b921b6280cd7b",
-            "subscriptionId": "sub_019f82dc61f37e72ba5b921b6280cd7b",
+            "bindingId": "sub_019f8e57c44979e1b85b506e53ec41f8",
+            "subscriptionId": "sub_019f8e57c44979e1b85b506e53ec41f8",
             "event": "established",
             "transport": "push",
             "scope": {},
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "root_5bf3e210-c45c-40bb-94f5-1092ec95b61f",
+              "rootId": "snapback-online-surface:59b1ba61-c2d1-4f23-97ad-2b22cd051457",
               "bindingIds": [
                 "listEvents"
               ]
             },
-            "receivedAtMs": 1784606908916,
-            "queryName": "listEvents"
+            "receivedAtMs": 1784799544394,
+            "queryName": "listEvents",
+            "args": {}
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc62167f81be061fd4f12c46fc",
-            "subscriptionId": "sub_019f82dc62167f81be061fd4f12c46fc",
+            "bindingId": "sub_019f8e57c46a7c10a24baeea37831305",
+            "subscriptionId": "sub_019f8e57c46a7c10a24baeea37831305",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -851,19 +854,22 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
               "bindingIds": [
                 "eventDetails"
               ]
             },
-            "receivedAtMs": 1784606908973,
-            "queryName": "eventDetails"
+            "receivedAtMs": 1784799544453,
+            "queryName": "eventDetails",
+            "args": {
+              "eventId": "event_sunset"
+            }
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc62167f81be0620134a189d76",
-            "subscriptionId": "sub_019f82dc62167f81be0620134a189d76",
+            "bindingId": "sub_019f8e57c46a7c10a24baea676cf9574",
+            "subscriptionId": "sub_019f8e57c46a7c10a24baea676cf9574",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -872,19 +878,22 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784606908974,
-            "queryName": "guestList"
+            "receivedAtMs": 1784799544454,
+            "queryName": "guestList",
+            "args": {
+              "eventId": "event_sunset"
+            }
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dc621779539ee44cebd2417641",
-            "subscriptionId": "sub_019f82dc621779539ee44cebd2417641",
+            "bindingId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
+            "subscriptionId": "sub_019f8e57c46b7de0ad68fa4f6e8ec05f",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -893,13 +902,16 @@
             "snapshotVersion": 12,
             "lastDeltaVersion": 12,
             "correlation": {
-              "rootId": "root_c2ae50b4-c1fa-4e4d-9db7-41d8011c1127",
+              "rootId": "snapback-online-surface:55608fe6-bae3-454a-b86c-6952098a63d1",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784606908974,
-            "queryName": "eventWall"
+            "receivedAtMs": 1784799544455,
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
           }
         ]
       }

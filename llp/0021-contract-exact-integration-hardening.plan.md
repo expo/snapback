@@ -390,13 +390,16 @@ code remains the compatibility event LLP 0012 defines.
 ## Open Questions
 
 - ~~What is the package name: `@expo/snapback/contract`, `@snapback/contract`,
-  or another namespace?~~ **Decided 2026-07-02 (LLP 0032 P6): the `@snapback/*`
-  namespace** — `@snapback/contract` (existing) and `@snapback/codegen`
-  (LLP 0032 P1), private workspace packages under `packages/*` with the
-  repo-root workspace (`package.json` + `bun.lock`). Registry claiming/
-  publishing is deliberately deferred to the first publish; if the npm scope
-  proves unavailable then, renaming private packages is cheap and this
-  decision reopens.
+  or another namespace?~~ **Decided 2026-07-02 (LLP 0032 P6), then reopened
+  at the first-publication probe on 2026-07-21:** the source/import namespace
+  remains `@snapback/*`, but the npm namespace is not available as one coherent
+  product closure. `@snapback/cli` is an unrelated public package at version
+  3.x, owned outside this project. The publication tool therefore stages the
+  explicitly provisional `@ccheever/snapback-*` prerelease identities and
+  preserves source imports through npm aliases. No stable namespace decision
+  follows from that probe; the first successful public prerelease plus its
+  registry-install receipt must precede author ratification of the durable
+  public names.
 - Exact 0263 (§4.2, decision 7) already specifies `ContractDataManifest` as the
   Exact-owned Contract-facing schema, so the live question is not "who owns the
   shape" but how Snapback's native LLP 0012 manifest **maps onto** it. Resolve the

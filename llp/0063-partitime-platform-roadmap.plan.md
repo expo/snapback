@@ -1,5 +1,14 @@
 # LLP 0063: Partitime platform roadmap
 
+**Revised (Step 5 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLP
+0065 now proposes the generated-pattern soundness and authorization/visibility
+floor; Draft LLP 0080 proposes the first portable bounded-join and
+transactionally maintained-projection profile; and Draft LLP 0081 proposes the
+reviewed migration workflow. Together they cover the three semantic authorities
+Workstream 6 requires, but none is accepted and their executable acceptance
+witnesses do not exist. Their creation authorizes no implementation and
+promotes no Step 5 claim.)
+
 **Revised (Step 6 semantic-prerequisite checkpoint):** 2026-07-20 (Draft LLPs
 0068–0073 now propose the missing convergence, payment, durable-work,
 abuse/moderation/audit, trusted-single-tenant control-plane, and portable-search
@@ -25,6 +34,239 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 subscription-memory remediation checkpoint):** 2026-07-22
+(A paired Chrome retained-heap diagnostic localized the remaining Contract ×
+Supabase miss after the bfcache correction. Exact's production signal gate
+used `'env' in import.meta`, which prevented Vite from replacing the release
+constant; a browser without `process` then selected the development default
+and retained per-node reactive introspection metadata. Exact `ec60ee53a…` uses
+safe direct Vite environment reads, returns before production
+signal/computed/effect registration, skips production metadata lookup, and
+adds a release-artifact regression for the three call sites. The external
+quick probe moves from 1,717,728 to 1,620,640 post-GC bytes while keeping
+update fan-out/patches at 6/8. This is a real roughly 97 KB improvement but
+remained 226,540 bytes above the frozen 1,394,100 limit. Exact `8c150d2f…`
+then moved the full graph/cause/churn implementation behind the Contract Vite
+production boundary. The release fixture requires zero rendered bytes for the
+full implementation and its tree-shaken stub, plus absence of the causal
+carrier and registration symbols; full development introspection remains
+green. The same external quick probe reaches 1,608,104 warm bytes, another
+12,536-byte reduction, while preserving 6/8 update fan-out/patches. LLP 0192's
+zero-code invariant is now closed, but the memory cell remains 214,004 bytes
+above threshold. Exact `1ca3e83f…` next made AOT view-plan allocation
+demand-driven, and `2c207091…` stopped cloning the complete immutable mount
+environment for every ordinary descendant. Those checkpoints reach 1,606,532
+and 1,600,228 warm bytes respectively, retain 6/8 update fan-out/patches, and
+leave the memory cell 206,128 bytes above threshold. Exact `eef07dd7d…` then
+gave the admitted direct-DOM host a narrow structural node, shared its empty
+canonical records and unused event map, and left the full native factory
+unchanged. That probe reaches 1,588,748 warm bytes with update fan-out/patches
+still 6/8, a further 11,480-byte reduction. Exact `6d9dfe08e…` then extended
+immutable environment reuse through ordinary nested AOT host containers while
+preserving the projections for component roots, portals, and dismiss layers.
+Its clean rerun reaches 1,585,184 warm bytes with 6/8 unchanged, a further
+3,564-byte reduction. Paired Contract/React heap snapshots then localized a
+direct-host event closure matrix. Exact `6311e91b9…` preserves direct native
+listeners and browser `currentTarget`/propagation semantics while sharing one
+dispatcher across elements and reading replacement handlers from current
+props. That probe reaches 1,571,580 warm bytes with 6/8 unchanged, a further
+13,604-byte reduction. Exact `9b92f9713…` then stopped materializing browser
+`Attr` wrappers merely to enumerate stale attribute names. That probe reaches
+1,567,664 warm bytes with 6/8 unchanged, a further 3,916-byte reduction. Exact
+`041c0b53f…` next writes the validated initial style map as one attribute rather
+than materializing a live `CSSStyleDeclaration` per element; narrow reactive
+patches keep their CSSOM path. That probe reaches 1,564,980 warm bytes with 6/8
+unchanged, a further 2,684-byte reduction and a remaining 170,880-byte miss.
+The complete immutable production-browser corpus remains green at 9/9 on the
+latest candidate, including static authority, byte-identical adoption, zero
+recreated nodes, history/metadata, three subscriptions, and unsolicited push.
+The first sibling-environment probe timed out without a receipt; the first
+nested-environment probe failed in an unrelated Vite SSR transport fetch before
+app load. Both are excluded and the quoted values are clean reruns. The retained
+snapshot attributes the rest mainly to V8 code and mounted compiled
+view/host-model state. This is diagnostic evidence only; no threshold or claim
+is promoted, and a new Exact release plus full calibration/holdout reruns remain
+required.)
+**Revised (Step 4 subscription-memory design boundary):** 2026-07-22 (The
+1,564,980-byte Contract × Supabase warm baseline remains 170,880 bytes above
+the frozen 1,394,100 limit with update fan-out/patches green at 6/8. Paired
+snapshots and generated-artifact inventory locate the remainder in compiled
+code and duplicate view representation: the feed retains 97 expression
+closures, 87 view factories, and a runtime-IR skeleton with 158 objects and 97
+arrays. Binding-subtree aggregation reached 1,554,740 bytes but weakened
+fine-grained dependency ownership; compact interpreted view-value plans
+combined with it reached 1,545,280 but violated Exact LLP 0185's compiled
+expression contract; prototype-backed mounted units preserved semantics but
+reached only 1,560,208. All three prototypes were rejected. The admitted next
+target is LLP 0185 §4.3's unfinished production artifact: generated closures
+and structural/hydration identity without duplicate runtime view IR, while
+editable IR remains an authorized on-demand artifact. No threshold or claim
+is promoted.)
+**Revised (Step 4 post-adoption live-milestone repair):** 2026-07-23
+(The corrected Online adapter now treats its transport lifecycle as
+authoritative over a ready boundary cell's seeded `connecting` value and
+re-emits connection-only transitions without changing rows. The retained
+Partitime diagnostic then proved a second race: Exact received `live`,
+recomputed the query snapshot, and ran the text effect, but the direct
+production host suppressed that patch during the short interval after
+hydration was reported and never replayed it. Exact `b8149e155…` preserves the
+server first paint, records post-report host-model work while the fence is up,
+and replays the current model when custody ends. Its focused regression, 87
+renderer tests, TypeScript checks, and web-bundle invariants are green. A quick
+Contract × Snapback v2 diagnostic at Snapback `8f85d233…` and Exact
+`b8149e155…` reaches live in 63.5–72.7 ms, retains one logical subscription at
+1,839,404 warm heap bytes, and keeps update fan-out/patches
+at 6/8. Quick sampling is not calibration or holdout, so no budget claim is
+promoted.)
+**Revised (Step 4 native-lane custody correction ratification):** 2026-07-23
+(The retained 7,109,789-byte / 460-module / 6,414.54-ms Exact result paired
+React Expo Release/Simulator with Exact's Debug host, development module-table
+source, and eager Acto graph. Exact LLP 0145#build-lanes and #fairness-rules
+explicitly forbid that as a headline comparison; Exact LLP 0128#native-agent-bootstrap-is-lazy-by-default-explicit-when-requested assigns
+agent-off startup budgets and agent inspection to separate lanes. Proposed
+amendment `partitime-ws8-native-lane-invalidation-2026-07-22` preserves the
+diagnostic but version-bumps the native method to a same-host paired
+Release/Simulator Hermes-HBC, agent-off lane. A local nonclaim composition
+probe at Exact `a3e9cd71f…` measured 2,311,002 startup-source bytes / 261
+modules agent-off versus 4,868,548 / 511 agent-on; that explains much of the
+old graph but is still development source, not release evidence. Claim-grade
+collection now refuses non-v2 raw receipts and still requires native-host first
+frame plus a structured first-authoritative-data marker. Charlie Cheever
+ratified the amendment on 2026-07-23 by stating, “I ratify Exact LLP 0386 §3.8
+and the Snapback WS8 web/native invalidations dated 2026-07-22.” Exact does
+not yet emit the qualifying production-bundled iOS HBC carrier, so native
+calibration, holdout, and claim promotion remain open.)
+**Revised (Step 4 performance-custody correction ratification):** 2026-07-23
+(The warm web collector primed and measured in the same browser target, so
+Chrome's back/forward cache retained the priming document while
+`Runtime.getHeapUsage` was described as one page and one active logical
+subscription. The preserved v1 receipt shows cold/warm heap jumps in all three
+arms; a retained nonclaim three-arm probe using a closed sibling priming target
+makes cold and warm heap converge. Proposed amendment
+`partitime-ws8-warm-prime-invalidation-2026-07-22` preserves the original
+artifacts, version-bumps the web performance method and threshold set, and
+requires all twelve controls/candidates plus committed holdout to rerun.
+Charlie Cheever ratified the amendment on 2026-07-23 with the same quoted
+statement above. Ratification permits full v2 collection but does not validate
+the old artifacts or promote a claim. Candidate work also makes seeded rows
+honestly `connecting` until the provider converges,
+removes the consumed serialized hydration manifest, defers the unopened event
+route, and Exact `a3e9cd71f…` releases the parsed manifest after adoption. The
+published-runtime Contract x Supabase diagnostic drops to 1,755,252 bytes with
+cold/warm parity; the unpublished Exact release reaches roughly 1,720,000.
+The corrected React diagnostic is 1,267,364, so Contract memory still needs
+real runtime work even after invalid measurement state is removed.)
+**Revised (Step 4 update-economy remediation checkpoint):** 2026-07-22
+(The independently evaluated 0.1.5 holdout exposed a production-renderer
+regression rather than a Snapback transport or Contract-language limit: the
+lightweight Exact DOM host reapplied every unchanged descendant's presentation
+on each commit. Exact `1209d3fb9…` now skips those writes by last-applied host
+input identity, with a MutationObserver regression; Partitime also stops
+rewriting its hidden boot sentinel after mounted UI owns progress. An
+unpublished four-cell quick probe moves Contract update fan-out/patches from
+57/531, 24/202, 24/202, and 56/1,133 to 6/9, 6/9, 6/9, and 9/16 for
+Snapback, Supabase, Convex, and SQLite. The SQLite bundle remains below its
+frozen limits at 211,203/62,050 minified/deterministic-gzip bytes. This is a
+diagnostic remediation checkpoint only: a new Exact release and full committed
+calibration/holdout reruns remain required, and no claim is promoted.)
+**Revised (Step 4 stable Exact runtime checkpoint):** 2026-07-21 (Exact
+revision `9999f109…` was published as the complete 15-package
+`@ccheever/exact-*` 0.1.5 closure under `latest`; every public registry
+tarball byte-matches the retained publish ledger. Partitime now consumes the
+0.1.5 Contract, devtools, facet-core, and renderer packages through npm aliases
+and a frozen lockfile. A clean immutable-production-browser rerun passes 9/9.
+The stable-package budget rerun now places every Contract cell below both its
+frozen minified and deterministic-gzip thresholds: Snapback is
+367,782/100,995 bytes against 422,417/119,451, Supabase is 210,785/61,883
+against 213,488/67,246, and Convex and SQLite are 210,771/61,881 against
+213,483/67,246. This closes the Contract bundle-size remediation, but not the
+aggregate Step 4 claims: `STEP4.BUDGETS` remains red at 9 pass / 17 red / 16
+nonclaims because of authored-source, holdout-performance, and missing native
+carrier evidence, while `STEP4.PRODUCTION_WEB` remains red at 11/12 because
+the strict citizenship matrix is only 5/21. Neither claim is promoted.)
+**Revised (Step 4 native/browser evidence checkpoint):** 2026-07-21 (On the
+authorized Xcode 26.3 host, the React Expo iOS Release/Simulator carrier and
+the Exact iOS app both compile. Exact project generation now excludes the
+dedicated Partitime acceptance `@main` from the ordinary app targets at Exact
+`268175d33…`, removing a real duplicate-entry-point failure. The native Exact
+acceptance launch remains red: it loaded 7,109,789 script bytes across 460
+modules and spent 6,414.54 ms evaluating them, then produced no first frame
+within 15 seconds, so no first-authoritative-data observation exists. The
+strict citizenship collector enumerates 21 mandatory browser/behavior rows;
+current desktop Chrome and Firefox supply clean focus and find-on-page
+evidence. After the machine owner enabled Allow Remote Automation, Safari
+26.5.2 also supplied a clean focus-trap/restore pass; its native find row stays
+red because the WebDriver Command-F run did not expose the visible query. The
+cumulative receipt is therefore 5 pass / 16 red / 0 skipped. The available
+Apple host has only iOS 26.2 and no current-minus-one runtime, and the local
+Android Chrome 134 is not current. Neither native nor browser evidence
+promotes a Step 4 claim.)
+**Revised (Step 4 performance-instrument checkpoint):** 2026-07-21 (A dated
+prospective amendment and executable collectors now define the eleven missing
+web/build metrics, four native-carrier metrics, four-layer per-module cost
+ledgers, and calibration-versus-committed-holdout isolation. Quick, explicitly
+nonclaim canaries pass navigation/data/idle/memory/update and fresh/incremental
+build collection; a synthetic native receipt test proves same-host structured
+sample aggregation and fail-closed rejection of missing launch stages. Charlie
+Cheever ratified amendment `partitime-ws8-prospective-2026-07-21` with the
+recorded statement “I ratify partitime-ws8-prospective-2026-07-21.” A clean
+2-warmup/7-sample calibration now covers all twelve web and build cells, and a
+separate holdout bound to committed calibration `149c2646…` passes 29 of 44
+Contract rows. Fifteen rows remain red, led by Contract heap, polling idle
+cost, warm startup, SQLite update fan-out/patches, and two production-build
+rows. The red Exact native launch still prevents native calibration/holdout.
+The cumulative budget receipt remains 7 pass / 19 red, with 16 nonclaims, so
+the ratified measurement is a real red result rather than Step 4 exit.)
+**Revised (Step 4 browser-client reachability checkpoint):** 2026-07-21
+(the package root no longer retains the full agent-custody implementation just
+to validate an optional `agentAuthority` constructor value. A package-private
+WeakSet brand preserves nominal validation and rejects prototype spoofing while
+allowing ordinary browser builds to tree-shake `agent-authority.mjs`. The
+same-workload Contract × Snapback rerun fell from 802,409 to 738,080 minified
+bytes and from 203,427 to 188,851 deterministic-gzip bytes. The other Contract
+cells remain at roughly 468 kB minified and all four exceed the frozen
+thresholds; the retained budget receipt remains 5 pass / 21 red, so this is a
+measured Snapback-owned remediation rather than `STEP4.BUDGETS` or Step 4 exit.)
+**Revised (Step 4 capability-scoped Contract packaging checkpoint):**
+2026-07-21 (Partitime's stable-package Online Contract × Snapback arm now
+imports a package-owned preopened Online surface instead of the monolithic
+Contract surface. It preserves the published Exact 0.1.2 runtime's honest
+boot-scoped semantics, generated-artifact checks, live connection/force-state
+drivability, server-authoritative mutations, and complete handle disposal.
+Coordinated auth/offline surfaces still use the full constructor; runtimes
+with binding-time identity use the separately fail-closed keyed provider. On
+the unchanged frozen workload the cell fell from 738,080/188,851 to
+659,515/165,844 minified/deterministic-gzip bytes. Review reruns pass the full
+43/43 browser matrix, the 19/19 product-UI gate, and the 9/9 immutable
+production-web gate, alongside the 32-test keyed oracle, 35-test
+mutation-projection oracle, package tests, and production build. The
+production rerun also made the adoption witness deep-snapshot Exact's completed
+hydration result before responsive/live updates resume, so later runtime
+changes cannot rewrite historical adoption evidence. All frozen Contract byte
+thresholds remain red; this is another measured WS8 remediation, not
+`STEP4.BUDGETS` or Step 4 exit.)
+**Revised (Step 5 public-name and registry-proof checkpoint):** 2026-07-21
+(`@snapback/cli` proved to be an unrelated public 3.x package at the deferred
+first-publication probe, so LLP 0021's explicit reopen caveat fired. The
+publisher's provisional `@ccheever/snapback-*` mapping passes npm dry-run as
+the labeled `0.1.0-llp0063.1`/`llp0063` prerelease, and the external proof now
+has a registry mode that verifies public name, version, integrity, and publish
+ledger before installing through source-name npm aliases. The real publish
+stopped at npm's interactive OTP challenge before any version became visible.
+Public-registry install, separately provisioned clean-machine/multi-platform
+evidence, and the Step 5 semantic prerequisites therefore remain open; no
+claim is promoted.)
+**Revised (Step 4 budget-remediation checkpoint):** 2026-07-20 (Exact
+revision `8373085c9…` removes the ordinary production Contract runtime's
+reachability edges to the full opt-in Motion engine and dev-only HMR
+implementations. A source-linked, same-workload SQLite A/B build fell from
+862,920 to 795,180 minified bytes and from 240.01 to 221.00 kB reported gzip.
+The retained registry-dependency Step 4 rerun remains honestly red:
+`@ccheever/exact-*` 0.1.2 emits 801,605/203,392 bytes for Contract × Snapback
+and 467,583/116,792 for Contract × SQLite, above the frozen thresholds, while
+the Exact source improvement cannot enter the stable-package claim until it is
+published. Exact's registered budget ledger and manifest-mirror checks pass;
+this is partial routed remediation, not `STEP4.BUDGETS` or Step 4 exit.)
 **Revised (Exact Native per-OS parity closure):** 2026-07-20 (Exact revision
 `e94e50e5…` retains independently registered `exact-native/ios` and
 `exact-native/android` Partitime receipts. Dedicated no-Hermes release carriers
@@ -106,7 +348,7 @@ the native client-surface contract; retained receipts live under
 **Revised (author decisions):** 2026-07-20 (Charlie Cheever ratified the three remaining program choices: `exact-native` is the qualifying full-north-star carrier on both iOS and Android, with Exact owning Android parity; Step 6's minimum hosted deployment profile is trusted, app-complete, single-tenant hosting with TLS, authentication, deploy/rollback, backup/restore, logs, and inspection, explicitly making no untrusted-code, multi-tenant, or horizontal-scaling claim; and Exact-side metric-affecting Partitime UI/provider/compiler work was frozen through the joint Step 0 lock. This amendment consumes the already-closed pre-amendment checkpoint at manifest sha256 `194bde7af49f0c3cb4ca8d799ba3516362e116ffa5f9b5537133b960ae13ead1` and semantic sha256 `41a946e946484fece1cbc9e0c98b96b94faa2eae31dd25e9ba2ad887860fb3c7`; refreshing the sibling-Plan hashes and content-addressed bundle does not rebaseline the workload. The freeze is released prospectively. Exact work developed while closure was in flight is not retroactive baseline evidence and counts only after its claims rerun against the frozen workload)
 **Revised (Step 0 closure):** 2026-07-20 (the clean Exact carrier at revision `2283ea87…` builds with Xcode 26.3 for macOS and iOS on the remote Apple-silicon instrument; all sixteen native cells retain passing local evidence or declared remote-dependency skips; the shared-manifest and complete gates use a self-reference-safe semantic digest plus a mirrored aggregate receipt, with the final byte digest checked independently across Snapback and Exact by registered validators. The three author decisions named in the 2026-07-19 entry remain unresolved, so this Plan remains Draft and no metric-affecting implementation work beyond Step 0 is authorized by this amendment)
 **Revised:** 2026-07-20 (Step 0 implementation checkpoint, not exit — LLP 0020 Phase 0 is ratified and its retained aggregate now pins the post-cleanup 24-check Todo child; the web gate is 43/43 with actor-specific RSVP transitions, fallback-disabled push provenance, two warmups plus seven latency samples per Snapback arm, explicit local/remote preflights, resolved package identities, source inventory, and fail-closed cleanup; the comparison protocol and initial attribution run live at `demos/partiful-matrix/acceptance/comparison-protocol.v1.json` and `acceptance/results/step0-attribution.json`; the authoritative claim manifest, schema, locks, and content-addressed local distribution live under `demos/partiful-matrix/acceptance/`. Step 0 remains open: the fresh Exact carrier receipt is red at Xcode SDK discovery, the 16-cell native aggregate is absent, the Exact mirror/registered validator and sibling-Plan reconciliation are not landed, and the three author decisions named in the prior entry remain unresolved); 2026-07-19 (post-round-8 mechanical reconciliation — the /llp-super-refine loop stopped at its product-decision boundary after eight dual-model rounds (artifacts in `llp/reviews/0063-*.{fable,codex}.md`); this entry applies only the mechanical residue both round-8 reviews agreed on: the threshold ratchet names the ratified invalidation procedure as its sole exception and gains an instrument-unavailability case; the four-week stall review applies to step 0's own exit regardless of repository; remote gateway instruments get a credential-health preflight with receipt-recorded skip semantics distinct from required gates; the Summary marks current results recorded-pending-retained-receipts; the remaining native evidence limits are enumerated; animation is attributed to the shared stylesheet; the authorization ledger row separates the accepted LLP 0053 contract from implementation and app-level proof; the old ladder's rungs are carried as pressures, not per-rung blocking obligations; LLP 0020's stale-mutation retry-policy decision gets a disposition; LLP 0036 joins the WS7 map; steps 2–4 entry cells name their amendment gate IDs. Three decisions remain with the author before acceptance: the qualifying north-star carrier and Android Parity ownership; the minimum deployment profile for step 6's "production services"; and whether Exact-side metric-affecting UI work freezes until the joint step-0 baseline. On any divergence between this header and the body, the body governs); 2026-07-19 (round-7 reconciliation: step 0 becomes a conjunctive prerequisite for every implementation workstream, with per-deliverable entry gating beneath it — step 5's RFC prerequisites bind only the deliverables that consume them; same-key same-partition siblings share one logical attempt per Exact 0373, with isolation guaranteed only across keys/partitions; native graduation gets immutable profile IDs with Exact 0331/0332 in the authority chain, LLP 0012's full Parity conditions including deterministic local handler execution, an interim Contract-native checkpoint, and an RFC prerequisite for the Swift-client surface; mandatory claim IDs per graduation profile freeze at step 0 so trajectory labels cannot relabel required work, and Exact 0373's phase-5 agent-operability claims join the final run; WS7's auth row consumes accepted LLP 0060 rather than implying cookies need re-deciding; WS6 gains the LLP 0051 declarative-tier authority, an authorization/visibility floor with fail-closed cross-user negative tests, the LLP 0041 external-loop acceptance by reference, and stable-publication ordering behind WS4/WS2; a ratified invalidation/rebaseline procedure permits correcting a provably wrong baseline in either direction; the recovery drill gets target-safety constraints; the ranking's realtime factor and vanilla mutation evidence are narrowed to what is witnessed; the LLP 0051 tier reversal enters the retired-items ledger; the stale §Scope vanilla bullet is refreshed and LLP 0038 joins the sweep example; details in llp/reviews/ round-7 artifacts); 2026-07-19 (round-6 reconciliation and third same-day evidence rebaseline: the native RSVP oracles were corrected upstream — both originally asserted an already-seeded value, the fixed oracles select a different status and wait for the transition, and all sixteen native cells were rerun — so the evidence hashes are refreshed again, the native item records the correction (and that the web suite's oracle remains uncorrected, staying a Step 0 gate), and the SwiftUI figure carries both the recorded 822 and on-disk 829; the initial attribution run and formula-computed numeric thresholds move inside Step 0's exit so numbers are derived, not chosen, before any metric-affecting work; WS1's dedup key becomes a provider-issued opaque authority-partition identity that rolls on every authority transition; graduation gets three named outcomes — full north-star (Contract-native tuple plus Parity evidence), Online-native, and web-only — with narrowing the terminal ambition requiring explicit LLP 0000 reconciliation; step 5 gains query/projection and storage-evolution RFC entry prerequisites for WS6's joins/projections/migrations; the v0-freeze ledger row homes at Step 0; the authorization row splits landed LLP 0053 evidence from open hosted/custom-key/product-UI work; LLP 0008 joins the supersession sweep and the standing corpus rules get a named surviving home; step 3's exit includes both idiomatic follow-up legs; the push and convergence witnesses merge into one transport-attributing instrument; WS8 gains native carrier budgets; steps 5/6 parallelizability is stated; Related gains LLP 0000/0037/0061); 2026-07-19 (second evidence rebaseline, same day: the corpus moved again while round 5 was in review — an Apple-native extension (SwiftUI versus Exact+Contract on macOS and iOS, 2 authoring systems × 2 platforms × 4 providers over the shared polling gateway) was appended to Diary 0016 and the report; the Summary, evidence list, limits, WS2's native-evidence state, and the pinned evidence hashes now reflect it; native cells inherit no push claim, the Contract-native tuples gain carrier-build and Acto-reachability evidence for the polling slice only, and the native client-surface gap (first-class Swift client or generated gateway/Swift pair) is recorded as WS2 scope); 2026-07-19 (round-5 reconciliation: correct the RSVP evidence claim — the browser suite's twelve "observes RSVP" checks are satisfiable by the seeded guest list, so they witness rendering, not convergence; a deterministic convergence witness and twelve-cell rerun join the Step 0 receipt; purge the three threshold-freeze stragglers (step-0 exit cell, WS6 reduction rule, open question 4) so the two-stage rule is stated identically everywhere; define WS1's dedup key as authority partition plus descriptor version plus canonical arguments with cross-context dedup prohibited; add WS2's React/Expo pending/optimistic, generated-only-API, and handshake gates; home the Android tuple at step 4's exit and require the vanilla row to re-run after the lifecycle-primitive replacement; make the step-0 claim-manifest gate carry Exact 0373 §5.1's authority/distribution/change-control/validator requirements with sibling-digest reconciliation, and point step 1 at the 0373 three-fact amendment chain as counterpart gate IDs; fix the Exact 0265 attribution and narrow the stylesheet/realtime phrasing to witnessed facts; pin the evidence-file content hashes in the binding paragraph; name the push witness a maintained surface; give R6 a default four-week escalation trigger; refresh stale cross-references); 2026-07-19 (round-4 reconciliation: soften the push claim to stream-configured-with-fallback and make an executable push witness a Step 0 receipt requirement; restate WS5 as Exact 0373's three-fact projection with Snapback owning raw receipt/settlement facts, adopt the §5.1 claim manifest by reference, and add Exact 0329/0330/0342/0278 to the authority chain; extend the same-landing supersession set to LLP 0000/0020/0021's umbrella references; add the matcher-breadth disposition with a chat/tracker revisit trigger; split step 2 into a client-floor exit and a parity closure after steps 1 and 3, and name the mandatory graduation tuples with web-only graduation as an explicit outcome; define the minimum platform proof as chat+documents+commerce with the rest a non-blocking portfolio; replace the single-revision final proof with an immutable two-repo revision set and versioned target-profile matrix; reframe the vanilla row as a lower-bound subtraction instrument and freeze thresholds per immutable workload version (step 0 freezes method and definitions; numbers freeze at the first attribution run, before optimization); correct the DataProvider/no-Exact ledger row to Phase 2/3 with the Todo v2 pass retained; make WS6's shortness gate protocol-bound and timing informational; unify the no-loosening threshold rule; adopt the named-events ranking-resynthesis rule and the explicit fallback end-state; fix the 40/40 composition wording); 2026-07-19 (round-3 reconciliation — rebaseline to the twelve-cell evidence: the vanilla row landed four backends wide while this Plan was in review, so the Summary, evidence list, limits, ranking scope, WS2, Sequence step 2, and open question 5 now describe the 3×4 matrix, the vanilla acceptance bullets are split into witnessed-2026-07-19 versus still-open, and the evidence snapshot is pinned with a moving-evidence rule; witness integrity: the skip-exits-zero browser-runner defect and a retained 40/40 receipt become Step 0 deliverables; mutation settlement split into Exact-owned structural states and Snapback-owned provider facts (LLP 0034/0043) with a two-provider fault-injection gate; hosted sequencing deferred to LLP 0014's phase ladder with LLP 0047 gating untrusted/multi-tenant execution only, and LLP 0062 removed as hosted-operations authority; WS1 gains multi-instance/dedup/HMR isolation gates, WS4 the DataProvider conformance suite, WS5 LSP gates, WS6 the no-Exact-core, generated-pattern, and React-package registry gates; thresholds freeze at Step 0 with holdout-validated changes only; cumulative gate manifest and single-revision final proof added; carry-forward ledger corrections — Exact 0265 mutation-action ergonomics restated as largely implemented with named residuals, LLP 0016 pinned to an exact Superseded transition, task-tracker index/dataset pressure and authorization witnesses restored; Exact 0373 coordination and stall posture added as R6); 2026-07-19 (round-2 reconciliation: adopt LLP 0053 as the controlling authorization story in the retired-items list and lifecycle gates; add Step 0 ratifying the LLP 0020 v0 freeze before lifecycle work; give every carried obligation a named executable gate — Agent API data-state verification, registry publication, React cross-surface parity, mutation-state fault-injection, mapping closure; preregister the clearly-better comparison protocol; add the WS7 capability-to-authority map with explicit new-RFC prerequisites and narrow the scale claim to LLP 0046's single-process Postgres scope; split native gates by surface and OS; rebase WS3 on Active Exact 0288 instead of narrative 0216; state which follow-up-matrix legs stay idiomatic; add LLP 0016 itself to the same-landing supersession amendments; conditionalize evidence item 3 and import the report's remaining limits; add LLP 0014/0053, Exact 0288 to Related); 2026-07-19 (round-1 dual-model review reconciliation: carry the dropped LLP 0016 obligations — execution-envelope resource limits, the v0 contract freeze, Exact 0265 selector/Agent-API follow-ups; state the demo-ladder supersession discipline against LLP 0015/0010; separate evidence from ranking synthesis and import the report's remaining limits; scope the default claim to the environment actually proved; add Expo/native, production-web, WS7, and WS8 gates; make read/write-set inference conservative-ceiling-only; reframe trusted time/IDs as adoption of existing primitives; add the cross-repository authority map and phase-gate matrix; give the native-realtime follow-up matrix an owned home); 2026-07-19 (carry forward the still-open obligations from LLP 0016 and explicitly retire its stale open statuses); 2026-07-19 (initial draft from the Partitime 2×4 matrix and Shindig build)
-**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0014, LLP 0015, LLP 0016, LLP 0020, LLP 0021, LLP 0030, LLP 0032, LLP 0034, LLP 0037, LLP 0041, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0062, LLP 0064, LLP 0065, LLP 0068, LLP 0069, LLP 0070, LLP 0071, LLP 0072, LLP 0073, Exact 0216, Exact 0263, Exact 0265, Exact 0278, Exact 0284, Exact 0288, Exact 0329, Exact 0330, Exact 0331, Exact 0332, Exact 0342, Exact 0373, Diary 0015, Diary 0016, `demos/partiful-matrix/REPORT.md`
+**Related:** LLP 0000, LLP 0004, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0012, LLP 0014, LLP 0015, LLP 0016, LLP 0020, LLP 0021, LLP 0030, LLP 0032, LLP 0034, LLP 0037, LLP 0041, LLP 0043, LLP 0044, LLP 0045, LLP 0046, LLP 0047, LLP 0051, LLP 0053, LLP 0055, LLP 0056, LLP 0057, LLP 0058, LLP 0059, LLP 0060, LLP 0061, LLP 0062, LLP 0064, LLP 0065, LLP 0068, LLP 0069, LLP 0070, LLP 0071, LLP 0072, LLP 0073, LLP 0080, LLP 0081, Exact 0216, Exact 0263, Exact 0265, Exact 0278, Exact 0284, Exact 0288, Exact 0329, Exact 0330, Exact 0331, Exact 0332, Exact 0342, Exact 0373, Diary 0015, Diary 0016, `demos/partiful-matrix/REPORT.md`
 
 ## Summary
 
@@ -919,11 +1161,15 @@ Joins, maintained projections, and migration behavior currently have no
 accepted owner: LLP 0004 explicitly defers joins to a follow-on
 storage/query specification, and LLP 0007 owns only the conservative
 evolution boundary while naming full migration workflows as a dedicated
-future LLP. Those two documents — an accepted query/projection semantics
-RFC and an accepted storage-evolution/migration RFC — are therefore step 5
-**entry** prerequisites, and each generated pattern below names its owning
-document in its witness. Until they exist, this workstream may ship only
-what LLP 0004/0007 already govern.
+future LLP. Draft LLP 0080 now proposes the first portable relational and
+maintained-projection profile, and Draft LLP 0081 now proposes reviewed
+storage evolution and migrations. Acceptance plus executable witnesses for
+both documents — not their existence — are therefore step 5 **entry**
+prerequisites, and each generated pattern below names its owning document in
+its witness. Until they are accepted, this workstream may ship only what LLP
+0004/0007 already govern. Draft LLP 0065 separately proposes the inference
+soundness and authorization/visibility floor; it must also be accepted before
+the standard generated patterns can close the declaration-reduction claim.
 
 The packaged application loop must hide repository-internal machinery.
 Ordinary authors should not prepare Cargo, Ibex, or Hermes. A versioned
@@ -1075,6 +1321,49 @@ Acceptance:
 - the native-realtime follow-up matrix (see the pressure tests) has run
   before any final comparative ranking is published — risk R2's gate.
 
+### 2026-07-21 Step 4 metrology status
+
+`demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json`
+defines the prospective sampling protocol without changing or loosening any
+Step 0 threshold. The web collector measures all twelve production cells from
+outside their bundles and the native collector admits only paired same-host iOS
+receipts whose launch-stage definitions match. Both collectors retain every
+valid sample, separate two warmups from seven reported observations, and make
+holdout consume thresholds from an explicitly named committed calibration
+revision. Production builds emit a four-layer, non-executable module ledger.
+
+This machinery does not itself satisfy WS8. Charlie Cheever ratified amendment
+`partitime-ws8-prospective-2026-07-21` on 2026-07-21. A clean calibration at
+Snapback `250f2860…` retained seven cold, seven warm, seven production-build,
+and seven incremental-build samples for every cell. The calibration artifact
+was committed at `149c2646…`; the separately invoked holdout named that exact
+revision and retained the same full sample counts. Its 44 Contract rows pass
+29 and fail 15, so the prospective category is measured but red. The browser
+citizenship matrix remains a separate cumulative Step 4 gate: missing
+iOS/Android/current-minus-one, IME, autofill/password-manager, focus, bfcache,
+or find-on-page evidence is red, never N/A or inferred from a Chromium canary.
+
+The executable citizenship inventory now contains 21 required rows. Fresh
+desktop Chrome 150 and Firefox 152 runs prove the Contract × Snapback dialog
+focus trap/restore and each engine's native find over visible event copy
+without changing the retained Step 0 harness. Safari 26.5.2 remote automation
+is enabled and its keyboard-origin focus run proves trap, wrap, Escape, and
+restoration; its native find row remains red. The cumulative receipt is
+therefore 5 pass / 16 red / 0 skipped. iOS Safari current and current−1 and
+Android Chrome current still need admitted versioned evidence; the single iOS
+26.2 simulator and Android Chrome 134 emulator do not satisfy the mobile
+channel requirements.
+
+The remote native probe now separates compilation from runtime cost. React
+Expo's Release/Simulator app compiles after using React Native's imported raw
+performance-tag value and installing the nested workspace dependency. Exact's
+iOS app also compiles after its generated target source lists exclude the
+dedicated Partitime acceptance entry point. The subsequent Exact acceptance
+launch is red: 7,109,789 script bytes, 460 modules, 6,231,550 module-source
+bytes, and 6,414.54 ms evaluation led to no rendered frame within 15 seconds.
+Without a frame or first-authoritative-data stage, that run is diagnostic
+evidence, not an admissible native performance sample.
+
 ## Sequence
 
 0. Ratify the v0 contract freeze (LLP 0020 Phase 0) and preserve its
@@ -1187,7 +1476,7 @@ regression:
 | 2 | WS2 (client floor) | LLP 0012 (React/Expo, capability classes), Exact per-OS evidence for Contract tuples | step 0 done — may run beside step 1; the native client-surface RFC (WS2's Swift/gateway surface) exists before that deliverable's implementation | provisional exit: React primitives standalone, remaining vanilla gates, and the mandatory first native tuple (React/Expo iOS, at least Online class) pass; WS2's cross-surface parity bullet transfers to step 3's exit, which is what closes WS2 |
 | 3 | WS4, WS5 (diagnostics), WS2 closure | LLP 0012 amendment (handshake), LLP 0020/0021 gates, LLP 0053, Exact 0263 successors | WS1 semantics landed; the LLP 0012 handshake amendment and the diagnostics amendments exist as shared-manifest gate IDs before their implementation | WS4 acceptance passes for Snapback plus one non-Snapback producer; both idiomatic follow-up-matrix legs (Supabase Realtime; native Convex client) complete with retained receipts; diagnostics acceptance machine-checkable; WS2's cross-surface parity closes here |
 | 4 | WS3, WS8 | Exact 0288 and per-capability Exact authorities, Exact 0265 | step 3 type loop closed; WS3's per-capability Exact owners recorded as shared-manifest gate IDs from the step-4 inventory | WS3 acceptance incl. production-web and Agent data-state verification; WS8 budgets enforced under the frozen rules (all categories joined by now); the React/Expo Android tuple closes here at the latest or is surfaced as a named risk; exit records the Contract-profile status line |
-| 5 | WS6 | LLP 0004/0007 (current data/evolution boundary), LLP 0009 (envelope), LLP 0021/0030, LLP 0037/0041, LLP 0051 (declarative tier), LLP 0062 (per-app CLI shape) | per deliverable, above the conjunctive step 0: joins/projections/migrations wait for the accepted query-semantics and storage-evolution RFCs; inference waits for the soundness ratification and the authorization/visibility floor; the packaged loop, publication, and trusted-time work need only step 0 — every ratifying document named, so no gate is satisfied by assertion | WS6 acceptance incl. external cold checkout, registry install, and the LLP 0041 external-loop suite; exit records the Contract-profile status line |
+| 5 | WS6 | LLP 0004/0007 (current data/evolution boundary), LLP 0009 (envelope), LLP 0021/0030, LLP 0037/0041, LLP 0051 (declarative tier), LLP 0062 (per-app CLI shape), Draft LLP 0065 (soundness/declaration floor), Draft LLP 0080 (relational queries/projections), Draft LLP 0081 (migrations) | per deliverable, above the conjunctive step 0: joins/projections/migrations wait for accepted LLP 0080/0081 semantics and their executable witnesses; inference and standard patterns wait for LLP 0065 acceptance plus its authorization/visibility floor; the packaged loop, publication, and trusted-time work need only step 0 — every ratifying document named, so no gate is satisfied by assertion | WS6 acceptance incl. external cold checkout, registry install, and the LLP 0041 external-loop suite; exit records the Contract-profile status line |
 | 6 | WS7 | the WS7 capability-to-authority matrix above (LLP 0014, 0044–0047, 0057–0060, plus its named new-RFC prerequisites) | step 6 opens with a security/platform-foundations tranche (identity, authz, abuse, envelope limits per LLP 0014's ladder); each per-vertical delivery then gates on the foundations it needs — foundations are step-6 work, not a circular entry condition | the minimum platform proof — chat, documents, and commerce each passing their admitted claim profiles — completes, with new-RFC prerequisites satisfied by accepted semantics plus executable witnesses; the remaining four pressure tests are an explicitly non-blocking ordered portfolio, each expanding the claimed envelope when it lands |
 
 As of the 2026-07-20 Exact Native parity closure, Step 2's two mandatory

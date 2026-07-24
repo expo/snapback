@@ -1,0 +1,10 @@
+{
+  "name": "snapback-competitive-checkpoint",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@snapback/client": "workspace:*",
+    "@snapback/codegen": "workspace:*"
+  }
+}

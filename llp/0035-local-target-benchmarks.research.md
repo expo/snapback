@@ -5,7 +5,9 @@
 **Systems:** Runtime, Storage, Realtime, Sync, Ephemeral state, Testing, Performance
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-01
-**Revised:** 2026-07-13 (§Current measurement contract — finite-query DK-4 probe, protected-live fan-out interpretation, and synchronized L6 A/B; 2026-07-02: §Idle cost, §M3, §After warm VM, §L6+L7)
+**Revised:** 2026-07-21 (superseded-fixtures note: the `37f1a2f` benchmark
+corrections invalidate all pre-correction fan-out figures pending a full-scale
+rerun — LLP 0067 Recommendation 1). 2026-07-13 (§Current measurement contract — finite-query DK-4 probe, protected-live fan-out interpretation, and synchronized L6 A/B; 2026-07-02: §Idle cost, §M3, §After warm VM, §L6+L7)
 **Related:** LLP 0000, LLP 0003, LLP 0008, LLP 0009, LLP 0012, LLP 0022, LLP 0032
 
 ## Summary
@@ -50,6 +52,22 @@ concurrent writer to a queried table conflicts). These point sharply at DK-4
   regressions without flaking on shared-runner noise.
 
 ## Current measurement contract (2026-07-13, protected-query enforcement)
+
+> **Superseded fixtures (recorded 2026-07-21).** Commit `37f1a2f`
+> (ENG-23422/ENG-23423, 2026-07-07) corrected both fan-out fixtures as
+> methodologically unsound: the delta loop had made only one subscriber match
+> and divided by the total count (the corrected harness comment: mixing the
+> non-member reject path "would understate the affected delivery cost and
+> overstate the derived fan-out ceiling"), and the fallback fixture grew its
+> result set per subscriber instead of holding it fixed (now
+> `FANOUT_RESULT_ROWS = 16`). Every pre-correction figure in the tables below
+> — ~1 550–2 000 and ~1 680–1 970 µs/sub, ~0.32–0.36 µs/sub, ~5 200×, ~5–6
+> and ~28 000–31 000 subs/commit — is therefore a **superseded fixture
+> result, preserved as history only**. No corrected full-scale rerun is
+> recorded; the CI smoke gate asserts only that the delta path stays ≥2×
+> cheaper than the protected re-query path per run. Do not cite the old
+> ceilings or the ~5 200× ratio as current evidence (LLP 0067
+> Recommendation 1).
 
 The dated result tables below remain the evidence produced by the runtime that
 existed on 2026-07-01 and 2026-07-02. The common auth invocation gate later made

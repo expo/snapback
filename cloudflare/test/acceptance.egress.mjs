@@ -31,7 +31,7 @@ const SECRET_BINDINGS = {
   SNAPBACK_CONFIG_GENERATION: '1',
 };
 
-const EXPECTED_CHECKS = 17;
+const EXPECTED_CHECKS = 28;
 let checks = 0;
 function check(label, condition) {
   checks += 1;
@@ -106,6 +106,60 @@ function startMockUpstream() {
         res.writeHead(200, { 'content-type': 'application/json' });
         res.end(JSON.stringify({ slept: true }));
       }, 2000);
+      return;
+    }
+    if (url.pathname === '/stream') {
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      let index = 0;
+      const emit = () => {
+        if (index === 8) {
+          res.end();
+          return;
+        }
+        res.write(Buffer.alloc(4096, index + 1));
+        index += 1;
+        setTimeout(emit, 25);
+      };
+      emit();
+      return;
+    }
+    if (url.pathname === '/stream-large') {
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      for (let index = 0; index < 17; index += 1) res.write(Buffer.alloc(64 * 1024, index));
+      res.end();
+      return;
+    }
+    if (url.pathname === '/stream-stall') {
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      res.write(Buffer.alloc(1024, 7));
+      const stall = setTimeout(() => res.end(), 8000);
+      res.on('close', () => clearTimeout(stall));
+      return;
+    }
+    if (url.pathname === '/stream-auth') {
+      if (req.headers.authorization !== DIRECTIONS_KEY) {
+        res.writeHead(401, { 'content-type': 'application/json' });
+        res.end('{"error":"missing or wrong authorization"}');
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      for (let index = 0; index < 3; index += 1) res.write(Buffer.alloc(1024, index + 1));
+      res.end();
+      return;
+    }
+    if (url.pathname === '/stream-long') {
+      res.writeHead(200, { 'content-type': 'application/octet-stream' });
+      let index = 0;
+      const interval = setInterval(() => {
+        if (res.destroyed || index === 100) {
+          clearInterval(interval);
+          if (!res.destroyed) res.end();
+          return;
+        }
+        res.write(Buffer.alloc(1024, index % 251));
+        index += 1;
+      }, 25);
+      res.on('close', () => clearInterval(interval));
       return;
     }
     res.writeHead(404);
@@ -213,6 +267,100 @@ async function main() {
     );
     const slowOutcome = await slow;
     check('the slow action itself completes after the concurrent work', slowOutcome.ok === true && slowOutcome.result.status === 200);
+
+    // --- bounded response stream uses the same authored action surface ----
+    const streamed = await client.action('probeResponseStream', {
+      args: { url: `${mock.origin}/stream` },
+    });
+    check(
+      'the Workerd action isolate pulls the complete response through ctx.fetchStream',
+      streamed.ok === true && streamed.result.totalBytes === 8 * 4096 && streamed.result.reads >= 2
+    );
+    check(
+      'every action-visible response chunk respects the 16 KiB v1 ceiling',
+      streamed.result.maxChunkBytes > 0 && streamed.result.maxChunkBytes <= 16 * 1024
+    );
+    const tooLarge = await client.action('probeResponseStream', {
+      args: { url: `${mock.origin}/stream-large` },
+    });
+    check(
+      'the Cloudflare adapter refuses an upstream response beyond the 1 MiB v1 total',
+      tooLarge.ok === false && tooLarge.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED'
+    );
+    const cancelledStream = await client.action('probeResponseStream', {
+      args: { url: `${mock.origin}/stream-long`, cancelAfterReads: 1 },
+    });
+    check(
+      'response-stream cancellation is idempotent and makes the reader terminal',
+      cancelledStream.ok === true &&
+        cancelledStream.result.cancelled === true &&
+        cancelledStream.result.reads === 1 &&
+        cancelledStream.result.doneAfterCancel === true
+    );
+    const attemptToken = await client.action('probeStreamAttemptToken', {
+      args: { url: `${mock.origin}/stream` },
+    });
+    check(
+      'a stream attempt token is refused fail-closed on a target without the control plane',
+      attemptToken.ok === true &&
+        attemptToken.result.refused === true &&
+        String(attemptToken.result.code).includes('SNAPBACK_ACTION_STREAM_INVALID')
+    );
+    const secretStream = await client.action('probeStreamSecret', {
+      args: { url: `${mock.origin}/stream-auth` },
+    });
+    const secretStreamText = JSON.stringify(secretStream);
+    check(
+      'a stream secret slot resolves at the coordinator boundary and authenticates the upstream',
+      secretStream.ok === true &&
+        secretStream.result.status === 200 &&
+        secretStream.result.totalBytes === 3 * 1024 &&
+        secretStream.result.url === `${mock.origin}/stream-auth`
+    );
+    check(
+      'the resolved stream secret never re-enters the isolate or the action result',
+      !secretStreamText.includes(DIRECTIONS_KEY)
+    );
+    const rateFence = await client.action('probeStreamRateFence', {
+      args: { url: `${mock.origin}/stream-long` },
+    });
+    check(
+      'nested mutations above ten per second are refused while a cursor is open',
+      rateFence.ok === true &&
+        String(rateFence.result.secondCode).includes('SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED')
+    );
+    const cursorCap = await client.action('probeStreamCursorCap', {
+      args: { url: `${mock.origin}/stream-long` },
+    });
+    check(
+      'a fifth concurrent cursor is refused at the 4-cursor v1 cap',
+      cursorCap.ok === true &&
+        String(cursorCap.result.fifthCode).includes('SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED')
+    );
+    const idleStream = await client.action('probeResponseStream', {
+      args: { url: `${mock.origin}/stream-stall` },
+    });
+    check(
+      'a stalled upstream settles the exact idle-timeout code',
+      idleStream.ok === false &&
+        idleStream.diagnostic?.code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT'
+    );
+    // The stream probes above all DECLARE bounded_response_stream_v1 and ran,
+    // which is the positive admission witness against the served manifest;
+    // this is the negative twin: a known registry id the manifest does not
+    // support refuses at function resolution, before the handler runs.
+    let unsupported = null;
+    try {
+      await client.action('probeUnsupportedRequirement', { args: {} });
+    } catch (error) {
+      unsupported = error;
+    }
+    check(
+      'a declared requirement the served manifest does not support is refused before the handler runs',
+      unsupported !== null &&
+        unsupported.status === 503 &&
+        unsupported.diagnostic?.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
+    );
 
     // --- query/mutation ambient fetch remains denied -----------------------
     const probe = await client.query('probeAmbient', {});

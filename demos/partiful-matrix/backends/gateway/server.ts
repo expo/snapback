@@ -5,23 +5,37 @@ import { createSqliteAdapter } from './sqlite.ts';
 import { createSupabaseAdapter } from './supabase.ts';
 
 const local = loadLocalSecrets();
+const supabaseSchema = process.env.PARTIFUL_MATRIX_SUPABASE_SCHEMA;
+// Shared public-fixture reads use transaction pooling so this matrix can
+// coexist with other local demos. Explicit ephemeral-schema runs retain the
+// direct/session endpoint because they own schema DDL and teardown.
+const supabaseUrl = () => supabaseSchema
+  ? requireSecret(local, 'DIRECT_URL', 'SUPABASE_DB_URL', 'DATABASE_URL')
+  : requireSecret(local, 'DATABASE_URL', 'DIRECT_URL', 'SUPABASE_DB_URL');
 const adapters: Record<string, any> = {
   snapback: createSnapbackAdapter(),
   sqlite: createSqliteAdapter(),
 };
-const initialization: Record<string, { ok: boolean; errorCode?: string }> = {
+const initialization: Record<string, { ok: boolean; errorCode?: string; causeCode?: string }> = {
   snapback: { ok: true },
   sqlite: { ok: true },
 };
 for (const [backend, create] of [
-  ['supabase', () => createSupabaseAdapter(requireSecret(local, 'DIRECT_URL', 'DATABASE_URL', 'SUPABASE_DB_URL'), { schema: process.env.PARTIFUL_MATRIX_SUPABASE_SCHEMA })],
+  ['supabase', () => createSupabaseAdapter(supabaseUrl(), { schema: supabaseSchema, prepare: Boolean(supabaseSchema) })],
   ['convex', () => createConvexAdapter(requireSecret(local, 'CONVEX_DEPLOY_KEY', 'CONVEX_URL'))],
 ] as const) {
   try {
     adapters[backend] = await create();
     initialization[backend] = { ok: true };
-  } catch {
-    initialization[backend] = { ok: false, errorCode: 'BACKEND_ADAPTER_INITIALIZATION_FAILED' };
+  } catch (error) {
+    const causeCode = error && typeof error === 'object'
+      ? String((error as { errno?: unknown; code?: unknown }).errno ?? (error as { code?: unknown }).code ?? '')
+      : '';
+    initialization[backend] = {
+      ok: false,
+      errorCode: 'BACKEND_ADAPTER_INITIALIZATION_FAILED',
+      ...(causeCode ? { causeCode } : {}),
+    };
   }
 }
 
@@ -36,6 +50,7 @@ async function preflight() {
         skipClass: remote ? 'remote-dependency' : 'required-local-dependency',
         stage: 'initialization',
         errorCode: initialized?.errorCode ?? 'BACKEND_ADAPTER_UNAVAILABLE',
+        ...(initialized?.causeCode ? { causeCode: initialized.causeCode } : {}),
       };
       continue;
     }

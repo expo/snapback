@@ -883,6 +883,7 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
     assert_eq!(
         host_ops,
         BTreeSet::from([
+            "host_ops.acceptance.run",
             "host_ops.app.inspect",
             "host_ops.app.reset",
             "host_ops.auth.mintSession",
@@ -895,7 +896,12 @@ fn operation_registry_is_exhaustive_and_bound_to_registered_carriers() {
             "host_ops.function.run.query",
             "host_ops.function.run.unknown",
             "host_ops.functions.load",
+            "host_ops.functions.reload",
+            "host_ops.host.restart",
+            "host_ops.host.start",
+            "host_ops.host.stop",
             "host_ops.schema.load",
+            "host_ops.schema.reload",
         ]),
         "host-op authority branches must remain explicit"
     );
@@ -1248,6 +1254,15 @@ fn session_overlay_closes_every_host_ops_branch() {
         "host_ops.auth.rescueCollidingTable",
         "host_ops.function.run.mutation",
         "host_ops.function.run.action",
+        // Pinned-unbuilt and CLI-only verbs keep the same closed AdminWrite
+        // posture in sessions; the dispatcher answers them with the honest
+        // UNIMPLEMENTED/CLI_ONLY envelope only after that gate.
+        "host_ops.schema.reload",
+        "host_ops.functions.reload",
+        "host_ops.acceptance.run",
+        "host_ops.host.start",
+        "host_ops.host.stop",
+        "host_ops.host.restart",
     ] {
         let policy = host_ops.get(name).expect("admin-write host operation");
         assert_eq!(policy.path_policy, RoutePolicy::AdminWrite, "{name}");

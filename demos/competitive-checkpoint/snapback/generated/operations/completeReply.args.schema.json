@@ -1,0 +1,23 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/completeReply.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "attemptId": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    },
+    "tail": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "attemptId",
+    "sequence",
+    "tail"
+  ],
+  "title": "competitive-checkpoint:completeReply arguments",
+  "type": "object"
+}

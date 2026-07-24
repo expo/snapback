@@ -5,7 +5,7 @@
 **Systems:** Project, Runtime, Storage, Sync, Realtime, Security, Developer experience, Deployment, Testing
 **Author:** Charlie Cheever / Claude (Fable 5)
 **Date:** 2026-07-05
-**Revised:** 2026-07-05 (initial)
+**Revised:** 2026-07-21 (fan-out figures marked superseded per the `37f1a2f` benchmark corrections — LLP 0035's 2026-07-21 note). 2026-07-05 (initial)
 **Related:** LLP 0000, LLP 0001, LLP 0002, LLP 0003, LLP 0004, LLP 0005, LLP 0006, LLP 0007, LLP 0008, LLP 0009, LLP 0010, LLP 0011, LLP 0012, LLP 0013, LLP 0014, LLP 0016, LLP 0017, LLP 0019, LLP 0020, LLP 0021, LLP 0022, LLP 0024, LLP 0026, LLP 0028, LLP 0029, LLP 0031, LLP 0032, LLP 0033, LLP 0034, LLP 0035, LLP 0036, LLP 0037, https://github.com/ccheever/ibex, https://github.com/expo/valet
 
 ## Summary
@@ -188,7 +188,9 @@ subset (unordered single-table filtered host-plan queries) now gets `live_delta`
 op-log deltas computed by classifying changed rows against the captured
 predicate with no VM and no re-query: ~0.32–0.36 µs per affected subscriber,
 ~5,200× cheaper, moving the fan-out ceiling from ~5–6 to ~28,000+ subscribers
-per commit for that subset, with a debug-build convergence assertion guarding
+per commit for that subset (figures superseded by the `37f1a2f` fixture
+corrections — LLP 0035's 2026-07-21 note; the mechanism stands, the ratio is
+unmeasured), with a debug-build convergence assertion guarding
 delta/replace equivalence ([LLP 0035](./0035-local-target-benchmarks.research.md)
 §M3). Ordered/limited windows and Ibex-executed queries keep the honest
 re-query + `live_replace` fallback.
@@ -401,7 +403,8 @@ what it costs; assessments are `[inferred]` unless cited.
    ([LLP 0022](./0022-electric-powersync-turso.research.md)); the right call.
 4. **A restricted, analyzable syncable-live subset** (single table, declared
    index, structured predicates) rather than reactive-everything. Buys:
-   provable membership deltas (the 5,200× `live_delta` win exists *because*
+   provable membership deltas (the `live_delta` win — originally reported as
+   ~5,200×, a figure since superseded per LLP 0035 — exists *because*
    the predicate is analyzable), honest capability classes, authorization-
    aware sync that can actually be reasoned about. Costs: an expressiveness
    gap against Convex's automatic reactivity; both close peers raced to add
@@ -573,7 +576,8 @@ Ranked by expected impact on the thesis, not by ease of fix.
 3. **One predicate vocabulary, three consumers.** Captured read dependencies
    serve conflict validation, live matching, and read-your-writes — so
    correctness, reactivity, and isolation cannot drift apart. The measured
-   payoffs (0.0 spurious conflicts, 5,200× deltas) both fall out of this
+   payoffs (0.0 spurious conflicts; delta fan-out originally reported at
+   ~5,200×, since superseded per LLP 0035) both fall out of this
    unification.
 4. **Agent-grade diagnostics.** Stable `SNAPBACK_*` codes end to end,
    machine-readable envelopes on every surface, provenance-verified server

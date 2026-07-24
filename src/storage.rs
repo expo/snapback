@@ -781,6 +781,10 @@ fn reset_and_seed_transaction(
     tx.execute("DELETE FROM _snapback_client_mutations", [])?;
     tx.execute("DELETE FROM _snapback_client_mutation_auth_retention", [])?;
     tx.execute("DELETE FROM _snapback_membership_transitions", [])?;
+    // @ref LLP 0076#authority-and-lifecycle — application reload/reset is a
+    // cursor-closing terminal event; retained attempt settlement evidence is
+    // application state and resets with it.
+    tx.execute("DELETE FROM _snapback_stream_attempts", [])?;
     auth_invalidation::clear_retry_episodes_in(tx)?;
     authorized_lease::clear_authorized_lease_reservations_in(tx)?;
     auth_invalidation::rotate_data_version_stream_in(tx)?;
@@ -1329,6 +1333,53 @@ impl LocalDatabase {
     #[allow(dead_code)] // Consumed by the ENG-24596 keyring integration lane.
     pub(crate) fn database_path(&self) -> Option<&Path> {
         self.path.as_deref()
+    }
+
+    /// Durably upsert host-owned `StreamAttemptV1` rows. The write-ahead
+    /// pre-mark contract requires the row to be committed BEFORE the upstream
+    /// request bytes leave the process; callers hold the instance lock for
+    /// exactly this short write.
+    // @ref LLP 0076#author-decisions--2026-07-23 — decision 2: the certainty
+    //   column persists on the host-owned attempt record, not the authored
+    //   progress row.
+    pub(crate) fn upsert_stream_attempts(
+        &mut self,
+        rows: &[(String, String, String)],
+        now_ms: u64,
+    ) -> SnapbackResult<()> {
+        for (token, client_key, record_json) in rows {
+            self.conn.execute(
+                "INSERT INTO _snapback_stream_attempts(token, client_key, record_json, updated_at_ms)
+                 VALUES(?1, ?2, ?3, ?4)
+                 ON CONFLICT(token) DO UPDATE SET record_json = ?3, updated_at_ms = ?4",
+                params![token, client_key, record_json, now_ms as i64],
+            )?;
+        }
+        Ok(())
+    }
+
+    pub(crate) fn stream_attempt_by_client_key(
+        &self,
+        client_key: &str,
+    ) -> SnapbackResult<Option<(String, String)>> {
+        let mut statement = self.conn.prepare(
+            "SELECT token, record_json FROM _snapback_stream_attempts WHERE client_key = ?1",
+        )?;
+        let mut rows = statement.query(params![client_key])?;
+        match rows.next()? {
+            Some(row) => Ok(Some((row.get(0)?, row.get(1)?))),
+            None => Ok(None),
+        }
+    }
+
+    pub(crate) fn load_stream_attempts(&self) -> SnapbackResult<Vec<(String, String, String)>> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT token, client_key, record_json FROM _snapback_stream_attempts")?;
+        let rows = statement
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }
 
     pub fn info(&self) -> SnapbackResult<StorageInfo> {
@@ -3424,6 +3475,17 @@ impl LocalDatabase {
             CREATE TABLE IF NOT EXISTS _snapback_meta (
               key TEXT PRIMARY KEY,
               value TEXT NOT NULL
+            );
+            -- @ref LLP 0076#settlement-and-retry — the crash-safe write-ahead
+            -- initiationState: a StreamAttemptV1 row is durably pre-marked
+            -- before any request bytes reach the outbound stack, so a crash
+            -- always leaves the conservative initiation_possible reading for
+            -- the startup reconciler.
+            CREATE TABLE IF NOT EXISTS _snapback_stream_attempts (
+              token TEXT PRIMARY KEY,
+              client_key TEXT NOT NULL UNIQUE,
+              record_json TEXT NOT NULL,
+              updated_at_ms INTEGER NOT NULL
             );
             CREATE TABLE IF NOT EXISTS _snapback_version (
               id INTEGER PRIMARY KEY CHECK (id = 1),

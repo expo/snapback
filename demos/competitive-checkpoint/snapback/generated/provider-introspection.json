@@ -1,0 +1,1023 @@
+{
+  "artifactKind": "providerIntrospection",
+  "capabilities": {
+    "claims": {
+      "branchableFixtures": false,
+      "derivedOptimisticOverlays": true,
+      "forceStates": true,
+      "headlessBoot": true,
+      "initialSnapshot": true,
+      "localReplica": false,
+      "offlineReplay": false,
+      "optimisticMutations": true,
+      "rowSyncState": true,
+      "serverRunnableQueries": true,
+      "subscriptions": true
+    },
+    "receipts": {
+      "mutation": true,
+      "subscription": true
+    }
+  },
+  "operations": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "delta": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "sequence",
+            "delta"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "applyReplyProgress",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "cancelReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "sequence": {
+              "name": "number",
+              "shape": "primitive"
+            },
+            "tail": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "sequence",
+            "tail"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "completeReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "model": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slug",
+            "title",
+            "model"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Document": {
+                  "id": {
+                    "Binding": "__standardCreatedId"
+                  },
+                  "table": "conversations"
+                }
+              },
+              "steps": [
+                {
+                  "Insert": {
+                    "bind_id_as": "__standardCreatedId",
+                    "table": "conversations",
+                    "values": {
+                      "createdAt": "RuntimeNow",
+                      "model": {
+                        "Arg": "model"
+                      },
+                      "ownerId": "AuthUserId",
+                      "pageKey": "RuntimeId",
+                      "slug": {
+                        "Arg": "slug"
+                      },
+                      "title": {
+                        "Arg": "title"
+                      },
+                      "updatedAt": "RuntimeNow"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "createConversation",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": null,
+              "steps": [
+                {
+                  "Get": {
+                    "bind_as": "__standardOwnedRow",
+                    "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                    "id": {
+                      "Arg": "id"
+                    },
+                    "table": "conversations"
+                  }
+                },
+                {
+                  "Guard": {
+                    "cond": {
+                      "Binary": {
+                        "left": {
+                          "Field": {
+                            "base": {
+                              "Binding": "__standardOwnedRow"
+                            },
+                            "key": "ownerId"
+                          }
+                        },
+                        "op": "Eq",
+                        "right": "AuthUserId"
+                      }
+                    },
+                    "else_error": "SNAPBACK_ROW_NOT_VISIBLE"
+                  }
+                },
+                {
+                  "Delete": {
+                    "id": {
+                      "Arg": "id"
+                    },
+                    "table": "conversations"
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "deleteConversation",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "attemptId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "status": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "attemptId",
+            "status"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "settleReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "content": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "idempotencyKey": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "conversationId",
+            "content",
+            "idempotencyKey"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "startReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "model": {
+              "name": "string",
+              "shape": "primitive"
+            },
+            "title": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id",
+            "title",
+            "model"
+          ]
+        },
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "extensions": {
+          "snapback": {
+            "contractPlan": {
+              "return_value": {
+                "Document": {
+                  "id": {
+                    "Arg": "id"
+                  },
+                  "table": "conversations"
+                }
+              },
+              "steps": [
+                {
+                  "Get": {
+                    "bind_as": "__standardOwnedRow",
+                    "else_error": "SNAPBACK_ROW_NOT_FOUND",
+                    "id": {
+                      "Arg": "id"
+                    },
+                    "table": "conversations"
+                  }
+                },
+                {
+                  "Guard": {
+                    "cond": {
+                      "Binary": {
+                        "left": {
+                          "Field": {
+                            "base": {
+                              "Binding": "__standardOwnedRow"
+                            },
+                            "key": "ownerId"
+                          }
+                        },
+                        "op": "Eq",
+                        "right": "AuthUserId"
+                      }
+                    },
+                    "else_error": "SNAPBACK_ROW_NOT_VISIBLE"
+                  }
+                },
+                {
+                  "Patch": {
+                    "id": {
+                      "Arg": "id"
+                    },
+                    "table": "conversations",
+                    "values": {
+                      "model": {
+                        "Arg": "model"
+                      },
+                      "title": {
+                        "Arg": "title"
+                      },
+                      "updatedAt": "RuntimeNow"
+                    }
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "name": "updateConversation",
+        "optimistic": {
+          "source": "provider-plan",
+          "supported": true
+        }
+      }
+    ],
+    "queries": [
+      {
+        "arguments": {
+          "fields": {
+            "slug": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "slug"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "conversationBySlug",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "firstConversationPage",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "id": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "id"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "getConversation",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {},
+          "order": []
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listConversations",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "conversationId": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "conversationId"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "listMessages",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "attemptId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "content": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "conversationId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "idempotencyKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "lastProgressAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "role": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "sequence": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "status": {
+                "name": "string",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      },
+      {
+        "arguments": {
+          "fields": {
+            "after": {
+              "name": "string",
+              "shape": "primitive"
+            }
+          },
+          "order": [
+            "after"
+          ]
+        },
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "execution": {
+          "localRunnable": false,
+          "serverRunnable": true
+        },
+        "name": "nextConversationPage",
+        "result": {
+          "kind": "list",
+          "row": {
+            "fields": {
+              "_createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_id": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "_updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "_version": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "createdAt": {
+                "name": "number",
+                "shape": "primitive"
+              },
+              "model": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "ownerId": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "pageKey": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "slug": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "title": {
+                "name": "string",
+                "shape": "primitive"
+              },
+              "updatedAt": {
+                "name": "number",
+                "shape": "primitive"
+              }
+            },
+            "shape": "object"
+          }
+        }
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-introspection.v1",
+  "source": {
+    "implementationHash": "sha256:31a5c0cbab29cd59",
+    "inputsHash": "0ecd3cb02dc9eab58949e35388f6ba05a37e70e3c11b8c43b6826986f579eacc",
+    "schemaHash": "sha256:97f33ed50a9dfd82"
+  }
+}

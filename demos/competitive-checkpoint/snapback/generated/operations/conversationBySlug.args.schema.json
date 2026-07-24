@@ -1,0 +1,15 @@
+{
+  "$id": "https://schemas.snapback.dev/apps/competitive-checkpoint/conversationBySlug.args.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "slug": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "slug"
+  ],
+  "title": "competitive-checkpoint:conversationBySlug arguments",
+  "type": "object"
+}

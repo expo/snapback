@@ -1,17 +1,17 @@
 {
   "revision": {
-    "snapback": "ddc2488c271e093804e1ebb35c99a8459aff11ef",
-    "exact": "207ed2203039e548daa964b115f8aca15b07a540"
+    "snapback": "48de2b173269eb2b44e136c493836baa0d1a12d5",
+    "exact": null
   },
   "workloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
   "methodId": "partitime-method-rubric-v1",
   "thresholdFormulaSetId": "partitime-threshold-formulas-v1",
   "environment": {
-    "node": "v24.18.0",
+    "node": "v25.9.0",
     "bun": "1.3.12",
     "os": "darwin-25.5.0-arm64",
     "chrome": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "chromeVersion": "Google Chrome 150.0.7871.129",
+    "chromeVersion": "Google Chrome 150.0.7871.130",
     "cpu": "Apple M5 Max",
     "logicalCpus": 18,
     "totalMemoryBytes": 137438953472
@@ -97,41 +97,41 @@
       }
     },
     "contract": {
-      "manifestSha256": "ea77be67bd825f04294890c218d872b70643e48a5ee0bd2cfb293978ffeaf9a7",
+      "manifestSha256": "378c63b61a31acd74e89e61af55e5c910107b02db5c4ae0d5fba780a213863db",
       "lockPath": "demos/partiful-matrix/surfaces/contract/bun.lock",
-      "lockSha256": "47ad39ce72d12255ea954e72276b881dfcf75b98d57ad34c3f462b9ef923347a",
+      "lockSha256": "6952d81bd7d4d769f5cdd78084cdc9a28f72b68d372070b78170a018ce7a6337",
       "dependencies": {
-        "@exact/contract": "npm:@ccheever/exact-contract@0.1.2",
-        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.2",
-        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.2",
-        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.2",
+        "@exact/contract": "npm:@ccheever/exact-contract@0.1.5",
+        "@exact/devtools": "npm:@ccheever/exact-devtools@0.1.5",
+        "@exact/facet-core": "npm:@ccheever/exact-facet-core@0.1.5",
+        "@exact/renderer": "npm:@ccheever/exact-renderer@0.1.5",
         "convex": "^1.28.0",
         "vite": "^8.0.0"
       },
       "resolvedDependencies": {
         "@exact/contract": {
-          "requested": "npm:@ccheever/exact-contract@0.1.2",
+          "requested": "npm:@ccheever/exact-contract@0.1.5",
           "resolvedName": "@ccheever/exact-contract",
           "resolvedVersion": "0.1.5",
-          "manifestSha256": "6c1e27ae2953e8abf5e29d77293b6893cab0a1815c00b494618b22a445717e8a"
+          "manifestSha256": "c1dab475c1793d98999a4439f4a5bece3c46c7586dfe8392e680540d18e113a5"
         },
         "@exact/devtools": {
-          "requested": "npm:@ccheever/exact-devtools@0.1.2",
+          "requested": "npm:@ccheever/exact-devtools@0.1.5",
           "resolvedName": "@ccheever/exact-devtools",
           "resolvedVersion": "0.1.5",
           "manifestSha256": "a6a1db9b5850e619f20fa61b554bbe7303b6336a3b86eb8313860aaa480c6e2d"
         },
         "@exact/facet-core": {
-          "requested": "npm:@ccheever/exact-facet-core@0.1.2",
+          "requested": "npm:@ccheever/exact-facet-core@0.1.5",
           "resolvedName": "@ccheever/exact-facet-core",
           "resolvedVersion": "0.1.5",
-          "manifestSha256": "1a30e22149a7b866008bc26304245fb1918c94ba41d60d67a14393d84469f210"
+          "manifestSha256": "8c7dfd95b951a599ec284cfe5a3ec06a60e007aa168dfc5bc303e5216375b407"
         },
         "@exact/renderer": {
-          "requested": "npm:@ccheever/exact-renderer@0.1.2",
+          "requested": "npm:@ccheever/exact-renderer@0.1.5",
           "resolvedName": "@ccheever/exact-renderer",
           "resolvedVersion": "0.1.5",
-          "manifestSha256": "60fa1c8fcfe4d0b948eaab6df280a0bfb27d7b7833c59e36a63ecc259371cd53"
+          "manifestSha256": "ba7d0ec05b0c193d639be65e3a66f136f20f3176541c751cbc92d2157af65d0d"
         },
         "convex": {
           "requested": "^1.28.0",
@@ -167,8 +167,8 @@
   "artifacts": {
     "inputsHash": "acab2e688ab66765c1520a6aa533a3ef0c5b1f6bf4c332da868b01ee86e6e616",
     "bundleHash": "sha256:adce7dc6b39cd37f",
-    "diarySha256": "0829481aad33d6b0bd997e801913b0bda12e17590b962a5c36341e2241b11fb7",
-    "reportSha256": "92fefa697b861f439f93be8602e8e164b80ac321889e72b4ea96477a1477bf4b"
+    "diarySha256": "4dfba7a1675a57e00654871ed423fb979d87d9fab1f1ba40df9b3e426b5940d8",
+    "reportSha256": "5792db37d685bc5ec7df67e38a3242ba1d41961f5d6bf181802657600397cede"
   },
   "testInventory": [
     {
@@ -193,11 +193,11 @@
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/main.ts",
-      "sha256": "b395cec39059242cf8ce8fc94ad98794b61776c465fcd01d4cd276ae15ab5848"
+      "sha256": "226736bc8ec700613c558837fe78aefdbf1913ed7d2eb83c8d357f9d543dc445"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/provider.ts",
-      "sha256": "80b02abe413e94aa16080eac4509e4023dce0c3afe7f97ca2e53ae18cd3bf692"
+      "sha256": "dc146b84abdaec9e235cb90d58dc2e7fbaf403ae44a59cec215771ffd8a1ec04"
     },
     {
       "path": "demos/partiful-matrix/surfaces/contract/feed.contract",
@@ -220,7 +220,7 @@
       "sha256": "d348ab2c9939df6d3f19709696092ae8c773fa0eceeda8391ce80516517cf3da"
     }
   ],
-  "testInventorySha256": "fcbc465c251f410b489d4763733b6e8aabdbcff52d84ef3d5fda9d683ff723f7",
+  "testInventorySha256": "3d5b357200f5c1cfdfaa3db0ed469d2885321e4bbc91c90903757607aa674ffe",
   "demo": "partiful-matrix",
   "claimSetVersion": "partitime.web.v1",
   "cells": [
@@ -276,32 +276,32 @@
             {
               "routeId": "/",
               "path": "index.html",
-              "htmlSha256": "fe43aef0d83dff99662ca79171ad51b1afef61b04a8adfd9408171bd644f0e6e",
+              "htmlSha256": "ec8cafc7c6c54f0847fab072f78f52eeceb6011eb58c8b1625b6552c4e141602",
               "nodes": 79
             },
             {
               "routeId": "/events/event_sunset/",
               "path": "events/event_sunset/index.html",
-              "htmlSha256": "39ca8dbe078bab4ab1820c2b9d394e8ab31d577c564d718c4111dffdc729f678",
+              "htmlSha256": "2cbf68b83e33be7b29ca1e788bb47c8c6419ae9bcd0e290b09f1a5155779690f",
               "nodes": 73
             },
             {
               "routeId": "/events/event_swim/",
               "path": "events/event_swim/index.html",
-              "htmlSha256": "c635a60b74fde8184b8b6c7b89a4310f606c31f8521fc1397958e946a42d0f9b",
+              "htmlSha256": "2f3641abdc6623917c8a13c3ee9771ee23494fae38418861a9be063886c75997",
               "nodes": 71
             },
             {
               "routeId": "/events/event_ceramics/",
               "path": "events/event_ceramics/index.html",
-              "htmlSha256": "cfc2f42e2814951ee42bcf798621e6a18b061df4c5cdf7092a3bc399e82c30a7",
+              "htmlSha256": "96f843ee16f00853e5859cee6f64c98edb2ba678456831fdee6717c155ce16e1",
               "nodes": 62
             }
           ]
         },
         "javascript": {
-          "bytes": 1299559,
-          "sha256": "870937063ee27735d1ec0c5748b2b28f5ba86862dae0594e5bf08b80c9cd3479"
+          "bytes": 351882,
+          "sha256": "5d5ee595f42bc640f161dfdf60691b50edf365cd757ebe2aff99bc25fedf27c9"
         }
       }
     },
@@ -320,7 +320,7 @@
       "name": "Contract production event deep link is authoritative with route metadata and JavaScript disabled",
       "ok": true,
       "details": {
-        "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●liveMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
+        "text": "← All plansCONTRACT · snapback🍊Sat, Aug 1 at 6:00 PM · HOSTED BY AdaSunset Supper ClubA long table, tiny plates, and the last warm light of the day.●connectingMEET HEREBernal Hill · secret gardenTHE WALLGraceI am bringing fizzy water and a very serious playlist.AdaPerfect. Garden gate opens at 6:15.Send ↗WHO'S IN2You're hosting this one ✦AdaHostingGraceGoingEveMaybe",
         "title": "Sunset Supper Club · Partitime",
         "description": "A long table, tiny plates, and the last warm light of the day.",
         "canonical": "https://partitime.example/partitime/events/event_sunset/",
@@ -340,10 +340,10 @@
               "recreatedNodeCount": 0,
               "hydrationMismatchCount": 0,
               "adoptionFallbacks": [],
-              "serverHtmlHash": "fnv1a32:e0f4c87b",
+              "serverHtmlHash": "fnv1a32:092347ba",
               "deferredMountTasks": 0,
               "tasksReleasedBeforeAdoption": false,
-              "firstPaintHtmlHash": "fnv1a32:e0f4c87b",
+              "firstPaintHtmlHash": "fnv1a32:092347ba",
               "firstPaintByteIdentical": true
             }
           },
@@ -357,18 +357,18 @@
             "seededDeliveries": 1,
             "underlyingSubscriptions": 1,
             "bufferedLiveDeliveries": 1,
-            "releasedLiveDeliveries": 0,
+            "releasedLiveDeliveries": 1,
             "hydrationReleased": true
           },
-          "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+          "adoptedText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
           "preMountSizeClass": "expanded"
         },
         "witness": {
           "sameRoot": true,
-          "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
-          "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth leaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nlive\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+          "initialText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
+          "finalText": "p\n  partitime\nNight\nCONTRACT  ·  snapback\nSAN FRANCISCO · YOUR WEEK AHEAD\nMake a plan worth\nleaving the chat for.\nSmall gatherings, good people, no algorithmic sludge.\n+ Make something happen\n●\nconnecting\n02 · ON THE HORIZON\nsnapback\n🍊\nSat, Aug 1 at 6:00 PM\nSunset Supper Club\nBernal Hill · secret garden\nHOSTED BY Ada\nView plan →\n🌊\nSat, Aug 8 at 3:30 PM\nNight Swim Radio\nOakland · Temescal pool\nHOSTED BY Grace\nView plan →\n🏺\nSun, Aug 16 at 4:00 PM\nBad Ceramics Night\nMission · Studio 14\nHOSTED BY Eve\nView plan →",
           "rootReplacements": 0,
-          "childListMutations": 8,
+          "childListMutations": 7,
           "result": {
             "rootId": 1347682305,
             "adoptedNodes": 79,
@@ -392,16 +392,16 @@
               "recreatedNodeCount": 0,
               "hydrationMismatchCount": 0,
               "adoptionFallbacks": [],
-              "serverHtmlHash": "fnv1a32:d161429f",
+              "serverHtmlHash": "fnv1a32:67e63e6a",
               "deferredMountTasks": 0,
               "tasksReleasedBeforeAdoption": false,
-              "firstPaintHtmlHash": "fnv1a32:d161429f",
+              "firstPaintHtmlHash": "fnv1a32:67e63e6a",
               "firstPaintByteIdentical": true
             }
           },
           "result": {
             "rootId": 1347686401,
-            "adoptedNodes": 73,
+            "adoptedNodes": 77,
             "recreatedNodes": 0,
             "mismatches": []
           },
@@ -409,20 +409,20 @@
             "seededDeliveries": 3,
             "underlyingSubscriptions": 3,
             "bufferedLiveDeliveries": 3,
-            "releasedLiveDeliveries": 0,
+            "releasedLiveDeliveries": 3,
             "hydrationReleased": true
           },
-          "adoptedText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+          "adoptedText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
           "preMountSizeClass": "expanded"
         },
         "witness": {
           "sameRoot": true,
-          "initialText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
+          "initialText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1 at 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nconnecting\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nGrace\nGoing\nEve\nMaybe",
           "finalText": "← All plans\nCONTRACT · snapback\n🍊\nSat, Aug 1, 6:00 PM · HOSTED BY Ada\nSunset Supper Club\nA long table, tiny plates, and the last warm light of the day.\n●\nlive\nMEET HERE\nBernal Hill · secret garden\nTHE WALL\nGrace\nI am bringing fizzy water and a very serious playlist.\nAda\nPerfect. Garden gate opens at 6:15.\nSend ↗\nWHO'S IN\n2\nYou're hosting this one ✦\nAda\nHosting\nEve\nMaybe\nGrace\nGoing",
           "rootReplacements": 0,
           "result": {
             "rootId": 1347686401,
-            "adoptedNodes": 73,
+            "adoptedNodes": 77,
             "recreatedNodes": 0,
             "mismatches": [],
             "mountPath": "partitime-static-document"
@@ -436,12 +436,11 @@
       "details": {
         "pathname": "/partitime/events/event_sunset/",
         "resources": [
-          "/partitime/assets/index-BdmJDi7J.js",
-          "/partitime/assets/privacy-Dk5LIQos.js",
-          "/partitime/assets/crash-CpHuiYez.js"
+          "/partitime/assets/index-CEbK3hWi.js",
+          "/partitime/assets/event-ClzohSvA.js"
         ],
         "scripts": [
-          "/partitime/assets/index-BdmJDi7J.js"
+          "/partitime/assets/index-CEbK3hWi.js"
         ]
       }
     },
@@ -450,19 +449,19 @@
       "ok": true,
       "details": {
         "before": {
-          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "identity": "3ac51209-94d9-4ce6-ba4b-f163334b21a3",
           "navigations": 1
         },
         "event": {
           "pathname": "/partitime/events/event_sunset/",
           "title": "Sunset Supper Club · Partitime",
-          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "identity": "3ac51209-94d9-4ce6-ba4b-f163334b21a3",
           "navigations": 1
         },
         "after": {
           "pathname": "/partitime/",
           "title": "Partitime · plans worth leaving the chat for",
-          "identity": "6a81684b-9059-4b54-8cc8-219af493e2ae",
+          "identity": "3ac51209-94d9-4ce6-ba4b-f163334b21a3",
           "navigations": 1
         }
       }
@@ -473,7 +472,7 @@
       "details": {
         "title": "Sunset Supper Club · Partitime",
         "description": "A long table, tiny plates, and the last warm light of the day.",
-        "canonical": "http://127.0.0.1:65435/partitime/events/event_sunset/",
+        "canonical": "http://127.0.0.1:55739/partitime/events/event_sunset/",
         "themeColor": "#f4f0e8"
       }
     },
@@ -483,14 +482,14 @@
       "details": {
         "before": "EveMaybe",
         "after": "EveGoing",
-        "latencyMs": 5,
+        "latencyMs": 9,
         "pollFallback": "disabled",
         "evidence": [
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dcb47874838ef696b2b4da9423",
-            "subscriptionId": "sub_019f82dcb47874838ef696b2b4da9423",
+            "bindingId": "sub_019f893c04dd7c7284de9fd9c278dad9",
+            "subscriptionId": "sub_019f893c04dd7c7284de9fd9c278dad9",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -499,40 +498,22 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
-              "bindingIds": [
-                "eventDetails"
-              ]
-            },
-            "receivedAtMs": 1784606930061,
-            "queryName": "eventDetails"
-          },
-          {
-            "pollFallbackEnabled": false,
-            "kind": "subscription",
-            "bindingId": "sub_019f82dcb47978e1949b050799dcea77",
-            "subscriptionId": "sub_019f82dcb47978e1949b050799dcea77",
-            "event": "established",
-            "transport": "push",
-            "scope": {
-              "eventId": "event_sunset"
-            },
-            "snapshotVersion": 1,
-            "lastDeltaVersion": 1,
-            "correlation": {
-              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
+              "rootId": "snapback-online-surface:1e1b0d73-4dc0-45cb-a52f-9c3858751447",
               "bindingIds": [
                 "guestList"
               ]
             },
-            "receivedAtMs": 1784606930062,
-            "queryName": "guestList"
+            "receivedAtMs": 1784713839838,
+            "queryName": "guestList",
+            "args": {
+              "eventId": "event_sunset"
+            }
           },
           {
             "pollFallbackEnabled": false,
             "kind": "subscription",
-            "bindingId": "sub_019f82dcb47978e1949b04e4e7309c24",
-            "subscriptionId": "sub_019f82dcb47978e1949b04e4e7309c24",
+            "bindingId": "sub_019f893c04dd7c7284de9ff3eb475351",
+            "subscriptionId": "sub_019f893c04dd7c7284de9ff3eb475351",
             "event": "established",
             "transport": "push",
             "scope": {
@@ -541,13 +522,40 @@
             "snapshotVersion": 1,
             "lastDeltaVersion": 1,
             "correlation": {
-              "rootId": "root_7a57d4e1-d65b-4acd-9569-3c85d41277b4",
+              "rootId": "snapback-online-surface:1e1b0d73-4dc0-45cb-a52f-9c3858751447",
               "bindingIds": [
                 "eventWall"
               ]
             },
-            "receivedAtMs": 1784606930063,
-            "queryName": "eventWall"
+            "receivedAtMs": 1784713839838,
+            "queryName": "eventWall",
+            "args": {
+              "eventId": "event_sunset"
+            }
+          },
+          {
+            "pollFallbackEnabled": false,
+            "kind": "subscription",
+            "bindingId": "sub_019f893c04de7bf0b1119779d69723c3",
+            "subscriptionId": "sub_019f893c04de7bf0b1119779d69723c3",
+            "event": "established",
+            "transport": "push",
+            "scope": {
+              "eventId": "event_sunset"
+            },
+            "snapshotVersion": 1,
+            "lastDeltaVersion": 1,
+            "correlation": {
+              "rootId": "snapback-online-surface:1e1b0d73-4dc0-45cb-a52f-9c3858751447",
+              "bindingIds": [
+                "eventDetails"
+              ]
+            },
+            "receivedAtMs": 1784713839838,
+            "queryName": "eventDetails",
+            "args": {
+              "eventId": "event_sunset"
+            }
           }
         ]
       }

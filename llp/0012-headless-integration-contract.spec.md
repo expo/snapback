@@ -5,7 +5,7 @@
 **Systems:** Contract/Exact, React/Expo, Client integration, Developer experience, API, Sync, Auth
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-06-25
-**Revised:** 2026-07-20 (Partitime Step 2 client checkpoint — the framework-neutral
+**Revised:** 2026-07-23 (LLP 0079 SC-3: dated reinforcement — the DK-3 additive-lane wire guardrail gains LLP 0078 F2a/F2e as external evidence); 2026-07-20 (Partitime Step 2 client checkpoint — the framework-neutral
 `snapback.external-store.v1` implementation and `@snapback/react` adapter now
 ship with package tests; React web and React Expo Android consume the same
 generated function references and lifecycle store, while the Android carrier
@@ -1012,6 +1012,17 @@ membership vocabulary, uniqueness, immutability, nullability, transition, and
 activation refusal families. Existing status, redaction, and
 diagnostic-envelope rules apply. The manifest registry also admits the
 membership-required unique-index capability.
+
+## Dated reinforcement: additive transport lanes (2026-07-23, LLP 0079 SC-3)
+
+The DK-3 wire guardrail above — future read-path delivery options are added
+*beside* the WebSocket path, never as a breaking wire change — gains external
+evidence from [LLP 0078](./0078-serverpod-lessons.research.md) F2a/F2e: a
+competitor's exposed-lifecycle realtime surface had to be deprecated
+wholesale, and its wire/artifact breaks taxed every downstream user. The
+guardrail is load-bearing and must not be relaxed under delivery pressure;
+LLP 0008's 2026-07-23 dated constraints section records the companion
+app-facing rule (no connection-lifecycle exposure).
 
 ## Status
 

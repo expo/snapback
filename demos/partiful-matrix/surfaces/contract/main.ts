@@ -12,14 +12,13 @@ import { setThemeReducedMotion, setThemeViewportWidth } from '@exact/facet-core'
 import { installContractWebHost, type ContractWebHostHandle } from '@exact/renderer/web-host';
 
 import { SnapbackClient } from '../../../_kit/client.mjs';
-import { createSnapbackContractSurface } from '../../../../packages/snapback-contract/index.mjs';
+import { createOnlineSnapbackContractSurface } from '../../../../packages/snapback-contract/online-surface.mjs';
 import artifactIndex from '../../snapback/generated/artifacts.json';
 import contractDataManifest from '../../snapback/generated/contract-data.manifest.json';
 import functionsManifest from '../../snapback/generated/functions.manifest.json';
 import schemaManifest from '../../snapback/generated/schema.manifest.json';
 import seed from '../../snapback/seed.json';
 import feedApp from './feed.contract';
-import eventApp from './event.contract';
 import {
   configureGeneratedProviderLinks,
   resetGeneratedProviderLinks,
@@ -80,7 +79,14 @@ const debug = {
 (globalThis as { partifulMatrixDebug?: typeof debug }).partifulMatrixDebug = debug;
 
 function status(message: string, state: 'booting'|'ready'|'error' = 'booting') {
-  const el = document.getElementById('boot-status'); if (el) { el.textContent = message; el.dataset.state = state; }
+  const el = document.getElementById('boot-status');
+  if (!el || (el.dataset.state === 'ready' && state !== 'error')) return;
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — once
+  // mounted UI owns progress, route remounts must not churn the hidden boot
+  // sentinel. A later failure may still surface it.
+  if (el.textContent === message && el.dataset.state === state) return;
+  el.textContent = message;
+  el.dataset.state = state;
 }
 
 function normalizedBasePath(): string {
@@ -128,7 +134,11 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
     const validation = validateContractHydrationManifest(JSON.parse(script.textContent ?? 'null'));
-    return validation.ok && validation.manifest.routeId === expectedRouteId ? validation.manifest : null;
+    if (!validation.ok || validation.manifest.routeId !== expectedRouteId) return null;
+    // The parsed manifest owns the adoption turn from here. Leaving the
+    // serialized copy in the live DOM retains the same node/path ledger twice.
+    script.remove();
+    return validation.manifest;
   } catch {
     return null;
   }
@@ -161,13 +171,26 @@ async function boot() {
     // @ref LLP 0034#5 — one idempotent ensure per mount; never reset from a
     // Contract surface, so reload and cross-arm mutations remain observable.
     await client.ensureApp({ schema: schemaManifest, functions: functionsManifest, seed });
-    const created = await createSnapbackContractSurface({
-      runtime: await import('@exact/contract/runtime'), client, userId: persona.userId,
+    const liveQueries = eventId === null
+      ? ['listEvents']
+      : [
+          { name: 'eventDetails', args: { eventId } },
+          { name: 'guestList', args: { eventId } },
+          { name: 'eventWall', args: { eventId } },
+        ];
+    const created = await createOnlineSnapbackContractSurface({
+      runtime: await import('@exact/contract/runtime'),
+      client,
+      userId: persona.userId,
       manifest: contractDataManifest, artifactIndex, schemaManifest, functionManifest: functionsManifest,
-      liveQueries: eventId === null ? ['listEvents'] : [
-        { name: 'eventDetails', args: { eventId } }, { name: 'guestList', args: { eventId } }, { name: 'eventWall', args: { eventId } },
-      ],
+      liveQueries,
+      requiredQueries: liveQueries,
       liveFallbackToPoll: !__PARTITIME_DISABLE_POLL_FALLBACK__,
+      onConnectionChange: (connection: string, detail: Record<string, unknown>) => subscriptionEvents.push({
+        kind: 'connection',
+        connection,
+        ...detail,
+      }),
       onSubscriptionEvent: (event: Record<string, unknown>) => subscriptionEvents.push({
         pollFallbackEnabled: !__PARTITIME_DISABLE_POLL_FALLBACK__,
         ...event,
@@ -209,9 +232,15 @@ async function boot() {
         rootId: hydrationManifest.rootId,
         manifest: hydrationManifest,
         onResult(result) {
-          hydrationResult = { ...result };
+          // @ref LLP 0063#workstream-7--complete-the-application-platform —
+          // production adoption evidence ends before live browser turns.
+          // The Exact runtime retains its result object while later responsive
+          // and live updates run. Freeze the completed adoption turn here so
+          // normal post-adoption updates cannot rewrite the production proof.
+          const adoptionSnapshot = structuredClone(result);
+          hydrationResult = adoptionSnapshot;
           (globalThis as { __exactContractHydrationResult?: unknown }).__exactContractHydrationResult = {
-            ...result,
+            ...adoptionSnapshot,
             mountPath: 'partitime-static-document',
           };
           resolveHydrationReported();
@@ -224,7 +253,13 @@ async function boot() {
     setThemeViewportWidth(hydrationManifest.capabilities.viewport?.width ?? innerWidth);
     setThemeReducedMotion(hydrationManifest.capabilities.reducedMotion ?? false);
     preMountSizeClass = readContractSizeClass();
-    const component = eventId === null ? feedApp : eventApp;
+    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+    // feed's one-subscription memory instrument must not retain the unopened
+    // event route's generated IR and AOT closures. Keep the startup route
+    // eager and load the event carrier only when navigation selects it.
+    const component = eventId === null
+      ? feedApp
+      : (await import('./event.contract')).default;
     const props = eventId === null
       ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
       : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
@@ -249,7 +284,7 @@ async function boot() {
     host = installContractWebHost({ container: root });
     mounted = eventId === null
       ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant } })
-      : mount(eventApp, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
+      : mount((await import('./event.contract')).default, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
   }
 
   // Preserve the mounted provider as the evidence source even after disposeActive

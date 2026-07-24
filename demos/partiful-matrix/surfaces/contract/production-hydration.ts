@@ -39,7 +39,10 @@ export function createStaticPartitimeProvider(manifest: ContractDataManifest, va
     manifest,
     subscribe<T>(queryName: string, args: Record<string, unknown>, observer: DataObserver<T>): DataSubscription {
       const rows = rowsForSeed(queryName, args, value) as T;
-      observer({ status: 'ready', value: rows, empty: Array.isArray(rows) && rows.length === 0, connection: 'live' });
+      // The prerendered rows are authoritative, while transport convergence
+      // belongs to the browser handoff. Emitting `live` here would bake a
+      // connection claim into HTML before any live provider exists.
+      observer({ status: 'ready', value: rows, empty: Array.isArray(rows) && rows.length === 0, connection: 'connecting' });
       return { dispose() {} };
     },
     async mutate<T>(_mutationName: string, _args: Record<string, unknown>, _correlation?: DataMutationCorrelation): Promise<DataMutationResult<T>> {
@@ -82,7 +85,11 @@ export function createHydrationSeededProvider(live: ContractDataProvider, value:
     subscribe<T>(queryName: string, args: Record<string, unknown>, observer: DataObserver<T>): DataSubscription {
       seededDeliveries += 1;
       const rows = rowsForSeed(queryName, args, value) as T;
-      observer({ status: 'ready', value: rows, empty: Array.isArray(rows) && rows.length === 0, connection: 'live' });
+      // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+      // build-time snapshot is authoritative data, but it is not evidence
+      // that the live provider has converged. Keep the connection axis honest
+      // until the already-established underlying subscription reports.
+      observer({ status: 'ready', value: rows, empty: Array.isArray(rows) && rows.length === 0, connection: 'connecting' });
 
       let latest: DataCellV2<T> | null = null;
       let disposed = false;

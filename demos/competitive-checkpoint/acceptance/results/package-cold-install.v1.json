@@ -1,0 +1,101 @@
+{
+  "schemaVersion": "snapback.package-cold-install.v1",
+  "ok": true,
+  "claimTreatment": "checkpoint",
+  "claimSatisfied": false,
+  "sourceRevision": "4a1024a7ead9daf2415a1a21a123fcf39f919c92",
+  "sourceDirty": true,
+  "publicationMode": "dry-run",
+  "scopePreset": "ccheever",
+  "version": "0.1.0-llp0075",
+  "packages": [
+    {
+      "sourceName": "@snapback/runtime-darwin-arm64",
+      "publishedName": "@ccheever/snapback-runtime-darwin-arm64",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-runtime-darwin-arm64-0.1.0-llp0075.tgz",
+      "sha256": "a6e6617ca72e4b5f83e26b1aa0d6688f35f5255396dfa42a03da12a270a35860"
+    },
+    {
+      "sourceName": "@snapback/contract",
+      "publishedName": "@ccheever/snapback-contract",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-contract-0.1.0-llp0075.tgz",
+      "sha256": "2ab2832d4288b1905c017d18f672bea76d0910edfd5bbd5623450fbb972da8a7"
+    },
+    {
+      "sourceName": "@snapback/client",
+      "publishedName": "@ccheever/snapback-client",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-client-0.1.0-llp0075.tgz",
+      "sha256": "2b36b8a83b2f2c0f4ad528d50da3250fac3877b1cf1451210ef489f116b2e804"
+    },
+    {
+      "sourceName": "@snapback/codegen",
+      "publishedName": "@ccheever/snapback-codegen",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-codegen-0.1.0-llp0075.tgz",
+      "sha256": "31d19bc6d207a058f0663d10c71fc362c562a920899b3bd02b01278cdaa008f4"
+    },
+    {
+      "sourceName": "@snapback/react",
+      "publishedName": "@ccheever/snapback-react",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-react-0.1.0-llp0075.tgz",
+      "sha256": "35943c7870495cac003a28bd2f347fa247204b77d26d193f44ae5b18759be94c"
+    },
+    {
+      "sourceName": "@snapback/app-cli",
+      "publishedName": "@ccheever/snapback-app-cli",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-app-cli-0.1.0-llp0075.tgz",
+      "sha256": "781c5af7ef09de8c03e53c7834c1cac4706176e1723b9c929b7ca106fe3d2234"
+    },
+    {
+      "sourceName": "@snapback/cli",
+      "publishedName": "@ccheever/snapback-cli",
+      "version": "0.1.0-llp0075",
+      "tarball": "ccheever-snapback-cli-0.1.0-llp0075.tgz",
+      "sha256": "8012642869bb7d000ff6ef4f2c4e031f01a1a37053e1ba3f80a763d82d510ede"
+    }
+  ],
+  "deployBuild": {
+    "releaseId": "sha256:608c1618d78f6729b4b0b879768a768c532967cfff91fc1fc5263ecc05a5fa5f",
+    "targetProfileId": "local-dev-sqlite-ibex",
+    "activationEligible": false,
+    "componentCount": 20,
+    "gapCount": 23
+  },
+  "checks": {
+    "materializedTarballInstall": true,
+    "stagedRegistryAliasResolution": true,
+    "noSiblingSourceCheckout": true,
+    "partitimeBackendBuilt": true,
+    "localCodegenOffline": true,
+    "remoteCodegenOffline": true,
+    "bundledSchemasAndCorpus": true,
+    "repositoryRelativePublicationPaths": true,
+    "packagedCliIntrospection": true,
+    "packagedRuntimeDoctor": true,
+    "packagedScaffoldAndOfflineGenerate": true,
+    "packagedDeployBuildAndVerify": true,
+    "packagedManagedDevReadyAttachWatchAndStop": true,
+    "browserAdapterBundle": true,
+    "resolvedDependencyCount": 16,
+    "browserBundleBytes": 571332
+  },
+  "nonclaims": [
+    {
+      "id": "public-registry-install",
+      "reason": "The proof resolves the exact public aliases through a disposable loopback npm registry backed by immutable tarballs; the packages are not yet published in a public registry."
+    },
+    {
+      "id": "separately-provisioned-clean-machine",
+      "reason": "The proof uses a fresh external directory on the development host, not a separately provisioned clean machine."
+    },
+    {
+      "id": "non-darwin-arm64-runtime",
+      "reason": "The packaged native runtime profile is Apple-silicon macOS only."
+    }
+  ]
+}

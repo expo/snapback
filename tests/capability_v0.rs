@@ -87,6 +87,10 @@ fn p2_committed_capability_manifest_matches_the_declared_server_manifest() {
         "capability.manifest.remote-service-sqlite-ibex.json",
         declared_manifest_json(CapabilityManifest::remote_service_sqlite_ibex_declared()),
     );
+    assert_committed_manifest(
+        "capability.manifest.local-dev-sqlite-ibex.outbound-actions.json",
+        declared_manifest_json(CapabilityManifest::local_v0_outbound_actions_declared()),
+    );
 }
 
 #[test]

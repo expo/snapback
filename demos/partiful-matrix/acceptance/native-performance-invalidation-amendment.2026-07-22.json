@@ -1,0 +1,76 @@
+{
+  "schemaVersion": "partitime.native-performance-invalidation-amendment.v1",
+  "amendmentId": "partitime-ws8-native-lane-invalidation-2026-07-22",
+  "date": "2026-07-22",
+  "status": "ratified",
+  "proposedBy": "Codex, implementing the LLP 0063 Step 4 remediation",
+  "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
+  "ratifiedAt": "2026-07-23T09:53:29Z",
+  "ratificationStatement": "I ratify Exact LLP 0386 §3.8 and the Snapback WS8 web/native invalidations dated 2026-07-22",
+  "appliesToProtocolId": "partitime-method-rubric-v1",
+  "appliesToWorkloadVersion": "partitime.web-3x4+apple-native-2x2x4.v1",
+  "invalidates": {
+    "methodId": "partitime.native-launch-stage.v1",
+    "scope": "The unpaired native build/profile rule in the 2026-07-21 prospective amendment. No native calibration thresholds or promoted claims exist, so this correction invalidates only the method and its retained diagnostic run.",
+    "diagnosticArtifact": {
+      "path": "demos/partiful-matrix/acceptance/results/step0-native-exact.json",
+      "sha256": "8f47977ac87e05c288da609392e012e5edd420d76186087ea043ff9ed5c249c9"
+    }
+  },
+  "replacement": {
+    "methodId": "partitime.native-launch-stage.v2",
+    "thresholdSetId": "partitime-ws8-native-performance-thresholds-v2",
+    "laneId": "partitime.native-ios-release-simulator-hbc-agent-off.v1",
+    "candidate": "Exact + Contract iOS Release/Simulator carrier loading a production-bundled Hermes HBC artifact",
+    "control": "React Expo iOS Release/Simulator carrier loading its release Hermes HBC artifact",
+    "sameHostRule": "Candidate and control run on the same host, OS, simulator runtime, simulator device class, and cache protocol.",
+    "observerRule": "Acto, debug overlays, Metro/Vite development transforms, and agent-server code are absent before first frame. First frame comes from the native host and first authoritative data comes from a carrier-owned structured product marker whose implementation bytes remain inside the measured artifact.",
+    "assetRule": "startupAssetWeightBytes is the HBC actually admitted by the qualifying launch. Development module-table source, debug source fallbacks, native binaries, symbols, and test artifacts are not substituted for that value.",
+    "thresholdPolicy": "Calibrate all four thresholds from the paired React Release lane using the already-ratified 1.10 formula, commit the calibration, then execute an independent Exact holdout against that committed revision."
+  },
+  "cause": {
+    "class": "provably-incomparable-build-lanes",
+    "finding": "The diagnostic paired a React Expo Release/Simulator app with Exact's Debug host loading a development module-table startup artifact and the eager Acto agent graph. Exact LLP 0145 explicitly says this comparison is a debugging smell, not a headline comparison, and Exact LLP 0128 assigns agent-off startup budgets and agent inspection to separate lanes.",
+    "notAProductOptimization": "The retained 7.1 MB / 460-module / 6.4 s Exact result remains evidence about the agent-on development carrier. Reclassifying it does not make the release candidate faster, change any threshold formula, discard a valid release sample, or promote a claim.",
+    "diagnosticEvidence": {
+      "scriptBytes": 7109789,
+      "moduleCount": 460,
+      "moduleSourceBytes": 6231550,
+      "hermesEvaluationMs": 6414.54,
+      "renderedFrameWithin15Seconds": false
+    },
+    "localCompositionProbe": {
+      "claimEligible": false,
+      "exactRevision": "a3e9cd71f",
+      "agentOff": {
+        "moduleCount": 261,
+        "moduleSourceBytes": 2916206,
+        "startupSourceBytes": 2311002
+      },
+      "agentOn": {
+        "moduleCount": 511,
+        "moduleSourceBytes": 6344601,
+        "startupSourceBytes": 4868548
+      },
+      "interpretation": "Acto accounts for roughly half the observed development graph, while the remaining agent-off module table is still a development artifact and is not admitted as a release replacement."
+    }
+  },
+  "requiredValidation": {
+    "preserveOriginalDiagnostic": true,
+    "calibrationWarmups": 2,
+    "calibrationSamples": 7,
+    "holdoutWarmups": 2,
+    "holdoutSamples": 7,
+    "holdoutMustReadCommittedCalibration": true,
+    "rawReceiptsMustAttest": [
+      "Release build configuration",
+      "Hermes HBC artifact mode",
+      "agent not loaded before first frame",
+      "debug overlay disabled",
+      "same simulator identity",
+      "native-host first app frame",
+      "structured first-authoritative-data marker"
+    ],
+    "claimPromotionBeforeRatification": "forbidden"
+  }
+}
