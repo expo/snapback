@@ -272,7 +272,7 @@
   "phaseRules": {
     "P0a": {
       "entry": "the three authority amendments are content-bound and v1 remains unchanged",
-      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, and immutable pre-fix correctness evidence; governed post-fix Contract samples are forbidden",
+      "allowed": "land and validate this preregistration, receipt schema, collector apparatus, and immutable pre-fix correctness evidence; the P0a correctness witness may exercise reset, eight live subscriptions, and one canonical update but may not read or retain heap values or enter any metric aggregate; governed post-fix Contract samples are forbidden",
       "exit": "protocol/schema/collector digests and the P0a entry receipt are committed and mirrored before the P0b repair merge"
     },
     "P0b": {
@@ -327,5 +327,10 @@
     "comparatorRawDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/raw/react-snapback",
     "holdoutRawDirectory": "demos/partiful-matrix/acceptance/results/performance-v2/raw/contract-snapback",
     "aggregatePath": "demos/partiful-matrix/acceptance/results/performance-v2-aggregate.json"
+  },
+  "collectorIdentity": {
+    "algorithm": "SHA-256 over RFC-8785 canonical JSON of the ordered array [{path,sha256}] for artifacts.collectorPaths; each member digest is SHA-256 over its exact bytes",
+    "build": "the frozen collector imports each arm's committed Vite configuration through Vite's JavaScript API, disables config auto-loading, and overrides only base, output directory, and the Rollup HTML input to performance-v2.html",
+    "packageLock": "SHA-256 over RFC-8785 canonical JSON of the ordered array [{path,sha256}] for the repository root, React surface, and Contract surface bun.lock files"
   }
 }

@@ -47,14 +47,21 @@ const gitObject = (cwd, revision, path) => runGit(cwd, ['rev-parse', `${revision
 
 const schemaPath = resolve(acceptanceRoot, 'comparison-protocol.v2.schema.json');
 const protocolPath = resolve(acceptanceRoot, 'comparison-protocol.v2.json');
+const receiptSchemaPath = resolve(
+  repoRoot,
+  'demos/partiful-matrix/acceptance/performance-v2-receipt.schema.json',
+);
 const schemaBytes = readFileSync(schemaPath);
 const protocolBytes = readFileSync(protocolPath);
+const receiptSchemaBytes = readFileSync(receiptSchemaPath);
 const schema = JSON.parse(schemaBytes);
 const protocol = JSON.parse(protocolBytes);
+const receiptSchema = JSON.parse(receiptSchemaBytes);
 
 const ajv = new Ajv2020({ allErrors: true, strict: true });
 const validate = ajv.compile(schema);
 assert.ok(validate(protocol), ajv.errorsText(validate.errors, { separator: '\n' }));
+ajv.compile(receiptSchema);
 
 assert.equal(
   new Set(protocol.metrics.map(({ id }) => id)).size,
@@ -185,6 +192,7 @@ const result = {
     id: protocol.protocolId,
     sha256: sha256(protocolBytes),
     schemaSha256: sha256(schemaBytes),
+    receiptSchemaSha256: sha256(receiptSchemaBytes),
     workloadVersion: protocol.workloadVersion,
     thresholdFormulaSetId: protocol.thresholdFormulaSetId,
     thresholdSetId: protocol.identities.thresholdSetId,
@@ -211,7 +219,6 @@ const result = {
   governedSamplesCollected: false,
   p0aComplete: false,
   remainingP0aInputs: [
-    'receipt schema',
     'collector implementation and digest',
     'immutable pre-fix correctness receipt',
     'cross-repository mirrored validator receipt',

@@ -21,7 +21,8 @@
     "targetDerivation",
     "phaseRules",
     "invalidRunPolicy",
-    "artifacts"
+    "artifacts",
+    "collectorIdentity"
   ],
   "properties": {
     "$schema": {
@@ -79,6 +80,9 @@
     },
     "artifacts": {
       "$ref": "#/$defs/artifacts"
+    },
+    "collectorIdentity": {
+      "$ref": "#/$defs/collectorIdentity"
     }
   },
   "$defs": {
@@ -709,6 +713,29 @@
         },
         "aggregatePath": {
           "$ref": "#/$defs/repoPath"
+        }
+      }
+    },
+    "collectorIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "algorithm",
+        "build",
+        "packageLock"
+      ],
+      "properties": {
+        "algorithm": {
+          "type": "string",
+          "minLength": 1
+        },
+        "build": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packageLock": {
+          "type": "string",
+          "minLength": 1
         }
       }
     }
