@@ -919,7 +919,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
     for (const theme of themes) for (const viewport of viewports) for (const state of phase4VisualSpec.states) {
       await page.setViewport(viewport.width, viewport.height);
       await prepareVisualState({ page, cell, baseUrl, state: state.id, theme: theme.id });
-      await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+      await waitForFontsAndPaint(page);
       const structural = await page.eval(`(()=>{const ids=${JSON.stringify(state.requires)};return ids.map(id=>{const node=document.querySelector('[data-testid="'+id+'"]');if(!node)return {id,missing:true};const r=node.getBoundingClientRect();const s=getComputedStyle(node);return {id,missing:false,x:r.x,y:r.y,width:r.width,height:r.height,display:s.display,visibility:s.visibility,opacity:Number(s.opacity)}})})()`);
       const invalid = structural.filter((entry) => entry.missing || entry.width <= 0 || entry.height <= 0 || entry.display === 'none' || entry.visibility === 'hidden' || entry.opacity === 0);
       if (invalid.length > 0) throw new Error(`${state.id}/${theme.id}/${viewport.id} violates required visibility: ${JSON.stringify(invalid)}`);
@@ -966,6 +966,24 @@ async function loadPhase4Route(page, cell, baseUrl, pathname, params = {}) {
   if (boot.authoring !== cell.arm || boot.backend !== cell.backend) throw new Error(`wrong phase-4 cell after navigation: ${JSON.stringify(boot)}`);
   await page.eval('new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)))');
   return boot;
+}
+
+async function waitForFontsAndPaint(page) {
+  if (selectedBrowser !== 'safari') {
+    await page.eval(`(async()=>{await document.fonts?.ready;await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));return true})()`);
+    return;
+  }
+  const deadline = Date.now() + 5_000;
+  let status = null;
+  while (Date.now() < deadline) {
+    status = await page.eval(`document.fonts?.status??'loaded'`);
+    if (status === 'loaded') {
+      await sleep(100);
+      return;
+    }
+    await sleep(50);
+  }
+  throw new Error(`Safari fonts did not settle before visual inspection: ${status}`);
 }
 
 async function tabTo(page, predicate, limit = 16) {
