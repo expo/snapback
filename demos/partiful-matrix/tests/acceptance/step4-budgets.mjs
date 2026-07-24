@@ -41,8 +41,9 @@ const supabaseRealtimePath = 'demos/partiful-matrix/acceptance/results/supabase-
 const convexRealtimePath = 'demos/partiful-matrix/acceptance/results/convex-realtime-web.json';
 const contractConvexRealtimePath = 'demos/partiful-matrix/acceptance/results/contract-convex-realtime-web.json';
 const performanceAmendmentPath = 'demos/partiful-matrix/acceptance/performance-amendment.2026-07-21.json';
-const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-22.json';
+const performanceInvalidationPath = 'demos/partiful-matrix/acceptance/performance-invalidation-amendment.2026-07-23.json';
 const nativePerformanceInvalidationPath = 'demos/partiful-matrix/acceptance/native-performance-invalidation-amendment.2026-07-22.json';
+const authoredSourceInvalidationPath = 'demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23.json';
 const performanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-performance-calibration.json';
 const performanceHoldoutPath = 'demos/partiful-matrix/acceptance/results/step4-performance-holdout.json';
 const nativePerformanceCalibrationPath = 'demos/partiful-matrix/acceptance/results/step4-native-performance-calibration.json';
@@ -65,6 +66,7 @@ const contractConvexRealtime = readJson(contractConvexRealtimePath);
 const performanceAmendment = readJson(performanceAmendmentPath);
 const performanceInvalidation = readJson(performanceInvalidationPath);
 const nativePerformanceInvalidation = readJson(nativePerformanceInvalidationPath);
+const authoredSourceInvalidation = readJson(authoredSourceInvalidationPath);
 const memoryAmendment = readJson(memoryAmendmentPath);
 const optionalReceipt = (path) => existsSync(resolve(repoRoot, path)) ? readJson(path) : null;
 const performanceCalibration = optionalReceipt(performanceCalibrationPath);
@@ -91,6 +93,12 @@ const protocolNativeInvalidation = protocol.amendments.find(
 assert(protocolNativeInvalidation, `protocol does not register ${nativePerformanceInvalidation.amendmentId}`);
 assert.equal(protocolNativeInvalidation.path, nativePerformanceInvalidationPath);
 assert.equal(protocolNativeInvalidation.status, nativePerformanceInvalidation.status);
+const protocolAuthoredSourceInvalidation = protocol.amendments.find(
+  ({ id }) => id === authoredSourceInvalidation.amendmentId,
+);
+assert(protocolAuthoredSourceInvalidation, `protocol does not register ${authoredSourceInvalidation.amendmentId}`);
+assert.equal(protocolAuthoredSourceInvalidation.path, authoredSourceInvalidationPath);
+assert.equal(protocolAuthoredSourceInvalidation.status, authoredSourceInvalidation.status);
 const performanceInvalidationIdentity = identity(performanceInvalidationPath);
 const webPerformanceReceiptsCurrent = [performanceCalibration, performanceHoldout].every((receipt) =>
   receipt?.methodId === performanceInvalidation.replacement.methodId
@@ -146,25 +154,37 @@ for (const build of candidateBuilds) {
   assert.equal(build.status, 0, `candidate production build failed: ${JSON.stringify(build)}`);
 }
 
-const sourceGroups = {
+const productSourcePaths = {
   react: [
     'demos/partiful-matrix/surfaces/react/src/App.tsx',
-    'demos/partiful-matrix/surfaces/react/src/main.tsx',
-    'demos/partiful-matrix/surfaces/react/src/provider.ts',
+    'demos/partiful-matrix/surfaces/react/src/styles.css',
   ],
   contract: [
     'demos/partiful-matrix/surfaces/contract/feed.contract',
     'demos/partiful-matrix/surfaces/contract/event.contract',
-    'demos/partiful-matrix/surfaces/contract/main.ts',
-    'demos/partiful-matrix/surfaces/contract/provider.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.ts',
     'demos/partiful-matrix/surfaces/contract/helpers.contract-meta.ts',
     'demos/partiful-matrix/surfaces/contract/connection-badge.contract',
-    'demos/partiful-matrix/surfaces/contract/production-hydration.ts',
     'demos/partiful-matrix/surfaces/contract/ui.ts',
     'demos/partiful-matrix/surfaces/contract/ui.contract-meta.ts',
+  ],
+};
+assert.deepEqual(productSourcePaths, authoredSourceInvalidation.replacement.comparison);
+const supportSourcePaths = {
+  react: [
+    'demos/partiful-matrix/surfaces/react/src/main.tsx',
+    'demos/partiful-matrix/surfaces/react/src/provider.ts',
+  ],
+  contract: [
+    'demos/partiful-matrix/surfaces/contract/main.ts',
+    'demos/partiful-matrix/surfaces/contract/provider.ts',
+    'demos/partiful-matrix/surfaces/contract/production-hydration.ts',
     'demos/partiful-matrix/surfaces/contract/scripts/prerender.mjs',
   ],
+};
+const sourceGroups = {
+  react: [...productSourcePaths.react, ...supportSourcePaths.react],
+  contract: [...productSourcePaths.contract, ...supportSourcePaths.contract],
   vanilla: [
     'demos/partiful-matrix/surfaces/vanilla/src/main.js',
     'demos/partiful-matrix/surfaces/vanilla/src/provider.js',
@@ -183,11 +203,19 @@ const inventorySubset = (group, paths) => {
   const wanted = new Set(paths);
   const files = sourceInventory[group].files.filter(({ path }) => wanted.has(path));
   assert.equal(files.length, paths.length, `candidate glue inventory omitted ${group} sources`);
-  return { files, totalLines: files.reduce((sum, file) => sum + file.lines, 0) };
+  return {
+    files,
+    totalLines: files.reduce((sum, file) => sum + file.lines, 0),
+    totalBytes: files.reduce((sum, file) => sum + file.bytes, 0),
+  };
+};
+const productSourceInventory = {
+  react: inventorySubset('react', productSourcePaths.react),
+  contract: inventorySubset('contract', productSourcePaths.contract),
 };
 const glueInventory = {
-  react: inventorySubset('react', sourceGroups.react.slice(1)),
-  contract: inventorySubset('contract', sourceGroups.contract.slice(2)),
+  react: inventorySubset('react', supportSourcePaths.react),
+  contract: inventorySubset('contract', supportSourcePaths.contract),
   vanilla: inventorySubset('vanilla', sourceGroups.vanilla.slice(1)),
 };
 const cells = Object.fromEntries(arms.flatMap((arm) => backends.map((backend) => [
@@ -233,7 +261,7 @@ const compressedRows = contractBudgetRows('deterministicGzipBytes', 'compressedJ
 const minifiedPass = minifiedRows.every(({ pass }) => pass);
 const compressedPass = compressedRows.every(({ pass }) => pass);
 
-const sourceRows = [
+const historicalSourceRows = [
   {
     metric: 'contractSourceLines',
     actual: sourceInventory.contract.totalLines,
@@ -247,7 +275,27 @@ const sourceRows = [
     formula: protocol.thresholdFormulas.snapbackBackendLines,
   },
 ].map((row) => ({ ...row, pass: row.actual <= row.threshold }));
-const sourcePass = sourceRows.every(({ pass }) => pass);
+assert.equal(
+  productSourceInventory.react.totalBytes,
+  authoredSourceInvalidation.replacement.reactBaselineBytes,
+  'ratification-candidate React product inventory drifted; issue a new dated source amendment',
+);
+const sourceRows = [
+  {
+    metric: authoredSourceInvalidation.replacement.metric,
+    actual: productSourceInventory.contract.totalBytes,
+    threshold: authoredSourceInvalidation.replacement.contractThresholdBytes,
+    formula: authoredSourceInvalidation.replacement.thresholdFormula,
+  },
+  {
+    metric: 'snapbackBackendLines',
+    actual: sourceInventory.snapbackBackend.totalLines,
+    threshold: frozen.thresholds.snapbackBackendLines,
+    formula: protocol.thresholdFormulas.snapbackBackendLines,
+  },
+].map((row) => ({ ...row, pass: row.actual <= row.threshold }));
+const sourcePass = authoredSourceInvalidation.status === 'ratified'
+  && sourceRows.every(({ pass }) => pass);
 
 const requiredCheckRow = {
   actual: webReceipt.passed,
@@ -389,10 +437,23 @@ const requirements = [
     ),
   }),
   requirement('authored-source-lines', sourcePass ? 'pass' : 'red', sourcePass
-    ? 'STEP4_BUDGET_SOURCE_VOLUME_PASSED'
-    : 'STEP4_BUDGET_SOURCE_VOLUME_EXCEEDS_FROZEN_THRESHOLDS', {
+    ? 'STEP4_BUDGET_SOURCE_VOLUME_V2_PASSED'
+    : authoredSourceInvalidation.status === 'ratified'
+      ? 'STEP4_BUDGET_SOURCE_VOLUME_V2_EXCEEDS_THRESHOLDS'
+      : 'STEP4_BUDGET_SOURCE_VOLUME_V2_AMENDMENT_NOT_RATIFIED', {
+    methodId: authoredSourceInvalidation.replacement.methodId,
+    workloadVersion: authoredSourceInvalidation.replacement.workloadVersion,
+    thresholdFormulaSetId: authoredSourceInvalidation.replacement.thresholdFormulaSetId,
+    amendment: identity(authoredSourceInvalidationPath),
+    amendmentStatus: authoredSourceInvalidation.status,
     rows: sourceRows,
-    thresholdId: frozen.thresholdId,
+    productInventory: productSourceInventory,
+    supportInventory: glueInventory,
+    historicalV1: {
+      disposition: authoredSourceInvalidation.invalidates.disposition,
+      rows: historicalSourceRows,
+      thresholdId: frozen.thresholdId,
+    },
   }),
   requirement('glue-file-and-line-inventory', 'pass', 'STEP4_BUDGET_GLUE_INVENTORY_PRESENT', {
     inventory: glueInventory,
@@ -446,11 +507,13 @@ const requirements = [
   requirement('prospective-category-amendments-and-holdout-validation', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
     && memoryStatus === 'ratified'
+    && authoredSourceInvalidation.status === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
     && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true ? 'pass' : 'red', webPerformanceStatus === 'ratified'
     && nativePerformanceStatus === 'ratified'
     && memoryStatus === 'ratified'
+    && authoredSourceInvalidation.status === 'ratified'
     && performanceHoldout?.holdoutValidation?.ok === true
     && memoryHoldout?.holdoutValidation?.ok === true
     && nativePerformanceHoldout?.holdoutValidation?.ok === true
@@ -463,9 +526,11 @@ const requirements = [
     invalidation: identity(performanceInvalidationPath),
     nativeInvalidation: nativePerformanceInvalidationIdentity,
     memoryAmendment: memoryAmendmentIdentity,
+    authoredSourceInvalidation: identity(authoredSourceInvalidationPath),
     amendmentStatus: webPerformanceStatus,
     nativeAmendmentStatus: nativePerformanceStatus,
     memoryAmendmentStatus: memoryStatus,
+    authoredSourceAmendmentStatus: authoredSourceInvalidation.status,
     holdoutValidationArtifacts: [
       performanceHoldout ? identity(performanceHoldoutPath) : null,
       memoryHoldout ? identity(memoryHoldoutPath) : null,
@@ -474,6 +539,7 @@ const requirements = [
     finding: webPerformanceStatus === 'ratified'
       && nativePerformanceStatus === 'ratified'
       && memoryStatus === 'ratified'
+      && authoredSourceInvalidation.status === 'ratified'
       ? 'All corrected methods are ratified; holdout rows remain red until web/build, two-part memory, and paired release-native receipts are independently green.'
       : 'Invalid historical artifacts remain preserved; every replacement requires owner-ratified authority plus an independently bound green holdout before claim promotion.',
   }, 'nonclaim'),
@@ -521,6 +587,7 @@ const report = finalizeReport({
       thresholdFormulaSetId: protocol.thresholdFormulaSetId,
       productionBuilds: candidateBuilds,
       sourceInventory,
+      productSourceInventory,
       glueInventory,
       cells,
       attribution: byteAttribution,
@@ -536,6 +603,7 @@ const report = finalizeReport({
         memoryAmendment: memoryAmendmentIdentity,
         memoryCalibration: memoryCalibration ? identity(memoryCalibrationPath) : null,
         memoryHoldout: memoryHoldout ? identity(memoryHoldoutPath) : null,
+        authoredSourceInvalidation: identity(authoredSourceInvalidationPath),
       },
     },
     frozenThresholds: frozen.thresholds,

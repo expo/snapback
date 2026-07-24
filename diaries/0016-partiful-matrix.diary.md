@@ -2183,3 +2183,34 @@ capability-scoped public entries, but the application did not lose hydration,
 push, diagnostics, or dev tooling to get there. The complete browser baseline
 remains 43/43. The headless-client guide now names the Online entry, so this
 did not create a new guide gap.
+
+## 2026-07-23 — a green build exposed two unfairly red instruments
+
+The fresh claim-grade calibration and holdout did exactly what they were
+supposed to do: they kept the optimized build result honest. All four Contract
+production-build p95s landed at 299–421 ms in holdout against 918–1,097 ms
+committed thresholds. The same run also made it obvious that two other rows
+were measuring the wrong thing.
+
+The first-UI observer did not start until `DOMContentLoaded`. React creates its
+product shell from JavaScript, so that still observed a UI mutation. Contract
+ships a complete prerendered shell, but the collector ignored it until the
+module graph had evaluated. A nonclaim document-start probe observes Contract
+× SQLite at 30–31 ms, versus the old 62–94 ms surrogate and a 39 ms warm React
+probe. That is an instrument correction, not permission to weaken startup.
+
+Idle CPU had a different resolution problem. The same React controls moved by
+0.02–0.32 task ms/s between independent cohorts, while formula-derived limits
+were only 0.199–0.742 ms/s and the already-declared absolute ceiling was 25
+ms/s. A relative five-percent comparison below one task millisecond per second
+was classifying Chrome/CDP scheduler jitter as framework cost. The proposed v3
+method keeps the 25 ms/s ceiling and adds a pre-sampling 1 ms/s de minimis
+floor.
+
+The authored-source row was also asymmetric: React's 11,552-byte stylesheet
+was absent, while Contract's inline styles were counted, and later static
+hydration/prerender support had been added only to the candidate without a
+source-workload rollover. The proposed replacement compares complete shared
+product-authoring bytes and reports asymmetric platform support separately.
+The current product row is 21,618 Contract bytes against 27,517 React bytes;
+neither proposal can promote a claim before ratification.
