@@ -100,7 +100,11 @@ index's leading field is the owner field; root filters are index-served — an
 equality prefix over the next index fields plus at most one range on the
 following field, with no residual post-index predicate in v1; and the
 ordering is the index sequence (after the pinned prefix) ending in the root
-`_id` tie-break. A plan whose filters or ordering the index cannot serve
+`_id` tie-break. The `_id` suffix is framework-generated, not
+author-declared: a same-landing LLP 0007 amendment gives every declared
+index an implicit trailing ascending `_id` component under binary collation,
+so the tie-break is declarable without treating `_id` as an author-indexable
+field — LLP 0065 §3's rule stands. A plan whose filters or ordering the index cannot serve
 fails generation with `SNAPBACK_RELATIONAL_ROOT_INDEX_REQUIRED` rather than
 degrading to a scan. A bounded result is therefore also a bounded root
 access: targets may not examine an unbounded region to fill a sparse page,
@@ -115,7 +119,10 @@ byte equality of their UTF-8 encoding — no Unicode normalization, no case
 folding, no locale collation, so NFC and NFD spellings are distinct values;
 reference ids compare byte-equal and both operands must declare the same
 target table domain, with cross-domain pairs failing generation; integers and
-booleans compare exactly; a null in any position never matches. A target's
+booleans compare exactly; a null in any position never matches. A string
+containing an unpaired surrogate has no unique UTF-8 encoding and is
+rejected at the portable string boundary rather than compared, with a
+corpus case. A target's
 unique and access indexes over join keys must use a binary collation
 (SQLite's `BINARY`; a future Postgres profile must prove its collation or
 operator class byte-equivalent) or report a machine-readable capability gap —
@@ -132,7 +139,11 @@ A maintained projection additionally requires a declared root reverse index
 (not necessarily unique) whose leading fields are exactly the root join-field
 sequence.
 That index is the bounded lookup and admission proof for joined-source fan-out;
-targets may not discover affected roots through a table scan.
+targets may not discover affected roots through a table scan. `fanOutLimit`
+counts **every reverse-index entry** for the joined key, not only roots the
+core filter admits: the maintenance scan reads exactly the counted range, so
+its work is bounded by the proved quantity, and filtered-out roots
+conservatively consume limit rather than hiding unbounded scan work.
 
 Unknown properties, aliases, tables, fields, operators, join kinds, and
 expressions fail generation. The plan admits no function callback, SQL text,
@@ -184,9 +195,14 @@ storage-invariant failure, not an arbitrary first-row choice. Ordering
 references qualified root scalar (non-JSON) fields in v1, independently of
 whether they are projected; ordering by joined
 fields and projecting JSON leaves are deferred because they would require
-join-before-limit planning or a new canonical value encoding. Result bytes use
-LLP 0051's canonical JSON-transport representation and retain the projection
-declaration's field order.
+join-before-limit planning or a new canonical value encoding. Result bytes
+are pinned as a versioned `RelationalResultEncodingV1`: UTF-8 JSON with no
+insignificant whitespace, RFC 8785's number spelling and string escaping
+over LLP 0051's canonical value mapping, object members in the projection
+declaration's order — an explicit, named divergence from JCS key sorting —
+absent expressed by omission and null by the literal, with golden vectors in
+the committed schema. Since v1 projects only scalar leaves, no nested-object
+ordering question arises.
 
 The opaque cursor may carry root boundary keys, including the `_id` tie-break,
 that the application projection does not expose. Ordering fields therefore need
@@ -301,16 +317,32 @@ then, capability artifacts report `live_replace`, never `live_delta`.
 Retention is a closed, default-deny plan capability:
 `retention: 'none'` (the default) or `retention: 'opaque-authorized-snapshot-v1'`,
 which treats the projected result as an opaque authorized snapshot under
-LLP 0053's lease and reconnect rules. No other retention story is admitted in
+LLP 0053's lease and reconnect rules and therefore requires a
+server-resolved authenticated principal for the lease. Anonymous results
+have no admissible v1 retention: an all-`public-read` plan is
+`retention: 'none'` until LLP 0053 defines an anonymous
+authority-partition lease class. No other retention story is admitted in
 v1: a profile may not retain and locally re-authorize the dependency closure,
 and must not retain unprojected joined rows merely to recompute locally.
-Anonymous (`public-read`) results follow the same closed capability; nothing
-about public visibility exempts a result from the lease discipline.
+The retained/native evaluator executes relational plans on the live path
+like every evaluator in §2; against the retained store it only decodes and
+serves the opaque snapshot — it never re-executes the join over retained
+rows.
 
 ### 5. Transactionally maintained projections
 
 `MaintainedProjectionPlanV1` is a `RelationalCoreV1` plus a stable output key
 expression, source/output visibility declarations, and publication metadata.
+The output key expression is closed: v1 admits exactly the root `_id`, or
+the complete ordered tuple of an immutable declared unique root index —
+fields the plan marks immutable so a key cannot move under maintenance.
+Either form is injective over roots by the uniqueness proof, so two roots —
+in particular two differently owned roots — cannot map to one output row;
+key bytes are the RFC 8785 canonicalization of the tuple, a null key
+component refuses the mutation, and a collision observed at runtime is a
+storage-invariant failure refused atomically, never a last-writer overwrite.
+For an owner-visible output the same-subject proof of §3 runs over the key's
+root, so the key determines the owner.
 It deliberately has no caller-relative ordering, cursor, or `take`. Its
 `materializeAll(core, V)` evaluator runs under internal projection-maintenance
 authority, enumerates every root admitted by the non-security root filter,
@@ -325,8 +357,11 @@ At commit version V, the output table's logical rows in canonical key order
 must byte-equal `materializeAll(core, V)`. System fields are defined by a
 separate deterministic rule, not by `materializeAll`: an output row's `_id`
 derives from a domain-separated digest of the projection's **stored
-identity** plus the output key. The stored identity is assigned at first
-activation, carries its own activation timestamp, and is revision-stable —
+identity** plus the canonical output-key bytes. The stored identity and its
+activation timestamp are assigned at first activation and recorded as
+approved activation inputs under LLP 0081 §2's canonical-plan rule — not
+ambient values — with golden vectors, and the activation timestamp obeys
+LLP 0081 §3's 48-bit UUIDv7 range check. The identity is revision-stable —
 §6's hash comparison detects that a plan changed; it does not re-key rows —
 so the same output key owns the same row identity across maintenance,
 rebuilds, and plan revisions. The digest maps into LLP 0007's UUIDv7 shape
@@ -407,10 +442,16 @@ stored in the source row.
 The output table is ordinary governed schema, but direct application writes to
 it are refused. Only its projection owner and the explicit rebuild operation
 hold write authority. Reads are enforced symmetrically: the output visibility
-declaration binds every read path, so a HostPlan that reads an output table
-without composing the output visibility predicate fails generation unless the
-function declares system maintenance authority — LLP 0065's floor governs
-generated operations, and this rule closes the raw-read locus it does not
+declaration binds every read path. A closed HostPlan that reads an output
+table without composing the output visibility predicate fails generation; an
+opaque handler — whose ceiling cannot prove predicate composition — may not
+read an output table at all in v1, refused by the same admission check that
+enforces its declared ceiling. "System maintenance authority" is the
+internal projection-maintenance principal named by the plan, exercisable
+only by the runtime's maintenance and rebuild paths — it is not grantable to
+application functions and appears in no `ctx.auth` universe. LLP 0065's
+floor governs
+generated operations, and this rule closes the raw-read loci it does not
 cover. V1 projections are flat: a maintained output table may not serve as a
 source of any maintained projection — its own or another's — so chains,
 diamonds, and cycles are all rejected, and transitive fan-out cannot
@@ -472,8 +513,11 @@ Codegen emits:
 - target capability requirements;
 - conservative read/write and authorization dependency ceilings;
 - the generated query or projection references; and
-- an inspection explanation naming source rows, visibility decisions, join
-  lookup, projection generation, and resnapshot reason.
+- an inspection explanation of the plan: sources, join lookup shape,
+  projection generation, and resnapshot reason. Per-row facts — which source
+  rows contributed and which visibility predicate refused a row — belong to
+  §3's separately authorized audit channel, not ordinary inspection, so the
+  explanation cannot become the existence oracle §3 closes.
 
 Stable diagnostics include:
 
@@ -499,7 +543,8 @@ under LLP 0005; acceptance authorizes implementation and satisfies the
 "accepted semantics" half of LLP 0063's Step 5 entry conjunction, but claims
 no executable result. Acceptance amends LLP 0004's and LLP 0007's
 deferred-work/status sections to point here as the controlling first
-relational profile.
+relational profile, and carries the same-landing LLP 0007 amendment giving
+every declared index its implicit trailing ascending `_id` component.
 
 A separate implementation-conformance suite — the LLP 0080 half of
 `RELATIONAL_MIGRATION_COUPLED_SUITE_V1` — gates `Implemented` status and the
@@ -513,7 +558,8 @@ A separate implementation-conformance suite — the LLP 0080 half of
   deliberate below-constraint duplicate injection, ordering, limits, canonical
   result bytes, and read-your-writes have deterministic tests, and the
   comparator corpus includes NFC/NFD spellings, case variants, cross-domain
-  reference refusal, integer/boolean exactness, and compound-null keys;
+  reference refusal, integer/boolean exactness, compound-null keys, and
+  unpaired-surrogate rejection;
 - generation is byte-identical and schema/result drift fails before runtime;
 - an instrumented large, sparse, mostly-invisible fixture proves the
   index-served root bound: examined entries stay within the admitted window
@@ -525,7 +571,8 @@ A separate implementation-conformance suite — the LLP 0080 half of
   same-user/multi-tenant claim is made;
 - a paired-database fixture differing only by one unauthorized joined row
   proves missing and invisible are byte-indistinguishable across results,
-  cursors, codes, and ordinary inspection on every claimed target;
+  cursors, codes, transport behavior, and ordinary inspection on every
+  claimed target;
 - authenticated and anonymous `public-read` tests prove it grants no write
   authority, retains authority-partition fencing, and cannot launder owner data
   into a public output; owner outputs prove their owner field derives from a
@@ -551,7 +598,9 @@ A separate implementation-conformance suite — the LLP 0080 half of
 - two concurrent admissions racing one remaining unit of fan-out capacity
   cannot both commit; a mutation racing plan activation revalidates or is
   refused; a join-key move counts the union of old and new keys; repeated
-  writes to one source row coalesce to one output evaluation; and a chain or
+  writes to one source row coalesce to one output evaluation; a joined-row
+  mutation over a large population of filtered-out roots proves the
+  reverse-index-entry counting rule bounds the scan; and a chain or
   diamond of projections is refused at generation;
 - a raw HostPlan read of an output table without the output visibility
   predicate is refused at generation, and a mutable shared joined source

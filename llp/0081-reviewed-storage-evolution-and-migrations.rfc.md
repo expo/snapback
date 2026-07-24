@@ -116,7 +116,7 @@ Every plan has:
 
 - deterministic `planId`, schema version, and canonical SHA-256 digest;
 - exact app, instance, target-profile, predecessor-schema, successor-schema,
-  and predecessor schema/activation generation;
+  and predecessor storage generation (schema/data-generation identity);
 - ordered typed steps with stable step IDs;
 - per-step preconditions, read/write sets, resource bounds, reversibility, and
   verification queries;
@@ -126,13 +126,19 @@ Every plan has:
 - cleanup and rollback boundaries.
 
 The serialized authority is `MigrationPlanArtifactV1 { body, planDigest,
-planId }`: `planDigest` is SHA-256 over the canonical `body` bytes, `planId`
-is `migration-v1:<planDigest>`, and neither outer field appears inside
-`body`, so validation recomputes the body digest with no self-reference.
-Canonical bytes use the corpus's existing RFC 8785 (JCS) rule from LLP 0062
-with a `snapback:migration-plan:v1` domain-separation prefix, and the
+planId }`. The `body` serializes under the corpus's existing RFC 8785 (JCS)
+rule from LLP 0062; `planDigest` is SHA-256 over exactly the ASCII prefix
+`snapback:migration-plan:v1`, one `\n`, and those JCS body bytes — the
+domain-separated preimage is the only digest input; `planId`
+is `migration-v1:<planDigest>`; and neither outer field appears inside
+`body`, so validation recomputes the body digest with no self-reference. The
 committed schema ships golden vectors so independent implementations prove
-byte agreement. The execution strategy (single-transaction versus shadow
+byte agreement. Plan generation is itself deterministic: the planner emits
+steps in a pinned normative order — schema-manifest declaration order, then
+declared-intent order, ties broken lexicographically by qualified target
+name and then by step type — and each step ID is the
+canonical string `s<ordinal>:<stepType>:<qualified target>`, so two clean
+checkouts derive identical step sequences and IDs from identical inputs. The execution strategy (single-transaction versus shadow
 generation), the declared proof method and bound, and the approval-relevant
 resource ceilings — maximum affected rows, bytes, writes, and barrier
 downtime — are canonical `body` fields; nothing approval-relevant lives
@@ -166,13 +172,16 @@ the migration journal, or mutate the installed manifest.
 Approval is a typed, authenticated `MigrationApprovalV1`: it binds the exact
 plan digest, the observation digest it reviewed, the approval-policy digest,
 the complete target audience — LLP 0072's exact `projectId`, `targetId`,
-`environmentId`, `deploymentId`, `databaseId`, `streamIncarnation`,
-`activationGeneration`, and `targetProfileId` where the deployment class
+`environmentId`, `deploymentId`, `releaseId`, `databaseId`,
+`streamIncarnation`, `activationGeneration`, and `targetProfileId` where the
+deployment class
 defines them, with the local profile binding the resolved local target
 identity — the approver principal, issue and expiration timestamps, and a
 single fresh `operationId` distinct from `planId`: one plan may be executed
 as different operations only through separate approvals, and target identity
-is never conflated with target profile. At barrier
+is never conflated with target profile. Admission, journal lookup, replay,
+cancellation, and receipt recovery are all keyed by `operationId` plus its
+audience — never by bare plan digest. At barrier
 time, admission emits a `MigrationAdmissionV1` binding the actual predecessor
 head, the enforced resource bounds, and the approval it consumes; the receipt
 carries both records. Editing source schemas, declarations, constants,
@@ -229,15 +238,27 @@ handlers, read ambient time/randomness, perform network I/O, access secrets, or
 read an undeclared table. The executor replays constants as data and derives IDs
 only through the plan's pinned deterministic namespace rule: a synthesized ID
 is a UUIDv7-compatible value: the 48 time bits carry the plan's approved
-`publicationTimestamp`, the version and variant fields hold their fixed
+`publicationTimestamp` — plan validation refuses a timestamp outside the
+48-bit millisecond range with `SNAPBACK_MIGRATION_PLAN_INVALID`, even though
+LLP 0007's timestamp domain is wider — the version and variant fields hold
+their fixed
 UUIDv7 values, and exactly the 74 `rand_a`/`rand_b` bits derive from a
 domain-separated
 SHA-256 over plan digest, step ID, source table and row key, destination
 table and generation, and output ordinal — collision-scoped per destination,
 satisfying LLP 0007's UUIDv7 contract, and shipped with conformance vectors.
 Maintained-projection output rows are exempt: their `_id` follows LLP 0080
-§5's plan-identity-plus-output-key rule so maintenance and rebuild agree on
-row identity.
+§5's rule — the revision-stable stored projection identity plus the output
+key — so maintenance and rebuild agree on row identity.
+
+V1 refuses plans whose steps write authority-bearing tables — membership,
+permission-backing, or authority-creating declarations under LLP 0055/0056 —
+with `SNAPBACK_MIGRATION_PLAN_INVALID`: LLP 0056's central membership writer
+owns transition provenance, `lastHolder`, and final-state validation, and a
+generic copy/backfill/retire cannot satisfy that contract. A dedicated
+`hostOps:migrate` writer class carrying the full subsystem validation is
+future work; until it exists, evolving an authority-bearing table is an
+application-level operation, not a migration step.
 
 V1 represents a rename or type change as add/copy/validate/publish/retire. It
 does not issue an in-place semantic rename or cast that one target happens to
@@ -263,14 +284,30 @@ barrier, rechecks every identity and precondition, creates the required backup
 or checkpoint, and then appends a journal entry before each physical step. The
 journal contains plan/step identity, input generation, attempt, state, progress
 cursor, output generation, verification result, and durable error code. The
-executor is a complete durable state machine — including
-`cancel_requested`, `aborting`, `cancelled`, and cleanup states — and every
-transition is journaled; fault injection in acceptance exercises the interior
+executor is a complete durable state machine over a closed state set —
+`admitted`, `barriered`, `executing(step, batch)`, `verifying`,
+`published-held`, `released`, `rolling-back`, `rolled-back`,
+`cancel_requested`, `aborting`, `cancelled`, `abandoned`, and one
+`cleanup-pending` tail state reachable only from `released` and
+`rolled-back` that ends in the same terminal state it extends. The complete
+transition relation is enumerated in the committed journal schema, and a
+transition absent from that enumeration is refused as corruption — the set
+is closed by schema, not by prose. Every
+transition is journaled and carries the operation's fencing token (the lease
+epoch), which the durability owner validates before applying; a stale token
+is refused, so a superseded executor instance cannot advance the machine.
+Cancellation is admitted only pre-publication: from `published-held` the
+only exits are the journaled release transition and §6's audited rollback.
+Fault injection in acceptance exercises the interior
 of every durable transition, not only batch boundaries.
 
 The barrier itself is durable: admission writes a persisted migration fence
-that every application lane — query, mutation, subscription, job, worker —
-consults before opening. A crash between reopen and resume therefore cannot
+consulted before opening by every lane in the target's capability-derived
+lane registry — queries, mutations, subscriptions, jobs, workers, actions,
+cron wakeups, and every external-effect egress lane (webhooks, payments,
+notifications). The registry is closed and enumerated in the target's
+migration capability, so a lane the fence does not name cannot be admitted
+at all, and acceptance crash-tests every registered lane. A crash between reopen and resume therefore cannot
 readmit application writes: the fence outlives the process and clears only
 when the journal reaches a terminal state. Publication enters a journaled
 `published-held` state in which the fence still closes traffic and workers;
@@ -311,7 +348,11 @@ events are typed schema-transition entries added to LLP 0007's journal
 grammar by a same-landing normative amendment — LLP 0007 treats unknown
 operations as corruption, so the grammar extension and the head/high-water
 invariant's coverage of these events land with this RFC's acceptance, not as
-an implicit dialect. The same publication transaction fires LLP 0053's
+an implicit dialect. The amendment's normative content is fixed here: the
+two event types join the closed operation vocabulary carrying (operation id,
+predecessor and successor schema hashes, generation identities, retention
+floor), each counts toward the journal high-water exactly like a data
+operation, and the head/journal-cut equality holds across them unchanged. The same publication transaction fires LLP 0053's
 activation obligations for auth-scoped state — durable dispositions, fences,
 and acknowledgement semantics — rather than treating a generic resync as
 their substitute. What publishes with the storage is the **staged**
@@ -358,9 +399,19 @@ side's durable state through the shared `operationId` — neither authority
 guesses. LLP 0072's backup/restore machinery remains the owner of backup
 creation; this RFC's executor requests and binds it, never reimplements it.
 
-Only one migration may own an app at a time. Replaying the same completed plan
-returns its prior receipt. A different plan against an active or completed
-predecessor identity is rejected.
+Only one migration may own an app at a time. Replaying the same completed
+operation (`operationId`) returns its prior receipt; the same plan under a
+new approval is a new operation and is rejected as stale against a completed
+predecessor identity, as is any different plan.
+
+The approved maximum barrier downtime is enforced, not merely measured: the
+journal records barrier start, every wake, batch commit, and the publication
+attempt check elapsed time against the plan's ceiling, and exceeding it
+before publication takes the safe abort path — discard or park the shadow
+per the journal, reopen the predecessor, and fail with
+`SNAPBACK_MIGRATION_BARRIER_FAILED`. Once `published-held` is reached the
+ceiling no longer applies; release proceeds. Slow-executor and
+crash-past-deadline fixtures witness both sides.
 
 ### 5. Verification and data proof
 
@@ -372,13 +423,22 @@ Every step defines executable verification. The final proof includes:
   exactly zero rejected rows);
 - expected `ContentDigestV1` values computed independently from predecessor
   rows plus the closed plan, compared with actual successor digests.
-  `ContentDigestV1` is a normative, resumable streaming SHA-256 over
-  canonically ordered logical rows (RFC 8785 row bytes, stable key order,
-  absent and null distinguished), domain-separated and binding the algorithm
-  version, plan digest, schema hash, table, generation, row count, barrier
-  head, publication version, and `publicationTimestamp`; its accumulator
-  state checkpoints with the batch cursor, and golden vectors ship with the
-  committed schema. System fields are proven under §4's deterministic rules;
+  `ContentDigestV1` is a normative, resumable streaming SHA-256. Its
+  preimage is a header frame (`snapback:content-digest:v1`, algorithm
+  version, plan digest, schema hash, qualified table, generation, barrier
+  head, publication version, `publicationTimestamp`) followed by one frame
+  per logical row in stable key order — each frame the length-prefixed
+  RFC 8785 re-canonicalization of the row's LLP 0051 canonical
+  JSON-transport bytes, the same representation query results already pin,
+  which distinguishes absent from null; a table whose declared schema
+  contains a type that transport cannot represent losslessly is refused at
+  plan validation as outside v1's proof domain, fail-closed, rather than
+  digested approximately — and a trailer
+  frame binding the row count; system fields stream as a second digest with
+  its own domain prefix under §4's rules. The accumulator checkpoint stores
+  the SHA-256 chaining state plus byte and row counters with the batch
+  cursor, resume-equality is a golden-vector case, and the vectors ship with
+  the committed schema. System fields are proven under §4's deterministic rules;
   for a maintained projection the proof is LLP 0080 §5's split oracle —
   logical rows against `materializeAll`, system fields against the
   deterministic rule — so neither RFC claims an unparameterized byte
@@ -457,13 +517,19 @@ without advancing the head, so fast republish is admitted only while the
 fence has kept every such lane closed; after traffic or worker release,
 rollback requires a separately approved reverse plan or restore. This
 generation-republish posture is recorded in the release receipt alongside
-LLP 0072's rollback postures by a same-landing LLP 0072 amendment; it does
+LLP 0072's rollback postures by a same-landing LLP 0072 amendment adding the
+named `generationRepublish` row to that RFC's posture set; it does
 not silently rewind data, because nothing outside the fence observed the
 successor. It journal-republishes the retained predecessor generation
 in one transaction that allocates exactly one new application version `R`,
 appends
 a distinct rollback-resync event, raises the retention floor to the new
-version, and advances the predecessor schema/activation generation. Forward
+version, advances the predecessor **storage generation** — the
+schema/data-generation identity this RFC owns, deliberately distinct from
+LLP 0072's traffic-facing `activationGeneration` — and atomically fires
+LLP 0053's schema/function activation obligations for the reactivated
+predecessor artifacts exactly as forward publication does for the
+successor's. Forward
 admission reserves commit-version budget for this allocation, so a forward
 publication cannot occupy a version from which `R` is unallocatable. Row
 versions follow a rollback expected-value evaluator, not raw checkpoint
@@ -587,8 +653,14 @@ A separate implementation-conformance suite — the LLP 0081 half of
   durable state-machine transition leave the
   predecessor authoritative and support deterministic resume; a crash between
   predecessor reopen and resume proves the persisted fence still refuses
-  application admission on every lane; and cancellation from every
-  non-terminal state reaches `cancelled` with a terminal receipt;
+  admission on every lane in the capability-derived registry, including
+  action, cron, and egress lanes; cancellation from every
+  pre-publication non-terminal state reaches `cancelled` with a terminal
+  receipt, and from `published-held` only release and the audited rollback
+  are admitted; slow-executor and crash-past-deadline fixtures prove the
+  downtime ceiling aborts safely before publication and does not apply
+  after it; and an authority-bearing-table step is refused at plan
+  validation;
 - injected crashes immediately before and after final publication reopen one
   complete generation with an unambiguous target-local journal, an admitted
   resume re-establishes its lease/barrier, and the receipt byte-equals the

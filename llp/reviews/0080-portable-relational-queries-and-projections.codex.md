@@ -134,3 +134,67 @@ It is not yet sound enough to serve as LLP 0063’s Step 5 prerequisite. Several
 Verdict: NOT READY
 
 Several HIGH blockers leave bounded execution, pagination, authorization delivery, projection identity, fan-out closure, and rebuild equivalence undefined, so acceptance would certify implementation choices rather than a portable contract.
+## Round 2 — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec` orchestrated by /llp-review. Reviewed the round-1-reconciled revision; permitted to read its own round-1 artifact only.
+
+## 1. Per-concern resolution table
+
+| # | Round-1 concern | Resolution | Verification |
+|---|---|---|---|
+| 1 | HIGH — A bounded result is not a bounded root query | **RESOLVED** | LLP 0080 §1 now requires a named root access index, static filter/order compatibility, fail-closed generation, and an instrumented sparse-data bound; the new `_id`-suffix corpus collision is concern 3 below. |
+| 2 | HIGH — Pagination progress and identity are not specified | **RESOLVED** | §2 fully defines `root-window-v1`, continuation after omitted roots, terminal/zero-take behavior, cursor bindings and refusals, and the concurrent-mutation guarantee; Acceptance matches it. |
+| 3 | HIGH — The unique-index cardinality proof lacks a portable comparator | **RESOLVED** | §1 pins per-type equality, null behavior, UTF-8 byte equality, reference domains, and comparator-equivalent index collation, with adversarial Acceptance cases. |
+| 4 | HIGH — `materializeAll(core, V)` cannot define the bytes it must equal | **RESOLVED** | §5 separates logical rows from deterministic system fields, while §6 and LLP 0081 §5 require a complete framed streaming digest rather than sampling; the newly exposed output-key problem is concern 1 below. |
+| 5 | HIGH — The global fan-out/write proof is neither closed nor serialized | **RESOLVED** | §5 now defines pre/final-post unions, coalescing, no-op exclusion, global cross-plan accounting, commit dependencies, activation serialization, and flat projections. |
+| 6 | HIGH — LLP 0053 integration and maintained-output read enforcement are incomplete | **PARTIALLY RESOLVED** | §4 closes the `DatabaseCaptured`, obligation, reconnect, denial, and retention profile, but §5 concretely rejects only unsafe HostPlans; opaque `ctx.db` and other read lanes remain uncovered, and “system maintenance authority” is undefined. |
+| 7 | HIGH — The claimed absence of an existence leak contradicts the diagnostic design | **PARTIALLY RESOLVED** | §3 now defines semantic noninterference and a separate audit channel, but §7 still promises ordinary inspection naming source rows and visibility decisions, and Acceptance omits the claimed transport-level paired witness. |
+| 8 | HIGH — The fan-out ceiling is a cross-authority count and availability side channel | **RESOLVED** | §3 explicitly classifies the capacity coupling and requires `sharedFanOutDisclosure`; Acceptance witnesses boundary behavior and fail-closed omission. |
+| 9 | MEDIUM — A left join can derive owner visibility from an absent joined row | **RESOLVED** | §3 requires owner identity from a guaranteed-present source and limits joined-side derivation to inner joins; Acceptance includes the left-join rejection. |
+| 10 | MEDIUM — Some acceptance claims exceed the admitted profile | **RESOLVED** | Acceptance narrows tenant claims to app isolation, specifies below-constraint corruption injection, and binds the evaluator matrix to exact target/profile manifests. |
+| 11 | MEDIUM — The coupled acceptance clause points to unrelated documents | **RESOLVED** | §6 names LLP 0080/0081, `RebuildMaintainedProjection`, `RELATIONAL_MIGRATION_COUPLED_SUITE_V1`, and LLP 0063’s complete conjunction. |
+| 12 | MEDIUM — The normalized plan grammar contains unresolved contradictions | **RESOLVED** | §§1–2 distinguish literal core filters from callable argument filters, require exactly one joined table, and permit ordering by unprojected qualified root scalar fields. |
+
+## 2. New concerns
+
+1. **HIGH — Maintained output-key and stored-identity semantics are not closed.**
+
+   LLP 0080 §5 gives the output-key expression no closed grammar, type, null rule, canonical encoding, injectivity requirement, or ordinary-maintenance collision behavior. Different roots—including differently owned roots—can therefore map to the same durable row and `_id`. The stored identity and activation timestamp are also “assigned” outside LLP 0081 §2’s canonical-plan input rule, and §5 does not apply LLP 0081 §3’s 48-bit UUIDv7 timestamp bound.
+
+   Resolve by restricting v1 keys to root `_id` or an exact immutable unique root-index tuple, proving that owner-visible keys determine the owner, defining atomic collision refusal, and pinning identity/timestamp allocation and canonical key bytes as approved activation inputs with golden vectors and 48-bit validation.
+
+2. **MEDIUM — Public/anonymous retention has no admitted LLP 0053 composition.**
+
+   LLP 0080 §4 deliberately keeps all-public plans auth-scoped rather than `authorityIndependent`, yet permits anonymous opaque retention. LLP 0053 admits retention only through declared authorization dependence or `authorityIndependent`, restricts retained authority dependence to `userId`, and binds leases to a server-resolved principal. Additionally, §2’s “retained/native evaluator” appears to execute the relational plan, while §4 permits only an opaque projected snapshot and forbids retaining the joined dependency closure.
+
+   Resolve by disabling this retention, classifying it as `authorityIndependent`, or amending LLP 0053 with an explicit anonymous authority-partition lease class; clarify that the retained/native path only decodes and serves the opaque snapshot, with load, reconnect, expiry, and authority-transition tests.
+
+3. **MEDIUM — The required root access index cannot express its `_id` suffix under the governing index contract.**
+
+   LLP 0080 §1 requires the declared root index order to end in `_id`, but LLP 0007 §Index Contract defines indexes through declared fields without a generated system-field suffix, and LLP 0065 §3 explicitly says v1 does not treat `_id` as author-indexable. Thus the bounded access proof may be impossible to declare portably.
+
+   Resolve with a same-landing LLP 0007 rule for a framework-generated `_id` suffix—including direction and collation—or require an explicit unique continuation field, plus a large duplicate-order-key fixture.
+
+4. **MEDIUM — “Canonical result bytes” still lack a canonical result encoding.**
+
+   LLP 0080 §2 cites LLP 0051’s “canonical JSON-transport representation,” but LLP 0051 defines value normalization rather than byte serialization. Whitespace, escaping, number spelling, absent/null handling, and nested-object ordering remain open; RFC 8785 as used by LLP 0081 would also sort keys rather than retain projection declaration order.
+
+   Resolve by defining a versioned `RelationalResultEncodingV1` with golden vectors, or adopt JCS and remove the declaration-order byte claim.
+
+5. **MEDIUM — Maintained reverse-index work can remain unbounded.**
+
+   LLP 0080 §1 requires the reverse index to begin only with the join fields, while §5 does not say whether `fanOutLimit` counts all matching reverse-index entries or only roots admitted by the core filter. Under the latter interpretation, arbitrarily many filtered-out roots can force an unbounded scan during a joined-row mutation.
+
+   Resolve by counting every reverse-index entry for the joined key or requiring an index that also serves the complete core filter, with a large filtered-out-root fixture.
+
+6. **LOW — UTF-8 equality does not cover lone surrogate code units.**
+
+   ECMAScript strings can contain unpaired surrogates, which are not Unicode scalar values and therefore lack a unique standard UTF-8 encoding.
+
+   Resolve by rejecting unpaired surrogates at the portable string boundary or pinning a code-unit encoding and corpus case.
+
+## 3. Verdict
+
+Verdict: NOT READY
+
+The revision resolves most round-1 defects, but maintained-output identity and authorization remain HIGH blockers, with additional retention, index, encoding, and bounded-work collisions still open.

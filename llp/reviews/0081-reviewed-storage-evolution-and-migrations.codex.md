@@ -133,3 +133,52 @@ It is not yet spec-level sound. Several load-bearing formats remain undefined, t
 Verdict: NOT READY
 
 The proposal has a strong core architecture, but multiple HIGH and MEDIUM blockers make its approval, publication, proof, crash recovery, retained-client, and rollback guarantees internally inconsistent or presently unwitnessable.
+## Round 2 — 2026-07-24
+
+**Provider / runtime:** OpenAI Codex CLI v0.145.0 — model gpt-5.6-sol, reasoning effort ultra, sandbox read-only; non-interactive `codex exec` orchestrated by /llp-review. Reviewed the round-1-reconciled revision; permitted to read its own round-1 artifact only.
+
+# LLP 0081 Round-2 Review
+
+Reviewed against stable SHA-256 `1140fdda644260a0e8e7f59a4e1a45f29c2ad565f86cd40671bbcdabdbb4ecb1`.
+
+## 1. Per-concern resolution table
+
+| # | Round-1 concern | Resolution | Justification |
+|---|---|---|---|
+| 1 | Circular LLP 0063 / LLP 0081 Step 5 gate | **RESOLVED** | LLP 0081 §Acceptance separates semantic acceptance from implementation conformance and expressly authorizes implementation after acceptance, yielding a valid Accepted → implement/witness → Step 5 ordering consistent with LLP 0063 §Workstream 6 and §Sequence. |
+| 2 | Canonical plan and preview determinism | **PARTIALLY RESOLVED** | LLP 0081 §2 defines the artifact/body split, JCS, domain separation, canonical strategy/proof fields, and snapshot-pinned observations, but still lacks normative planner/step-ID derivation and exact prefix-plus-body preimage framing. |
+| 3 | Approval and exact target fencing | **PARTIALLY RESOLVED** | LLP 0081 §2 adds observation/policy digests, `operationId`, admission fencing, and most LLP 0072 identities, but omits `releaseId` from LLP 0072 §Identities and objects and leaves carrier, replay, and revocation semantics open in LLP 0081 Open Question 3. |
+| 4 | `ContentDigestV1` construction | **PARTIALLY RESOLVED** | LLP 0081 §5 now requires full production proof and demotes sampling, but does not define the exact metadata/row framing, accumulator serialization, system-field stream, or scalar encoding needed for LLP 0007’s full numeric value domain. |
+| 5 | LLP 0080/0081 projection-oracle incompatibility | **RESOLVED** | LLP 0080 §§5–6 and LLP 0081 §§4–5 now share the split logical-row/system-field oracle with explicit publication parameters. |
+| 6 | Publication events versus journal/client/auth protocols | **PARTIALLY RESOLVED** | LLP 0081 §4 defines typed resync events, retention-floor publication, and LLP 0053 obligations, but current LLP 0007 §Commit-version graduation still treats unknown operations as corruption and contains none of the promised event grammar or revised cut invariant. |
+| 7 | Crash recovery, durable barrier, and cancellation | **PARTIALLY RESOLVED** | LLP 0081 §4 adds a persisted fence, atomic batch progress, `published-held`, and cancellation states, but no exhaustive transition/fencing-token contract exists and post-publication cancellation remains contradictory with §6. |
+| 8 | Control-plane and resident-executor ownership | **RESOLVED** | LLP 0081 §4 now supplies the LLP 0072 lock order, shared `operationId`, subordinate migration lease, control-plane-owned backup, resident execution, and staged-function versus traffic-activation split. |
+| 9 | Unsafe “zero successor commits” rollback guard | **PARTIALLY RESOLVED** | LLP 0081 §§4 and 6 correctly require `published-held` with every effect lane fenced, but the required generation-republish posture has not been added to LLP 0072 §Migrations and rollback. |
+| 10 | Fast rollback row-version semantics | **RESOLVED** | LLP 0081 §6 allocates rollback version `R`, reserves version capacity, restamps changed rows, preserves unchanged rows, enforces rollback-timestamp monotonicity, and verifies a derived rollback oracle. |
+| 11 | Retained-work and old-client compatibility | **RESOLVED** | LLP 0081 §§4 and 6 separate server-resident work from client queues, restrict V1 to `empty`/proven `dual-compatible`, defer transforms to subsystem owners, and define resnapshot versus upgrade-required quarantine. |
+| 12 | Approval-relevant drift bounds | **PARTIALLY RESOLVED** | LLP 0081 §§2 and 4 close population and timestamp drift, but the newly approved maximum barrier downtime is only called an admission precondition and has no enforceable runtime deadline. |
+| 13 | Synthesized UUIDv7 IDs | **PARTIALLY RESOLVED** | LLP 0081 §3 now pins UUID version/variant and digest-derived bits, but does not refuse or encode `publicationTimestamp` values exceeding UUIDv7’s 48-bit time field despite LLP 0007 §Timestamps admitting larger values. |
+| 14 | Local Step 5 coupled to unsupported hosting | **RESOLVED** | LLP 0081 §1 and §Acceptance make local SQLite the Step 5 profile and gate every hosted adapter separately under LLP 0072. |
+| 15 | Coupled references and Cloudflare scheduling | **RESOLVED** | LLP 0080 §6 names the corrected RFCs and shared suite; LLP 0081 §1 uses LLP 0014’s shared alarm dispatcher and Acceptance covers eviction/contention. |
+
+## 2. New concerns
+
+1. **HIGH — Generic migrations bypass authority-bearing-table write contracts.** LLP 0081 §§3–5 admits generic copy/backfill/retire operations without mapping them to LLP 0056’s central membership-writer carrier, transition/provenance log, `lastHolder`, and final-state validation requirements (§Declaring a membership table, §Writes, §Invalidation). Resolve by defining a `hostOps:migrate` writer class with full subsystem validation and provenance, or refusing authority-bearing tables.
+
+2. **HIGH — The durable fence’s explicit lane list is narrower than fast rollback requires.** LLP 0081 §4 names query, mutation, subscription, job, and worker lanes, while §6 relies on actions, cron, webhooks, payments, notifications, and other external-effect/ephemeral sinks remaining closed after crashes. Resolve with a closed capability-derived lane registry and crash tests for every admitted invocation, writer, and egress lane.
+
+3. **MEDIUM — Idempotence is inconsistently keyed by plan and operation.** Section 2 permits separate approvals and `operationId`s for one plan, while §4 says replaying the same completed plan returns its previous receipt. Resolve by keying admission, replay, cancellation, journal lookup, and receipt recovery to the exact approved `operationId` and audience.
+
+4. **MEDIUM — Cancellation from `published-held` is undefined.** Section 4 makes `published-held` nonterminal, while Acceptance requires cancellation from every nonterminal state to end as `cancelled`; §6 instead requires an audited rollback to leave the successor. Resolve by excluding post-publication states from cancellation, defining cancellation as successor release, or routing it through rollback and its receipt.
+
+5. **MEDIUM — Storage and traffic activation generations are conflated.** Section 4 correctly leaves LLP 0072 traffic activation separate, but §6 says republishing advances the predecessor “schema/activation generation,” whereas LLP 0072 defines `activationGeneration` around traffic authority. Resolve with a distinct `schemaGeneration` or `storageGeneration`.
+
+6. **MEDIUM — Fast rollback omits LLP 0053 activation obligations.** Section 6 reactivates predecessor schema/functions but specifies only `rollback-resync`; LLP 0053 §The authorization-event universe requires schema/function activation to fire event 2 atomically. Resolve by projecting the full authorization/room obligations during rollback and testing dropped delivery/acknowledgement.
+
+7. **MEDIUM — Approved maximum downtime is not enforceable.** Section 2 cannot prove future elapsed downtime at admission, while §§4 and 8 merely measure it. Resolve by defining the measured interval, a durable deadline checked at every wake/batch/publication, safe pre-publication abort behavior, and slow/crash fault fixtures.
+
+## 3. Verdict
+
+Verdict: NOT READY
+
+Multiple HIGH and MEDIUM blockers remain in authority-bearing writes, fencing, approval/proof formats, governing-corpus amendments, operation identity, rollback activation, cancellation, and enforceable downtime.
