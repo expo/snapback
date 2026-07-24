@@ -5,7 +5,13 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (boundedness landed on the local arm: per-cursor
+**Revised:** 2026-07-24 (diagnostic envelope landed on the local arm: all
+nine promised codes survive both envelope allowlists; an out-of-band recorder
+restores the host-built structured refusal past the JS round-trip while
+forged stream codes fold to the generic handler failure; raw serde text
+removed from stream diagnostics; witnessed through the real HTTP action path
+plus the mutations-cannot-stream executed negative; residue: the Workerd
+handler transport's detail discard). 2026-07-24 (boundedness landed on the local arm: per-cursor
 reader threads behind one-slot rendezvous channels make the 30 s wall an
 absolute mid-read ceiling with 2 s settlement grace reserved ahead of the
 watchdog, serialize one in-flight pull per cursor, and carry a real
@@ -637,12 +643,23 @@ a fix before gate 2:
   evidence its witness does not earn. Until conformance the capability should
   carry a proposed/experimental maturity admission cannot treat as support,
   and unproved limit rows should read `Missing`.
-- **Diagnostic envelope coverage.** `SNAPBACK_ACTION_STREAM_UNSUPPORTED` and
-  the host rate-fence code are absent from the handler-envelope allowlists and
-  can fold to `SNAPBACK_HANDLER_FAILED`; every promised code must survive both
-  envelopes, and capability-admission refusal
-  (`SNAPBACK_CAPABILITY_UNSUPPORTED`) must stay distinct from runtime
-  `_UNSUPPORTED`.
+- **Diagnostic envelope coverage (local arm landed 2026-07-24).** All nine
+  promised codes — the eight stream families plus
+  `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` — now survive both the runtime and
+  harness envelope allowlists, and `SNAPBACK_CAPABILITY_UNSUPPORTED` stays a
+  distinct code with its own reviewed status. The structured representation
+  survives the JS round-trip via an out-of-band host recorder: the last
+  host-built stream refusal is restored at result assembly when the surfaced
+  code matches, so operation/expected/received/repair reach the action
+  result; a handler-authored throw that merely spells a stream code folds to
+  `SNAPBACK_HANDLER_FAILED` (the settle wrapper trusts only the
+  `__snapbackCode` brand) — both witnessed through the real HTTP action path
+  (`tests/action_stream_envelope_v0.rs`), along with the mutations-cannot-
+  stream executed negative. Raw serde parser text no longer enters stream
+  diagnostics. Residue: the Workerd handler transport still discards
+  structured details (unlanded Workerd baseline), and per-family HTTP-path
+  shape witnesses beyond INVALID ride the existing unit and instrument
+  coverage.
 - **Cross-authority accuracy.** The Workerd open path's Begin/Initiated cut
   does not visibly match LLP 0059's normalize-before-Begin rule; the Workerd
   manifest claims idle, wall, progress-rate, watchdog, and typed-settlement

@@ -45,6 +45,8 @@ Boundedness, authority, and honesty:
   on `ctx.fetchStream`
 - `20260723-llp0076-diagnostic-envelope.md` — preserve `_UNSUPPORTED` and the
   progress-rate code end-to-end; structured detail through the FFI/envelope
+  — RESOLVED 2026-07-24 (landed on the local arm with an out-of-band
+  trusted-restore; Workerd detail-discard reassigned; see `issues/closed/`)
 
 Decisions (forks to resolve, not code):
 

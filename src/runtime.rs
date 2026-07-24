@@ -818,6 +818,12 @@ pub(crate) struct IbexHostContext<'a> {
     ///   denial; @ref LLP 0053#agent-auth-protected-query-inputs-amended-2026-07-14-eng-24906 — delivered
     ///   by the existing TerminalAuthorization deny, no new trusted code.
     terminal_denial: Option<SnapbackError>,
+    /// The last host-built stream refusal (LLP 0076 §Diagnostics), recorded
+    /// out-of-band because the structured, value-free details cannot survive
+    /// the JS error round-trip. When the handler surfaces the SAME code, the
+    /// outer result-assembly restores this trusted representation; a handler
+    /// that forges a stream code without a recorded refusal gets no details.
+    stream_refusal: Option<SnapbackError>,
 }
 
 /// Replay-mode cursor over a supplied ctx-answer ledger (LLP 0051 D1).
@@ -872,6 +878,7 @@ impl<'a> IbexHostContext<'a> {
             recorded_ids: Vec::new(),
             replay,
             terminal_denial: None,
+            stream_refusal: None,
         })
     }
 
@@ -925,6 +932,7 @@ impl<'a> IbexHostContext<'a> {
             recorded_ids: Vec::new(),
             replay: None,
             terminal_denial: None,
+            stream_refusal: None,
         })
     }
 
@@ -1422,20 +1430,19 @@ impl<'a> IbexHostContext<'a> {
                             "expected": "{url, method?, headers?, body?, idempotencyKey?}",
                             "received": "nonconforming request object",
                             "repair": "guide/backend/actions-and-fetch#stream-a-response",
-                            "error": error.to_string(),
                         }))
                     })?;
                 let host = self
                     .action_host
                     .as_deref_mut()
                     .ok_or_else(action_host_missing)?;
-                serde_json::to_value(host.open_response_stream(request)?).map_err(|error| {
+                serde_json::to_value(host.open_response_stream(request)?).map_err(|_error| {
                     SnapbackError::error(
                         "SNAPBACK_ACTION_STREAM_INVALID",
                         "runtime",
                         "the bounded response stream metadata could not be serialized",
                     )
-                    .with_details(json!({ "operation": "open", "error": error.to_string() }))
+                    .with_details(json!({ "operation": "open" }))
                 })
             }
             "action.streamRead" => {
@@ -1445,13 +1452,13 @@ impl<'a> IbexHostContext<'a> {
                     .action_host
                     .as_deref_mut()
                     .ok_or_else(action_host_missing)?;
-                serde_json::to_value(host.read_response_stream(&stream_id)?).map_err(|error| {
+                serde_json::to_value(host.read_response_stream(&stream_id)?).map_err(|_error| {
                     SnapbackError::error(
                         "SNAPBACK_ACTION_STREAM_INVALID",
                         "runtime",
                         "the bounded response stream chunk could not be serialized",
                     )
-                    .with_details(json!({ "operation": "read", "error": error.to_string() }))
+                    .with_details(json!({ "operation": "read" }))
                 })
             }
             "action.streamCancel" => {
@@ -1471,13 +1478,13 @@ impl<'a> IbexHostContext<'a> {
                     .action_host
                     .as_deref_mut()
                     .ok_or_else(action_host_missing)?;
-                serde_json::to_value(host.start_stream_attempt(&client_key)?).map_err(|error| {
+                serde_json::to_value(host.start_stream_attempt(&client_key)?).map_err(|_error| {
                     SnapbackError::error(
                         "SNAPBACK_ACTION_STREAM_INVALID",
                         "runtime",
                         "the stream attempt record could not be serialized",
                     )
-                    .with_details(json!({ "operation": "attemptStart", "error": error.to_string() }))
+                    .with_details(json!({ "operation": "attemptStart" }))
                 })
             }
             "action.streamAttemptSettle" => {
@@ -1502,13 +1509,13 @@ impl<'a> IbexHostContext<'a> {
                     .as_deref_mut()
                     .ok_or_else(action_host_missing)?;
                 serde_json::to_value(host.settle_stream_attempt(&attempt_token, cause)?).map_err(
-                    |error| {
+                    |_error| {
                         SnapbackError::error(
                             "SNAPBACK_ACTION_STREAM_INVALID",
                             "runtime",
                             "the stream attempt terminal record could not be serialized",
                         )
-                        .with_details(json!({ "operation": "settle", "error": error.to_string() }))
+                        .with_details(json!({ "operation": "settle" }))
                     },
                 )
             }
@@ -2010,6 +2017,14 @@ pub(crate) fn dispatch_host_call(
     let tracing = HOST_CALL_TRACE.with(|slot| slot.borrow().is_some());
     let traced_args = if tracing { Some(args.clone()) } else { None };
     let result = ctx.handle_host_call(op, args);
+    // @ref LLP 0076#diagnostics — record the structured stream refusal
+    // out-of-band so it can be restored past the JS error round-trip.
+    if let Err(error) = &result
+        && (error.diagnostic.code.starts_with("SNAPBACK_ACTION_STREAM_")
+            || error.diagnostic.code == "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED")
+    {
+        ctx.stream_refusal = Some(error.clone());
+    }
     if let Some(args) = traced_args {
         HOST_CALL_TRACE.with(|slot| {
             if let Some(trace) = slot.borrow_mut().as_mut() {
@@ -2131,7 +2146,31 @@ fn run_ibex_handler_with_context_until(
     if !rejections.is_empty() {
         return Err(unhandled_rejection_error(module, rejections));
     }
-    parse_handler_output(module, output)
+    restore_stream_refusal(invocation, parse_handler_output(module, output))
+}
+
+/// Restore the host-built structured stream refusal when the handler's final
+/// error carries the same code (LLP 0076 §Diagnostics): the trusted
+/// representation — operation, limit, value-free received summary, repair
+/// anchor — survives the FFI/envelope round-trip, while a handler-forged
+/// stream code with no recorded host refusal gets nothing attached.
+fn restore_stream_refusal(
+    invocation: &mut IbexHostContext<'_>,
+    result: SnapbackResult<Value>,
+) -> SnapbackResult<Value> {
+    match result {
+        Err(error) => {
+            match invocation
+                .stream_refusal
+                .take()
+                .filter(|recorded| recorded.diagnostic.code == error.diagnostic.code)
+            {
+                Some(recorded) => Err(recorded),
+                None => Err(error),
+            }
+        }
+        ok => ok,
+    }
 }
 
 /// Evaluate one module in a fresh, non-callable VM and prove that its named
@@ -2994,8 +3033,10 @@ fn handler_envelope_code(code: &str) -> &str {
         | "SNAPBACK_ACTION_STREAM_INVALID"
         | "SNAPBACK_ACTION_STREAM_LIMIT_EXCEEDED"
         | "SNAPBACK_ACTION_STREAM_TIMEOUT"
+        | "SNAPBACK_ACTION_STREAM_UNSUPPORTED"
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS"
         | "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED"
+        | "SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED"
         | "SNAPBACK_BUFFERED_WRITE_LIMIT_EXCEEDED"
         | "SNAPBACK_OVERLOADED"
         | "SNAPBACK_VALUE_TOO_LARGE"

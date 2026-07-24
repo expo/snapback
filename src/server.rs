@@ -28398,6 +28398,10 @@ globalThis.__snapbackHandlers = {
             "environment variable configuring detached action worker admission",
         ),
         (
+            "SNAPBACK_ACTION_STREAM_",
+            "diagnostic-code family prefix matched by the out-of-band stream-refusal recorder (LLP 0076)",
+        ),
+        (
             "SNAPBACK_ACTION_SECRETS",
             "legacy environment variable containing action secrets",
         ),
