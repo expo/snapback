@@ -96,6 +96,12 @@
       "id": "partitime-ws8-authored-source-v2-2026-07-23",
       "date": "2026-07-23",
       "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23.json",
+      "status": "superseded"
+    },
+    {
+      "id": "partitime-ws8-authored-source-v3-2026-07-23",
+      "date": "2026-07-23",
+      "path": "demos/partiful-matrix/acceptance/authored-source-invalidation-amendment.2026-07-23-v3.json",
       "status": "proposed"
     }
   ],
