@@ -1,9 +1,12 @@
 import {
-  createContractHydrationCapture,
+  createBoundaryContractDataProvider,
+  createContractMockQueryBoundary,
+  createContractHydrationAdoptionCapture,
+  createProviderQueryHandle,
   mount,
+  readContractHydrationManifestValue,
   readContractSizeClass,
   reset,
-  validateContractHydrationManifest,
   type ContractDataProvider,
   type ContractHydrationManifest,
   type MountHandle,
@@ -39,7 +42,7 @@ let active: {
   provider?: ContractDataProvider;
   hydrationEvidence?: () => HydrationProviderEvidence | null;
 } | null = null;
-let routeTransition = Promise.resolve<unknown>(undefined);
+let routeTransition: Promise<unknown> = Promise.resolve();
 const subscriptionEvents: Record<string, unknown>[] = [];
 let forcedQueryState: { dispose(): void } | null = null;
 const reducedMotionQuery = matchMedia('(prefers-reduced-motion: reduce)');
@@ -48,12 +51,16 @@ const syncReducedMotion = () => setThemeReducedMotion(reducedMotionQuery.matches
 addEventListener('resize', syncViewport);
 reducedMotionQuery.addEventListener('change', syncReducedMotion);
 
+function clearForcedQueryState(): void {
+  forcedQueryState?.dispose();
+  forcedQueryState = null;
+}
+
 const debug = {
   forceFeedState(state: 'loading' | 'error' | 'empty' | 'ready') {
-    forcedQueryState?.dispose();
-    forcedQueryState = null;
+    clearForcedQueryState();
     const force = active?.provider?.forceQueryState;
-    if (!force) throw new Error('The active Contract provider does not expose forceQueryState().');
+    if (!force) throw new Error('Contract provider lacks forceQueryState().');
     const cell = state === 'loading'
       ? { status: 'pending', connection: 'connecting' }
       : state === 'error'
@@ -65,8 +72,7 @@ const debug = {
     return state;
   },
   restoreFeedState() {
-    forcedQueryState?.dispose();
-    forcedQueryState = null;
+    clearForcedQueryState();
   },
 };
 
@@ -127,12 +133,12 @@ function staticHydrationManifest(expectedRouteId: string, canonicalProps: boolea
   const script = document.getElementById('__partitime-hydration');
   if (!root || root.dataset.partitimeStaticRoute !== expectedRouteId || !(script instanceof HTMLScriptElement)) return null;
   try {
-    const validation = validateContractHydrationManifest(JSON.parse(script.textContent ?? 'null'));
-    if (!validation.ok || validation.manifest.routeId !== expectedRouteId) return null;
+    const manifest = readContractHydrationManifestValue(JSON.parse(script.textContent ?? 'null'));
+    if (!manifest || manifest.routeId !== expectedRouteId) return null;
     // The parsed manifest owns the adoption turn from here. Leaving the
     // serialized copy in the live DOM retains the same node/path ledger twice.
     script.remove();
-    return validation.manifest;
+    return manifest;
   } catch {
     return null;
   }
@@ -171,7 +177,7 @@ async function boot() {
       { default: functionsManifest },
       { default: schemaManifest },
     ] = await Promise.all([
-      import('../../../_kit/client.mjs'),
+      import('../../../../packages/snapback-client/online.mjs'),
       import('../../../../packages/snapback-contract/online-surface.mjs'),
       import('../../snapback/generated/artifacts.json'),
       import('../../snapback/generated/contract-data.manifest.json'),
@@ -191,7 +197,11 @@ async function boot() {
           { name: 'eventWall', args: { eventId } },
         ];
     const created = await createOnlineSnapbackContractSurface({
-      runtime: await import('@exact/contract/runtime'),
+      runtime: {
+        createBoundaryContractDataProvider,
+        createContractMockQueryBoundary,
+        createProviderQueryHandle,
+      },
       client,
       userId: persona.userId,
       manifest: contractDataManifest, artifactIndex, schemaManifest, functionManifest: functionsManifest,
@@ -215,7 +225,7 @@ async function boot() {
     surface = { links: provider.links(), provider, dispose: () => provider.dispose() };
   } else {
     const provider = new GatewayContractProvider(__MATRIX_BACKEND__, __MATRIX_GATEWAY_ORIGIN__ || '/matrix-api', persona.userId);
-    surface = { links: provider.links() as GeneratedProviderLinks, provider, dispose: () => provider.dispose() };
+    surface = { links: linksForProvider(provider), provider, dispose: () => provider.dispose() };
   }
 
   let hydrationProvider: ReturnType<typeof createHydrationSeededProvider> | null = null;
@@ -232,8 +242,17 @@ async function boot() {
   let hydrationResult: Record<string, unknown> | null = null;
   let adoptedText: string | null = null;
   let preMountSizeClass: string | null = null;
+  // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
+  // feed's one-subscription memory instrument must not retain the unopened
+  // event route's generated IR and AOT closures.
+  const component = eventId === null
+    ? feedApp
+    : (await import('./event.contract')).default;
+  const props = eventId === null
+    ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
+    : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
   if (hydrationManifest) {
-    const capture = createContractHydrationCapture(hydrationManifest.capabilities);
+    const capture = createContractHydrationAdoptionCapture();
     let resolveHydrationReported!: () => void;
     const hydrationReported = new Promise<void>((resolve) => {
       resolveHydrationReported = resolve;
@@ -265,16 +284,6 @@ async function boot() {
     setThemeViewportWidth(hydrationManifest.capabilities.viewport?.width ?? innerWidth);
     setThemeReducedMotion(hydrationManifest.capabilities.reducedMotion ?? false);
     preMountSizeClass = readContractSizeClass();
-    // @ref LLP 0063#workstream-8--performance-and-packaging-budgets — the
-    // feed's one-subscription memory instrument must not retain the unopened
-    // event route's generated IR and AOT closures. Keep the startup route
-    // eager and load the event carrier only when navigation selects it.
-    const component = eventId === null
-      ? feedApp
-      : (await import('./event.contract')).default;
-    const props = eventId === null
-      ? { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant }
-      : { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant };
     mounted = mount(component, {
       rootId: hydrationManifest.rootId,
       props,
@@ -294,9 +303,7 @@ async function boot() {
     syncReducedMotion();
     root.replaceChildren();
     host = installContractWebHost({ container: root });
-    mounted = eventId === null
-      ? mount(feedApp, { props: { userName: persona.name, backendName: __MATRIX_BACKEND__, initialVariant: visualVariant } })
-      : mount((await import('./event.contract')).default, { props: { eventId, userId: persona.userId, userName: persona.name, backendName: __MATRIX_BACKEND__, visualVariant } });
+    mounted = mount(component, { props });
   }
 
   // Preserve the mounted provider as the evidence source even after disposeActive
@@ -342,8 +349,7 @@ async function boot() {
 }
 
 async function disposeActive() {
-  forcedQueryState?.dispose();
-  forcedQueryState = null;
+  clearForcedQueryState();
   const current = active;
   active = null;
   await current?.dispose?.();
@@ -365,7 +371,7 @@ function mountCurrentRoute() {
   return ready;
 }
 
-const onRouteChange = () => { void mountCurrentRoute(); };
+const onRouteChange = mountCurrentRoute;
 addEventListener('popstate', onRouteChange);
 addEventListener('partitime:navigate', onRouteChange);
 const ready = mountCurrentRoute();

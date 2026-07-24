@@ -1,6 +1,4 @@
 import {
-  createProviderMutation,
-  createProviderQueryHandle,
   type ContractDataManifest,
   type ContractDataProvider,
   type DataMutationCorrelation,
@@ -74,17 +72,6 @@ export class GatewayContractProvider implements ContractDataProvider {
   async mutate<T>(mutationName: string, args: Record<string, unknown>, _correlation?: DataMutationCorrelation) {
     try { return { ok: true as const, value: await this.#call<T>('mutate', mutationName, args) }; }
     catch (error) { return { ok: false as const, error: { message: error instanceof Error ? error.message : String(error) } }; }
-  }
-  links() {
-    return {
-      listEvents: (args: Record<string, unknown>) => createProviderQueryHandle(this, 'listEvents', args),
-      eventDetails: (args: Record<string, unknown>) => createProviderQueryHandle(this, 'eventDetails', args),
-      guestList: (args: Record<string, unknown>) => createProviderQueryHandle(this, 'guestList', args),
-      eventWall: (args: Record<string, unknown>) => createProviderQueryHandle(this, 'eventWall', args),
-      createEvent: createProviderMutation(this, 'createEvent'),
-      rsvp: createProviderMutation(this, 'rsvp'),
-      postMessage: createProviderMutation(this, 'postMessage'),
-    };
   }
   dispose() { for (const timer of this.#timers) window.clearTimeout(timer); this.#timers.clear(); }
 }

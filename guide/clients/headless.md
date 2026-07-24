@@ -4,13 +4,13 @@ id: clients.headless
 order: 1
 audience: agent-first
 capabilities: [clients.headless, clients.external-store]
-authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
+authorities: [llp/0012-headless-integration-contract.spec.md, llp/0064-native-client-surfaces.rfc.md, packages/snapback-client/index.mjs, packages/snapback-client/online.mjs, packages/snapback-client/external-store.mjs, packages/snapback-client/agent-authority.mjs, demos/_kit/agent-authority-filesystem.mjs, packages/snapback-contract/index.mjs, packages/snapback-contract/lifecycle-generation-exhaustion.test.mjs, demos/todo/tests/acceptance/headless.mjs, demos/card-game/tests/acceptance/authority-scope.mjs]
 examples: [demos/todo, demos/todo-v2, demos/graffiti, demos/card-game, demos/partiful-matrix/surfaces/vanilla]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-20
-reviewed-commit: 506b622cd3
+reviewed: 2026-07-23
+reviewed-commit: HEAD
 ---
 
 # The headless client
@@ -24,6 +24,12 @@ framework-neutral reference arm. The old `demos/_kit/client.mjs` path is a
 compatibility re-export only. Demos, acceptance suites, the React arm, and
 `@snapback/contract` build on the same transport, live-stream, ephemeral,
 receipt, and auth behavior rather than reimplementing HTTP.
+
+Browser bundles that load a client entry as a dynamic module namespace should
+import `SnapbackClient` from `@snapback/client/online`. It re-exports the same
+class while keeping optional agent-custody and external-store package exports
+out of consumers that did not select them. Use the root entry when those
+additional exports are required.
 
 ## Construct one client per backend and custody context
 
