@@ -5,7 +5,13 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (diagnostic envelope landed on the local arm: all
+**Revised:** 2026-07-24 (secret scrubbing landed on the local arm: streamed
+requests place secrets exactly like ordinary local actions — staged values
+with the LLP 0036 redactor on every stream error envelope, witnessed in both
+the rethrown-leak and untouched-refusal directions through the real HTTP
+path; `secretSlots` parity added to the bridge with a typed local refusal
+for unresolvable descriptor slots; residue: the hosted descriptor seam and
+retained-receipt scans). 2026-07-24 (diagnostic envelope landed on the local arm: all
 nine promised codes survive both envelope allowlists; an out-of-band recorder
 restores the host-built structured refusal past the JS round-trip while
 forged stream codes fold to the generic handler failure; raw serde text
@@ -626,13 +632,22 @@ a fix before gate 2:
   mirror of the certainty rides the prospective LLP 0075 amendment — and the
   frozen fixture's `requiredSettlementKinds` stays the five kinds unchanged
   (the certainty is retained evidence, not a sixth kind).
-- **Secret scrubbing on streamed fetch.** `ctx.fetchStream` forwards raw URL,
-  headers, body, and key and performs none of the LLP 0036 opaque-descriptor
-  resolution and value-aware redaction that ordinary `ctx.fetch` does, so a
-  secret-bearing streamed request to an AI provider cannot yet place a secret
-  the way an ordinary action can. v1 must add the same per-function opaque
-  placement seam to streamed requests and witness it (excluding secret-bearing
-  streams instead would gut the intended AI-provider use case).
+- **Secret scrubbing on streamed fetch (local arm landed 2026-07-24; hosted
+  descriptor seam open).** On the local value-mode profile a streamed request
+  now places secrets exactly the way an ordinary action does — staged values
+  via `ctx.secrets` handles, with the LLP 0036 staged-value redactor applied
+  to every stream error envelope — witnessed through the real HTTP action
+  path in both directions: a handler that rethrows a refusal with the secret
+  embedded surfaces only `[REDACTED]`, and an untouched structured stream
+  refusal with the secret in the URL and headers stays value-free (no secret,
+  no URL structure). `ctx.fetchStream` also accepts the same
+  `secretSlots` placement shape as ordinary host-mediated fetch and forwards
+  descriptors opaquely; the local profile refuses descriptor slots with a
+  typed diagnostic (they resolve only at a hosted fetch boundary — the same
+  posture as local `ctx.fetch`, which has no host-fetch op at all). Residue:
+  the hosted/Workerd descriptor-resolution seam for stream open rides the
+  unlanded Workerd baseline, and secret/private-data scans over RETAINED
+  stream receipts (durable rows) remain with the acceptance-receipts work.
 - **Positive capability overclaim.** `bounded_response_stream_v1` is published
   as a positive `supportedCapabilities` entry — which LLP 0058 reads as
   present server support and LLP 0074 forbids for a Draft authority without

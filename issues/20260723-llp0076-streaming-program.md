@@ -42,7 +42,8 @@ Boundedness, authority, and honesty:
 - `20260723-llp0076-capability-honesty.md` — manifest maturity/`Missing` rows;
   capability admission resolved against the served instance manifest
 - `20260723-llp0076-secret-scrubbing.md` — LLP 0036 opaque placement/redaction
-  on `ctx.fetchStream`
+  on `ctx.fetchStream` — local arm landed 2026-07-24; open on the hosted
+  descriptor seam and retained-receipt scans
 - `20260723-llp0076-diagnostic-envelope.md` — preserve `_UNSUPPORTED` and the
   progress-rate code end-to-end; structured detail through the FFI/envelope
   — RESOLVED 2026-07-24 (landed on the local arm with an out-of-band

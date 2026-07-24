@@ -1517,6 +1517,23 @@ impl IbexActionHost for DetachedActionHost {
                 json!({ "expected": "a non-empty single-line key <= 8192 bytes", "received": "invalid idempotency key shape" }),
             ));
         }
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
+        // secret VALUES into the invocation (with the staged-value redactor
+        // scrubbing every error envelope), so descriptor placement slots have
+        // nothing to resolve here: refuse them explicitly rather than
+        // silently sending a request the author believes carries a secret.
+        if request
+            .secret_slots
+            .iter()
+            .any(|slot| slot.secret.is_some())
+        {
+            return Err(action_stream_error(
+                "SNAPBACK_ACTION_STREAM_INVALID",
+                "open",
+                "opaque secret descriptors resolve only at a hosted fetch boundary; this profile stages secret values",
+                json!({ "expected": "value-mode secret placement (ctx.secrets handles)", "received": "opaque descriptor slot" }),
+            ));
+        }
         if request
             .body
             .as_ref()
@@ -29747,6 +29764,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open bounded response stream");
         assert_eq!(opened.status, 200);
@@ -29786,6 +29804,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect_err("non-http stream URL fails closed");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
@@ -29838,6 +29857,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open oversized response stream");
 
@@ -29935,6 +29955,41 @@ globalThis.__snapbackHandlers = {
     }
 
     #[test]
+    fn descriptor_secret_slots_are_refused_on_the_value_mode_profile() {
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the local profile stages
+        // secret values (with the staged-value redactor at the envelope), so
+        // an opaque descriptor slot has nothing to resolve and must fail
+        // closed instead of sending a request without its secret.
+        let mut snapback = LocalSnapback::memory().expect("slot refusal host state");
+        snapback.load_functions(generation_test_manifest());
+        let state = Arc::new(Mutex::new(snapback));
+        let staged = stage_held_action(&state);
+        let mut host = held_action_host(state, &staged);
+        let refusal = host
+            .open_response_stream(ActionStreamRequest {
+                url: "https://api.example.test/v1/stream".to_owned(),
+                method: "POST".to_owned(),
+                headers: BTreeMap::new(),
+                body: Some("{}".to_owned()),
+                idempotency_key: None,
+                attempt_token: None,
+                secret_slots: vec![crate::runtime::StreamSecretSlot {
+                    placement: Some("header".to_owned()),
+                    name: Some("authorization".to_owned()),
+                    secret: Some(json!({ "capabilityId": "cap_1" })),
+                }],
+            })
+            .expect_err("descriptor slots cannot resolve on the value-mode profile");
+        assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
+        assert!(
+            !serde_json::to_string(&refusal)
+                .expect("serialize slot refusal")
+                .contains("cap_1"),
+            "the refusal must not echo descriptor contents"
+        );
+    }
+
+    #[test]
     fn automatically_retried_invocations_cannot_open_response_streams() {
         let mut snapback = LocalSnapback::memory().expect("retry exclusion host state");
         snapback.load_functions(generation_test_manifest());
@@ -29950,6 +30005,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect_err("automatic retries are excluded from streamed actions");
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_ACTION_STREAM_INVALID");
@@ -30091,6 +30147,7 @@ globalThis.__snapbackHandlers = {
                     body: None,
                     idempotency_key: None,
                     attempt_token: None,
+                    secret_slots: Vec::new(),
                 })
                 .expect("open slow-consumer stream");
             streams.push((opened.stream_id, 0_usize, false));
@@ -30162,6 +30219,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open blocked-read stream");
         // Pin this stream's wall deadline 300 ms out; the idle window is
@@ -30213,6 +30271,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open grace stream");
         let stream = host
@@ -30270,6 +30329,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open late-byte stream");
         let first = host
@@ -30340,6 +30400,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: Some(started.attempt_token.clone()),
+                secret_slots: Vec::new(),
             })
             .expect("open signal stream");
         let first = host
@@ -30413,6 +30474,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect("open indefinite stream");
         host.cancel_response_stream(&opened.stream_id)
@@ -30518,6 +30580,7 @@ globalThis.__snapbackHandlers = {
                 body: Some("{}".to_owned()),
                 idempotency_key: Some("provider-key-1".to_owned()),
                 attempt_token: None,
+                secret_slots: Vec::new(),
             })
             .expect_err("mid-handshake loss cannot succeed");
         assert_eq!(
@@ -30547,6 +30610,7 @@ globalThis.__snapbackHandlers = {
                 body: Some("{}".to_owned()),
                 idempotency_key: Some("provider-key-2".to_owned()),
                 attempt_token: Some(started.attempt_token.clone()),
+                secret_slots: Vec::new(),
             })
             .expect_err("connection refused cannot succeed");
         assert_eq!(
@@ -30603,6 +30667,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: Some(cancelled.attempt_token.clone()),
+                secret_slots: Vec::new(),
             })
             .expect("open cancel stream");
         host.cancel_response_stream(&opened.stream_id)
@@ -30630,6 +30695,7 @@ globalThis.__snapbackHandlers = {
                 body: None,
                 idempotency_key: None,
                 attempt_token: Some(timed.attempt_token.clone()),
+                secret_slots: Vec::new(),
             })
             .expect("open timeout stream");
         host.cancel_response_stream(&opened.stream_id)

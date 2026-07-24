@@ -1,6 +1,16 @@
 # LLP 0036 secret placement and redaction on ctx.fetchStream
 
-**Status:** Open
+**Status:** Open — local arm landed 2026-07-24. Done: value-mode parity with
+ordinary local fetch (staged `ctx.secrets` values + the LLP 0036 staged-value
+redactor on every stream error envelope), witnessed through the real HTTP
+action path in both directions (rethrown-leak scrubbed to `[REDACTED]`;
+untouched structured refusal value-free with the secret in URL and headers);
+`secretSlots` placement parity on the bridge with a typed refusal for
+descriptor slots the value-mode profile cannot resolve (same posture as local
+`ctx.fetch`). `cargo test --lib` 1139; envelope suite 5/5. Remaining before
+close: the hosted/Workerd descriptor-resolution seam for stream open (blocked
+on the unlanded Workerd streaming baseline) and secret/private-data scans
+over retained durable stream receipts (acceptance-receipts work).
 **Severity:** P1
 **Systems:** Actions, Outbound fetch, Security, Testing
 **Author:** Claude (Fable 5), directed by Charlie Cheever

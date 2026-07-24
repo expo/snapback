@@ -806,6 +806,20 @@
       // ordinary commit/live-query path.
       ctx.fetchStream = async function(request) {
         var req = request || {};
+        // @ref LLP 0036#runtime-exposure-d5-d8 — the same opaque placement
+        // slots as ordinary host-mediated fetch: descriptors resolve only at
+        // the host's own boundary and never enter this isolate.
+        var givenSlots = req.secretSlots || [];
+        var slots = [];
+        for (var slotIndex = 0; slotIndex < givenSlots.length; slotIndex++) {
+          var slot = givenSlots[slotIndex] || {};
+          var descriptor = slot.handle && slot.handle.__snapbackDescriptor;
+          slots.push({
+            placement: slot.placement,
+            name: slot.name,
+            secret: descriptor || null
+          });
+        }
         var opened;
         if (hostCallFn === ibexHostCall) {
           host("action.externalEffectBegin", trustedCreate(null));
@@ -817,7 +831,8 @@
             headers: req.headers || {},
             body: req.body == null ? null : req.body,
             idempotencyKey: req.idempotencyKey == null ? null : req.idempotencyKey,
-            attemptToken: req.attemptToken == null ? null : req.attemptToken
+            attemptToken: req.attemptToken == null ? null : req.attemptToken,
+            secretSlots: slots
           });
         } finally {
           if (hostCallFn === ibexHostCall) {

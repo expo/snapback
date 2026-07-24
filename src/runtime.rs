@@ -104,6 +104,25 @@ pub struct ActionStreamRequest {
     /// request as a child cursor of the named attempt (LLP 0076 decision 3).
     #[serde(default)]
     pub attempt_token: Option<String>,
+    /// LLP 0036 opaque placement slots, same shape as ordinary host-mediated
+    /// fetch: each slot names a placement (`header`/`query-param`), a target
+    /// name, and the opaque secret descriptor the HOST resolves at its own
+    /// boundary. Descriptor resolution is a hosted-profile capability; the
+    /// local value-mode profile refuses descriptor slots with a typed
+    /// diagnostic rather than silently dropping them.
+    #[serde(default)]
+    pub secret_slots: Vec<StreamSecretSlot>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct StreamSecretSlot {
+    #[serde(default)]
+    pub placement: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+    #[serde(default)]
+    pub secret: Option<Value>,
 }
 
 fn default_stream_method() -> String {
@@ -1419,7 +1438,7 @@ impl<'a> IbexHostContext<'a> {
                     })));
                 }
                 let request =
-                    serde_json::from_value::<ActionStreamRequest>(args).map_err(|error| {
+                    serde_json::from_value::<ActionStreamRequest>(args).map_err(|_error| {
                         SnapbackError::error(
                             "SNAPBACK_ACTION_STREAM_INVALID",
                             "runtime",

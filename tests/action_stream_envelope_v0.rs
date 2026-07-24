@@ -14,12 +14,41 @@ use serde_json::{Value, json};
 use snapback::admin::AppState;
 use snapback::local::LocalSnapback;
 use snapback::manifest::{
-    FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime, IbexModule,
+    ConfigEntryDefinition, FunctionDefinition, FunctionKind, FunctionManifest, FunctionRuntime,
+    IbexModule,
 };
 use tower::ServiceExt;
 
+const STREAM_SECRET: &str = "stream-secret-value-7f3a";
+
 const HANDLERS: &str = r#"
 globalThis.__snapbackHandlers = {
+  async secretStreamLeakProbe(ctx) {
+    // The worst authored case: the secret rides the URL, a header, AND the
+    // handler's own rethrown error text. The staged-value redactor must
+    // scrub the envelope; the host diagnostic never carried values at all.
+    var key = ctx.secrets.get('streamKey').expose();
+    try {
+      await ctx.fetchStream({
+        url: 'http://127.0.0.1:9/leak?api_key=' + key,
+        headers: { authorization: 'Bearer ' + key }
+      });
+    } catch (error) {
+      throw new Error(String(error && error.message) + ' key=' + key);
+    }
+    return { unreachable: true };
+  },
+  async secretStreamRefusalProbe(ctx) {
+    // The untouched-refusal case: the stream refusal propagates as-is with
+    // the secret placed in the request; the surfaced structured diagnostic
+    // must stay value-free.
+    var key = ctx.secrets.get('streamKey').expose();
+    await ctx.fetchStream({
+      url: 'http://127.0.0.1:9/refused?api_key=' + key,
+      headers: { authorization: 'Bearer ' + key }
+    });
+    return { unreachable: true };
+  },
   async streamInvalidProbe(ctx) {
     // The refusal must propagate untouched: file:// is not an absolute
     // HTTP(S) URL, and the path segment is private data that must never
@@ -48,12 +77,31 @@ fn functions() -> FunctionManifest {
             }),
         )
     };
+    let mut leak_probe = define("secretStreamLeakProbe", FunctionKind::Action);
+    leak_probe.uses = vec!["streamKey".to_owned()];
+    let mut refusal_probe = define("secretStreamRefusalProbe", FunctionKind::Action);
+    refusal_probe.uses = vec!["streamKey".to_owned()];
     FunctionManifest {
         functions: vec![
             define("streamInvalidProbe", FunctionKind::Action),
             define("forgedStreamCodeProbe", FunctionKind::Action),
             define("mutationStreamProbe", FunctionKind::Mutation),
+            leak_probe,
+            refusal_probe,
         ],
+        config: vec![ConfigEntryDefinition {
+            name: "streamKey".to_owned(),
+            description: Some("stream secret redaction test entry".to_owned()),
+            purpose: None,
+            secret: true,
+            required: false,
+            pool: false,
+            probe: None,
+            how_to_get: None,
+            acquisition: None,
+            default: None,
+            source_span: None,
+        }],
         ..FunctionManifest::default()
     }
 }
@@ -70,6 +118,9 @@ async fn stream_app() -> snapback::server::SnapbackApp {
             diagnostic.code == "SNAPBACK_IBEX_CLI_UNAVAILABLE"
                 || diagnostic.code == "SNAPBACK_IBEX_FUNCTIONS_LOADED"
         }));
+        snapback
+            .set_config_entry("streamKey", vec![STREAM_SECRET.to_owned()], false, "test")
+            .expect("stage stream secret");
         snapback::server::app(AppState::detached(snapback))
     })
     .await
@@ -156,6 +207,54 @@ async fn forged_stream_code_passes_the_envelope_without_trusted_detail() {
     assert!(
         details.get("repair").is_none_or(Value::is_null),
         "a forged code must not gain a trusted repair anchor: {body}"
+    );
+}
+
+#[tokio::test]
+async fn staged_secret_values_are_scrubbed_from_stream_error_envelopes() {
+    // @ref LLP 0036#runtime-exposure-d5-d8 — the staged-value redactor
+    // applies to streamed-fetch failures exactly as to ordinary fetch: even
+    // a handler that rethrows the refusal with the secret embedded in its
+    // own message surfaces only [REDACTED].
+    let app = stream_app().await;
+    let response = app
+        .oneshot(post_json("/action/secretStreamLeakProbe", handler_body()))
+        .await
+        .expect("leak probe response");
+    let body = serde_json::to_string(&body_json(response).await).expect("serialize body");
+    assert!(
+        !body.contains(STREAM_SECRET),
+        "the staged secret must never survive the envelope: {body}"
+    );
+    assert!(
+        body.contains("[REDACTED]"),
+        "the redactor must witness the scrub: {body}"
+    );
+}
+
+#[tokio::test]
+async fn untouched_stream_refusals_stay_value_free_with_secrets_in_the_request() {
+    let app = stream_app().await;
+    let response = app
+        .oneshot(post_json(
+            "/action/secretStreamRefusalProbe",
+            handler_body(),
+        ))
+        .await
+        .expect("refusal probe response");
+    let body = body_json(response).await;
+    assert_eq!(
+        body["diagnostic"]["code"], "SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED",
+        "connection refused on a safe method settles failed: {body}"
+    );
+    let serialized = body.to_string();
+    assert!(
+        !serialized.contains(STREAM_SECRET),
+        "the secret-bearing URL/header must never enter the diagnostic: {body}"
+    );
+    assert!(
+        !serialized.contains("api_key"),
+        "URL query structure must not enter the diagnostic: {body}"
     );
 }
 
