@@ -88,6 +88,11 @@ const lane = {
   authoritativeDataObserver: 'structured-product-marker',
 };
 const observerId = observerAmendment.observer.id;
+assert.equal(
+  observerAmendment.requiredRatificationStatement,
+  'I ratify partitime-ws8-native-observer-v3-2026-07-23.',
+  'native observer ratification statement drifted',
+);
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 const cleanups = [];
 const cleanupErrors = [];
@@ -131,6 +136,11 @@ try {
       observerAmendment.status,
       'ratified',
       'native performance observer amendment must be ratified before claim sampling',
+    );
+    assert.equal(
+      observerAmendment.ratificationStatement,
+      observerAmendment.requiredRatificationStatement,
+      'native observer sampling requires the exact owner ratification statement',
     );
   }
   assert(existsSync(exactProject), `missing Exact Xcode project ${exactProject}`);

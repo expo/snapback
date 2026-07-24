@@ -7,6 +7,7 @@
   "ratifier": "Charlie Cheever, as named by partitime.comparison-protocol.v1",
   "ratifiedAt": null,
   "ratificationStatement": null,
+  "requiredRatificationStatement": "I ratify partitime-ws8-memory-construct-v2-2026-07-23.",
   "appliesToProtocolId": "partitime-method-rubric-v1",
   "supersedesMetric": {
     "methodId": "partitime-ws8-performance-v2",
