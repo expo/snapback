@@ -1,0 +1,215 @@
+{
+  "schemaVersion": "partitime.android-chrome-citizenship.v1",
+  "claimId": "STEP4.WEB_CITIZENSHIP.ANDROID_CHROME_CURRENT",
+  "recordedAt": "2026-07-24T07:41:55.300Z",
+  "run": {
+    "id": "partitime-android-chrome-current-20260723",
+    "operator": "Codex using owner-connected physical Android UI, ADB hardware input, and Chrome DevTools observation",
+    "startedAt": "2026-07-24T07:12:00.000Z",
+    "completedAt": "2026-07-24T07:41:55.300Z",
+    "outcome": "pass",
+    "passed": 5,
+    "total": 5,
+    "cleanupErrors": []
+  },
+  "candidate": {
+    "url": "http://127.0.0.1:44103/partitime/?user=eve",
+    "cell": "contract:snapback",
+    "snapbackRevision": "e3633c9617481b52cef93de941700938313a39c5",
+    "exactRevision": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
+    "pollFallbackEnabled": false,
+    "adbReverse": [
+      "tcp:44101 -> tcp:44101",
+      "tcp:44102 -> tcp:44102",
+      "tcp:44103 -> tcp:44103"
+    ],
+    "artifacts": [
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/index.html",
+        "sha256": "118806de6dc0de295de1ce0613e0988c4506e5bb01011a3e5661a93ddb808e5e"
+      },
+      {
+        "path": "demos/partiful-matrix/surfaces/contract/dist/snapback/assets/index-BOaEvkzW.js",
+        "sha256": "dc6ca7ce79927e6000937d0d0167ff3c206c0e6321145b9fefe82e11835c042a"
+      }
+    ]
+  },
+  "environment": {
+    "deviceSerial": "00339362A001843",
+    "manufacturer": "Nothing",
+    "model": "A069P (FroggerPro)",
+    "os": {
+      "name": "Android",
+      "version": "16",
+      "sdk": 36,
+      "securityPatch": "2026-01-01",
+      "buildFingerprint": "Nothing/FroggerPro/FroggerPro:16/BQ2A.250913.001-BP2A.250605.031.A3/2601281407:user/release-keys"
+    },
+    "browser": {
+      "name": "Chrome",
+      "package": "com.android.chrome",
+      "version": "150.0.7871.186",
+      "channel": "current",
+      "channelAdmission": {
+        "basis": "Chrome 150 was the broadly released Android Stable major on the run date; Chrome 151 was explicitly an early-Stable release to a small percentage of users.",
+        "stableRelease": "https://chromereleases.googleblog.com/2026/07/chrome-for-android-update.html",
+        "latestBroadStablePatch": "https://chromereleases.googleblog.com/",
+        "earlyStableRelease": "https://chromereleases.googleblog.com/2026/07/chrome-for-android-update_02121837194.html"
+      }
+    },
+    "ime": {
+      "name": "Gboard",
+      "package": "com.google.android.inputmethod.latin",
+      "version": "17.1.5.887912998-release-arm64-v8a",
+      "service": "com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME",
+      "layout": "Japanese QWERTY"
+    },
+    "autofill": {
+      "browserProfile": "local signed-out Chrome profile",
+      "service": "com.google.android.gms/.autofill.service.AutofillService",
+      "syntheticIdentity": "Partitime Tester",
+      "syntheticAddress": "123 Market Street, San Francisco, CA 94105"
+    }
+  },
+  "checks": [
+    {
+      "assertion": "ime-composition",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "input": "physical Gboard Japanese QWERTY key taps and native candidate selection",
+      "observation": {
+        "field": "create-title",
+        "romanizedKeyPath": "kanpai",
+        "markedText": "かんぱい",
+        "selectedCandidate": "乾杯",
+        "finalValue": "乾杯",
+        "compositionStarts": 1,
+        "compositionEnds": 1,
+        "nonComposingInputEventsBeforeCompositionEnd": 0,
+        "eventTrace": [
+          {
+            "type": "compositionstart",
+            "data": ""
+          },
+          {
+            "type": "compositionupdate",
+            "data": "ｋ"
+          },
+          {
+            "type": "input",
+            "data": "ｋ",
+            "inputType": "insertCompositionText",
+            "isComposing": true
+          },
+          {
+            "type": "compositionupdate",
+            "data": "か"
+          },
+          {
+            "type": "compositionupdate",
+            "data": "かｎ"
+          },
+          {
+            "type": "compositionupdate",
+            "data": "かんｐ"
+          },
+          {
+            "type": "compositionupdate",
+            "data": "かんぱ"
+          },
+          {
+            "type": "compositionupdate",
+            "data": "かんぱい"
+          },
+          {
+            "type": "input",
+            "data": "かんぱい",
+            "inputType": "insertCompositionText",
+            "isComposing": true
+          },
+          {
+            "type": "compositionend",
+            "data": "乾杯",
+            "value": "乾杯"
+          }
+        ]
+      },
+      "evidence": [
+        "ime-composing.png",
+        "ime-committed.png"
+      ]
+    },
+    {
+      "assertion": "autofill-password-manager",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "input": "Chrome native address suggestion selected from the Gboard accessory",
+      "observation": {
+        "field": "create-location",
+        "autocomplete": "street-address",
+        "suggestion": "123 Market Street",
+        "finalValue": "123 Market Street",
+        "inputEvents": 1,
+        "changeEvents": 1,
+        "dialogRemainedOpen": true,
+        "fieldRemainedFocused": true
+      },
+      "evidence": [
+        "autofill-suggestion.png",
+        "autofill-filled.png"
+      ]
+    },
+    {
+      "assertion": "focus-trap-restore",
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "input": "ADB-delivered Android hardware Enter, Shift-Tab, Tab, and Escape key events",
+      "observation": {
+        "opener": "new-event",
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "overlayAfterEscape": false,
+        "restored": "new-event"
+      },
+      "evidence": [
+        "focus-restored.png"
+      ]
+    },
+    {
+      "assertion": "bfcache-restore",
+      "fixture": "partitime-feed-event-bfcache",
+      "status": "pass",
+      "input": "Chrome document navigation plus Android hardware Back",
+      "observation": {
+        "route": "feed -> event -> about:blank -> Android hardware Back -> feed",
+        "eventUrl": "http://127.0.0.1:44103/partitime/events/event_sunset/?user=eve",
+        "pageshowPersisted": true,
+        "retainedDraft": "bfcache-android-current-draft",
+        "editedAfterRestore": "bfcache-android-current-draft!",
+        "interactiveAfterRestore": true
+      },
+      "evidence": [
+        "bfcache-interactive.png"
+      ]
+    },
+    {
+      "assertion": "find-on-page",
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "input": "Chrome menu Find in page and native Find toolbar",
+      "observation": {
+        "query": "Sunset Supper Club",
+        "nativeStatus": "1/1",
+        "nativeStatusAccessibility": "Result 1 of 1",
+        "findDismissed": true,
+        "eventOpenedAfterDismissal": true,
+        "eventUrl": "http://127.0.0.1:44103/partitime/events/event_sunset/?user=eve"
+      },
+      "evidence": [
+        "find-result.png",
+        "find-usable-after.png"
+      ]
+    }
+  ]
+}

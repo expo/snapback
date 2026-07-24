@@ -1,12 +1,12 @@
 {
   "schemaVersion": "partitime.web-citizenship-evidence.v1",
   "run": {
-    "id": "partitime-web-citizenship-ios-current-and-current-minus-one-20260723",
-    "operator": "Codex using native simulator UI plus source-bound iOS safaridriver receipts on owner-controlled simulators",
-    "baseCommit": "a3aa35da85e503d86ee3cab4efe0c0051514f08b",
-    "exactCommit": "1974a6129c9f1d4673c3c23b301d4e3517f7683b",
+    "id": "partitime-web-citizenship-mobile-current-matrix-20260723",
+    "operator": "Codex using native simulator UI, source-bound iOS safaridriver receipts, and owner-connected physical Android Chrome UI",
+    "baseCommit": "e3633c9617481b52cef93de941700938313a39c5",
+    "exactCommit": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
     "startedAt": "2026-07-23T12:11:49.506Z",
-    "completedAt": "2026-07-23T22:42:27.994Z"
+    "completedAt": "2026-07-24T07:41:55.300Z"
   },
   "rows": [
     {
@@ -372,6 +372,218 @@
         "query": "Sunset Supper Club",
         "resultCount": "1 of 1",
         "usableAfterFind": true
+      }
+    },
+    {
+      "environment": "android-chrome-current",
+      "assertion": "ime-composition",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "On a physical Android 16 device in Chrome 150 Stable, real Japanese QWERTY Gboard key taps produced marked かんぱい with only composing input events. Selecting the native 乾杯 candidate emitted one compositionend and left 乾杯 visible in the controlled Contract title field.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+          "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+          "result": "real Gboard composition commits exactly once in Android Chrome current"
+        },
+        {
+          "kind": "device-screenshot-marked-composition",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/ime-composing.png",
+          "sha256": "a2b1c4f703a713fd9c541e62814edb4e58e948b2dbfb34e19e7aed805409f8b1"
+        },
+        {
+          "kind": "device-screenshot-committed-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/ime-committed.png",
+          "sha256": "20faf27ab041e8c8a8b08745672aba718466ef9ab4aec4c6e47bb66c2d57b0f9"
+        }
+      ],
+      "browser": {
+        "name": "Chrome",
+        "version": "150.0.7871.186"
+      },
+      "os": {
+        "name": "Android",
+        "version": "16 (SDK 36)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Nothing A069P (FroggerPro)",
+        "deviceSerial": "00339362A001843",
+        "snapbackRevision": "e3633c9617481b52cef93de941700938313a39c5",
+        "exactRevision": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
+        "pollFallbackEnabled": false,
+        "ime": "Gboard 17.1.5.887912998-release-arm64-v8a, Japanese QWERTY",
+        "markedText": "かんぱい",
+        "committedValue": "乾杯",
+        "compositionStarts": 1,
+        "compositionEnds": 1,
+        "nonComposingInputEventsBeforeCompositionEnd": 0
+      }
+    },
+    {
+      "environment": "android-chrome-current",
+      "assertion": "autofill-password-manager",
+      "fixture": "partitime-create-form",
+      "status": "pass",
+      "notes": "Chrome's native address suggestion appeared above Gboard for the Contract street-address control. Selecting the synthetic Partitime Tester profile populated 123 Market Street through one input and one change event while the dialog stayed open and editable.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+          "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+          "result": "native Chrome address autofill preserves the controlled Contract dialog"
+        },
+        {
+          "kind": "device-screenshot-native-autofill-suggestion",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/autofill-suggestion.png",
+          "sha256": "24823648b29390dc81eed8b5e6b383e044e4ee0daae85a7ead2e021871b72f39"
+        },
+        {
+          "kind": "device-screenshot-controlled-value",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/autofill-filled.png",
+          "sha256": "4e16010eba6464bf85e31cdcd271a845896ac9e73821cf8b66131698ce87a64c"
+        }
+      ],
+      "browser": {
+        "name": "Chrome",
+        "version": "150.0.7871.186"
+      },
+      "os": {
+        "name": "Android",
+        "version": "16 (SDK 36)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Nothing A069P (FroggerPro)",
+        "deviceSerial": "00339362A001843",
+        "snapbackRevision": "e3633c9617481b52cef93de941700938313a39c5",
+        "exactRevision": "ab8e87a6042118bdb7439b3c1554e884d2a612b0",
+        "pollFallbackEnabled": false,
+        "autofillService": "com.google.android.gms/.autofill.service.AutofillService",
+        "identity": "synthetic local Chrome profile Partitime Tester",
+        "suggestion": "123 Market Street",
+        "committedValue": "123 Market Street",
+        "dialogRemainedOpen": true
+      }
+    },
+    {
+      "environment": "android-chrome-current",
+      "assertion": "focus-trap-restore",
+      "fixture": "partitime-create-dialog",
+      "status": "pass",
+      "notes": "On physical Android Chrome, Android hardware Enter opened the keyboard-focused dialog opener, Shift-Tab wrapped from create-close to create-submit, Tab wrapped forward to create-close, and hardware Escape closed the scope and restored new-event.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+          "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+          "result": "physical Android hardware key events trap and restore focus"
+        },
+        {
+          "kind": "device-screenshot-restored-feed",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/focus-restored.png",
+          "sha256": "a0eeffd036f09c539763e0110a07c6cfc71aa9213ea080f69ba8733606accb31"
+        }
+      ],
+      "browser": {
+        "name": "Chrome",
+        "version": "150.0.7871.186"
+      },
+      "os": {
+        "name": "Android",
+        "version": "16 (SDK 36)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Nothing A069P (FroggerPro)",
+        "deviceSerial": "00339362A001843",
+        "initial": "create-close",
+        "reverseWrapped": "create-submit",
+        "forwardWrapped": "create-close",
+        "restored": "new-event",
+        "input": "ADB-delivered Android hardware Enter, Shift-Tab, Tab, and Escape"
+      }
+    },
+    {
+      "environment": "android-chrome-current",
+      "assertion": "bfcache-restore",
+      "fixture": "partitime-feed-event-bfcache",
+      "status": "pass",
+      "notes": "Physical Android Chrome retained an unsubmitted Contract wall draft across event → about:blank → Android hardware Back, emitted pageshow.persisted=true, accepted a further edit, and returned to the live feed.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+          "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+          "result": "physical Android Chrome restores authored state from bfcache"
+        },
+        {
+          "kind": "device-screenshot-interactive-after-restore",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/bfcache-interactive.png",
+          "sha256": "915f05779d506fead0066718d9d5223a457cece3c121b2f83954eb53e527925e"
+        }
+      ],
+      "browser": {
+        "name": "Chrome",
+        "version": "150.0.7871.186"
+      },
+      "os": {
+        "name": "Android",
+        "version": "16 (SDK 36)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Nothing A069P (FroggerPro)",
+        "deviceSerial": "00339362A001843",
+        "route": "feed -> event -> about:blank -> Android hardware Back -> feed",
+        "pageshowPersisted": true,
+        "retainedDraft": "bfcache-android-current-draft",
+        "editedAfterRestore": "bfcache-android-current-draft!",
+        "interactiveAfterRestore": true
+      }
+    },
+    {
+      "environment": "android-chrome-current",
+      "assertion": "find-on-page",
+      "fixture": "partitime-visible-event-copy",
+      "status": "pass",
+      "notes": "Chrome's native Find in page toolbar found Sunset Supper Club with Result 1 of 1 and highlighted the visible event. After closing the native toolbar, a physical tap opened the event normally.",
+      "evidence": [
+        {
+          "kind": "machine-device-receipt",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/device-receipt.json",
+          "sha256": "e62cefeb963b3ba84c20b2659e13de1cfb730da78b05b8724379ca9be1127422",
+          "result": "native Chrome Find reports 1/1 and leaves the event usable"
+        },
+        {
+          "kind": "device-screenshot-native-find-result",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/find-result.png",
+          "sha256": "95ab0e52957e98ad5ae182a70ae4c9348fd4b46579bd63778a86983b085319d1"
+        },
+        {
+          "kind": "device-screenshot-usable-after-find",
+          "ref": "demos/partiful-matrix/acceptance/evidence/2026-07-23-android-chrome-current/find-usable-after.png",
+          "sha256": "f9a33db076dc1f315b1794dab40ddef5962dd901e11c32693241995c5ebe0332"
+        }
+      ],
+      "browser": {
+        "name": "Chrome",
+        "version": "150.0.7871.186"
+      },
+      "os": {
+        "name": "Android",
+        "version": "16 (SDK 36)"
+      },
+      "channel": "current",
+      "details": {
+        "device": "Nothing A069P (FroggerPro)",
+        "deviceSerial": "00339362A001843",
+        "query": "Sunset Supper Club",
+        "resultCount": "1/1",
+        "resultAccessibility": "Result 1 of 1",
+        "usableAfterFind": true,
+        "eventUrl": "http://127.0.0.1:44103/partitime/events/event_sunset/?user=eve"
       }
     }
   ]
