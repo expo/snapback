@@ -875,6 +875,7 @@ async function runPhase4UiClaimChecks({ suite: activeSuite, page, cell, baseUrl,
   await phase4Claim(activeSuite, 'STEP4.UI.FOCUS', `${label} traps and restores every overlay`, async () => {
     const observations = [];
     await loadPhase4Route(page, cell, baseUrl, '/', { user: 'eve' });
+    await installFocusTrace(page);
     await page.focus('create-event'); await page.click('create-event');
     if (cell.arm === 'contract') await waitForMatrixBoot(page);
     await page.pollText('create-panel', 'plan', 5_000);
@@ -1083,7 +1084,35 @@ async function assertFocused(page, testId, label) {
     if (state?.testId === testId) return state;
     await sleep(50);
   }
-  throw new Error(`${label} did not restore focus to ${testId}: ${JSON.stringify(state)}`);
+  const trace = await page.eval('globalThis.__partitimeFocusTrace ?? []');
+  throw new Error(`${label} did not restore focus to ${testId}: ${JSON.stringify({ state, trace })}`);
+}
+
+async function installFocusTrace(page) {
+  await page.eval(`(()=>{
+    const trace=[];
+    globalThis.__partitimeFocusTrace=trace;
+    const snapshot=(phase,event)=>({
+      phase,
+      type:event?.type??null,
+      key:event instanceof KeyboardEvent?event.key:null,
+      defaultPrevented:event?.defaultPrevented??null,
+      target:event?.target instanceof Element?event.target.getAttribute('data-testid'):null,
+      active:document.activeElement instanceof Element?document.activeElement.getAttribute('data-testid')??document.activeElement.tagName:null,
+      triggerConnected:document.querySelector('[data-testid="create-event"]')?.isConnected??false,
+      panelConnected:document.querySelector('[data-testid="create-panel"]')?.isConnected??false
+    });
+    const record=(phase,event)=>{
+      trace.push(snapshot(phase,event));
+      if(trace.length>80)trace.shift();
+    };
+    for(const type of ['focusin','focusout','keydown','keyup']){
+      document.addEventListener(type,event=>record('capture',event),true);
+      document.addEventListener(type,event=>record('bubble',event));
+    }
+    new MutationObserver(()=>record('mutation',null)).observe(document.body,{childList:true,subtree:true});
+    return true;
+  })()`);
 }
 
 async function waitForOverlayFocus(page, kind, label) {
