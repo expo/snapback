@@ -9,6 +9,8 @@ Exports:
 - `@snapback/client/hosted-browser` — the hosted app-browser constructor,
   structurally limited to coordinator-owned, sender-constrained session
   custody;
+- `@snapback/client/online` — the same `SnapbackClient` class through a narrow
+  browser entry that does not retain optional package exports;
 - `@snapback/client/agent-authority` — scoped agent-authority custody;
 - `@snapback/client/external-store` —
   `snapback.external-store.v1`, canonical query identity, provider-scoped

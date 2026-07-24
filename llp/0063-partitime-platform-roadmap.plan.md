@@ -30,6 +30,24 @@ this note.)
 **Systems:** Developer experience, Client integration, Live Queries, Contract/Exact, React, Tooling, Packaging, Deployment, Auth, Assets, Notifications, Testing, Demo apps
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-19
+**Revised (Step 4 production-path packaging checkpoint):** 2026-07-23
+(Exact `ee0186858…` keeps the released-v1 diagnostic validator intact while
+giving browser adoption a bounded production predicate, allocation-free
+capture sink, and one preflight-to-commit node ledger. Snapback adds an
+identity-preserving `@snapback/client/online` entry and the Partitime cell
+imports only the three Exact runtime capabilities its Online surface needs.
+Fresh production builds put Contract × Snapback at 366,504/103,957
+minified/deterministic-gzip bytes against 422,417/119,451; Supabase at
+213,102/63,321 against 213,488/67,246; and Convex/SQLite at
+213,092/63,318–63,319 against 213,483/67,246. All four byte gates are green.
+The surface-owned production HTML also stops loading Exact's full dev-server
+agent plugin during `vite build`; one-sample nonclaim probes fall from
+900–1,091 ms to 465–549 ms, below all four frozen production-build limits.
+The full 43/43 browser baseline, package identity test, focused Exact 33/33
+hydration/direct-host suite, production reachability check, all-profile Exact
+typecheck, and five-mode Contract build pass. Claim promotion still requires
+the ratified full calibration/committed holdout; this checkpoint does not
+promote Step 4.)
 **Revised (Step 4 memory-v2 collector checkpoint):** 2026-07-23 (The proposed
 two-part construct now has separate production-feed and no-DOM sibling
 entries, a fail-closed collector, OLS/one-sided-confidence-bound and conjunctive

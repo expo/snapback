@@ -11,6 +11,7 @@
     "external-store.mjs",
     "hosted-browser.mjs",
     "index.mjs",
+    "online.mjs",
     "rqs.mjs",
     "rqs-preload.mjs",
     "rqs-store.mjs",
@@ -21,6 +22,7 @@
     ".": "./index.mjs",
     "./agent-authority": "./agent-authority.mjs",
     "./hosted-browser": "./hosted-browser.mjs",
+    "./online": "./online.mjs",
     "./external-store": {
       "types": "./external-store.d.mts",
       "import": "./external-store.mjs"
