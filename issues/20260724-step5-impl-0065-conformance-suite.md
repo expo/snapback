@@ -96,3 +96,11 @@ from the following witnesses (Rust lib tests unless noted):
 - `STEP5.DECLARATION_REDUCTION` itself stays a Partitime/LLP 0063
   deliverable, and Step 0 remains the conjunctive prerequisite for
   claiming any Step 5 gate.
+
+**Step 5 receipt landed (2026-07-25):** `STEP5.DECLARATION_REDUCTION` is
+promoted to `passing` — witness
+`demos/partiful-matrix/tests/acceptance/step5-declaration-reduction.mjs`,
+receipt `acceptance/results/step5-declaration-reduction.json` (136 ≤ 152,
+margin 16, frozen method). The receipt is the LLP 0063 gate deliverable
+LLP 0065 §6 named; the dated 0063 amendment records the C7 narrowing and
+leaves fixture admission to the author.
