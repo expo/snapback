@@ -50,7 +50,13 @@ MAX_BYTES = 2_000_000
 REF_MARK = "@" + "ref"
 CODE_REF_RE = re.compile(re.escape(REF_MARK) + r"\s+(.+)")
 MD_REF_RE = re.compile(r"<!--\s*" + re.escape(REF_MARK) + r"\s+(.+?)-->", re.DOTALL)
-LLP_TARGET_RE = re.compile(r"^LLP\s+(\d{1,4})(?:#(\S+))?$")
+# Anchor is a heading slug (alphanumerics, hyphens, underscores, and dots for
+# numbered-section forms). Bounding it to those characters — instead of `\S+$`
+# — lets a valid ref be extracted even when a trailing " — gloss" is glued to it
+# by an escaped newline, as happens when a Rust doc-comment ref is serialized
+# into a single-line JSON `description` (schemas/*.json). Such a ref used to be
+# mis-classified as an unmapped shorthand; now it resolves like any other.
+LLP_TARGET_RE = re.compile(r"^LLP\s+(\d{1,4})(?:#([\w.-]+))?")
 SHORTHAND_RE = re.compile(r"^[A-Z][A-Z0-9_]*(?:#\S+)?$")
 URL_RE = re.compile(r"^https?://[^\s/]+\.[^\s/]+\S*$")
 HEADING_RE = re.compile(r"^(#{1,6})\s+(.+?)\s*$")
