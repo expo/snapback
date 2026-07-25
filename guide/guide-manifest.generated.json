@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "bceff046e42d28e08c6031a77bd321d9982423c9"
+    "commit": "ddbf5ef6ce7aebfbeba9d3fee2d76ab6210756e2"
   },
   "nav": {
     ".": [
@@ -876,6 +876,7 @@
         "llp/0012-headless-integration-contract.spec.md",
         "llp/0064-native-client-surfaces.rfc.md",
         "packages/snapback-client/index.mjs",
+        "packages/snapback-client/online.mjs",
         "packages/snapback-client/external-store.mjs",
         "packages/snapback-client/agent-authority.mjs",
         "demos/_kit/agent-authority-filesystem.mjs",
@@ -891,9 +892,9 @@
         "demos/card-game",
         "demos/partiful-matrix/surfaces/vanilla"
       ],
-      "reviewed": "2026-07-20",
-      "reviewedCommit": "506b622cd3",
-      "sha256": "f3215f2b86560342fc819f8db2f80e312e52c5552cc34dc0e02b617d22740e6b",
+      "reviewed": "2026-07-23",
+      "reviewedCommit": "HEAD",
+      "sha256": "30eac1c00b607c202c96518deaacc797e61284fe48fccc5d293dc53edd11bbdb",
       "snippets": [
         {
           "lang": "js",
@@ -1673,5 +1674,5 @@
     "routes": 69,
     "hostOps": 19
   },
-  "contentHash": "d9f7d4adb41e2faddfba3fc6512a1fa6f6f55412729c34672a8c7ec50c4f15e5"
+  "contentHash": "167a331f920a49904b43c175d4709f07e7282cccef49d838e70af8df4d0e53b4"
 }
