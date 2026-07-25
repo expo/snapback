@@ -5,7 +5,21 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
+**Revised:** 2026-07-24 (capability-maturity amendment, author decision
+Charlie Cheever 2026-07-24 against
+issues/20260723-llp0076-capability-honesty.md: the closed target-capability
+registry gains a code-owned maturity dimension — `proposed` /
+`experimental` / `stable` — reported through the additive
+`capabilityMaturity` manifest map and enforced at admission. An
+`experimental` entry is NOT this Spec's plain positive compatibility
+assertion: requirements on it are refused `SNAPBACK_CAPABILITY_UNSUPPORTED`
+unless the requiring artifact lists the id in the additive
+`acknowledgedExperimentalCapabilities` function-manifest field, which
+codegen emits from the same closed table it derives requirements from.
+`bounded_response_stream_v1` is `experimental` until LLP 0076 reaches
+Accepted, satisfying LLP 0074's no-positive-claim rule for Draft-backed
+capabilities; every other id is `stable`. See §Capability maturity).
+2026-07-23 (route-scoped ordering amendment for Draft LLP 0077:
 on sender-constrained hosted browser routes, sender-proof admission runs
 before the request body is polled, so this Spec's forbidden-authority-field
 body check runs immediately after sender admission rather than before bearer
@@ -63,7 +77,7 @@ DTO closure, cross-process handshake-cache invalidation, handshake UUIDv7/versio
 exactness, truly-empty seed classification, content-verified deployment
 identities, and operator-recovery diagnostics). Full triage in §Review triage.)
 2026-07-14 (admitted-body ingestion: managed-route request buffering gains a 20000 ms monotonic ingest deadline strictly below the quiescence deadline plus epoch-close cancellation, ENG-24988). 2026-07-14 (ENG-24996 review gate: archived the GPT-family review artifact at `reviews/0058-shared-invocation-authority-and-staged-auth-mode-protocol.codex.md` and applied its editorial corrections — carrier hard-link rule, contract-data v1 exception, and Related links; material findings remain for author triage). 2026-07-14 (ENG-24987: kit-side offer/echo closure — handshake validation compares each `clientProtocols` echo with the exact per-request offer tuple and rejects unsolicited echoes with `SNAPBACK_AUTH_HANDSHAKE_INVALID`; Contract cross-checks echoed axes against the transport's published offer). 2026-07-14 (ENG-24991: the generated `auth.session.output` schema is now exact with the executable kit validator — every member including nullable ones is required, `protocolVersion` is `const: 1`, protocol echoes/minima are exactly v1-or-null, `transports` is exactly `["bearer"]`, authority identifiers couple to `isAuthenticated`, lease capability facts pin their protocol constants, and a shared accept/reject corpus is proven against both the schema and the shipped kit; the example DTO gained the item-6/7/8 members it had omitted). 2026-07-14 (final auth audit reconciliation: same-mode sessions deployment is an admission-barrier activation, its exact durable authorization witness is projected before reopen, and both legacy function-load ingresses resolve through complete-pair provisioning). 2026-07-14 (implementation-vs-review reconciliation: ENG-24597/item 4 and its executable matrices have landed, later items now consume the staged extension points, and this Spec remains Draft pending author ratification and scaled review). 2026-07-13 (aligned the executable-carrier rule with the implementation's conservative no-extended-ACL boundary); 2026-07-13 (initial implementing protocol for ENG-24597 / LLP 0039 landing item 4)
-**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0076
+**Related:** LLP 0000, LLP 0007, LLP 0009, LLP 0011, LLP 0012, LLP 0013, LLP 0017, LLP 0024, LLP 0030, LLP 0031, LLP 0034, LLP 0037, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0055, LLP 0057, LLP 0059, LLP 0060, LLP 0074, LLP 0076
 
 ## Summary
 
@@ -339,6 +353,64 @@ adds the manifest/schema enum member and the conjunctive process-live predicate
 above. Adding any tenth id requires another manifest/schema revision and a
 named positive predicate; string similarity, a missing gap, or a successful
 unrelated runtime probe cannot extend the enum.
+
+### Capability maturity
+
+*(Amendment 2026-07-24, author decision Charlie Cheever against
+`issues/20260723-llp0076-capability-honesty.md`; the honesty rule is LLP
+0074's: no plain positive capability claim for a capability whose governing
+authority is Draft and whose conformance is incomplete.)*
+
+The registry gains a second code-owned dimension beside the support
+predicate: each `TargetCapabilityId` carries a **maturity** from the closed
+vocabulary `proposed` / `experimental` / `stable`
+(`TargetCapabilityId::maturity` in `src/manifest.rs`). Maturity is a fact
+about the id's governing contract, not about a runtime instance, so it
+lives on the registry itself; candidate artifacts can neither assert nor
+upgrade it, exactly like support.
+
+- **`proposed`** — the contract exists in a proposal document but no
+  implementation is registered. A proposed id is never emitted in
+  `supportedCapabilities` at all (its positive predicate cannot hold).
+- **`experimental`** — the implementation is registered and the id's
+  instance predicate holds, but the governing authority is not Accepted.
+  The emitted entry asserts *current-contract* compatibility only: the
+  contract may still change incompatibly, and conformance may be
+  incomplete. **An experimental entry is not this Spec's plain positive
+  compatibility assertion.**
+- **`stable`** — the original reading of this Spec: positive presence in
+  `supportedCapabilities` is the plain compatibility assertion.
+
+Reporting: the capability manifest gains the additive `capabilityMaturity`
+object mapping each **emitted** non-stable id to its maturity. Stable ids
+are omitted, so an all-stable manifest serializes without the field; a
+manifest that omits the field predates this amendment and its entries are
+read under the pre-amendment semantics its producing server actually
+asserted. The map is derived from the same closed Rust registry as
+`supportedCapabilities` and is never accepted as authority from a posted
+artifact.
+
+Admission: resolving a required capability now checks maturity after the
+existing known-id and positive-presence checks. A requirement on a
+non-stable id is refused `SNAPBACK_CAPABILITY_UNSUPPORTED` (with the
+maturity named in the diagnostic details) **unless** the requiring artifact
+lists the id in the additive `acknowledgedExperimentalCapabilities` field
+of its function manifest, which covers the generated schema/function pair
+as one unit. Codegen emits the acknowledgment automatically from the same
+closed capability table it derives requirements from, so a generated
+artifact knowingly binds to the experimental contract its toolchain
+targeted. The acknowledgment can only ever narrow this one refusal:
+acknowledging a stable id is a harmless no-op (promotion to stable never
+breaks an artifact), an unknown acknowledged string is inert, and no
+acknowledgment can make an unsupported or unknown capability admissible.
+On the deploy-time-compiled Cloudflare target the same rule runs at its
+loader seam — function resolution — against the served manifest's
+`capabilityMaturity` and the bundle's exported acknowledgment list.
+
+Current assignment: `bounded_response_stream_v1` is **experimental** until
+LLP 0076 reaches Accepted (flipping it to `stable` is part of the
+acceptance act and requires no artifact changes, because existing
+acknowledgments become no-ops). Every other registry id is `stable`.
 
 Only the schema and function artifact manifests — plus the generated
 contract-data manifest, which is bound to the exact paired schema/function

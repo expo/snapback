@@ -61,6 +61,7 @@ import {
   config as appConfig,
   cron as appCron,
   deploymentIdentity,
+  acknowledgedExperimentalCapabilities,
 } from 'snapback-app';
 
 const APP_SCHEMA_HASH = schema.schemaHash;
@@ -86,6 +87,15 @@ const KNOWN_TARGET_CAPABILITY_IDS = new Set([
   'permission_epoch_resync',
 ]);
 const SUPPORTED_TARGET_CAPABILITIES = new Set(capabilityManifest.supportedCapabilities || []);
+// @ref LLP 0058#capability-maturity — maturity annotations over the served
+// support set (absent field = every emitted id is stable), plus the app
+// bundle's explicit experimental acknowledgments. An experimental entry is
+// not plain support: resolution refuses a requirement on it unless the
+// deploy-time-compiled bundle acknowledged the experimental contract.
+const TARGET_CAPABILITY_MATURITY = capabilityManifest.capabilityMaturity || {};
+const ACKNOWLEDGED_EXPERIMENTAL_CAPABILITIES = new Set(
+  acknowledgedExperimentalCapabilities || []
+);
 const ACTION_STREAM_TOTAL_BYTES_MAX = 1024 * 1024;
 const ACTION_STREAM_BUFFER_BYTES_MAX = 64 * 1024;
 const ACTION_STREAM_CHUNK_BYTES_MAX = 16 * 1024;
@@ -841,13 +851,25 @@ export class Coordinator {
     // posted artifacts and never installs them, which is why the check
     // lives here rather than in kitEnsureApp.
     for (const capability of fn.requiredCapabilities || []) {
-      if (
-        KNOWN_TARGET_CAPABILITY_IDS.has(capability)
-        && !SUPPORTED_TARGET_CAPABILITIES.has(capability)
-      ) {
+      if (!KNOWN_TARGET_CAPABILITY_IDS.has(capability)) continue;
+      if (!SUPPORTED_TARGET_CAPABILITIES.has(capability)) {
         throw codedError(
           'SNAPBACK_CAPABILITY_UNSUPPORTED',
           `${name} requires capability ${capability}, which the served instance manifest does not support`
+        );
+      }
+      // @ref LLP 0058#capability-maturity — an experimental entry is not
+      // plain support; the bundle must have acknowledged the experimental
+      // contract for the requirement to admit.
+      const maturity = TARGET_CAPABILITY_MATURITY[capability];
+      if (
+        maturity
+        && maturity !== 'stable'
+        && !ACKNOWLEDGED_EXPERIMENTAL_CAPABILITIES.has(capability)
+      ) {
+        throw codedError(
+          'SNAPBACK_CAPABILITY_UNSUPPORTED',
+          `${name} requires capability ${capability}, which this target supports only at ${maturity} maturity; the app bundle must acknowledge it`
         );
       }
     }

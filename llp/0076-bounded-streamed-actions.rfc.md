@@ -5,7 +5,23 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (gate-2 remainder pass: LLP 0075 protocol amendment
+**Revised:** 2026-07-24 (capability-maturity decision implemented — author
+decision Charlie Cheever 2026-07-24: the LLP 0058 registry gains the
+code-owned `proposed`/`experimental`/`stable` maturity dimension;
+`bounded_response_stream_v1` is `experimental` until this RFC is Accepted.
+The served manifests annotate it via the additive `capabilityMaturity` map,
+and admission on BOTH arms refuses an experimental requirement the artifact
+does not list in `acknowledgedExperimentalCapabilities` (emitted by codegen
+alongside the requirement) — witnessed by the egress-enabled unacknowledged
+negative plus acknowledged positive through the real local loader
+(`tests/action_stream_envelope_v0.rs`), the registry unit witnesses, and the
+Miniflare egress acceptance (29/29, including the served-maturity honesty
+check; the Workerd unacknowledged-refusal negative is code-shared with the
+supported-set refusal and not separately deployable, a named witness
+residue). The capability-honesty ticket closes; the Positive-capability-
+overclaim ledger row closes; status remains Draft — the maturity marker is
+precisely what lets the capability ship honestly while Draft).
+2026-07-24 (gate-2 remainder pass: LLP 0075 protocol amendment
 v0.5 reconciles the frozen fixture with the StreamAttemptV1 control plane
 and certainty mirror (instrument 7/7); per-bullet acceptance receipts landed
 with three explicit gaps; the guide gains `backend/streamed-actions` with a
@@ -547,7 +563,9 @@ Accepted anti-probing posture. Per-bullet acceptance receipts now exist at
 `demos/competitive-checkpoint/acceptance/llp0076-acceptance-receipts.v1.json`,
 mapping every §Acceptance bullet to named witnesses per target with three
 explicit gaps (the hosted `single-instance-container-vm.v1` receipt, the
-author's maturity-marker decision, and the Workerd structural bounds).
+author's maturity-marker decision — since resolved 2026-07-24, see the
+Revised header and the closed overclaim ledger row — and the Workerd
+structural bounds).
 Retained checkpoint receipts were scanned for fixture secret values (clean);
 durable-row scans on the hosted target ride the hosted receipt. The guide
 now covers the surface (`guide/backend/streamed-actions.md`, capability row
@@ -740,19 +758,25 @@ a fix before gate 2:
   while the resolved value never re-enters the isolate or the action
   result. Residue: secret/private-data scans over RETAINED stream receipts
   (durable rows) remain with the acceptance-receipts work.
-- **Positive capability overclaim (substantially narrowed 2026-07-24;
-  maturity marker still open).** The substance of the overclaim is resolved
-  on the local arm: the terminal/lease guarantees are now host-enforced
-  (StreamAttemptV1 control plane), every published local limit row is
-  genuinely enforced and witnessed (including buffered-bytes via the real
-  counter), and main's Cloudflare manifest claims nothing beyond an honest
-  `bounded_response_stream_v1` gap row (the overclaiming Workerd manifest
-  never landed on main). What remains open is the marker itself: whether the
-  capability should carry an explicit proposed/experimental maturity field
-  while LLP 0076 is Draft is an LLP 0058 registry-semantics design choice
-  (schema change) deferred to the author/review loop rather than decided
-  here; until then the instance-live predicate plus the per-bullet witnesses
-  are the honesty mechanism.
+- **Positive capability overclaim (closed 2026-07-24).** The substance was
+  resolved earlier (host-enforced terminal/lease guarantees, genuinely
+  enforced and witnessed limit rows, honest manifests on both targets); the
+  final residue — the maturity marker — is now decided and implemented per
+  Charlie's 2026-07-24 decision: the LLP 0058 registry carries a code-owned
+  maturity dimension (§Capability maturity there), every served manifest
+  emitting `bounded_response_stream_v1` annotates it `experimental` in the
+  additive `capabilityMaturity` map, and admission on both arms treats the
+  entry as *not plain support* — a requirement admits only when the artifact
+  acknowledges the experimental contract via
+  `acknowledgedExperimentalCapabilities`, which codegen emits from the same
+  closed table it derives requirements from. LLP 0074's no-plain-claim rule
+  for Draft authorities is therefore satisfied structurally, not just by
+  witnesses. Promotion to `stable` is part of this RFC's acceptance act and
+  breaks no artifact (acknowledgments become no-ops). Named witness residue:
+  the Workerd arm's unacknowledged-refusal negative is code-shared with its
+  witnessed supported-set refusal rather than separately deployable (one
+  bundle cannot be both acknowledged and unacknowledged); the local arm
+  witnesses both directions through the real loader.
 - **Diagnostic envelope coverage (local arm landed 2026-07-24).** All nine
   promised codes — the eight stream families plus
   `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED` — now survive both the runtime and

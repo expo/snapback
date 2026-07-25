@@ -1,6 +1,31 @@
 # Capability-manifest honesty and admission against the served instance manifest
 
-**Status:** Open — narrowed to a SINGLE author-decision residue
+**Status:** Closed (2026-07-24). The single remaining author decision was
+made by Charlie Cheever on 2026-07-24 and implemented the same day: the LLP
+0058 registry gains a code-owned `proposed`/`experimental`/`stable`
+maturity dimension (LLP 0058 §Capability maturity, dated amendment);
+`bounded_response_stream_v1` is `experimental` until LLP 0076 is Accepted.
+Served manifests annotate it via the additive `capabilityMaturity` map, and
+admission on both arms refuses an experimental requirement unless the
+artifact lists the id in `acknowledgedExperimentalCapabilities`
+(codegen-emitted beside the requirement) — so an experimental maturity is
+structurally not plain "present support" under 0058's reading, satisfying
+LLP 0074 for Draft-backed capabilities. Witnessed: registry unit tests
+(maturity map contents, unacknowledged refusal with maturity details,
+acknowledged admit, stable-acknowledgment no-op, no authority minting);
+local loader positive + egress-enabled unacknowledged negative in
+`tests/action_stream_envelope_v0.rs`; Miniflare egress acceptance 29/29
+including the served-maturity honesty check. Done-when disposition: bullet
+1 satisfied via the maturity marker (the split-capability alternative was
+not taken); bullets 2-3 were already landed (served-instance admission
+everywhere, AST-derived inference, rows honest); the ledger's
+capability-overclaim row closes with one named witness residue — the
+Workerd unacknowledged-refusal negative is code-shared with its witnessed
+supported-set refusal, not separately deployable from a single bundle.
+
+Original status text follows.
+
+**Original status:** Open — narrowed to a SINGLE author-decision residue
 (2026-07-24). Everything implementable without an author decision has
 landed: local served-instance admission in every loader with negative and
 positive witnesses (commit 065484e6); AST-derived codegen inference; honest

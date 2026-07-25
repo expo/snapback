@@ -31,6 +31,12 @@ export const appMeta = {
 export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
+// @ref LLP 0058#capability-maturity — this deploy-time-compiled bundle
+// knowingly binds its stream probes to the experimental (Draft LLP 0076)
+// bounded-stream contract; without this acknowledgment the coordinator's
+// function-resolution admission refuses the stream-requiring functions.
+export const acknowledgedExperimentalCapabilities = ['bounded_response_stream_v1'];
+
 export const schema = {
   schemaHash: schemaManifest.schemaHash,
   tables: [

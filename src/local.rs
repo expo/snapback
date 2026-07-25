@@ -3158,32 +3158,44 @@ impl LocalSnapback {
             self.capability_gaps(),
             crate::runtime::outbound_actions_enabled(),
         );
+        // @ref LLP 0058#capability-maturity — an experimental entry is not
+        // plain support: the requirement admits only when the artifact
+        // acknowledges the experimental contract it binds to.
+        let acknowledged = manifest.acknowledged_capability_ids();
         let mut diagnostics = Vec::new();
-        let mut refuse = |owner: &str, capability: &str| {
-            diagnostics.push(Diagnostic::error(
-                "SNAPBACK_CAPABILITY_UNSUPPORTED",
-                "runtime",
-                format!(
-                    "{owner} requires capability {capability}, which the served instance manifest does not support"
-                ),
-            ));
+        let mut check = |owner: &str, capability: &str| {
+            let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>() else {
+                return;
+            };
+            if !served.supported_capabilities.contains(&id) {
+                diagnostics.push(Diagnostic::error(
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                    "runtime",
+                    format!(
+                        "{owner} requires capability {capability}, which the served instance manifest does not support"
+                    ),
+                ));
+            } else if id.maturity() != crate::manifest::CapabilityMaturity::Stable
+                && !acknowledged.contains(&id)
+            {
+                diagnostics.push(Diagnostic::error(
+                    "SNAPBACK_CAPABILITY_UNSUPPORTED",
+                    "runtime",
+                    format!(
+                        "{owner} requires capability {capability}, which this target supports only at {} maturity; the artifact must list it in acknowledgedExperimentalCapabilities",
+                        id.maturity().as_str()
+                    ),
+                ));
+            }
         };
         for function in &manifest.functions {
             for capability in &function.required_capabilities {
-                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
-                    && !served.supported_capabilities.contains(&id)
-                {
-                    refuse(&format!("function {}", function.name), capability);
-                }
+                check(&format!("function {}", function.name), capability);
             }
         }
         for job in &manifest.cron_jobs {
             for capability in &job.required_capabilities {
-                if let Ok(id) = capability.parse::<crate::manifest::TargetCapabilityId>()
-                    && !served.supported_capabilities.contains(&id)
-                {
-                    refuse(&format!("cron job {}", job.name), capability);
-                }
+                check(&format!("cron job {}", job.name), capability);
             }
         }
         diagnostics
@@ -3330,6 +3342,11 @@ impl LocalSnapback {
 
         let deployment = artifacts.deployment_identity(requested_mode)?;
         let target = CapabilityManifest::local_v0_declared();
+        // @ref LLP 0058#capability-maturity — the artifact pair's
+        // experimental acknowledgments (declared on the function manifest,
+        // covering the pair) accompany every requirement, including the
+        // schema-level ones: schema and functions are one generated unit.
+        let acknowledged = artifacts.functions.acknowledged_capability_ids();
         target.require_capabilities(
             artifacts
                 .schema
@@ -3348,6 +3365,7 @@ impl LocalSnapback {
                         .iter()
                         .flat_map(|job| job.required_capabilities.iter().map(String::as_str)),
                 ),
+            &acknowledged,
         )?;
         validate_function_schema_references(&artifacts.functions, &artifacts.schema)?;
         let cron_diagnostics = validate_cron_manifest(&artifacts.functions);
