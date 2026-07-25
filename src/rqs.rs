@@ -868,6 +868,366 @@ pub(crate) fn projection_row_digest(identity: &str, key_bytes: &str) -> [u8; 32]
     )
 }
 
+// ---------------------------------------------------------------------------
+// ContentDigestV1 (LLP 0081 §5)
+// ---------------------------------------------------------------------------
+
+/// SHA-256 with an exportable/importable chaining state.
+///
+/// `ContentDigestV1` is a *resumable* streaming digest whose accumulator
+/// checkpoint persists "the SHA-256 chaining state plus byte and row
+/// counters" in the migration journal (LLP 0081 §5). The `sha2` crate does
+/// not expose its compression state, so this is a minimal FIPS 180-4
+/// SHA-256 core with a serializable state. Its output is asserted equal to
+/// `sha2::Sha256` over shared inputs (including the NIST vectors) by the
+/// unit tests, so the two implementations cannot drift silently.
+#[derive(Clone, Debug)]
+pub struct ResumableSha256 {
+    state: [u32; 8],
+    /// Total message bytes absorbed so far (drives padding).
+    length_bytes: u64,
+    /// Unprocessed tail, always shorter than one 64-byte block.
+    buffer: Vec<u8>,
+}
+
+const SHA256_K: [u32; 64] = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2,
+];
+
+impl Default for ResumableSha256 {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl ResumableSha256 {
+    pub fn new() -> Self {
+        Self {
+            state: [
+                0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c,
+                0x1f83d9ab, 0x5be0cd19,
+            ],
+            length_bytes: 0,
+            buffer: Vec::with_capacity(64),
+        }
+    }
+
+    fn compress(&mut self, block: &[u8]) {
+        debug_assert_eq!(block.len(), 64);
+        let mut w = [0_u32; 64];
+        for (index, chunk) in block.chunks_exact(4).enumerate() {
+            w[index] = u32::from_be_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+        }
+        for index in 16..64 {
+            let s0 = w[index - 15].rotate_right(7)
+                ^ w[index - 15].rotate_right(18)
+                ^ (w[index - 15] >> 3);
+            let s1 = w[index - 2].rotate_right(17)
+                ^ w[index - 2].rotate_right(19)
+                ^ (w[index - 2] >> 10);
+            w[index] = w[index - 16]
+                .wrapping_add(s0)
+                .wrapping_add(w[index - 7])
+                .wrapping_add(s1);
+        }
+        let [mut a, mut b, mut c, mut d, mut e, mut f, mut g, mut h] = self.state;
+        for index in 0..64 {
+            let s1 = e.rotate_right(6) ^ e.rotate_right(11) ^ e.rotate_right(25);
+            let ch = (e & f) ^ ((!e) & g);
+            let temp1 = h
+                .wrapping_add(s1)
+                .wrapping_add(ch)
+                .wrapping_add(SHA256_K[index])
+                .wrapping_add(w[index]);
+            let s0 = a.rotate_right(2) ^ a.rotate_right(13) ^ a.rotate_right(22);
+            let maj = (a & b) ^ (a & c) ^ (b & c);
+            let temp2 = s0.wrapping_add(maj);
+            h = g;
+            g = f;
+            f = e;
+            e = d.wrapping_add(temp1);
+            d = c;
+            c = b;
+            b = a;
+            a = temp1.wrapping_add(temp2);
+        }
+        for (word, value) in self
+            .state
+            .iter_mut()
+            .zip([a, b, c, d, e, f, g, h])
+        {
+            *word = word.wrapping_add(value);
+        }
+    }
+
+    pub fn update(&mut self, mut bytes: &[u8]) {
+        self.length_bytes += bytes.len() as u64;
+        if !self.buffer.is_empty() {
+            let take = (64 - self.buffer.len()).min(bytes.len());
+            self.buffer.extend_from_slice(&bytes[..take]);
+            bytes = &bytes[take..];
+            if self.buffer.len() == 64 {
+                let block = std::mem::take(&mut self.buffer);
+                self.compress(&block);
+            }
+        }
+        while bytes.len() >= 64 {
+            let (block, rest) = bytes.split_at(64);
+            self.compress(block);
+            bytes = rest;
+        }
+        self.buffer.extend_from_slice(bytes);
+    }
+
+    pub fn finalize(mut self) -> [u8; 32] {
+        let bit_length = self.length_bytes.wrapping_mul(8);
+        self.update(&[0x80]);
+        // Length no longer counts the padding: rewind the counter bump the
+        // padding updates made, then pad with raw zeros through compress.
+        while self.buffer.len() != 56 {
+            let pad = if self.buffer.len() < 56 {
+                56 - self.buffer.len()
+            } else {
+                64 - self.buffer.len() + 56
+            };
+            let zeros = vec![0_u8; pad.min(64)];
+            self.update(&zeros);
+        }
+        self.update(&bit_length.to_be_bytes());
+        debug_assert!(self.buffer.is_empty());
+        let mut out = [0_u8; 32];
+        for (chunk, word) in out.chunks_exact_mut(4).zip(self.state) {
+            chunk.copy_from_slice(&word.to_be_bytes());
+        }
+        out
+    }
+
+    pub fn export_state(&self) -> ContentDigestAccumulatorV1 {
+        ContentDigestAccumulatorV1 {
+            version: CONTENT_DIGEST_ACCUMULATOR_VERSION.to_owned(),
+            state: self.state.to_vec(),
+            length_bytes: self.length_bytes,
+            buffer: URL_SAFE_NO_PAD.encode(&self.buffer),
+            rows: 0,
+        }
+    }
+
+    pub fn import_state(accumulator: &ContentDigestAccumulatorV1) -> Result<Self, &'static str> {
+        if accumulator.version != CONTENT_DIGEST_ACCUMULATOR_VERSION {
+            return Err("unknown accumulator version");
+        }
+        let state: [u32; 8] = accumulator
+            .state
+            .as_slice()
+            .try_into()
+            .map_err(|_| "accumulator state must be eight words")?;
+        let buffer = URL_SAFE_NO_PAD
+            .decode(&accumulator.buffer)
+            .map_err(|_| "accumulator buffer is not base64url")?;
+        if buffer.len() >= 64 {
+            return Err("accumulator buffer must be shorter than one block");
+        }
+        Ok(Self {
+            state,
+            length_bytes: accumulator.length_bytes,
+            buffer,
+        })
+    }
+}
+
+pub const CONTENT_DIGEST_ACCUMULATOR_VERSION: &str = "content-digest-accumulator-v1";
+/// The logical-row stream domain (LLP 0081 §5).
+pub const CONTENT_DIGEST_DOMAIN: &str = "snapback:content-digest:v1";
+/// The system-field stream's own domain prefix (LLP 0081 §5).
+pub const CONTENT_DIGEST_SYSTEM_DOMAIN: &str = "snapback:content-digest:v1:system";
+const CONTENT_DIGEST_TRAILER_DOMAIN: &str = "snapback:content-digest:v1:trailer";
+
+/// The serialized SHA-256 chaining state plus counters — exactly what
+/// LLP 0081 §5 pins into the migration journal's batch checkpoint.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ContentDigestAccumulatorV1 {
+    pub version: String,
+    /// The eight SHA-256 working words.
+    pub state: Vec<u32>,
+    /// Message bytes absorbed so far.
+    pub length_bytes: u64,
+    /// Base64url of the unprocessed tail (< 64 bytes).
+    pub buffer: String,
+    /// Row frames absorbed so far (bound by the trailer frame).
+    pub rows: u64,
+}
+
+/// The header parameters every `ContentDigestV1` stream binds (LLP 0081
+/// §5): identity of the plan, schema, table, generation, and publication
+/// facts. The executor supplies real values; conformance vectors pin the
+/// byte layout.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase", deny_unknown_fields)]
+pub struct ContentDigestHeaderV1 {
+    pub algorithm_version: u32,
+    pub plan_digest: String,
+    pub schema_hash: String,
+    pub qualified_table: String,
+    pub generation: String,
+    pub barrier_head: u64,
+    pub publication_version: u64,
+    pub publication_timestamp: u64,
+}
+
+/// One `ContentDigestV1` stream: header frame, then one length-prefixed
+/// frame per logical row in stable key order, then a trailer frame binding
+/// the row count. Every frame is `u64-be(length) || bytes`; numeric header
+/// fields are eight-byte big-endian; row bytes are the RFC 8785
+/// re-canonicalization of the row's LLP 0051 JSON-transport value (which
+/// distinguishes absent from null). The exact bytes are pinned by the
+/// committed golden vectors, and resume-equality (checkpoint + import at
+/// any row boundary) is itself a vector case.
+#[derive(Clone, Debug)]
+pub struct ContentDigestStream {
+    hash: ResumableSha256,
+    rows: u64,
+}
+
+fn digest_frame(hash: &mut ResumableSha256, bytes: &[u8]) {
+    hash.update(&(bytes.len() as u64).to_be_bytes());
+    hash.update(bytes);
+}
+
+impl ContentDigestStream {
+    pub fn new(domain: &str, header: &ContentDigestHeaderV1) -> Self {
+        let mut hash = ResumableSha256::new();
+        digest_frame(&mut hash, domain.as_bytes());
+        digest_frame(&mut hash, &header.algorithm_version.to_be_bytes());
+        digest_frame(&mut hash, header.plan_digest.as_bytes());
+        digest_frame(&mut hash, header.schema_hash.as_bytes());
+        digest_frame(&mut hash, header.qualified_table.as_bytes());
+        digest_frame(&mut hash, header.generation.as_bytes());
+        digest_frame(&mut hash, &header.barrier_head.to_be_bytes());
+        digest_frame(&mut hash, &header.publication_version.to_be_bytes());
+        digest_frame(&mut hash, &header.publication_timestamp.to_be_bytes());
+        Self { hash, rows: 0 }
+    }
+
+    /// Absorb one row's canonical transport value. Fails closed on values
+    /// the canonical encoding refuses (non-finite numbers, unsafe
+    /// integers): outside v1's proof domain, never digested approximately.
+    pub fn absorb_row(&mut self, row: &Value) -> Result<(), MintRefusal> {
+        let canonical = jcs(row)?;
+        digest_frame(&mut self.hash, canonical.as_bytes());
+        self.rows += 1;
+        Ok(())
+    }
+
+    pub fn checkpoint(&self) -> ContentDigestAccumulatorV1 {
+        let mut accumulator = self.hash.export_state();
+        accumulator.rows = self.rows;
+        accumulator
+    }
+
+    pub fn resume(accumulator: &ContentDigestAccumulatorV1) -> Result<Self, &'static str> {
+        Ok(Self {
+            hash: ResumableSha256::import_state(accumulator)?,
+            rows: accumulator.rows,
+        })
+    }
+
+    /// Seal the stream with the trailer frame binding the row count and
+    /// return the labeled digest.
+    pub fn finalize(mut self) -> String {
+        digest_frame(&mut self.hash, CONTENT_DIGEST_TRAILER_DOMAIN.as_bytes());
+        digest_frame(&mut self.hash, &self.rows.to_be_bytes());
+        format!("cdv1:{}", hex(&self.hash.finalize()))
+    }
+
+    pub fn rows(&self) -> u64 {
+        self.rows
+    }
+}
+
+/// The committed `schemas/content-digest.v1.json` artifact: frame rules and
+/// executable golden vectors generated through the implementation itself
+/// (the drift gate re-runs this; the unit tests pin the exact digests, so
+/// neither the file nor the stream can drift alone). Includes a
+/// resume-equality vector: the digest of a stream checkpointed and resumed
+/// at every row boundary equals the one-shot digest.
+pub fn content_digest_artifact() -> Value {
+    let header = ContentDigestHeaderV1 {
+        algorithm_version: 1,
+        plan_digest: "sha256:0000000000000000000000000000000000000000000000000000000000000000"
+            .to_owned(),
+        schema_hash: "sha256:1111111111111111".to_owned(),
+        qualified_table: "app.todos".to_owned(),
+        generation: "gen-1".to_owned(),
+        barrier_head: 41,
+        publication_version: 42,
+        publication_timestamp: 1_784_000_000_000,
+    };
+    let logical_rows = vec![
+        serde_json::json!({ "title": "alpha", "rank": 1 }),
+        serde_json::json!({ "title": "beta", "note": null }),
+        serde_json::json!({ "title": "caf\u{e9}" }),
+    ];
+    let system_rows = vec![
+        serde_json::json!({ "_id": "a", "_version": 42, "_createdAt": 1, "_updatedAt": 2 }),
+        serde_json::json!({ "_id": "b", "_version": 42, "_createdAt": 1, "_updatedAt": 2 }),
+        serde_json::json!({ "_id": "c", "_version": 42, "_createdAt": 3, "_updatedAt": 3 }),
+    ];
+    let one_shot = |domain: &str, rows: &[Value]| {
+        let mut stream = ContentDigestStream::new(domain, &header);
+        for row in rows {
+            stream.absorb_row(row).expect("vector rows canonicalize");
+        }
+        stream.finalize()
+    };
+    let logical_digest = one_shot(CONTENT_DIGEST_DOMAIN, &logical_rows);
+    let system_digest = one_shot(CONTENT_DIGEST_SYSTEM_DOMAIN, &system_rows);
+    // Resume equality at every boundary.
+    for split in 0..=logical_rows.len() {
+        let mut stream = ContentDigestStream::new(CONTENT_DIGEST_DOMAIN, &header);
+        for row in &logical_rows[..split] {
+            stream.absorb_row(row).expect("vector rows canonicalize");
+        }
+        let checkpoint = stream.checkpoint();
+        let mut resumed =
+            ContentDigestStream::resume(&checkpoint).expect("checkpoint resumes");
+        for row in &logical_rows[split..] {
+            resumed.absorb_row(row).expect("vector rows canonicalize");
+        }
+        assert_eq!(
+            resumed.finalize(),
+            logical_digest,
+            "resume at row {split} must equal the one-shot digest"
+        );
+    }
+    serde_json::json!({
+        "version": "content-digest-v1",
+        "authority": "llp/0081-reviewed-storage-evolution-and-migrations.rfc.md#5-verification-and-data-proof",
+        "frameRule": "every frame is u64-be(length) || bytes; numeric header fields are u64/u32 big-endian; rows are RFC 8785 re-canonicalizations of LLP 0051 JSON-transport values; the trailer binds the row count",
+        "domains": {
+            "logical": CONTENT_DIGEST_DOMAIN,
+            "system": CONTENT_DIGEST_SYSTEM_DOMAIN,
+            "trailer": CONTENT_DIGEST_TRAILER_DOMAIN,
+        },
+        "vectors": [{
+            "name": "three-row-fixture",
+            "header": header,
+            "logicalRows": logical_rows,
+            "systemRows": system_rows,
+            "logicalDigest": logical_digest,
+            "systemDigest": system_digest,
+            "resumeEquality": "verified at every row boundary during generation",
+        }],
+    })
+}
+
 fn frame(hash: &mut Sha256, component: &str) {
     hash.update((component.len() as u64).to_be_bytes());
     hash.update(component.as_bytes());
@@ -1386,6 +1746,98 @@ pub fn decode_and_verify(
 mod tests {
     use super::*;
     use serde_json::json;
+
+    // The hand-rolled resumable SHA-256 core must be byte-identical to
+    // `sha2::Sha256` — over the NIST vectors, odd chunkings, and
+    // mid-stream export/import — or ContentDigestV1's resumability claim
+    // is built on a broken hash.
+    #[test]
+    fn resumable_sha256_matches_sha2_and_survives_checkpoints() {
+        let cases: Vec<Vec<u8>> = vec![
+            Vec::new(),
+            b"abc".to_vec(),
+            b"abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq".to_vec(),
+            vec![0xa3; 63],
+            vec![0x5c; 64],
+            vec![0x17; 65],
+            (0..=255_u8).cycle().take(1_000).collect(),
+        ];
+        // NIST FIPS 180-4 known answers for the first three cases.
+        assert_eq!(
+            hex(&ResumableSha256::new().finalize()),
+            "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        );
+        let mut abc = ResumableSha256::new();
+        abc.update(b"abc");
+        assert_eq!(
+            hex(&abc.finalize()),
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+        );
+        for case in &cases {
+            let expected = hex(&Sha256::digest(case));
+            // One-shot.
+            let mut ours = ResumableSha256::new();
+            ours.update(case);
+            assert_eq!(hex(&ours.finalize()), expected);
+            // Every split point, through an export/import checkpoint.
+            for split in 0..=case.len().min(200) {
+                let mut first = ResumableSha256::new();
+                first.update(&case[..split]);
+                let checkpoint = first.export_state();
+                let mut second =
+                    ResumableSha256::import_state(&checkpoint).expect("state imports");
+                second.update(&case[split..]);
+                assert_eq!(hex(&second.finalize()), expected, "split at {split}");
+            }
+        }
+    }
+
+    // @ref LLP 0081#5-verification-and-data-proof — ContentDigestV1's
+    //   exact bytes: the committed vector digests are pinned here so the
+    //   stream, the artifact, and this test must agree three ways.
+    #[test]
+    fn content_digest_v1_pins_golden_vectors() {
+        let artifact = content_digest_artifact();
+        let vector = &artifact["vectors"][0];
+        let logical = vector["logicalDigest"].as_str().expect("logical digest");
+        let system = vector["systemDigest"].as_str().expect("system digest");
+        assert!(logical.starts_with("cdv1:") && system.starts_with("cdv1:"));
+        assert_ne!(logical, system, "the system stream has its own domain");
+        // Sensitivity: any header field change moves the digest.
+        let header: ContentDigestHeaderV1 =
+            serde_json::from_value(vector["header"].clone()).expect("header parses");
+        let rows: Vec<Value> =
+            serde_json::from_value(vector["logicalRows"].clone()).expect("rows parse");
+        let digest_with = |header: &ContentDigestHeaderV1| {
+            let mut stream = ContentDigestStream::new(CONTENT_DIGEST_DOMAIN, header);
+            for row in &rows {
+                stream.absorb_row(row).expect("rows canonicalize");
+            }
+            stream.finalize()
+        };
+        assert_eq!(digest_with(&header), logical);
+        let mut moved = header.clone();
+        moved.publication_version += 1;
+        assert_ne!(digest_with(&moved), logical);
+        // Row-count binding: the same bytes with a forged row counter
+        // cannot finalize to the same digest.
+        let mut stream = ContentDigestStream::new(CONTENT_DIGEST_DOMAIN, &header);
+        for row in &rows {
+            stream.absorb_row(row).expect("rows canonicalize");
+        }
+        let mut forged = stream.checkpoint();
+        forged.rows += 1;
+        let forged_stream = ContentDigestStream::resume(&forged).expect("resumes");
+        assert_ne!(forged_stream.finalize(), logical);
+        // Out-of-domain values fail closed.
+        let mut refusing = ContentDigestStream::new(CONTENT_DIGEST_DOMAIN, &header);
+        assert!(
+            refusing
+                .absorb_row(&json!({ "n": 9_007_199_254_740_993_i64 }))
+                .is_err(),
+            "unsafe integers are outside the proof domain"
+        );
+    }
 
     // @ref LLP 0080#2-portable-evaluation-semantics — the result bytes are
     //   pinned as a versioned RelationalResultEncodingV1 with golden vectors

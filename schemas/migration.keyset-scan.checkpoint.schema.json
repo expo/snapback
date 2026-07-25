@@ -1,0 +1,220 @@
+{
+  "$defs": {
+    "ContentDigestAccumulatorV1": {
+      "additionalProperties": false,
+      "description": "The serialized SHA-256 chaining state plus counters — exactly what\nLLP 0081 §5 pins into the migration journal's batch checkpoint.",
+      "properties": {
+        "buffer": {
+          "description": "Base64url of the unprocessed tail (< 64 bytes).",
+          "type": "string"
+        },
+        "lengthBytes": {
+          "description": "Message bytes absorbed so far.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "rows": {
+          "description": "Row frames absorbed so far (bound by the trailer frame).",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "state": {
+          "description": "The eight SHA-256 working words.",
+          "items": {
+            "format": "uint32",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "type": "array"
+        },
+        "version": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "version",
+        "state",
+        "lengthBytes",
+        "buffer",
+        "rows"
+      ],
+      "type": "object"
+    },
+    "KeysetAfter": {
+      "description": "A `root-window-v1` keyset boundary: the order-key values and `_id` of the\nlast consumed root. `entries` aligns 1:1 with the plan's `order` fields —\na `Value::Null` entry marks a null/absent component, which sorts last\nunder either direction (`NULLS LAST`). The same shape serves both roles:\nthe verified boundary a presented cursor decodes to, and the continuation\nthe executor reports for the next mint.\n\n@ref LLP 0080#2-portable-evaluation-semantics — continuation follows the\n  root order key from the last consumed root, including roots omitted by\n  an inner join; boundary keys may include fields the projection does not\n  expose.",
+      "properties": {
+        "entries": {
+          "items": {
+            "maxItems": 2,
+            "minItems": 2,
+            "prefixItems": [
+              {
+                "type": "string"
+              },
+              true
+            ],
+            "type": "array"
+          },
+          "type": "array"
+        },
+        "id": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "entries",
+        "id"
+      ],
+      "type": "object"
+    },
+    "MigrationScanValidatorStateV1": {
+      "description": "Resumable per-validator state, persisted with the batch checkpoint.",
+      "oneOf": [
+        {
+          "additionalProperties": false,
+          "properties": {
+            "nonNull": {
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "samples": {
+                  "description": "First offending row ids (bounded sample for actionability).",
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                },
+                "violations": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "field",
+                "violations",
+                "samples"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "nonNull"
+          ],
+          "type": "object"
+        },
+        {
+          "additionalProperties": false,
+          "properties": {
+            "unique": {
+              "properties": {
+                "duplicates": {
+                  "format": "uint64",
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "last": {
+                  "description": "The previous non-null value at the batch boundary — adjacency\ncarries across batches through this."
+                },
+                "samples": {
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": "array"
+                }
+              },
+              "required": [
+                "field",
+                "duplicates",
+                "samples"
+              ],
+              "type": "object"
+            }
+          },
+          "required": [
+            "unique"
+          ],
+          "type": "object"
+        }
+      ]
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/migration.keyset-scan.checkpoint.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The serializable batch checkpoint the Wave-2 executor persists in its\njournal: identity of the scan, the keyset boundary, cumulative\ncounters, resumable validator states, and the digest accumulators\n(SHA-256 chaining state + counters, LLP 0081 §5).",
+  "properties": {
+    "boundary": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/KeysetAfter"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "bytesScanned": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "index": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "logicalDigest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigestAccumulatorV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "rowsScanned": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "systemDigest": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ContentDigestAccumulatorV1"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "table": {
+      "type": "string"
+    },
+    "validators": {
+      "items": {
+        "$ref": "#/$defs/MigrationScanValidatorStateV1"
+      },
+      "type": "array"
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "version",
+    "table",
+    "rowsScanned",
+    "bytesScanned"
+  ],
+  "title": "MigrationKeysetScanCheckpointV1",
+  "type": "object"
+}

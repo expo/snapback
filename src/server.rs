@@ -19704,6 +19704,7 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         | "SNAPBACK_MEMBERSHIP_RESOURCE_DELETE_BLOCKED"
         | "SNAPBACK_MEMBERSHIP_BOOTSTRAP_REQUIRED"
         | "SNAPBACK_MEMBERSHIP_BATCH_UNSUPPORTED"
+        | "SNAPBACK_MIGRATION_PRECONDITION_FAILED"
         | "SNAPBACK_PROJECTION_FANOUT_EXCEEDED"
         | "SNAPBACK_SCHEMA_REQUIRED_FIELD_BACKFILL_REQUIRED" => StatusCode::CONFLICT,
         "SNAPBACK_AUTH_REFRESH_SUPERSEDED" => StatusCode::CONFLICT,
@@ -20076,6 +20077,8 @@ fn status_for_established_diagnostic_code(code: &str) -> StatusCode {
         // LLP 0080 §5: maintained-projection artifact and mutation
         // refusals — malformed plans, unprovable write budgets, output
         // fences, and maintenance invariants (null/moved output keys).
+        // (The privileged scan's plan refusals share the LLP 0081 §2/§3
+        // SNAPBACK_MIGRATION_PLAN_INVALID arm above.)
         | "SNAPBACK_PROJECTION_PLAN_INVALID"
         | "SNAPBACK_RELATIONAL_DISCLOSURE_REQUIRED"
         | "SNAPBACK_PROJECTION_WRITE_BUDGET_EXCEEDED"
@@ -32518,6 +32521,7 @@ globalThis.__snapbackHandlers = {
 
     const CONFLICT_DIAGNOSTICS: &[&str] = &[
         "SNAPBACK_PROJECTION_FANOUT_EXCEEDED",
+        "SNAPBACK_MIGRATION_PRECONDITION_FAILED",
         "SNAPBACK_ACTION_GENERATION_CONFLICT",
         // LLP 0092 §0D.3 idempotency replay-validity conflicts.
         "SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED",

@@ -114,6 +114,12 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
             "migration.admission.schema.json",
             schemars::schema_for!(MigrationAdmissionV1),
         ),
+        // The migration scan's journal-persisted batch checkpoint
+        // (LLP 0081 §3/§5) — the Wave-2 executor's durable contract.
+        finish(
+            "migration.keyset-scan.checkpoint.schema.json",
+            schemars::schema_for!(crate::storage::MigrationKeysetScanCheckpointV1),
+        ),
         finish(
             "auth.hosted-capabilities.schema.json",
             schemars::schema_for!(HostedAuthCapabilities),
@@ -378,6 +384,13 @@ pub fn artifact_instances() -> Vec<SchemaArtifact> {
         SchemaArtifact {
             file: "migration.vectors-v1.json",
             schema: sorted_keys(crate::migration::migration_vectors_artifact()),
+        },
+        // ContentDigestV1 golden vectors (LLP 0081 §5), generated through
+        // the streaming implementation (resume-equality is asserted during
+        // generation, so a committed file implies the property).
+        SchemaArtifact {
+            file: "content-digest.v1.json",
+            schema: sorted_keys(crate::rqs::content_digest_artifact()),
         },
         // The LLP 0093 P-1 conformance fixture corpus (LLP 0095 §2-§3):
         // canonical frames + expected state-machine transitions, generated

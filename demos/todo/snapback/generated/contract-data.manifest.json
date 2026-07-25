@@ -15,7 +15,7 @@
     "subscriptions": true
   },
   "ephemeral": {},
-  "inputsHash": "01741dee58c13f8b551e6ca047986d20fcf67207d9b2bf3e0e4a5db9d667fa1b",
+  "inputsHash": "316467de2636ff3251bf982676f1087aef611b2322d28adeb16a08fa6a34f014",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {

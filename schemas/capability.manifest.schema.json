@@ -219,7 +219,8 @@
         "live_subscriptions",
         "mutation_read_set_validation",
         "permission_epoch_resync",
-        "relational_query_v1"
+        "relational_query_v1",
+        "migration_keyset_scan_v1"
       ],
       "type": "string"
     }
@@ -276,6 +277,9 @@
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "live_subscriptions": {
+          "$ref": "#/$defs/CapabilityMaturity"
+        },
+        "migration_keyset_scan_v1": {
           "$ref": "#/$defs/CapabilityMaturity"
         },
         "mutation_read_set_validation": {

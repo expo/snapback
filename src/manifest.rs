@@ -3712,10 +3712,12 @@ pub enum TargetCapabilityId {
     PermissionEpochResync,
     #[serde(rename = "relational_query_v1")]
     RelationalQueryV1,
+    #[serde(rename = "migration_keyset_scan_v1")]
+    MigrationKeysetScanV1,
 }
 
 impl TargetCapabilityId {
-    pub const ALL: [Self; 10] = [
+    pub const ALL: [Self; 11] = [
         Self::AuthSessionsV1,
         Self::BoundedResponseStreamV1,
         Self::Cron,
@@ -3726,6 +3728,7 @@ impl TargetCapabilityId {
         Self::MutationReadSetValidation,
         Self::PermissionEpochResync,
         Self::RelationalQueryV1,
+        Self::MigrationKeysetScanV1,
     ];
 
     pub const fn as_str(self) -> &'static str {
@@ -3740,6 +3743,7 @@ impl TargetCapabilityId {
             Self::MutationReadSetValidation => "mutation_read_set_validation",
             Self::PermissionEpochResync => "permission_epoch_resync",
             Self::RelationalQueryV1 => "relational_query_v1",
+            Self::MigrationKeysetScanV1 => "migration_keyset_scan_v1",
         }
     }
 
@@ -3766,6 +3770,7 @@ impl TargetCapabilityId {
             // relational profile's id stays `experimental`; flipping it to
             // `Stable` is the Implemented act.
             Self::RelationalQueryV1 => CapabilityMaturity::Experimental,
+            Self::MigrationKeysetScanV1 => CapabilityMaturity::Experimental,
             _ => CapabilityMaturity::Stable,
         }
     }
@@ -3809,6 +3814,10 @@ impl TargetCapabilityId {
             // (e.g. the Cloudflare host-ops path) does not thereby implement
             // the relational executor (LLP 0080 §2's capability-gap rule).
             Self::RelationalQueryV1 => facts.relational_query_v1_registered,
+            // Fail-closed dedicated fact (LLP 0081 §3): the privileged
+            // migration scan is a target capability; a target without it
+            // cannot claim migration proofs.
+            Self::MigrationKeysetScanV1 => facts.migration_keyset_scan_v1_registered,
         }
     }
 }
@@ -3873,6 +3882,7 @@ impl CapabilityMaturity {
 pub struct TargetCapabilityFacts {
     bounded_response_stream_v1_registered: bool,
     relational_query_v1_registered: bool,
+    migration_keyset_scan_v1_registered: bool,
     paired_v1_parser_registered: bool,
     shared_invocation_gate_registered: bool,
     staged_mode_registered: bool,
@@ -3887,6 +3897,7 @@ impl TargetCapabilityFacts {
         Self {
             bounded_response_stream_v1_registered: true,
             relational_query_v1_registered: true,
+            migration_keyset_scan_v1_registered: true,
             paired_v1_parser_registered: true,
             shared_invocation_gate_registered: true,
             staged_mode_registered: true,
@@ -4785,7 +4796,15 @@ mod membership_manifest_grammar_tests {
                 .get(&TargetCapabilityId::RelationalQueryV1),
             Some(&CapabilityMaturity::Experimental)
         );
-        assert_eq!(disabled.capability_maturity.len(), 1);
+        // The privileged migration scan (LLP 0081 §3) is likewise
+        // experimental until its executor and corpus land.
+        assert_eq!(
+            disabled
+                .capability_maturity
+                .get(&TargetCapabilityId::MigrationKeysetScanV1),
+            Some(&CapabilityMaturity::Experimental)
+        );
+        assert_eq!(disabled.capability_maturity.len(), 2);
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
         assert_eq!(
             enabled
@@ -4793,7 +4812,7 @@ mod membership_manifest_grammar_tests {
                 .get(&TargetCapabilityId::BoundedResponseStreamV1),
             Some(&CapabilityMaturity::Experimental)
         );
-        assert_eq!(enabled.capability_maturity.len(), 2);
+        assert_eq!(enabled.capability_maturity.len(), 3);
 
         // Serialization: the annotated manifest carries the field; the
         // all-stable manifest omits it, and an omitted field round-trips to
@@ -4803,6 +4822,7 @@ mod membership_manifest_grammar_tests {
             serialized["capabilityMaturity"],
             json!({
                 "bounded_response_stream_v1": "experimental",
+                "migration_keyset_scan_v1": "experimental",
                 "relational_query_v1": "experimental",
             })
         );
