@@ -18,11 +18,21 @@ delivered through `HostedAdmission.senderReplayEpochFloor` and applied as
 `max(durable, floor)` with an atomic table clear at authority install, plus
 restart/reset/rollback straddle tests) and the decision-6 grant member
 landed (grants record the issuance `sender_replay_epoch` and close, with no
-challenge, once the namespace advances past it). Still open: the decision-2
-logout tombstone (defect 9) and the decision-5 in-band WebSocket
-successor-nonce release (the shipped client releases the flight on socket
-open and resynchronizes through the bounded challenge instead). No
-capability claim advances; the ledger still gates).
+challenge, once the namespace advances past it). Defect 9 closed the same
+day: the decision-2 bounded revoked-family tombstone is implemented — a
+valid proof over a durable-delete-revoked family's bound key obtains the
+terminal `durableDelete` outcome pre-body with no nonce, consumes its proof
+id, and the client deletes sender custody; anything less than a valid proof
+stays behind the anti-oracle cover challenge. The decision-5 in-band
+WebSocket successor-nonce release landed as the final commissioned item: a
+sender-proof-gated upgrade's first server frame is the transport-internal
+`{"kind":"sender_nonce"}` frame carrying the exact successor the 101 header
+carried, the client holds the per-custody flight until that frame commits
+into custody, and open-without-frame timeout, error, cancel, and reconnect
+resolve as consumed-unknown through the retained bounded-challenge resync —
+the decision's own failure-path semantics, no longer the primary release.
+Every item the ledger and author decisions commissioned is implemented; the
+remaining gate is the hosted drill, and no capability claim advances).
 2026-07-23 (author decisions batch — see §Author decisions —
 2026-07-23: the sender_replay_epoch ratchet is realized as the LLP 0059
 incarnation composed with a control-plane monotone floor stored outside the
@@ -165,8 +175,18 @@ cross-language vector test, and the client suites (`sender-proof`,
 and 10–13 are fixed with negative tests (defect 10: the durable epoch, the
 decision-1 floor applied at authority install, restart/reset/rollback
 straddle witnesses, and the decision-6 grant-epoch member with its served
-invalidation test); defect 9 (decision-2 logout tombstone) and the
-decision-5 WebSocket in-band successor release remain open, and no positive
+invalidation test); defect 9 closed the same day (the decision-2
+tombstone: server-side terminal outcome at the sender gate plus client
+custody deletion, witnessed by
+`logout_tombstone_delivers_terminal_outcome_without_touching_nonce_state`,
+the served
+`committed_logout_with_lost_response_recovers_through_the_sender_tombstone`,
+and the client tombstone scenario in `sender-transport.test.mjs`), and the
+decision-5 WebSocket in-band successor release landed as well (server: the
+first frame on a sender-proof-gated upgrade; client: flight release on that
+frame with commit-into-custody, and consumed-unknown fallbacks; witnessed by
+the bound-listener first-frame leg of the served issuance test and the
+in-band release scenario in `sender-transport.test.mjs`). No positive
 capability claim is made.
 
 **Implementation checkpoint (2026-07-22):** The hosted-only browser entrypoint
@@ -355,9 +375,11 @@ appended:
    *Fixed 2026-07-24 (with defect 5):* a per-custody serialization
    queue spans proof creation through successor-nonce commit for HTTP,
    refresh, logout, connection-open, and WebSocket initiation. Witness:
-   `sender-transport.test.mjs` concurrent-query serialization. Note: the
-   WebSocket flight releases on socket open with challenge resync — the
-   decision-5 in-band first-frame release is not yet implemented.
+   `sender-transport.test.mjs` concurrent-query serialization. The
+   decision-5 release event landed 2026-07-24: the flight holds until the
+   first server frame delivers the successor in band and commits into
+   custody; open-without-frame timeout, error, cancel, and reconnect release
+   as consumed-unknown through the bounded challenge.
 8. The hosted browser entrypoint subclasses the generic client, so its
    constructor (which accepts a bearer) is reachable through the prototype
    chain, and inherited transport fields plus the mutable `senderConstrained`
@@ -374,6 +396,19 @@ appended:
    custody only after the response. A bounded revoked-family sender tombstone
    (or an anonymous-recovery handshake) is required so a post-logout signed
    request can obtain the terminal `durableDelete` outcome.
+
+   *Fixed 2026-07-24:* the decision-2 tombstone is implemented at the sender
+   gate: a revoked family whose durable terminal-cause witness is
+   durable-delete-class resolves for the 30-day-capped horizon; a fully
+   valid proof over its bound key receives the terminal outcome
+   (`SNAPBACK_AUTH_SESSION_EXPIRED` + `authorityDisposition: durableDelete`,
+   pre-body, no nonce header) and consumes its proof id; missing, malformed,
+   or wrong-key proofs and carrier-class endings stay behind the anti-oracle
+   cover challenge; nonce state is never touched; the client deletes sender
+   custody on the outcome. Witnesses:
+   `logout_tombstone_delivers_terminal_outcome_without_touching_nonce_state`,
+   `committed_logout_with_lost_response_recovers_through_the_sender_tombstone`,
+   and the client tombstone scenario in `sender-transport.test.mjs`.
 10. Replay and nonce isolation keys on LLP 0060's serving `admission_epoch`
     rather than a distinct durable `sender_replay_epoch`, and reset neither
     advances a sender epoch nor clears the replay/nonce tables — so the
@@ -823,7 +858,19 @@ proof, carried in a dedicated subprotocol value of exactly
 `snapback.sender-proof.<compact-jws>`, covering `GET`, the canonical external
 `wss` URI normalized to the corresponding `https` authority/path, the
 grant-token hash, and the server nonce. The upgrade atomically consumes its
-proof id before switching protocols.
+proof id before switching protocols. Because browser JavaScript cannot read
+the 101 response's `DPoP-Nonce` header, the successor installed by the
+upgrade's proof consumption is also delivered in band: the first server
+frame on a sender-proof-gated socket is the transport-internal
+`{"kind":"sender_nonce","nonce":"..."}` frame carrying the exact header
+value, sent before any application-visible frame. That frame is the client's
+per-custody flight-release event (§Author decisions item 5): the client
+commits the successor into custody exactly like an HTTP `DPoP-Nonce`
+install and never surfaces the frame to the application. On
+open-without-frame timeout, error, cancel, or reconnect the client treats
+its nonce as consumed-unknown and the next protected request resynchronizes
+through the bounded one-challenge rule — a nonce is never reused. A
+non-sender-gated upgrade sends no such frame.
 
 A grant issued to a sender-bound session requires a valid proof on **every**
 subsequent use — each connection-token HTTP act (live, outbox, ephemeral) and

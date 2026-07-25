@@ -18,10 +18,22 @@ client-nonce-serialization, structural-exclusion, admission-order. Later the
 same day grant-binding and sender-replay-epoch closed too: defects 2 and 10
 are fully fixed (decision-1 floor via `HostedAdmission.senderReplayEpochFloor`
 with straddle witnesses; decision-6 issuance-epoch grant member with a
-served invalidation test). Unowned remaining work now tracked here: the decision-2
-logout-tombstone implementation (ledger defect 9) and the decision-5
-WebSocket in-band successor-nonce release (the shipped client releases on
-socket open and resyncs via the bounded challenge). No ticket permits a
+served invalidation test). Defect 9 also closed
+the same day (the decision-2 bounded revoked-family tombstone: terminal
+durableDelete at the sender gate, proof-id consumption without nonce
+rotation, anti-oracle preserved, and client custody deletion — Rust unit,
+served, and client witnesses), and the decision-5 WebSocket in-band
+successor-nonce release landed as the final commissioned item: the first
+server frame on a sender-proof-gated upgrade carries the successor
+(`sender_nonce` frame, equal to the unreadable 101 header value), the
+client's per-custody flight releases on that frame after committing it into
+custody, and the bounded-challenge resync is retained as the decision's
+failure-path semantics for open-without-frame timeout, error, cancel, and
+reconnect (an open-without-frame stall releases the flight without killing
+a healthy socket). All thirteen ledger rows and every commissioned decision
+are implemented; this index stays open solely for the capability gate — no
+positive claim exists without the full matrix plus the LLP 0072 hosted-auth
+drill against a served origin. No ticket permits a
 positive capability claim until the whole matrix plus the LLP 0072
 hosted-auth drill receipt passes against a served origin.
 

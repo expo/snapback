@@ -928,4 +928,213 @@ try {
   globalThis.WebSocket = originalWebSocket;
 }
 
-console.log('sender-transport.test.mjs: issuance, resource, challenge recovery, refresh, expiry/reset/logout/tombstone/invalidation recovery, and reflected-secret redaction pass');
+// LLP 0077 decision 5: the per-custody flight held across a sender-proof
+// WebSocket upgrade releases on the FIRST server frame carrying the
+// successor nonce in band; the frame commits into custody, never surfaces to
+// the application, and open/close-without-frame resolves as consumed-unknown
+// through the bounded challenge on the next protected request.
+const WS_EXTRA_NONCES = [12, 13, 14, 15].map(
+  (value) => Buffer.alloc(32, value).toString('base64url'),
+);
+const wsNonceRequests = [];
+let wsNonceSocket = null;
+let wsNonceServerNonce = NONCE_1;
+class SenderNonceWebSocket {
+  constructor(url, protocols) {
+    this.url = url;
+    this.protocols = protocols;
+    this.readyState = 0;
+    this.listeners = new Map();
+    wsNonceSocket = this;
+    queueMicrotask(() => {
+      this.readyState = 1;
+      this.emit('open', {});
+    });
+  }
+
+  addEventListener(type, listener, options = {}) {
+    const listeners = this.listeners.get(type) ?? [];
+    listeners.push({ listener, once: options.once === true });
+    this.listeners.set(type, listeners);
+  }
+
+  emit(type, event) {
+    const listeners = [...(this.listeners.get(type) ?? [])];
+    for (const entry of listeners) {
+      entry.listener(event);
+      if (entry.once) {
+        const current = this.listeners.get(type) ?? [];
+        const index = current.indexOf(entry);
+        if (index !== -1) current.splice(index, 1);
+      }
+    }
+  }
+
+  close(code = 1000, reason = '') {
+    this.readyState = 3;
+    this.emit('close', { code, reason });
+  }
+}
+globalThis.WebSocket = SenderNonceWebSocket;
+globalThis.fetch = async (url, init = {}) => {
+  const request = {
+    url,
+    method: init.method,
+    headers: new Headers(init.headers),
+    body: init.body === undefined ? null : JSON.parse(init.body),
+  };
+  wsNonceRequests.push(request);
+  if (url.endsWith('/auth/session') && !request.headers.has('authorization')) {
+    return Response.json(handshake({ authenticated: false }));
+  }
+  if (url.endsWith('/auth/exchange')) {
+    wsNonceServerNonce = NONCE_1;
+    return Response.json(credential, { headers: { 'dpop-nonce': NONCE_1 } });
+  }
+  if (request.headers.has('dpop')) {
+    const payload = decode(request.headers.get('dpop').split('.')[1]);
+    if (payload.nonce !== wsNonceServerNonce) {
+      // Consumed-unknown recovery: the still-current nonce, one retry.
+      return Response.json({
+        diagnostic: {
+          code: 'SNAPBACK_AUTH_SENDER_PROOF_REQUIRED',
+          message: 'the sender nonce must be refreshed',
+        },
+      }, { status: 401, headers: { 'dpop-nonce': wsNonceServerNonce } });
+    }
+    const successors = [
+      NONCE_2, NONCE_3, NONCE_4, NONCE_5, NONCE_6, NONCE_7, NONCE_8,
+      NONCE_9, NONCE_10, NONCE_11, ...WS_EXTRA_NONCES,
+    ];
+    const successor = successors[successors.indexOf(wsNonceServerNonce) + 1]
+      ?? (() => { throw new Error('ws-nonce fixture exhausted its nonce sequence'); })();
+    // The upgrade proof consumes its nonce exactly like HTTP, but its
+    // successor travels in band (the fixture emits the frame), not in a
+    // readable header.
+    wsNonceServerNonce = successor;
+    if (url.endsWith('/connection/open')) {
+      return Response.json({
+        connectionId: 'ws-nonce-wire',
+        connectionToken: 'ws-nonce-token',
+      }, { headers: { 'dpop-nonce': successor } });
+    }
+    if (url.endsWith('/auth/session')) {
+      return Response.json(handshake({ authenticated: true }), {
+        headers: { 'dpop-nonce': successor },
+      });
+    }
+    if (url.includes('/query/')) {
+      return Response.json({ value: 'ws-nonce-ok' }, {
+        headers: { 'dpop-nonce': successor },
+      });
+    }
+  }
+  throw new Error(`unexpected ws-nonce request: ${request.method} ${url}`);
+};
+
+try {
+  const wsNonceStorage = createMemoryAuthCustodyStorage();
+  const wsNonceCoordinator = new AuthCoordinator({
+    appId: APP,
+    storage: wsNonceStorage,
+    broadcastChannelFactory: null,
+    hintStorage: null,
+  });
+  const wsNonceClient = new SnapbackClient('https://app.example.test', {
+    authCoordinator: wsNonceCoordinator,
+    authClientProtocol: 1,
+    authorityDescriptorProtocol: 1,
+    senderConstrained: true,
+  });
+  await wsNonceClient.authExchange({
+    challengeId: 'ws-nonce-challenge',
+    code: '123456',
+  });
+
+  // Release event: the first server frame carrying the successor nonce.
+  const stream = wsNonceClient.openLiveStream('ws-nonce');
+  await stream.ready;
+  assert.ok(wsNonceSocket);
+  const upgradeProof = wsNonceSocket.protocols.find(
+    (protocol) => protocol.startsWith('snapback.sender-proof.'),
+  );
+  assert.ok(upgradeProof, 'the upgrade carries a sender proof subprotocol');
+  // A real upgrade consumes the proof's nonce and installs a successor the
+  // 101 header cannot deliver to browser JavaScript; the fixture advances
+  // its serving nonce and hands that successor to the first frame.
+  const successors = [
+    NONCE_2, NONCE_3, NONCE_4, NONCE_5, NONCE_6, NONCE_7, NONCE_8,
+    NONCE_9, NONCE_10, NONCE_11, ...WS_EXTRA_NONCES,
+  ];
+  const inBandSuccessor = successors[successors.indexOf(wsNonceServerNonce) + 1];
+  wsNonceServerNonce = inBandSuccessor;
+  const beforeRelease = wsNonceRequests.length;
+  wsNonceSocket.emit('message', {
+    data: JSON.stringify({ kind: 'sender_nonce', nonce: inBandSuccessor }),
+  });
+  // The commit is a same-authority custody rotation, exactly like an HTTP
+  // DPoP-Nonce install: the durable record holds the in-band successor.
+  for (let attempt = 0; attempt < 500; attempt += 1) {
+    if (wsNonceStorage.snapshot(APP)?.senderConstraint?.nonce?.value === inBandSuccessor) break;
+    await new Promise((resolve) => setTimeout(resolve, 1));
+  }
+  assert.equal(
+    wsNonceStorage.snapshot(APP).senderConstraint.nonce.value,
+    inBandSuccessor,
+    'the in-band successor commits into custody exactly like an HTTP DPoP-Nonce',
+  );
+  assert.equal(
+    wsNonceRequests.length,
+    beforeRelease,
+    'the in-band commit needs no HTTP round at all',
+  );
+
+  // The transport-internal frame never surfaces; the next app frame does.
+  wsNonceSocket.emit('message', { data: JSON.stringify({ update: 'app-frame' }) });
+  const surfaced = await stream.nextUpdate();
+  assert.equal(surfaced.update, 'app-frame', 'the sender_nonce frame is not application-visible');
+
+  // The released flight admits the next protected request, signing under the
+  // committed in-band successor with no challenge round.
+  const beforeQuery = wsNonceRequests.length;
+  await wsNonceClient.query('after_in_band_nonce');
+  const queryRequests = wsNonceRequests.slice(beforeQuery)
+    .filter((request) => request.url.includes('/query/'));
+  assert.equal(queryRequests.length, 1, 'the committed custody needs no challenge resync');
+  await stream.close();
+
+  // Consumed-unknown: a socket that closes before delivering the frame
+  // releases the flight, and the next protected request resynchronizes
+  // through the bounded challenge — a nonce is never reused as current.
+  const second = wsNonceClient.openLiveStream('ws-nonce');
+  await second.ready;
+  // The real upgrade consumed the proof's nonce and installed a successor
+  // this socket will never deliver: advance the serving nonce, then lose the
+  // socket before any frame.
+  wsNonceServerNonce = successors[successors.indexOf(wsNonceServerNonce) + 1];
+  wsNonceSocket.close();
+  const beforeRecovery = wsNonceRequests.length;
+  await wsNonceClient.query('after_consumed_unknown');
+  const recovery = wsNonceRequests.slice(beforeRecovery)
+    .filter((request) => request.headers.has('dpop'));
+  // The stranded nonce surfaces on the first protected request after the
+  // loss (the query's forced handshake): one challenge, one retry, then the
+  // query itself proceeds under the resynchronized nonce — exactly one
+  // bounded round, never a loop.
+  assert.equal(
+    recovery.length,
+    3,
+    'close-without-frame recovers through exactly one bounded challenge round',
+  );
+  assert.equal(
+    recovery.filter((request) => request.url.includes('/query/')).length,
+    1,
+    'the query itself needs no challenge after the resynchronized handshake',
+  );
+  await second.close();
+} finally {
+  globalThis.fetch = originalFetch;
+  globalThis.WebSocket = originalWebSocket;
+}
+
+console.log('sender-transport.test.mjs: issuance, resource, challenge recovery, refresh, expiry/reset/logout/tombstone/invalidation recovery, in-band WebSocket successor release, and reflected-secret redaction pass');

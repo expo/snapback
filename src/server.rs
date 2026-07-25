@@ -16399,9 +16399,22 @@ async fn stream_live(
     State(runtime): State<AppState>,
     Extension(authority): Extension<PreparedAuthority>,
     Extension(connection_act): Extension<PreparedConnectionAct>,
+    sender_binding: Option<Extension<HostedSenderGrantBinding>>,
+    sender_nonce: Option<Extension<SenderNonceResponse>>,
     Path(connection_id): Path<String>,
     ws: WebSocketUpgrade,
 ) -> Response {
+    // In-band successor delivery applies exactly to sender-proof-gated
+    // upgrades: the admission installed the successor into the shared
+    // response cell, and the binding extension witnesses that this upgrade
+    // crossed the proof cut.
+    let sender_successor_nonce = match (&sender_binding, &sender_nonce) {
+        (Some(_), Some(Extension(cell))) => cell
+            .value()
+            .and_then(|value| value.to_str().ok())
+            .map(str::to_owned),
+        _ => None,
+    };
     let connections = runtime.connections.clone();
     let policy_mode = runtime.active_policy_auth_mode();
     let authorization_invalidation_ready =
@@ -16431,6 +16444,7 @@ async fn stream_live(
                     admission_controller: admission,
                     active_mode,
                     admission_epoch,
+                    sender_successor_nonce,
                 },
             )
         })
@@ -16723,6 +16737,16 @@ struct LiveStreamTask {
     admission_controller: AuthAdmissionController,
     active_mode: AuthMode,
     admission_epoch: u64,
+    /// The successor nonce installed by this upgrade's sender-proof
+    /// admission, delivered in band as the FIRST server frame because a
+    /// browser cannot read the 101 response's `DPoP-Nonce` header.
+    /// `None` on every non-sender-gated upgrade.
+    ///
+    /// @ref LLP 0077#author-decisions--2026-07-23 — decision 5: the first
+    /// server frame carrying the successor nonce is the client's
+    /// flight-release event; open/error/cancel/reconnect without it resolve
+    /// as consumed-unknown through the bounded challenge.
+    sender_successor_nonce: Option<String>,
 }
 
 async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
@@ -16735,12 +16759,28 @@ async fn live_stream(socket: WebSocket, task: LiveStreamTask) {
         admission_controller,
         active_mode,
         mut admission_epoch,
+        sender_successor_nonce,
     } = task;
     let state = runtime.snapback.clone();
     let read = runtime.read.clone();
     let ephemeral = runtime.ephemeral.clone();
     let connections = runtime.connections.clone();
-    let (sender, mut receiver) = socket.split();
+    let (mut sender, mut receiver) = socket.split();
+    // Decision 5's release event: the successor nonce crosses as the first
+    // server frame, before registration, drains, or any application-visible
+    // frame. A send failure here is an ordinary pre-open loss — the client
+    // treats its nonce as consumed-unknown and resynchronizes through the
+    // bounded challenge.
+    if let Some(nonce) = &sender_successor_nonce {
+        let frame = serde_json::json!({ "kind": "sender_nonce", "nonce": nonce }).to_string();
+        if SinkExt::send(&mut sender, Message::Text(frame.into()))
+            .await
+            .is_err()
+        {
+            return;
+        }
+    }
+    let sender = sender;
     // @ref LLP 0032#phase-3--lifecycle-and-resource-hardening — L8: an enqueue
     // wakes this task immediately (sub-poll-interval delivery, and no periodic
     // lock traffic while idle). The long interval is a safety net only, in case
@@ -26141,6 +26181,26 @@ globalThis.__snapbackHandlers = {
             .filter(|value| value.len() == 43)
             .expect("websocket successor nonce")
             .to_owned();
+        // @ref LLP 0077#author-decisions--2026-07-23 — decision 5: the FIRST
+        // server frame delivers the exact successor the 101 header carried
+        // (which browser JavaScript cannot read); it precedes every
+        // application-visible frame and is the client's flight-release event.
+        let first_frame = tokio::time::timeout(Duration::from_secs(5), socket.next())
+            .await
+            .expect("first sender-bound server frame within budget")
+            .expect("sender-bound socket yields a first frame")
+            .expect("first sender-bound frame is readable");
+        let tokio_tungstenite::tungstenite::Message::Text(first_frame) = first_frame else {
+            panic!("the first sender-bound server frame must be text");
+        };
+        let first_frame: Value =
+            serde_json::from_str(&first_frame).expect("parse first sender-bound frame");
+        assert_eq!(first_frame["kind"], "sender_nonce");
+        assert_eq!(
+            first_frame["nonce"].as_str(),
+            Some(nonce_six.as_str()),
+            "the in-band successor equals the 101 DPoP-Nonce value",
+        );
         socket
             .close(None)
             .await

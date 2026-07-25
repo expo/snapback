@@ -11639,10 +11639,12 @@ mod guarded_commit_tests {
             db.seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
-                    vec![json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
-                        .as_object()
-                        .cloned()
-                        .expect("seed row")],
+                    vec![
+                        json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
+                            .as_object()
+                            .cloned()
+                            .expect("seed row"),
+                    ],
                 )]),
             })
             .expect("seed owned row");
@@ -11663,19 +11665,36 @@ mod guarded_commit_tests {
             .expect_err("commit-time guard must see the concurrent transfer");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
         let row = db.scan_table("items", 10, 0).unwrap();
-        assert_eq!(row.rows[0]["title"], json!("user-b"), "transfer is not lost");
-        assert_eq!(row.rows[0]["rank"], json!(1), "refused update wrote nothing");
+        assert_eq!(
+            row.rows[0]["title"],
+            json!("user-b"),
+            "transfer is not lost"
+        );
+        assert_eq!(
+            row.rows[0]["rank"],
+            json!(1),
+            "refused update wrote nothing"
+        );
 
         // Order 2: the update commits first, then the transfer. Both writes
         // land; nothing is lost or misattributed.
         let mut db = database();
         seed(&mut db);
-        db.execute_mutation_guarded(&owner_guard_plan(), &owner_input("user-a"), || Ok(()), || Ok(()))
-            .expect("owner update before the transfer succeeds");
+        db.execute_mutation_guarded(
+            &owner_guard_plan(),
+            &owner_input("user-a"),
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("owner update before the transfer succeeds");
         transfer_to(&mut db, "user-b");
         let rows = db.scan_table("items", 10, 0).unwrap();
         assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
-        assert_eq!(rows.rows[0]["title"], json!("user-b"), "later transfer wins the field");
+        assert_eq!(
+            rows.rows[0]["title"],
+            json!("user-b"),
+            "later transfer wins the field"
+        );
     }
 
     // @ref LLP 0007#index-contract — the duplicate-order-key witness: the
