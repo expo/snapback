@@ -8,6 +8,8 @@
 //! canonical change journal or version stream — those are later increments
 //! (P0.2 child stream, P0.3 materialized base, P0.4 COW reads/writes).
 
+use std::path::{Path, PathBuf};
+
 use rusqlite::{Connection, OptionalExtension, Row, params};
 use serde::{Deserialize, Serialize};
 
@@ -321,6 +323,75 @@ pub fn set_child_replay_floor(
     Ok(())
 }
 
+// ---------------------------------------------------------------------------
+// Materialized base (LLP 0097 P0.3) — a consistent snapshot of the source at a
+// specific canonical head, in its own isolated SQLite database.
+//
+// @ref LLP 0097#design — a branch is a materialized base at version V + a
+// command log + a COW overlay. This slice captures the base and the exact V it
+// represents. First cut: one SQLite database per branch, seeded via the backup
+// API; teardown = drop the handle + delete the file.
+// ---------------------------------------------------------------------------
+
+/// An isolated, writable copy of the source database seeded from a consistent
+/// snapshot at `base_version`. Overlay writes (P0.4) land in this database's own
+/// change journal; canonical is never touched.
+pub struct MaterializedBase {
+    /// The branch's own database connection (base + future overlay).
+    pub conn: Connection,
+    /// The canonical head captured in this snapshot — the CAS anchor for
+    /// promotion (P3). Read back FROM the snapshot, so it is exactly consistent
+    /// with the captured pages regardless of concurrent writers on the source.
+    pub base_version: u64,
+    /// The on-disk location, or `None` for an in-memory base (ephemeral/tests).
+    pub path: Option<PathBuf>,
+}
+
+impl MaterializedBase {
+    /// Materialize a branch base by snapshotting `source` into a fresh database.
+    ///
+    /// `target` = `Some(path)` writes an on-disk base (teardown deletes it);
+    /// `None` keeps it in memory. The recorded `base_version` is read back from
+    /// the snapshot itself, making it atomically consistent with the copied
+    /// pages even if the source advances mid-backup.
+    pub fn materialize(source: &Connection, target: Option<&Path>) -> SnapbackResult<Self> {
+        let mut conn = match target {
+            Some(p) => Connection::open(p)?,
+            None => Connection::open_in_memory()?,
+        };
+        {
+            // @ref LLP 0028 — same backup primitive used by detached_read_snapshot.
+            let backup = rusqlite::backup::Backup::new(source, &mut conn)?;
+            backup.run_to_completion(128, std::time::Duration::from_millis(1), None)?;
+        }
+        let base_version = crate::storage::current_version_on(&conn)?;
+        Ok(Self {
+            conn,
+            base_version,
+            path: target.map(|p| p.to_path_buf()),
+        })
+    }
+
+    /// Tear down the base: drop the connection and delete the backing file (if
+    /// any). Idempotent — a missing file is not an error.
+    pub fn teardown(self) -> SnapbackResult<()> {
+        let path = self.path.clone();
+        drop(self); // close the connection before unlinking
+        if let Some(p) = path {
+            match std::fs::remove_file(&p) {
+                Ok(()) => Ok(()),
+                Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                Err(e) => Err(invalid(format!(
+                    "failed to delete branch base {:?}: {e}",
+                    p
+                ))),
+            }
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -449,5 +520,88 @@ mod tests {
         assert!(set_child_replay_floor(&c, &bid, 6).is_err());
         set_child_replay_floor(&c, &bid, 5).expect("set 5 == current ok");
         assert_eq!(child_replay_floor(&c, &bid).expect("floor"), Some(5));
+    }
+
+    /// Build a minimal source database with a populated `_snapback_version` row
+    /// and a user table, standing in for a real snapback store so the P0.3
+    /// snapshot/version-readback mechanics can be exercised in isolation.
+    fn source_with_head(version: u64) -> Connection {
+        let c = Connection::open_in_memory().expect("source");
+        c.execute_batch(
+            "CREATE TABLE _snapback_version (id INTEGER PRIMARY KEY, version INTEGER NOT NULL);
+             CREATE TABLE widgets (id INTEGER PRIMARY KEY, name TEXT NOT NULL);",
+        )
+        .expect("source schema");
+        c.execute(
+            "INSERT INTO _snapback_version (id, version) VALUES (1, ?1)",
+            params![version as i64],
+        )
+        .expect("seed version");
+        c.execute("INSERT INTO widgets (id, name) VALUES (1, 'alpha'), (2, 'beta')", [])
+            .expect("seed rows");
+        c
+    }
+
+    #[test]
+    fn materialize_copies_pages_and_reads_head_from_snapshot() {
+        let source = source_with_head(42);
+        let base = MaterializedBase::materialize(&source, None).expect("materialize");
+        assert_eq!(base.base_version, 42);
+        // The snapshot is a full, independent copy of the source pages.
+        let names: Vec<String> = base
+            .conn
+            .prepare("SELECT name FROM widgets ORDER BY id")
+            .expect("prep")
+            .query_map([], |r| r.get::<_, String>(0))
+            .expect("query")
+            .map(|r| r.expect("row"))
+            .collect();
+        assert_eq!(names, vec!["alpha".to_string(), "beta".to_string()]);
+    }
+
+    #[test]
+    fn materialized_base_is_isolated_from_source() {
+        let source = source_with_head(7);
+        let base = MaterializedBase::materialize(&source, None).expect("materialize");
+        // Diverge the source AFTER the snapshot.
+        source
+            .execute("INSERT INTO widgets (id, name) VALUES (3, 'gamma')", [])
+            .expect("source write");
+        // Diverge the base independently.
+        base.conn
+            .execute("INSERT INTO widgets (id, name) VALUES (99, 'delta')", [])
+            .expect("base write");
+        let source_count: i64 = source
+            .query_row("SELECT COUNT(*) FROM widgets", [], |r| r.get(0))
+            .expect("source count");
+        let base_count: i64 = base
+            .conn
+            .query_row("SELECT COUNT(*) FROM widgets", [], |r| r.get(0))
+            .expect("base count");
+        assert_eq!(source_count, 3, "source has its own write, not the base's");
+        assert_eq!(base_count, 3, "base has the 2 snapshot rows + its own write");
+        // The base never saw the source's post-snapshot 'gamma'.
+        let has_gamma: i64 = base
+            .conn
+            .query_row("SELECT COUNT(*) FROM widgets WHERE name = 'gamma'", [], |r| r.get(0))
+            .expect("gamma");
+        assert_eq!(has_gamma, 0);
+    }
+
+    #[test]
+    fn on_disk_base_materializes_and_tears_down() {
+        let source = source_with_head(3);
+        let dir = std::env::temp_dir();
+        let path = dir.join(format!(
+            "snapback-branch-base-{}-{:?}.db",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let base = MaterializedBase::materialize(&source, Some(&path)).expect("materialize");
+        assert_eq!(base.base_version, 3);
+        assert!(path.exists(), "on-disk base file was created");
+        base.teardown().expect("teardown");
+        assert!(!path.exists(), "teardown deleted the base file");
     }
 }
