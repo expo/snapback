@@ -392,6 +392,143 @@ impl MaterializedBase {
     }
 }
 
+// ---------------------------------------------------------------------------
+// COW overlay ledger (LLP 0097 P0.4) — the enumerable divergence of a branch.
+//
+// The materialized base (P0.3) is a writable fork, so ordinary reads on the
+// branch connection already resolve overlay-over-base (read-your-writes) and are
+// structurally isolated from canonical and from sibling branches. This ledger
+// makes the divergence ENUMERABLE — every branch-local logical write is recorded
+// against the branch's own child version-stream, so promotion (P3) can replay
+// exactly the diverged writes in order.
+//
+// @ref LLP 0097#design — materialized base + operation/command log + COW overlay.
+// ---------------------------------------------------------------------------
+
+/// The kind of logical write recorded in a branch overlay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum OverlayOp {
+    /// Insert-or-update of a keyed row.
+    Upsert,
+    /// Deletion of a keyed row.
+    Delete,
+}
+
+impl OverlayOp {
+    fn as_str(self) -> &'static str {
+        match self {
+            OverlayOp::Upsert => "upsert",
+            OverlayOp::Delete => "delete",
+        }
+    }
+
+    fn parse(raw: &str) -> SnapbackResult<Self> {
+        match raw {
+            "upsert" => Ok(OverlayOp::Upsert),
+            "delete" => Ok(OverlayOp::Delete),
+            other => Err(invalid(format!("unknown overlay op {other:?}"))),
+        }
+    }
+}
+
+/// A single logical write in a branch's overlay ledger.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct OverlayWrite {
+    pub table_name: String,
+    pub row_id: String,
+    pub op: OverlayOp,
+    /// Serialized row payload for `Upsert`; `None` for `Delete`.
+    pub payload: Option<String>,
+}
+
+/// Create the branch overlay ledger in a branch database (idempotent). One
+/// branch per materialized database, so `child_version` is a sufficient key.
+pub fn ensure_branch_overlay(conn: &Connection) -> SnapbackResult<()> {
+    conn.execute_batch(
+        "CREATE TABLE IF NOT EXISTS _snapback_branch_overlay (
+            child_version  INTEGER PRIMARY KEY,
+            branch_id      TEXT NOT NULL,
+            table_name     TEXT NOT NULL,
+            row_id         TEXT NOT NULL,
+            op             TEXT NOT NULL,
+            payload        TEXT,
+            recorded_at_ms INTEGER NOT NULL
+         );",
+    )?;
+    Ok(())
+}
+
+/// Record a branch-local logical write into the overlay ledger, allocating the
+/// next child-stream version atomically with the ledger append. Returns the
+/// child version assigned to this write.
+///
+/// The physical data mutation is the caller's responsibility; wrap it in the
+/// same transaction as this call for atomic overlay-over-base semantics.
+/// Requires the branch's child version-stream row (copied into the branch DB at
+/// materialization) to exist — fails closed otherwise.
+pub fn record_overlay_write(
+    conn: &mut Connection,
+    branch_id: &BranchId,
+    write: &OverlayWrite,
+    now_ms: i64,
+) -> SnapbackResult<u64> {
+    ensure_branch_overlay(conn)?;
+    let tx = conn.transaction()?;
+    // Allocation participates in this transaction; a rolled-back ledger append
+    // rolls back the version bump too — no gaps, no orphaned versions.
+    let version = allocate_child_version(&tx, branch_id)?;
+    tx.execute(
+        "INSERT INTO _snapback_branch_overlay
+           (child_version, branch_id, table_name, row_id, op, payload, recorded_at_ms)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            version as i64,
+            branch_id.0,
+            write.table_name,
+            write.row_id,
+            write.op.as_str(),
+            write.payload,
+            now_ms,
+        ],
+    )?;
+    tx.commit()?;
+    Ok(version)
+}
+
+/// Enumerate a branch's divergence in child-version order — the replay list for
+/// promotion (P3). Empty if the branch never diverged.
+pub fn overlay_writes(conn: &Connection) -> SnapbackResult<Vec<(u64, OverlayWrite)>> {
+    ensure_branch_overlay(conn)?;
+    let mut stmt = conn.prepare(
+        "SELECT child_version, table_name, row_id, op, payload
+           FROM _snapback_branch_overlay
+          ORDER BY child_version ASC",
+    )?;
+    let rows = stmt.query_map([], |row| {
+        Ok((
+            row.get::<_, i64>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, Option<String>>(4)?,
+        ))
+    })?;
+    let mut out = Vec::new();
+    for row in rows {
+        let (version, table_name, row_id, op, payload) = row?;
+        out.push((
+            version.max(0) as u64,
+            OverlayWrite {
+                table_name,
+                row_id,
+                op: OverlayOp::parse(&op)?,
+                payload,
+            },
+        ));
+    }
+    Ok(out)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -603,5 +740,132 @@ mod tests {
         assert!(path.exists(), "on-disk base file was created");
         base.teardown().expect("teardown");
         assert!(!path.exists(), "teardown deleted the base file");
+    }
+
+    fn widget_names(c: &Connection) -> Vec<String> {
+        c.prepare("SELECT name FROM widgets ORDER BY id")
+            .expect("prep")
+            .query_map([], |r| r.get::<_, String>(0))
+            .expect("query")
+            .map(|r| r.expect("row"))
+            .collect()
+    }
+
+    #[test]
+    fn p0_4_overlay_isolation_and_ledger() {
+        // Canonical source with data + two registered branches.
+        let source = source_with_head(5);
+        let (a, csa) = ids("A");
+        let (b, csb) = ids("B");
+        create_branch(&source, &a, &csa, "canonical", 5, 1, None).expect("register A");
+        create_branch(&source, &b, &csb, "canonical", 5, 1, None).expect("register B");
+
+        // Two independent materialized branch databases off the same head.
+        let mut base_a = MaterializedBase::materialize(&source, None).expect("base A");
+        let mut base_b = MaterializedBase::materialize(&source, None).expect("base B");
+        assert_eq!(base_a.base_version, 5);
+        assert_eq!(base_b.base_version, 5);
+
+        // Branch A mutates widget 1 in place; records the divergence.
+        base_a
+            .conn
+            .execute("UPDATE widgets SET name='ALPHA' WHERE id=1", [])
+            .expect("A physical write");
+        let va = record_overlay_write(
+            &mut base_a.conn,
+            &a,
+            &OverlayWrite {
+                table_name: "widgets".into(),
+                row_id: "1".into(),
+                op: OverlayOp::Upsert,
+                payload: Some("ALPHA".into()),
+            },
+            100,
+        )
+        .expect("A overlay");
+        assert_eq!(va, 1, "first overlay write is child version 1");
+
+        // Branch B inserts a new widget; records the divergence.
+        base_b
+            .conn
+            .execute("INSERT INTO widgets (id, name) VALUES (3, 'gamma')", [])
+            .expect("B physical write");
+        let vb = record_overlay_write(
+            &mut base_b.conn,
+            &b,
+            &OverlayWrite {
+                table_name: "widgets".into(),
+                row_id: "3".into(),
+                op: OverlayOp::Upsert,
+                payload: Some("gamma".into()),
+            },
+            100,
+        )
+        .expect("B overlay");
+        assert_eq!(vb, 1, "branch B's stream is independent — also starts at 1");
+
+        // Canonical is untouched by either branch.
+        assert_eq!(widget_names(&source), vec!["alpha", "beta"]);
+        // Branch A reads-its-own-writes; never sees B's insert.
+        assert_eq!(widget_names(&base_a.conn), vec!["ALPHA", "beta"]);
+        // Branch B sees its insert; never sees A's rename.
+        assert_eq!(widget_names(&base_b.conn), vec!["alpha", "beta", "gamma"]);
+
+        // Overlay ledgers enumerate exactly each branch's divergence, in order.
+        assert_eq!(
+            overlay_writes(&base_a.conn).expect("A ledger"),
+            vec![(
+                1,
+                OverlayWrite {
+                    table_name: "widgets".into(),
+                    row_id: "1".into(),
+                    op: OverlayOp::Upsert,
+                    payload: Some("ALPHA".into()),
+                }
+            )]
+        );
+        assert_eq!(
+            overlay_writes(&base_b.conn).expect("B ledger"),
+            vec![(
+                1,
+                OverlayWrite {
+                    table_name: "widgets".into(),
+                    row_id: "3".into(),
+                    op: OverlayOp::Upsert,
+                    payload: Some("gamma".into()),
+                }
+            )]
+        );
+    }
+
+    #[test]
+    fn overlay_write_advances_child_stream_and_orders_ledger() {
+        let source = source_with_head(2);
+        let (bid, cs) = ids("ov");
+        create_branch(&source, &bid, &cs, "canonical", 2, 1, None).expect("register");
+        let mut base = MaterializedBase::materialize(&source, None).expect("base");
+
+        for (i, name) in ["one", "two", "three"].iter().enumerate() {
+            let v = record_overlay_write(
+                &mut base.conn,
+                &bid,
+                &OverlayWrite {
+                    table_name: "widgets".into(),
+                    row_id: (i + 1).to_string(),
+                    op: OverlayOp::Upsert,
+                    payload: Some((*name).into()),
+                },
+                (i as i64) + 1,
+            )
+            .expect("overlay");
+            assert_eq!(v as usize, i + 1, "child stream is gap-free");
+        }
+        let ledger = overlay_writes(&base.conn).expect("ledger");
+        assert_eq!(ledger.len(), 3);
+        assert_eq!(
+            ledger.iter().map(|(v, _)| *v).collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+        assert_eq!(child_current_version(&base.conn, &bid).expect("cur"), Some(3));
     }
 }
