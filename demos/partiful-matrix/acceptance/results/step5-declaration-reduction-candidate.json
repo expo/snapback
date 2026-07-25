@@ -7,8 +7,8 @@
   "implementationCandidatePass": true,
   "authority": {
     "path": "llp/0065-generated-data-pattern-soundness.rfc.md",
-    "sha256": "9ee1e85c8d7ee87998f74c683c5f3008030932e951df171ea1d9ea98bee7f3db",
-    "status": "Accepted",
+    "sha256": "5e3ffec8a3feba0b6b3f2c2a1b855c20c2426b11d5402cab17c16153e296b7b8",
+    "status": "Implemented",
     "acceptedForGate": true,
     "rule": "LLP 0065 must be Accepted or Implemented before this candidate may promote the cumulative claim."
   },
@@ -113,7 +113,7 @@
     },
     "baseline": {
       "path": "demos/partiful-matrix/acceptance/results/step0-attribution.json",
-      "sha256": "294adc60fcb145104e0a1979fdeed770e34d3536bd22b87b1d624211d31bdb13"
+      "sha256": "e7452d1b35b1bb4d5b7194551688ab124690241c255114da21db2c67bf716690"
     }
   },
   "limitations": [
