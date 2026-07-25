@@ -1916,6 +1916,37 @@ impl LocalDatabase {
         Ok(from_version < self.journal_floor_version()?)
     }
 
+    /// Distinct row ids journaled for `table` strictly after `version` — the
+    /// rung-2 replay's journal-affected id set (LLP 0090 D1.3): only these
+    /// ids are touched in the accumulator update; untouched witness leaves
+    /// remain. Returns at most `limit + 1` ids, so a caller comparing against
+    /// its replay-vs-replace threshold detects "over threshold" without
+    /// unbounded work. The caller must already have checked
+    /// `resume_requires_resnapshot` — below the retained floor, absence from
+    /// the journal proves nothing.
+    pub fn changed_row_ids_for_table_since(
+        &self,
+        table: &str,
+        version: u64,
+        limit: usize,
+    ) -> SnapbackResult<Vec<String>> {
+        let table = schema_table(&self.schema, table)?;
+        let mut statement = self.conn.prepare_cached(
+            "SELECT DISTINCT row_id FROM _snapback_changes \
+             WHERE table_name = ?1 AND version > ?2 LIMIT ?3",
+        )?;
+        let version = version_to_sql_integer(version)?;
+        let fetch = i64::try_from(limit.saturating_add(1)).unwrap_or(i64::MAX);
+        let rows = statement.query_map(params![table.name, version, fetch], |row| {
+            row.get::<_, String>(0)
+        })?;
+        let mut ids = Vec::new();
+        for row in rows {
+            ids.push(row?);
+        }
+        Ok(ids)
+    }
+
     /// The `EXPLAIN QUERY PLAN` detail for the per-mutation read-set validation
     /// query, so a test can assert it uses the `(table_name, version)` index
     /// rather than scanning.

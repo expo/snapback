@@ -499,7 +499,7 @@
           "type": "null"
         }
       ],
-      "description": "Absent exactly when the subscribe was answered with rung-1\n`CurrentAsOf` (LLP 0090 D1.3): the caller presented `resumeFromToken`\nand its held rows are current, so no rows ride the answer — the\n`current_as_of` durable envelope (with the fresh token) does. Only a\nresume-capable caller can receive the absent form."
+      "description": "Absent exactly when the subscribe was answered without rows (LLP 0090\nD1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta\nreplay (the witness verified). The answer rides the durable lane —\nthe `current_as_of` or replay `live_delta` envelope carries the fresh\ntoken. Only a resume-capable caller can receive the absent form."
     },
     "subscription_id": {
       "type": "string"

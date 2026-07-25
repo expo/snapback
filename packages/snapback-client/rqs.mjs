@@ -302,6 +302,43 @@ export function digestKindOf(contentDigest) {
   return prefix === 'mset1' || prefix === 'seq1' ? prefix : null;
 }
 
+/// Rung-2 witness entry cap (LLP 0091 rung-2 amendment default; the server
+/// enforces its own policy knob and refuses oversize witnesses to rung 3).
+export const RQS_WITNESS_MAX_ENTRIES = 4096;
+
+/// Build the rung-2 membership witness for a held `mset1` result (LLP 0090
+/// D1.3 / LLP 0091 rung-2 amendment): exact (rowId, oldRowHash) pairs in
+/// ascending UTF-16 id order with an explicit count. Returns null when the
+/// result is not witnessable — wrong digest kind, over the entry cap, a
+/// mint-refusable row, or rows that do not reproduce `contentDigest` (a
+/// witness the server would refuse is never worth sending; the resume still
+/// proceeds on rung 1 or rung 3).
+export function membershipWitnessOfRows(rows, contentDigest, {
+  maxEntries = RQS_WITNESS_MAX_ENTRIES,
+} = {}) {
+  if (digestKindOf(contentDigest) !== 'mset1') return null;
+  if (!Array.isArray(rows) || rows.length > maxEntries) return null;
+  try {
+    const state = mset1Empty();
+    const seen = new Set();
+    const entries = [];
+    for (const row of rows) {
+      const id = rowWireId(row);
+      if (id === null || seen.has(id)) return null;
+      seen.add(id);
+      const hash = rowHash(row);
+      mset1Add(state, leaf(id, hash));
+      entries.push({ id, oldRowHash: base64UrlNoPad(hash) });
+    }
+    if (mset1Root(state) !== contentDigest) return null;
+    entries.sort((a, b) => compareUtf16(a.id, b.id));
+    return { count: entries.length, entries };
+  } catch (error) {
+    if (error instanceof RqsMintRefusal) return null;
+    throw error;
+  }
+}
+
 /// Verify held rows against a resume meta's content digest. Returns true on
 /// match; a mint refusal inside the recompute counts as a mismatch (the
 /// transition table's discard-and-resubscribe path, LLP 0091 §0B.3 T7).

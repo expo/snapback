@@ -646,11 +646,11 @@ pub struct LiveSubscribeInput {
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub struct LiveSubscribeOutput {
     pub subscription_id: String,
-    /// Absent exactly when the subscribe was answered with rung-1
-    /// `CurrentAsOf` (LLP 0090 D1.3): the caller presented `resumeFromToken`
-    /// and its held rows are current, so no rows ride the answer — the
-    /// `current_as_of` durable envelope (with the fresh token) does. Only a
-    /// resume-capable caller can receive the absent form.
+    /// Absent exactly when the subscribe was answered without rows (LLP 0090
+    /// D1.3): rung-1 `CurrentAsOf` (held rows are current) or rung-2 delta
+    /// replay (the witness verified). The answer rides the durable lane —
+    /// the `current_as_of` or replay `live_delta` envelope carries the fresh
+    /// token. Only a resume-capable caller can receive the absent form.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub snapshot: Option<QueryOutput>,
     /// Fresh resume token for `rqsEligible` subscriptions answered with rows
@@ -1217,6 +1217,18 @@ pub struct RqsResumeStats {
     pub attempted: u64,
     /// Rung-1 `CurrentAsOf` answers (LLP 0090 D1.3).
     pub current_as_of_answers: u64,
+    /// Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the
+    /// witness verified and a `live_delta` answered the resume.
+    #[serde(default)]
+    pub delta_replay_answers: u64,
+    /// Total `live_delta` ops replayed by rung-2 answers.
+    #[serde(default)]
+    pub replay_ops: u64,
+    /// Estimated bytes avoided by rung-2 answers versus a rung-3
+    /// replacement: serialized replacement rows minus the serialized delta
+    /// envelope, saturating at zero per answer.
+    #[serde(default)]
+    pub replay_bytes_avoided: u64,
     /// Token presented, answered with rung 3 (refusal or no available proof).
     pub fresh_replace_answers: u64,
     /// Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).
@@ -2425,6 +2437,9 @@ pub struct LocalSnapback {
     // never the auth keyring (LLP 0091 §0A.1 custody). Surviving restart is
     // what keeps dev-loop restarts from refusing outstanding tokens.
     resume_keyring: crate::rqs::ResumeKeyring,
+    // Rung-2 witness caps and the replay-vs-replace threshold (LLP 0090
+    // D1.3; server policy knobs with LLP 0091 rung-2 amendment defaults).
+    rqs_replay_policy: RqsReplayPolicy,
     // Cached local-arm `generation` digest (LLP 0091 §0A.6): content-derived
     // from the served manifests; recomputed after every manifest/auth-mode
     // change (the invalidation sites set this back to `None`), so a no-op
@@ -2569,6 +2584,34 @@ struct RqsLiveState {
     query_artifact: String,
     args_hash: String,
     digest: crate::rqs::ResultDigest,
+}
+
+/// Rung-2 replay policy (LLP 0090 D1.3 / LLP 0091 rung-2 amendment):
+/// server-side knobs, defaulted from the amendment's pinned values.
+#[derive(Clone, Copy, Debug)]
+pub struct RqsReplayPolicy {
+    /// Witness entry cap (`SNAPBACK_RESUME_WITNESS_OVERSIZE` above it).
+    pub max_witness_entries: usize,
+    /// Witness serialized-bytes cap (same refusal code).
+    pub max_witness_bytes: usize,
+    /// Replay-vs-replace cost heuristic: replay is admitted only while the
+    /// journal-affected distinct id count is at most
+    /// `max(1, witness_count * percent / 100)`; above that the server
+    /// answers rung 3 under `SNAPBACK_RESUME_POLICY_REPLACED`. Default 100:
+    /// once more rows were touched than the client ever held, the delta
+    /// cannot be smaller than the replacement, so replaying only adds
+    /// verification work on top of the same bytes.
+    pub replay_affected_percent: u32,
+}
+
+impl Default for RqsReplayPolicy {
+    fn default() -> Self {
+        Self {
+            max_witness_entries: crate::rqs::RESUME_WITNESS_MAX_ENTRIES,
+            max_witness_bytes: crate::rqs::RESUME_WITNESS_MAX_WIRE_BYTES,
+            replay_affected_percent: 100,
+        }
+    }
 }
 
 /// Interim `rqsEligible` predicate and digest-kind selector.
@@ -6228,6 +6271,129 @@ impl LocalSnapback {
         Ok(body)
     }
 
+    /// Rung-2 delta replay for an admitted `mset1` token with a membership
+    /// witness (LLP 0090 D1.3, rollout steps 5a+6). Preconditions the caller
+    /// established: the token passed D1.1 admission, its `version` is within
+    /// the journal floor, the query is DK-3-analyzable unordered (`mset1`),
+    /// and a fresh token was mintable at head.
+    ///
+    /// Sequence: (1) enforce the witness caps, (2) decode fail-closed, (3)
+    /// verify the witness aggregate equals the MAC-bound `contentDigest`
+    /// root BEFORE any replay — token and witness are jointly verifiable and
+    /// the keyed leaf defeats hash permutation, (4) diff the witnessed old
+    /// membership against the current post-image result over exactly the
+    /// journal-affected row ids (exits are derivable because the witness
+    /// names old hashes), under the replay-vs-replace policy threshold, and
+    /// (5) require the updated accumulator — witnessed leaves subtracted and
+    /// post-image leaves added for affected ids only, untouched leaves kept
+    /// — to reproduce the fresh head digest. Any refusal answers rung 3: a
+    /// full replacement, which by construction can never suppress a removal.
+    ///
+    /// @ref LLP 0090#d13-replay-admission-ladder — rung-2 witness semantics
+    ///   and the accumulator-update rule this implements.
+    fn rqs_attempt_delta_replay(
+        &self,
+        witness: &crate::live_wire::MembershipWitnessWire,
+        body: &crate::rqs::ResumeTokenBody,
+        function: &FunctionDefinition,
+        state: &RqsLiveState,
+        current_rows: &[Value],
+    ) -> Result<Vec<LiveDeltaWireOp>, &'static str> {
+        use crate::rqs::refusal;
+        let wire_bytes = serde_json::to_vec(witness)
+            .map(|bytes| bytes.len())
+            .unwrap_or(usize::MAX);
+        if wire_bytes > self.rqs_replay_policy.max_witness_bytes {
+            return Err(refusal::WITNESS_OVERSIZE);
+        }
+        let pairs =
+            crate::rqs::decode_witness(witness, self.rqs_replay_policy.max_witness_entries)?;
+        let mut accumulator = crate::rqs::witness_state(&pairs);
+        if accumulator.root() != body.content_digest {
+            return Err(refusal::WITNESS_ROOT_MISMATCH);
+        }
+        // The eligibility gate guarantees an analyzable single-table plan.
+        let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &function.runtime else {
+            return Err(refusal::WITNESS_INVALID);
+        };
+        let threshold = std::cmp::max(
+            1,
+            (pairs.len() as u64)
+                .saturating_mul(u64::from(self.rqs_replay_policy.replay_affected_percent))
+                / 100,
+        ) as usize;
+        let affected = self
+            .db
+            .changed_row_ids_for_table_since(&plan.table, body.version, threshold)
+            .map_err(|_| refusal::JOURNAL_FLOOR)?;
+        if affected.len() > threshold {
+            return Err(refusal::POLICY_REPLACED);
+        }
+        let witnessed: HashMap<&str, &[u8; 32]> = pairs
+            .iter()
+            .map(|pair| (pair.id.as_str(), &pair.row_hash))
+            .collect();
+        let current_by_id: HashMap<&str, &Value> = current_rows
+            .iter()
+            .filter_map(|row| crate::rqs::row_wire_id(row).map(|id| (id, row)))
+            .collect();
+        let mut ops = Vec::new();
+        for id in &affected {
+            let old_hash = witnessed.get(id.as_str()).copied();
+            let new_hash = state.digest.row_hash_for(id);
+            match (old_hash, new_hash) {
+                // Touched, but in the result on neither side (never matched
+                // the predicate, or entered and left inside the gap).
+                (None, None) => {}
+                // Predicate exit or delete while offline: exactly removed.
+                (Some(old_hash), None) => {
+                    accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Remove,
+                        id: id.clone(),
+                        row: None,
+                    });
+                }
+                // Entered the result while offline.
+                (None, Some(new_hash)) => {
+                    let Some(row) = current_by_id.get(id.as_str()) else {
+                        return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                    };
+                    accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                    ops.push(LiveDeltaWireOp {
+                        op: LiveDeltaOpKind::Add,
+                        id: id.clone(),
+                        row: Some((*row).clone()),
+                    });
+                }
+                // Held on both sides: an op only when the content changed
+                // (a touched-but-reverted row stays silent).
+                (Some(old_hash), Some(new_hash)) => {
+                    if old_hash != new_hash {
+                        let Some(row) = current_by_id.get(id.as_str()) else {
+                            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+                        };
+                        accumulator.remove_leaf(&crate::rqs::leaf(id, old_hash));
+                        accumulator.add_leaf(&crate::rqs::leaf(id, new_hash));
+                        ops.push(LiveDeltaWireOp {
+                            op: LiveDeltaOpKind::Update,
+                            id: id.clone(),
+                            row: Some((*row).clone()),
+                        });
+                    }
+                }
+            }
+        }
+        // The minted root must still contain every untouched witness leaf
+        // and nothing else — any divergence (journal incompleteness, an
+        // impure query, a wrong-but-root-matching witness) refuses to rung 3
+        // instead of ratifying a wrong replay.
+        if accumulator.root() != state.digest.published() {
+            return Err(refusal::WITNESS_REPLAY_DIVERGED);
+        }
+        Ok(ops)
+    }
+
     /// Dev-authority read-mode bundle evaluation (the library/test seam,
     /// mirroring [`Self::subscribe_live`]). Production HTTP composition
     /// prepares its authority in the route middleware and calls
@@ -7052,6 +7218,7 @@ impl LocalSnapback {
             )
         });
         let mut answer_current_as_of = false;
+        let mut answer_delta: Option<Vec<LiveDeltaWireOp>> = None;
         if let Some(body) = admitted_resume.as_ref() {
             let distance = head_version.saturating_sub(body.version);
             self.live_delivery.resume.last_journal_distance = distance;
@@ -7081,13 +7248,48 @@ impl LocalSnapback {
             } else {
                 match self.journal_resume_requires_resnapshot(body.version) {
                     Ok(false) => {
-                        // Rung-1 table-set proof: the journal floor holds,
-                        // but no complete certified dependency-summary
-                        // artifact exists for this generation yet (cluster
-                        // 0C), so the table-set arm is structurally present
-                        // and always falls through to rung 3 under its own
-                        // telemetry cause (LLP 0090 D1.3 proof obligations).
-                        self.live_delivery.resume.no_certified_summary += 1;
+                        // The journal floor holds. Rung 2 (LLP 0090 D1.3,
+                        // steps 5a+6): a DK-3-analyzable unordered (`mset1`)
+                        // query with a client membership witness replays
+                        // exact deltas; without a witness (or for `seq1`)
+                        // the rung-1 table-set arm still always falls
+                        // through to rung 3 — no complete certified
+                        // dependency-summary artifact exists yet (cluster
+                        // 0C) — under its own telemetry cause.
+                        let witness = input
+                            .resume_from_token
+                            .as_ref()
+                            .and_then(|presented| presented.membership_witness.as_ref());
+                        let replay = match (witness, rqs_state.as_ref(), fresh_resume.as_ref()) {
+                            (Some(witness), Some(state), Some(_))
+                                if state.digest.kind == crate::rqs::DigestKind::Mset1 =>
+                            {
+                                Some(self.rqs_attempt_delta_replay(
+                                    witness,
+                                    body,
+                                    &function,
+                                    state,
+                                    &query.output.rows,
+                                ))
+                            }
+                            _ => None,
+                        };
+                        match replay {
+                            Some(Ok(ops)) if ops.is_empty() => {
+                                // Every journal-affected row reverted or
+                                // never intersected the result: the held
+                                // rows are current at head — the verified
+                                // witness upgrades the answer to rung 1.
+                                answer_current_as_of = true;
+                            }
+                            Some(Ok(ops)) => answer_delta = Some(ops),
+                            Some(Err(code)) => {
+                                resume_refusal = refuse(&mut self.live_delivery, code);
+                            }
+                            None => {
+                                self.live_delivery.resume.no_certified_summary += 1;
+                            }
+                        }
                     }
                     _ => {
                         resume_refusal =
@@ -7099,6 +7301,8 @@ impl LocalSnapback {
         if input.resume_from_token.is_some() {
             if answer_current_as_of {
                 self.live_delivery.resume.current_as_of_answers += 1;
+            } else if answer_delta.is_some() {
+                self.live_delivery.resume.delta_replay_answers += 1;
             } else {
                 self.live_delivery.resume.fresh_replace_answers += 1;
             }
@@ -7298,6 +7502,7 @@ impl LocalSnapback {
         // its mandatory fresh token) in the same &mut cut that registered the
         // subscription, and omit rows from the subscribe output entirely —
         // the caller's held rows are current as of `head_version`.
+        let answered_without_rows = answer_current_as_of || answer_delta.is_some();
         if answer_current_as_of {
             let envelope = LiveEnvelope::CurrentAsOf {
                 subscription_id: subscription_id.clone(),
@@ -7312,11 +7517,44 @@ impl LocalSnapback {
             {
                 self.enqueue_subscription_durable(subscription, payload);
             }
+        } else if let Some(ops) = answer_delta.take() {
+            // Rung-2 answer (LLP 0090 D1.3): the exact replay frame — with
+            // its mandatory fresh token minted from the updated accumulator
+            // — rides the durable lane inside the same registration cut; the
+            // subscribe output carries no rows.
+            self.live_delivery.resume.replay_ops += ops.len() as u64;
+            // Bytes-avoided estimate compares payload content only (rows vs
+            // ops); envelope overhead and the fresh token are identical
+            // between a rung-2 and a rung-3 answer.
+            let replaced_bytes = serde_json::to_vec(&query.output.rows)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(0);
+            let replay_bytes = serde_json::to_vec(&ops)
+                .map(|bytes| bytes.len() as u64)
+                .unwrap_or(replaced_bytes);
+            self.live_delivery.resume.replay_bytes_avoided +=
+                replaced_bytes.saturating_sub(replay_bytes);
+            let envelope = LiveEnvelope::LiveDelta {
+                subscription_id: subscription_id.clone(),
+                function: name.to_owned(),
+                version: head_version,
+                ops,
+                resume: Some(
+                    fresh_resume
+                        .take()
+                        .expect("rung-2 admission requires a minted fresh token"),
+                ),
+            };
+            if let Ok(payload) = serde_json::to_vec(&envelope)
+                && let Some(subscription) = self.subscriptions.get(&subscription_id)
+            {
+                self.enqueue_subscription_durable(subscription, payload);
+            }
         }
 
         Ok(LiveSubscribeOutput {
             subscription_id,
-            snapshot: (!answer_current_as_of).then_some(query.output),
+            snapshot: (!answered_without_rows).then_some(query.output),
             resume: fresh_resume,
             resume_refusal: resume_refusal.map(str::to_owned),
             permission_epochs,
@@ -10461,6 +10699,7 @@ impl LocalSnapback {
             auth_scoped_live_connections: Arc::new(RwLock::new(Arc::new(BTreeSet::new()))),
             receipts: ReceiptLog::default(),
             resume_keyring,
+            rqs_replay_policy: RqsReplayPolicy::default(),
             rqs_generation: None,
         })
     }
@@ -20144,13 +20383,54 @@ globalThis.__snapbackHandlers = {
         );
         scoped.authorization_dependence =
             vec![crate::manifest::AuthorizationInputDimension::UserId];
+        // Predicate-scoped public query for the rung-2 exit fixtures: only
+        // rank == 1 rows are in the result, so a rank change is a predicate
+        // exit (the row still exists, but left the result while offline).
+        let mut visible = rqs_public_live_query("listVisibleTodos", false);
+        if let FunctionRuntime::HostPlan(HandlerPlan::Query(plan)) = &mut visible.runtime {
+            plan.filters.push(FilterExpr {
+                field: "rank".to_owned(),
+                op: FilterOp::Eq,
+                value: ValueExpr::Literal(Value::Number(1.into())),
+            });
+        }
+        let set_rank = FunctionDefinition::new(
+            "setRank",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([("rank".to_owned(), ValueExpr::Arg("rank".to_owned()))]),
+                }],
+                return_value: None,
+            })),
+        );
+        let set_title = FunctionDefinition::new(
+            "setTitle",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Patch {
+                    table: "todos".to_owned(),
+                    id: ValueExpr::Arg("id".to_owned()),
+                    values: BTreeMap::from([(
+                        "title".to_owned(),
+                        ValueExpr::Arg("title".to_owned()),
+                    )]),
+                }],
+                return_value: None,
+            })),
+        );
         FunctionManifest {
             bundle_hash: Some("rqs-functions-v0".to_owned()),
             functions: vec![
                 rqs_public_live_query("listPublicTodos", false),
                 rqs_public_live_query("listRankedTodos", true),
+                visible,
                 scoped,
                 create,
+                set_rank,
+                set_title,
             ],
             ..FunctionManifest::default()
         }
@@ -20183,7 +20463,40 @@ globalThis.__snapbackHandlers = {
     }
 
     fn rqs_wrap(resume: crate::live_wire::ResumeWire) -> Option<crate::live_wire::ResumeFromToken> {
-        Some(crate::live_wire::ResumeFromToken { resume })
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: None,
+        })
+    }
+
+    fn rqs_wrap_with_witness(
+        resume: crate::live_wire::ResumeWire,
+        witness: crate::live_wire::MembershipWitnessWire,
+    ) -> Option<crate::live_wire::ResumeFromToken> {
+        Some(crate::live_wire::ResumeFromToken {
+            resume,
+            membership_witness: Some(witness),
+        })
+    }
+
+    /// The witness a well-behaved client derives from held wire rows: exact
+    /// `(rowId, oldRowHash)` pairs in ascending id order with an explicit
+    /// count (LLP 0091 rung-2 amendment).
+    fn rqs_witness_of_rows(rows: &[Value]) -> crate::live_wire::MembershipWitnessWire {
+        use base64::Engine as _;
+        use base64::engine::general_purpose::URL_SAFE_NO_PAD;
+        let mut entries: Vec<crate::live_wire::MembershipWitnessEntry> = rows
+            .iter()
+            .map(|row| crate::live_wire::MembershipWitnessEntry {
+                id: crate::rqs::row_wire_id(row).expect("wire row id").to_owned(),
+                old_row_hash: URL_SAFE_NO_PAD.encode(crate::rqs::row_hash(row).expect("row hash")),
+            })
+            .collect();
+        entries.sort_by(|a, b| a.id.encode_utf16().cmp(b.id.encode_utf16()));
+        crate::live_wire::MembershipWitnessWire {
+            count: entries.len() as u32,
+            entries,
+        }
     }
 
     fn rqs_user_input(user_id: &str) -> HandlerInput {
@@ -20679,6 +20992,495 @@ globalThis.__snapbackHandlers = {
         // The delta also refreshed the token past the CurrentAsOf version.
         let refreshed = rqs_resume_from_value(&delta["resume"]);
         assert!(refreshed.meta.version > 0);
+    }
+
+    fn rqs_create_todo(snapback: &mut LocalSnapback, title: &str) {
+        snapback
+            .invoke_mutation(
+                "createTodo",
+                HandlerInput {
+                    args: json!({ "title": title }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("create todo");
+    }
+
+    fn rqs_row_id_by_title(rows: &[Value], title: &str) -> String {
+        rows.iter()
+            .find(|row| row["title"] == json!(title))
+            .and_then(|row| row["_id"].as_str())
+            .expect("row id by title")
+            .to_owned()
+    }
+
+    #[test]
+    fn rqs_delta_replay_resumes_including_predicate_exit_rows() {
+        // LLP 0090 rollout step 6: a DK-3-eligible fixture resumes via
+        // deltas, including a row that left the result while offline via a
+        // predicate exit — exactly removed, never silently retained.
+        let mut snapback = rqs_snapback();
+        // The untouched row carries real weight so the bytes-avoided
+        // estimate is visibly positive: replay never resends it.
+        let keep_title = format!("keep-{}", "x".repeat(400));
+        rqs_create_todo(&mut snapback, &keep_title);
+        rqs_create_todo(&mut snapback, "exit");
+        rqs_create_todo(&mut snapback, "change");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        assert_eq!(held.len(), 3);
+        let token = first.resume.clone().expect("mint");
+        let id_exit = rqs_row_id_by_title(&held, "exit");
+        let id_change = rqs_row_id_by_title(&held, "change");
+
+        // Offline gap: one predicate exit, one content change, one enter.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_exit, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_change, "title": "changed" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("content change");
+        rqs_create_todo(&mut snapback, "entered");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none(), "rung 2 sends no rows inline");
+        assert!(resumed.resume.is_none(), "the fresh token rides the delta");
+        assert_eq!(resumed.resume_refusal, None);
+
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes.len(), 1);
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 3);
+        let op_for = |id: &str| {
+            ops.iter()
+                .find(|op| op["id"] == json!(id))
+                .unwrap_or_else(|| panic!("op for {id}"))
+        };
+        let exit_op = op_for(&id_exit);
+        assert_eq!(exit_op["op"], "remove");
+        assert!(exit_op.get("row").is_none(), "removals carry no row");
+        assert_eq!(op_for(&id_change)["op"], "update");
+        assert_eq!(op_for(&id_change)["row"]["title"], "changed");
+        let enter_op = ops
+            .iter()
+            .find(|op| op["op"] == "add")
+            .expect("enter op");
+        assert_eq!(enter_op["row"]["title"], "entered");
+
+        // The fresh token was minted from the updated accumulator and
+        // matches the exact current result (client post-replay verification
+        // target, T8).
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let current = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-c", None))
+            .expect("current snapshot");
+        let expected = crate::rqs::ResultDigest::from_rows(
+            crate::rqs::DigestKind::Mset1,
+            &current.snapshot.as_ref().unwrap().rows,
+        )
+        .unwrap();
+        assert_eq!(fresh.meta.content_digest, expected.published());
+        assert_eq!(
+            fresh.meta.version,
+            envelopes[0]["version"].as_u64().unwrap()
+        );
+
+        let stats = &snapback.live_delivery.resume;
+        assert_eq!(stats.attempted, 1);
+        assert_eq!(stats.delta_replay_answers, 1);
+        assert_eq!(stats.replay_ops, 3);
+        assert!(stats.replay_bytes_avoided > 0, "3 ops beat a 3-row replace");
+        assert_eq!(stats.current_as_of_answers, 0);
+        assert_eq!(stats.fresh_replace_answers, 0);
+    }
+
+    #[test]
+    fn rqs_delta_replay_strict_subset_mints_root_with_untouched_leaves() {
+        // The accumulator-update rule (LLP 0090 D1.3, v0.6 correction): only
+        // journal-affected ids are touched, so the minted root still
+        // contains the untouched rows' leaves.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_b = rqs_row_id_by_title(&held, "b");
+        snapback
+            .invoke_mutation(
+                "setTitle",
+                HandlerInput {
+                    args: json!({ "id": id_b, "title": "b2" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("strict-subset change");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        let ops = envelopes[0]["ops"].as_array().unwrap();
+        assert_eq!(ops.len(), 1, "only the changed row is replayed");
+        assert_eq!(ops[0]["id"], json!(id_b));
+        assert_eq!(ops[0]["op"], "update");
+
+        // Applying the op to the held rows client-side reproduces the fresh
+        // root: the untouched a/c leaves are still in it.
+        let fresh = rqs_resume_from_value(&envelopes[0]["resume"]);
+        let replayed: Vec<Value> = held
+            .iter()
+            .map(|row| {
+                if row["_id"] == json!(id_b) {
+                    ops[0]["row"].clone()
+                } else {
+                    row.clone()
+                }
+            })
+            .collect();
+        let recomputed =
+            crate::rqs::ResultDigest::from_rows(crate::rqs::DigestKind::Mset1, &replayed).unwrap();
+        assert_eq!(fresh.meta.content_digest, recomputed.published());
+    }
+
+    #[test]
+    fn rqs_replay_with_no_result_intersection_upgrades_to_current_as_of() {
+        // Journal-affected rows that never intersected the result (created
+        // outside the predicate) yield an empty replay: the verified witness
+        // proves the held rows current — a CurrentAsOf answer, zero ops.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "held");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // A new row that immediately leaves the predicate: journal-affected,
+        // in the result on neither side of the gap.
+        rqs_create_todo(&mut snapback, "outside");
+        let outside = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-x", None))
+            .expect("lookup");
+        let id_outside =
+            rqs_row_id_by_title(&outside.snapshot.as_ref().unwrap().rows, "outside");
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_outside, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("leave predicate");
+
+        let resumed = snapback
+            .subscribe_live(
+                "listVisibleTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("witness resume");
+        assert!(resumed.snapshot.is_none());
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-b");
+        assert_eq!(envelopes[0]["kind"], "current_as_of");
+        assert_eq!(snapback.live_delivery.resume.current_as_of_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_witness_over_cap_or_ambiguous_refuses_to_rung3() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        rqs_create_todo(&mut snapback, "advance");
+
+        // Entry cap (server policy knob): over the cap refuses OVERSIZE and
+        // answers rung 3 with full rows.
+        snapback.rqs_replay_policy.max_witness_entries = 2;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-cap subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        assert_eq!(refused.snapshot.as_ref().unwrap().rows.len(), 4);
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Byte cap independently refuses.
+        snapback.rqs_replay_policy.max_witness_bytes = 16;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("over-byte subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_OVERSIZE")
+        );
+        snapback.rqs_replay_policy = super::RqsReplayPolicy::default();
+
+        // Decode ambiguity: an explicit count that disagrees with the
+        // entries (truncation) refuses INVALID — never a best-guess replay.
+        let mut truncated = rqs_witness_of_rows(&held);
+        truncated.count += 1;
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-d", rqs_wrap_with_witness(token.clone(), truncated)),
+            )
+            .expect("count-mismatch subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert!(refused.snapshot.is_some());
+
+        // Out-of-order entries (which also catches duplicates) are ambiguity.
+        let mut unordered = rqs_witness_of_rows(&held);
+        unordered.entries.reverse();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-e", rqs_wrap_with_witness(token.clone(), unordered)),
+            )
+            .expect("out-of-order subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+
+        // Duplicate id.
+        let mut duplicated = rqs_witness_of_rows(&held);
+        duplicated.entries[1] = duplicated.entries[0].clone();
+        let refused = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input("conn-f", rqs_wrap_with_witness(token, duplicated)),
+            )
+            .expect("duplicate-id subscribe");
+        assert_eq!(
+            refused.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_WITNESS_INVALID")
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_OVERSIZE"],
+            2
+        );
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_INVALID"],
+            3
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_adversarial_witnesses_never_suppress_a_removal() {
+        // Rollout step 6's adversarial fixtures: omitted, extra,
+        // substituted, correct-id/wrong-hash, and hash-permutation witnesses
+        // all fail the MAC-bound root check before any replay is admitted —
+        // and every refusal answers with the full fresh snapshot, so the
+        // offline removal is delivered regardless.
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "a");
+        rqs_create_todo(&mut snapback, "b");
+        rqs_create_todo(&mut snapback, "c");
+        let first = snapback
+            .subscribe_live("listVisibleTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        let id_removed = rqs_row_id_by_title(&held, "b");
+        // The offline removal a lying witness must not be able to suppress.
+        snapback
+            .invoke_mutation(
+                "setRank",
+                HandlerInput {
+                    args: json!({ "id": id_removed, "rank": 2 }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("predicate exit");
+
+        let honest = rqs_witness_of_rows(&held);
+        let mut cases: Vec<(&str, crate::live_wire::MembershipWitnessWire)> = Vec::new();
+        // Omitted: the removed row's entry is missing (a witness that never
+        // admits having held it).
+        let mut omitted = honest.clone();
+        omitted
+            .entries
+            .retain(|entry| entry.id != id_removed);
+        omitted.count = omitted.entries.len() as u32;
+        cases.push(("omitted", omitted));
+        // Extra: a fabricated held row.
+        let mut extra = honest.clone();
+        extra.entries.push(crate::live_wire::MembershipWitnessEntry {
+            id: "zzz-fabricated".to_owned(),
+            old_row_hash: {
+                use base64::Engine as _;
+                base64::engine::general_purpose::URL_SAFE_NO_PAD
+                    .encode(crate::rqs::row_hash(&json!({ "_id": "zzz-fabricated" })).unwrap())
+            },
+        });
+        extra.count = extra.entries.len() as u32;
+        cases.push(("extra", extra));
+        // Substituted: one entry's hash replaced with a hash of different
+        // content (correct id, wrong hash).
+        let mut substituted = honest.clone();
+        let target = substituted
+            .entries
+            .iter_mut()
+            .find(|entry| entry.id == id_removed)
+            .unwrap();
+        target.old_row_hash = {
+            use base64::Engine as _;
+            base64::engine::general_purpose::URL_SAFE_NO_PAD
+                .encode(crate::rqs::row_hash(&json!({ "_id": id_removed, "forged": true })).unwrap())
+        };
+        cases.push(("correct-id-wrong-hash", substituted));
+        // Hash permutation: two valid hashes swapped between valid ids — the
+        // keyed leaf makes this fail even though the hash multiset matches.
+        let mut permuted = honest.clone();
+        let swap = permuted.entries[0].old_row_hash.clone();
+        permuted.entries[0].old_row_hash = permuted.entries[2].old_row_hash.clone();
+        permuted.entries[2].old_row_hash = swap;
+        cases.push(("hash-permutation", permuted));
+
+        for (index, (label, witness)) in cases.into_iter().enumerate() {
+            let refused = snapback
+                .subscribe_live(
+                    "listVisibleTodos",
+                    rqs_subscribe_input(
+                        &format!("conn-adv-{index}"),
+                        rqs_wrap_with_witness(token.clone(), witness),
+                    ),
+                )
+                .unwrap_or_else(|_| panic!("adversarial witness {label} still subscribes"));
+            assert_eq!(
+                refused.resume_refusal.as_deref(),
+                Some("SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"),
+                "{label} must fail the joint root check"
+            );
+            let rows = &refused.snapshot.as_ref().expect("rung 3 rows").rows;
+            assert!(
+                rows.iter().all(|row| row["_id"] != json!(id_removed.as_str())),
+                "{label}: the removal is delivered by replacement, never suppressed"
+            );
+        }
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH"],
+            4
+        );
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 0);
+    }
+
+    #[test]
+    fn rqs_replay_vs_replace_policy_knob_is_honored() {
+        let mut snapback = rqs_snapback();
+        rqs_create_todo(&mut snapback, "one");
+        rqs_create_todo(&mut snapback, "two");
+        let first = snapback
+            .subscribe_live("listPublicTodos", rqs_subscribe_input("conn-a", None))
+            .expect("subscribe");
+        let held = first.snapshot.as_ref().expect("rows").rows.clone();
+        let token = first.resume.clone().expect("mint");
+        // Three journal-affected rows against a 2-entry witness: over the
+        // default 100% threshold (max(1, 2*100/100) = 2), so the server
+        // chooses replacement — the delta could not be smaller than the
+        // replacement.
+        rqs_create_todo(&mut snapback, "three");
+        rqs_create_todo(&mut snapback, "four");
+        rqs_create_todo(&mut snapback, "five");
+        let replaced = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-b",
+                    rqs_wrap_with_witness(token.clone(), rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-replaced subscribe");
+        assert_eq!(
+            replaced.resume_refusal.as_deref(),
+            Some("SNAPBACK_RESUME_POLICY_REPLACED")
+        );
+        assert_eq!(replaced.snapshot.as_ref().unwrap().rows.len(), 5);
+        assert_eq!(
+            snapback.live_delivery.resume.refused["SNAPBACK_RESUME_POLICY_REPLACED"],
+            1
+        );
+
+        // Raising the knob admits the same replay: 3 affected ≤ max(1,
+        // 2*300/100) = 6.
+        snapback.rqs_replay_policy.replay_affected_percent = 300;
+        let replayed = snapback
+            .subscribe_live(
+                "listPublicTodos",
+                rqs_subscribe_input(
+                    "conn-c",
+                    rqs_wrap_with_witness(token, rqs_witness_of_rows(&held)),
+                ),
+            )
+            .expect("policy-admitted subscribe");
+        assert!(replayed.snapshot.is_none());
+        assert_eq!(replayed.resume_refusal, None);
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-c");
+        assert_eq!(envelopes[0]["kind"], "live_delta");
+        assert_eq!(envelopes[0]["ops"].as_array().unwrap().len(), 3);
+        assert_eq!(snapback.live_delivery.resume.delta_replay_answers, 1);
+        assert_eq!(snapback.live_delivery.resume.replay_ops, 3);
     }
 
     #[test]

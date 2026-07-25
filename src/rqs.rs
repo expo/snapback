@@ -42,6 +42,11 @@ pub const RESUME_KEY_RETIRED_OVERLAP_MS: u64 = 14 * 24 * 60 * 60 * 1_000;
 pub const RESUME_KEY_RETIRED_OVERLAP_KEYS: usize = 2;
 /// The 0A digest-contract version carried in `resumeConfig` (LLP 0091 §0A.6).
 pub const RESUME_DIGEST_CONTRACT_VERSION: &str = "rqs-0A-v1";
+/// Rung-2 witness caps (LLP 0091 rung-2 amendment; server policy knobs with
+/// these defaults): at most this many `(rowId, oldRowHash)` entries…
+pub const RESUME_WITNESS_MAX_ENTRIES: usize = 4096;
+/// …and at most this many serialized witness bytes on the wire.
+pub const RESUME_WITNESS_MAX_WIRE_BYTES: usize = 1024 * 1024;
 /// The local-arm resume keyring file name beside the auth keyring
 /// (LLP 0091 §0A.1 custody: a separate ring and file).
 pub const RESUME_KEYRING_FILE_NAME: &str = "resume-keyring.json";
@@ -74,10 +79,15 @@ pub mod refusal {
     pub const DIGEST_KIND_MISMATCH: &str = "SNAPBACK_RESUME_DIGEST_KIND_MISMATCH";
     pub const VERSION_IMPLAUSIBLE: &str = "SNAPBACK_RESUME_VERSION_IMPLAUSIBLE";
     pub const JOURNAL_FLOOR: &str = "SNAPBACK_RESUME_JOURNAL_FLOOR";
-    #[allow(dead_code)]
     pub const WITNESS_INVALID: &str = "SNAPBACK_RESUME_WITNESS_INVALID";
-    #[allow(dead_code)]
     pub const WITNESS_OVERSIZE: &str = "SNAPBACK_RESUME_WITNESS_OVERSIZE";
+    /// Rung-2 amendment codes (LLP 0091, ENG-25457): the witness decoded but
+    /// its keyed-leaf aggregate does not equal the token's MAC-bound root…
+    pub const WITNESS_ROOT_MISMATCH: &str = "SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH";
+    /// …or the accumulator updated over the journal-affected ids does not
+    /// reproduce the fresh head digest (an untouched row changed anyway) —
+    /// both refuse to rung 3, never a partial replay.
+    pub const WITNESS_REPLAY_DIVERGED: &str = "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED";
     #[allow(dead_code)]
     pub const BUDGET_EXCEEDED: &str = "SNAPBACK_RESUME_BUDGET_EXCEEDED";
     #[allow(dead_code)]
@@ -476,6 +486,75 @@ impl ResultDigest {
                 .expect("seq1 digest is computed at construction"),
         }
     }
+
+    /// The held row hash for one wire id (`mset1` only) — the post-image
+    /// leaf a rung-2 replay adds back for a journal-affected row that is
+    /// still in the result (LLP 0090 D1.3 accumulator-update rule).
+    pub fn row_hash_for(&self, id: &str) -> Option<&[u8; 32]> {
+        self.row_hashes.get(id)
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Rung-2 membership witness (LLP 0091 rung-2 amendment, ENG-25457)
+// ---------------------------------------------------------------------------
+
+/// One decoded witness pair: the wire row id and the 32-byte row hash the
+/// client held for it at the token's version.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WitnessPair {
+    pub id: String,
+    pub row_hash: [u8; 32],
+}
+
+/// Decode and structurally validate a rung-2 membership witness. The
+/// reconciliation rule is fail-closed (LLP 0090 D1.3): a count that does not
+/// match the entries, a hash that is not exactly 32 base64url bytes, or
+/// entries out of ascending UTF-16 id order (which also catches duplicate
+/// ids) are decode ambiguity — `WITNESS_INVALID`, rung 3 — and an entry
+/// count over `max_entries` is `WITNESS_OVERSIZE`. Nothing here can suppress
+/// a removal: every refusal is answered with a full fresh snapshot.
+///
+/// @ref LLP 0090#d13-replay-admission-ladder — decode ambiguity falls back
+///   to rung 3 and can never suppress a required removal.
+pub fn decode_witness(
+    witness: &crate::live_wire::MembershipWitnessWire,
+    max_entries: usize,
+) -> Result<Vec<WitnessPair>, &'static str> {
+    if witness.count as usize != witness.entries.len() {
+        return Err(refusal::WITNESS_INVALID);
+    }
+    if witness.entries.len() > max_entries {
+        return Err(refusal::WITNESS_OVERSIZE);
+    }
+    let mut pairs = Vec::with_capacity(witness.entries.len());
+    for (index, entry) in witness.entries.iter().enumerate() {
+        let bytes = URL_SAFE_NO_PAD
+            .decode(&entry.old_row_hash)
+            .map_err(|_| refusal::WITNESS_INVALID)?;
+        let row_hash: [u8; 32] = bytes.try_into().map_err(|_| refusal::WITNESS_INVALID)?;
+        if index > 0 && cmp_utf16(&witness.entries[index - 1].id, &entry.id) != Ordering::Less {
+            // Out of order or duplicate id: ambiguity, never a best guess.
+            return Err(refusal::WITNESS_INVALID);
+        }
+        pairs.push(WitnessPair {
+            id: entry.id.clone(),
+            row_hash,
+        });
+    }
+    Ok(pairs)
+}
+
+/// The witness's keyed-leaf multiset aggregate (LLP 0091 §0A.3/§0A.4). Its
+/// compressed root must equal the token's MAC-bound `contentDigest` before
+/// replay is admitted — token and witness are jointly verifiable, and the
+/// keyed leaf makes a hash permutation among ids fail the root check.
+pub fn witness_state(pairs: &[WitnessPair]) -> MsetState {
+    let mut state = MsetState::default();
+    for pair in pairs {
+        state.add_leaf(&leaf(&pair.id, &pair.row_hash));
+    }
+    state
 }
 
 // ---------------------------------------------------------------------------
@@ -1053,6 +1132,95 @@ mod tests {
             .err(),
             Some(MintRefusal::RowIdDuplicate)
         );
+    }
+
+    #[test]
+    fn witness_decode_is_fail_closed_and_aggregate_matches_result_digest() {
+        use crate::live_wire::{MembershipWitnessEntry, MembershipWitnessWire};
+        let rows = [
+            json!({ "_id": "a", "value": 1 }),
+            json!({ "_id": "b", "value": 2 }),
+        ];
+        let entry = |id: &str, row: &Value| MembershipWitnessEntry {
+            id: id.to_owned(),
+            old_row_hash: URL_SAFE_NO_PAD.encode(row_hash(row).unwrap()),
+        };
+        let witness = MembershipWitnessWire {
+            count: 2,
+            entries: vec![entry("a", &rows[0]), entry("b", &rows[1])],
+        };
+        let pairs = decode_witness(&witness, RESUME_WITNESS_MAX_ENTRIES).unwrap();
+        // The witness aggregate root equals the digest a server would have
+        // published for the same held rows — the joint-verifiability rule.
+        let digest = ResultDigest::from_rows(DigestKind::Mset1, &rows).unwrap();
+        assert_eq!(witness_state(&pairs).root(), digest.published());
+
+        // Count mismatch (truncation) is ambiguity.
+        let truncated = MembershipWitnessWire {
+            count: 3,
+            entries: witness.entries.clone(),
+        };
+        assert_eq!(
+            decode_witness(&truncated, RESUME_WITNESS_MAX_ENTRIES),
+            Err(refusal::WITNESS_INVALID)
+        );
+
+        // Over the entry cap refuses with the oversize code.
+        assert_eq!(
+            decode_witness(&witness, 1),
+            Err(refusal::WITNESS_OVERSIZE)
+        );
+
+        // Non-canonical hash encodings are ambiguity: bad base64, wrong length.
+        let mut bad_base64 = witness.clone();
+        bad_base64.entries[0].old_row_hash = "!!!not-base64!!!".to_owned();
+        assert_eq!(
+            decode_witness(&bad_base64, RESUME_WITNESS_MAX_ENTRIES),
+            Err(refusal::WITNESS_INVALID)
+        );
+        let mut short_hash = witness.clone();
+        short_hash.entries[0].old_row_hash = URL_SAFE_NO_PAD.encode([7_u8; 16]);
+        assert_eq!(
+            decode_witness(&short_hash, RESUME_WITNESS_MAX_ENTRIES),
+            Err(refusal::WITNESS_INVALID)
+        );
+
+        // Out-of-order and duplicate ids are ambiguity (the order rule also
+        // makes duplicates undecodable rather than last-wins).
+        let out_of_order = MembershipWitnessWire {
+            count: 2,
+            entries: vec![entry("b", &rows[1]), entry("a", &rows[0])],
+        };
+        assert_eq!(
+            decode_witness(&out_of_order, RESUME_WITNESS_MAX_ENTRIES),
+            Err(refusal::WITNESS_INVALID)
+        );
+        let duplicate = MembershipWitnessWire {
+            count: 2,
+            entries: vec![entry("a", &rows[0]), entry("a", &rows[1])],
+        };
+        assert_eq!(
+            decode_witness(&duplicate, RESUME_WITNESS_MAX_ENTRIES),
+            Err(refusal::WITNESS_INVALID)
+        );
+
+        // A hash permutation among valid ids decodes but fails the root
+        // check by the keyed-leaf construction (LLP 0090 D1.3).
+        let permuted = MembershipWitnessWire {
+            count: 2,
+            entries: vec![
+                MembershipWitnessEntry {
+                    id: "a".to_owned(),
+                    old_row_hash: URL_SAFE_NO_PAD.encode(row_hash(&rows[1]).unwrap()),
+                },
+                MembershipWitnessEntry {
+                    id: "b".to_owned(),
+                    old_row_hash: URL_SAFE_NO_PAD.encode(row_hash(&rows[0]).unwrap()),
+                },
+            ],
+        };
+        let permuted_pairs = decode_witness(&permuted, RESUME_WITNESS_MAX_ENTRIES).unwrap();
+        assert_ne!(witness_state(&permuted_pairs).root(), digest.published());
     }
 
     #[test]

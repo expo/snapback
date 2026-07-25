@@ -31950,11 +31950,19 @@ globalThis.__snapbackHandlers = {
         ),
         (
             "SNAPBACK_RESUME_WITNESS_INVALID",
-            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RESUME_WITNESS_OVERSIZE",
-            "RQS wire refusal code reserved until rollout step 5a (LLP 0091 §0B.6), never an HTTP diagnostic",
+            "RQS wire refusal code (LLP 0091 §0B.6, live since the rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
+        ),
+        (
+            "SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED",
+            "RQS wire refusal code (LLP 0091 rung-2 amendment), never an HTTP diagnostic",
         ),
         (
             "SNAPBACK_RESUME_BUDGET_EXCEEDED",

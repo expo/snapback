@@ -5,7 +5,8 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24
+**Revised:** 2026-07-24 (§0D.6 witness-bytes reservation replaced by the
+caps LLP 0091's rung-2 amendment pinned, ENG-25457)
 **Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091
 
 ## Summary
@@ -445,7 +446,7 @@ Defaults for the limits 0090 D1.1 names, refusing with the already-pinned
 | Max journal distance (head − token version) for rung-1 table-set / rung-2 | **10,000 commits** | `SNAPBACK_RESUME_BUDGET_EXCEEDED` |
 | Replay/proof CPU-time budget per resume | **250 ms** | `SNAPBACK_RESUME_BUDGET_EXCEEDED` |
 | Per-authority resume rate | **120/min** | `SNAPBACK_RESUME_RATE_LIMITED` |
-| Max witness bytes | reserved for rollout step 5a | `SNAPBACK_RESUME_WITNESS_OVERSIZE` |
+| Max witness bytes | **1 MiB** serialized, and ≤ **4096** entries (pinned by LLP 0091's rung-2 amendment, ENG-25457) | `SNAPBACK_RESUME_WITNESS_OVERSIZE` |
 
 Every limit answers with rung 3 or a coded refusal, never partial replay
 (0090 D1.1). The rung-1 **global** proof (no commits at all) is exempt from

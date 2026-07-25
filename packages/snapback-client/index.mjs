@@ -44,7 +44,7 @@ export {
   ExternalQueryScope,
   SNAPBACK_EXTERNAL_STORE_PROTOCOL,
 } from './external-store.mjs';
-import { rowsMatchDigest } from './rqs.mjs';
+import { membershipWitnessOfRows, rowsMatchDigest } from './rqs.mjs';
 import {
   arbitrateResumeCandidates,
   rqsEntryKey,
@@ -5069,14 +5069,24 @@ export class SnapbackClient {
           void chainStoreWrite(() => resumeStore.markInProgress(resumeStoreKey));
           handle.rows = nextRows;
           handle.version = update.version;
-          // T7 (LLP 0091 §0B.3): verify the post-apply digest against the
-          // refreshed token's meta before adopting it. A mismatch means the
-          // held base has diverged from the server's accumulator — discard
-          // the token and take the client-side rung 3 (fresh subscribe).
+          // T7/T8 (LLP 0091 §0B.3): verify the post-apply digest against the
+          // refreshed token's meta before adopting it. For a rung-2 replay
+          // answer this is exactly T8's independent post-replay verification
+          // — the state is authoritative only after the recomputed digest
+          // matches. A mismatch means the held base has diverged from the
+          // server's accumulator — discard the token and take the
+          // client-side rung 3 (fresh subscribe).
           if (update.resume) {
             const digest = update.resume.meta?.contentDigest;
             if (digest && rowsMatchDigest(handle.rows, digest)) {
               handle.rqsResume = update.resume;
+              if (pendingResumeConfirmation) {
+                // Rung-2 replay completion is a successful authoritative
+                // resume: bump the persisted entry's LRU recency exactly as
+                // a rung-1 CurrentAsOf does (LLP 0091 §0A.5).
+                pendingResumeConfirmation = false;
+                void chainStoreWrite(() => resumeStore.markResumed(resumeStoreKey));
+              }
             } else {
               handle.rqsResume = null;
               void removePersistedEntry();
@@ -5132,6 +5142,14 @@ export class SnapbackClient {
           // one for them); on relaunch the token comes from the persisted
           // Channel B entry seeded above.
           const heldResume = handle.rqsResume;
+          // Rung-2 membership witness (LLP 0090 D1.3 / LLP 0091 rung-2
+          // amendment): for an mset1 result within the cap, name the exact
+          // (rowId, oldRowHash) pairs so the server can prove predicate
+          // exits and replay deltas. A non-witnessable result (seq1, over
+          // cap, digest drift) still resumes — rung 1 and rung 3 remain.
+          const membershipWitness = heldResume
+            ? membershipWitnessOfRows(handle.rows, heldResume.meta?.contentDigest)
+            : null;
           const sub = await client.subscribeLive(name, {
             connectionId,
             args,
@@ -5140,7 +5158,12 @@ export class SnapbackClient {
             supersedes,
             authorizationNamespace: queryNamespace,
             authorityCapture: expectedAuthorityCapture,
-            resumeFromToken: heldResume ? { resume: heldResume } : null,
+            resumeFromToken: heldResume
+              ? {
+                resume: heldResume,
+                ...(membershipWitness ? { membershipWitness } : {}),
+              }
+              : null,
           });
           try {
             assertSubscribeLifecycle(lifecycle);
@@ -5196,8 +5219,9 @@ export class SnapbackClient {
               // authoritative (LLP 0090 D1 freshness rule).
               handle.freshness = 'current';
             } else if (heldResume) {
-              // Rung-1 answer pending: held rows stay retained until the
-              // current_as_of durable envelope advances version + token.
+              // Rung-1 or rung-2 answer pending: held rows stay retained
+              // until the current_as_of (or replay live_delta) durable
+              // envelope advances version + token.
               pendingResumeConfirmation = seededFromResumeState;
             }
             if (sub.resume) handle.rqsResume = sub.resume;

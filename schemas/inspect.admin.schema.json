@@ -2318,12 +2318,15 @@
           "default": {
             "attempted": 0,
             "currentAsOfAnswers": 0,
+            "deltaReplayAnswers": 0,
             "freshReplaceAnswers": 0,
             "lastJournalDistance": 0,
             "maxJournalDistance": 0,
             "mintRefusals": 0,
             "noCertifiedSummary": 0,
             "refused": {},
+            "replayBytesAvoided": 0,
+            "replayOps": 0,
             "tokensMinted": 0,
             "tokensRefreshed": 0
           },
@@ -3388,6 +3391,13 @@
           "minimum": 0,
           "type": "integer"
         },
+        "deltaReplayAnswers": {
+          "default": 0,
+          "description": "Rung-2 delta-replay answers (LLP 0090 D1.3 / rollout step 6): the\nwitness verified and a `live_delta` answered the resume.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
         "freshReplaceAnswers": {
           "description": "Token presented, answered with rung 3 (refusal or no available proof).",
           "format": "uint64",
@@ -3426,6 +3436,20 @@
           },
           "description": "Refusals by `SNAPBACK_RESUME_*` code (LLP 0091 §0B.6).",
           "type": "object"
+        },
+        "replayBytesAvoided": {
+          "default": 0,
+          "description": "Estimated bytes avoided by rung-2 answers versus a rung-3\nreplacement: serialized replacement rows minus the serialized delta\nenvelope, saturating at zero per answer.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
+        },
+        "replayOps": {
+          "default": 0,
+          "description": "Total `live_delta` ops replayed by rung-2 answers.",
+          "format": "uint64",
+          "minimum": 0,
+          "type": "integer"
         },
         "tokensMinted": {
           "description": "Tokens minted on the live path (subscribe answers + envelope refresh).",

@@ -5,10 +5,12 @@
 **Systems:** Sync, Realtime, API, Auth, Client integration
 **Author:** Charlie Cheever / Claude
 **Date:** 2026-07-24
-**Revised:** 2026-07-24 (dated amendment: three step-1 implementation
-divergences reconciled — `sbrq_` key-id prefix, the symmetric integral-double
-refusal band, and the interim content-derived `queryArtifact`; see "Dated
-amendment: step-1 implementation reconciliation")
+**Revised:** 2026-07-24 (dated amendments: step-1 implementation
+reconciliation — `sbrq_` key-id prefix, the symmetric integral-double
+refusal band, the interim content-derived `queryArtifact`; and the rung-2
+membership witness — wire format, caps, reconciliation rule, replay
+algorithm, and two new refusal codes, closing OQ1 / LLP 0090 Q7 for rollout
+steps 5a+6, ENG-25457)
 **Related:** LLP 0008, LLP 0031, LLP 0034, LLP 0039, LLP 0043, LLP 0051, LLP 0053, LLP 0077, LLP 0090
 
 ## Summary
@@ -482,8 +484,8 @@ precedent:
 LiveSubscribeInput += resumeFromToken?: { resume: resume }
 ```
 
-The wrapper object reserves room for the rung-2 `membershipWitness` field
-(shape owned by rollout step 5a / 0090 Q7; not schematized in v1). The new
+The wrapper object carries the rung-2 `membershipWitness` field, whose
+shape is pinned by the dated rung-2 amendment below (W1). The new
 exported schema names are `live.resume-token.schema.json` (§0B.1) plus the
 revised subscribe/envelope schemas — the token-resume vocabulary never uses
 the bare word "resume" in a schema filename, keeping the two operations
@@ -549,8 +551,10 @@ subscription failure. Per-cause codes, one per cause named in 0090 D1.1:
 | `SNAPBACK_RESUME_DIGEST_KIND_MISMATCH` | `digestKind`, digest prefix, and the manifest delta class disagree |
 | `SNAPBACK_RESUME_VERSION_IMPLAUSIBLE` | token `version` ahead of the served head |
 | `SNAPBACK_RESUME_JOURNAL_FLOOR` | rung-1 table-set / rung-2 coverage refused by `journal_resume_requires_resnapshot` |
-| `SNAPBACK_RESUME_WITNESS_INVALID` | rung-2 witness fails decode, duplicate-id, or root check (reserved until 5a) |
-| `SNAPBACK_RESUME_WITNESS_OVERSIZE` | rung-2 witness exceeds the size cap (reserved until 5a) |
+| `SNAPBACK_RESUME_WITNESS_INVALID` | rung-2 witness decode ambiguity: count mismatch, non-canonical hash, out-of-order or duplicate ids (live since the rung-2 amendment) |
+| `SNAPBACK_RESUME_WITNESS_OVERSIZE` | rung-2 witness exceeds the entry or byte cap (live since the rung-2 amendment) |
+| `SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH` | rung-2 witness aggregate ≠ the token's MAC-bound `contentDigest` root (rung-2 amendment) |
+| `SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED` | rung-2 post-replay accumulator ≠ the fresh head digest (rung-2 amendment) |
 | `SNAPBACK_RESUME_BUDGET_EXCEEDED` | replay CPU/time or journal-distance budget exhausted |
 | `SNAPBACK_RESUME_RATE_LIMITED` | per-authority resume rate exceeded |
 | `SNAPBACK_RESUME_POLICY_REPLACED` | server chose rung 3 under the replay-versus-replace policy knob |
@@ -662,12 +666,105 @@ behavior is normative and the sections above read as amended here:
    manifest-carried per-function artifact hash, it replaces this derivation
    (a `generation` rotation, so no mixed-identity tokens survive the swap).
 
+## Dated amendment: rung-2 membership witness (2026-07-24, ENG-25457)
+
+LLP 0090 rollout steps 5a+6 decided Q7 here — the witness wire format,
+size-cap defaults, reconciliation rule, and replay algorithm — and the
+local arm implemented them (`src/rqs.rs` witness decode/aggregate,
+`src/local.rs` `rqs_attempt_delta_replay`, the `subscribe_live` rung-2 arm;
+`packages/snapback-client/rqs.mjs` `membershipWitnessOfRows`). This
+amendment closes OQ1. The sections above read as amended:
+
+**W1 — wire format** (§0B.4's reserved field, now schematized through the
+LLP 0051 drift gates as part of `live.subscribe.input.schema.json`):
+
+```
+resumeFromToken = { resume, membershipWitness? }
+membershipWitness = { count: u32,
+                      entries: [ { id, oldRowHash } ] }
+```
+
+- One entry per row the client holds at the token's version: `id` is the
+  wire row id (`LiveDeltaWireOp.id`, §0A.2's `canonicalRowId`) and
+  `oldRowHash` is base64url (no pad) of the 32-byte §0A.2 row hash — raw
+  `(rowId, oldRowHash)` pairs, no recoverable/compressed encoding (the raw
+  form is the only one whose decode has no ambiguity to reconcile).
+- Entries are **deterministically ordered**: ascending UTF-16 code-unit
+  order of `id` (the §0A.2 JCS member order; `cmp_utf16` in both arms).
+  Ordering makes duplicates a structural decode failure rather than a
+  last-wins hazard.
+- `count` is explicit and must equal `entries.length`, so truncation in
+  any intermediary is a detectable decode failure.
+- The witness accompanies `resumeFromToken` only when the token's
+  `digestKind` is `mset1` and the held result is within the client-side
+  entry cap; `seq1` results are never witnessed. A witness-less resume is
+  never refused for its absence — rungs 1 and 3 remain available.
+
+**W2 — size caps** (the §0D.6 "reserved" row of LLP 0092, now pinned;
+server policy knobs, LLP 0092's resource-limit style): at most **4096
+entries** and at most **1 MiB** of serialized witness bytes; above either,
+`SNAPBACK_RESUME_WITNESS_OVERSIZE` → rung 3. The client does not send a
+witness above the entry cap (it would only be refused).
+
+**W3 — reconciliation rule** (0090 D1.3's "formats that admit uncertainty
+must reconcile such that decode failure or ambiguity falls back to rung 3
+and can never suppress a required removal"): every anomaly is fail-closed
+and per-cause coded, and every refusal answers rung 3 — a full fresh
+`LiveReplace`, which cannot suppress a removal by construction:
+
+| Anomaly | Code |
+|---|---|
+| `count` ≠ `entries.length`; hash not exactly 32 base64url bytes; entries out of ascending UTF-16 id order (includes any duplicate id) | `SNAPBACK_RESUME_WITNESS_INVALID` |
+| over the entry or byte cap | `SNAPBACK_RESUME_WITNESS_OVERSIZE` |
+| witness aggregate root ≠ the token's MAC-bound `contentDigest` (omitted/extra/substituted entries, correct-id-wrong-hash, hash permutation — defeated by the §0A.3 keyed leaf) | `SNAPBACK_RESUME_WITNESS_ROOT_MISMATCH` |
+| post-replay accumulator root ≠ the fresh head digest (journal incompleteness, impurity, any wrong-but-root-matching witness) | `SNAPBACK_RESUME_WITNESS_REPLAY_DIVERGED` |
+
+The two new codes extend the §0B.6 registry (append-only), and the two
+formerly reserved codes are live as of this amendment.
+
+**W4 — replay algorithm and policy knob** (0090 D1.3 rungs, implemented):
+after D1.1 admission, with the token's `version` at or above the journal
+floor and the query `mset1`:
+
+1. Enforce W2's caps; decode per W3.
+2. Aggregate the witness leaves (§0A.3/§0A.4) and require the compressed
+   root to equal the token's MAC-bound `contentDigest` **before** any
+   replay — token and witness are jointly verifiable.
+3. Collect the **distinct journal-affected row ids** for the query's table
+   strictly after the token's `version`
+   (`changed_row_ids_for_table_since`). **Replay-vs-replace knob:** replay
+   proceeds only while `affectedIds ≤ max(1, witnessCount × percent/100)`
+   with default `percent = 100` — once more rows were touched than the
+   client ever held, the delta cannot be smaller than the replacement, so
+   the server answers rung 3 under `SNAPBACK_RESUME_POLICY_REPLACED`.
+4. For each affected id, diff the witnessed old membership against the
+   current post-image result (exits are derivable exactly because the
+   witness names old hashes): witnessed-only → `remove`; present-only →
+   `add`; both with differing hashes → `update`; both equal or neither →
+   no op (touched-but-reverted rows stay silent). Accumulator update
+   touches **only these ids** — subtract witnessed leaves, add post-image
+   leaves — so untouched witness leaves remain (0090 v0.6's rule).
+5. Require the updated accumulator root to equal the fresh head digest
+   (W3's diverged code otherwise), then answer: a single `live_delta` at
+   the head version carrying the ops and the mandatory fresh token minted
+   at `(head, freshDigest)`, enqueued under the same atomic
+   answer-and-register cut as rungs 1/3; the subscribe output carries no
+   rows. An empty op set upgrades the answer to rung 1 (`current_as_of`).
+   The client applies §0B.3 T7/T8: post-replay digest verification before
+   the state is authoritative, and verification failure discards the
+   entry client-side (rung 3 by fresh subscribe).
+
+Observability (0090 §Scalability): `deltaReplayAnswers`, `replayOps`, and
+`replayBytesAvoided` (serialized replacement rows minus serialized ops,
+saturating — envelope overhead and the fresh token are identical between a
+rung-2 and rung-3 answer) join the step-1 counters, with refusals keyed by
+the W3 codes.
+
 ## Open questions
 
-- **OQ1 — rung-2 witness wire format.** Owned by 0090 rollout step 5a
-  (Q7). This spec reserves the `membershipWitness` field position (§0B.4)
-  and pins the leaf/root algebra any witness must verify against (§0A.3–
-  0A.4); the encoding, reconciliation rule, and size-cap default are 5a's.
+- **OQ1 — rung-2 witness wire format.** ~~Owned by 0090 rollout step 5a
+  (Q7).~~ **Closed** by the dated rung-2 membership-witness amendment
+  above (2026-07-24, ENG-25457).
 - **OQ2 — native persistence knobs.** Web cadence/budget values are pinned
   (§0A.5); whether the same numbers suit constrained native surfaces
   (widget/extension processes, DK-9 stores) is decided when rollout step 5

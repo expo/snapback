@@ -8,7 +8,7 @@
   },
   "functionManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/functions.manifest.json",
-    "sha256": "sha256:9bf55897b50025cbce32d09baa449517a0fbafee6037cf4e03e1b8ae212afe06"
+    "sha256": "sha256:4203a6347964120a40fcce6531c0a6829a412352a5573d2bac21592dc1c89b7c"
   },
   "manifestVersion": 1,
   "operations": [
@@ -93,7 +93,7 @@
   ],
   "schemaManifest": {
     "path": "demos/todo-v2/snapback/generated-remote-service/schema.manifest.json",
-    "sha256": "sha256:e78e7206b3b806ce9d09b3e6839ef1ffb5d7c11c1db482758a399b3669a91040"
+    "sha256": "sha256:a99fd30d1116c062118e73419e664ba8e699a286ac29f917af1cd7697f9947cf"
   },
   "schemaVersion": "snapback.v0",
   "targetProfileId": "remote-service-sqlite-ibex",
@@ -124,11 +124,11 @@
     },
     "liveSubscribeInput": {
       "path": "schemas/live.subscribe.input.schema.json",
-      "sha256": "sha256:df0b22906011f249e06bfc8da7beeca00870179662912a2677e76c0924204c51"
+      "sha256": "sha256:5f5d972bc25dacaa50b7e535418837fbabb917c1c9e3457671c3227dffcd2e3d"
     },
     "liveSubscribeOutput": {
       "path": "schemas/live.subscribe.output.schema.json",
-      "sha256": "sha256:3169216f91c764e86c215ef138bfc2fb8d3532ea016fa865933847ab51ae1ca2"
+      "sha256": "sha256:7275dd4ec8a6e009e0f87eb6c2a9fb4d7ba799aac7a73dc30475122c1e6c53ea"
     },
     "liveUnsubscribeInput": {
       "path": "schemas/live.unsubscribe.input.schema.json",
