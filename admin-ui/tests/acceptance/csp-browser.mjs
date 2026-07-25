@@ -9,10 +9,10 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import crypto from 'node:crypto';
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { accessSync, constants, existsSync, mkdtempSync, rmSync } from 'node:fs';
 import net from 'node:net';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { delimiter, dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import {
@@ -26,7 +26,7 @@ const repoRoot = resolve(here, '..', '..', '..');
 const adminDist = join(repoRoot, 'admin-ui', 'dist');
 const snapbackBin = process.env.SNAPBACK_BIN || join(repoRoot, 'target', 'debug', 'snapback');
 const chromeBin = process.env.CHROME_BIN
-  || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  || defaultChromeBinary();
 const MASTER = 'browser-admin-master-SENTINEL';
 
 for (const [label, path] of [
@@ -35,6 +35,30 @@ for (const [label, path] of [
   ['Chrome binary', chromeBin],
 ]) {
   assert.equal(existsSync(path), true, `${label} missing at ${path}`);
+}
+
+function defaultChromeBinary() {
+  if (process.platform === 'darwin') {
+    return '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+  }
+  for (const executable of [
+    'google-chrome',
+    'google-chrome-stable',
+    'chromium-browser',
+    'chromium',
+  ]) {
+    for (const directory of (process.env.PATH || '').split(delimiter)) {
+      if (!directory) continue;
+      const candidate = join(directory, executable);
+      try {
+        accessSync(candidate, constants.X_OK);
+        return candidate;
+      } catch {
+        // Keep searching the same inventory used by cold-clone-check.sh.
+      }
+    }
+  }
+  return '';
 }
 
 const port = await freePort();
