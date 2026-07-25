@@ -37,7 +37,7 @@
       ]
     }
   },
-  "inputsHash": "6e682cb96178e798af7693b83316daa1951a4f740e9c1a0c871937f84d3730e6",
+  "inputsHash": "f7e662620015ebb19e81f53a72f4a2e95a3bbde1a04ff39631f258fc8cc3690c",
   "manifestVersion": 2,
   "mutations": {
     "createTodo": {

@@ -3759,12 +3759,12 @@ impl TargetCapabilityId {
     /// experimental contract.
     pub const fn maturity(self) -> CapabilityMaturity {
         match self {
-            // LLP 0076 is Draft: the bounded stream implementation is
-            // registered and witnessed, but the governing contract may still
-            // change incompatibly, so the id stays `experimental` until LLP
-            // 0076 reaches Accepted (LLP 0074's honesty rule for Draft-backed
-            // capabilities). Flipping this to `Stable` is the acceptance act.
-            Self::BoundedResponseStreamV1 => CapabilityMaturity::Experimental,
+            // LLP 0076 was Accepted 2026-07-25 (author ratification, gate-2
+            // receipts complete): `bounded_response_stream_v1` fell out of
+            // this non-stable table as the acceptance act — positive presence
+            // is now the plain 0058 compatibility assertion. Artifacts that
+            // still acknowledge it are unaffected (stable acknowledgment is a
+            // no-op).
             // LLP 0080 is Accepted (semantics), but its executable witnesses
             // (RELATIONAL_MIGRATION_COUPLED_SUITE_V1) have not passed, so the
             // relational profile's id stays `experimental`; flipping it to
@@ -4833,9 +4833,10 @@ mod membership_manifest_grammar_tests {
     // support: admission requires the artifact's explicit acknowledgment.
     #[test]
     fn experimental_maturity_is_published_and_gates_admission() {
-        // The maturity map annotates the emitted set: the stream id appears
-        // with `experimental` exactly when it is supported, and stable ids
-        // never appear.
+        // The maturity map annotates the emitted set: experimental ids appear
+        // exactly when they are supported, and stable ids never appear. The
+        // stream id left this map when LLP 0076 was Accepted (2026-07-25) —
+        // its absence below is the promotion regression.
         let disabled = CapabilityManifest::local_v0_declared();
         // The relational profile is supported by the local runtime and its
         // id is experimental until the coupled suite passes, so even the
@@ -4855,14 +4856,21 @@ mod membership_manifest_grammar_tests {
             Some(&CapabilityMaturity::Experimental)
         );
         assert_eq!(disabled.capability_maturity.len(), 2);
+        // The stream id is supported by the egress-enabled instance but is
+        // stable since LLP 0076's acceptance: it must NOT appear in the
+        // maturity map (positive presence is the plain 0058 assertion).
         let enabled = CapabilityManifest::local_v0_instance(Vec::new(), true);
-        assert_eq!(
+        assert!(
             enabled
-                .capability_maturity
-                .get(&TargetCapabilityId::BoundedResponseStreamV1),
-            Some(&CapabilityMaturity::Experimental)
+                .supported_capabilities
+                .contains(&TargetCapabilityId::BoundedResponseStreamV1)
         );
-        assert_eq!(enabled.capability_maturity.len(), 3);
+        assert!(
+            !enabled
+                .capability_maturity
+                .contains_key(&TargetCapabilityId::BoundedResponseStreamV1)
+        );
+        assert_eq!(enabled.capability_maturity.len(), 2);
 
         // Serialization: the annotated manifest carries the field; the
         // all-stable manifest omits it, and an omitted field round-trips to
@@ -4871,7 +4879,6 @@ mod membership_manifest_grammar_tests {
         assert_eq!(
             serialized["capabilityMaturity"],
             json!({
-                "bounded_response_stream_v1": "experimental",
                 "migration_keyset_scan_v1": "experimental",
                 "relational_query_v1": "experimental",
             })
@@ -4893,23 +4900,34 @@ mod membership_manifest_grammar_tests {
         // Admission: unacknowledged experimental support is refused exactly
         // like unsupported (with the maturity named in the details) …
         let refusal = enabled
-            .require_capability("bounded_response_stream_v1")
+            .require_capability("relational_query_v1")
             .expect_err("experimental support is not plain support");
         assert_eq!(refusal.diagnostic.code, "SNAPBACK_CAPABILITY_UNSUPPORTED");
         assert_eq!(refusal.diagnostic.details["maturity"], "experimental");
         assert_eq!(refusal.diagnostic.details["acknowledged"], false);
 
-        // … while the acknowledging artifact admits, a stable acknowledgment
-        // is a harmless no-op, and an acknowledgment can never make an
+        // … while the promoted stream id is now plain support: it admits
+        // with NO acknowledgment at all (LLP 0076 Accepted 2026-07-25).
+        enabled
+            .require_capability("bounded_response_stream_v1")
+            .expect("stable support admits without acknowledgment");
+
+        // The acknowledging artifact admits, acknowledging a stable id —
+        // including one promoted after the artifact was generated — is a
+        // harmless no-op, and an acknowledgment can never make an
         // unsupported capability supported.
         let acknowledged = CapabilityManifest::parse_acknowledged_capabilities([
+            "relational_query_v1",
             "bounded_response_stream_v1",
             "live_subscriptions",
             "not.a.known.capability",
         ]);
         enabled
-            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+            .require_capability_acknowledging("relational_query_v1", &acknowledged)
             .expect("acknowledged experimental requirement admits");
+        enabled
+            .require_capability_acknowledging("bounded_response_stream_v1", &acknowledged)
+            .expect("a surviving pre-promotion acknowledgment stays a no-op");
         enabled
             .require_capability_acknowledging("live_subscriptions", &acknowledged)
             .expect("acknowledging a stable id is a no-op");

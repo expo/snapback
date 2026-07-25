@@ -9,7 +9,7 @@ examples: [demos/competitive-checkpoint, cloudflare/test/acceptance.egress.mjs]
 status: current
 targets: [local]
 maturity: partial
-reviewed: 2026-07-24
+reviewed: 2026-07-25
 reviewed-commit: HEAD
 ---
 
@@ -27,18 +27,20 @@ action-only *response-byte* reader, not a general streaming API: clients
 never see a stream object. They observe ordinary authoritative live-query
 commits that your nested mutations produce
 ([LLP 0076](repo:llp/0076-bounded-streamed-actions.rfc.md) is the semantic
-authority and is still **Draft**; its evidence ledger is the honest record).
+authority, **Accepted** 2026-07-25; its evidence ledger is the honest
+record).
 
 **What is witnessed where** (`maturity: partial` made concrete): the full
 surface on this page — reader, limits, attempt control plane, crash-safe
 settlement — is implemented and witnessed on the local target. The Workerd
 target passes a narrower Miniflare witness (pull/chunk/total/cancel/idle,
 progress-rate and cursor caps, secret placement) but has **no
-`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed —
-and the gate-bearing hosted receipt does not exist yet. Whether the
-capability carries an explicit experimental marker is an open author
-decision; admission is decided by the **served instance manifest**, never by
-this page.
+`ctx.streamAttempt` control plane** — it refuses attempt tokens fail-closed.
+The gate-bearing hosted receipt exists (the 2026-07-25 Fly.io
+`single-instance-container-vm.v1` drill; protocol amendment v0.7), and the
+capability is **stable** in the LLP 0058 registry since LLP 0076's
+acceptance; admission is decided by the **served instance manifest**, never
+by this page.
 
 ## Require the capability and enable egress
 
@@ -51,15 +53,15 @@ function manifest; every loader then resolves it against the live `/inspect`
 manifest before any handler runs. An egress-disabled instance refuses the
 artifact with `SNAPBACK_CAPABILITY_UNSUPPORTED` at load, not at first use.
 
-While LLP 0076 is Draft, the served manifest additionally marks the
-capability `experimental` in its `capabilityMaturity` map (LLP 0058
-§Capability maturity): the entry is not the plain compatibility assertion a
-stable capability makes, and admission also requires the artifact to list
-the id in `acknowledgedExperimentalCapabilities`. Codegen emits that
-acknowledgment automatically alongside the requirement, so generated
-backends need no extra authoring step — but a hand-authored manifest that
-requires the capability without acknowledging it is refused with the same
-`SNAPBACK_CAPABILITY_UNSUPPORTED` code naming the maturity.
+The capability is **stable** (LLP 0076 Accepted 2026-07-25), so positive
+presence in the served manifest is the plain compatibility assertion — no
+acknowledgment is needed. Artifacts generated while the id was
+`experimental` still carry it in `acknowledgedExperimentalCapabilities`;
+that entry is a harmless no-op (acknowledging a stable id never refuses), so
+pre-promotion artifacts keep admitting unchanged. The experimental-maturity
+admission rule itself (LLP 0058 §Capability maturity) still applies to ids
+that remain experimental, currently `relational_query_v1` and
+`migration_keyset_scan_v1`.
 
 ## Consume the body with one pull-driven reader
 
@@ -107,7 +109,7 @@ of re-running:
   if (attempt.terminal) {
     // A durable winner already exists (a previous runner settled, or the
     // trusted terminalizer did): return it verbatim, never re-run.
-    await ctx.runMutation('settleReply', {
+    await runReconciled(ctx, 'settleReply', {
       attemptId: args.attemptId,
       status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,
       effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,
@@ -146,7 +148,7 @@ coalesce chunks between commits:
       readsSinceCommit += 1;
       if (readsSinceCommit >= 2) {
         sequence += 1;
-        const progress = await ctx.runMutation('applyReplyProgress', {
+        const progress = await runReconciled(ctx, 'applyReplyProgress', {
           attemptId: args.attemptId,
           sequence,
           delta: pending,
@@ -155,7 +157,7 @@ coalesce chunks between commits:
           await reader.cancel();
           const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);
           if (settled) {
-            await ctx.runMutation('settleReply', {
+            await runReconciled(ctx, 'settleReply', {
               attemptId: args.attemptId,
               status: settled.cause === 'complete' ? progress.status : settled.cause,
               effectMayHaveExecuted: settled.effectMayHaveExecuted,
@@ -180,6 +182,13 @@ The rules this pattern encodes, which the host enforces or checks for you:
   transaction (`applyReplyProgress` returns `terminal: true` above). The
   host fences late commits too, but the authored check is part of the
   contract.
+- **Reconcile inner-mutation conflicts, never last-writer-wins.** A
+  concurrent committed writer (a durable client cancel racing a progress
+  commit) rejects the whole inner mutation with
+  `SNAPBACK_MUTATION_CONFLICT`. `runReconciled` above is the reference
+  reconcile: re-invoke boundedly so the mutation re-reads the row in a
+  fresh transaction and observes the cancel as `terminal` instead of
+  overwriting it.
 - **No retry after durable progress.** Once any progress commit landed,
   reopening the upstream under the same attempt is refused — transport
   re-segmentation could bind one sequence number to different bytes.

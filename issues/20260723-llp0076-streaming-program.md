@@ -149,6 +149,19 @@ durable-cancel-vs-progress `SNAPBACK_MUTATION_CONFLICT` race as `failed`
 waits on exactly: LLP 0076 acceptance itself (plus the authority's own
 staged-work ledger items).
 
+Update 2026-07-25 (acceptance — PROGRAM COMPLETE): Charlie Cheever ratified
+LLP 0076 as **Accepted** (session-directed), and the registry flip landed as
+the acceptance act: `bounded_response_stream_v1` is `stable` in
+src/manifest.rs, codegen's mirror set, the committed schemas variants, the
+served Workerd manifest, and every regenerated outbound-enabled demo
+artifact; pre-promotion acknowledgments survive as witnessed no-ops, the
+former unacknowledged-refusal integration test became the promotion
+regression, and the experimental refusal path stays witnessed via
+`relational_query_v1`. Gate 2 is closed. The RFC's recorded residues (OQ
+6-7, the Workerd arm's narrower witness) remain open in the RFC's own
+ledger as scoped refinements, not gate items — this program index tracks
+nothing further.
+
 ## Workerd arm re-land (2026-07-24)
 
 The stranded Workerd/Cloudflare streaming arm is re-landed on main. Method:

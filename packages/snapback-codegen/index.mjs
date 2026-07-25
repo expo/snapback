@@ -108,11 +108,12 @@ const TARGET_CAPABILITY_IDS = new Set([
 // non-stable maturity table (src/manifest.rs TargetCapabilityId::maturity).
 // Codegen derives requirements from the closed capability table above, so it
 // also emits the matching experimental acknowledgment: the generated artifact
-// knowingly binds to the current (Draft LLP 0076) stream contract, and
-// admission refuses an experimental requirement with no acknowledgment.
-// Remove an id here in the same change that promotes it to stable in Rust.
+// knowingly binds to the not-yet-Accepted contract, and admission refuses an
+// experimental requirement with no acknowledgment.
+// Remove an id here in the same change that promotes it to stable in Rust
+// (bounded_response_stream_v1 left this set when LLP 0076 was Accepted,
+// 2026-07-25).
 const EXPERIMENTAL_TARGET_CAPABILITY_IDS = new Set([
-  'bounded_response_stream_v1',
   // LLP 0080 is Accepted (semantics); the id stays experimental until the
   // coupled suite passes and both RFCs flip to Implemented.
   'relational_query_v1',

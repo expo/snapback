@@ -31,10 +31,10 @@ export const appMeta = {
 export { capabilityManifest };
 export const deploymentIdentity = deploymentIdentityArtifact;
 
-// @ref LLP 0058#capability-maturity — this deploy-time-compiled bundle
-// knowingly binds its stream probes to the experimental (Draft LLP 0076)
-// bounded-stream contract; without this acknowledgment the coordinator's
-// function-resolution admission refuses the stream-requiring functions.
+// @ref LLP 0058#capability-maturity — this acknowledgment predates the
+// stream capability's promotion to stable (LLP 0076 Accepted 2026-07-25) and
+// is deliberately retained as the survival witness: acknowledging a stable id
+// is a harmless no-op, so pre-promotion bundles keep deploying unchanged.
 export const acknowledgedExperimentalCapabilities = ['bounded_response_stream_v1'];
 
 export const schema = {

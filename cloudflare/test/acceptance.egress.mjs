@@ -361,15 +361,16 @@ async function main() {
         unsupported.status === 503 &&
         unsupported.diagnostic?.code === 'SNAPBACK_CAPABILITY_UNSUPPORTED'
     );
-    // @ref LLP 0058#capability-maturity — the served manifest must not claim
-    // plain support for the Draft-backed stream capability: the instance
-    // publishes it as experimental, and the stream probes above ran only
-    // because this deploy-time bundle explicitly acknowledges that maturity.
+    // @ref LLP 0058#capability-maturity — since LLP 0076's acceptance
+    // (2026-07-25) the stream capability is stable: the served manifest
+    // claims plain support and must NOT annotate the id in the maturity map
+    // (an entry there would re-demand acknowledgment the contract no longer
+    // requires).
     const servedManifest = await (await fetch(`${base}/capability`)).json();
     check(
-      'the served manifest marks bounded_response_stream_v1 experimental, not plain support',
+      'the served manifest claims plain stable support for bounded_response_stream_v1',
       servedManifest.supportedCapabilities?.includes('bounded_response_stream_v1') === true &&
-        servedManifest.capabilityMaturity?.bounded_response_stream_v1 === 'experimental'
+        servedManifest.capabilityMaturity?.bounded_response_stream_v1 === undefined
     );
 
     // --- query/mutation ambient fetch remains denied -----------------------

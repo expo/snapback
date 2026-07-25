@@ -1,10 +1,7 @@
 {
-  "acknowledgedExperimentalCapabilities": [
-    "bounded_response_stream_v1"
-  ],
   "appId": "chat-matrix",
   "artifactKind": "functionManifest",
-  "bundleHash": "sha256:b1265a77e3c5c36f",
+  "bundleHash": "sha256:d4fa949aaebad152",
   "config": [
     {
       "acquisition": {
@@ -433,7 +430,7 @@
     }
   ],
   "generatedAt": 0,
-  "inputsHash": "5cd799b42f5e287c84b39ccd9dce4598e70d896501f146fbc3ccce8841db27b4",
+  "inputsHash": "3437a12b8cf86d43ad8126f18a6d028e3a46c6ce4d178cceb17fa72cf5c2e789",
   "schemaVersion": "snapback.v0",
   "unsupportedDependencyDiagnostics": []
 }
