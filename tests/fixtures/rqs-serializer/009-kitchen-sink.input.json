@@ -1,0 +1,10 @@
+{
+  "</script> <!--": {
+    "quote": "say \"hi\"<b>",
+    "backslash": "\\ and \\\\",
+    "control": "tab\tnewline\nbell\u0007",
+    "sep": "  ",
+    "utf8": "café 🚀 stays raw",
+    "sneaky": "a<\\/ScRiPt >-->b"
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "contract": "LLP 0092 §0E.1-0E.2 HTML-safe serializer",
+  "expectedByteProperty": "no 0x3C, no 0x3E, no UTF-8 U+2028/U+2029 (E2 80 A8 / E2 80 A9) anywhere in an expected file; expected files are byte-exact with no trailing newline",
+  "cases": [
+    {
+      "name": "001-script-close-value",
+      "input": "001-script-close-value.input.json",
+      "expected": "001-script-close-value.expected.bytes",
+      "exercises": "literal </script> and <script> inside a string value"
+    },
+    {
+      "name": "002-script-close-key",
+      "input": "002-script-close-key.input.json",
+      "expected": "002-script-close-key.expected.bytes",
+      "exercises": "literal </script><script> as an object property name"
+    },
+    {
+      "name": "003-mixed-case",
+      "input": "003-mixed-case.input.json",
+      "expected": "003-mixed-case.expected.bytes",
+      "exercises": "mixed-case script terminators (HTML tag names are case-insensitive)"
+    },
+    {
+      "name": "004-escaped-slash",
+      "input": "004-escaped-slash.input.json",
+      "expected": "004-escaped-slash.expected.bytes",
+      "exercises": "backslash before the slash: the < must still be escaped and the backslash preserved"
+    },
+    {
+      "name": "005-comment-open",
+      "input": "005-comment-open.input.json",
+      "expected": "005-comment-open.expected.bytes",
+      "exercises": "comment-opening sequence <!-- in string values"
+    },
+    {
+      "name": "006-comment-close",
+      "input": "006-comment-close.input.json",
+      "expected": "006-comment-close.expected.bytes",
+      "exercises": "comment-closing sequence --> in a string value"
+    },
+    {
+      "name": "007-nested",
+      "input": "007-nested.input.json",
+      "expected": "007-nested.expected.bytes",
+      "exercises": "dangerous keys and values at depth in nested objects and arrays"
+    },
+    {
+      "name": "008-unicode-separators",
+      "input": "008-unicode-separators.input.json",
+      "expected": "008-unicode-separators.expected.bytes",
+      "exercises": "raw U+2028/U+2029 in a value and in a property name"
+    },
+    {
+      "name": "009-kitchen-sink",
+      "input": "009-kitchen-sink.input.json",
+      "expected": "009-kitchen-sink.expected.bytes",
+      "exercises": "composite: terminators, comments, escaped-slash, separators, quotes, backslashes, controls, raw UTF-8 passthrough"
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# LLP 0092 §0E.2 — these fixtures are byte-pinned; no EOL or text
+# conversion may ever touch them (the expected files are byte-exact with
+# no trailing newline, and the inputs carry raw U+2028/U+2029 payloads).
+*.expected.bytes -text -diff
+*.input.json -text
