@@ -1,0 +1,61 @@
+{
+  "$defs": {
+    "CompatibilityPosture": {
+      "description": "Compatibility posture (LLP 0081 §6). The default is `successor-only`.",
+      "enum": [
+        "successor-only",
+        "dual-compatible",
+        "predeploy-compatible"
+      ],
+      "type": "string"
+    }
+  },
+  "$id": "https://schemas.snapback.dev/snapback.v0/schema-transition.event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "The typed payload of one schema-transition event — the pinned amendment\nvocabulary: operation identity, predecessor/successor schema hashes,\nstorage-generation identities, and the retention floor the publication\nraised, plus the plan's compatibility posture (what the posture-aware\nclient handshake consumes). Strict: an unknown member is corruption.",
+  "properties": {
+    "compatibilityPosture": {
+      "$ref": "#/$defs/CompatibilityPosture"
+    },
+    "operationId": {
+      "type": "string"
+    },
+    "planId": {
+      "type": "string"
+    },
+    "predecessorGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "predecessorSchemaHash": {
+      "type": "string"
+    },
+    "retentionFloor": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "successorGeneration": {
+      "format": "uint64",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "successorSchemaHash": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "operationId",
+    "planId",
+    "predecessorSchemaHash",
+    "successorSchemaHash",
+    "predecessorGeneration",
+    "successorGeneration",
+    "retentionFloor",
+    "compatibilityPosture"
+  ],
+  "title": "SchemaTransitionEventBodyV1",
+  "type": "object"
+}

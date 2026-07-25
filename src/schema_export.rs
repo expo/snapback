@@ -55,7 +55,7 @@ use crate::server::{
 use crate::service_profile::{
     RemoteAuthCapabilityManifest, RemoteDataCapabilityManifest, RemoteServiceProfile,
 };
-use crate::storage::StorageInfo;
+use crate::storage::{SchemaTransitionEventBodyV1, StorageInfo};
 
 /// A generated schema artifact: the committed file name (relative to the
 /// repo-root `schemas/` directory) and the JSON Schema derived from a Rust type.
@@ -157,6 +157,12 @@ pub fn artifact_schemas() -> Vec<SchemaArtifact> {
         finish(
             "storage-info.schema.json",
             schemars::schema_for!(StorageInfo),
+        ),
+        // LLP 0081 §4's same-landing LLP 0007 amendment: the typed
+        // schema-transition event payload (schema-resync / rollback-resync).
+        finish(
+            "schema-transition.event.schema.json",
+            schemars::schema_for!(SchemaTransitionEventBodyV1),
         ),
         finish(
             "host-ops.result.schema.json",

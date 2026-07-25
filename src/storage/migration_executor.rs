@@ -35,11 +35,14 @@ use std::collections::BTreeMap;
 pub const MIGRATION_JOURNAL_SCHEMA_VERSION: &str = "migration-journal-v1";
 
 /// The reserved change-journal table name for schema-transition events.
-/// Application tables cannot collide: `_snapback_`-prefixed names are the
-/// storage layer's own namespace, and the per-table strict operation parser
-/// never queries this name.
-pub const SCHEMA_TRANSITION_JOURNAL_TABLE: &str = "_snapback_schema";
-pub const SCHEMA_RESYNC_OP: &str = "schema-resync";
+/// The schema-transition vocabulary now lives with the journal grammar in
+/// `crate::storage` (the LLP 0007 amendment made it first-class); these
+/// aliases keep the executor's witness sites stable.
+#[cfg(test)]
+pub use crate::storage::SCHEMA_TRANSITION_JOURNAL_TABLE;
+#[cfg(test)]
+pub const SCHEMA_RESYNC_OP: &str =
+    crate::storage::SchemaTransitionKind::SchemaResync.as_op();
 
 // ---------------------------------------------------------------------------
 // The closed state machine
@@ -997,29 +1000,27 @@ impl LocalDatabase {
                 &serde_json::to_string(successor_schema)
                     .map_err(|_| journal_corrupt("successor schema serialize".to_owned()))?,
             )?;
-            // One successor application version, the schema-resync journal
-            // event, and the raised retention floor, atomically.
+            // One successor application version, the typed schema-resync
+            // journal event, and the raised retention floor, atomically
+            // (the LLP 0007 grammar amendment: the event is a first-class
+            // closed-vocabulary operation, not an informal row).
             set_version(&tx, publication_version)?;
             save_retention_floor_on(&tx, publication_version)?;
-            let resync = json!({
-                "operationId": approval.operation_id,
-                "planId": artifact.plan_id,
-                "predecessorSchemaHash": artifact.body.predecessor_schema_hash,
-                "successorSchemaHash": artifact.body.successor_schema_hash,
-                "predecessorGeneration": artifact.body.predecessor_generation,
-                "retentionFloor": publication_version,
-            });
-            tx.execute(
-                "INSERT INTO _snapback_changes(version, table_name, row_id, op, row_json, \
-                 changed_at_ms) VALUES(?1, ?2, ?3, ?4, ?5, ?6)",
-                params![
-                    version_to_sql_integer(publication_version)?,
-                    SCHEMA_TRANSITION_JOURNAL_TABLE,
-                    approval.operation_id,
-                    SCHEMA_RESYNC_OP,
-                    resync.to_string(),
-                    timestamp_to_sql_millis(now_ms)?,
-                ],
+            crate::storage::record_schema_transition_event(
+                &tx,
+                publication_version,
+                crate::storage::SchemaTransitionKind::SchemaResync,
+                &crate::storage::SchemaTransitionEventBodyV1 {
+                    operation_id: approval.operation_id.clone(),
+                    plan_id: artifact.plan_id.clone(),
+                    predecessor_schema_hash: artifact.body.predecessor_schema_hash.clone(),
+                    successor_schema_hash: artifact.body.successor_schema_hash.clone(),
+                    predecessor_generation: artifact.body.predecessor_generation,
+                    successor_generation: artifact.body.predecessor_generation + 1,
+                    retention_floor: publication_version,
+                    compatibility_posture: artifact.body.compatibility_posture,
+                },
+                now_ms,
             )?;
             let journal = JournalHandle {
                 tx: &tx,
