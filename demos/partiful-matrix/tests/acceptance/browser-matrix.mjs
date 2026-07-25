@@ -1472,6 +1472,17 @@ function createWebDriverHarness({ browserName }) {
             });
           },
           insertText: async (text) => {
+            if (browserName === 'ios-safari') {
+              const actions = [...text].flatMap((value) => [
+                { type: 'keyDown', value },
+                { type: 'keyUp', value },
+              ]);
+              await webdriverRequest(driver.url, `${base}/actions`, {
+                method: 'POST',
+                body: { actions: [{ type: 'key', id: 'text-input', actions }] },
+              });
+              return;
+            }
             const active = await webdriverRequest(driver.url, `${base}/element/active`, { method: 'GET' });
             const elementId = active?.['element-6066-11e4-a52e-4f735466cecf'];
             if (!elementId) throw new Error(`${browserName} WebDriver omitted active element id`);
