@@ -16,48 +16,38 @@
       "status": 0,
       "signal": null,
       "timedOut": false,
-      "stdoutSha256": "6062744083df204e269b4b0edb47bb043caba1e6a7aa912a2de33a9becca0595",
-      "stderrSha256": "6c567a6da3a2ddefeebbc17bfae21e9234c1eef8cd8b4500898e91217c1473a5",
+      "stdoutSha256": "ebf1a56af27a706d1c705a41293df8fe5bcab564c3679f6536574aba70f6ee15",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdoutTail": [
-        "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/PartitimeSwiftUI.xcodeproj",
-        "    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang-stat-cache /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/SDKStatCaches.noindex/macosx26.2-25C58-00fa09913b459cbbc988d1f6730289ae.sdkstatcache",
+        "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+        "    /usr/bin/touch -c /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app",
         "",
-        "ProcessInfoPlistFile /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist (in target 'PartitimeSwiftUI-macOS' from project 'PartitimeSwiftUI')",
-        "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
-        "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-macOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/PkgInfo -expandbuildsettings -platform macosx -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app/Contents/Info.plist",
+        "RegisterWithLaunchServices /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-macOS' from project 'PartitimeSwiftUI')",
+        "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+        "    /System/Library/Frameworks/CoreServices.framework/Versions/Current/Frameworks/LaunchServices.framework/Versions/Current/Support/lsregister -f -R -trusted /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-macos/Build/Products/Debug/PartitimeSwiftUI.app",
         "",
         "** BUILD SUCCEEDED **"
       ],
-      "stderrTail": [
-        "2026-07-20 03:24:23.420 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:23.463 xcodebuild[47252:82481873]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:23.465 xcodebuild[47252:82481841] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
-      ]
+      "stderrTail": []
     },
     {
       "platform": "ios",
       "status": 0,
       "signal": null,
       "timedOut": false,
-      "stdoutSha256": "4d7e50e94a40c25555add49c28789e59ad74b8171440eadd31ab6203b4ab9a73",
-      "stderrSha256": "55a2d34ef0c7df61faa89871a1eae7228347438356d1b136000adc5170cf7752",
+      "stdoutSha256": "498239f1222da3572d71958f88e9bcde86c0685d50bb6f48cf23c65798add323",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdoutTail": [
-        "    builtin-infoPlistUtility /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/Generated/PartitimeSwiftUI-iOS-Info.plist -producttype com.apple.product-type.application -genpkginfo /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PkgInfo -expandbuildsettings -format binary -platform iphonesimulator -o /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Info.plist",
+        "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+        "    builtin-validationUtility /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app -shallow-bundle -infoplist-subpath Info.plist",
         "",
-        "CopySwiftLibs /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-iOS' from project 'PartitimeSwiftUI')",
-        "    cd /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui",
-        "    builtin-swiftStdLibTool --copy --verbose --scan-executable /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PartitimeSwiftUI.debug.dylib --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/PlugIns --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/SystemExtensions --scan-folder /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Extensions --platform iphonesimulator --toolchain /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain --destination /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app/Frameworks --strip-bitcode --strip-bitcode-tool /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/bitcode_strip --emit-dependency-info /tmp/snapback-step0-remote.8ESNsN/snapback/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Intermediates.noindex/PartitimeSwiftUI.build/Debug-iphonesimulator/PartitimeSwiftUI-iOS.build/SwiftStdLibToolInputDependencies.dep --filter-for-swift-os",
-        "Ignoring --strip-bitcode because --sign was not passed",
+        "Touch /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app (in target 'PartitimeSwiftUI-iOS' from project 'PartitimeSwiftUI')",
+        "    cd /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui",
+        "    /usr/bin/touch -c /tmp/llp0063-snap-continuation-20260725.8hvTBY/wt/demos/partiful-matrix/native/swiftui/.build/step0-ios/Build/Products/Debug-iphonesimulator/PartitimeSwiftUI.app",
         "",
         "** BUILD SUCCEEDED **"
       ],
-      "stderrTail": [
-        "2026-07-20 03:24:24.317 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:24.352 xcodebuild[47264:82481964]  DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion.",
-        "2026-07-20 03:24:24.354 xcodebuild[47264:82481949] [MT] DVTDeviceOperation: Encountered a build number \"\" that is incompatible with DVTBuildVersion."
-      ]
+      "stderrTail": []
     }
   ],
   "cells": [
@@ -76,27 +66,29 @@
     },
     {
       "cell": "swiftui:macos:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency",
-      "health": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-      }
+      "ok": true,
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "f290d925cf15dffc4d1581fd20da9e69bc3d31e11bdb4160136fbdc63d2110b1",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "PARTITIME_ACCEPTANCE backend=supabase result=pass"
+      ],
+      "stderrTail": []
     },
     {
       "cell": "swiftui:macos:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency",
-      "health": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-      }
+      "ok": true,
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "1c75613d0ab734b4b6f89065f3aae2e9618ca979b19befd3398dcc95a8f4b5c7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "PARTITIME_ACCEPTANCE backend=convex result=pass"
+      ],
+      "stderrTail": []
     },
     {
       "cell": "swiftui:macos:sqlite",
@@ -117,37 +109,47 @@
       "status": 0,
       "signal": null,
       "timedOut": false,
-      "stdoutSha256": "80e117dc03aa153e43daa912dcc203be14fd4a4c7f80969e36b34bd20e3efb27",
+      "stdoutSha256": "4a13373d8e904978a8325f543e7394bba161dc1bfde5f3cc4063391f9c4d5845",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdoutTail": [
+        "objc[59664]: Class AKAlertImageURLProvider is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11f1d1da8) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x3085c1a08). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "objc[59664]: Class AKBiometricRatchetUtility is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11f1d3c70) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x3085c1a80). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
         "PARTITIME_ACCEPTANCE backend=snapback result=pass\r",
-        "dev.snapback.partitime.swiftui.ios: 47292"
+        "dev.snapback.partitime.swiftui.ios: 59664"
       ],
       "stderrTail": []
     },
     {
       "cell": "swiftui:ios:supabase",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency",
-      "health": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-      }
+      "ok": true,
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "527eed3f3d310c30d61d7f4b3c312ec691dc90f0886207e67c86fcb93bdbc4aa",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "objc[59722]: Class AKAlertImageURLProvider is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11f0ddda8) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x308651a08). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "objc[59722]: Class AKBiometricRatchetUtility is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11f0dfc70) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x308651a80). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "PARTITIME_ACCEPTANCE backend=supabase result=pass\r",
+        "dev.snapback.partitime.swiftui.ios: 59722"
+      ],
+      "stderrTail": []
     },
     {
       "cell": "swiftui:ios:convex",
-      "ok": false,
-      "outcome": "skip",
-      "skipClass": "remote-dependency",
-      "health": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
-      }
+      "ok": true,
+      "status": 0,
+      "signal": null,
+      "timedOut": false,
+      "stdoutSha256": "bb590f4a9b5e8907ba70394e37f863c1139dc2561d08721afe0f849d57ce6cb7",
+      "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stdoutTail": [
+        "objc[59828]: Class AKAlertImageURLProvider is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11e085da8) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x3073e5a08). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "objc[59828]: Class AKBiometricRatchetUtility is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11e087c70) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x3073e5a80). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "PARTITIME_ACCEPTANCE backend=convex result=pass\r",
+        "dev.snapback.partitime.swiftui.ios: 59828"
+      ],
+      "stderrTail": []
     },
     {
       "cell": "swiftui:ios:sqlite",
@@ -155,40 +157,42 @@
       "status": 0,
       "signal": null,
       "timedOut": false,
-      "stdoutSha256": "be9cfadcbc69aace2e728564e4598800bf77f91a9ad4d78958bfefcfdf7d87c7",
+      "stdoutSha256": "4e0fd79b9c0e60f367519c1314d4e7ce62294101bf7011a0b3ee5c5cce3617e4",
       "stderrSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "stdoutTail": [
+        "objc[59869]: Class AKAlertImageURLProvider is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11b50dda8) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x304da9a08). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
+        "objc[59869]: Class AKBiometricRatchetUtility is implemented in both /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKit.framework/AuthKit (0x11b50fc70) and /Library/Developer/CoreSimulator/Volumes/iOS_23E244/Library/Developer/CoreSimulator/Profiles/Runtimes/iOS 26.4.simruntime/Contents/Resources/RuntimeRoot/System/Library/PrivateFrameworks/AuthKitUI.framework/AuthKitUI (0x304da9a80). This may cause spurious casting failures and mysterious crashes. One of the duplicates must be removed or renamed.\r",
         "PARTITIME_ACCEPTANCE backend=sqlite result=pass\r",
-        "dev.snapback.partitime.swiftui.ios: 47300"
+        "dev.snapback.partitime.swiftui.ios: 59869"
       ],
       "stderrTail": []
     }
   ],
   "cleanupErrors": [],
   "source": {
-    "snapbackRevision": "d6886d742c532fcba014e372ba0d4998260cfb28",
-    "exactRevision": "2283ea87edeec42bd6313b11c1bcde666b751cec",
+    "snapbackRevision": "4ce14d0ed63608422bd6f20eace7d934a5825fa6",
+    "exactRevision": "917c2a65801381969ee705132e2e96998ced856a",
     "project": {
       "files": 13,
-      "sha256": "b823f4ad421369996657504c07cd4c0f7133e6f6ea0ed9dfb5938dfe248f60c0"
+      "sha256": "a0c7390d68010cf29870fd2d06cfc35934797762309a95e518ccf4f5d57343f3"
     },
     "collectorSha256": "2c4723ae4ad5a3afb4ec93c34d56d96ab4c438373483fc6f78b69eb44984943a",
-    "gatewaySha256": "8f3bf3106f78bbcc72b6e88772f3d2e192621ea4d22d0e05ab66f32319ec0334"
+    "gatewaySha256": "7d5c95e24ec6bb45023eae9429ebe20843861bcffa9b744b4bce1952812f9f1d"
   },
   "packages": {
-    "rootLockSha256": "49e572ef633d8a3c27325af931b4bdaa101c3127e9e776ac6df9bc5330d27202"
+    "rootLockSha256": "001db06f64b13d86eb7e710b20eb1b83f4094744506827550c23b386ab6a0a7d"
   },
   "environment": {
     "os": "darwin-25.5.0-arm64",
-    "cpu": "Apple M4 Pro",
-    "logicalCpus": 12,
-    "totalMemoryBytes": 25769803776,
+    "cpu": "Apple M5 Max",
+    "logicalCpus": 18,
+    "totalMemoryBytes": 137438953472,
     "xcode": [
-      "Xcode 26.3",
-      "Build version 17C529"
+      "Xcode 26.6",
+      "Build version 17F113"
     ],
-    "bun": "1.3.14",
-    "node": "v26.0.0"
+    "bun": "1.3.12",
+    "node": "v25.9.0"
   },
   "testInventory": [
     {
@@ -205,12 +209,12 @@
     }
   ],
   "simulator": {
-    "name": "iPhone 17 Pro",
-    "udid": "B55ECCD2-82B0-4037-A198-05293F066B4A"
+    "name": "Codex-Partitime-iOS-Safari-26.4",
+    "udid": "B2DA1AC5-F56F-46F7-83E5-DC2CA7CF4306"
   },
   "binaries": {
-    "macosSha256": "b3d4f8bbc3bfd80ae44318ae5a1be3d5be7e78993e498a163b3e594fc9df5c69",
-    "iosSha256": "60cf16a6e8b07bc1a34ee9ca9bf7c154151149b68fbb2d0235cb39ff61a61399"
+    "macosSha256": "55d25ef91f84735969c5a857ea6d52a682176ea4aac46d18b8d4183e15749164",
+    "iosSha256": "8a37bc27eca1fe4cfa9b49e9a9b7279b319a5f8ca559483398fc26f87b7a201d"
   },
   "backendHealth": {
     "ok": true,
@@ -226,16 +230,14 @@
         "fixtureRows": 3
       },
       "supabase": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       },
       "convex": {
-        "ok": false,
-        "skipClass": "remote-dependency",
-        "stage": "initialization",
-        "errorCode": "BACKEND_ADAPTER_INITIALIZATION_FAILED"
+        "ok": true,
+        "remote": true,
+        "fixtureRows": 3
       }
     }
   }
