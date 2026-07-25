@@ -24,6 +24,13 @@
 // refuses reuse and starts a fresh isolated server on an OS-assigned port
 // instead (so the returned `baseUrl` may differ from the requested port;
 // callers must use the returned value).
+//
+// When a fresh server must be spawned, the launch command resolves by the
+// LLP 0030 command-resolver ladder rather than always compiling the checkout:
+// a caller-configured binary first (`serverBinary` option or the
+// SNAPBACK_SERVER_BINARY env var), then a provenance-verified
+// `target/debug/snapback`, then `cargo run` as the source-tree fallback.
+// See README.md ("Server launch") and resolveLaunchPlans below.
 
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -60,6 +67,12 @@ export async function startServer({
   // may still be reused if its /health server-binary identity matches this
   // checkout's clean build (ENG-22798). Default stays refuse-when-unverifiable.
   binaryProvenance = null,
+  // LLP 0030 ladder rung 1: an explicit snapback server binary to launch
+  // instead of resolving one. Must exist; its /health build stamp is still
+  // compared against the checkout, but a mismatch reports loudly (see
+  // handle.identity) instead of refusing — the paved escape for booting a
+  // known-good binary while the checkout HEAD is broken or drifted.
+  serverBinary = null,
   // Test-only restart seam: atomically ask the child to bind this exact port.
   // Readiness still requires the unique nonce, so an intervening squatter is
   // rejected by the child's bind failure rather than adopted. Ordinary starts
@@ -81,6 +94,7 @@ export async function startServer({
     env,
     provenance,
     binaryProvenance,
+    serverBinary,
     bindPortExactly,
     startupArtifacts,
     captureImpersonationCapability,
@@ -103,6 +117,7 @@ async function startServerWithDeps({
   env = {},
   provenance = null,
   binaryProvenance = null,
+  serverBinary = null,
   bindPortExactly = false,
   startupArtifacts = null,
   captureImpersonationCapability = false,
@@ -139,6 +154,7 @@ async function startServerWithDeps({
         baseUrl: requestedBaseUrl,
         adminToken: env.SNAPBACK_ADMIN_TOKEN ?? process.env.SNAPBACK_ADMIN_TOKEN ?? null,
         reused: true,
+        launch: { rung: 'reused', command: null },
         stop: async () => {},
       });
     }
@@ -161,40 +177,168 @@ async function startServerWithDeps({
     : preflightLocalRuntime({ cwd });
   const adminToken = resolveTestAdminToken(env);
   const expectedIdentity = deps.expectedIdentity ?? readCheckoutBinaryIdentity(cwd);
+
+  // The kit no longer injects checkout-derived SNAPBACK_BUILD_GIT_COMMIT /
+  // SNAPBACK_BUILD_GIT_DIRTY into spawned children. build.rs runs its own git
+  // probe over the binary's real inputs (ENG-23365/ENG-23419), so injecting
+  // the same launch-time read the kit later compares against made the commit
+  // check a tautology on the `cargo run` rung — checkout drift was invisible
+  // (issues/20260724-kit-identity-stamp-env-injection-tautology.md). The env
+  // override stays reserved for deterministic stamps the caller or CI
+  // environment supplies explicitly (e.g. scripts/verify-local-proof);
+  // verification classifies that case as `env-stamped` instead of pretending
+  // it verified the checkout.
+  //
+  // @ref LLP 0031#server-binary-identity-on-health — the stamp carries
+  // information only when it is independent of the expectation it is
+  // compared against.
+  const childEnv = {
+    ...process.env,
+    ...env,
+    ...runtimeEnv,
+    ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}),
+  };
+
+  const plans = resolveLaunchPlans({ serverBinary, cwd, deps, childEnv, expectedIdentity });
+  const attemptContext = {
+    port,
+    db,
+    bindPortExactly,
+    resolvedStartupArtifacts,
+    cwd,
+    childEnv,
+    deps,
+    expectedIdentity,
+    fetchImpl,
+    startupTimeoutMs,
+    captureImpersonationCapability,
+    adminToken,
+  };
+  for (let index = 0; index < plans.length; index += 1) {
+    const plan = plans[index];
+    try {
+      return await launchServerAttempt(plan, attemptContext);
+    } catch (error) {
+      if (plan.fallback && index < plans.length - 1) {
+        console.error(
+          `PREBUILT SNAPBACK REJECTED (${plan.command}): ${error.message}\n` +
+            'Falling back to the source-tree `cargo run` rung (LLP 0030 command-resolver ladder).',
+        );
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('snapback server launch resolved no runnable command (LLP 0030 ladder)');
+}
+
+// @ref LLP 0030#server-process-ownership — the command-resolver ladder governs
+// the kit's shared server lifecycle, not only the Vite plugin: a caller-
+// configured binary first, then a provenance-verified prebuilt binary, and
+// `cargo run` as the source-tree fallback rather than the default and only
+// path (issues/20260724-kit-prebuilt-binary-boot-path.md).
+function resolveLaunchPlans({ serverBinary, cwd, deps, childEnv, expectedIdentity }) {
+  // deps.launchSpec (test seam) substitutes the cargo rung's command, so the
+  // machine-wide env override must not shadow a suite's fixture executable.
+  const configured = serverBinary
+    ?? (deps.launchSpec ? null : (childEnv.SNAPBACK_SERVER_BINARY || null));
+  if (configured) {
+    if (typeof configured !== 'string' || configured.length === 0) {
+      throw new TypeError('serverBinary must be a non-empty path');
+    }
+    const command = resolve(cwd, configured);
+    if (!existsSync(command)) {
+      throw new Error(
+        `configured snapback server binary does not exist: ${command} ` +
+          '(serverBinary option or SNAPBACK_SERVER_BINARY). Build it with ' +
+          '`cargo build`, or drop the configuration to use the LLP 0030 resolver ladder.',
+      );
+    }
+    return [{ rung: 'configured', command }];
+  }
+
+  const plans = [];
+  const candidate = join(
+    cwd,
+    'target',
+    'debug',
+    process.platform === 'win32' ? 'snapback.exe' : 'snapback',
+  );
+  // The automatic prebuilt rung engages only when the checkout itself is
+  // pinned (known commit, clean tree): the booted binary's stamp must then
+  // fully verify against it or the child is torn down and the ladder falls
+  // through. A dirty checkout goes straight to `cargo run`, which rebuilds
+  // with the local edits — the prebuilt binary could not contain them.
+  const checkoutPinned = Boolean(
+    expectedIdentity.gitCommit
+      && expectedIdentity.gitCommit !== 'unknown'
+      && expectedIdentity.gitDirty === false,
+  );
+  if (existsSync(candidate) && checkoutPinned) {
+    plans.push({ rung: 'prebuilt', command: candidate, fallback: true, requireVerified: true });
+  } else if (existsSync(candidate)) {
+    console.log(
+      `prebuilt ${candidate} skipped: this checkout is dirty or has no committed ` +
+        'identity to verify it against; using the source-tree `cargo run` rung (LLP 0030 ladder)',
+    );
+  }
+  plans.push({ rung: 'cargo' });
+  return plans;
+}
+
+// One attempt of one resolver-ladder rung: spawn, own the process tree, wait
+// for the nonce-verified ready descriptor, and classify the child's build
+// identity. Throws with the child already torn down, so a fallback-eligible
+// plan can be retried on the next rung.
+async function launchServerAttempt(plan, {
+  port,
+  db,
+  bindPortExactly,
+  resolvedStartupArtifacts,
+  cwd,
+  childEnv,
+  deps,
+  expectedIdentity,
+  fetchImpl,
+  startupTimeoutMs,
+  captureImpersonationCapability,
+  adminToken,
+}) {
   const readyDir = mkdtempSync(join(tmpdir(), 'snapback-server-'));
   const readyFile = join(readyDir, 'ready.json');
   // Ordinary starts use port zero so the listener binds itself atomically. An
   // explicit restart bind also goes directly to the OS without a preflight
   // probe. In both modes the unique ready-file returns the bound port and
   // process nonce, eliminating adoption and probe-then-bind races.
-  const args = [
-    'run',
-    '--quiet',
-    '--',
+  const serverArgs = [
     '--port',
     bindPortExactly ? String(port) : '0',
     '--ready-file',
     readyFile,
   ];
-  if (db === ':memory:') args.push('--memory');
-  else args.push('--db', db);
+  if (db === ':memory:') serverArgs.push('--memory');
+  else serverArgs.push('--db', db);
   if (resolvedStartupArtifacts !== null) {
-    args.push('--startup-artifacts', resolvedStartupArtifacts);
+    serverArgs.push('--startup-artifacts', resolvedStartupArtifacts);
   }
 
-  const childEnv = {
-    ...process.env,
-    ...env,
-    ...runtimeEnv,
-    ...(adminToken ? { SNAPBACK_ADMIN_TOKEN: adminToken } : {}),
-    ...(expectedIdentity.gitCommit && expectedIdentity.gitCommit !== 'unknown'
-      ? { SNAPBACK_BUILD_GIT_COMMIT: expectedIdentity.gitCommit }
-      : {}),
-    SNAPBACK_BUILD_GIT_DIRTY: expectedIdentity.gitDirty ? 'true' : 'false',
-  };
-  const launch = deps.launchSpec
-    ? deps.launchSpec({ args, readyFile, cwd, env: childEnv, expectedIdentity })
-    : { command: 'cargo', args, cwd, env: childEnv };
+  let launch;
+  if (plan.rung === 'cargo') {
+    const args = ['run', '--quiet', '--', ...serverArgs];
+    launch = deps.launchSpec
+      ? deps.launchSpec({ args, readyFile, cwd, env: childEnv, expectedIdentity })
+      : { command: 'cargo', args, cwd, env: childEnv };
+  } else {
+    launch = { command: plan.command, args: serverArgs, cwd, env: childEnv };
+  }
+  // Explicit stamp overrides in the launch environment are the deterministic
+  // CI seam (build.rs prefers them over its own git probe), so a cargo-built
+  // child's stamp attests the caller's declaration, not an independent probe.
+  // A prebuilt binary cannot be re-stamped by env at all, so the seam is only
+  // relevant on the cargo rung.
+  const launchEnv = launch.env ?? childEnv;
+  const envStamp = plan.rung === 'cargo'
+    && Boolean(launchEnv.SNAPBACK_BUILD_GIT_COMMIT || launchEnv.SNAPBACK_BUILD_GIT_DIRTY);
   let child;
   try {
     child = (deps.spawnImpl ?? spawn)(launch.command, launch.args, {
@@ -258,9 +402,12 @@ async function startServerWithDeps({
         const verified = await verifySpawnedReady(ready, {
           expectedIdentity,
           fetchImpl,
+          envStamp,
           expectedPort: bindPortExactly ? port : null,
         });
         if (verified.ok) {
+          const identity = verified.identity;
+          applyIdentityPolicy(plan, identity);
           const baseUrl = ready.serverUrl.replace(/\/$/, '');
           const impersonationCapability = captureImpersonationCapability
             ? readSpawnedImpersonationCapability(ready, readyFile)
@@ -272,6 +419,8 @@ async function startServerWithDeps({
             reused: false,
             startupNonce: ready.startupNonce,
             impersonationCapability,
+            identity,
+            launch: { rung: plan.rung, command: launch.command },
             stop: () => {
               if (!stopPromise) {
                 stopPromise = ownership.stop();
@@ -308,6 +457,8 @@ function serverHandle({
   stop,
   startupNonce = null,
   impersonationCapability = null,
+  identity = null,
+  launch = null,
 }) {
   const credentials = Object.freeze({ adminToken });
   return {
@@ -318,6 +469,14 @@ function serverHandle({
     reused,
     startupNonce,
     impersonationCapability,
+    // Honest build-identity classification of a spawned child (null when
+    // reused): { verdict, mismatches, binary, expected }. Verdicts:
+    // 'verified' | 'unpinned' | 'env-stamped' | 'unverifiable' |
+    // 'stamp-mismatch' (see classifyBinaryIdentity).
+    identity,
+    // Which LLP 0030 resolver-ladder rung produced this server:
+    // { rung: 'configured' | 'prebuilt' | 'cargo' | 'reused', command }.
+    launch,
     stop,
   };
 }
@@ -445,7 +604,12 @@ function readReadyDescriptor(path) {
   return ready;
 }
 
-async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl, expectedPort = null }) {
+async function verifySpawnedReady(ready, {
+  expectedIdentity,
+  fetchImpl,
+  expectedPort = null,
+  envStamp = false,
+}) {
   if (expectedPort !== null && ready.port !== expectedPort) {
     return {
       ok: false,
@@ -479,38 +643,103 @@ async function verifySpawnedReady(ready, { expectedIdentity, fetchImpl, expected
       reason: `health startup nonce ${binary.startupNonce ?? '<missing>'} does not match ready file ${ready.startupNonce}`,
     };
   }
-  if (
-    expectedIdentity.gitCommit &&
-    expectedIdentity.gitCommit !== 'unknown' &&
-    binary.gitCommit !== expectedIdentity.gitCommit
-  ) {
-    return {
-      ok: false,
-      retry: false,
-      reason: `health commit ${binary.gitCommit ?? '<missing>'} does not match checkout ${expectedIdentity.gitCommit}`,
-    };
+  return { ok: true, identity: classifyBinaryIdentity(binary, expectedIdentity, { envStamp }) };
+}
+
+/// Honest classification of a spawned child's /health build stamp against the
+/// launch-time checkout identity. Process identity is already proven by the
+/// ready-file nonce; this classifies BUILD provenance. Verdicts:
+///   - 'verified': both sides pinned to the same clean commit — the stamp
+///     proves the binary was built from exactly the checkout's committed tree.
+///   - 'env-stamped': the launch environment carries an explicit
+///     SNAPBACK_BUILD_GIT_COMMIT/…GIT_DIRTY override (the deterministic CI
+///     seam), so the stamp attests the caller's declaration, not an
+///     independent probe; a commit comparison against the checkout would be
+///     circular, so it is not performed.
+///   - 'unpinned': the pinned facts agree but a side is dirty (or of unknown
+///     dirtiness), so the bytes are not pinned to the commit. Honest, not a
+///     failure: dirt outside the binary's tracked build inputs legitimately
+///     does not re-stamp it (ENG-23365 tracks exactly the real inputs).
+///   - 'unverifiable': a side has no commit identity at all.
+///   - 'stamp-mismatch': pinned facts disagree (commit or crate version) —
+///     the binary demonstrably is not this checkout's build.
+export function classifyBinaryIdentity(binary, expectedIdentity, { envStamp = false } = {}) {
+  const expectedCommit = expectedIdentity.gitCommit && expectedIdentity.gitCommit !== 'unknown'
+    ? expectedIdentity.gitCommit
+    : null;
+  const binaryCommit = binary.gitCommit && binary.gitCommit !== 'unknown'
+    ? binary.gitCommit
+    : null;
+  const mismatches = [];
+  if (!envStamp && expectedCommit && binaryCommit && binaryCommit !== expectedCommit) {
+    mismatches.push(`health commit ${binaryCommit} does not match checkout ${expectedCommit}`);
   }
-  if (
-    expectedIdentity.crateVersion &&
-    binary.crateVersion !== expectedIdentity.crateVersion
-  ) {
-    return {
-      ok: false,
-      retry: false,
-      reason: `health crate version ${binary.crateVersion ?? '<missing>'} does not match checkout ${expectedIdentity.crateVersion}`,
-    };
+  if (expectedIdentity.crateVersion && binary.crateVersion !== expectedIdentity.crateVersion) {
+    mismatches.push(
+      `health crate version ${binary.crateVersion ?? '<missing>'} does not match checkout ${expectedIdentity.crateVersion}`,
+    );
   }
-  if (
-    typeof expectedIdentity.gitDirty === 'boolean' &&
-    binary.gitDirty !== expectedIdentity.gitDirty
-  ) {
-    return {
-      ok: false,
-      retry: false,
-      reason: `health dirty-build marker ${binary.gitDirty ?? '<missing>'} does not match checkout ${expectedIdentity.gitDirty}`,
-    };
+  let verdict;
+  if (mismatches.length > 0) verdict = 'stamp-mismatch';
+  else if (envStamp) verdict = 'env-stamped';
+  else if (!expectedCommit || !binaryCommit) verdict = 'unverifiable';
+  else if (binary.gitDirty !== false || expectedIdentity.gitDirty !== false) verdict = 'unpinned';
+  else verdict = 'verified';
+  return {
+    verdict,
+    mismatches,
+    binary: {
+      gitCommit: binary.gitCommit ?? null,
+      gitDirty: typeof binary.gitDirty === 'boolean' ? binary.gitDirty : null,
+      crateVersion: binary.crateVersion ?? null,
+    },
+    expected: {
+      gitCommit: expectedIdentity.gitCommit ?? null,
+      gitDirty: typeof expectedIdentity.gitDirty === 'boolean' ? expectedIdentity.gitDirty : null,
+      crateVersion: expectedIdentity.crateVersion ?? null,
+    },
+  };
+}
+
+// Rung policy over the classified build identity (LLP 0030 ladder):
+// - prebuilt (automatic): only a fully 'verified' stamp may keep the child —
+//   anything weaker throws, tearing it down and falling back to `cargo run`.
+// - configured (explicit serverBinary / SNAPBACK_SERVER_BINARY): the caller
+//   chose the binary, so a stamp mismatch reports loudly and boots anyway —
+//   the paved escape for a broken or drifted checkout HEAD — with the honest
+//   verdict on the handle for callers that want to refuse.
+// - cargo (including the deps.launchSpec test substitution): a pinned-fact
+//   mismatch is a hard failure — with the env injection gone it means the
+//   build genuinely is not this checkout's (e.g. a stale-stamp replay class
+//   regression, or a foreign target directory).
+function applyIdentityPolicy(plan, identity) {
+  if (plan.requireVerified && identity.verdict !== 'verified') {
+    throw new Error(
+      `binary identity is ${identity.verdict}` +
+        (identity.mismatches.length > 0 ? ` (${identity.mismatches.join('; ')})` : '') +
+        `; stamp ${describeStamp(identity.binary)}, checkout ${describeStamp(identity.expected)}`,
+    );
   }
-  return { ok: true };
+  if (identity.mismatches.length > 0) {
+    if (plan.rung !== 'configured') {
+      throw new Error(
+        `spawned server identity verification failed: ${identity.mismatches.join('; ')}`,
+      );
+    }
+    console.error(
+      `SERVER BINARY IDENTITY MISMATCH: ${identity.mismatches.join('; ')}. ` +
+        'Booting anyway because this binary was explicitly configured ' +
+        '(serverBinary / SNAPBACK_SERVER_BINARY); the handle reports ' +
+        `identity.verdict "${identity.verdict}".`,
+    );
+  } else if (identity.verdict !== 'verified') {
+    console.log(`spawned snapback binary identity: ${identity.verdict}`);
+  }
+}
+
+function describeStamp({ gitCommit, gitDirty }) {
+  const commit = gitCommit ? String(gitCommit).slice(0, 12) : 'unknown';
+  return gitDirty === false ? commit : `${commit}+dirty/unknown`;
 }
 
 // @ref LLP 0010#required-tool-surfaces — parent-signal shutdown retains the
