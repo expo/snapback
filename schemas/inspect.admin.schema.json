@@ -573,6 +573,17 @@
           "default": "snapback.v0",
           "type": "string"
         },
+        "standardPatterns": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/StandardPatternFacts"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "description": "Generated standard-pattern facts (LLP 0065 §4): live delivery is the\nconservative resnapshot, and the `authScopeField`-enabled\ndisjointness-skip refinement of LLP 0053 is disabled — the field is\ninvalidation-routing metadata, never a skip enabler or enforcement.\nPresent exactly when the target runs generated standard patterns."
+        },
         "storageEngine": {
           "type": "string"
         },
@@ -3743,6 +3754,25 @@
         "file",
         "line",
         "column"
+      ],
+      "type": "object"
+    },
+    "StandardPatternFacts": {
+      "additionalProperties": false,
+      "description": "The declared standard-pattern live posture (LLP 0065 §4).",
+      "properties": {
+        "authScopeDisjointnessSkip": {
+          "description": "Always `\"disabled\"` in v1: `authScopeField` routes invalidation and\nnever enables LLP 0053's disjointness-skip refinement, so no\nconvergence fixture is owed until a future profile claims the skip.",
+          "type": "string"
+        },
+        "liveDelivery": {
+          "description": "Always `\"conservative-resnapshot\"` in v1: a generated live query\nresnapshots on a dependency commit and never claims `live_delta` —\nthe runtime excludes pattern-identified functions from the delta\nlane even when the plan shape would otherwise qualify.",
+          "type": "string"
+        }
+      },
+      "required": [
+        "liveDelivery",
+        "authScopeDisjointnessSkip"
       ],
       "type": "object"
     },

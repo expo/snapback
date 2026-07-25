@@ -3977,6 +3977,47 @@ pub struct CapabilityManifest {
         skip_serializing_if = "Option::is_none"
     )]
     pub relational_queries: Option<RelationalQueryFacts>,
+    /// Generated standard-pattern facts (LLP 0065 §4): live delivery is the
+    /// conservative resnapshot, and the `authScopeField`-enabled
+    /// disjointness-skip refinement of LLP 0053 is disabled — the field is
+    /// invalidation-routing metadata, never a skip enabler or enforcement.
+    /// Present exactly when the target runs generated standard patterns.
+    #[serde(
+        default,
+        rename = "standardPatterns",
+        alias = "standard_patterns",
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub standard_patterns: Option<StandardPatternFacts>,
+}
+
+/// The declared standard-pattern live posture (LLP 0065 §4).
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize, schemars::JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct StandardPatternFacts {
+    /// Always `"conservative-resnapshot"` in v1: a generated live query
+    /// resnapshots on a dependency commit and never claims `live_delta` —
+    /// the runtime excludes pattern-identified functions from the delta
+    /// lane even when the plan shape would otherwise qualify.
+    #[serde(rename = "liveDelivery", alias = "live_delivery")]
+    pub live_delivery: String,
+    /// Always `"disabled"` in v1: `authScopeField` routes invalidation and
+    /// never enables LLP 0053's disjointness-skip refinement, so no
+    /// convergence fixture is owed until a future profile claims the skip.
+    #[serde(
+        rename = "authScopeDisjointnessSkip",
+        alias = "auth_scope_disjointness_skip"
+    )]
+    pub auth_scope_disjointness_skip: String,
+}
+
+impl StandardPatternFacts {
+    pub fn local_v1() -> Self {
+        Self {
+            live_delivery: "conservative-resnapshot".to_owned(),
+            auth_scope_disjointness_skip: "disabled".to_owned(),
+        }
+    }
 }
 
 /// The declared relational live/retention posture (LLP 0080 §4).
@@ -4097,6 +4138,7 @@ impl CapabilityManifest {
             cron: true,
             notifications: false,
             relational_queries: Some(RelationalQueryFacts::local_v1()),
+            standard_patterns: Some(StandardPatternFacts::local_v1()),
             supported_query_forms: vec![
                 "host-plan-single-table-eq".to_owned(),
                 "host-plan-single-table-in".to_owned(),
@@ -4347,6 +4389,11 @@ impl CapabilityManifest {
         // capability gap is the machine-readable refusal, so the fact block
         // must not ride along from the local profile (LLP 0080 §2).
         manifest.relational_queries = None;
+        // The narrow Cloudflare proof has no standard-pattern runtime
+        // support (no cursor keyring, no pattern admission gates); loading
+        // pattern-identified functions there is outside the proof, so no
+        // fact block is claimed.
+        manifest.standard_patterns = None;
         // The proof's supported query subset is single-table only (LLP 0040
         // §Measurements: evidence for the supported query subset only).
         manifest.supported_query_forms = vec![

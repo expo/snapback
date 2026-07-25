@@ -12468,8 +12468,16 @@ impl LocalSnapback {
                 // subscriber's membership predicate excludes or swallows
                 // membership-table-only visibility transitions as `NoChange`
                 // (LLP 0067 §F2a records both directions).
+                // @ref LLP 0065#4-capability-and-llp-0053-composition — generated
+                // standard patterns claim no skip and no live_delta: §4's
+                // conservative resnapshot governs every delivery, so a
+                // pattern-identified function never enters the delta lane
+                // even when its plan shape (unordered, below-cap — the
+                // unique lookup) would otherwise qualify.
                 FunctionRuntime::HostPlan(HandlerPlan::Query(plan))
-                    if !changes.is_empty() && plan.membership_filters.is_empty() =>
+                    if !changes.is_empty()
+                        && plan.membership_filters.is_empty()
+                        && function.standard_pattern.is_none() =>
                 {
                     Some(plan.clone())
                 }
@@ -17616,6 +17624,167 @@ globalThis.__snapbackHandlers = {
                     && d.message.contains("relationalRetentionNone")
             }),
             "relational retention is default-deny with an honest reason: {diagnostics:?}"
+        );
+    }
+
+    // @ref LLP 0065#4-capability-and-llp-0053-composition — a generated
+    //   standard pattern claims no skip and no live_delta: the identical
+    //   plan shape rides the delta lane without the pattern identity and
+    //   the conservative live_replace lane with it, and the capability
+    //   artifact records both the conservative delivery and the disabled
+    //   authScopeField disjointness-skip refinement.
+    #[test]
+    fn standard_pattern_live_is_conservative_and_recorded() {
+        use crate::manifest::{FieldManifest, FieldType, StandardPatternIdentity, TableManifest};
+        let schema = SchemaManifest {
+            tables: vec![TableManifest {
+                name: "todos".to_owned(),
+                fields: vec![
+                    FieldManifest {
+                        name: "ownerId".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                    FieldManifest {
+                        name: "slug".to_owned(),
+                        field_type: FieldType::String,
+                        optional: false,
+                    },
+                ],
+                indexes: Vec::new(),
+                syncable: true,
+                permission_backing: false,
+                permission_fields: None,
+                membership: None,
+            }],
+            ..SchemaManifest::default()
+        };
+        let lookup_plan = QueryPlan {
+            table: "todos".to_owned(),
+            filters: vec![
+                FilterExpr {
+                    field: "ownerId".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::AuthUserId,
+                },
+                FilterExpr {
+                    field: "slug".to_owned(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Arg("slug".to_owned()),
+                },
+            ],
+            membership_filters: Vec::new(),
+            order: Vec::new(),
+            limit: Some(1),
+            indexed_by: None,
+        };
+        let mut pattern = FunctionDefinition::new(
+            "lookupPattern",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan.clone())),
+        );
+        pattern.standard_pattern = Some(StandardPatternIdentity {
+            helper: "owned-unique-lookup.v1".to_owned(),
+            profile: "owner.v1".to_owned(),
+        });
+        let control = FunctionDefinition::new(
+            "lookupControl",
+            FunctionKind::LiveQuery,
+            FunctionRuntime::HostPlan(HandlerPlan::Query(lookup_plan)),
+        );
+        let add = FunctionDefinition::new(
+            "addTodo",
+            FunctionKind::Mutation,
+            FunctionRuntime::HostPlan(HandlerPlan::Mutation(MutationPlan {
+                steps: vec![MutationStep::Insert {
+                    table: "todos".to_owned(),
+                    values: BTreeMap::from([
+                        (
+                            "ownerId".to_owned(),
+                            ValueExpr::Literal(json!("user-a")),
+                        ),
+                        ("slug".to_owned(), ValueExpr::Arg("slug".to_owned())),
+                    ]),
+                    bind_id_as: None,
+                }],
+                return_value: None,
+            })),
+        );
+
+        let mut snapback = LocalSnapback::memory().expect("memory pattern-live fixture");
+        snapback.apply_schema(schema).expect("apply pattern-live schema");
+        let diagnostics = snapback.load_functions(FunctionManifest {
+            functions: vec![pattern, control, add],
+            ..FunctionManifest::default()
+        });
+        assert!(
+            diagnostics
+                .iter()
+                .all(|d| d.severity != crate::diagnostic::DiagnosticSeverity::Error),
+            "pattern-live fixture must activate: {diagnostics:?}"
+        );
+        let subscribe = |snapback: &mut LocalSnapback, name: &str| {
+            snapback
+                .subscribe_live(
+                    name,
+                    LiveSubscribeInput {
+                        connection_id: "conn-pattern-live".to_owned(),
+                        input: HandlerInput {
+                            args: json!({ "slug": "x" }),
+                            auth: AuthInput {
+                                user_id: Some("user-a".to_owned()),
+                                ..AuthInput::default()
+                            },
+                            ..HandlerInput::default()
+                        },
+                        authorization_namespace: None,
+                        supersedes: None,
+                        resume_from_token: None,
+                    },
+                )
+                .expect("subscribe pattern-live")
+        };
+        subscribe(&mut snapback, "lookupPattern");
+        subscribe(&mut snapback, "lookupControl");
+        snapback
+            .invoke_mutation(
+                "addTodo",
+                HandlerInput {
+                    args: json!({ "slug": "x" }),
+                    ..HandlerInput::default()
+                },
+            )
+            .expect("insert matching row");
+        let envelopes = rqs_drained_envelopes(&mut snapback, "conn-pattern-live");
+        let kind_for = |function: &str| {
+            envelopes
+                .iter()
+                .find(|envelope| envelope["function"] == function)
+                .unwrap_or_else(|| panic!("{function} delivery missing: {envelopes:?}"))["kind"]
+                .clone()
+        };
+        assert_eq!(
+            kind_for("lookupControl"),
+            json!("live_delta"),
+            "the identical shape without the identity keeps the delta lane",
+        );
+        assert_eq!(
+            kind_for("lookupPattern"),
+            json!("live_replace"),
+            "a pattern-identified function never claims live_delta",
+        );
+
+        // The capability artifact records the posture (LLP 0065 §4) — and
+        // the narrow Cloudflare proof, which has no pattern runtime,
+        // deliberately claims nothing.
+        let local = crate::manifest::CapabilityManifest::local_v0_declared();
+        let facts = local.standard_patterns.expect("local pattern facts");
+        assert_eq!(facts.live_delivery, "conservative-resnapshot");
+        assert_eq!(facts.auth_scope_disjointness_skip, "disabled");
+        assert!(
+            crate::manifest::CapabilityManifest::cloudflare_do_sqlite_v8_declared()
+                .standard_patterns
+                .is_none()
         );
     }
 

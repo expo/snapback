@@ -75,10 +75,15 @@ from the following witnesses (Rust lib tests unless noted):
 
 **Residuals before flipping LLP 0065 to Implemented:**
 
-- the *disabled disjointness-skip* capability record (item 13's second
-  half): no skip refinement exists in the runtime, but the capability
-  artifact does not yet record the refinement as disabled — a small
-  manifest fact analogous to `relationalQueries`;
+- ~~the *disabled disjointness-skip* capability record~~ — landed
+  2026-07-25: the capability manifest carries a `standardPatterns` fact
+  block (`liveDelivery: "conservative-resnapshot"`,
+  `authScopeDisjointnessSkip: "disabled"`) on local + remote-service and
+  deliberately nothing on the narrow Cloudflare proof; the runtime also
+  now excludes pattern-identified functions from the live_delta lane
+  (the unordered unique lookup would otherwise qualify), witnessed with
+  a same-shape control in
+  `standard_pattern_live_is_conservative_and_recorded`;
 - the Sessions-auth-mode matrix run of the principal and cursor
   negatives (the dev-admitted lane canonicalizes sessions away);
 - the two-app negative for live-query keys and capability artifacts as
