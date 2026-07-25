@@ -11912,6 +11912,42 @@ mod guarded_commit_tests {
         assert_eq!(all.rows.len(), 3);
     }
 
+    // @ref LLP 0080#2-portable-evaluation-semantics — executor rows encode
+    //   byte-deterministically under RelationalResultEncodingV1: members in
+    //   projection declaration order, left-join nulls as the literal, and
+    //   the same bytes on every evaluation.
+    #[test]
+    fn relational_rows_encode_under_result_encoding_v1() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+        let field_order: Vec<String> = ["title", "authorName", "shelf"]
+            .iter()
+            .map(|s| (*s).to_owned())
+            .collect();
+        let (inner, _) = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input, None)
+            .expect("inner query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &inner.rows)
+                .expect("inner rows encode"),
+            r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"}]"#,
+        );
+        let (left, _) = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input, None)
+            .expect("left query");
+        assert_eq!(
+            crate::rqs::relational_result_encoding_v1(&field_order, &left.rows)
+                .expect("left rows encode"),
+            concat!(
+                r#"[{"title":"alpha","authorName":"Ada","shelf":"fiction"},"#,
+                r#"{"title":"beta","authorName":null,"shelf":"fiction"},"#,
+                r#"{"title":"gamma","authorName":null,"shelf":"fiction"}]"#,
+            ),
+            "left-join nulls stay literal; members follow the declaration order",
+        );
+    }
+
     // The keyset lowering matches Snapback's total order exactly: NULLS
     // LAST in both directions and the `_id` tie-break, so a boundary can
     // sit on a duplicate order key or a null component without skipping or
