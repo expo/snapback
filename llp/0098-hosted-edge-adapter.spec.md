@@ -587,6 +587,59 @@ claim additionally requires, against the **real served public origin**:
 
 Anything less is recorded as a partial result naming exactly which legs passed.
 
+### 8.1 First served-origin run — 2026-07-25
+
+The adapter was deployed to the LLP 0072 Fly.io target
+(`snapback-drill`, machine `819701c927ee68`, sjc) in the profile's real
+topology: Caddy terminating a Let's Encrypt certificate in the container behind
+Fly raw-TCP passthrough on 443, the origin bound to `127.0.0.1:4287`. Receipt:
+`demos/competitive-checkpoint/acceptance/results/hosted-edge-admission.v0.json`.
+
+**Passed.** Hosted admission on the served public origin (superseding the
+2026-07-25 `SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED` refusal witness); publication
+of the attested tuple through `/inspect`; and `externalTls` first-contact
+strict transport (`hstsPreloadedSuffix` — the `dev` TLD is preloaded with
+`include_subdomains`, verified against the preload list).
+
+**Two attested facts are not enforced by the origin, and both block the
+claim.** These are the run's real product:
+
+- **S4 fails.** The admission asserts `operatorSurface: "disabled"`, which C2
+  defines as a *fixed 404* for every `/_snapback/*` route on the public
+  application origin. The served origin answers `/_snapback/admin` with **503**
+  and an "Admin Console unavailable" body — an incidental unavailability, not a
+  deliberate disablement. The origin currently *verifies that the snapshot says
+  disabled* without *enforcing disabled*.
+- **A new row, D2-plaintext, fails.** D2 requires credential-bearing plaintext
+  to be refused, never redirected. The terminator issues a blanket 308 on every
+  plaintext path, so a credential-bearing plaintext request is redirected rather
+  than refused.
+
+Both are the same defect class and it is the one this Spec exists to prevent:
+**an attested fact with no enforcing code behind it.** §3.2 already says
+verification does not make the control plane honest — but these two facts are
+ones the *origin itself* could enforce and currently does not, which is worse
+than an unverifiable assertion because it looks verified. Until both are closed,
+an admission asserting them is an overclaim in LLP 0074's exact sense, and
+`hostedAuthCapable` cannot be claimed no matter what the matrix does.
+
+The correct fix is not to relax the attestation but to make the origin enforce
+what it attests: a hosted deployment must serve a fixed 404 on `/_snapback/*`
+(refusing to install an admission that asserts `disabled` while the routes are
+reachable), and the profile must refuse, not redirect, plaintext on
+credential-bearing paths.
+
+**Not run.** The LLP 0077 matrix. The deployment's active auth mode is `dev`;
+sessions mode is selected by the application schema and requires a
+`--startup-artifacts` carrier plus a two-boot staging transition that this
+deployment does not yet stage. `POST /auth/request-code` refuses
+`SNAPBACK_AUTH_MODE_DEV`. This is a deployment-composition gap, not a protocol
+finding.
+
+**Bounded.** Renewal is `presignedWindow` over a four-hour chain; serving
+withdraws when the window ends and the control plane cannot withdraw inside it
+(§2.4).
+
 ## 9. Non-goals
 
 - A multi-tenant or horizontally scaled hosted profile.

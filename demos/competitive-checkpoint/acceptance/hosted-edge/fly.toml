@@ -1,0 +1,66 @@
+# Fly config for the LLP 0098 hosted-edge profile.
+#
+# The critical difference from the plaintext drill (`../drill/fly.toml`) is that
+# public 443 is a RAW TCP passthrough: Fly's edge does not terminate TLS, so the
+# handshake reaches Caddy inside the container. That is what lets the origin bind
+# loopback and makes LLP 0060 D2's edge-to-origin clause literally true.
+#
+# Public 80 keeps the `http` handler purely so the ACME HTTP-01 challenge can
+# reach Caddy; no application traffic is served over it.
+#
+# Deploy from the repository root:
+#   fly deploy . \
+#     --config demos/competitive-checkpoint/acceptance/hosted-edge/fly.toml \
+#     --dockerfile demos/competitive-checkpoint/acceptance/hosted-edge/Dockerfile \
+#     --remote-only --ha=false --yes
+
+app = "snapback-drill"
+primary_region = "sjc"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  # The origin bind is loopback, so this profile needs no dev-auth override and
+  # never passes --allow-insecure-dev-auth. `test` remains the drill profile.
+  SNAPBACK_PROFILE = "test"
+
+# Raw TCP passthrough: TLS terminates in the container, not at Fly's edge.
+[[services]]
+  internal_port = 8443
+  protocol = "tcp"
+  # Auto-stop is OFF for this profile, and that is a finding rather than a
+  # preference: this machine has no persistent volume, so every stop/start
+  # cycle wipes the rootfs — taking Caddy's certificate storage with it and
+  # forcing a fresh Let's Encrypt issuance against the 5-per-week duplicate
+  # limit. One always-on machine keeps the certificate (and the delivered
+  # admission chain) stable. A volume would be the production answer.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 443
+    # No handlers: Fly forwards the connection as-is.
+
+# ACME HTTP-01 only.
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  # Auto-stop is OFF for this profile, and that is a finding rather than a
+  # preference: this machine has no persistent volume, so every stop/start
+  # cycle wipes the rootfs — taking Caddy's certificate storage with it and
+  # forcing a fresh Let's Encrypt issuance against the 5-per-week duplicate
+  # limit. One always-on machine keeps the certificate (and the delivered
+  # admission chain) stable. A volume would be the production answer.
+  auto_stop_machines = "off"
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"

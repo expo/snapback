@@ -429,20 +429,14 @@ fn compose_hosted_edge_admission(
     };
 
     let config = crate::auth::hosted_edge::HostedEdgeConfig::parse(&read(config_path)?)?;
-    let envelope: crate::auth::hosted_edge::HostedAdmissionEnvelope =
-        serde_json::from_slice(&read(envelope_path)?).map_err(|_| {
-            crate::diagnostic::SnapbackError::error(
-                "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
-                "auth-deployment",
-                "hosted admission envelope is not a closed valid document",
-            )
-        })?;
+    let now_ms = hosted_now_ms();
+    let envelope =
+        crate::auth::hosted_edge::select_admission_for_now(&read(envelope_path)?, now_ms)?;
 
     // The origin's own half of the conjunction: it decides for itself whether
     // the address it is about to bind is loopback (LLP 0098 H1). A caller
     // cannot assert this any more than it can assert sessions transport.
     let facts = config.self_facts(bind_ip.is_loopback())?;
-    let now_ms = hosted_now_ms();
     let verified = crate::auth::hosted_edge::verify_admission_envelope_prebind(
         &envelope,
         &config.admission_public_key_bytes()?,

@@ -1,0 +1,81 @@
+{
+  "schemaVersion": "snapback.competitive-checkpoint.hosted-edge-admission.v0",
+  "protocol": "llp-0075-convex-checkpoint-v0",
+  "adapterProfile": "loopback-terminated-single-instance.v1",
+  "capturedAt": "2026-07-25T15:15:00Z",
+  "kind": "partial-pass",
+  "claim": "hostedAuthCapable is NOT claimed. This receipt records that `--auth-deployment hosted` now ADMITS on a real served public HTTPS origin under a real signed attestation — superseding the 2026-07-25 refusal witness (hosted-auth-refusal.v0.json) — and that two attested facts are not yet enforced by the origin, and that the LLP 0077 sender-auth matrix did not run. Every leg is recorded below with its exact status.",
+  "supersedes": "demos/competitive-checkpoint/acceptance/results/hosted-auth-refusal.v0.json (the SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED leg only)",
+  "governingDocuments": ["LLP 0098", "LLP 0060", "LLP 0072", "LLP 0077"],
+  "provider": {
+    "name": "fly.io",
+    "app": "snapback-drill",
+    "machineId": "819701c927ee68",
+    "region": "sjc",
+    "publicOrigin": "https://snapback-drill.fly.dev"
+  },
+  "topology": {
+    "profile": "loopback-terminated-single-instance.v1",
+    "originBind": "127.0.0.1:4287",
+    "tlsTerminator": "Caddy, in the same network namespace",
+    "flyEdgeMode": "raw TCP passthrough on public 443 (no `tls` handler), `http` handler on 80 for ACME only",
+    "witness": "machine log line `snapback listening on http://127.0.0.1:4287` while https://snapback-drill.fly.dev/health returns 200",
+    "whyItMatters": "LLP 0060 D2's edge-to-origin clause is satisfied literally ('same-host loopback'), and the direct-origin bypass class is empty: no address outside the namespace routes to the origin socket. The LLP 0060 D1 plaintext fence is satisfied by its ordinary loopback rule — no fence was weakened and no sessions override exists."
+  },
+  "legs": [
+    {
+      "id": "hosted-admission",
+      "status": "PASS",
+      "what": "`--auth-deployment hosted` admits on the served origin under a signed, deployment-bound admission verified against the release-bound Ed25519 public key.",
+      "evidence": "GET https://snapback-drill.fly.dev/health -> 200; the origin composed hosted serving pre-bind and installed the verified authority."
+    },
+    {
+      "id": "attested-capability-tuple",
+      "status": "PASS",
+      "what": "The served public origin publishes the tuple carried by its verified admission, not a build constant.",
+      "evidence": "GET /inspect capabilityManifest.hostedAuth = {externalTls: enforced, effectiveSource: trusted, authenticationThrottle: sharedEnforced, sessionInvalidation: globallyFenced, clientCredentialPosture: senderConstrainedV2}. A local target still publishes the all-negative tuple."
+    },
+    {
+      "id": "external-tls",
+      "status": "PASS",
+      "what": "The public HTTPS leg uses a publicly trusted certificate obtained by the deployment itself and terminated in-namespace.",
+      "evidence": "issuer= C=US, O=Let's Encrypt, CN=YE2; subject= CN=snapback-drill.fly.dev; notBefore=2026-07-25, notAfter=2026-10-23. First-contact strict transport is `hstsPreloadedSuffix`: the `dev` TLD is HSTS-preloaded with include_subdomains, verified against hstspreload.org (status `preloaded`, preloadedDomain `dev`), so the hostname is HTTPS-only before first contact."
+    },
+    {
+      "id": "operator-surface-disabled",
+      "status": "GAP",
+      "what": "The admission asserts `operatorSurface: \"disabled\"`, which LLP 0060 C2 defines as a fixed 404 for every `/_snapback/*` page and API route on the public application origin.",
+      "observed": "GET https://snapback-drill.fly.dev/_snapback/admin -> 503 with an 'Admin Console unavailable' HTML body.",
+      "assessment": "The origin does not enforce the disablement the attestation asserts; 503 is an incidental unavailability (the admin UI bundle is absent), not a deliberate fixed 404. This is an UNENFORCED ATTESTED FACT and is exactly the overclaim class LLP 0074 forbids. It is ledger row S4 of LLP 0098 §8 and it FAILS.",
+      "blocks": "hostedAuthCapable"
+    },
+    {
+      "id": "plaintext-credential-refusal",
+      "status": "GAP",
+      "what": "LLP 0060 D2 requires credential-bearing plaintext to be REFUSED, never redirected; redirects are permitted only for credential-free navigation.",
+      "observed": "GET http://snapback-drill.fly.dev/health -> 308 redirect. The terminator redirects all plaintext paths uniformly, so a credential-bearing plaintext request would also be redirected rather than refused.",
+      "assessment": "The terminator's blanket HTTP->HTTPS redirect does not distinguish credential-bearing paths. `externalTls: enforced` is attested but this component of D2 is not enforced.",
+      "blocks": "hostedAuthCapable"
+    },
+    {
+      "id": "llp-0077-sender-auth-matrix",
+      "status": "NOT RUN",
+      "what": "The full LLP 0077 sender-constrained matrix (grant matrix over every grant-presenting route and both carriers, issuance outcome matrix, nonce/anti-oracle axes, replay refusal, WebSocket sender_nonce release) against the served origin.",
+      "reason": "The deployment's active auth mode is `dev`. Sessions mode is selected by the application schema (`auth: { mode: 'sessions' }`) and requires `--startup-artifacts` on every start plus a two-boot staging transition; this deployment does not yet stage a sessions carrier. Witnessed: GET /auth/session reports activeMode `dev`, and POST /auth/request-code refuses SNAPBACK_AUTH_MODE_DEV ('the session provider is unavailable while auth mode is dev').",
+      "reproducibleBy": "curl https://snapback-drill.fly.dev/auth/session | jq .activeMode",
+      "blocks": "hostedAuthCapable"
+    },
+    {
+      "id": "admission-renewal",
+      "status": "BOUNDED",
+      "what": "An admission snapshot lives at most five minutes (LLP 0060 D5), so serving withdraws when the current snapshot lapses.",
+      "posture": "renewal = presignedWindow: a 48-snapshot chain covering four hours was pre-signed once and delivered as a platform secret; the origin selects the member covering its boot instant. There is no hot-swap renewal loop, so serving withdraws at the end of the window and the control plane cannot withdraw inside it.",
+      "assessment": "Honest cost of pre-signing, recorded rather than hidden. An `online` renewal mechanism is LLP 0098 open question 1."
+    }
+  ],
+  "platformFindings": [
+    "This machine has no persistent volume: an auto-stop/start cycle wipes the rootfs, destroying both the delivered admission chain and Caddy's certificate storage, which forces a fresh Let's Encrypt issuance against the 5-per-week duplicate-certificate limit. The profile therefore runs with auto_stop_machines = off and min_machines_running = 1. A volume is the production answer.",
+    "Fly raw TCP passthrough on public 443 for a `<app>.fly.dev` hostname works over both the dedicated IPv6 and the shared IPv4 (SNI-routed). Let's Encrypt issued successfully via TLS-ALPN-01 and later HTTP-01 through the passthrough."
+  ],
+  "claimBoundary": "This receipt proves that a hosted-edge attestation now exists, is verified, and admits serving on a real public origin. It does NOT prove the LLP 0077 sender-auth contract on that origin, and it records two attested-but-unenforced facts. hostedAuthCapable remains unclaimed and the LLP 0077 program-index capability gate stays open."
+}

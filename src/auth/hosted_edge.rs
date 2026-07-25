@@ -199,6 +199,66 @@ impl HostedEdgeConfig {
     }
 }
 
+/// Select the snapshot covering `now` from a single envelope or a pre-signed
+/// chain.
+///
+/// A five-minute maximum admission lifetime means a deployment that boots on
+/// demand cannot be handed one snapshot in advance — the control plane does not
+/// know when the machine will wake. A `presignedWindow` chain covers a declared
+/// window and the origin picks the member covering its actual boot instant.
+///
+/// Selection is *not* authorization: the chosen member still runs the entire
+/// §3.1 conjunction, so a chain cannot smuggle in an envelope that would fail
+/// on its own.
+///
+/// @ref LLP 0098#24-renewal-and-the-honest-cost-of-pre-signing
+pub fn select_admission_for_now(
+    document: &[u8],
+    now_ms: u64,
+) -> SnapbackResult<HostedAdmissionEnvelope> {
+    let value: serde_json::Value = serde_json::from_slice(document).map_err(|_| {
+        refuse(
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+            "hosted admission document is not valid JSON",
+        )
+    })?;
+    let envelopes: Vec<HostedAdmissionEnvelope> = if value.is_array() {
+        serde_json::from_value(value)
+    } else {
+        serde_json::from_value(value).map(|one: HostedAdmissionEnvelope| vec![one])
+    }
+    .map_err(|_| {
+        refuse(
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+            "hosted admission document is not a closed envelope or envelope chain",
+        )
+    })?;
+
+    // The chain's total span is capped, so a pre-signed window cannot become an
+    // unbounded grant of un-withdrawable serving.
+    if let (Some(first), Some(last)) = (envelopes.first(), envelopes.last())
+        && last.admission.expires_at_ms.saturating_sub(first.admission.issued_at_ms)
+            > MAX_PRESIGNED_WINDOW_MS
+    {
+        return Err(refuse(
+            "SNAPBACK_AUTH_HOSTED_ADMISSION_INVALID",
+            "hosted admission chain exceeds the maximum pre-signed window",
+        ));
+    }
+
+    envelopes
+        .into_iter()
+        .find(|envelope| {
+            now_ms >= envelope.admission.issued_at_ms && now_ms <= envelope.admission.expires_at_ms
+        })
+        .ok_or_else(|| {
+            refuse(
+                "SNAPBACK_AUTH_HOSTED_ADMISSION_EXPIRED",
+                "no hosted admission in the supplied document covers the current instant",
+            )
+        })
+}
+
 /// Facts the origin derives about itself and compares against the envelope.
 /// Every member is observed locally; none is read from the envelope.
 #[derive(Clone, Debug)]
