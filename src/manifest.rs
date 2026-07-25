@@ -2318,6 +2318,11 @@ pub enum FunctionKind {
     Action,
 }
 
+// `HandlerPlan` outgrew clippy's variant-size threshold as the relational
+// profile (LLP 0080) widened query plans. The externally-tagged shape is the
+// ratified v0 artifact pin and every construction site spells the variant
+// directly, so boxing here would be churn without a wire or safety win.
+#[allow(clippy::large_enum_variant)]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, schemars::JsonSchema)]
 pub enum FunctionRuntime {
     HostPlan(HandlerPlan),

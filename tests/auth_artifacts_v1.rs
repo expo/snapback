@@ -227,9 +227,11 @@ fn target_capability_registry_is_exact_and_fail_closed() {
             "live_subscriptions",
             "mutation_read_set_validation",
             "permission_epoch_resync",
+            "relational_query_v1",
+            "migration_keyset_scan_v1",
         ]
     );
-    assert_eq!(TargetCapabilityId::ALL.len(), 9);
+    assert_eq!(TargetCapabilityId::ALL.len(), 11);
     for capability in TargetCapabilityId::ALL {
         assert_eq!(
             capability.as_str().parse::<TargetCapabilityId>(),
@@ -240,6 +242,22 @@ fn target_capability_registry_is_exact_and_fail_closed() {
                 local
                     .require_capability(capability.as_str())
                     .expect_err("the static target declaration keeps process-live egress disabled")
+                    .diagnostic
+                    .code,
+                "SNAPBACK_CAPABILITY_UNSUPPORTED"
+            );
+        } else if matches!(
+            capability,
+            TargetCapabilityId::RelationalQueryV1 | TargetCapabilityId::MigrationKeysetScanV1
+        ) {
+            // Declared and supported, but at experimental maturity (LLP 0058
+            // capability-maturity dimension): plain requirement without an
+            // acknowledgment fails closed until LLP 0080/0081 witness suites
+            // flip the ids to stable.
+            assert_eq!(
+                local
+                    .require_capability(capability.as_str())
+                    .expect_err("experimental maturity is not plain support")
                     .diagnostic
                     .code,
                 "SNAPBACK_CAPABILITY_UNSUPPORTED"
