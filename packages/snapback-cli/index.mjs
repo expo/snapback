@@ -1379,14 +1379,38 @@ export async function runDev(options = {}) {
       await regenerateAndLoad(filename);
     }
   });
+  const isGeneratedWatchPath = (filename) => (
+    typeof filename === 'string'
+    && (filename.startsWith('generated') || filename.startsWith('.generated'))
+  );
   const watcher = watch(backendRoot, { recursive: true }, (_event, filename) => {
     // Ignore codegen's own outputs: the committed `generated/` tree and the
     // `.generated.tmp-*` staging directories it renames into place —
     // otherwise every regeneration retriggers the watcher forever.
-    if (closed || !filename || filename.startsWith('generated') || filename.startsWith('.generated')) return;
+    if (closed || !filename || isGeneratedWatchPath(filename)) return;
     queuedFilename = filename;
     clearTimeout(timer);
     timer = setTimeout(() => void drainGenerationQueue(), 100);
+  });
+  watcher.on('error', (error) => {
+    const filename = typeof error?.path === 'string' ? relative(backendRoot, error.path) : null;
+    // @ref LLP 0041#watch-mode — codegen replaces `generated/` atomically.
+    // Node's Linux recursive watcher can race the removal of the staging
+    // directory while adding its internal subwatch; that expected ENOENT must
+    // not kill the dev loop or prevent recovery from an authoring error.
+    if (error?.code === 'ENOENT' && isGeneratedWatchPath(filename)) return;
+    emitDevEvent({
+      schemaVersion: 'snapback.dev.v1',
+      ok: false,
+      state: 'watch-failed',
+      diagnostics: [{
+        code: 'SNAPBACK_DEV_WATCH_FAILED',
+        severity: 'error',
+        subsystem: 'dev-loop',
+        message: error?.message ?? 'backend watcher failed',
+        ...(filename ? { path: filename } : {}),
+      }],
+    });
   });
 
   const attachExitWatch = (proc) => {
