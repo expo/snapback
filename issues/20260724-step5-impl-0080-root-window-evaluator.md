@@ -18,3 +18,15 @@ versioned cursors with the pinned binding and the six refusal classes;
 capability gaps for targets that cannot execute a plan. Retained/native and
 hosted evaluators follow the same normalized plan per the pinned manifest.
 L-sized.
+
+**Progress (2026-07-24):** slice 1 landed — `RelationalQueryPlan` closed
+manifest types (manifest.rs) and the SQLite `root-window-v1` executor
+(`LocalDatabase::query_relational`, one pinned read snapshot): visibility
+before take, per-root unique-joined lookup with null-never-matches, inner
+omission without refill, left null leaves, take:0, duplicate-unique-key
+refusal, closed-shape refusals; witnessed by
+`relational_root_window_semantics` incl. below-constraint duplicate
+injection. Remaining: cursor issue/validate + `RelationalResultEncodingV1`
+bytes, buffered-overlay and pure-matcher parity, hosted path, and the
+codegen authoring surface (`defineRelationalQuery`) wiring plans into
+FunctionRuntime with capability gating.

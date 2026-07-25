@@ -81,6 +81,21 @@ an author/LLP 0058 choice — + Workerd arm). Evidence baseline at 065484e6:
 authoring-validation pass, capability_v0 3/3, LLP 0075 local-streaming
 instrument PASS 6/6, ref-check clean, check-generated-artifacts clean.
 
+Update 2026-07-24 (gate-2 remainder pass): protocol amendment v0.5 landed —
+the fixture adopts the StreamAttemptV1 control plane with the read-only
+certainty mirror, the instrument runs 7/7 (new certainty-mirror check), the
+decision-5 downgrade is recorded, and the cross-user write expectations
+track LLP 0065's Accepted anti-probing `SNAPBACK_ROW_NOT_FOUND` posture (a
+lagging expectation this pass corrected; the regression predated it on
+origin/main). Per-bullet acceptance receipts:
+`demos/competitive-checkpoint/acceptance/llp0076-acceptance-receipts.v1.json`
+(retained receipts scanned clean of fixture secrets). Guide coverage landed:
+`guide/backend/streamed-actions.md` + the `backend.streamed-actions` partial
+capability row + the resolving repair anchor (ENG-25423). Gate 2 now waits
+on: the author's maturity-marker decision, and the
+`single-instance-container-vm.v1` hosted receipt (which also carries the
+durable-row secret scans).
+
 Update 2026-07-24 (final ticket pass): six of seven implementation tickets
 are RESOLVED; capability-honesty remains open solely as the tracking handle
 for one undecided author question (the LLP 0058 proposed/experimental

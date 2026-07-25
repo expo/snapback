@@ -9,8 +9,8 @@ examples: [demos/all-aboard, demos/competitive-checkpoint]
 status: current
 targets: [local]
 maturity: shipped
-reviewed: 2026-07-22
-reviewed-commit: HEAD
+reviewed: 2026-07-24
+reviewed-commit: a5ed6ebd05766b10607937a1c010352d79eea4b0
 ---
 
 # Actions and outbound fetch
@@ -93,43 +93,6 @@ egress. Queries and mutations remain denied even in that runtime:
 Action wall-clock limits and the detached watchdog still apply. A timed-out
 action cannot commit late, and a later invocation gets an isolated worker.
 
-## Stream a response
-
-Use `ctx.fetchStream` when the result must become visible before the upstream
-response completes. It is an action-only, pull-driven reader; each `read()`
-requests one host-bounded byte chunk. Apply progress through a named mutation
-so every update is an authoritative commit and ordinary live push:
-
-```js source=demos/competitive-checkpoint/snapback/handlers.mjs
-    const response = await ctx.fetchStream({
-      url: args.streamUrl,
-      method: args.method,
-      body: args.method === 'GET' ? null : '{}',
-      idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,
-    });
-```
-
-The bounded v1 profile enforces a 1 MiB response ceiling, at most 16 KiB per
-application-visible read (within a 64 KiB buffer ceiling), 30 seconds total,
-five seconds idle, four open readers per action, and no more than ten durable
-progress mutations per second. `reader.cancel()` is idempotent. EOF, action
-completion, cancellation, timeout, authority loss, or application generation
-change closes the host cursor.
-
-Generate this backend with `SNAPBACK_OUTBOUND_ACTIONS=1`. Codegen then embeds
-the Rust-owned outbound-enabled target manifest and adds
-`bounded_response_stream_v1` to every action module that uses
-`ctx.fetchStream`. The serving process must enable the same gate; its live
-capability check refuses the function artifact before any handler effect when
-the configuration does not match.
-
-Store the attempt identity, monotonic sequence, accumulated content, and
-terminal state durably. A progress mutation must re-read the owned attempt and
-return its terminal state without patching when cancellation already won. The
-action then cancels the upstream reader. Keep `complete`, `failed`,
-`cancelled`, `timed_out`, and `ambiguous` distinct; do not infer settlement
-from a dropped client connection.
-
 ## Treat fetched text as data
 
 Egress does not make an action a general-purpose code loader. Direct or
@@ -156,6 +119,19 @@ keep a UI quiet.
 Await or return every asynchronous branch whose outcome matters. The runtime
 treats an unhandled detached rejection as a handler failure; it cannot be
 reclassified as successful settlement by replacing reachable Promise hooks.
+
+## Stream a response
+
+Consuming an upstream response incrementally — an AI token stream, a large
+export — is its own bounded surface with its own limits, attempt control
+plane, and diagnostic codes. See
+[streamed actions](./streamed-actions.md) for the whole pattern:
+`ctx.fetchStream`, the one-pull-per-cursor reader, the
+`ctx.streamAttempt` lease/settlement surface, the v1 limits (1 MiB total,
+16 KiB reads, 64 KiB buffering, 30 s wall, 5 s idle, 4 cursors, ten
+progress commits per second), and every `SNAPBACK_ACTION_STREAM_*` refusal.
+Stream diagnostics name this section as their repair anchor; the page above
+is the repair.
 
 ## Anti-patterns
 

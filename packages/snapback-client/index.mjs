@@ -167,6 +167,11 @@ export const LIVE_SOCKET_KINDS = Object.freeze({
   // recovery beyond the resync the next drain forces, so it is knowingly
   // ignored (the schema gate lists it as acknowledged-unhandled).
   DURABLE_BYTES: 'durable_bytes',
+  // LLP 0077 decision 5: the first server frame on a sender-proof-gated
+  // upgrade delivers the successor nonce in band (a browser cannot read the
+  // 101 response's DPoP-Nonce header). The frame is transport-internal: it
+  // releases the per-custody flight and never surfaces to the application.
+  SENDER_NONCE: 'sender_nonce',
 });
 // These hosted subscribe refusals are explicitly pre-persistence: the
 // coordinator returns before inserting/replacing a subscription row. They are
@@ -1728,6 +1733,36 @@ export class SnapbackClient {
       return { committed: false };
     }
     return result;
+  }
+
+  /// Commit the in-band successor nonce a sender-proof-gated socket's first
+  /// server frame delivered, rotating custody exactly like an HTTP
+  /// `DPoP-Nonce` install. Returns the successor capture, or null when the
+  /// value is non-canonical or custody moved — the caller then releases the
+  /// flight as consumed-unknown and the next request resynchronizes through
+  /// the bounded challenge (a nonce is never reused).
+  ///
+  /// @ref LLP 0077#author-decisions--2026-07-23 — decision 5.
+  async commitSenderSocketNonce(senderFlight, value) {
+    if (typeof value !== 'string' || !isCanonicalSenderNonce(value)) return null;
+    try {
+      const rotated = await this.authCoordinator.compareAndRotateSenderCredential(
+        senderFlight.capture,
+        {
+          bearer: senderFlight.credential.bearer,
+          refreshAfterMs: senderFlight.credential.refreshAfterMs,
+          nonce: senderNonceRecord(
+            value,
+            senderFlight.credential.senderConstraint.nonce.generation + 1,
+          ),
+          expectedSenderGeneration:
+            senderFlight.credential.senderConstraint.custodyGeneration,
+        },
+      );
+      return rotated.rotated ? rotated.capture : null;
+    } catch {
+      return null;
+    }
   }
 
   handleTerminalAuthLoss(capture, error) {
@@ -3836,20 +3871,42 @@ export class SnapbackClient {
         throw error;
       }
       wsRef = ws;
+      let senderSocketOpened = false;
       if (senderFlight !== null) {
+        // Decision 5's observable machine: the first server frame carrying
+        // the successor nonce is the release event. The single freshness
+        // budget bounds both a dangling upgrade (never opened: the socket is
+        // a loss) and an open-without-frame stall (the flight releases as
+        // consumed-unknown while the healthy socket lives on; the next
+        // protected request resynchronizes through the bounded challenge).
         senderFlightTimer = scheduleTimeout(() => {
+          const opened = senderSocketOpened;
           releaseSenderFlight();
-          try { ws.close(); } catch { /* the failed constructor owns refusal */ }
-          fail(new Error('Snapback sender-constrained live stream timed out before opening'));
+          if (!opened) {
+            try { ws.close(); } catch { /* the failed constructor owns refusal */ }
+            fail(new Error('Snapback sender-constrained live stream timed out before opening'));
+          }
         }, LIVE_FRESHNESS_BUDGET_MS);
         senderFlightTimer.unref?.();
-        ws.addEventListener('open', releaseSenderFlight, { once: true });
+        ws.addEventListener('open', () => { senderSocketOpened = true; }, { once: true });
         ws.addEventListener('error', releaseSenderFlight, { once: true });
         ws.addEventListener('close', releaseSenderFlight, { once: true });
       }
       ws.addEventListener('message', async (event) => {
         try {
           const update = JSON.parse(await websocketText(event.data));
+          if (update?.kind === LIVE_SOCKET_KINDS.SENDER_NONCE) {
+            // Transport-internal: commit-and-release on the flight-holding
+            // socket; swallow late or unexpected copies without ever
+            // surfacing nonce material to the application.
+            const flight = senderFlight;
+            if (flight !== null) {
+              const successor = await this.commitSenderSocketNonce(flight, update?.nonce);
+              if (successor !== null) authorityCapture = successor;
+              releaseSenderFlight();
+            }
+            return;
+          }
           if (update?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {
             const error = liveTerminalAuthError(update);
             fail(error);
@@ -5638,7 +5695,12 @@ class LiveStreamManager {
   ) {
     const url = this.#socketUrl(grant);
     let releasingSenderFlight = senderFlight;
+    let senderFrameTimer = null;
     const releaseSenderFlight = () => {
+      if (senderFrameTimer !== null) {
+        clearTimeout(senderFrameTimer);
+        senderFrameTimer = null;
+      }
       const releasing = releasingSenderFlight;
       releasingSenderFlight = null;
       if (releasing !== null) {
@@ -5695,7 +5757,15 @@ class LiveStreamManager {
     ws.addEventListener('open', () => {
       if (this.ws !== ws) return;
       clearTimeout(connectTimer);
-      releaseSenderFlight();
+      // Decision 5: the flight is NOT released on open — the first server
+      // frame carrying the successor nonce is the release event. An
+      // open-without-frame stall releases as consumed-unknown at the
+      // freshness budget while the healthy socket lives on; the next
+      // protected request resynchronizes through the bounded challenge.
+      if (releasingSenderFlight !== null) {
+        senderFrameTimer = setTimeout(releaseSenderFlight, this.freshnessBudgetMs);
+        senderFrameTimer.unref?.();
+      }
       this.open = true;
       this.attempts = 0;
       this.lastActivityMs = Date.now();
@@ -5709,6 +5779,17 @@ class LiveStreamManager {
       try {
         frame = JSON.parse(await websocketText(event.data));
       } catch {
+        return;
+      }
+      if (frame?.kind === LIVE_SOCKET_KINDS.SENDER_NONCE) {
+        // Transport-internal (decision 5): commit the in-band successor,
+        // release the per-custody flight, and never surface the frame.
+        const flight = releasingSenderFlight;
+        if (flight !== null) {
+          const successor = await this.client.commitSenderSocketNonce(flight, frame?.nonce);
+          if (successor !== null) this.authorityCapture = successor;
+          releaseSenderFlight();
+        }
         return;
       }
       if (frame?.kind === LIVE_SOCKET_KINDS.AUTH_ERROR) {

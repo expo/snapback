@@ -2,7 +2,7 @@
   "schemaVersion": "snapback-guide.v1",
   "generatedBy": "scripts/generate-guide-manifest.mjs",
   "buildIdentity": {
-    "commit": "06837831a05f6bb98f90b6660d150e93f9cd8179"
+    "commit": "33705541cf89feb36cfc7dded84f6378391228f9"
   },
   "nav": {
     ".": [
@@ -79,6 +79,11 @@
         "id": "backend.standard-patterns",
         "order": 25,
         "title": "Safe standard data patterns"
+      },
+      {
+        "id": "backend.streamed-actions",
+        "order": 35,
+        "title": "Streamed actions"
       }
     ],
     "clients": [
@@ -449,9 +454,9 @@
         "demos/all-aboard",
         "demos/competitive-checkpoint"
       ],
-      "reviewed": "2026-07-22",
-      "reviewedCommit": "HEAD",
-      "sha256": "37d16dda27f5955dc3c4f0ae503427b9425f902dc2ca54b995531977a03d764a",
+      "reviewed": "2026-07-24",
+      "reviewedCommit": "a5ed6ebd05766b10607937a1c010352d79eea4b0",
+      "sha256": "5d3cfa515731a64839901bef5b51ed7b62e810111844689a86b0ae2e7f1d560b",
       "snippets": [
         {
           "lang": "js",
@@ -467,11 +472,6 @@
           "lang": "js",
           "class": "transcluded",
           "source": "demos/all-aboard/tests/acceptance/egress.mjs"
-        },
-        {
-          "lang": "js",
-          "class": "transcluded",
-          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
         }
       ]
     },
@@ -660,6 +660,52 @@
         }
       ]
     },
+    "backend.streamed-actions": {
+      "path": "guide/backend/streamed-actions.md",
+      "title": "Streamed actions",
+      "order": 35,
+      "status": "current",
+      "targets": [
+        "local"
+      ],
+      "maturity": "partial",
+      "capabilities": [
+        "backend.streamed-actions"
+      ],
+      "authorities": [
+        "llp/0076-bounded-streamed-actions.rfc.md",
+        "llp/0075-convex-checkpoint-protocol.spec.md",
+        "src/stream_attempt.rs",
+        "src/server.rs",
+        "packages/snapback-harness/ctx-bootstrap.js",
+        "demos/competitive-checkpoint/snapback/handlers.mjs",
+        "cloudflare/app/all-aboard.app.js"
+      ],
+      "examples": [
+        "demos/competitive-checkpoint",
+        "cloudflare/test/acceptance.egress.mjs"
+      ],
+      "reviewed": "2026-07-24",
+      "reviewedCommit": "HEAD",
+      "sha256": "15033cc08d9274c55a37f12159914e7a48d1c1c618822d17e2fdd3ee1c78b46e",
+      "snippets": [
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "cloudflare/app/all-aboard.app.js"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
+        },
+        {
+          "lang": "js",
+          "class": "transcluded",
+          "source": "demos/competitive-checkpoint/snapback/handlers.mjs"
+        }
+      ]
+    },
     "meta.capabilities": {
       "path": "guide/capabilities.md",
       "title": "Capability index",
@@ -683,7 +729,7 @@
       "examples": [],
       "reviewed": "2026-07-20",
       "reviewedCommit": "7d686f7d4ce4f606e3f9a00aeb1ea50d211ac1a7",
-      "sha256": "bcc5096f3690bb6ec6fda2d21249da35c0f41aeec930cdb33c28b1f0cac3e6dd",
+      "sha256": "d07a1e455c15782b4acefd5bfa06b33810eeca532f9e081f0430b8174f80f681",
       "snippets": []
     },
     "clients.app-cli": {
@@ -1143,7 +1189,7 @@
       ],
       "reviewed": "2026-07-20",
       "reviewedCommit": "506b622cd3",
-      "sha256": "a8c599aff98d19d071652ff22849566bef1b110431648ec74af45630d8240744",
+      "sha256": "bde718df5b3fb2c1e8dc2bd9f39c2aded5d8d9bb9ade5716180a009c83c9c181",
       "snippets": []
     },
     "operating.admin-console": {
@@ -1610,6 +1656,7 @@
       "backend.schema",
       "backend.seed",
       "backend.standard-patterns",
+      "backend.streamed-actions",
       "clients.app-cli",
       "clients.contract",
       "clients.contract-keyed-scopes",
@@ -1644,5 +1691,5 @@
     "routes": 68,
     "hostOps": 19
   },
-  "contentHash": "731689b3eb93bef2ef6eb58f830364a442096cbc65dc2d21c364a883082b723a"
+  "contentHash": "f54fb5256289859cc8196ef5b2e4b16c20cac1b122db81c6871003b422111072"
 }

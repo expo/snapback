@@ -106,10 +106,23 @@ async function settleReply(ctx, args) {
   const allowed = ['failed', 'cancelled', 'timed_out', 'ambiguous'];
   if (!allowed.includes(args.status)) fail('SNAPBACK_REPLY_SETTLEMENT_INVALID', 'unknown terminal settlement');
   const row = await ownedAttempt(ctx, args.attemptId);
-  if (row.status !== 'running') return { status: row.status, sequence: row.sequence };
+  if (row.status !== 'running') {
+    // Already terminal (for example a durable client cancel): the authored
+    // row may still adopt the host-derived certainty mirror exactly once
+    // (LLP 0076 decision 2; protocol amendment v0.5).
+    if (args.effectMayHaveExecuted != null && row.effectMayHaveExecuted == null) {
+      await ctx.db.patch('messages', row._id, {
+        effectMayHaveExecuted: args.effectMayHaveExecuted === true,
+      });
+    }
+    return { status: row.status, sequence: row.sequence };
+  }
   await ctx.db.patch('messages', row._id, {
     status: args.status,
     lastProgressAt: ctx.runtime.now(),
+    ...(args.effectMayHaveExecuted == null
+      ? {}
+      : { effectMayHaveExecuted: args.effectMayHaveExecuted === true }),
   });
   return { status: args.status, sequence: row.sequence };
 }
@@ -141,12 +154,36 @@ async function streamReply(ctx, args) {
   let pending = '';
   let sequence = 0;
   let readsSinceCommit = 0;
+  // The host-owned StreamAttemptV1 control plane (LLP 0076; protocol
+  // amendment v0.5): the fence-critical identity, lease, and certainty live
+  // on the host record keyed by the server-issued authored attemptId; the
+  // authored row references it and mirrors the certainty read-only.
+  const attempt = await ctx.streamAttempt.start('reply:' + args.attemptId);
+  if (attempt.terminal) {
+    // A durable winner already exists (a previous runner settled, or the
+    // trusted terminalizer did): return it verbatim, never re-run.
+    await ctx.runMutation('settleReply', {
+      attemptId: args.attemptId,
+      status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,
+      effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,
+    });
+    return { outcome: attempt.terminal.cause, sequence: 0, replayedWinner: true };
+  }
+  const settleHost = async (cause) => {
+    try {
+      return await ctx.streamAttempt.settle(attempt.attemptToken, cause);
+    } catch (_) {
+      // Lease loss or abandonment: the trusted terminalizer owns the winner.
+      return null;
+    }
+  };
   try {
     const response = await ctx.fetchStream({
       url: args.streamUrl,
       method: args.method,
       body: args.method === 'GET' ? null : '{}',
       idempotencyKey: args.upstreamIdempotent ? args.attemptId : null,
+      attemptToken: attempt.attemptToken,
     });
     if (!response.ok) fail('SNAPBACK_ACTION_STREAM_UPSTREAM_FAILED', 'upstream returned a non-success status');
     reader = response.body.getReader();
@@ -164,6 +201,14 @@ async function streamReply(ctx, args) {
         });
         if (progress.terminal) {
           await reader.cancel();
+          const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);
+          if (settled) {
+            await ctx.runMutation('settleReply', {
+              attemptId: args.attemptId,
+              status: settled.cause === 'complete' ? progress.status : settled.cause,
+              effectMayHaveExecuted: settled.effectMayHaveExecuted,
+            });
+          }
           return { outcome: progress.status, sequence: progress.sequence };
         }
         pending = '';
@@ -176,19 +221,38 @@ async function streamReply(ctx, args) {
       sequence: terminalSequence,
       tail: pending,
     });
+    await settleHost('complete');
     return { outcome: 'complete', sequence: terminalSequence };
   } catch (error) {
     if (reader) {
       try { await reader.cancel(); } catch (_) {}
     }
     const code = safeCode(error);
-    if (code === 'SNAPBACK_REPLY_CANCELLED') return { outcome: 'cancelled', sequence };
-    const status = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'
+    if (code === 'SNAPBACK_REPLY_CANCELLED') {
+      const settled = await settleHost('cancelled');
+      if (settled) {
+        await ctx.runMutation('settleReply', {
+          attemptId: args.attemptId,
+          status: settled.cause === 'complete' ? 'cancelled' : settled.cause,
+          effectMayHaveExecuted: settled.effectMayHaveExecuted,
+        });
+      }
+      return { outcome: 'cancelled', sequence };
+    }
+    const local = code === 'SNAPBACK_ACTION_STREAM_UPSTREAM_AMBIGUOUS'
       ? 'ambiguous'
       : code === 'SNAPBACK_ACTION_STREAM_IDLE_TIMEOUT' || code === 'SNAPBACK_ACTION_STREAM_TIMEOUT'
         ? 'timed_out'
         : 'failed';
-    await ctx.runMutation('settleReply', { attemptId: args.attemptId, status });
+    // The committed durable winner is authoritative over local inference
+    // (LLP 0076 §Settlement and retry): return whatever the host recorded.
+    const settled = await settleHost(local);
+    const status = settled && settled.cause !== 'complete' ? settled.cause : local;
+    await ctx.runMutation('settleReply', {
+      attemptId: args.attemptId,
+      status,
+      effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,
+    });
     return { outcome: status, sequence, code };
   }
 }

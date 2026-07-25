@@ -5,7 +5,12 @@
 **Systems:** Actions, Runtime, Outbound fetch, Durable mutations, Diagnostics, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (the last two implementable residues closed: the
+**Revised:** 2026-07-24 (gate-2 remainder pass: LLP 0075 protocol amendment
+v0.5 reconciles the frozen fixture with the StreamAttemptV1 control plane
+and certainty mirror (instrument 7/7); per-bullet acceptance receipts landed
+with three explicit gaps; the guide gains `backend/streamed-actions` with a
+`partial` capability row and the repair anchor now resolves — ENG-25423).
+2026-07-24 (the last two implementable residues closed: the
 ServicePrincipal tier of the per-read fence is witnessed end to end — a
 real scoped-token authority prepared through the production admission and
 invocation machinery, a real service terminal gate committed while a pull
@@ -533,6 +538,23 @@ failed-versus-ambiguous labels; the total-byte, idle, wall, and progress-rate
 codes in unit tests; and on Workerd, pulling, visible chunk size, the
 total-byte refusal, and idempotent cancel.
 
+2026-07-24 (gate-2 remainder pass): protocol amendment v0.5 reconciles the
+frozen fixture with this authority — the authored pattern adopts the
+StreamAttemptV1 control plane and the read-only certainty mirror, the
+instrument gains the certainty-mirror check (7/7 PASS), the decision-5
+downgrade is recorded, and the generated-CRUD expectations track LLP 0065's
+Accepted anti-probing posture. Per-bullet acceptance receipts now exist at
+`demos/competitive-checkpoint/acceptance/llp0076-acceptance-receipts.v1.json`,
+mapping every §Acceptance bullet to named witnesses per target with three
+explicit gaps (the hosted `single-instance-container-vm.v1` receipt, the
+author's maturity-marker decision, and the Workerd structural bounds).
+Retained checkpoint receipts were scanned for fixture secret values (clean);
+durable-row scans on the hosted target ride the hosted receipt. The guide
+now covers the surface (`guide/backend/streamed-actions.md`, capability row
+`backend.streamed-actions`, maturity `partial`), and the diagnostics' repair
+anchor `guide/backend/actions-and-fetch#stream-a-response` resolves
+(ENG-25423).
+
 Not yet mechanically witnessed, staged before gate 2 can close: slow-consumer
 buffering under the 64 KiB bound (including the exact accounting domain —
 host-retained unread bytes versus bridge copies — which must be defined);
@@ -757,10 +779,12 @@ a fix before gate 2:
   moot in practice on this target (no service-authority fence exists
   there), revisit if hosted auth reaches the Cloudflare profile.
 
-The reference fixture also uses string mutation names and a client-key start
-dedup, which a prospective LLP 0075 amendment must reconcile with that Spec's
-generated-reference-only rule and server-issued attempt-identity wording
-before the checkpoint reruns.
+The reference-fixture reconciliation is done: protocol amendment v0.5
+(2026-07-24) adopts the attempt token as the fence-critical identity keyed
+by the server-issued authored attemptId, scopes the generated-reference-only
+rule to the client arm (nested host-side `ctx.runMutation`-by-name is the
+shipped server authoring surface), and authorizes the seven-check
+instrument.
 
 ## Non-goals
 

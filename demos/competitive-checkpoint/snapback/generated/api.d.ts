@@ -32,7 +32,7 @@ export interface EphemeralCollectionReference<Name extends string, Scope, Value>
 }
 export interface GeneratedDataModel {
   conversations: { _id: Id<'conversations'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; slug: string; title: string; model: string; pageKey: string; createdAt: number; updatedAt: number };
-  messages: { _id: Id<'messages'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; conversationId: Id<'conversations'>; role: string; content: string; status: string; attemptId: string; idempotencyKey: string; sequence: number; lastProgressAt: number; pageKey: string };
+  messages: { _id: Id<'messages'>; _version: number; _createdAt: number; _updatedAt: number; ownerId: Principal; conversationId: Id<'conversations'>; role: string; content: string; status: string; attemptId: string; idempotencyKey: string; sequence: number; lastProgressAt: number; pageKey: string; effectMayHaveExecuted?: boolean };
 }
 export interface GeneratedPermissions {
 }

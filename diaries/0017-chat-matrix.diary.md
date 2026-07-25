@@ -38,6 +38,9 @@ makes that gap load-bearing rather than theoretical. (Guide-gap to file per
 LLP 0061 §5 once a Linear session is authenticated: "streaming/token-append
 AI-reply pattern for actions — no guide page, no ReadableStream in the
 runtime, wall-clock watchdog implications undocumented.")
+*(Update 2026-07-24: closed. LLP 0076 landed `ctx.fetchStream` and this
+demo's Snapback cell now streams — see the 2026-07-24 entry below. The
+guide gap is ENG-25423.)*
 
 ### Snapback authoring notes
 
@@ -309,3 +312,51 @@ surface has made new cells almost mechanical.
   Exact still needs the primitive.
 - The gateway-poll architecture paid for itself today: four new stacks and
   not one backend-specific line had to be written in any of them.
+
+## 2026-07-24 — the Snapback cell learns to stream (LLP 0076 adoption)
+
+LLP 0076 (bounded streamed actions) landed on main yesterday and today, so I
+became its first demo consumer: `generateReply` now uses `ctx.fetchStream` on
+OpenRouter's SSE and commits throttled token deltas through
+`applyAssistantDelta`. The asymmetry this diary recorded on day one — Snapback
+replies landing as one commit while Convex streamed — is gone. Witnessed via a
+150 ms poll during generation: six distinct `streaming` snapshots with content
+growing 101 → 658 chars before `complete`.
+
+What adoption felt like:
+
+- **The diff was small because the shape was already right.** The
+  claim-and-return mutation, the pending→streaming→complete row lifecycle, and
+  the commit-through-mutation plumbing all survived unchanged; only the fetch
+  body swapped for a reader loop plus ~40 lines of byte-level SSE parsing
+  (split on `\n` before UTF-8 decode — continuation bytes are never 0x0A, so
+  multibyte tokens survive chunk boundaries; the Ibex runtime has no
+  `TextDecoder`).
+- **Capability declaration is free.** Codegen's AST scan noticed
+  `ctx.fetchStream` in the handler and added `bounded_response_stream_v1` to
+  the action's `requiredCapabilities` on regen — nothing to declare by hand,
+  and a server without the capability refuses the artifact at admission
+  instead of failing mid-reply.
+- **The progress-rate fence bit me immediately, and the diagnostic paid for
+  itself.** My first throttle (commit every 2 reads) blew the
+  ten-commits-per-second limit ~1.2 s in; the reply row itself carried
+  `SNAPBACK_ACTION_PROGRESS_RATE_EXCEEDED: stream progress exceeds ten
+  authoritative commits per second`, which named both the rule and the fix.
+  Actions have no wall clock by design, and the platform's answer is built
+  into the reader: `read()` returns trusted `elapsedMs`/`deltaMs`, so pacing
+  commits at ≥200 ms spacing took three lines. That is the right shape for a
+  deterministic runtime — I never missed `Date.now()`.
+- **Boundedness is a designable contract, not a surprise.** 1 MiB total, 30 s
+  wall, 5 s idle are real ceilings a chat demo can hit on long replies; the
+  handler maps the three stream-limit codes to an honest "(truncated: …)"
+  completion when tokens are already in hand, which is strictly better than
+  the pre-streaming behavior (all-or-nothing).
+- Local secret handling stayed idiomatic: value-mode `asBearer()` in the
+  header works exactly like ordinary `fetch`, with the staged-value redactor
+  covering error envelopes. (Descriptor slots are the hosted-profile story.)
+
+Scoreboard effect: the "where the AI call lives" comparison now has Snapback
+and Convex in the same class — backend-owned streaming over the ordinary
+live-fan-out — with the gateway worker (Supabase/SQLite) as the only
+non-backend streamer left. Every TUI's blinking `▍` cursor on the snapback
+backend now shows real token growth instead of a long busy state.

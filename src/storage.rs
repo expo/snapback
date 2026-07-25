@@ -2230,6 +2230,22 @@ impl LocalDatabase {
         query_on(&self.conn, &self.schema, plan, input)
     }
 
+    /// Execute a closed relational plan under `root-window-v1`.
+    ///
+    /// @ref LLP 0080#2-portable-evaluation-semantics — the normative
+    ///   pipeline: visible root filter → root order → take N roots → join +
+    ///   joined visibility → projection. Both source predicates execute
+    ///   inside one pinned read snapshot; `take` bounds consumed authorized
+    ///   roots; `inner` omits an unmatched or invisible joined row without
+    ///   refilling the page; `left` emits null joined leaves.
+    pub fn query_relational(
+        &self,
+        plan: &crate::manifest::RelationalQueryPlan,
+        input: &HandlerInput,
+    ) -> SnapbackResult<QueryOutput> {
+        self.with_pinned_read_view(|db| query_relational_on(&db, plan, input))
+    }
+
     /// Run one complete query invocation against a snapshot-bound view of this
     /// database. The file-backed read lane already supplies a transaction; this
     /// gives direct-library, live-subscription, and in-memory fallback queries
@@ -3887,6 +3903,158 @@ pub(crate) fn query_on(
     input: &HandlerInput,
 ) -> SnapbackResult<QueryOutput> {
     query_on_with_storage_limit(conn, schema, plan, input, effective_query_limit(plan))
+}
+
+// @ref LLP 0080#1-closed-relational-plan — runtime admission of the closed
+//   plan shape: exactly one joined table, 1..=4 equality pairs, take in
+//   0..=1024. Structural/type validation beyond this is generation's job;
+//   the executor still fails closed on the load-bearing bounds.
+fn validate_relational_plan_shape(
+    plan: &crate::manifest::RelationalQueryPlan,
+) -> SnapbackResult<()> {
+    if plan.join_on.is_empty() || plan.join_on.len() > 4 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            format!(
+                "relational plan requires 1..=4 join equality pairs, got {}",
+                plan.join_on.len()
+            ),
+        ));
+    }
+    if plan.take > 1024 {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            format!("relational take must be 0..=1024, got {}", plan.take),
+        ));
+    }
+    if plan.root == plan.joined {
+        return Err(SnapbackError::error(
+            "SNAPBACK_RELATIONAL_PLAN_INVALID",
+            "query",
+            "relational root and joined tables must differ in v1".to_owned(),
+        ));
+    }
+    Ok(())
+}
+
+fn query_relational_on(
+    db: &DbRead<'_>,
+    plan: &crate::manifest::RelationalQueryPlan,
+    input: &HandlerInput,
+) -> SnapbackResult<QueryOutput> {
+    use crate::manifest::{FilterExpr, JoinKind, ProjectionSource};
+
+    validate_relational_plan_shape(plan)?;
+
+    // take: 0 returns an empty page and consumes nothing (LLP 0080 §2), but
+    // still reports the snapshot version so callers get a coherent cursor.
+    let root_window = {
+        let mut filters = plan.root_visibility.clone();
+        filters.extend(plan.root_filters.iter().cloned());
+        let root_plan = QueryPlan {
+            table: plan.root.clone(),
+            filters,
+            order: plan.order.clone(),
+            limit: Some(plan.take as usize),
+            membership_filters: Vec::new(),
+            indexed_by: Some(plan.root_index.clone()),
+        };
+        db.query(&root_plan, input)?
+    };
+    if plan.take == 0 {
+        return Ok(QueryOutput {
+            version: root_window.version,
+            rows: Vec::new(),
+        });
+    }
+
+    let mut rows = Vec::with_capacity(root_window.rows.len());
+    for root_row in &root_window.rows {
+        // A null (or absent) value in any join-key position never matches.
+        let mut key_values = Vec::with_capacity(plan.join_on.len());
+        let mut null_key = false;
+        for pair in &plan.join_on {
+            match root_row.get(&pair.root_field) {
+                Some(value) if !value.is_null() => key_values.push(value.clone()),
+                _ => {
+                    null_key = true;
+                    break;
+                }
+            }
+        }
+        let joined_row = if null_key {
+            None
+        } else {
+            let mut filters: Vec<FilterExpr> = plan
+                .join_on
+                .iter()
+                .zip(key_values)
+                .map(|(pair, value)| FilterExpr {
+                    field: pair.joined_field.clone(),
+                    op: FilterOp::Eq,
+                    value: ValueExpr::Literal(value),
+                })
+                .collect();
+            filters.extend(plan.joined_visibility.iter().cloned());
+            let lookup = QueryPlan {
+                table: plan.joined.clone(),
+                filters,
+                order: Vec::new(),
+                // limit 2: a second row under the unique joined key is a
+                // storage-invariant failure, never a first-row choice
+                // (LLP 0080 §2).
+                limit: Some(2),
+                membership_filters: Vec::new(),
+                indexed_by: None,
+            };
+            let looked_up = db.query(&lookup, input)?;
+            if looked_up.rows.len() > 1 {
+                return Err(SnapbackError::error(
+                    "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY",
+                    "query",
+                    format!(
+                        "two joined rows in {} share the unique key of index {}; \
+                         refusing rather than choosing a first row",
+                        plan.joined, plan.joined_index
+                    ),
+                ));
+            }
+            looked_up.rows.into_iter().next()
+        };
+
+        // Invisible behaves as absent: the visibility filters above already
+        // collapsed the two cases, so `inner` omits the root (short page, no
+        // refill) and `left` nulls every joined leaf.
+        if joined_row.is_none() && matches!(plan.join_kind, JoinKind::Inner) {
+            continue;
+        }
+
+        // Field order inside the JSON value is serde-sorted here; the
+        // declaration-order byte rule (RelationalResultEncodingV1) is the
+        // wire encoder's contract, not the storage row's.
+        let mut projected = Map::new();
+        for leaf in &plan.projection {
+            let value = match &leaf.source {
+                ProjectionSource::Literal(value) => value.clone(),
+                ProjectionSource::RootField(field) => {
+                    root_row.get(field).cloned().unwrap_or(Value::Null)
+                }
+                ProjectionSource::JoinedField(field) => joined_row
+                    .as_ref()
+                    .and_then(|row| row.get(field).cloned())
+                    .unwrap_or(Value::Null),
+            };
+            projected.insert(leaf.name.clone(), value);
+        }
+        rows.push(Value::Object(projected));
+    }
+
+    Ok(QueryOutput {
+        version: root_window.version,
+        rows,
+    })
 }
 
 pub(crate) fn query_on_with_storage_limit(
@@ -11159,6 +11327,254 @@ mod guarded_commit_tests {
         );
     }
 
+    fn relational_schema() -> SchemaManifest {
+        let string = |name: &str, optional: bool| FieldManifest {
+            name: name.to_owned(),
+            field_type: FieldType::String,
+            optional,
+        };
+        SchemaManifest {
+            tables: vec![
+                TableManifest {
+                    name: "books".to_owned(),
+                    fields: vec![
+                        string("title", false),
+                        string("authorSlug", true),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![crate::manifest::IndexManifest {
+                        name: "by_owner_title".to_owned(),
+                        fields: vec!["ownerId".to_owned(), "title".to_owned()],
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+                TableManifest {
+                    name: "authors".to_owned(),
+                    fields: vec![
+                        string("slug", false),
+                        string("name", false),
+                        string("ownerId", false),
+                    ],
+                    indexes: vec![crate::manifest::IndexManifest {
+                        name: "by_slug".to_owned(),
+                        fields: vec!["slug".to_owned()],
+                        // Deliberately non-unique so the duplicate-key
+                        // below-constraint corruption case is seedable; the
+                        // executor must refuse, never pick a first row.
+                        unique: false,
+                    }],
+                    syncable: true,
+                    permission_backing: false,
+                    permission_fields: None,
+                    membership: None,
+                },
+            ],
+            ..SchemaManifest::default()
+        }
+    }
+
+    fn relational_plan(
+        join_kind: crate::manifest::JoinKind,
+        take: u32,
+    ) -> crate::manifest::RelationalQueryPlan {
+        use crate::manifest::{
+            FilterExpr, JoinEquality, ProjectionLeaf, ProjectionSource, RelationalQueryPlan,
+        };
+        let owner_visibility = |field: &str| FilterExpr {
+            field: field.to_owned(),
+            op: FilterOp::Eq,
+            value: ValueExpr::AuthUserId,
+        };
+        RelationalQueryPlan {
+            root: "books".to_owned(),
+            root_alias: "book".to_owned(),
+            joined: "authors".to_owned(),
+            joined_alias: "author".to_owned(),
+            join_kind,
+            join_on: vec![JoinEquality {
+                root_field: "authorSlug".to_owned(),
+                joined_field: "slug".to_owned(),
+            }],
+            root_filters: Vec::new(),
+            root_visibility: vec![owner_visibility("ownerId")],
+            joined_visibility: vec![owner_visibility("ownerId")],
+            projection: vec![
+                ProjectionLeaf {
+                    name: "title".to_owned(),
+                    source: ProjectionSource::RootField("title".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "authorName".to_owned(),
+                    source: ProjectionSource::JoinedField("name".to_owned()),
+                },
+                ProjectionLeaf {
+                    name: "shelf".to_owned(),
+                    source: ProjectionSource::Literal(json!("fiction")),
+                },
+            ],
+            order: vec![crate::manifest::OrderExpr {
+                field: "title".to_owned(),
+                direction: OrderDirection::Asc,
+            }],
+            take,
+            root_index: "by_owner_title".to_owned(),
+            joined_index: "by_slug".to_owned(),
+        }
+    }
+
+    fn relational_database() -> LocalDatabase {
+        let mut db = LocalDatabase::memory().expect("memory database");
+        db.apply_schema(relational_schema()).expect("apply relational schema");
+        let row = |id: &str, fields: Value| {
+            let mut object = fields.as_object().cloned().expect("row object");
+            object.insert("_id".to_owned(), json!(id));
+            object
+        };
+        db.seed(SeedData {
+            tables: BTreeMap::from([
+                (
+                    "books".to_owned(),
+                    vec![
+                        row("b1", json!({ "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })),
+                        row("b2", json!({ "title": "beta", "authorSlug": "grace", "ownerId": "user-a" })),
+                        row("b3", json!({ "title": "gamma", "authorSlug": null, "ownerId": "user-a" })),
+                        row("b4", json!({ "title": "delta", "authorSlug": "ada", "ownerId": "user-b" })),
+                    ],
+                ),
+                (
+                    "authors".to_owned(),
+                    vec![
+                        row("a1", json!({ "slug": "ada", "name": "Ada", "ownerId": "user-a" })),
+                        row("a2", json!({ "slug": "grace", "name": "Grace", "ownerId": "user-b" })),
+                    ],
+                ),
+            ]),
+        })
+        .expect("seed relational fixture");
+        db
+    }
+
+    fn relational_input(user: &str) -> HandlerInput {
+        HandlerInput {
+            auth: AuthInput {
+                user_id: Some(user.to_owned()),
+                ..AuthInput::default()
+            },
+            ..HandlerInput::default()
+        }
+    }
+
+    // @ref LLP 0080#2-portable-evaluation-semantics — root-window-v1: the
+    //   root window is filtered by visibility before take; an unmatched,
+    //   null-keyed, or invisible joined row is omitted by `inner` without
+    //   refilling the page and nulled by `left`; a duplicate under the
+    //   claimed-unique joined key refuses rather than choosing a row.
+    #[test]
+    fn relational_root_window_semantics() {
+        use crate::manifest::JoinKind;
+        let db = relational_database();
+        let input = relational_input("user-a");
+
+        // Inner: b1 joins Ada (visible); b2's author Grace is owned by
+        // user-b, so the joined predicate makes her absent and b2 is
+        // omitted; b3 has a null join key; b4 is another owner's root and
+        // never occupies a window slot. Short page, no refill.
+        let inner = db
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .expect("inner relational query");
+        assert_eq!(
+            inner.rows,
+            vec![json!({
+                "authorName": "Ada",
+                "shelf": "fiction",
+                "title": "alpha",
+            })],
+        );
+
+        // Left: every visible root emits; missing/invisible/null-key joined
+        // leaves are null — indistinguishable from one another.
+        let left = db
+            .query_relational(&relational_plan(JoinKind::Left, 10), &input)
+            .expect("left relational query");
+        let titles: Vec<(&str, bool)> = left
+            .rows
+            .iter()
+            .map(|r| (r["title"].as_str().unwrap(), r["authorName"].is_null()))
+            .collect();
+        assert_eq!(
+            titles,
+            vec![("alpha", false), ("beta", true), ("gamma", true)],
+            "left join nulls invisible and null-key joined leaves identically",
+        );
+
+        // take bounds consumed authorized roots, not emitted rows: with
+        // take=2 the window is [alpha, beta]; beta's author is invisible so
+        // inner emits one row, and gamma is never consumed to refill.
+        let windowed = db
+            .query_relational(&relational_plan(JoinKind::Inner, 2), &input)
+            .expect("windowed inner query");
+        assert_eq!(windowed.rows.len(), 1);
+        assert_eq!(windowed.rows[0]["title"], json!("alpha"));
+
+        // take: 0 is an empty page that consumes nothing.
+        let empty = db
+            .query_relational(&relational_plan(JoinKind::Inner, 0), &input)
+            .expect("take zero");
+        assert!(empty.rows.is_empty());
+
+        // Below-constraint duplicate injection: a second row under the
+        // claimed-unique joined key is a storage-invariant refusal.
+        let mut corrupted = LocalDatabase::memory().expect("memory database");
+        corrupted
+            .apply_schema(relational_schema())
+            .expect("apply relational schema");
+        corrupted
+            .seed(SeedData {
+                tables: BTreeMap::from([
+                    (
+                        "books".to_owned(),
+                        vec![json!({ "_id": "b1", "title": "alpha", "authorSlug": "ada", "ownerId": "user-a" })
+                            .as_object()
+                            .cloned()
+                            .expect("seed row")],
+                    ),
+                    (
+                        "authors".to_owned(),
+                        vec![
+                            json!({ "_id": "a1", "slug": "ada", "name": "Ada", "ownerId": "user-a" }),
+                            json!({ "_id": "a3", "slug": "ada", "name": "Imposter", "ownerId": "user-a" }),
+                        ]
+                        .into_iter()
+                        .map(|row| row.as_object().cloned().expect("seed row"))
+                        .collect(),
+                    ),
+                ]),
+            })
+            .expect("seed duplicate authors");
+        let error = corrupted
+            .query_relational(&relational_plan(JoinKind::Inner, 10), &input)
+            .expect_err("duplicate unique key must refuse");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_DUPLICATE_UNIQUE_KEY");
+
+        // Closed-shape refusals.
+        let mut no_pairs = relational_plan(JoinKind::Inner, 10);
+        no_pairs.join_on.clear();
+        let error = db
+            .query_relational(&no_pairs, &input)
+            .expect_err("zero join pairs");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+        let mut too_big = relational_plan(JoinKind::Inner, 10);
+        too_big.take = 1025;
+        let error = db
+            .query_relational(&too_big, &input)
+            .expect_err("take over 1024");
+        assert_eq!(error.diagnostic.code, "SNAPBACK_RELATIONAL_PLAN_INVALID");
+    }
+
     // @ref LLP 0065#2-the-v1-visibility-floor — generated update/delete lower
     //   to a server-evaluated conditional plan: read, owner guard, write in
     //   one authoritative transaction. The guard consumes the transaction's
@@ -11223,10 +11639,12 @@ mod guarded_commit_tests {
             db.seed(SeedData {
                 tables: BTreeMap::from([(
                     "items".to_owned(),
-                    vec![json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
-                        .as_object()
-                        .cloned()
-                        .expect("seed row")],
+                    vec![
+                        json!({ "_id": "row-1", "title": "user-a", "rank": 1 })
+                            .as_object()
+                            .cloned()
+                            .expect("seed row"),
+                    ],
                 )]),
             })
             .expect("seed owned row");
@@ -11247,19 +11665,36 @@ mod guarded_commit_tests {
             .expect_err("commit-time guard must see the concurrent transfer");
         assert_eq!(error.diagnostic.code, "SNAPBACK_ROW_NOT_FOUND");
         let row = db.scan_table("items", 10, 0).unwrap();
-        assert_eq!(row.rows[0]["title"], json!("user-b"), "transfer is not lost");
-        assert_eq!(row.rows[0]["rank"], json!(1), "refused update wrote nothing");
+        assert_eq!(
+            row.rows[0]["title"],
+            json!("user-b"),
+            "transfer is not lost"
+        );
+        assert_eq!(
+            row.rows[0]["rank"],
+            json!(1),
+            "refused update wrote nothing"
+        );
 
         // Order 2: the update commits first, then the transfer. Both writes
         // land; nothing is lost or misattributed.
         let mut db = database();
         seed(&mut db);
-        db.execute_mutation_guarded(&owner_guard_plan(), &owner_input("user-a"), || Ok(()), || Ok(()))
-            .expect("owner update before the transfer succeeds");
+        db.execute_mutation_guarded(
+            &owner_guard_plan(),
+            &owner_input("user-a"),
+            || Ok(()),
+            || Ok(()),
+        )
+        .expect("owner update before the transfer succeeds");
         transfer_to(&mut db, "user-b");
         let rows = db.scan_table("items", 10, 0).unwrap();
         assert_eq!(rows.rows[0]["rank"], json!(5), "committed update survives");
-        assert_eq!(rows.rows[0]["title"], json!("user-b"), "later transfer wins the field");
+        assert_eq!(
+            rows.rows[0]["title"],
+            json!("user-b"),
+            "later transfer wins the field"
+        );
     }
 
     // @ref LLP 0007#index-contract — the duplicate-order-key witness: the

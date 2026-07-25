@@ -25,6 +25,10 @@ export const messages = defineTable({
   sequence: v.integer(),
   lastProgressAt: v.integer(),
   pageKey: v.string(),
+  // Read-only mirror of the HOST-derived effect certainty (LLP 0076
+  // decision 2, protocol amendment v0.5): the host-owned StreamAttemptV1
+  // record is the authority; this column only reflects it.
+  effectMayHaveExecuted: v.optional(v.boolean()),
 })
   .index('by_owner_conversation', ['ownerId', 'conversationId'])
   .index('by_owner_attempt', ['ownerId', 'attemptId'], { unique: true })

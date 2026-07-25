@@ -1,0 +1,135 @@
+{
+  "artifactKind": "providerBindingMetadata",
+  "bindings": {
+    "ephemeral": [],
+    "mutations": [
+      {
+        "argumentsType": "{ \"content\": string; \"messageId\": string; \"status\": string }",
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "name": "applyAssistantDelta",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"messageId\": string }",
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "name": "claimReply",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"createdAt\": number; \"model\": string; \"title\": string }",
+        "effects": {
+          "invalidates": [
+            "conversations"
+          ],
+          "writes": [
+            "conversations"
+          ]
+        },
+        "name": "createConversation",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      },
+      {
+        "argumentsType": "{ \"content\": string; \"conversationId\": string; \"createdAt\": number }",
+        "effects": {
+          "invalidates": [
+            "messages"
+          ],
+          "writes": [
+            "messages"
+          ]
+        },
+        "name": "sendMessage",
+        "optimistic": {
+          "source": "none",
+          "supported": false
+        }
+      }
+    ],
+    "queries": [
+      {
+        "argumentsType": "Record<string, never>",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "conversations"
+          ]
+        },
+        "name": "listConversations",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"createdAt\": number; \"model\": string; \"title\": string }>"
+      },
+      {
+        "argumentsType": "{ \"conversationId\": string }",
+        "delivery": {
+          "defaultLive": true,
+          "initialSnapshot": true,
+          "mode": "live",
+          "transports": [
+            {
+              "kind": "push",
+              "role": "primary"
+            },
+            {
+              "cadenceMs": 1500,
+              "kind": "poll",
+              "role": "fallback"
+            }
+          ]
+        },
+        "dependencies": {
+          "reads": [
+            "messages"
+          ]
+        },
+        "name": "thread",
+        "resultType": "ReadonlyArray<{ \"_createdAt\": number; \"_id\": string; \"_updatedAt\": number; \"_version\": number; \"content\": string; \"conversationId\": string; \"createdAt\": number; \"role\": string; \"status\": string }>"
+      }
+    ]
+  },
+  "provider": {
+    "id": "snapback",
+    "version": "snapback.v0"
+  },
+  "schemaVersion": "provider-binding-metadata.v1",
+  "source": {
+    "inputsHash": "92797fd2160e60915762de99f7bb12eec60e4ed6a98b4963c9eff23a9ab18403",
+    "introspectionSchemaVersion": "provider-introspection.v1"
+  }
+}
