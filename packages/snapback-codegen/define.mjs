@@ -684,8 +684,11 @@ export const defineQuery = (spec) => queryDef('Query', spec);
 
 const RELATIONAL_SPEC_FIELDS = new Set([
   'root', 'rootAlias', 'joined', 'joinedAlias', 'join', 'kind', 'visibility',
-  'projection', 'take', 'rootIndex', 'joinedIndex', 'defaultLive',
+  'projection', 'take', 'rootIndex', 'joinedIndex', 'defaultLive', 'retention',
 ]);
+// The closed retention vocabulary (LLP 0080 §4): default-deny, two values,
+// no third story.
+const RELATIONAL_RETENTION_CLASSES = new Set(['none', 'opaque-authorized-snapshot-v1']);
 const RELATIONAL_VISIBILITY_FIELDS = new Set(['root', 'joined', 'output']);
 const RELATIONAL_IDENT = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -873,10 +876,27 @@ export function defineRelationalQuery(spec) {
   const visibilityFilters = (visibility) => (
     visibility.kind === 'owner' ? [eq(visibility.field, authUserId())] : []
   );
+  const retention = spec.retention ?? 'none';
+  assert(
+    RELATIONAL_RETENTION_CLASSES.has(retention),
+    "relational retention must be 'none' or 'opaque-authorized-snapshot-v1' — the vocabulary is closed",
+  );
+  // @ref LLP 0080#4-live-and-retained-capability — the authenticated lease
+  // class requires a server-resolved authenticated principal; anonymous
+  // results have no admissible v1 retention, so an all-public plan may not
+  // declare it.
+  assert(
+    retention === 'none' || computedOutput === 'owner',
+    "retention: 'opaque-authorized-snapshot-v1' requires an owner-visible output; "
+      + 'anonymous results have no admissible v1 retention (SNAPBACK_AUTH_UNDECLARABLE_RETENTION)',
+  );
   return {
     [FN]: true,
     __kind: 'LiveQuery',
     auth: computedOutput === 'owner' ? 'authenticated' : 'public',
+    ...(retention === 'opaque-authorized-snapshot-v1'
+      ? { retainable: true, authorizationDependence: ['UserId'] }
+      : {}),
     // The one implicit argument every relational query accepts: the opaque
     // versioned continuation cursor from a previous full page (LLP 0080 §2).
     // Authors declare no arguments of their own in v1, so the name cannot

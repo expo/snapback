@@ -62,7 +62,8 @@
   "relationalQueries": {
     "liveDelivery": "live_replace",
     "retention": [
-      "none"
+      "none",
+      "opaque-authorized-snapshot-v1"
     ]
   },
   "replaceOnlyQueries": true,

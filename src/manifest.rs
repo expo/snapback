@@ -1609,11 +1609,7 @@ fn undeclarable_retention(function: &FunctionDefinition, reason: &str) -> Snapba
     }))
 }
 
-fn host_plan_authorization_dimensions(
-    function: &FunctionDefinition,
-    plan: &QueryPlan,
-) -> BTreeSet<AuthorizationInputDimension> {
-    fn collect(value: &ValueExpr, dimensions: &mut BTreeSet<AuthorizationInputDimension>) {
+fn collect(value: &ValueExpr, dimensions: &mut BTreeSet<AuthorizationInputDimension>) {
         match value {
             ValueExpr::AuthUserId => {
                 dimensions.insert(AuthorizationInputDimension::UserId);
@@ -1661,6 +1657,10 @@ fn host_plan_authorization_dimensions(
         }
     }
 
+fn host_plan_authorization_dimensions(
+    function: &FunctionDefinition,
+    plan: &QueryPlan,
+) -> BTreeSet<AuthorizationInputDimension> {
     let mut dimensions = BTreeSet::new();
     for filter in &plan.filters {
         collect(&filter.value, &mut dimensions);
@@ -1675,6 +1675,24 @@ fn host_plan_authorization_dimensions(
     dimensions
 }
 
+/// The authorization dimensions a relational plan observes: its root
+/// filters and both visibility predicate lists (LLP 0080 §3 — visibility
+/// is the executable authorization evidence).
+fn relational_authorization_dimensions(
+    plan: &RelationalQueryPlan,
+) -> BTreeSet<AuthorizationInputDimension> {
+    let mut dimensions = BTreeSet::new();
+    for filter in plan
+        .root_filters
+        .iter()
+        .chain(&plan.root_visibility)
+        .chain(&plan.joined_visibility)
+    {
+        collect(&filter.value, &mut dimensions);
+    }
+    dimensions
+}
+
 fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()> {
     if !function.retainable {
         return Ok(());
@@ -1684,16 +1702,77 @@ fn validate_retainable_query(function: &FunctionDefinition) -> SnapbackResult<()
     }
 
     // @ref LLP 0080#4-live-and-retained-capability — retention is a closed
-    //   default-deny plan capability for relational queries: v1 authoring
-    //   admits only `none`, so a retainable relational declaration refuses
-    //   with its own honest reason. `opaque-authorized-snapshot-v1` (the
-    //   authenticated lease class) is the specified successor; anonymous
-    //   results have no admissible v1 retention at all.
-    if matches!(
-        &function.runtime,
-        FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(_))
-    ) {
-        return Err(undeclarable_retention(function, "relationalRetentionNone"));
+    //   default-deny plan capability for relational queries: `retainable`
+    //   on a relational plan declares exactly the
+    //   `opaque-authorized-snapshot-v1` class (there is no third value),
+    //   which treats the projected result as an opaque authorized snapshot
+    //   under LLP 0053's lease and reconnect rules and therefore requires a
+    //   server-resolved authenticated principal. Anonymous results have no
+    //   admissible v1 retention, so an all-`public-read` plan refuses. The
+    //   retained/native evaluator only decodes the opaque snapshot against
+    //   the retained store — it never re-executes the join over retained
+    //   rows — which holds by construction: the lease envelope carries
+    //   result bytes, never a plan to re-run.
+    if let FunctionRuntime::HostPlan(HandlerPlan::RelationalQuery(plan)) = &function.runtime {
+        let owner_visible = plan
+            .root_visibility
+            .iter()
+            .chain(&plan.joined_visibility)
+            .any(|filter| matches!(filter.value, ValueExpr::AuthUserId));
+        if !owner_visible {
+            return Err(undeclarable_retention(
+                function,
+                "relationalAnonymousRetention",
+            ));
+        }
+        let summary = &function.read_set_summary;
+        let summary_complete = summary.mode.as_deref() == Some("relational")
+            && summary.primary_table.as_deref() == Some(plan.root.as_str())
+            && summary.tables == vec![plan.root.clone(), plan.joined.clone()]
+            && summary
+                .auth_scope_field
+                .as_ref()
+                .is_none_or(|field| !field.trim().is_empty());
+        if !summary_complete {
+            return Err(undeclarable_retention(function, "incompleteReadSummary"));
+        }
+        let declared = function
+            .authorization_dependence
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>();
+        if declared.len() != function.authorization_dependence.len() {
+            return Err(undeclarable_retention(
+                function,
+                "duplicateAuthorizationDimension",
+            ));
+        }
+        let mut observed = relational_authorization_dimensions(plan);
+        if summary.auth_scope_field.is_some() {
+            observed.insert(AuthorizationInputDimension::UserId);
+        }
+        if declared != observed {
+            return Err(undeclarable_retention(
+                function,
+                "authorizationDeclarationMismatch",
+            ));
+        }
+        if function.authority_independent {
+            return Err(undeclarable_retention(
+                function,
+                "authorityIndependentWithAuthorizationDependence",
+            ));
+        }
+        if declared == BTreeSet::from([AuthorizationInputDimension::UserId])
+            || declared
+                == BTreeSet::from([
+                    AuthorizationInputDimension::UserId,
+                    AuthorizationInputDimension::Kind,
+                ])
+        {
+            return Ok(());
+        }
+        return Err(undeclarable_retention(function, "notUserIdOnly"));
     }
 
     // The shipped DK-4 reset does not reset module lexical/imported singleton
@@ -4197,10 +4276,10 @@ pub struct RelationalQueryFacts {
     #[serde(rename = "liveDelivery", alias = "live_delivery")]
     pub live_delivery: String,
     /// Closed, default-deny retention classes the target admits for
-    /// relational plans. V1 is exactly `["none"]`;
-    /// `opaque-authorized-snapshot-v1` (the authenticated lease class) is
-    /// specified but not yet admitted by authoring, and anonymous results
-    /// have no admissible retention.
+    /// relational plans: `none` (the default) and
+    /// `opaque-authorized-snapshot-v1` (the authenticated lease class —
+    /// owner-visible plans only; anonymous results have no admissible
+    /// retention).
     pub retention: Vec<String>,
 }
 
@@ -4208,7 +4287,10 @@ impl RelationalQueryFacts {
     pub fn local_v1() -> Self {
         Self {
             live_delivery: "live_replace".to_owned(),
-            retention: vec!["none".to_owned()],
+            retention: vec![
+                "none".to_owned(),
+                "opaque-authorized-snapshot-v1".to_owned(),
+            ],
         }
     }
 }
