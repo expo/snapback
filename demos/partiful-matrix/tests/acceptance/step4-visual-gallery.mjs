@@ -8,8 +8,9 @@ const here = dirname(fileURLToPath(import.meta.url));
 const demoRoot = resolve(here, '..', '..');
 const acceptanceRoot = join(demoRoot, 'acceptance');
 const resultRoot = join(acceptanceRoot, 'results', 'phase4-visual-baselines');
-const indexPath = join(resultRoot, 'index.json');
-const outputPath = join(resultRoot, 'gallery.html');
+const indexPath = resolve(option('index') ?? join(resultRoot, 'index.json'));
+const outputPath = resolve(option('output') ?? join(resultRoot, 'gallery.html'));
+const priorApprovalPath = option('prior-approval');
 const spec = JSON.parse(readFileSync(join(acceptanceRoot, 'visual-spec.v1.json'), 'utf8'));
 const index = JSON.parse(readFileSync(indexPath, 'utf8'));
 
@@ -20,6 +21,9 @@ if (!index.captureComplete || index.artifacts?.length !== spec.approval.required
 const artifactByCell = new Map(index.artifacts.map((artifact) => [
   [artifact.arm, artifact.theme, artifact.viewport, artifact.state].join(':'), artifact,
 ]));
+const carriedApprovals = priorApprovalPath
+  ? carriedApprovalCells(JSON.parse(readFileSync(resolve(priorApprovalPath), 'utf8')), artifactByCell, index.specVersion)
+  : new Set();
 const sections = spec.themes.flatMap((theme) => spec.viewports.map((viewport) => {
   const rows = spec.states.map((state) => {
     const cells = spec.arms.map((arm) => {
@@ -45,7 +49,8 @@ const html = `<!doctype html>
 <script>
 const boxes=[...document.querySelectorAll('[data-cell]')],status=document.querySelector('#status');
 const key='partitime:${index.revisions.snapback}:${index.specVersion}:visual-review';
-const saved=JSON.parse(localStorage.getItem(key)||'{}');for(const box of boxes)box.checked=!!saved[box.dataset.cell];
+const carried=new Set(${JSON.stringify([...carriedApprovals])});
+const savedRaw=localStorage.getItem(key),saved=savedRaw?JSON.parse(savedRaw):null;for(const box of boxes)box.checked=saved?!!saved[box.dataset.cell]:carried.has(box.dataset.cell);
 function sync(){const record=Object.fromEntries(boxes.map(box=>[box.dataset.cell,box.checked]));localStorage.setItem(key,JSON.stringify(record));status.textContent=boxes.filter(box=>box.checked).length+' / '+boxes.length+' approved'}
 for(const box of boxes)box.addEventListener('change',sync);sync();
 for(const button of document.querySelectorAll('[data-approve-section]'))button.addEventListener('click',event=>{event.preventDefault();const prefix=button.dataset.approveSection.split(':');for(const box of boxes){const parts=box.dataset.cell.split(':');if(parts[1]===prefix[0]&&parts[2]===prefix[1])box.checked=true}sync()});
@@ -53,7 +58,26 @@ document.querySelector('#export').addEventListener('click',()=>{const reviewer=d
 </script></body></html>`;
 
 writeFileSync(outputPath, html);
-console.log(outputPath);
+console.log(`${outputPath}\ncarried forward ${carriedApprovals.size} hash-identical prior approvals; ${spec.approval.requiredCells - carriedApprovals.size} cells require review`);
+
+function carriedApprovalCells(approval, artifacts, specVersion) {
+  if (approval?.$schema !== 'partitime-visual-approval/v1' || approval.specVersion !== specVersion) {
+    throw new Error('prior visual approval schema/spec does not match this gallery');
+  }
+  const carried = new Set();
+  for (const record of approval.records ?? []) {
+    if (record.approved !== true) continue;
+    const cell = [record.arm, record.theme, record.viewport, record.state].join(':');
+    const artifact = artifacts.get(cell);
+    if (artifact?.sha256 === record.imageSha256) carried.add(cell);
+  }
+  return carried;
+}
+
+function option(name) {
+  const at = process.argv.indexOf(`--${name}`);
+  return at < 0 ? null : process.argv[at + 1];
+}
 
 function escapeHtml(value) {
   return String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
