@@ -132,14 +132,18 @@ async function run() {
     const snapbackUrl = await startSnapback();
     const gateway = await startGateway(snapbackUrl);
     backendHealth = gateway.preflight;
+    for (const backend of new Set(cells.map((cell) => cell.backend))) {
+      assert.equal(
+        gateway.preflight.backends?.[backend]?.ok,
+        true,
+        `backend preflight failed for ${backend}: ${
+          JSON.stringify(gateway.preflight.backends?.[backend])
+        }`,
+      );
+    }
     const random = seededRandom(seed);
     for (const cell of cells) {
       process.stderr.write(`[partitime-memory-v2] ${cellId(cell)} start\n`);
-      assert.equal(
-        gateway.preflight.backends?.[cell.backend]?.ok,
-        true,
-        `backend preflight failed for ${cell.backend}`,
-      );
       const memoryOutput = buildCell(cell, snapbackUrl, gateway.url);
       let productPreview;
       let memoryPreview;
