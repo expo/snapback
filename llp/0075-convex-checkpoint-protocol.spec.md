@@ -5,7 +5,21 @@
 **Systems:** Competitive evaluation, Developer experience, Deployment, Control plane, Actions, Streaming, Code generation, React/Expo, Packaging, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-22
-**Revised:** 2026-07-24 (protocol amendment v0.6 — the program-ownership /
+**Revised:** 2026-07-25 (protocol amendment v0.7 — first provisioning of the
+v0.6-pinned drill target recorded, prospective, before any timed sample: Fly.io
+app `snapback-drill` (one machine `819701c927ee68`, sjc, shared-cpu-1x,
+auto-stop) with the Tigris bucket `snapback-drill-backups` is live; credential
+health flips to provisioned, flyctl and the drill instruments are pinned (the
+instruments by content digest), and the drill legs ran with retained receipts —
+remote streaming 7/7, durable-row scan PASS, Tigris backup read-back PASS, and
+the hosted-auth refusal witness (`SNAPBACK_AUTH_DEPLOYMENT_UNSUPPORTED`; no
+hosted-auth capability claimed). Every receipt records the drill posture:
+`SNAPBACK_PROFILE=test` with `--allow-insecure-dev-auth` behind Fly's TLS
+edge. The amendment also records the fixture reconciliation the drill forced —
+streamReply's inner mutations reconcile the durable-cancel-vs-progress
+`SNAPBACK_MUTATION_CONFLICT` race instead of surfacing it as `failed` — and
+the serve-path `--allow-insecure-dev-auth` wiring defect the drill exposed,
+fixed with a regression test in the same landing.) 2026-07-24 (protocol amendment v0.6 — the program-ownership /
 drill-target decision slice, author decision Charlie Cheever 2026-07-24
 against `issues/20260723-llp0075-program-ownership.md`, prospective, before
 any timed sample: the first `single-instance-container-vm.v1` remote drill
@@ -502,7 +516,11 @@ cutoff and evidence are not rewritten. *(2026-07-24:
 protocol amendment v0.6 records the provider/region/object-store/credential
 tuple — fly.io, sjc, Tigris, `FLY_API_TOKEN` — with credential health
 honestly pending-not-provisioned; package identities and the drill
-instrument version remain unpinned-blocks-drill until first provisioning.)*
+instrument version remain unpinned-blocks-drill until first provisioning.
+2026-07-25: protocol amendment v0.7 records that first provisioning — app,
+machine, image, bucket, and public origin pinned; credentials provisioned;
+flyctl and the instruments pinned, the instruments by content digest — and
+retains the first drill receipts.)*
 
 ## Required artifacts
 
@@ -550,7 +568,8 @@ hosted-only delivery rather than flattening them into one capability label.
 - *(Resolved 2026-07-24, protocol amendment v0.6 — fly.io / sjc / Tigris
   S3-compatible / `FLY_API_TOKEN` via `.agent-local-secrets.md`; credential
   health pending-not-provisioned, package identities and drill instrument
-  version unpinned-blocks-drill, no live target claimed.)* Which provider,
+  version unpinned-blocks-drill, no live target claimed. Provisioned and
+  drilled 2026-07-25, protocol amendment v0.7.)* Which provider,
   region, backup object store, and credential backend will
   instantiate `single-instance-container-vm.v1` for its first remote drill?
 - Does the public claim remain exact-fixture-only after v0, or which holdout

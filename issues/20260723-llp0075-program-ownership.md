@@ -17,7 +17,11 @@ drill instrument version unpinned-blocks-drill (no Fly.io account or
 credential exists, nothing was installed, no live drill target is
 claimed), so those pins now live in the protocol's own
 unpinned-blocks-drill machinery and complete at first provisioning, not
-in this ticket.
+in this ticket. *(2026-07-25: reason (2) is complete — protocol amendment
+v0.7 records first provisioning with credentials provisioned, flyctl
+pinned, and the drill instruments pinned by content digest, and the first
+drill receipts are retained. The residue is now exactly reason (1):
+Charlie's one-line confirmation or substitution of the owner recording.)*
 
 **Original status:** Open (author decision)
 **Severity:** P2

@@ -149,6 +149,24 @@ function ascii(bytes) {
   return text;
 }
 
+// Bounded conflict reconcile for the action's inner mutations. A concurrent
+// committed writer (the durable client cancel racing a progress commit — hit
+// reliably on the slow shared-CPU remote drill machine, rarely locally)
+// rejects the whole inner mutation as SNAPBACK_MUTATION_CONFLICT. Re-invoking
+// IS the reconcile the guide requires (guide/backend/mutations.md: reconcile,
+// never last-writer-wins): each of these mutations re-reads the row in a
+// fresh transaction and re-evaluates its terminal/stale-sequence branches, so
+// a cancel that won the race is observed as `terminal`, never overwritten.
+async function runReconciled(ctx, name, mutationArgs) {
+  for (let attemptsLeft = 3; ; attemptsLeft -= 1) {
+    try {
+      return await ctx.runMutation(name, mutationArgs);
+    } catch (error) {
+      if (attemptsLeft <= 1 || safeCode(error) !== 'SNAPBACK_MUTATION_CONFLICT') throw error;
+    }
+  }
+}
+
 async function streamReply(ctx, args) {
   let reader = null;
   let pending = '';
@@ -162,7 +180,7 @@ async function streamReply(ctx, args) {
   if (attempt.terminal) {
     // A durable winner already exists (a previous runner settled, or the
     // trusted terminalizer did): return it verbatim, never re-run.
-    await ctx.runMutation('settleReply', {
+    await runReconciled(ctx, 'settleReply', {
       attemptId: args.attemptId,
       status: attempt.terminal.cause === 'complete' ? 'failed' : attempt.terminal.cause,
       effectMayHaveExecuted: attempt.terminal.effectMayHaveExecuted,
@@ -194,7 +212,7 @@ async function streamReply(ctx, args) {
       readsSinceCommit += 1;
       if (readsSinceCommit >= 2) {
         sequence += 1;
-        const progress = await ctx.runMutation('applyReplyProgress', {
+        const progress = await runReconciled(ctx, 'applyReplyProgress', {
           attemptId: args.attemptId,
           sequence,
           delta: pending,
@@ -203,7 +221,7 @@ async function streamReply(ctx, args) {
           await reader.cancel();
           const settled = await settleHost(progress.status === 'complete' ? 'complete' : progress.status);
           if (settled) {
-            await ctx.runMutation('settleReply', {
+            await runReconciled(ctx, 'settleReply', {
               attemptId: args.attemptId,
               status: settled.cause === 'complete' ? progress.status : settled.cause,
               effectMayHaveExecuted: settled.effectMayHaveExecuted,
@@ -216,7 +234,7 @@ async function streamReply(ctx, args) {
       }
     }
     const terminalSequence = sequence + (pending.length > 0 ? 1 : 0);
-    await ctx.runMutation('completeReply', {
+    await runReconciled(ctx, 'completeReply', {
       attemptId: args.attemptId,
       sequence: terminalSequence,
       tail: pending,
@@ -231,7 +249,7 @@ async function streamReply(ctx, args) {
     if (code === 'SNAPBACK_REPLY_CANCELLED') {
       const settled = await settleHost('cancelled');
       if (settled) {
-        await ctx.runMutation('settleReply', {
+        await runReconciled(ctx, 'settleReply', {
           attemptId: args.attemptId,
           status: settled.cause === 'complete' ? 'cancelled' : settled.cause,
           effectMayHaveExecuted: settled.effectMayHaveExecuted,
@@ -248,7 +266,7 @@ async function streamReply(ctx, args) {
     // (LLP 0076 §Settlement and retry): return whatever the host recorded.
     const settled = await settleHost(local);
     const status = settled && settled.cause !== 'complete' ? settled.cause : local;
-    await ctx.runMutation('settleReply', {
+    await runReconciled(ctx, 'settleReply', {
       attemptId: args.attemptId,
       status,
       effectMayHaveExecuted: settled ? settled.effectMayHaveExecuted : null,

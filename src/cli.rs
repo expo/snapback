@@ -2042,6 +2042,16 @@ pub async fn run(args: Args) -> anyhow::Result<()> {
         ephemeral.clone(),
         server_context,
     );
+    // @ref LLP 0060#d1-plaintext-listener-fence — the request-path fence
+    // consumes this bit per request; the production profile never honors it.
+    // Install the CLI override into the runtime middleware consults per
+    // request. Pre-bind validation alone is not enough: without this the
+    // request-path fence (`auth_app_data_refusal`) sees the default `false`
+    // and refuses every app-data route on a non-loopback bind even though the
+    // operator passed the flag — found by the first remote drill target, where
+    // the bind is 0.0.0.0 behind the platform TLS edge. Middleware still
+    // ignores the bit under the production profile.
+    let app_state = app_state.with_insecure_dev_auth_override(args.allow_insecure_dev_auth);
     let app_state = app_state.with_auth_runtime(&auth_runtime, auth_coordinator.clone());
     let app_state = match auth_invalidation {
         Some(issuer) => app_state.with_auth_invalidation(issuer),
@@ -4038,6 +4048,28 @@ mod tests {
         assert!(sidecar < cron && ready < cron);
         assert!(sidecar < maintenance && ready < maintenance);
         assert!(sidecar < auth_gc && ready < auth_gc);
+    }
+
+    #[test]
+    fn serve_path_installs_insecure_dev_auth_override_into_app_state() {
+        // The request-path transport fence reads
+        // `AppState.allow_insecure_dev_auth`, not the CLI args, so the serve
+        // path must install the flag between AppState construction and app
+        // build. Without this the flag validates pre-bind and is then
+        // silently dropped: every app-data route on a non-loopback bind
+        // refuses with SNAPBACK_AUTH_TRANSPORT_INSECURE (found by the first
+        // remote drill target).
+        let source = include_str!("cli.rs");
+        let constructed = source
+            .find("AppState::new_with_secret_read_operator(\n        state.clone(),")
+            .expect("serve-path AppState construction remains explicit");
+        let installed = source
+            .find(".with_insecure_dev_auth_override(args.allow_insecure_dev_auth)")
+            .expect("serve path installs the CLI override into request-path state");
+        let built = source
+            .find("connection_binding_receipt.build(app_state.clone())")
+            .expect("app build from AppState remains explicit");
+        assert!(constructed < installed && installed < built);
     }
 
     #[test]
