@@ -1,0 +1,738 @@
+# LLP 0092: RQS manifest, bundle, and Channel A contract (rollout clusters 0C + 0D + 0E)
+
+**Type:** Spec
+**Status:** Draft
+**Systems:** Sync, Realtime, API, Auth, Client integration, Deployment
+**Author:** Charlie Cheever / Claude
+**Date:** 2026-07-24
+**Revised:** 2026-07-24
+**Related:** LLP 0030, LLP 0031, LLP 0041, LLP 0051, LLP 0053, LLP 0076, LLP 0077, LLP 0090, LLP 0091
+
+## Summary
+
+LLP 0090 (Accepted) defines resumable query snapshots and names six
+prerequisite contract clusters in its Rollout sketch. LLP 0091 pinned 0A
+(token & digest cryptography) and 0B (wire schemas). This spec pins the
+remaining pre-implementation clusters:
+
+- **0C — Manifest & admission:** the route→query manifest artifact, the
+  `rqsEligible` served-manifest predicate and the codegen/served-manifest
+  schema changes that carry it, `publicInline` as a codegen-compiled
+  disclosure fact, the per-generation static dependency-summary artifact
+  (rung-1 table-set certifier), and the authority-independent alias key for
+  the client store. Decides 0090's **Q1** (manifest authoring surface).
+- **0D — Bundle endpoint & connection ownership:** the finalized
+  `POST /app/bundle` contract (schemas, modes, closed per-entry union),
+  atomicity and the `SNAPBACK_BUNDLE_*` code registry, hard limits and
+  resume resource-limit defaults, idempotency/replay-validity exactly as the
+  LLP 0031 dated amendment pins it, attach-grace/reaping defaults, the
+  local-arm pinned-read-transaction affordance, and the LLP 0031
+  route-taxonomy entry.
+- **0E — Channel A mechanics:** the HTML-safe serializer normative spec with
+  **byte-pinned fixtures landed as files**
+  (`tests/fixtures/rqs-serializer/`), the `packages/snapback-vite`
+  `transformIndexHtml` seam ownership list, the response-mechanics contract,
+  the degrade-to-unhydrated-shell failure posture, and the bounded anonymous
+  evaluation budget. Decides 0090's **Q2** (args parameterization).
+
+Everything here is contract; no behavior ships with this document.
+Terminology, token/`resume`/`meta` shapes, the `SNAPBACK_RESUME_*` registry,
+and the `generation`/`versionStream` definitions are LLP 0091's — this spec
+**extends** that contract (new codes, new schema exports, one closed 0091
+open question) and never forks it. Wire and artifact schema additions land
+through LLP 0051's drift gates; the new route enters LLP 0031's enforced
+registry with this cluster's implementation, under the dated
+`DeclaredPublicApplicationData` / pending-registration-owner amendment 0090's
+0F cluster already added there.
+
+## 0C — Manifest & admission
+
+### 0C.1 Route→query manifest artifact
+
+**Q1 decision — authoring surface.** The route→query manifest is a
+**schema-adjacent declaration compiled by codegen** into a generated
+artifact, exactly like functions: apps author a `snapback/routes.mjs` beside
+`schema.mjs`/`functions.mjs` using a kit `defineRoutes` helper, and codegen
+compiles it to `snapback/generated/routes.manifest.json`, whose canonical
+hash is the `routeManifestHash` component of `resumeConfig` in `generation`
+(LLP 0091 §0A.6). The served instance admits and serves it beside the
+functions manifest through the same ensure/deploy machinery (the admission
+surface LLP 0076 extended).
+
+Reasoning against the alternatives 0090 Q1 recorded:
+
+- **Per-surface file** (e.g. under `surfaces/react/`): the manifest must be
+  evaluable server-side without app JS, versioned into `generation`, and
+  admitted against the served functions manifest. A surface-local file lives
+  on the client side of that boundary — multiple surfaces per app would
+  fragment authority, the server would need a collection step with no single
+  canonical hash to bind into `generation`, and surface-local authoring
+  invites drift between what a surface renders and what the server serves.
+- **Derived by the packaged dev loop** (LLP 0041): inference from view code
+  or observed traffic is not a *declarative statement* (0090 D1.4 requires
+  assembling a bundle "without executing view code"), produces unstable
+  hashes, and has no home on the deploy-time-compiled Cloudflare arm. The
+  dev loop may later *suggest* entries; it never authors the artifact of
+  record.
+
+Compiling through codegen gives the manifest the same lifecycle as every
+other trusted artifact: deterministic bytes, a canonical hash, drift gates,
+and one admission point.
+
+**Artifact schema** (exported as `routes.manifest.schema.json` in the
+artifact-schema family, `tests/artifact_schemas_v0.rs`):
+
+```
+routesManifest = { formatVersion: 1,
+                   app: string,
+                   routes: [ routeEntry ] }
+routeEntry    = { route: string,            // pattern, e.g. "/board/:boardId"
+                  queries: [ querySpec ],   // 1..32 (0D.2 query-count limit)
+                  persist?: boolean }       // default true; LLP 0091 §0A.5 opt-out
+querySpec     = { function: string,         // exported function name
+                  args: argsMapping }       // §0E.6 (Q2), mapping version "params-v1"
+```
+
+- **Route patterns** are exact strings: `/`-separated static segments plus
+  `:name` parameters, each `:name` matching exactly one non-empty path
+  segment. No wildcards, regexes, optional segments, or trailing-slash
+  variants in v1; two entries whose patterns can match the same path are
+  refused at admission. Matching against concrete URLs is the serving
+  seam's job (§0E.3); the bundle endpoint takes the pattern string itself
+  and never does URL matching.
+- Entries are per-route, not per-query: one `routeEntry` names every query
+  the route needs, which is the unit the bundle evaluates at one commit.
+- `publicInline` is deliberately **not** a `routeEntry` field. Whether a
+  route is Channel A-eligible is derived: every named query must carry the
+  codegen-compiled `publicInline` fact (§0C.3). A route-manifest author can
+  select queries for preload; they cannot widen disclosure.
+
+**Admission** (ensure on the local arm, deploy on Cloudflare): every
+`querySpec` is validated against the served functions manifest — the
+function exists, is a query, and the args mapping is statically valid
+against its arg schema (§0E.6). An entry naming an unknown or non-query
+function, or an invalid mapping, refuses the manifest with a coded load
+error; per 0090 D1.4, manifest presence authorizes *preload selection* only.
+
+### 0C.2 The `rqsEligible` served-manifest predicate
+
+`rqsEligible` is the single predicate 0090 defines (Authorization scope):
+
+> a query is `rqsEligible` iff it carries the declared
+> `authorityIndependent` fact (which per the codegen invariant entails
+> `public`) **and** the LLP 0053 closed-inputs/retainable proof.
+
+This spec pins it as a **derived, never authored** served-manifest fact:
+
+- **Inputs.** The declared `authorityIndependent: true` fact, already
+  validated on both sides: codegen accepts it only on a public HostPlan
+  query with no auth, membership, auth-scope, runtime-clock, or runtime-id
+  dependency (`validateFunctionAuthDefinition`,
+  `packages/snapback-codegen/index.mjs`), and the server re-validates the
+  same profile (`validate_authority_independent`, `src/manifest.rs`).
+- **Closed-inputs proof.** The obligations are exactly those
+  `validate_retainable_query` (`src/manifest.rs`) enforces for the
+  retainable class — HostPlan query runtime (no opaque JavaScript), a
+  complete read summary (today: the `singleTable` summary whose table set
+  equals the plan's), and declared-equals-observed authorization dependence
+  (empty, for an authority-independent query). Channel B persistence places
+  the query in LLP 0053's retainable class, so these are not new
+  obligations; `rqsEligible` reuses the existing proof machinery.
+- **Derivation rule.** At every ensure/deploy the server computes, per
+  function: `rqsEligible = authorityIndependent (validated) ∧
+  closed-inputs proof holds`, evaluated **non-erroringly** — a query that
+  fails the proof is simply not eligible (`rqsEligible: false`); derivation
+  never turns an otherwise admissible manifest into a load error. (The
+  existing rule that a *declared* `retainable: true` query failing the
+  proof is a load error, `SNAPBACK_AUTH_UNDECLARABLE_RETENTION`, is
+  unchanged — declaration is a promise, derivation is a measurement.)
+  Authors do **not** need to declare `retainable: true` for RQS: the RQS
+  store is its own retention consumer and keys on `rqsEligible` alone.
+
+**Schema changes this carries:**
+
+- Codegen (`packages/snapback-codegen`): the functions manifest gains the
+  authored `publicInline` boolean (§0C.3); no authored `rqsEligible` field
+  exists anywhere.
+- Served manifest (`src/manifest.rs` `FunctionDefinition` family): accepts
+  `publicInline` (serde-renamed like `authorityIndependent`), validates it
+  per §0C.3, computes `rqsEligible`, and carries both on the served
+  functions manifest **and its public projection** (`PublicFunctionManifest`
+  — clients need both facts: `rqsEligible` drives the alias-key promotion
+  check in §0C.5 and token expectations; `publicInline` is already
+  disclosed by the behavior it authorizes). Both are facts about a public
+  query's classification, not handler source, so the projection-trim rules
+  are unaffected.
+- Everything that 0090/0091 key on the predicate — token minting, bundle
+  `resume` presence (§0D.1), Channel B persistence, D1.1 admission
+  (`SNAPBACK_RESUME_NOT_ELIGIBLE`) — reads this one served-manifest fact.
+
+### 0C.3 `publicInline` — a codegen-compiled disclosure fact
+
+`publicInline: true` is authored on the function definition (an option to
+`defineLiveQuery`/`defineQuery`, beside `authorityIndependent`) and compiled
+by codegen into the functions manifest. It is **never route-manifest
+authored** (0090 Q1 pinned this half already: only the authoring surface was
+open, and that surface is the schema-adjacent function definition).
+
+- **Codegen acceptance:** `publicInline: true` is accepted only on a query
+  that also carries a *valid* `authorityIndependent: true` declaration
+  (which entails `public` under the existing invariant). v1 has no consumer
+  for a public-but-authority-dependent inline query, so the narrower rule
+  is kept fail-closed; relaxing it later is a schema change with its own
+  review, not a default.
+- **Served-manifest validation** re-enforces the same rule; a manifest
+  carrying `publicInline` without valid `authorityIndependent` is refused
+  at load.
+- **Semantics** (0090 Authorization scope; LLP 0031 dated amendment): a
+  disclosure permission — this already-public query's rows may be embedded
+  in tokenless HTML (Channel A) and served as read-mode public bundles
+  under the `DeclaredPublicApplicationData` response-sensitivity class. It
+  grants no invocation authority. Channel A / public-bundle admission
+  re-checks the codegen-compiled served-manifest facts (auth requirement,
+  `authorityIndependent`, closed-inputs, `publicInline`), never the route
+  manifest author's word.
+
+### 0C.4 Per-generation static dependency-summary artifact (rung-1 certifier)
+
+The rung-1 table-set proof (0090 D1.3) requires a **complete certified
+dependency summary** for the token's exact `generation`. Contract:
+
+- **Name and identity:** the `rqs-dependency-summary`, a server-internal
+  artifact derived once per `generation` at deploy (Cloudflare) or ensure
+  (local) time and cacheable for the generation's lifetime. It is not a
+  wire artifact and has no client-visible schema; its shape is pinned so
+  both arms derive it identically.
+- **Shape:** a map `queryArtifact → { tables: [string, ...] }`. An entry is
+  present **only** when the function's read summary is complete (today:
+  the `singleTable` HostPlan summary — the same completeness predicate as
+  §0C.2); the table set is the summary's table set. Incomplete, opaque, or
+  unrecognized summaries produce **no entry**.
+- **Derivation source:** the codegen read-summary facts as validated into
+  the served manifest (`read_set_summary`) — deploy/analysis-time static
+  derivation, never per-execution capture (which would reintroduce
+  per-client server state, 0090 D1.3).
+- **Consumption rule:** at rung-1 admission, the table-set proof applies
+  only when the artifact holds an entry for the token's `queryArtifact`
+  *and* the token's `version` is at or above the journal's retained floor;
+  a missing entry means the table-set proof is **unavailable** and the
+  resume takes the global proof or rung 3 (fresh `LiveReplace`), refusing
+  with `SNAPBACK_RESUME_JOURNAL_FLOOR` semantics only where the floor is
+  the cause. Summary drift (an artifact disagreeing with the served
+  manifest's generation) is impossible by construction — the artifact is
+  keyed by and derived from the same generation — and any lookup surprise
+  falls back to rung 3, never partial proof.
+
+### 0C.5 Authority-independent alias key and checked promotion
+
+The client store's canonical identity is
+`[provider, query, authority, canonicalArgs]`
+(`externalStoreIdentity`, `packages/snapback-client/external-store.mjs`).
+Channel A preloads are minted under anonymous authority, but the consuming
+session may be authenticated; without a rule the preload would land in an
+anonymous-keyed store and the authenticated subscription would open an
+empty parallel one (0090 D2).
+
+- **Alias key:** preloaded and persisted state for an `rqsEligible` query
+  is stored under the sentinel authority component
+  `"rqs:authority-independent"` — i.e. identity
+  `[provider, query, "rqs:authority-independent", canonicalArgs]`. The
+  sentinel is a reserved literal; it can never be a real authority label,
+  and non-`rqsEligible` state must never be stored under it.
+- **Checked promotion rule:** when a subscription for query `Q` with args
+  `A` opens under real authority `a`, the client checks, in order:
+  1. the current served manifest marks `Q` `rqsEligible` (client-visible
+     fact, §0C.2) — otherwise any alias entry for `(Q, A)` is discarded
+     and a normal `[provider, Q, a, A]` store is used;
+  2. an alias-key entry exists and its `meta` identity matches the current
+     instance (`app`, `generation`, `versionStream` — LLP 0091 §0B.1
+     fields) and its rows verify against `meta.contentDigest`;
+  3. on success, the subscription **adopts the alias store as its store**
+     — one store, one subscription, rows surfaced retained/pending,
+     `resumeFromToken` from the alias entry's token. No caller-keyed
+     duplicate store is created for `rqsEligible` queries; the alias key
+     *is* their canonical identity.
+  Any check failing discards the alias entry (fail closed to fresh
+  subscribe). This is the acceptance fixture of 0090 rollout step 3: a
+  logged-in browser consumes the anonymously minted preload without a
+  duplicate store or subscription.
+- Tokens remain authority-neutral (0090 D1.1); the alias key changes store
+  identity only, never invocation authority — the subscribe is authorized
+  under the caller's own credential exactly as before.
+
+## 0D — Bundle endpoint & connection ownership
+
+### 0D.1 Route and schemas (finalizing 0090 D1.2's provisional shape)
+
+**Route:** `POST /app/bundle` (both arms; the Cloudflare gateway forwards it
+to the coordinator DO like other app-data routes). Schemas export as
+`app.bundle.input.schema.json` / `app.bundle.output.schema.json` through the
+LLP 0051 gates.
+
+```
+request  = { route: string,              // exact manifest route pattern (§0C.1)
+             params: { [name]: string }, // route params, all strings
+             mode: "read" | "register",
+             idempotencyKey?: string }   // register mode only, required there
+
+response = { commitVersion: u64,         // PORTABLE_STORAGE_VERSION_MAX cap
+             generation: string,         // LLP 0091 §0A.6
+             versionStream: string,      // LLP 0091 §0A.7
+             entries: [ entry ],         // one per querySpec, manifest order
+             connection?: { connectionId: string,   // register mode only
+                            grant: string,
+                            attachDeadline: u64 } } // ms epoch, §0D.4
+```
+
+**Per-entry closed union** (schema parity fixtures are a conformance
+obligation; `resume` is LLP 0091 §0B.1's shape):
+
+```
+entry = { function: string,
+          args: object,                  // fully substituted, validated args
+          rows: [ ... ],
+          resume: resume | null,         // present iff rqsEligible; null otherwise, BOTH modes
+          subscriptionId?: string,       // register mode only
+          authorization?: object }       // register mode, auth-scoped entries only:
+                                         // LLP 0053 scope/invalidation projections
+```
+
+- `resume` presence keys on `rqsEligible` (§0C.2) and nothing else:
+  read-mode entries for non-eligible queries return rows with
+  `resume: null`; register-mode auth-scoped entries carry
+  `subscriptionId` + `authorization` and `resume: null` (0090: no
+  auth-scoped RQS resume state in v1).
+- Every snapshot in a bundle is evaluated at `commitVersion` — the
+  single-commit invariant — and every `resume.token` is minted at that
+  same `(version, contentDigest)` under LLP 0091 §0A.
+- **Modes:** `read` (default posture; anonymous callers allowed for
+  `publicInline`-class routes) creates no server-side state. `register`
+  additionally creates the live registrations at the same commit cut under
+  the pending-registration owner of the LLP 0031 amendment; it is scoped
+  to credentialed callers (§0D.3).
+
+**HTTP status mapping** (codes are authoritative; statuses advisory):
+400 malformed request / `SNAPBACK_BUNDLE_PARAMS_INVALID` /
+`_MODE_INVALID`; 403 `SNAPBACK_BUNDLE_NOT_PUBLIC` /
+`_REGISTER_REQUIRES_CREDENTIAL` / `_IDEMPOTENCY_SENDER_MISMATCH`;
+404 `SNAPBACK_BUNDLE_ROUTE_UNKNOWN`; 409 `_IDEMPOTENCY_SCOPE_MISMATCH` /
+`_IDEMPOTENCY_EXPIRED`; 413 the four `_LIMIT_*` codes; 429
+`_RATE_LIMITED` / `_PENDING_CAPACITY`; 500 `_QUERY_FAILED`.
+
+### 0D.2 Atomicity, limits, and the `SNAPBACK_BUNDLE_*` registry
+
+**Atomicity.** A bundle succeeds entirely or fails entirely: any entry
+evaluation failure, limit breach, or registration failure fails the whole
+request with one coded error; a failed bundle mints nothing — no tokens, no
+registrations, no connection grant, no pending owner (the LLP 0031
+amendment's "strands no server state").
+
+**Hard limits — pinned defaults** (server policy knobs, LLP 0010-style
+coded refusals):
+
+| Limit | Default | Code |
+|---|---|---|
+| Queries per bundle (= per route entry) | **32** | `SNAPBACK_BUNDLE_LIMIT_QUERIES` (admission also refuses the manifest entry at ensure) |
+| Total rows per bundle | **5,000** | `SNAPBACK_BUNDLE_LIMIT_ROWS` |
+| Total serialized row bytes | **4 MiB** | `SNAPBACK_BUNDLE_LIMIT_BYTES` |
+| Evaluation wall time | **2,000 ms** | `SNAPBACK_BUNDLE_LIMIT_TIME` |
+| Per-authority bundle request rate | **60/min** | `SNAPBACK_BUNDLE_RATE_LIMITED` |
+
+The 32-query cap deliberately sits below the existing 64-per-connection
+durable-subscription ceiling so a register-mode bundle can never arm more
+demand than its socket may hold. Anonymous callers key the rate limit by
+client address (see Open questions); they get no weaker limit class than
+credentialed callers (LLP 0031 amendment).
+
+**Registry** (stable, append-only, paralleling `SNAPBACK_RESUME_*`):
+
+| Code | Cause |
+|---|---|
+| `SNAPBACK_BUNDLE_ROUTE_UNKNOWN` | named route pattern absent from the served route manifest |
+| `SNAPBACK_BUNDLE_ENTRY_INVALID` | route entry invalid against the current generation (unknown function, mapping version unrecognized) |
+| `SNAPBACK_BUNDLE_PARAMS_INVALID` | missing/extra params, percent-decode failure, schema-driven decode or arg-schema validation failure (§0E.6) |
+| `SNAPBACK_BUNDLE_MODE_INVALID` | mode not `read`/`register`, or `idempotencyKey` present in read mode / absent in register mode |
+| `SNAPBACK_BUNDLE_NOT_PUBLIC` | anonymous caller naming a route with any non-`publicInline` query |
+| `SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL` | anonymous register-mode request; the refusal is explicit and the client retries in read mode — never a silent mode substitution (the client must not believe registrations exist) |
+| `SNAPBACK_BUNDLE_QUERY_FAILED` | any entry evaluation failed (atomic failure) |
+| `SNAPBACK_BUNDLE_LIMIT_QUERIES` / `_LIMIT_ROWS` / `_LIMIT_BYTES` / `_LIMIT_TIME` | hard limits above |
+| `SNAPBACK_BUNDLE_RATE_LIMITED` | per-authority request rate |
+| `SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH` | known key presented by a different sender-key identity (§0D.3) |
+| `SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH` | known key presented with a different (generation, route entry, canonical args) scope |
+| `SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED` | key's replay validity ended (attached or reaped); client starts a fresh boot attempt with a new key |
+| `SNAPBACK_BUNDLE_PENDING_CAPACITY` | pending-registration registry at cap (§0D.4) |
+
+Response bodies are excluded from logging per the
+`DeclaredPublicApplicationData` rules; codes, identities, sizes, and timing
+are loggable.
+
+### 0D.3 Idempotency key and replay validity (per the LLP 0031 amendment)
+
+Contract restated from LLP 0031's dated LLP 0090 amendment — that text is
+authoritative; this section adds only wire parameters:
+
+- **Key form:** client-minted **per boot attempt**, 22-character base64url
+  (16 random bytes), the repo's id shape. Two concurrent same-user boots
+  hold distinct keys and produce distinct registration sets.
+- **Replay-validity tuple:** (authority, sender-key identity, credential
+  incarnation, `generation`, manifest entry, canonical args) — with the
+  identity vocabulary being **LLP 0077's exact wire identities**:
+  sender-key identity is the session family's **RFC 7638 JWK thumbprint**,
+  credential incarnation is the issuance **`sender_replay_epoch`** (the
+  `BoundGrantAuthorityV2` pair).
+- **Retry while pending:** a retry with the same key and matching tuple
+  **atomically supersedes** the pending set — fresh evaluation at a new
+  commit cut, the same connection identity, and a **freshly rotated
+  connection-grant secret**; re-returning a possibly-exposed secret
+  verbatim is refused (the amendment's rotate-on-retry rule). The first
+  execution and every retry each consume a proof nonce under LLP 0077.
+- **Mismatches:** a different thumbprint presenting a known key refuses
+  `SNAPBACK_BUNDLE_IDEMPOTENCY_SENDER_MISMATCH`; the same sender reusing a
+  key outside its scope tuple refuses
+  `SNAPBACK_BUNDLE_IDEMPOTENCY_SCOPE_MISMATCH`.
+- **Validity end:** a key is replayable while its pending owner lives
+  (until attach or reaping); afterwards
+  `SNAPBACK_BUNDLE_IDEMPOTENCY_EXPIRED`.
+- **Anonymous callers:** the tuple has no thumbprint/epoch for them, so
+  register mode refuses to read mode
+  (`SNAPBACK_BUNDLE_REGISTER_REQUIRES_CREDENTIAL`).
+
+### 0D.4 Attach grace, reaping, and pending-owner bounds
+
+- **`attachDeadline`** = mint time + **30,000 ms** (default grace window; a
+  server policy knob). Returned as an absolute server-clock ms timestamp.
+- **Enforcement is exact at attach:** a socket presenting the grant after
+  the deadline is refused regardless of reaper timing; the client falls
+  back to an ordinary connection open + fresh subscribes.
+- **Reaper cadence:** pending owners are swept at least every **10 s**;
+  reaping disarms demand, releases subscription capacity, and invalidates
+  the minted connection grant — a reaped boot leaves no armed demand and
+  no usable grant (the amendment's acceptance obligation).
+- **Bounds** (mirroring the bounded-grant posture): at most **256** pending
+  owners per served instance and **8** per authority; over-cap refuses
+  `SNAPBACK_BUNDLE_PENDING_CAPACITY`. Cloudflare persistence of pending
+  owners lives in coordinator DO storage with the same bounds and reaping.
+
+### 0D.5 Local-arm pinned-read-transaction affordance
+
+0090 D1.2 requires the local arm to evaluate a bundle "inside one pinned
+read transaction (or an equivalent storage-layer cut)". The mechanism
+exists: **`with_pinned_read_snapshot`** (`src/storage.rs`) wraps reads in a
+transaction that pins one WAL read snapshot — the read lane already reads
+query plans against a pinned snapshot head. Contract:
+
+- **Read mode** evaluates every entry, reads `commitVersion`,
+  `generation`, and `versionStream`, and computes every `contentDigest`
+  inside **one** `with_pinned_read_snapshot` scope on the read lane. No
+  new storage primitive is required; the cluster-0D work is holding the
+  existing scope across N evaluations instead of one.
+- **Register mode** runs on the write lane inside one immediate
+  transaction (the existing serialized write connection): grant mint,
+  pending-owner rows, registration rows, and the entry evaluations commit
+  or roll back together — the atomic mint of the LLP 0031 amendment.
+- **Cloudflare arm:** the coordinator DO's single-threaded execution and
+  input gates provide the cut; both modes evaluate within one
+  request-scoped storage view.
+
+### 0D.6 Resume resource limits (extending LLP 0091 §0B.6 — same codes)
+
+Defaults for the limits 0090 D1.1 names, refusing with the already-pinned
+`SNAPBACK_RESUME_*` codes (no new namespace):
+
+| Limit | Default | Code |
+|---|---|---|
+| Max token bytes | 1 KiB (pinned in LLP 0091) | `SNAPBACK_RESUME_TOKEN_OVERSIZE` |
+| Max journal distance (head − token version) for rung-1 table-set / rung-2 | **10,000 commits** | `SNAPBACK_RESUME_BUDGET_EXCEEDED` |
+| Replay/proof CPU-time budget per resume | **250 ms** | `SNAPBACK_RESUME_BUDGET_EXCEEDED` |
+| Per-authority resume rate | **120/min** | `SNAPBACK_RESUME_RATE_LIMITED` |
+| Max witness bytes | reserved for rollout step 5a | `SNAPBACK_RESUME_WITNESS_OVERSIZE` |
+
+Every limit answers with rung 3 or a coded refusal, never partial replay
+(0090 D1.1). The rung-1 **global** proof (no commits at all) is exempt from
+the journal-distance budget — it reads no journal.
+
+This section also **closes LLP 0091's OQ3** (resume-keyring rotation knob
+exposure, deferred to cluster 0D): **v1 exposes no operator config surface**
+for rotation age or overlap; the §0A.1 defaults are fixed. The resume
+keyring has no per-app security policy the way auth modes do, and a
+misconfigured overlap window silently converts rotation into fleet-wide
+refusal events. Revisit alongside a general admin-surface pass, not before.
+
+### 0D.7 Route-taxonomy entry (LLP 0031)
+
+| Axis | Value |
+|---|---|
+| Operation | `POST /app/bundle` (HTTP; no WebSocket twin) |
+| Path class | app-data |
+| Credential resolution | optional — session/agent credentials resolved when present; anonymous accepted (read mode, `publicInline`-class routes only). Scoped tokens legal (generated app-data route class) |
+| Invocation authority | the caller's own, exactly as a subscription (LLP 0011); manifest entries authorize preload selection only |
+| Effect | read mode: none. register mode: pending-registration-owner mint + connection-grant mint (the one sanctioned socketless-demand exception, per the dated amendment) |
+| Response sensitivity | `DeclaredPublicApplicationData` for anonymous/public-entry responses; `ApplicationData` for credentialed responses; `connection.grant` is `[secret]` |
+| Body logging | excluded (rows, bundles, tokens, grants); identities/codes/sizes/timing loggable |
+| Cache-control | `no-store` (v1; 0090 Q6 owns any change) |
+| Session overlay | compatible; registration handoff binds to the one-current-socket-session rule |
+
+## 0E — Channel A mechanics
+
+### 0E.1 HTML-safe serializer — normative spec
+
+The Channel A boot payload is JSON embedded in a
+`<script type="application/json" id="__snapback_boot">` element. Row data
+is attacker-influencable, and a literal `</script>` inside any JSON string
+terminates the element regardless of MIME type (0090 D2). The serializer:
+
+1. Emits RFC 8259 JSON, **compact** (no insignificant whitespace), object
+   keys in the order given by the document being serialized (the bundle
+   assembler's order; fixtures preserve input-document order).
+2. Applies, in **every string token — object keys and values alike** —
+   these unconditional escapes, using lowercase hex digits:
+   - U+003C (the less-than sign) → the six characters `\u003c`
+   - U+003E (the greater-than sign) → the six characters `\u003e`
+   - U+2028 (line separator) → the six characters `\u2028`
+   - U+2029 (paragraph separator) → the six characters `\u2029`
+3. Uses the standard short escapes for the characters RFC 8259 requires
+   (`\"`, `\\`, `\b`, `\t`, `\n`, `\f`, `\r`; other C0 controls as
+   lowercase `\u00xx`) and emits all other characters as raw UTF-8 —
+   no additional escaping, so the fixture bytes are unique.
+4. **No post-serialization transform may reintroduce the escaped code
+   points.** The completed serialization — the exact bytes placed in the
+   HTML document — MUST contain no `0x3C` byte, no `0x3E` byte, and no
+   UTF-8 encoding of U+2028/U+2029 (`E2 80 A8` / `E2 80 A9`). This is a
+   mechanically checkable whole-output property; conforming
+   implementations assert it over the final bytes, after any templating,
+   concatenation, or encoding step (this program's transport layers have
+   twice silently decoded backslash-u escapes back into literals — the
+   property check exists to catch exactly that class).
+
+Escaping `<` neutralizes `</script>` (any case) and `<!--`; escaping `>`
+neutralizes `-->`; the U+2028/U+2029 escapes keep the payload safe if it is
+ever re-emitted into a JavaScript context. The client reads the element's
+`textContent` and `JSON.parse`s it — the escapes decode transparently; no
+other decoding step may run first.
+
+**Embedded payload shape:** exactly the read-mode bundle response body
+(§0D.1) plus the matched route pattern and the arm's attestation facts per
+0090 D2 (`generation`, instance identity where the arm owns app identity).
+No absolute backend origins ever appear in the payload (LLP 0030's
+generated-app-facts rule); the client uses the relative base path.
+
+### 0E.2 Byte-pinned serializer fixtures (landed with this spec)
+
+The normative fixture corpus lives at **`tests/fixtures/rqs-serializer/`**:
+
+- `cases.json` — the index: for each case, its name, the input file, the
+  expected file, and what it exercises.
+- `NNN-name.input.json` — the value to serialize (parsed as JSON; key
+  order in the file is the serialization order).
+- `NNN-name.expected.bytes` — the **exact** bytes a conforming serializer
+  must produce. Byte-exact: no trailing newline, no re-formatting; the
+  files were generated programmatically (not typed through an editor or
+  transport that might decode escapes) and verified at generation time to
+  contain no `0x3C`/`0x3E`/U+2028/U+2029 bytes.
+
+Cases (per 0090 D2's acceptance list): `</script>` in values **and in
+property names**, mixed-case variants (`</ScRiPt>`), the escaped-slash form
+(a literal backslash before the slash — the `<` must still be escaped and
+the backslash preserved), comment-opening/closing sequences `<!--` / `-->`,
+nested objects and arrays with dangerous keys at depth, raw U+2028/U+2029
+payloads, and a kitchen-sink composite. Implementations in every arm that
+assembles Channel A HTML (the `snapback-vite` seam; the Cloudflare gateway
+in rollout step 4) must reproduce every expected file byte-for-byte; the
+conformance test homes are named in §Conformance.
+
+### 0E.3 The `snapback-vite` transformIndexHtml seam — ownership list
+
+Local Channel A integrates via a `transformIndexHtml` hook in the LLP 0030
+managed Vite plugin (`packages/snapback-vite`) — the plugin today owns
+lifecycle, proxy, and the virtual dev module; it gains the serving seam.
+The hook owns, in order:
+
+1. **Route matching after `basePath`/SPA-fallback normalization:** the
+   matched URL is the original request path (pre-fallback — never the
+   literal `/index.html` the fallback resolved to, which normalizes to
+   `/`), with the configured Vite `base` stripped, query string and
+   fragment excluded, and percent-decoding applied per segment before
+   `:param` binding. Matching is against the route manifest's exact
+   patterns (§0C.1); no match → untransformed shell, zero cost.
+2. **Manifest lookup:** the generated `routes.manifest.json` for the app,
+   loaded at bring-up like other generated artifacts (LLP 0041 boundary:
+   codegen stays with the CLI). A route whose queries are not all
+   `publicInline` in the served manifest is not evaluated — untransformed
+   shell.
+3. **Origin handling:** the seam calls the local backend itself (a
+   read-mode `POST /app/bundle` over the plugin's loopback lane, under
+   anonymous authority); no backend origin, admin token, or absolute URL
+   reaches the HTML (LLP 0030's generated-app-facts rule).
+4. **Pinned evaluation:** one bundle request per pageload; the pinned-cut
+   guarantee is the endpoint's (§0D.5), not the seam's.
+5. **Failure fallback:** §0E.5 — any failure serves the untransformed
+   shell.
+6. **Response headers:** §0E.4.
+
+Step-3 reality note (0090): graffiti's web surface uses the Exact
+`exactContractWeb` preset, not `snapback-vite`; adopting the plugin there
+(or teaching the preset the hook) plus declaring `listCells`
+`public` + `authorityIndependent` + `publicInline` is rollout-step-3 work,
+not assumed here. `listCells` is an ordered query, so its digests are
+`seq1` and its resumes take rung-1 global proofs or rung 3 — the correct,
+expected v1 behavior for the step-3 target.
+
+### 0E.4 Response mechanics
+
+For a transformed `index.html` response:
+
+- **`Cache-Control: no-store`** (v1 pinned; Q6 owns any caching future).
+  Untransformed shells for unmanifested routes keep their existing caching
+  — public-inline-only scope preserves shared-cache eligibility of the
+  plain shell (0090 §Scalability).
+- **Validators dropped:** any `ETag`/`Last-Modified` from the underlying
+  static shell must be removed (or recomputed over the final bytes — with
+  `no-store` there is nothing to validate, so dropping is the default);
+  serving the static shell's validator on transformed bytes is forbidden.
+- **`Content-Length` recomputed** over the final transformed bytes;
+  **compression applied after** transformation, never before.
+- **CSP:** the boot payload is a non-executable data block
+  (`type="application/json"`); the seam injects no executable script and
+  must not weaken or rewrite any CSP the response carries. (On the
+  Cloudflare arm — rollout step 4 — the same contract applies when
+  transforming `env.ASSETS.fetch` output, per 0090 D2.)
+- **SPA fallback:** transformation composes with fallback serving — route
+  matching uses the pre-fallback path (§0E.3 item 1); the fallback still
+  serves the same single shell document when no manifest route matches.
+
+### 0E.5 Failure posture and the bounded anonymous evaluation budget
+
+**Degrade-to-unhydrated-shell, always:** bundle evaluation failure or
+refusal (any `SNAPBACK_BUNDLE_*`), backend unready, manifest unavailable,
+budget breach, serializer property-check failure — every failure path
+serves the untransformed shell with today's boot waterfall. A pageload is
+never failed, never blocked on retries, and never given partial data
+(0090's "resume adds no new failure mode"). Each degrade increments an
+observability counter keyed by the causing code (the underlying
+`SNAPBACK_BUNDLE_*` code, or `SNAPBACK_INLINE_BUDGET_EXCEEDED` /
+`SNAPBACK_INLINE_UNAVAILABLE` for seam-local causes); response bodies are
+never logged (§0D.7).
+
+**Bounded anonymous evaluation budget — pinned defaults** (per the LLP
+0031 amendment's rate/budget posture; all are server/seam policy knobs):
+
+| Budget | Default |
+|---|---|
+| Per-pageload evaluation wall time | **500 ms** (tighter than 0D's 2,000 ms endpoint cap; a pageload should degrade fast) |
+| Embedded bundle bytes (serialized payload) | **256 KiB** |
+| Anonymous per-client-address pageload-evaluation rate | **60/min**, degrade (not refuse) over the cap |
+
+Over-budget pageloads serve the shell; the route stays reachable.
+
+### 0E.6 Q2 decision — args parameterization (`params-v1`)
+
+**Pinned: a minimal declarative mapping — named route params and literal
+values only. No expressions, no defaults, no computed values.** The
+`argsMapping` in a `querySpec` (§0C.1) is a JSON object mirroring the
+function's args shape where each value is either:
+
+- a **param reference** — an object whose **sole** key is `$param`:
+  `{ "$param": "boardId" }`, naming a `:boardId` in the entry's route
+  pattern; or
+- a **JSON literal** (string, number, boolean, null, or arrays/objects
+  composed of literals and references). To keep references unambiguous, an
+  object literal containing a `$param` key alongside other keys — or a
+  `$param` key with a non-string value — is refused at admission; a
+  literal that needs `$param` as a data key has no v1 encoding
+  (deliberate).
+
+**Static admission checks** (ensure/deploy; failure refuses the manifest):
+every referenced param appears in the route pattern; every pattern param
+is referenced at least zero times (unused params are allowed — routes may
+carry params for the view only); every required arg of the function is
+covered; each reference's target arg-schema type is `string`, `number`
+(integer or float), or `boolean` — any other referenced type refuses the
+entry; literal portions validate against the arg schema statically.
+
+**Per-request substitution** (bundle endpoint and Channel A seam):
+route params arrive as percent-decoded segment strings; a reference
+decodes by the target schema type — `string` as-is; `number` by strict
+decimal parse, refused unless the value round-trips under the JCS number
+rules (LLP 0091 §0A.2's canonicalization, so `argsHash` is well-defined);
+`boolean` by exact `"true"`/`"false"`. The fully substituted args object
+then passes the function's ordinary arg-schema validation — the same
+validation any invocation gets — before evaluation. Any failure:
+`SNAPBACK_BUNDLE_PARAMS_INVALID`. The D1.4 admission machinery is the
+enforcement home; nothing about the mapping is ever evaluated client-side.
+
+**Extension path:** the mapping grammar is versioned. This grammar is
+`params-v1`, implied by `formatVersion: 1` of the manifest. Any richer
+expressiveness (optional params, defaults, transforms) mints `params-v2`
+as an explicit per-entry or per-manifest version with its own review —
+an unrecognized version refuses the entry at admission (fail closed:
+Channel A degrades to shell, bundles refuse `SNAPBACK_BUNDLE_ENTRY_INVALID`)
+rather than guessing.
+
+**Reasoning.** Everything beyond name-binding and literals is a DSL with an
+authorization surface: an expression language evaluated server-side against
+attacker-supplied URLs inside an anonymous, tokenless lane. Name + literal
+covers the actual v1 targets (graffiti: `boardId` from the path; deep-link
+screens: entity ids), keeps admission statically checkable against the arg
+schema, and keeps `argsHash` canonicalization trivial. The versioned
+grammar keeps the door open without leaving v1 holes.
+
+## Open questions
+
+- **OQ-A — anonymous rate-limit keying.** §0D.2/§0E.5 key anonymous limits
+  by client address; behind proxies/CDNs that key is weak (shared NATs
+  over-limit honest users; spoofed forwarding headers under-limit
+  attackers). Which address signal each arm trusts (direct peer vs
+  platform-provided client IP) is an implementation-time decision for
+  cluster 0D's route-taxonomy landing, per arm. The defaults stand
+  regardless.
+- **OQ-B — local production serving.** The local Channel A contract covers
+  the managed dev loop (`snapback-vite`). A production build of a local-arm
+  app (static `vite build` output served elsewhere) has no serving seam and
+  therefore no Channel A; whether one is wanted (a `snapback serve` static
+  lane, or Cloudflare-only for production) is undecided and belongs to the
+  0090 D5/Q6 conversation, not this cluster.
+- **OQ-C — Exact preset adoption.** Whether graffiti adopts
+  `snapback-vite` or the Exact `exactContractWeb` preset learns the
+  `transformIndexHtml` hook is rollout-step-3 work (0090 D2 records both
+  options and the Cloudflare-first fallback); this spec's seam contract
+  applies identically either way.
+
+(LLP 0091's OQ3 is closed in §0D.6: no v1 operator knob for resume-keyring
+rotation. 0090's Q4 — at-rest posture — and Q6/Q7 remain owned where 0090
+left them.)
+
+## Conformance
+
+- **Serializer fixtures (normative, landed):**
+  `tests/fixtures/rqs-serializer/` per §0E.2. Every Channel A HTML
+  assembler must reproduce each `*.expected.bytes` byte-for-byte from its
+  `*.input.json`, and must enforce the whole-output byte property (no
+  `0x3C`/`0x3E`/U+2028/U+2029 in the completed serialization) at runtime
+  on real payloads, not only in tests. Named test homes (obligations, to
+  land with cluster implementation, LLP 0091's stub pattern):
+  `packages/snapback-vite/rqs-serializer.test.mjs` and, for the
+  Cloudflare-arm assembler, a `cloudflare/`-side test over the same fixture
+  files; a Rust-side `tests/rqs_serializer_v0.rs` only if a Rust assembler
+  ever exists.
+- **Closed-union schema parity:** fixtures proving the per-entry union of
+  §0D.1 (resume present iff `rqsEligible`; auth-scoped register entries
+  carry `authorization` and `resume: null`) across the exported schemas
+  and both arms' serializers.
+- **Predicate parity:** the served-manifest `rqsEligible`/`publicInline`
+  facts computed by the local arm and the Cloudflare deploy pipeline must
+  agree for identical inputs (same functions manifest ⇒ same facts).
+- **Existing-behavior preservation:** landing 0C's schema changes must not
+  change any currently-admissible manifest's admissibility (new fields
+  default absent/false; derivation is non-erroring per §0C.2).
+- The acceptance fixtures 0090 already assigns to rollout steps 2 and 3
+  (idempotency replays, reaping, anonymous refusal to read mode, alias-key
+  promotion, degrade-to-shell, byte-checked serializer fixtures) verify
+  this contract; they are listed there and not duplicated here.
+
+## Ticket map
+
+Step-0 execution tickets under parent ENG-25446 (LLP 0090 step 0):
+**0C → ENG-25448**, **0D → ENG-25449**, **0E → ENG-25450**. Clusters 0A/0B
+were LLP 0091's (ENG-25447); cluster 0F's corpus amendments are recorded in
+LLP 0031 (dated 2026-07-24) with the LLP 0008/0034 companions tracked by the
+same parent.
