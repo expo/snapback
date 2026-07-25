@@ -234,10 +234,15 @@ await runAcceptance(suite, async () => {
       const query = 'Sunset Supper Club';
       requiredCommand('/usr/bin/open', ['-a', 'Safari', `${vite.url}/?user=eve`]);
       await waitSafariCondition(`
-        const se=Application("System Events");
-        const items=se.processes.byName("Safari").windows[0].entireContents();
-        items.some((item)=>{try{return item.role()==="AXStaticText" && item.name()==="${query}"}catch(_){return false}})
-      `, 'ordinary Safari candidate window did not expose the canonical event copy');
+        const safari=Application("Safari");
+        const expected=${JSON.stringify(`${vite.url}/?user=eve`)};
+        safari.running() && safari.documents.length > 0
+          && String(safari.documents[0].url()).startsWith(expected)
+      `, 'ordinary Safari candidate window did not load the candidate URL');
+      // Native Find below is the content witness. Waiting only for the
+      // ordinary document URL avoids assuming that authored text is exposed
+      // as AXStaticText rather than through its enclosing interactive control.
+      await sleep(500);
       requiredCommand('/usr/bin/osascript', [
         '-e', 'tell application "Safari" to activate',
         '-e', 'tell application "System Events" to keystroke "f" using command down',
