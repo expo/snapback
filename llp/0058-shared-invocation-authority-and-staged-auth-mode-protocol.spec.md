@@ -5,7 +5,17 @@
 **Systems:** Auth, Runtime, Storage, API, Live Queries, Ephemeral state, Security, Client integration, Testing
 **Author:** Charlie Cheever / Codex
 **Date:** 2026-07-13
-**Revised:** 2026-07-24 (capability-maturity amendment, author decision
+**Revised:** 2026-07-25 (acknowledgement-source split, defect resolution of
+issues/20260725-0093-p3-invalidation-ack-descriptor-coupling.md, author
+decision Charlie Cheever 2026-07-25: the former `StandaloneAcknowledgement`
+invocation source conflated two planes. It is split into
+`MutationSettlementAcknowledgement` (`/client-mutations/acknowledge`), which
+deliberately remains on the queued-replay/authority-descriptor plane, and
+`InvalidationAcknowledgement` (`/live/authorization-invalidation/acknowledge`
+and `/manual-retry`), which is owned by the authorization-invalidation
+program (LLP 0059 item 6) and does NOT require authority-descriptor
+readiness or the descriptor protocol offer. The gate-coverage table row is
+split accordingly). 2026-07-24 (capability-maturity amendment, author decision
 Charlie Cheever 2026-07-24 against
 issues/20260723-llp0076-capability-honesty.md: the closed target-capability
 registry gains a code-owned maturity dimension — `proposed` /
@@ -1206,7 +1216,8 @@ entry consumes `PreparedAuthority` directly:
 | Entry | Authority source / rule |
 | --- | --- |
 | HTTP query | optional session in sessions; dev body authority in dev |
-| HTTP mutation and standalone acknowledgement | same; queued replay additionally fenced |
+| HTTP mutation and mutation-settlement acknowledgement (`/client-mutations/acknowledge`) | same; queued replay additionally fenced — settlement is deliberately bound to the authority-descriptor plane |
+| invalidation acknowledgement and manual retry (`/live/authorization-invalidation/*`) | connection-bound authority seam; owned by the authorization-invalidation program (LLP 0059 item 6) and carries no queued-replay/descriptor fence |
 | HTTP action | same; gate errors remain inside the HTTP-200 `FunctionRunResult` envelope after transport admission |
 | local query/mutation/action API used by server and tests | explicit registered admission, never a default `AuthInput` |
 | direct admin runner | sessions always gets anonymous projection plus `adminBypass` audit; dev may select its LLP 0031 body user after ordinary `AdminRead` (query) or `AdminWrite` (mutation/action), with no `ImpersonationCapability`; existing secret-read/write gates remain |

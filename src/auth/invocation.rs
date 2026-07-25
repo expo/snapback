@@ -709,7 +709,13 @@ pub enum InvocationSource {
     NestedMutation,
     LiveInitialQuery,
     LiveRerun,
-    StandaloneAcknowledgement,
+    /// `/client-mutations/acknowledge`: settling durable queued-replay
+    /// receipts. Deliberately descriptor-bound (LLP 0059 item 7).
+    MutationSettlementAcknowledgement,
+    /// `/live/authorization-invalidation/acknowledge` and `/manual-retry`:
+    /// discharging live invalidation obligations. Owned by the invalidation
+    /// program (LLP 0059 item 6), independent of the descriptor plane.
+    InvalidationAcknowledgement,
     ConnectionOpen,
     ConnectionClose,
     EphemeralRegister,
@@ -739,7 +745,7 @@ pub enum FunctionKindConstraint {
 }
 
 impl InvocationSource {
-    pub const ALL: [Self; 30] = [
+    pub const ALL: [Self; 31] = [
         Self::BootstrapHandshake,
         Self::AuthRefresh,
         Self::AuthLogout,
@@ -757,7 +763,8 @@ impl InvocationSource {
         Self::NestedMutation,
         Self::LiveInitialQuery,
         Self::LiveRerun,
-        Self::StandaloneAcknowledgement,
+        Self::MutationSettlementAcknowledgement,
+        Self::InvalidationAcknowledgement,
         Self::ConnectionOpen,
         Self::ConnectionClose,
         Self::EphemeralRegister,
@@ -791,7 +798,8 @@ impl InvocationSource {
             | Self::AuthRefresh
             | Self::AuthLogout
             | Self::AgentGrantManagement
-            | Self::StandaloneAcknowledgement
+            | Self::MutationSettlementAcknowledgement
+            | Self::InvalidationAcknowledgement
             | Self::ConnectionOpen
             | Self::ConnectionClose
             | Self::EphemeralRegister
@@ -1561,7 +1569,8 @@ fn source_allows_authority(
                     && matches!(resolved, ResolvedAppAuthority::ServicePrincipal { .. }))
         }
         InvocationSource::LiveInitialQuery
-        | InvocationSource::StandaloneAcknowledgement
+        | InvocationSource::MutationSettlementAcknowledgement
+        | InvocationSource::InvalidationAcknowledgement
         | InvocationSource::ConnectionClose
         | InvocationSource::LiveResume
         | InvocationSource::LiveUnsubscribe
@@ -2201,7 +2210,8 @@ mod tests {
                     ordinary || matches!((mode, kind), (AuthMode::Sessions, Kind::Service))
                 }
                 InvocationSource::LiveInitialQuery
-                | InvocationSource::StandaloneAcknowledgement
+                | InvocationSource::MutationSettlementAcknowledgement
+                | InvocationSource::InvalidationAcknowledgement
                 | InvocationSource::ConnectionClose
                 | InvocationSource::LiveResume
                 | InvocationSource::LiveUnsubscribe
